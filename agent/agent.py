@@ -791,7 +791,7 @@ class Geometry:
         return True
 
     @classmethod
-    def valid(cls, candidate, container):
+    def rejection_reason(cls, candidate, container):
         drop_pose = AABB(
             center=(
                 float(candidate.center[0]),
@@ -801,19 +801,68 @@ class Geometry:
             size=candidate.size,
             name="drop_pose",
         )
-        return (
-            cls.inside_container(candidate, container)
-            and cls.inside_container(drop_pose, container)
-            and cls.clears_static_geometry(candidate, container)
-            and cls.has_stable_support(candidate, container)
-            and cls.transport_path_clear(candidate, container)
-        )
+        if not cls.inside_container(candidate, container):
+            return "containment"
+        if not cls.inside_container(drop_pose, container):
+            return "headroom"
+        if not cls.clears_static_geometry(candidate, container):
+            return "static_geometry"
+        if not cls.has_stable_support(candidate, container):
+            return "support"
+        if not cls.transport_path_clear(candidate, container):
+            return "corridor"
+        return None
+
+    @classmethod
+    def valid(cls, candidate, container):
+        return cls.rejection_reason(candidate, container) is None
+
+
+REJECTION_REASONS = (
+    "containment",
+    "headroom",
+    "static_geometry",
+    "support",
+    "corridor",
+)
+
+
+def _new_candidate_counter():
+    return {
+        "attempted": 0,
+        "accepted": 0,
+        "rejected": {reason: 0 for reason in REJECTION_REASONS},
+    }
+
+
+def _record_candidate_diagnostic(diagnostics, item_idx, reason):
+    if diagnostics is None:
+        return
+    total = diagnostics.setdefault("total", _new_candidate_counter())
+    by_item = diagnostics.setdefault("by_item", {})
+    item_counter = by_item.setdefault(str(item_idx), _new_candidate_counter())
+    for counter in (total, item_counter):
+        counter["attempted"] += 1
+        if reason is None:
+            counter["accepted"] += 1
+        else:
+            counter["rejected"][reason] += 1
 
 
 class CandidateGenerator:
     @staticmethod
-    def generate(observation, item, container_idx, orientation, limit=400):
+    def generate(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        diagnostics=None,
+        item_idx=None,
+    ):
         container = observation["container_list"][container_idx]
+        if item_idx is None:
+            item_idx = item.get("index", -1)
         dims = get_rotated_dimensions(
             item["length"], item["width"], item["height"], orientation
         )
@@ -901,7 +950,13 @@ class CandidateGenerator:
                         continue
                     seen.add(key)
                     candidate = AABB(position, dims, "candidate")
-                    if Geometry.valid(candidate, container):
+                    reason = Geometry.rejection_reason(candidate, container)
+                    _record_candidate_diagnostic(
+                        diagnostics,
+                        item_idx,
+                        reason,
+                    )
+                    if reason is None:
                         candidates.append(candidate)
                         if len(candidates) >= limit:
                             return candidates
@@ -1043,7 +1098,12 @@ class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
     @staticmethod
-    def choose(observation, indexed_items, deadline=None):
+    def choose(
+        observation,
+        indexed_items,
+        deadline=None,
+        diagnostics=None,
+    ):
         containers = observation.get("container_list", [])
         if not containers:
             return None
@@ -1066,6 +1126,8 @@ class PlacementCore:
                         item,
                         container_idx,
                         orientation,
+                        diagnostics=diagnostics,
+                        item_idx=item_idx,
                     ):
                         score = Ranker.score(
                             candidate,
@@ -1093,7 +1155,13 @@ class PlacementCore:
         return best
 
     @staticmethod
-    def top_candidates(observation, indexed_items, k, deadline=None):
+    def top_candidates(
+        observation,
+        indexed_items,
+        k,
+        deadline=None,
+        diagnostics=None,
+    ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
         min-heap) instead of only the single best. Used by the closed-loop
@@ -1127,6 +1195,8 @@ class PlacementCore:
                         item,
                         container_idx,
                         orientation,
+                        diagnostics=diagnostics,
+                        item_idx=item_idx,
                     ):
                         score = Ranker.score(
                             candidate,
@@ -1734,6 +1804,7 @@ class Agent:
         self.last_pair_macro_adoptions = 0
         self.last_lookahead_evaluation = None
         self.last_top_candidate_count = 0
+        self.last_candidate_diagnostics = {}
         self._policy_step = 0
         self._optimize_enabled = False
         self._lookahead_k = 0
@@ -1917,6 +1988,7 @@ class Agent:
             ordered_items,
             LOOKAHEAD_TOP_K,
             deadline=search_deadline,
+            diagnostics=self.last_candidate_diagnostics,
         )
         self.last_top_candidate_count = len(top)
         if not top:
@@ -1994,6 +2066,7 @@ class Agent:
 
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        self.last_candidate_diagnostics = {}
         pool_list = observation.get("pool_list", [])
         containers = observation.get("container_list", [])
         ordered_items = online_item_order(pool_list)[
@@ -2008,6 +2081,7 @@ class Agent:
                 observation,
                 ordered_items,
                 deadline=deadline,
+                diagnostics=self.last_candidate_diagnostics,
             )
         if decision is not None:
             evaluation = self.last_lookahead_evaluation
@@ -2051,6 +2125,8 @@ class Agent:
                     "best_next_score": float(
                         evaluation.best_next_score
                     ),
+                    "action_source": "placement_core",
+                    "candidate_diagnostics": self.last_candidate_diagnostics,
                 }
             )
             self._policy_step += 1
@@ -2061,6 +2137,30 @@ class Agent:
             eligible = eligible_container_indices(pool_list[0], containers)
             if eligible:
                 fallback_container = eligible[0]
+        selected_item_index = (
+            int(pool_list[0]["index"]) if pool_list else None
+        )
+        self._append_policy_trace(
+            {
+                "event": "decision",
+                "step": self._policy_step,
+                "mode": LOOKAHEAD_SELECTION_MODE,
+                "optimize": self._optimize_enabled,
+                "lookahead_k": self._lookahead_k,
+                "pool_size": len(pool_list),
+                "selected_pool_index": 0 if pool_list else None,
+                "selected_item_index": selected_item_index,
+                "top_candidate_count": self.last_top_candidate_count,
+                "immediate_score": None,
+                "evaluated_remaining_items": 0,
+                "feasible_remaining_items": 0,
+                "feasible_remaining_ratio": None,
+                "best_next_score": 0.0,
+                "action_source": "fixed_fallback",
+                "candidate_diagnostics": self.last_candidate_diagnostics,
+            }
+        )
+        self._policy_step += 1
         return {
             "item_idx": 0,
             "container_idx": fallback_container,

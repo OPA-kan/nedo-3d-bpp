@@ -109,10 +109,102 @@ def _surface_metrics(
     }
 
 
+def _depth_metrics(
+    containers: list[dict[str, Any]],
+    depth_bins: int,
+) -> dict[str, float | list[float]]:
+    depth_bins = max(2, int(depth_bins))
+    occupied = np.zeros(depth_bins, dtype=np.float64)
+    capacity = np.zeros(depth_bins, dtype=np.float64)
+    weighted_depth = 0.0
+    weighted_volume = 0.0
+
+    for container in containers:
+        length = float(container["length"])
+        width = float(container["width"])
+        height = float(container["height"])
+        thickness = float(container["thickness"])
+        y_min = -width / 2.0 + thickness
+        y_max = width / 2.0 - thickness
+        usable_depth = max(0.0, y_max - y_min)
+        usable_x = max(0.0, length - 2.0 * thickness)
+        usable_z = max(0.0, height - 2.0 * thickness)
+        offset_x = float(
+            container.get("offset_x", container.get("center_x", 0.0))
+        )
+        if usable_depth <= 0.0:
+            continue
+        bin_width = usable_depth / depth_bins
+        capacity += usable_x * usable_z * bin_width
+
+        for item in container.get("packed_items", []):
+            aabb_min = item.get("aabb_min")
+            aabb_max = item.get("aabb_max")
+            if aabb_min is None or aabb_max is None:
+                continue
+            item_x_min = float(aabb_min[0]) - offset_x
+            item_x_max = float(aabb_max[0]) - offset_x
+            x_span = max(
+                0.0,
+                min(length / 2.0 - thickness, item_x_max)
+                - max(-length / 2.0 + thickness, item_x_min),
+            )
+            z_span = max(
+                0.0,
+                min(height - thickness, float(aabb_max[2]))
+                - max(thickness, float(aabb_min[2])),
+            )
+            for index in range(depth_bins):
+                bin_min = y_min + index * bin_width
+                bin_max = bin_min + bin_width
+                y_span = max(
+                    0.0,
+                    min(bin_max, float(aabb_max[1]))
+                    - max(bin_min, float(aabb_min[1])),
+                )
+                occupied[index] += x_span * y_span * z_span
+
+            item_volume = float(item.get("volume", 0.0))
+            half_usable_depth = usable_depth / 2.0
+            normalized_y = (
+                float(item.get("pos", [0.0, 0.0, 0.0])[1])
+                / half_usable_depth
+                if half_usable_depth > 0.0
+                else 0.0
+            )
+            weighted_depth += item_volume * max(
+                -1.0,
+                min(1.0, normalized_y),
+            )
+            weighted_volume += item_volume
+
+    profile = np.divide(
+        occupied,
+        capacity,
+        out=np.zeros_like(occupied),
+        where=capacity > 0.0,
+    )
+    profile = np.clip(profile, 0.0, 1.0)
+    midpoint = depth_bins // 2
+    return {
+        "depth_occupancy_profile": [
+            float(value) for value in profile.tolist()
+        ],
+        "front_depth_occupancy_mean": float(np.mean(profile[:midpoint])),
+        "back_depth_occupancy_mean": float(np.mean(profile[midpoint:])),
+        "occupied_depth_center_normalized": (
+            weighted_depth / weighted_volume
+            if weighted_volume > 0.0
+            else 0.0
+        ),
+    }
+
+
 def calculate_settled_metrics(
     containers: list[dict[str, Any]],
     grid_size: float = 0.02,
-) -> dict[str, float | int]:
+    depth_bins: int = 16,
+) -> dict[str, float | int | list[float]]:
     items = [
         item
         for container in containers
@@ -129,6 +221,7 @@ def calculate_settled_metrics(
     )
     remaining_volume = max(0.0, total_container_volume - placed_volume)
     surface = _surface_metrics(containers, grid_size)
+    depth = _depth_metrics(containers, depth_bins)
     return {
         "placed_count": len(items),
         "placed_volume": placed_volume,
@@ -145,4 +238,5 @@ def calculate_settled_metrics(
             else 0.0
         ),
         **surface,
+        **depth,
     }

@@ -139,6 +139,13 @@ class LookaheadComparisonTests(unittest.TestCase):
                     "evaluated_remaining_items": 2,
                     "feasible_remaining_ratio": 0.5,
                     "immediate_score": 3.0,
+                    "candidate_diagnostics": {
+                        "total": {
+                            "attempted": 12,
+                            "accepted": 2,
+                            "rejected": {"corridor": 10},
+                        }
+                    },
                 }
             ]
         }
@@ -158,6 +165,12 @@ class LookaheadComparisonTests(unittest.TestCase):
                 "predicted_feasible_remaining_ratio"
             ],
             0.5,
+        )
+        self.assertEqual(
+            case["metric_history"][0]["candidate_diagnostics"]["total"][
+                "rejected"
+            ]["corridor"],
+            10,
         )
 
 

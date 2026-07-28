@@ -151,6 +151,69 @@ class GeometryContractTests(unittest.TestCase):
 
         self.assertAlmostEqual(sweep.center[2], center_z)
 
+    def test_empty_container_corridor_is_clear_at_front_center_and_back(self):
+        container = sample_container(require_shelf=False, cut_x=0.0)
+        item_height = 0.2
+        center_z = container["thickness"] + item_height / 2.0
+
+        for target_y in (-0.45, 0.0, 0.45):
+            with self.subTest(target_y=target_y):
+                candidate = agent.AABB(
+                    (0.0, target_y, center_z),
+                    (0.3, 0.25, item_height),
+                )
+                self.assertTrue(
+                    agent.Geometry.transport_path_clear(candidate, container)
+                )
+
+    def test_candidate_rejections_are_counted_by_reason(self):
+        container = sample_container(require_shelf=False, cut_x=0.0)
+        container["points"] = [
+            [1.5, 0.0, 0.0],
+            [3.5, 0.0, 0.0],
+            [2.5, -0.725, 0.0],
+            [2.5, 0.725, 0.0],
+            [2.5, 0.0, 0.0],
+            [2.5, 0.0, 1.61],
+        ]
+        container["n_vecs"] = [
+            [-1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0],
+        ]
+        observation = {"container_list": [container]}
+        oversized = sample_item(
+            7,
+            length=3.0,
+            width=0.25,
+            height=0.2,
+        )
+        diagnostics = {}
+
+        candidates = agent.CandidateGenerator.generate(
+            observation,
+            oversized,
+            container_idx=0,
+            orientation=0,
+            diagnostics=diagnostics,
+            item_idx=7,
+        )
+
+        self.assertEqual(candidates, [])
+        self.assertGreater(diagnostics["total"]["attempted"], 0)
+        self.assertEqual(diagnostics["total"]["accepted"], 0)
+        self.assertGreater(
+            diagnostics["total"]["rejected"]["containment"],
+            0,
+        )
+        self.assertEqual(
+            diagnostics["by_item"]["7"]["attempted"],
+            diagnostics["total"]["attempted"],
+        )
+
     def test_transport_sweeps_include_official_y_then_x_legs(self):
         container = sample_container()
         candidate = agent.AABB((-0.8, 0.25, 1.0), (0.3, 0.2, 0.2))
@@ -511,6 +574,59 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(events[1]["evaluated_remaining_items"], 1)
         self.assertIn("feasible_remaining_ratio", events[1])
         self.assertIn(events[1]["selected_item_index"], {0, 1})
+        self.assertEqual(events[1]["action_source"], "placement_core")
+        self.assertGreater(
+            events[1]["candidate_diagnostics"]["total"]["attempted"],
+            0,
+        )
+
+    def test_fixed_fallback_is_included_in_policy_trace(self):
+        observation = {
+            "pool_list": [sample_item(9)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "policy.jsonl"
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+                ),
+                mock.patch.object(
+                    agent.PlacementCore,
+                    "top_candidates",
+                    return_value=[],
+                ),
+                mock.patch.object(
+                    agent.PlacementCore,
+                    "choose",
+                    return_value=None,
+                ),
+            ):
+                solver = agent.Agent("")
+                solver.get_init_states(
+                    {
+                        "optimize": False,
+                        "lookahead_k": 1,
+                        "container_list": observation["container_list"],
+                    }
+                )
+                action = solver.policy(observation)
+
+            events = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
+        self.assertEqual(events[1]["action_source"], "fixed_fallback")
+        self.assertEqual(events[1]["selected_item_index"], 9)
 
 
 class OfflineOptimizationTests(unittest.TestCase):

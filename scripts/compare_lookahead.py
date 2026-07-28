@@ -90,6 +90,10 @@ def summarize_evaluation(
                     row["agent_immediate_score"] = event.get(
                         "immediate_score"
                     )
+                    row["action_source"] = event.get("action_source")
+                    row["candidate_diagnostics"] = event.get(
+                        "candidate_diagnostics"
+                    )
                 metric_history.append(row)
             final_metrics = metric_history[-1] if metric_history else {}
             feasible_ratios = [
@@ -127,6 +131,18 @@ def summarize_evaluation(
                 ),
                 "final_remaining_volume_ratio": float(
                     final_metrics.get("remaining_volume_ratio", 0.0)
+                ),
+                "final_occupied_depth_center_normalized": float(
+                    final_metrics.get(
+                        "occupied_depth_center_normalized",
+                        0.0,
+                    )
+                ),
+                "final_front_depth_occupancy_mean": float(
+                    final_metrics.get("front_depth_occupancy_mean", 0.0)
+                ),
+                "final_back_depth_occupancy_mean": float(
+                    final_metrics.get("back_depth_occupancy_mean", 0.0)
                 ),
                 "mean_predicted_feasible_remaining_ratio": (
                     _mean_or_zero(feasible_ratios)
@@ -249,8 +265,9 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     f"#### {mode} / {case_id} per-step diagnostics",
                     "",
                     "| step | placed | volume | empty ratio | residual feasible | "
-                    "CoG z | surface TV | flat edges | physical |",
-                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+                    "CoG z | depth center | front/back | top rejection | "
+                    "physical |",
+                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
                 ]
             )
             for row in case.get("metric_history", []):
@@ -273,22 +290,46 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     if feasible is None
                     else f"{float(feasible):.3f}"
                 )
+                candidate_diagnostics = (
+                    row.get("candidate_diagnostics") or {}
+                )
+                rejection_counts = (
+                    candidate_diagnostics.get("total", {}).get(
+                        "rejected",
+                        {},
+                    )
+                )
+                dominant_rejection = "-"
+                if rejection_counts:
+                    reason, count = max(
+                        rejection_counts.items(),
+                        key=lambda entry: entry[1],
+                    )
+                    if count:
+                        dominant_rejection = f"{reason}:{count}"
                 lines.append(
                     "| {step} | {placed} | {volume:.4f} | {empty:.3f} | "
-                    "{feasible} | {cog:.3f} | {surface:.4f} | {flat:.3f} | "
-                    "{physical} |".format(
+                    "{feasible} | {cog:.3f} | {depth:.3f} | "
+                    "{front:.3f}/{back:.3f} | {rejection} | {physical} |".format(
                         step=row.get("step", 0),
                         placed=row.get("placed_count", 0),
                         volume=float(row.get("placed_volume", 0.0)),
                         empty=float(row.get("remaining_volume_ratio", 0.0)),
                         feasible=feasible_text,
                         cog=float(row.get("center_of_mass_z", 0.0)),
-                        surface=float(
-                            row.get("surface_total_variation", 0.0)
+                        depth=float(
+                            row.get(
+                                "occupied_depth_center_normalized",
+                                0.0,
+                            )
                         ),
-                        flat=float(
-                            row.get("flat_support_edge_ratio", 0.0)
+                        front=float(
+                            row.get("front_depth_occupancy_mean", 0.0)
                         ),
+                        back=float(
+                            row.get("back_depth_occupancy_mean", 0.0)
+                        ),
+                        rejection=dominant_rejection,
                         physical=physical,
                     )
                 )

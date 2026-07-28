@@ -92,6 +92,61 @@ class SettledMetricTests(unittest.TestCase):
         self.assertGreaterEqual(result["flat_support_edge_ratio"], 0.0)
         self.assertLessEqual(result["flat_support_edge_ratio"], 1.0)
 
+    def test_depth_profile_distinguishes_door_side_from_back_side(self):
+        base = {
+            "length": 1.0,
+            "width": 1.0,
+            "height": 1.0,
+            "thickness": 0.0,
+            "cut_x": 0.0,
+            "volume": 1.0,
+        }
+        front = {
+            **base,
+            "packed_items": [
+                {
+                    "mass": 1.0,
+                    "volume": 0.04,
+                    "pos": [0.0, -0.35, 0.1],
+                    "aabb_min": [-0.1, -0.45, 0.0],
+                    "aabb_max": [0.1, -0.25, 0.2],
+                }
+            ],
+        }
+        back = {
+            **base,
+            "packed_items": [
+                {
+                    "mass": 1.0,
+                    "volume": 0.04,
+                    "pos": [0.0, 0.35, 0.1],
+                    "aabb_min": [-0.1, 0.25, 0.0],
+                    "aabb_max": [0.1, 0.45, 0.2],
+                }
+            ],
+        }
+
+        front_result = diagnostics.calculate_settled_metrics(
+            [front],
+            depth_bins=10,
+        )
+        back_result = diagnostics.calculate_settled_metrics(
+            [back],
+            depth_bins=10,
+        )
+
+        self.assertLess(front_result["occupied_depth_center_normalized"], 0.0)
+        self.assertGreater(back_result["occupied_depth_center_normalized"], 0.0)
+        self.assertGreater(
+            front_result["front_depth_occupancy_mean"],
+            front_result["back_depth_occupancy_mean"],
+        )
+        self.assertGreater(
+            back_result["back_depth_occupancy_mean"],
+            back_result["front_depth_occupancy_mean"],
+        )
+        self.assertEqual(len(front_result["depth_occupancy_profile"]), 10)
+
 
 if __name__ == "__main__":
     unittest.main()

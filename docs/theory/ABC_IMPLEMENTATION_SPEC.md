@@ -114,6 +114,9 @@ f_i(s)=\mathbf 1[\mathcal A(s,i)\ne\varnothing]
 
 \(f_i=0\)でも、別荷物の配置が新しい支持面を作り、後で可行になる場合がある。
 したがって「詰み確定」ではなく緊急信号として扱う。
+さらに \(f_i\) とオンライン候補生成は同じ配置コアを共有するため、両者の候補なしは
+独立した観測ではない。固定fallbackが成功するなど偽陰性の証拠がある間は、
+「proxyが保守的」と結論せず、共有する可行性判定を先に診断する。
 
 現在行動 \(a\) の後は、
 
@@ -145,17 +148,24 @@ hardフィルタにしない。2コンテナの充填率差そのものにもペ
 | `surface_height_std` | 同heightmapの高さ標準偏差 |
 | `flat_support_edge_ratio` | 隣接高さ差1 cm以下のedge比率 |
 | `predicted_feasible_remaining_ratio` | 選択を仮想適用後、評価した可視pool荷物のうち共通配置コアで可行な割合 |
+| `candidate_diagnostics` | 候補試行・受理数と、containment/headroom/static/support/corridor別の棄却数 |
+| `depth_occupancy_profile` | 扉側 \(y<0\) から奥側 \(y>0\) まで16分割したAABB体積占有proxy |
+| `occupied_depth_center_normalized` | 体積加重した配置中心。-1が扉側、+1が奥側 |
+| `front_depth_occupancy_mean` / `back_depth_occupancy_mean` | 深さprofile前半/後半の平均 |
 
 表面指標はAABB・格子近似で、接触力や動的安定性そのものではない。可行率も
-仮想settle近似であり、次のPyBullet状態を保証しない。
+仮想settle近似であり、次のPyBullet状態を保証しない。深さprofileもLD3断面形状や
+棚体積を厳密に差し引かないため、front-blockingの診断proxyとしてのみ使う。
 
 ## 10. 実験順序
 
-1. 最初の物理FAIL actionと、その直前までの指標列を取得
-2. 3方式のaction列と可行率を比較
-3. 物理valid/safeを通す
-4. proxyが将来の配置数・fillを予測するか相関を見る
-5. 効果が確認できたproxyだけrankingへ昇格
-6. 完全な訓練scoreが得られた後にCEMや学習価値を検討
+1. fallbackを変更せず、最初の物理FAIL actionと直前までの指標列を取得
+2. 候補棄却理由と深さprofileから共有可行性判定の偽陰性を特定
+3. 最小修正後、素の配置器が比較可能な配置数へ届くことを確認
+4. 3方式のaction列と可行率を比較
+5. 物理valid/safeを通す
+6. proxyが将来の配置数・fillを予測するか相関を見る
+7. 効果が確認できたproxyだけrankingへ昇格
+8. 完全な訓練scoreが得られた後にCEMや学習価値を検討
 
 物理FAIL中のfillは診断値であり、コンペscore改善の根拠にはしない。
