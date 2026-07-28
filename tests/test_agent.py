@@ -874,7 +874,7 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(decision.action["item_idx"], 1)
         self.assertEqual(decision.score, 7.0)
 
-    def test_candidate_audit_records_only_accepted_settled_candidates(self):
+    def test_candidate_audit_separates_settled_and_release_candidates(self):
         container = sample_container(
             require_shelf=False,
             center_x=0.0,
@@ -923,9 +923,17 @@ class LookaheadSelectionTests(unittest.TestCase):
         searches = diagnostics["candidate_audit"]
         self.assertEqual(len(searches), 1)
         records = searches[0]["accepted_settled"]
+        release_records = searches[0]["accepted_release"]
         self.assertTrue(records)
+        self.assertTrue(release_records)
         self.assertTrue(
             all(record["kind"] == "candidate" for record in records)
+        )
+        self.assertTrue(
+            all(
+                record["kind"] == "release_candidate"
+                for record in release_records
+            )
         )
         self.assertEqual(records[0]["item_index"], 7)
         self.assertEqual(records[0]["pool_index"], 0)
@@ -1262,6 +1270,8 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
         self.assertEqual(events[1]["action_source"], "fixed_fallback")
         self.assertEqual(events[1]["selected_item_index"], 9)
+        self.assertEqual(solver.last_action_source, "fixed_fallback")
+        self.assertEqual(solver.last_candidate_kind, "fixed_fallback")
 
 
 class OfflineOptimizationTests(unittest.TestCase):

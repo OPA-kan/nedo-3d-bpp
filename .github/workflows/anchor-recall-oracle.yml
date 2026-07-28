@@ -25,23 +25,32 @@ jobs:
           cache: pip
       - run: pip install -r requirements-simulator.txt
       - run: python scripts/run_checks.py
-      - name: Measure Case 001 anchor recall
+      - name: Measure Case 000 failure-step oracle
+        run: |
+          python scripts/measure_anchor_recall.py \
+            --case 000 \
+            --steps 13 14 \
+            --mode weighted \
+            --output-dir \
+              "reports/anchor-recall/history/${{ github.run_id }}/case-000"
+      - name: Measure Case 001 failure-step oracle
         run: |
           python scripts/measure_anchor_recall.py \
             --case 001 \
-            --steps 0 1 2 3 4 \
+            --steps 9 10 \
             --mode weighted \
-            --output-dir "reports/anchor-recall/history/${{ github.run_id }}"
+            --output-dir \
+              "reports/anchor-recall/history/${{ github.run_id }}/case-001"
       - name: Persist compact oracle result
         if: always()
         run: |
           result_dir="reports/anchor-recall/history/${{ github.run_id }}"
-          if [ -f "$result_dir/summary.json" ]; then
+          if compgen -G "$result_dir/case-*/summary.json" > /dev/null; then
             git config user.name "github-actions[bot]"
             git config user.email \
               "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "$result_dir/summary.json"
-            git add "$result_dir"/step-*-summary.json
+            git add "$result_dir"/case-*/summary.json
+            git add "$result_dir"/case-*/step-*-summary.json
             if ! git diff --cached --quiet; then
               git commit \
                 -m "Record anchor recall run ${{ github.run_id }} [skip ci]"

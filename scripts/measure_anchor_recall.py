@@ -58,11 +58,65 @@ def unique_candidates(
 
 def extract_anytime_candidates(
     diagnostics: dict[str, Any],
+    *,
+    candidate_kind: str = "settled",
 ) -> list[dict[str, Any]]:
+    if candidate_kind not in {"settled", "release"}:
+        raise ValueError("candidate_kind must be 'settled' or 'release'")
+    audit_key = (
+        "accepted_settled"
+        if candidate_kind == "settled"
+        else "accepted_release"
+    )
     records = []
     for search in diagnostics.get("candidate_audit", []):
-        records.extend(search.get("accepted_settled", []))
+        records.extend(search.get(audit_key, []))
     return unique_candidates(records)
+
+
+def policy_search_log(agent_solver) -> dict[str, Any]:
+    diagnostics = agent_solver.last_candidate_diagnostics
+    settled = extract_anytime_candidates(
+        diagnostics,
+        candidate_kind="settled",
+    )
+    release = extract_anytime_candidates(
+        diagnostics,
+        candidate_kind="release",
+    )
+    return {
+        "action_source": agent_solver.last_action_source,
+        "candidate_kind": agent_solver.last_candidate_kind,
+        "top_candidate_count": int(agent_solver.last_top_candidate_count),
+        "accepted_settled_count": len(settled),
+        "accepted_release_count": len(release),
+        "accepted_total_count": len(settled) + len(release),
+        "search": json_safe(diagnostics.get("search", {})),
+    }
+
+
+def classify_failure_state(
+    policy_log: dict[str, Any],
+    *,
+    settled_physical_safe_count: int,
+    release_physical_safe_count: int,
+    oracle_complete: bool,
+    physics_complete: bool,
+) -> str:
+    if policy_log.get("action_source") != "fixed_fallback":
+        return "action_selected"
+    if (
+        int(policy_log.get("accepted_settled_count", 0)) > 0
+        or int(policy_log.get("accepted_release_count", 0)) > 0
+    ):
+        return "incumbent_invariant_violation"
+    if not oracle_complete or not physics_complete:
+        return "incomplete"
+    if settled_physical_safe_count > 0:
+        return "deadline_missed_safe_settled"
+    if release_physical_safe_count > 0:
+        return "safe_release_only"
+    return "no_safe_candidate_in_oracle_sets"
 
 
 def summarize_recall(
@@ -144,6 +198,47 @@ def summarize_recall(
     return summary
 
 
+def summarize_release_recall(
+    oracle_candidates: list[dict[str, Any]],
+    anytime_candidates: list[dict[str, Any]],
+    physical_results: dict[tuple[Any, ...], dict[str, Any]] | None,
+    *,
+    oracle_complete: bool,
+    physics_complete: bool,
+) -> dict[str, Any]:
+    oracle_keys = {
+        candidate_key(record) for record in oracle_candidates
+    }
+    anytime_keys = {
+        candidate_key(record) for record in anytime_candidates
+    }
+    matched_keys = oracle_keys & anytime_keys
+    safe_keys: set[tuple[Any, ...]] = set()
+    if physical_results is not None:
+        safe_keys = {
+            key
+            for key, result in physical_results.items()
+            if result.get("is_physically_valid") is True
+        }
+    return {
+        "oracle_complete": bool(oracle_complete),
+        "physics_complete": bool(physics_complete),
+        "oracle_release_count": len(oracle_keys),
+        "anytime_release_count": len(anytime_keys),
+        "anytime_oracle_match_count": len(matched_keys),
+        "oracle_physical_safe_count": (
+            len(safe_keys)
+            if oracle_complete and physics_complete
+            else None
+        ),
+        "anytime_physical_safe_count": (
+            len(safe_keys & anytime_keys)
+            if oracle_complete and physics_complete
+            else None
+        ),
+    }
+
+
 def load_agent_module():
     spec = importlib.util.spec_from_file_location(
         "anchor_recall_agent",
@@ -191,8 +286,12 @@ def enumerate_oracle_candidates(
     agent_module,
     observation: dict[str, Any],
     *,
+    generator_mode: str = "cartesian",
+    attempt_kind: str = "settled",
     max_candidates: int | None = None,
 ) -> tuple[list[dict[str, Any]], bool, dict[str, Any]]:
+    if attempt_kind not in {"settled", "release"}:
+        raise ValueError("attempt_kind must be 'settled' or 'release'")
     started = time.perf_counter()
     indexed_items = agent_module.online_item_order(
         observation.get("pool_list", [])
@@ -203,7 +302,26 @@ def enumerate_oracle_candidates(
     )
     records: dict[tuple[Any, ...], dict[str, Any]] = {}
     attempts = 0
-    settled_units = 0
+    candidate_units = 0
+    candidate_units_total = sum(
+        1 for candidate_unit in units
+        if candidate_unit[-1] == attempt_kind
+    )
+
+    def enumeration_stats() -> dict[str, Any]:
+        stats = {
+            "generator_mode": generator_mode,
+            "attempt_kind": attempt_kind,
+            "attempts": attempts,
+            "candidate_units_started": candidate_units,
+            "candidate_units_total": candidate_units_total,
+            "elapsed_seconds": time.perf_counter() - started,
+        }
+        if attempt_kind == "settled":
+            stats["settled_units_started"] = candidate_units
+            stats["settled_units_total"] = candidate_units_total
+        return stats
+
     for unit in units:
         (
             _item_rank,
@@ -214,11 +332,11 @@ def enumerate_oracle_candidates(
             item,
             container_idx,
             orientation,
-            attempt_kind,
+            unit_attempt_kind,
         ) = unit
-        if attempt_kind != "settled":
+        if unit_attempt_kind != attempt_kind:
             continue
-        settled_units += 1
+        candidate_units += 1
         for candidate in agent_module.CandidateGenerator.iter_attempts(
             observation,
             item,
@@ -228,8 +346,8 @@ def enumerate_oracle_candidates(
             deadline=None,
             diagnostics=None,
             item_idx=item_idx,
-            attempt_kind="settled",
-            generator_mode="cartesian",
+            attempt_kind=attempt_kind,
+            generator_mode=generator_mode,
         ):
             attempts += 1
             if candidate is None:
@@ -252,23 +370,72 @@ def enumerate_oracle_candidates(
                 return (
                     list(records.values()),
                     False,
-                    {
-                        "attempts": attempts,
-                        "settled_units_started": settled_units,
-                        "settled_units_total": sum(
-                            1 for candidate_unit in units
-                            if candidate_unit[-1] == "settled"
-                        ),
-                        "elapsed_seconds": time.perf_counter() - started,
-                    },
+                    enumeration_stats(),
                 )
     return (
         list(records.values()),
         True,
+        enumeration_stats(),
+    )
+
+
+def enumerate_dual_settled_oracle(
+    agent_module,
+    observation: dict[str, Any],
+    *,
+    max_candidates: int | None = None,
+) -> tuple[list[dict[str, Any]], bool, dict[str, Any]]:
+    started = time.perf_counter()
+    records_by_mode: dict[str, list[dict[str, Any]]] = {}
+    stats_by_mode: dict[str, dict[str, Any]] = {}
+    complete_by_mode: dict[str, bool] = {}
+    keys_by_mode: dict[str, set[tuple[Any, ...]]] = {}
+
+    for generator_mode in ("cartesian", "support_plane"):
+        records, complete, stats = enumerate_oracle_candidates(
+            agent_module,
+            observation,
+            generator_mode=generator_mode,
+            attempt_kind="settled",
+            max_candidates=max_candidates,
+        )
+        records_by_mode[generator_mode] = records
+        stats_by_mode[generator_mode] = stats
+        complete_by_mode[generator_mode] = complete
+        keys_by_mode[generator_mode] = {
+            candidate_key(record) for record in records
+        }
+
+    union_records: dict[tuple[Any, ...], dict[str, Any]] = {}
+    provenance: dict[tuple[Any, ...], list[str]] = {}
+    for generator_mode, records in records_by_mode.items():
+        for record in records:
+            key = candidate_key(record)
+            union_records.setdefault(key, dict(record))
+            provenance.setdefault(key, []).append(generator_mode)
+    for key, record in union_records.items():
+        record["oracle_generators"] = provenance[key]
+
+    cartesian_keys = keys_by_mode["cartesian"]
+    support_plane_keys = keys_by_mode["support_plane"]
+    return (
+        list(union_records.values()),
+        all(complete_by_mode.values()),
         {
-            "attempts": attempts,
-            "settled_units_started": settled_units,
-            "settled_units_total": settled_units,
+            "generator_modes": ["cartesian", "support_plane"],
+            "complete_by_generator": complete_by_mode,
+            "stats_by_generator": stats_by_mode,
+            "generator_counts": {
+                mode: len(keys) for mode, keys in keys_by_mode.items()
+            },
+            "union_count": len(union_records),
+            "overlap_count": len(cartesian_keys & support_plane_keys),
+            "cartesian_only_count": len(
+                cartesian_keys - support_plane_keys
+            ),
+            "support_plane_only_count": len(
+                support_plane_keys - cartesian_keys
+            ),
             "elapsed_seconds": time.perf_counter() - started,
         },
     )
@@ -574,31 +741,66 @@ def run_case(
                 anytime_candidates = [
                     enrich_score(agent_module, observation, record)
                     for record in extract_anytime_candidates(
-                        solver.last_candidate_diagnostics
+                        solver.last_candidate_diagnostics,
+                        candidate_kind="settled",
                     )
                 ]
+                anytime_release_candidates = [
+                    enrich_score(agent_module, observation, record)
+                    for record in extract_anytime_candidates(
+                        solver.last_candidate_diagnostics,
+                        candidate_kind="release",
+                    )
+                ]
+                policy_log = policy_search_log(solver)
                 print(
                     f"{case_id} step {step}: "
-                    f"anytime settled={len(anytime_candidates)}",
+                    f"anytime settled={len(anytime_candidates)} "
+                    f"release={len(anytime_release_candidates)} "
+                    f"source={policy_log['action_source']}",
                     flush=True,
                 )
-                oracle_candidates, oracle_complete, oracle_stats = (
-                    enumerate_oracle_candidates(
-                        agent_module,
-                        observation,
-                        max_candidates=oracle_limit,
-                    )
+                (
+                    oracle_candidates,
+                    oracle_complete,
+                    oracle_stats,
+                ) = enumerate_dual_settled_oracle(
+                    agent_module,
+                    observation,
+                    max_candidates=oracle_limit,
+                )
+                (
+                    release_oracle_candidates,
+                    release_oracle_complete,
+                    release_oracle_stats,
+                ) = enumerate_oracle_candidates(
+                    agent_module,
+                    observation,
+                    generator_mode="cartesian",
+                    attempt_kind="release",
+                    max_candidates=oracle_limit,
                 )
                 print(
                     f"{case_id} step {step}: "
-                    f"oracle settled={len(oracle_candidates)} "
+                    f"settled union={len(oracle_candidates)} "
                     f"complete={oracle_complete} "
                     f"elapsed={oracle_stats['elapsed_seconds']:.2f}s",
                     flush=True,
                 )
+                print(
+                    f"{case_id} step {step}: "
+                    f"release oracle={len(release_oracle_candidates)} "
+                    f"complete={release_oracle_complete} "
+                    f"elapsed="
+                    f"{release_oracle_stats['elapsed_seconds']:.2f}s",
+                    flush=True,
+                )
                 physical_results = None
+                release_physical_results = None
                 physics_complete = False
+                release_physics_complete = False
                 physics_seconds = 0.0
+                release_physics_seconds = 0.0
                 if not skip_physics:
                     (
                         physical_results,
@@ -609,33 +811,99 @@ def run_case(
                         oracle_candidates,
                         max_candidates=physical_limit,
                     )
-                summary = summarize_recall(
+                    (
+                        release_physical_results,
+                        release_physics_complete,
+                        release_physics_seconds,
+                    ) = validate_candidates(
+                        env,
+                        release_oracle_candidates,
+                        max_candidates=physical_limit,
+                    )
+                settled_summary = summarize_recall(
                     oracle_candidates,
                     anytime_candidates,
                     physical_results,
                     oracle_complete=oracle_complete,
                     physics_complete=physics_complete,
                 )
+                release_summary = summarize_release_recall(
+                    release_oracle_candidates,
+                    anytime_release_candidates,
+                    release_physical_results,
+                    oracle_complete=release_oracle_complete,
+                    physics_complete=release_physics_complete,
+                )
+                all_oracles_complete = (
+                    oracle_complete and release_oracle_complete
+                )
+                all_physics_complete = (
+                    physics_complete and release_physics_complete
+                )
+                failure_classification = classify_failure_state(
+                    policy_log,
+                    settled_physical_safe_count=int(
+                        settled_summary.get(
+                            "oracle_physical_settled_count"
+                        )
+                        or 0
+                    ),
+                    release_physical_safe_count=int(
+                        release_summary.get(
+                            "oracle_physical_safe_count"
+                        )
+                        or 0
+                    ),
+                    oracle_complete=all_oracles_complete,
+                    physics_complete=all_physics_complete,
+                )
+                summary = dict(settled_summary)
                 summary.update(
                     {
+                        "schema_version": 2,
                         "case_id": str(case_id),
                         "step": int(step),
                         "snapshot_path": snapshot_path.name,
-                        "candidate_path": f"{step_label}-candidates.jsonl",
+                        "settled_candidate_path": (
+                            f"{step_label}-settled-candidates.jsonl"
+                        ),
+                        "release_candidate_path": (
+                            f"{step_label}-release-candidates.jsonl"
+                        ),
                         "oracle_stats": oracle_stats,
+                        "release_oracle": release_summary,
+                        "release_oracle_stats": release_oracle_stats,
                         "physics_seconds": physics_seconds,
+                        "release_physics_seconds": (
+                            release_physics_seconds
+                        ),
                         "policy_elapsed_seconds": policy_elapsed,
+                        "policy_log": policy_log,
+                        "failure_classification": (
+                            failure_classification
+                        ),
                         "action": json_safe(action),
                     }
                 )
-                candidate_path = (
-                    output_dir / f"{step_label}-candidates.jsonl"
+                settled_candidate_path = (
+                    output_dir
+                    / f"{step_label}-settled-candidates.jsonl"
+                )
+                release_candidate_path = (
+                    output_dir
+                    / f"{step_label}-release-candidates.jsonl"
                 )
                 write_candidate_jsonl(
-                    candidate_path,
+                    settled_candidate_path,
                     oracle_candidates,
                     anytime_candidates,
                     physical_results,
+                )
+                write_candidate_jsonl(
+                    release_candidate_path,
+                    release_oracle_candidates,
+                    anytime_release_candidates,
+                    release_physical_results,
                 )
                 (output_dir / f"{step_label}-summary.json").write_text(
                     json.dumps(summary, ensure_ascii=False, indent=2),
@@ -668,8 +936,9 @@ def run_case(
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Measure anytime settled-candidate recall against an unlimited "
-            "Cartesian oracle at identical pre-action simulator states."
+            "Measure anytime candidate recall against unlimited Cartesian "
+            "and support-plane settled oracles plus a release oracle at "
+            "identical pre-action simulator states."
         )
     )
     parser.add_argument("--config", type=pathlib.Path, default=DEFAULT_CONFIG)
@@ -708,7 +977,7 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     agent_module = load_agent_module()
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"
         ),

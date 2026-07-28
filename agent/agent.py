@@ -2101,6 +2101,7 @@ def iter_prioritized_candidates(
         audit = {
             "search_index": len(searches),
             "accepted_settled": [],
+            "accepted_release": [],
         }
         searches.append(audit)
     states = [
@@ -2180,11 +2181,13 @@ def iter_prioritized_candidates(
                         search_stats["units_completed"] += 1
                     break
                 if candidate is not None:
-                    if (
-                        audit is not None
-                        and candidate.name != "release_candidate"
-                    ):
-                        audit["accepted_settled"].append(
+                    if audit is not None:
+                        audit_key = (
+                            "accepted_release"
+                            if candidate.name == "release_candidate"
+                            else "accepted_settled"
+                        )
+                        audit[audit_key].append(
                             candidate_audit_record(
                                 item_idx,
                                 item,
@@ -2945,6 +2948,8 @@ class Agent:
         self.last_lookahead_evaluation = None
         self.last_top_candidate_count = 0
         self.last_candidate_diagnostics = {}
+        self.last_action_source = None
+        self.last_candidate_kind = None
         self._policy_step = 0
         self._optimize_enabled = False
         self._lookahead_k = 0
@@ -3207,6 +3212,8 @@ class Agent:
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
         self.last_candidate_diagnostics = {}
+        self.last_action_source = None
+        self.last_candidate_kind = None
         pool_list = observation.get("pool_list", [])
         containers = observation.get("container_list", [])
         ordered_items = online_item_order(pool_list)[
@@ -3224,6 +3231,10 @@ class Agent:
                 diagnostics=self.last_candidate_diagnostics,
             )
         if decision is not None:
+            self.last_action_source = "placement_core"
+            self.last_candidate_kind = (
+                decision.candidate.name or "candidate"
+            )
             evaluation = self.last_lookahead_evaluation
             if evaluation is None or evaluation.decision is not decision:
                 evaluation = LookaheadEvaluation(
@@ -3283,6 +3294,8 @@ class Agent:
         selected_item_index = (
             int(pool_list[0]["index"]) if pool_list else None
         )
+        self.last_action_source = "fixed_fallback"
+        self.last_candidate_kind = "fixed_fallback"
         self._append_policy_trace(
             {
                 "event": "decision",

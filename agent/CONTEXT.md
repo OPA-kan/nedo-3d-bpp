@@ -89,3 +89,9 @@
   選択は旧oracle最良候補と一致した。全列挙比較ではstep 4の試行を
   116,008から10,438へ91.0%削減し、旧最良scoreを保持した。新trajectoryの
   PyBullet物理結果は未確認。
+- failure-step oracleはCartesian/support-plane settledのunionとreleaseを
+  別々に物理検証する。policyはaccepted settled/release、action source、
+  deadline、unit進捗、incumbent更新数を保存し、固定fallbackを
+  deadline miss / safe release only / oracle集合内dead end /
+  incumbent invariant violationへ分類する。対象はCase 000 step 13/14と
+  Case 001 step 9/10で、compact結果をrun historyへ残す。

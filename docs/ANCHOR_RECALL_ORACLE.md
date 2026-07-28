@@ -145,3 +145,41 @@ run 30348998307の保存snapshotを使った非物理replayでは、step 4のset
 116,008から10,438へ91.0%削減し、旧oracleの最良scoreを保持した。実policyの
 deadline内settled発見数はstep 3で0から349、step 4で0から427へ増えた。
 新しいtrajectoryの公式PyBullet結果は、別のLinux simulator runで確認する。
+
+## Failure-step dual oracle
+
+後半の固定fallbackを、deadline内の到達失敗と候補モデル内の行き止まりに
+分離するため、oracle schema version 2では次の3集合を同じpre-action stateで
+列挙する。
+
+1. legacy Cartesianのsettled候補
+2. per-support-planeのsettled候補
+3. Cartesian release候補
+
+settledの2集合はcandidate keyでdedupeし、各recordの
+`oracle_generators` に `cartesian` / `support_plane` のprovenanceを残す。
+summaryの `oracle_stats` はgenerator別件数、共通件数、片側だけの件数、
+列挙時間を保存する。release集合は別のJSONLと `release_oracle` に保存し、
+settledと混ぜずにPyBullet検証する。
+
+policy側は各stepで次を `policy_log` に保存する。
+
+- `action_source` / `candidate_kind`
+- deadline内のaccepted settled / release件数
+- top candidate数
+- 探索unitの開始・完了数、round数、deadline到達
+- incumbent更新数
+
+固定fallback stepの `failure_classification` は次のいずれかになる。
+
+| classification | 意味 |
+|---|---|
+| `deadline_missed_safe_settled` | oracleには安全settledがあるがanytimeは0件 |
+| `safe_release_only` | settledは0件で、安全releaseだけが存在 |
+| `no_safe_candidate_in_oracle_sets` | dual settled/release集合とも安全候補0件 |
+| `incumbent_invariant_violation` | accepted候補があるのに固定fallback |
+| `incomplete` | 列挙または物理検証が上限・skipで未完了 |
+
+GitHub ActionsはCase 000のstep 13/14、Case 001のstep 9/10を測り、
+`reports/anchor-recall/history/<run-id>/case-000|001/` にcompact summaryを
+commitする。候補JSONLと完全state snapshotはartifactにだけ保存する。
