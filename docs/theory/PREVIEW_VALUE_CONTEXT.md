@@ -101,3 +101,12 @@ the actual deadline-bound policy with an unlimited enumeration at the exact
 same pre-action state. Physical recall uses isolated PyBullet settle trials as
 the denominator. Per-support-plane generation is justified when the oracle
 finds safe settled candidates that the anytime search misses.
+
+The implemented generator groups coplanar edge-adjacent support surfaces with
+a 16 mm horizontal threshold, computes bridge support from rectangle-union
+area, and searches components in a priority round-robin: floor, larger area,
+greater depth, then lower height. The legacy Cartesian generator remains an
+explicit oracle mode. On the run 30348998307 snapshots, step-4 settled trials
+fell from 116,008 to 10,438 while preserving the legacy oracle's best score;
+deadline-bound settled discoveries rose from zero to 427. Physical trajectory
+validation remains pending.

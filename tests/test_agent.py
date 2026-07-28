@@ -436,6 +436,166 @@ class GeometryContractTests(unittest.TestCase):
         names = [surface.name for surface in agent.support_surfaces(container)]
         self.assertEqual(names, ["floor"])
 
+    def test_support_plane_components_merge_only_coplanar_edge_neighbors(self):
+        left = agent.AABB(
+            (-0.105, 0.0, 0.24),
+            (0.2, 0.4, 0.4),
+            "packed_item",
+        )
+        near_right = agent.AABB(
+            (0.105, 0.0, 0.24),
+            (0.2, 0.4, 0.4),
+            "packed_item",
+        )
+        far_right = agent.AABB(
+            (0.125, 0.0, 0.24),
+            (0.2, 0.4, 0.4),
+            "packed_item",
+        )
+        diagonal = agent.AABB(
+            (0.105, 0.41, 0.24),
+            (0.2, 0.4, 0.4),
+            "packed_item",
+        )
+
+        merged = agent.support_plane_components(
+            [left, near_right],
+            adjacency=0.016,
+        )
+        separated = agent.support_plane_components(
+            [left, far_right],
+            adjacency=0.016,
+        )
+        corner_only = agent.support_plane_components(
+            [left, diagonal],
+            adjacency=0.016,
+        )
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(len(merged[0].surfaces), 2)
+        self.assertEqual(len(separated), 2)
+        self.assertEqual(len(corner_only), 2)
+
+    def test_rectangle_union_area_does_not_double_count_overlap(self):
+        area = agent.rectangle_union_area(
+            [
+                (0.0, 1.0, 0.0, 1.0),
+                (0.5, 1.5, 0.0, 1.0),
+            ]
+        )
+
+        self.assertAlmostEqual(area, 1.5)
+
+    def test_support_plane_priority_is_floor_area_depth_then_height(self):
+        floor = agent.SupportPlaneComponent(
+            (
+                agent.AABB(
+                    (0.0, 0.0, 0.04),
+                    (2.0, 1.45, 0.0),
+                    "floor",
+                ),
+            )
+        )
+        large = agent.SupportPlaneComponent(
+            (agent.AABB((0.0, 0.0, 0.6), (0.8, 0.8, 0.2)),)
+        )
+        deep = agent.SupportPlaneComponent(
+            (agent.AABB((0.0, 0.4, 0.5), (0.5, 0.5, 0.2)),)
+        )
+        front_low = agent.SupportPlaneComponent(
+            (agent.AABB((0.0, -0.4, 0.3), (0.5, 0.5, 0.2)),)
+        )
+
+        ordered = agent.order_support_plane_components(
+            [front_low, deep, large, floor]
+        )
+
+        self.assertEqual(ordered, [floor, large, deep, front_low])
+
+    def test_connected_support_plane_accepts_bridge_support(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        base = {
+            "length": 0.2,
+            "width": 0.4,
+            "height": 0.4,
+            "orientation": 0,
+            "is_soft": False,
+            "is_prioritized": False,
+        }
+        container["packed_items"] = [
+            {**base, "pos": [-0.105, 0.0, 0.24]},
+            {**base, "pos": [0.105, 0.0, 0.24]},
+        ]
+        bridge = agent.AABB(
+            (0.0, 0.0, 0.54),
+            (0.4, 0.4, 0.2),
+            "candidate",
+        )
+
+        ratio = agent.Geometry.support_ratio(bridge, container)
+
+        self.assertAlmostEqual(ratio, 0.975)
+        self.assertTrue(agent.Geometry.has_stable_support(bridge, container))
+
+    def test_support_plane_diagnostics_compare_connected_and_separate_counts(
+        self,
+    ):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        base = {
+            "length": 0.2,
+            "width": 0.3,
+            "height": 0.4,
+            "orientation": 0,
+            "is_soft": False,
+            "is_prioritized": False,
+        }
+        container["packed_items"] = [
+            {**base, "pos": [-0.105, -0.05, 0.24]},
+            {**base, "pos": [0.105, 0.05, 0.24]},
+        ]
+        observation = {"container_list": [container]}
+        item = sample_item(8, length=0.4, width=0.3, height=0.2)
+        diagnostics = {}
+
+        candidates = [
+            candidate
+            for candidate in agent.CandidateGenerator.iter_attempts(
+                observation,
+                item,
+                container_idx=0,
+                orientation=0,
+                diagnostics=diagnostics,
+                item_idx=8,
+                attempt_kind="settled",
+                generator_mode="support_plane",
+            )
+            if candidate is not None
+        ]
+
+        event = diagnostics["support_plane_searches"][0]
+        self.assertEqual(event["surface_count"], 3)
+        self.assertEqual(event["component_count"], 2)
+        self.assertNotEqual(
+            event["connected_anchor_count"],
+            event["unconnected_anchor_count"],
+        )
+        self.assertAlmostEqual(event["adjacency_threshold"], 0.016)
+        self.assertTrue(
+            any(
+                abs(candidate.center[0]) <= agent.EPS
+                and abs(candidate.minimum[2] - 0.44) <= agent.CONTACT_TOLERANCE
+                for candidate in candidates
+            )
+        )
+
     def test_offline_order_places_hard_items_before_soft_and_priority(self):
         items = [
             {

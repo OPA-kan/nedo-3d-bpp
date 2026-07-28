@@ -3,6 +3,7 @@ import pathlib
 import sys
 import unittest
 from dataclasses import dataclass
+from unittest import mock
 
 import numpy as np
 
@@ -166,6 +167,53 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
             stats["settled_units_started"],
             stats["settled_units_total"],
         )
+
+    def test_oracle_forces_legacy_cartesian_generator(self):
+        agent = measure.load_agent_module()
+        observation = {
+            "pool_list": [
+                {
+                    "index": 4,
+                    "length": 0.2,
+                    "width": 0.2,
+                    "height": 0.2,
+                    "mass": 2.0,
+                    "is_soft": False,
+                    "is_prioritized": False,
+                }
+            ],
+            "container_list": [
+                {
+                    "index": 0,
+                    "length": 2.0,
+                    "width": 1.45,
+                    "height": 1.61,
+                    "thickness": 0.04,
+                    "buffer": 0.0,
+                    "cut_x": 0.0,
+                    "center": [0.0, 0.0, 0.0],
+                    "shelf": False,
+                    "is_prioritized": False,
+                    "packed_items": [],
+                }
+            ],
+        }
+        modes = []
+        original = agent.CandidateGenerator.iter_attempts
+
+        def recording_iterator(*args, **kwargs):
+            modes.append(kwargs.get("generator_mode"))
+            yield from original(*args, **kwargs)
+
+        with mock.patch.object(
+            agent.CandidateGenerator,
+            "iter_attempts",
+            side_effect=recording_iterator,
+        ):
+            measure.enumerate_oracle_candidates(agent, observation)
+
+        self.assertTrue(modes)
+        self.assertEqual(set(modes), {"cartesian"})
 
     def test_json_safe_preserves_snapshot_quaternion_values(self):
         payload = {

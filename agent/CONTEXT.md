@@ -39,9 +39,14 @@
   256 anchor単位で深掘りし、時間切れ時も最良の検証済みincumbentを返す。
 - settled列挙の末尾まで到達しないとrelease候補が出ない退行を避けるため、
   各三組をsettled/releaseの独立unitに分け、同じ浅い一巡で両方を探索する。
-- 現段階では旧Cartesian anchor集合を維持しているため、跨ぎ支持候補の損失はない。
-  支持面ローカルanchorへ縮約するときは旧列挙をoffline oracleとして
-  anchor recall、best-score regret、replay配置数差を測る。
+- settled候補は、同高かつ辺方向の隙間16 mm以下の支持面を連結成分にまとめ、
+  面ごとの局所anchorをpriority round-robinで列挙する。順序は床、大面積、
+  奥側、低い上面。連結面の支持率は矩形union面積で評価し、跨ぎ支持を含む。
+- `ANCHOR_GENERATOR_MODE=cartesian` で旧直積列挙へ戻せる。offline oracleは
+  常に旧Cartesianを明示指定し、anchor recallとbest-score regretの基準を
+  新generatorから独立に保つ。
+- `candidate_diagnostics.support_plane_searches` は姿勢・コンテナごとに
+  連結前後のanchor数、面数、成分数、閾値、面優先順の根拠値を保存する。
 
 ## 現在の状態
 
@@ -79,3 +84,8 @@
   found before the policy deadline, enumerates the legacy Cartesian set
   without a deadline, and validates each oracle candidate with isolated
   PyBullet settle trials. See `docs/ANCHOR_RECALL_ORACLE.md`.
+- Run 30348998307の保存snapshotへper-support-plane版を再生すると、step 3の
+  deadline内settled発見数は0から349、step 4は0から427へ増えた。step 4の
+  選択は旧oracle最良候補と一致した。全列挙比較ではstep 4の試行を
+  116,008から10,438へ91.0%削減し、旧最良scoreを保持した。新trajectoryの
+  PyBullet物理結果は未確認。

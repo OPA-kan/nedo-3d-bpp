@@ -86,6 +86,16 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
+ANCHOR_GENERATOR_MODE = os.environ.get(
+    "ANCHOR_GENERATOR_MODE", "support_plane"
+).strip().lower()
+SUPPORT_PLANE_ADJACENCY = float(
+    os.environ.get("SUPPORT_PLANE_ADJACENCY", "0.016")
+)
+SUPPORT_PLANE_ROUND_ATTEMPTS = int(
+    os.environ.get("SUPPORT_PLANE_ROUND_ATTEMPTS", "8")
+)
 CANDIDATE_AUDIT_ENABLED = (
     os.environ.get("NEDO_CANDIDATE_AUDIT", "0").strip().lower()
     in {"1", "true", "yes", "on"}
@@ -290,6 +300,52 @@ class AABB:
 
 
 @dataclass(frozen=True)
+class SupportPlaneComponent:
+    surfaces: tuple
+
+    @property
+    def top(self):
+        return max(float(surface.top) for surface in self.surfaces)
+
+    @property
+    def minimum_xy(self):
+        return np.min(
+            np.asarray(
+                [surface.minimum[:2] for surface in self.surfaces],
+                dtype=np.float64,
+            ),
+            axis=0,
+        )
+
+    @property
+    def maximum_xy(self):
+        return np.max(
+            np.asarray(
+                [surface.maximum[:2] for surface in self.surfaces],
+                dtype=np.float64,
+            ),
+            axis=0,
+        )
+
+    @property
+    def area(self):
+        rectangles = [
+            (
+                float(surface.minimum[0]),
+                float(surface.maximum[0]),
+                float(surface.minimum[1]),
+                float(surface.maximum[1]),
+            )
+            for surface in self.surfaces
+        ]
+        return rectangle_union_area(rectangles)
+
+    @property
+    def contains_floor(self):
+        return any(surface.name == "floor" for surface in self.surfaces)
+
+
+@dataclass(frozen=True)
 class SupportMetrics:
     ratio: float
     center_margin: float
@@ -445,6 +501,163 @@ def xy_overlap_area(first, second):
         - np.maximum(first.minimum[:2], second.minimum[:2]),
     )
     return float(overlap[0] * overlap[1])
+
+
+def rectangle_union_area(rectangles):
+    """Exact union area for a small collection of axis-aligned rectangles."""
+    normalized = [
+        (float(x0), float(x1), float(y0), float(y1))
+        for x0, x1, y0, y1 in rectangles
+        if float(x1) > float(x0) + EPS and float(y1) > float(y0) + EPS
+    ]
+    if not normalized:
+        return 0.0
+    xs = sorted({value for rect in normalized for value in rect[:2]})
+    area = 0.0
+    for x0, x1 in zip(xs, xs[1:]):
+        if x1 <= x0 + EPS:
+            continue
+        intervals = sorted(
+            (y0, y1)
+            for rx0, rx1, y0, y1 in normalized
+            if rx0 < x1 - EPS and rx1 > x0 + EPS
+        )
+        if not intervals:
+            continue
+        covered = 0.0
+        current_start, current_end = intervals[0]
+        for start, end in intervals[1:]:
+            if start <= current_end + EPS:
+                current_end = max(current_end, end)
+            else:
+                covered += current_end - current_start
+                current_start, current_end = start, end
+        covered += current_end - current_start
+        area += (x1 - x0) * covered
+    return float(area)
+
+
+def _axis_gap(first_min, first_max, second_min, second_max):
+    return max(
+        0.0,
+        float(second_min) - float(first_max),
+        float(first_min) - float(second_max),
+    )
+
+
+def _axis_overlap(first_min, first_max, second_min, second_max):
+    return min(float(first_max), float(second_max)) - max(
+        float(first_min), float(second_min)
+    )
+
+
+def support_surfaces_are_adjacent(
+    first,
+    second,
+    adjacency=SUPPORT_PLANE_ADJACENCY,
+):
+    if abs(float(first.top) - float(second.top)) > CONTACT_TOLERANCE:
+        return False
+    x_gap = _axis_gap(
+        first.minimum[0],
+        first.maximum[0],
+        second.minimum[0],
+        second.maximum[0],
+    )
+    y_gap = _axis_gap(
+        first.minimum[1],
+        first.maximum[1],
+        second.minimum[1],
+        second.maximum[1],
+    )
+    x_overlap = _axis_overlap(
+        first.minimum[0],
+        first.maximum[0],
+        second.minimum[0],
+        second.maximum[0],
+    )
+    y_overlap = _axis_overlap(
+        first.minimum[1],
+        first.maximum[1],
+        second.minimum[1],
+        second.maximum[1],
+    )
+    return bool(
+        (x_gap <= adjacency + EPS and y_overlap > EPS)
+        or (y_gap <= adjacency + EPS and x_overlap > EPS)
+    )
+
+
+def support_plane_components(
+    surfaces,
+    adjacency=SUPPORT_PLANE_ADJACENCY,
+):
+    surfaces = list(surfaces)
+    parents = list(range(len(surfaces)))
+
+    def find(index):
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(first_index, second_index):
+        first_root = find(first_index)
+        second_root = find(second_index)
+        if first_root != second_root:
+            parents[second_root] = first_root
+
+    for first_index, first in enumerate(surfaces):
+        for second_index in range(first_index + 1, len(surfaces)):
+            if support_surfaces_are_adjacent(
+                first,
+                surfaces[second_index],
+                adjacency=adjacency,
+            ):
+                union(first_index, second_index)
+
+    groups = {}
+    for index, surface in enumerate(surfaces):
+        groups.setdefault(find(index), []).append(surface)
+    return [
+        SupportPlaneComponent(tuple(group))
+        for group in groups.values()
+    ]
+
+
+def order_support_plane_components(components):
+    """Floor, area, depth, then low height preserve future accessibility."""
+    return sorted(
+        components,
+        key=lambda component: (
+            0 if component.contains_floor else 1,
+            -float(component.area),
+            -float(component.maximum_xy[1]),
+            float(component.top),
+            float(component.minimum_xy[0]),
+            float(component.minimum_xy[1]),
+        ),
+    )
+
+
+def support_component_overlap_area(candidate, component):
+    rectangles = []
+    for surface in component.surfaces:
+        overlap_min = np.maximum(
+            candidate.minimum[:2], surface.minimum[:2]
+        )
+        overlap_max = np.minimum(
+            candidate.maximum[:2], surface.maximum[:2]
+        )
+        rectangles.append(
+            (
+                float(overlap_min[0]),
+                float(overlap_max[0]),
+                float(overlap_min[1]),
+                float(overlap_max[1]),
+            )
+        )
+    return rectangle_union_area(rectangles)
 
 
 def penetrates_with_lateral_clearance(candidate, obstacle, clearance):
@@ -746,13 +959,19 @@ class Geometry:
             return 0.0
 
         bottom = float(candidate.minimum[2])
-        supported_area = 0.0
-        for surface in support_surfaces(container):
-            vertical_release = bottom - surface.top
-            if abs(vertical_release) <= CONTACT_TOLERANCE:
-                supported_area = max(
-                    supported_area, xy_overlap_area(candidate, surface)
-                )
+        contact_surfaces = [
+            surface
+            for surface in support_surfaces(container)
+            if abs(bottom - surface.top) <= CONTACT_TOLERANCE
+            and xy_overlap_area(candidate, surface) > EPS
+        ]
+        supported_area = max(
+            (
+                support_component_overlap_area(candidate, component)
+                for component in support_plane_components(contact_surfaces)
+            ),
+            default=0.0,
+        )
         return min(1.0, supported_area / item_area)
 
     @staticmethod
@@ -801,7 +1020,6 @@ class Geometry:
             contacts.append((box, min(1.0, support_mass / item_mass)))
 
         bottom = float(candidate.minimum[2])
-        max_area = 0.0
         margins = []
         mass_weighted = 0.0
         area_weight = 0.0
@@ -826,7 +1044,6 @@ class Geometry:
                 continue
 
             contact_count += 1
-            max_area = max(max_area, area)
             signed_margin = min(
                 float(center_xy[0] - overlap_min[0]),
                 float(overlap_max[0] - center_xy[0]),
@@ -837,7 +1054,7 @@ class Geometry:
             mass_weighted += area * mass_ratio
             area_weight += area
 
-        ratio = min(1.0, max_area / item_area)
+        ratio = Geometry.support_ratio(candidate, container)
         center_margin = max(margins) if margins else -1.0
         mass_support = (
             min(1.0, mass_weighted / area_weight)
@@ -1002,9 +1219,164 @@ def settled_proxy_candidate(candidate, container):
     )
 
 
+def rectangular_container_anchor_bounds(dims, container):
+    dx, dy, _dz = dims
+    length = float(container["length"])
+    width = float(container["width"])
+    thickness = float(container["thickness"])
+    return (
+        -length / 2.0 + thickness + dx / 2.0 + INCLUSION_CLEARANCE,
+        length / 2.0 - thickness - dx / 2.0 - INCLUSION_CLEARANCE,
+        -width / 2.0 + thickness + dy / 2.0 + INCLUSION_CLEARANCE,
+        width / 2.0 - thickness - dy / 2.0 - INCLUSION_CLEARANCE,
+    )
+
+
+def _component_near_obstacle(component, obstacle, dims):
+    dx, dy, _dz = dims
+    x_gap = _axis_gap(
+        component.minimum_xy[0],
+        component.maximum_xy[0],
+        obstacle.minimum[0],
+        obstacle.maximum[0],
+    )
+    y_gap = _axis_gap(
+        component.minimum_xy[1],
+        component.maximum_xy[1],
+        obstacle.minimum[1],
+        obstacle.maximum[1],
+    )
+    return bool(
+        x_gap <= dx + SETTLED_ITEM_CLEARANCE + EPS
+        and y_gap <= dy + SETTLED_ITEM_CLEARANCE + EPS
+    )
+
+
+def support_plane_anchor_positions(component, dims, container):
+    """Generate anchors coupled to one connected horizontal support plane."""
+    dx, dy, dz = dims
+    x_low, x_high, y_low, y_high = rectangular_container_anchor_bounds(
+        dims, container
+    )
+    if x_low > x_high + EPS or y_low > y_high + EPS:
+        return []
+
+    xs = {
+        float(x_low),
+        0.0,
+        float(x_high),
+        float((component.minimum_xy[0] + component.maximum_xy[0]) / 2.0),
+        float(component.minimum_xy[0] + dx / 2.0),
+        float(component.maximum_xy[0] - dx / 2.0),
+    }
+    ys = {
+        float(y_low),
+        0.0,
+        float(y_high),
+        float((component.minimum_xy[1] + component.maximum_xy[1]) / 2.0),
+        float(component.minimum_xy[1] + dy / 2.0),
+        float(component.maximum_xy[1] - dy / 2.0),
+    }
+    for surface in component.surfaces:
+        xs.update(
+            (
+                float(surface.center[0]),
+                float(surface.minimum[0] + dx / 2.0),
+                float(surface.maximum[0] - dx / 2.0),
+            )
+        )
+        ys.update(
+            (
+                float(surface.center[1]),
+                float(surface.minimum[1] + dy / 2.0),
+                float(surface.maximum[1] - dy / 2.0),
+            )
+        )
+
+    candidate_bottom = float(component.top)
+    candidate_top = candidate_bottom + float(dz)
+    obstacles = list(shelf_aabbs(container))
+    obstacles.extend(
+        box for box, _is_soft, _is_priority in packed_aabbs_local(container)
+    )
+    for obstacle in obstacles:
+        vertical_gap = max(
+            float(obstacle.minimum[2]) - candidate_top,
+            candidate_bottom - float(obstacle.maximum[2]),
+        )
+        if (
+            vertical_gap >= -CONTACT_TOLERANCE
+            or not _component_near_obstacle(component, obstacle, dims)
+        ):
+            continue
+        xs.update(
+            (
+                float(
+                    obstacle.minimum[0]
+                    - dx / 2.0
+                    - TRANSPORT_CLEARANCE
+                ),
+                float(
+                    obstacle.maximum[0]
+                    + dx / 2.0
+                    + TRANSPORT_CLEARANCE
+                ),
+            )
+        )
+        ys.update(
+            (
+                float(
+                    obstacle.minimum[1]
+                    - dy / 2.0
+                    - TRANSPORT_CLEARANCE
+                ),
+                float(
+                    obstacle.maximum[1]
+                    + dy / 2.0
+                    + TRANSPORT_CLEARANCE
+                ),
+            )
+        )
+
+    xs = sorted(
+        (
+            value
+            for value in xs
+            if x_low - EPS <= value <= x_high + EPS
+        ),
+        key=abs,
+    )
+    ys = sorted(
+        (
+            value
+            for value in ys
+            if y_low - EPS <= value <= y_high + EPS
+        ),
+        reverse=True,
+    )
+    z = float(component.top + dz / 2.0)
+    return [
+        (float(x), float(y), z)
+        for y in ys
+        for x in xs
+    ]
+
+
+def support_plane_anchor_count(components, dims, container):
+    return len(
+        {
+            tuple(round(value, 6) for value in position)
+            for component in components
+            for position in support_plane_anchor_positions(
+                component, dims, container
+            )
+        }
+    )
+
+
 class CandidateGenerator:
     @staticmethod
-    def iter_attempts(
+    def iter_cartesian_attempts(
         observation,
         item,
         container_idx,
@@ -1235,6 +1607,226 @@ class CandidateGenerator:
                         yield None
 
     @staticmethod
+    def iter_support_plane_attempts(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        deadline=None,
+        diagnostics=None,
+        item_idx=None,
+        attempt_kind="both",
+    ):
+        if attempt_kind not in {"both", "settled", "release"}:
+            raise ValueError(
+                "attempt_kind must be 'both', 'settled', or 'release'"
+            )
+        if attempt_kind == "release":
+            yield from CandidateGenerator.iter_cartesian_attempts(
+                observation,
+                item,
+                container_idx,
+                orientation,
+                limit=limit,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                item_idx=item_idx,
+                attempt_kind="release",
+            )
+            return
+
+        container = observation["container_list"][container_idx]
+        if item_idx is None:
+            item_idx = item.get("index", -1)
+        dims = get_rotated_dimensions(
+            item["length"], item["width"], item["height"], orientation
+        )
+        x_low, x_high, y_low, y_high = rectangular_container_anchor_bounds(
+            dims, container
+        )
+        if x_low > x_high + EPS or y_low > y_high + EPS:
+            _record_envelope_prune(diagnostics, item_idx)
+            yield None
+            return
+
+        surfaces = support_surfaces(container)
+        components = order_support_plane_components(
+            support_plane_components(surfaces)
+        )
+        position_groups = [
+            (
+                component,
+                support_plane_anchor_positions(component, dims, container),
+            )
+            for component in components
+        ]
+        if diagnostics is not None:
+            connected_keys = {
+                tuple(round(value, 6) for value in position)
+                for _component, positions in position_groups
+                for position in positions
+            }
+            separate_components = [
+                SupportPlaneComponent((surface,)) for surface in surfaces
+            ]
+            diagnostics.setdefault("support_plane_searches", []).append(
+                {
+                    "item_index": int(item_idx),
+                    "container_index": int(container_idx),
+                    "orientation": int(orientation),
+                    "adjacency_threshold": float(
+                        SUPPORT_PLANE_ADJACENCY
+                    ),
+                    "surface_count": len(surfaces),
+                    "component_count": len(components),
+                    "connected_anchor_count": len(connected_keys),
+                    "unconnected_anchor_count": (
+                        support_plane_anchor_count(
+                            separate_components,
+                            dims,
+                            container,
+                        )
+                    ),
+                    "round_attempts": max(
+                        1, SUPPORT_PLANE_ROUND_ATTEMPTS
+                    ),
+                    "component_order": [
+                        {
+                            "contains_floor": component.contains_floor,
+                            "area": float(component.area),
+                            "depth": float(component.maximum_xy[1]),
+                            "top": float(component.top),
+                            "surface_count": len(component.surfaces),
+                        }
+                        for component in components
+                    ],
+                }
+            )
+
+        states = [
+            {
+                "iterator": iter(positions),
+            }
+            for _component, positions in position_groups
+            if positions
+        ]
+        accepted = 0
+        seen = set()
+        attempts_per_plane = max(1, SUPPORT_PLANE_ROUND_ATTEMPTS)
+        while states:
+            next_states = []
+            for state in states:
+                exhausted = False
+                for _ in range(attempts_per_plane):
+                    if (
+                        deadline is not None
+                        and time.perf_counter() >= deadline
+                    ):
+                        return
+                    try:
+                        position = next(state["iterator"])
+                    except StopIteration:
+                        exhausted = True
+                        break
+                    key = tuple(round(value, 4) for value in position)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    interval = container_z_interval(
+                        position[0],
+                        position[1],
+                        dims,
+                        container,
+                    )
+                    if (
+                        interval is None
+                        or position[2] < interval[0] - EPS
+                        or position[2] > interval[1] + EPS
+                    ):
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                        )
+                        yield None
+                        continue
+                    candidate = AABB(position, dims, "candidate")
+                    reason = Geometry.rejection_reason(
+                        candidate,
+                        container,
+                    )
+                    _record_candidate_diagnostic(
+                        diagnostics,
+                        item_idx,
+                        reason,
+                    )
+                    if reason is None:
+                        accepted += 1
+                        yield candidate
+                        if accepted >= limit:
+                            return
+                    else:
+                        yield None
+                if not exhausted:
+                    next_states.append(state)
+            states = next_states
+
+        if accepted or attempt_kind == "settled":
+            return
+        yield from CandidateGenerator.iter_cartesian_attempts(
+            observation,
+            item,
+            container_idx,
+            orientation,
+            limit=limit,
+            deadline=deadline,
+            diagnostics=diagnostics,
+            item_idx=item_idx,
+            attempt_kind="release",
+        )
+
+    @staticmethod
+    def iter_attempts(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        deadline=None,
+        diagnostics=None,
+        item_idx=None,
+        attempt_kind="both",
+        generator_mode=None,
+    ):
+        mode = (
+            ANCHOR_GENERATOR_MODE
+            if generator_mode is None
+            else str(generator_mode).strip().lower()
+        )
+        if mode not in ANCHOR_GENERATOR_MODES:
+            available = ", ".join(sorted(ANCHOR_GENERATOR_MODES))
+            raise ValueError(
+                f"unknown anchor generator mode '{mode}'; "
+                f"available: {available}"
+            )
+        iterator = (
+            CandidateGenerator.iter_cartesian_attempts
+            if mode == "cartesian"
+            else CandidateGenerator.iter_support_plane_attempts
+        )
+        yield from iterator(
+            observation,
+            item,
+            container_idx,
+            orientation,
+            limit=limit,
+            deadline=deadline,
+            diagnostics=diagnostics,
+            item_idx=item_idx,
+            attempt_kind=attempt_kind,
+        )
+
+    @staticmethod
     def generate(
         observation,
         item,
@@ -1244,6 +1836,7 @@ class CandidateGenerator:
         deadline=None,
         diagnostics=None,
         item_idx=None,
+        generator_mode=None,
     ):
         """Compatibility wrapper returning only accepted candidates."""
         return [
@@ -1257,6 +1850,7 @@ class CandidateGenerator:
                 deadline=deadline,
                 diagnostics=diagnostics,
                 item_idx=item_idx,
+                generator_mode=generator_mode,
             )
             if candidate is not None
         ]

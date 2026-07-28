@@ -229,6 +229,7 @@ def enumerate_oracle_candidates(
             diagnostics=None,
             item_idx=item_idx,
             attempt_kind="settled",
+            generator_mode="cartesian",
         ):
             attempts += 1
             if candidate is None:

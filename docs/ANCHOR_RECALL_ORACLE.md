@@ -110,3 +110,38 @@ candidate auditは候補受理時に小さなrecordを追加するため、完�
 per-support-plane化へ進む場合、同高・隣接面の初期間隔閾値は
 搬入クリアランスと同じ16 mmから開始し、跨ぎ支持recallをoracleで再評価する。
 なお、現行の鉛直接触許容 `CONTACT_TOLERANCE` は6 mmであり、別パラメータである。
+
+## Per-support-plane generator
+
+既定のsettled候補生成は `support_plane` modeである。旧方式へ戻す場合だけ
+`ANCHOR_GENERATOR_MODE=cartesian` を指定する。offline oracleは環境変数に
+依存せず、常に `generator_mode="cartesian"` を明示する。
+
+支持面は上面高さの差が6 mm以内で、辺方向の水平隙間が16 mm以下の場合に
+同じ連結成分へまとめる。角だけで近接する面は連結しない。連結成分の支持率は
+各矩形との重なりのunion面積で計算するため、2荷物に跨る支持を評価できる。
+
+面のpriority round-robin順序:
+
+| 順 | 面 | 根拠 |
+|---:|---|---|
+| 1 | 床 | 安定し、落下距離が短い |
+| 2 | 大面積上面 | 支持率が高く、次の支持面を作りやすい |
+| 3 | 奥側の面 | 手前を塞がず、後続の搬入経路を維持する |
+| 4 | 低い上面 | 高い壁と到達不能な空隙を作りにくい |
+
+各探索の `support_plane_searches` には次を保存する。
+
+- `adjacency_threshold`
+- `surface_count` / `component_count`
+- `connected_anchor_count`
+- `unconnected_anchor_count`
+- `component_order` の面積、奥行き、高さ、床フラグ
+
+これにより、16 mm連結による候補数増減と、面順序を変更した根拠をrunごとに
+追跡できる。
+
+run 30348998307の保存snapshotを使った非物理replayでは、step 4のsettled試行を
+116,008から10,438へ91.0%削減し、旧oracleの最良scoreを保持した。実policyの
+deadline内settled発見数はstep 3で0から349、step 4で0から427へ増えた。
+新しいtrajectoryの公式PyBullet結果は、別のLinux simulator runで確認する。
