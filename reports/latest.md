@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-07-28T10:59:47+09:00`
-- Git SHA: `703312e65a32be1f79a2ae778c0e060512abe026`
+- Timestamp: `2026-07-28T13:47:20+09:00`
+- Git SHA: `9e6b42cc376115167b3db98462e2271e17d49c94`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `9.911 s`
+- Runtime: `15.585 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -39,6 +39,7 @@ test_soft_and_priority_items_are_not_future_support_surfaces (test_agent.Geometr
 test_transport_clearance_uses_3d_closest_distance (test_agent.GeometryContractTests.test_transport_clearance_uses_3d_closest_distance) ... ok
 test_transport_sweeps_include_official_y_then_x_legs (test_agent.GeometryContractTests.test_transport_sweeps_include_official_y_then_x_legs) ... ok
 test_depth2_mode_prefers_a_feasible_next_step_without_score_mixing (test_agent.LookaheadSelectionTests.test_depth2_mode_prefers_a_feasible_next_step_without_score_mixing) ... ok
+test_policy_trace_separates_predicted_residual_from_action (test_agent.LookaheadSelectionTests.test_policy_trace_separates_predicted_residual_from_action) ... ok
 test_pool_of_40_stays_below_online_time_limit (test_agent.LookaheadSelectionTests.test_pool_of_40_stays_below_online_time_limit) ... ok
 test_pool_resilience_mode_prefers_more_placeable_visible_items (test_agent.LookaheadSelectionTests.test_pool_resilience_mode_prefers_more_placeable_visible_items) ... ok
 test_unknown_lookahead_mode_is_rejected (test_agent.LookaheadSelectionTests.test_unknown_lookahead_mode_is_rejected) ... ok
@@ -53,7 +54,9 @@ test_optimize_never_returns_worse_than_constructive_seed (test_agent.OfflineOpti
 test_pair_macro_neighbor_keeps_internal_order_and_permutation (test_agent.OfflineOptimizationTests.test_pair_macro_neighbor_keeps_internal_order_and_permutation) ... ok
 test_pair_macro_records_executable_order_layout_and_signature (test_agent.OfflineOptimizationTests.test_pair_macro_records_executable_order_layout_and_signature) ... ok
 test_comparison_history_keeps_modes_and_interpretation_together (test_compare_lookahead.LookaheadComparisonTests.test_comparison_history_keeps_modes_and_interpretation_together) ... ok
+test_step_metrics_and_policy_trace_are_merged_by_case (test_compare_lookahead.LookaheadComparisonTests.test_step_metrics_and_policy_trace_are_merged_by_case) ... ok
 test_summary_extracts_score_count_flags_and_runtime (test_compare_lookahead.LookaheadComparisonTests.test_summary_extracts_score_count_flags_and_runtime) ... ok
+test_abc_spec_is_separate_from_default_theory (test_context.ContextRouterTests.test_abc_spec_is_separate_from_default_theory) ... ok
 test_all_manifest_paths_resolve_inside_repository (test_context.ContextRouterTests.test_all_manifest_paths_resolve_inside_repository) ... ok
 test_competition_rules_are_a_separate_summary (test_context.ContextRouterTests.test_competition_rules_are_a_separate_summary) ... ok
 test_expected_profiles_exist (test_context.ContextRouterTests.test_expected_profiles_exist) ... ok
@@ -64,12 +67,14 @@ test_path_escape_is_rejected (test_context.ContextRouterTests.test_path_escape_i
 test_preview_experiments_do_not_pollute_default_experiments (test_context.ContextRouterTests.test_preview_experiments_do_not_pollute_default_experiments) ... ok
 test_preview_value_summary_is_separate_from_full_theory (test_context.ContextRouterTests.test_preview_value_summary_is_separate_from_full_theory) ... ok
 test_summary_does_not_load_detailed_agent_source (test_context.ContextRouterTests.test_summary_does_not_load_detailed_agent_source) ... ok
+test_surface_metrics_are_explicit_proxies (test_diagnostics.SettledMetricTests.test_surface_metrics_are_explicit_proxies) ... ok
+test_volume_center_of_mass_and_residual_capacity_are_direct (test_diagnostics.SettledMetricTests.test_volume_center_of_mass_and_residual_capacity_are_direct) ... ok
 test_missing_or_empty_evaluation_fails (test_run_checks.EvaluationStatusTests.test_missing_or_empty_evaluation_fails) ... ok
 test_process_success_does_not_hide_physics_failure (test_run_checks.EvaluationStatusTests.test_process_success_does_not_hide_physics_failure) ... ok
 test_valid_safe_cases_pass (test_run_checks.EvaluationStatusTests.test_valid_safe_cases_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 46 tests in 9.546s
+Ran 51 tests in 15.062s
 
 OK
 ```

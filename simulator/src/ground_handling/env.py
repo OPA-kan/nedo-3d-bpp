@@ -90,6 +90,7 @@ class GroundHandlingEnv(gym.Env):
 
         self.num_step: int = 0
         self.num_total_items: int = 0
+        self.step_metrics: list[dict] = []
 
 
     def _cleanup_shared_memory_at_exit(self):
@@ -118,6 +119,7 @@ class GroundHandlingEnv(gym.Env):
         self.container_manager.build()
 
         self.num_total_items = self.stream_manager.total_items + sum(len(c.packed_items) for c in self.container_manager.containers)
+        self.step_metrics = []
 
         # デバッグ用のカメラパラメータの調整
         target_position = [0.0, 0.0, 0.0]
@@ -241,6 +243,29 @@ class GroundHandlingEnv(gym.Env):
         if self.stream_manager.is_empty():
             terminated = True
 
+        status = {
+            'is_included': bool(is_included),
+            'is_valid': bool(is_valid),
+            'is_placed_safe': bool(is_placed_safe),
+        }
+        settled_metrics = self.evaluator.settled_snapshot(
+            self.container_manager.containers
+        )
+        settled_metrics.update(
+            {
+                "step": len(self.step_metrics),
+                "selected_item_index": (
+                    None if target_item is None else int(target_item.index)
+                ),
+                "selected_pool_index": int(item_idx),
+                "container_index": int(container_idx),
+                "orientation": int(target_orn_idx),
+                "place_pos": [float(value) for value in local_xyz],
+                "status": status,
+            }
+        )
+        self.step_metrics.append(settled_metrics)
+
         # -------- 4. 観測情報の出力 ---------
         observation = self._get_obs()
         if self.verbose:
@@ -255,11 +280,12 @@ class GroundHandlingEnv(gym.Env):
         
         self.num_step += 1
 
-        return observation, reward, terminated, truncated, {'status': {'is_included': is_included, 'is_valid': is_valid, 'is_placed_safe': is_placed_safe}}
+        return observation, reward, terminated, truncated, {'status': status}
 
 
     def evaluate(self):
         evaluation_report = self.evaluator.evaluate(self.container_manager.containers, self.num_total_items)
+        evaluation_report["step_metrics"] = list(self.step_metrics)
 
         return evaluation_report
 

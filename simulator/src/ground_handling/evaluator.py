@@ -5,6 +5,7 @@ import os
 from pybullet_utils.bullet_client import BulletClient
 from .containers import Container
 from .items import Item
+from .diagnostics import calculate_settled_metrics
 
 
 class Evaluator:
@@ -84,3 +85,47 @@ class Evaluator:
         }
 
         return report
+
+
+    def settled_snapshot(
+        self,
+        containers: list[Container],
+        grid_size: float = 0.02,
+    ) -> dict:
+        """Collect diagnostic metrics from the settled PyBullet state."""
+        snapshots = []
+        for container in containers:
+            packed_items = []
+            for item in container.packed_items:
+                if item.pybullet_id is None:
+                    continue
+                pos, _ = item.get_pose(self.client)
+                if pos is None:
+                    continue
+                aabb_min, aabb_max = self.client.getAABB(item.pybullet_id)
+                packed_items.append(
+                    {
+                        "index": int(item.index),
+                        "mass": float(item.mass),
+                        "volume": float(item.volume),
+                        "pos": [float(value) for value in pos],
+                        "aabb_min": [float(value) for value in aabb_min],
+                        "aabb_max": [float(value) for value in aabb_max],
+                    }
+                )
+            snapshots.append(
+                {
+                    "index": int(container.index),
+                    "offset_x": float(container.offset_x),
+                    "length": float(container.length),
+                    "width": float(container.width),
+                    "height": float(container.height),
+                    "thickness": float(container.thickness),
+                    "buffer": float(container.buffer),
+                    "cut_x": float(container.cut_x),
+                    "require_shelf": bool(container.require_shelf),
+                    "volume": float(container.volume),
+                    "packed_items": packed_items,
+                }
+            )
+        return calculate_settled_metrics(snapshots, grid_size=grid_size)

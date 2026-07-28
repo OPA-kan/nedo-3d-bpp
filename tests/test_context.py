@@ -28,6 +28,7 @@ class ContextRouterTests(unittest.TestCase):
                 "simulator",
                 "theory",
                 "preview-value",
+                "abc-spec",
                 "preview-experiments",
             }
             <= set(profiles)
@@ -39,6 +40,16 @@ class ContextRouterTests(unittest.TestCase):
         self.assertNotIn(
             "docs/COMPETITION_RULES.md",
             profile_files(self.manifest, "overview", full=True),
+        )
+
+    def test_abc_spec_is_separate_from_default_theory(self) -> None:
+        self.assertEqual(
+            profile_files(self.manifest, "abc-spec", full=True),
+            ["docs/theory/ABC_IMPLEMENTATION_SPEC.md"],
+        )
+        self.assertNotIn(
+            "docs/theory/ABC_IMPLEMENTATION_SPEC.md",
+            profile_files(self.manifest, "theory", full=True),
         )
 
     def test_preview_value_summary_is_separate_from_full_theory(self) -> None:

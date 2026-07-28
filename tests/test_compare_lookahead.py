@@ -70,6 +70,9 @@ class LookaheadComparisonTests(unittest.TestCase):
                         "total_placed_count": 5,
                         "mean_fill_score": 10.0,
                         "max_policy_seconds": 2.0,
+                        "mean_predicted_feasible_remaining_ratio": 0.5,
+                        "mean_final_center_of_mass_z": 0.4,
+                        "mean_final_surface_total_variation": 0.1,
                     },
                 },
                 "depth2": {
@@ -80,6 +83,9 @@ class LookaheadComparisonTests(unittest.TestCase):
                         "total_placed_count": 6,
                         "mean_fill_score": 11.0,
                         "max_policy_seconds": 2.5,
+                        "mean_predicted_feasible_remaining_ratio": 0.6,
+                        "mean_final_center_of_mass_z": 0.3,
+                        "mean_final_surface_total_variation": 0.08,
                     },
                 },
             },
@@ -92,6 +98,66 @@ class LookaheadComparisonTests(unittest.TestCase):
         self.assertIn("physical validity failed", markdown)
         self.assertIn("abc123", markdown)
         self.assertIn("not a SIGNATE leaderboard score", markdown)
+
+    def test_step_metrics_and_policy_trace_are_merged_by_case(self) -> None:
+        evaluation = {
+            "000": {
+                "status": "success",
+                "evaluation": {
+                    "fill_score": 10.0,
+                    "num_placed_items": 0.1,
+                    "step_metrics": [
+                        {
+                            "step": 0,
+                            "placed_count": 1,
+                            "placed_volume": 0.25,
+                            "center_of_mass_z": 0.3,
+                            "surface_total_variation": 0.04,
+                            "surface_height_std": 0.05,
+                            "flat_support_edge_ratio": 0.8,
+                            "remaining_volume_ratio": 0.75,
+                            "status": {
+                                "is_included": True,
+                                "is_valid": True,
+                                "is_placed_safe": True,
+                            },
+                        }
+                    ],
+                },
+                "place_states": {
+                    "is_included": True,
+                    "is_valid": True,
+                    "is_placed_safe": True,
+                },
+                "time_results": {"optimization": 0.0, "policy": 1.0},
+            }
+        }
+        policy_trace = {
+            "000": [
+                {
+                    "feasible_remaining_items": 1,
+                    "evaluated_remaining_items": 2,
+                    "feasible_remaining_ratio": 0.5,
+                    "immediate_score": 3.0,
+                }
+            ]
+        }
+
+        summary = summarize_evaluation(
+            evaluation,
+            self.config,
+            policy_trace=policy_trace,
+        )
+
+        case = summary["cases"]["000"]
+        self.assertEqual(case["final_placed_volume"], 0.25)
+        self.assertEqual(case["final_center_of_mass_z"], 0.3)
+        self.assertEqual(
+            case["metric_history"][0][
+                "predicted_feasible_remaining_ratio"
+            ],
+            0.5,
+        )
 
 
 if __name__ == "__main__":

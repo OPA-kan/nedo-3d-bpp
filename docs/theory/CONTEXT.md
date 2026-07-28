@@ -30,6 +30,7 @@
 - pool-awareな残余価値は別profile `preview-value` で扱う。
   `weighted`、`depth2`、`pool_resilience` の選択機構だけImplementedで、
   可行アンカー面積と学習価値はProposed。
+- 課題A/B/Cの修正版実装契約とaction後指標は別profile `abc-spec` で扱う。
 
 完全な定式化が必要な場合だけ `MATHEMATICAL_MODEL.md` を読む。
 

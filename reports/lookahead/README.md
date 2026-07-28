@@ -16,6 +16,15 @@ python scripts/compare_lookahead.py
 - `history/<run-id>/summary.*`: 実行時点の比較要約
 - `history/<run-id>/<mode>/evaluation_results.json`: 公式評価JSON
 - `history/<run-id>/<mode>/simulator.log`: モード別の生ログ
+- `history/<run-id>/<mode>/agent_policy_trace.jsonl`: action選択時の残余可行率
+
+actionごとの診断:
+
+- 直接値: 累積配置数、体積、質量重心z、残容量
+- proxy: AABB heightmapの表面TV・標準偏差・平坦edge比率
+- agent proxy: 仮想配置後に、評価対象の可視pool荷物がまだ可行である割合
+
+直接値とproxyは別々に記録し、未知の公式重みで合成した総合scoreは作らない。
 
 結果の解釈:
 

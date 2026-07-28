@@ -1,8 +1,12 @@
 import importlib.util
+import json
+import os
 import pathlib
 import sys
+import tempfile
 import time
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -466,6 +470,47 @@ class LookaheadSelectionTests(unittest.TestCase):
         elapsed = time.perf_counter() - started
         self.assertLess(elapsed, agent.POLICY_BUDGET_SECONDS)
         self.assertIn(action["item_idx"], range(40))
+
+    def test_policy_trace_separates_predicted_residual_from_action(self):
+        observation = {
+            "pool_list": [
+                sample_item(0, length=0.2, width=0.2, height=0.2),
+                sample_item(1, length=0.2, width=0.2, height=0.2),
+            ],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "policy.jsonl"
+            with mock.patch.dict(
+                os.environ,
+                {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+            ):
+                solver = agent.Agent("")
+                solver.get_init_states(
+                    {
+                        "optimize": False,
+                        "lookahead_k": 2,
+                        "container_list": observation["container_list"],
+                    }
+                )
+                solver.policy(observation)
+
+            events = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertEqual(events[0]["event"], "init")
+        self.assertEqual(events[1]["event"], "decision")
+        self.assertEqual(events[1]["evaluated_remaining_items"], 1)
+        self.assertIn("feasible_remaining_ratio", events[1])
+        self.assertIn(events[1]["selected_item_index"], {0, 1})
 
 
 class OfflineOptimizationTests(unittest.TestCase):

@@ -1,5 +1,6 @@
 import copy
 import heapq
+import json
 import math
 import os
 import random
@@ -1731,12 +1732,37 @@ class Agent:
         self.last_offline_cache_hits = 0
         self.last_pair_macro_candidates = 0
         self.last_pair_macro_adoptions = 0
+        self.last_lookahead_evaluation = None
+        self.last_top_candidate_count = 0
+        self._policy_step = 0
+        self._optimize_enabled = False
+        self._lookahead_k = 0
+        self._policy_trace_path = os.environ.get("NEDO_POLICY_TRACE_PATH")
+
+    def _append_policy_trace(self, payload):
+        if not self._policy_trace_path:
+            return
+        trace_dir = os.path.dirname(self._policy_trace_path)
+        if trace_dir:
+            os.makedirs(trace_dir, exist_ok=True)
+        with open(self._policy_trace_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     def get_init_states(self, init_states: dict):
         containers = init_states.get("container_list", [])
         self._container_templates = [
             normalize_container(container) for container in containers
         ]
+        self._policy_step = 0
+        self._optimize_enabled = bool(init_states.get("optimize", False))
+        self._lookahead_k = int(init_states.get("lookahead_k", 0))
+        self._append_policy_trace(
+            {
+                "event": "init",
+                "optimize": self._optimize_enabled,
+                "lookahead_k": self._lookahead_k,
+            }
+        )
         return True
 
     def optimize(self, item_list: list):
@@ -1873,6 +1899,8 @@ class Agent:
         remain individually placeable.
         """
         if not ordered_items:
+            self.last_lookahead_evaluation = None
+            self.last_top_candidate_count = 0
             return None
 
         selection_mode = normalized_lookahead_mode(
@@ -1890,18 +1918,27 @@ class Agent:
             LOOKAHEAD_TOP_K,
             deadline=search_deadline,
         )
+        self.last_top_candidate_count = len(top)
         if not top:
+            self.last_lookahead_evaluation = None
             return None
         if (
             len(top) == 1
             or len(ordered_items) <= 1
             or time.perf_counter() >= lookahead_deadline
         ):
+            self.last_lookahead_evaluation = LookaheadEvaluation(
+                decision=top[0],
+                feasible_next_items=0,
+                total_next_items=0,
+                best_next_score=0.0,
+            )
             return top[0]
 
         inner_pool = ordered_items[:LOOKAHEAD_INNER_ITEMS]
         best_decision = top[0]
         best_key = None
+        best_evaluation = None
         for decision in top:
             if time.perf_counter() >= deadline - 0.2:
                 break
@@ -1924,29 +1961,13 @@ class Agent:
                     "pool_list": pool_list,
                     "container_list": sim_containers,
                 }
-                if selection_mode == "pool_resilience":
-                    pool_feasibility = evaluate_visible_pool_feasibility(
-                        sim_observation,
-                        remaining,
-                        deadline=deadline - 0.2,
-                    )
-                    if pool_feasibility is None:
-                        break
-                else:
-                    next_decision = PlacementCore.choose(
-                        sim_observation,
-                        remaining,
-                        deadline=deadline - 0.2,
-                    )
-                    pool_feasibility = VisiblePoolFeasibility(
-                        feasible_items=int(next_decision is not None),
-                        evaluated_items=len(remaining),
-                        best_score=(
-                            0.0
-                            if next_decision is None
-                            else float(next_decision.score)
-                        ),
-                    )
+                pool_feasibility = evaluate_visible_pool_feasibility(
+                    sim_observation,
+                    remaining,
+                    deadline=deadline - 0.2,
+                )
+                if pool_feasibility is None:
+                    break
             evaluation = LookaheadEvaluation(
                 decision=decision,
                 feasible_next_items=pool_feasibility.feasible_items,
@@ -1960,6 +1981,15 @@ class Agent:
             if best_key is None or rank_key > best_key:
                 best_key = rank_key
                 best_decision = decision
+                best_evaluation = evaluation
+        if best_evaluation is None:
+            best_evaluation = LookaheadEvaluation(
+                decision=best_decision,
+                feasible_next_items=0,
+                total_next_items=0,
+                best_next_score=0.0,
+            )
+        self.last_lookahead_evaluation = best_evaluation
         return best_decision
 
     def policy(self, observation: dict):
@@ -1980,6 +2010,50 @@ class Agent:
                 deadline=deadline,
             )
         if decision is not None:
+            evaluation = self.last_lookahead_evaluation
+            if evaluation is None or evaluation.decision is not decision:
+                evaluation = LookaheadEvaluation(
+                    decision=decision,
+                    feasible_next_items=0,
+                    total_next_items=0,
+                    best_next_score=0.0,
+                )
+            selected_pool_index = int(decision.action["item_idx"])
+            selected_item_index = None
+            if 0 <= selected_pool_index < len(pool_list):
+                selected_item_index = int(
+                    pool_list[selected_pool_index]["index"]
+                )
+            feasible_ratio = (
+                evaluation.feasible_next_items / evaluation.total_next_items
+                if evaluation.total_next_items > 0
+                else None
+            )
+            self._append_policy_trace(
+                {
+                    "event": "decision",
+                    "step": self._policy_step,
+                    "mode": LOOKAHEAD_SELECTION_MODE,
+                    "optimize": self._optimize_enabled,
+                    "lookahead_k": self._lookahead_k,
+                    "pool_size": len(pool_list),
+                    "selected_pool_index": selected_pool_index,
+                    "selected_item_index": selected_item_index,
+                    "top_candidate_count": self.last_top_candidate_count,
+                    "immediate_score": float(decision.score),
+                    "evaluated_remaining_items": (
+                        evaluation.total_next_items
+                    ),
+                    "feasible_remaining_items": (
+                        evaluation.feasible_next_items
+                    ),
+                    "feasible_remaining_ratio": feasible_ratio,
+                    "best_next_score": float(
+                        evaluation.best_next_score
+                    ),
+                }
+            )
+            self._policy_step += 1
             return decision.action
 
         fallback_container = 0
