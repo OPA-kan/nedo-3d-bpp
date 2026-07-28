@@ -63,4 +63,14 @@ Case 001は候補全滅後の固定fallbackによる失敗である。したが�
 lookahead価値関数ではなく、候補生成の直積列挙削減と時間内に確実な候補を返す探索契約。
 30個前後へ到達するまで3方式の優劣比較は保留する。
 
+## Anytime候補探索（Implemented / physics validation pending）
+
+- 候補生成をlazy stream化し、anchor試行ごとにdeadlineを監視する。
+- 戦略順の荷物、底面積の大きい姿勢、残余体積の大きいコンテナで三組を順位付けする。
+- 各三組を浅く一巡して探索飢餓を防ぎ、その後に優先順のまま深掘りする。
+- 幾何・支持・搬入を通った候補のうち最良scoreをincumbentとして更新し、
+  deadline時には固定座標ではなく検証済みincumbentを返す。
+- anchor集合自体は旧Cartesian列挙を維持する。支持面ローカル化と跨ぎ支持の
+  recall/regret/配置数差は次の独立実験とする。
+
 完全な定式化、限界、実験計画は `PREVIEW_RESIDUAL_VALUE.md` を読む。

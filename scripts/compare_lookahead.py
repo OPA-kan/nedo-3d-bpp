@@ -267,8 +267,8 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     "",
                     "| step | placed | volume | empty ratio | residual feasible | "
                     "CoG z | depth center | front/back | kind | settle d/angle | "
-                    "top rejection | physical |",
-                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|",
+                    "top rejection | search | physical |",
+                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|---|",
                 ]
             )
             for row in case.get("metric_history", []):
@@ -318,6 +318,18 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                 )
                 if envelope_pruned > dominant_count:
                     dominant_rejection = f"envelope:{envelope_pruned}"
+                search = candidate_diagnostics.get("search", {})
+                search_text = "-"
+                if search:
+                    search_text = "{started}/{total}{deadline}".format(
+                        started=int(search.get("units_started", 0)),
+                        total=int(search.get("units_total", 0)),
+                        deadline=(
+                            " deadline"
+                            if search.get("deadline_reached")
+                            else ""
+                        ),
+                    )
                 settle_displacement = row.get("settle_displacement_norm")
                 settle_angle = row.get("settle_angle_deg")
                 settle_text = (
@@ -332,7 +344,7 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     "| {step} | {placed} | {volume:.4f} | {empty:.3f} | "
                     "{feasible} | {cog:.3f} | {depth:.3f} | "
                     "{front:.3f}/{back:.3f} | {kind} | {settle} | {rejection} | "
-                    "{physical} |".format(
+                    "{search} | {physical} |".format(
                         step=row.get("step", 0),
                         placed=row.get("placed_count", 0),
                         volume=float(row.get("placed_volume", 0.0)),
@@ -354,6 +366,7 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                         kind=row.get("candidate_kind") or "-",
                         settle=settle_text,
                         rejection=dominant_rejection,
+                        search=search_text,
                         physical=physical,
                     )
                 )

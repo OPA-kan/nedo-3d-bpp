@@ -34,6 +34,12 @@
   水平支持候補が全滅した姿勢には低高度の`release_candidate`を生成する。
   release候補は投下点で支持率を要求せず、包含・静的干渉・搬入を通した後、
   PyBullet settle結果を真値とする。
+- 候補生成はdeadline-awareなlazy streamとし、戦略順の荷物、底面積の大きい姿勢、
+  残余体積の大きいコンテナから優先する。各三組を64 anchorずつ浅く一巡後、
+  256 anchor単位で深掘りし、時間切れ時も最良の検証済みincumbentを返す。
+- 現段階では旧Cartesian anchor集合を維持しているため、跨ぎ支持候補の損失はない。
+  支持面ローカルanchorへ縮約するときは旧列挙をoffline oracleとして
+  anchor recall、best-score regret、replay配置数差を測る。
 
 ## 現在の状態
 
@@ -47,4 +53,6 @@
 - 両ケースともstep 13で終了した。Case 000は8秒のpolicy timeout後に
   simulatorのrandom fallbackが失敗、Case 001は候補を受理できず固定fallbackが失敗した。
   次の共通ボトルネックは直積アンカー列挙の時間と後半のstatic/support/corridor棄却。
+- anytime探索実装後の物理結果は未検証。診断には探索unitの開始数/総数、
+  round数、deadline到達、incumbent更新数を保存する。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。

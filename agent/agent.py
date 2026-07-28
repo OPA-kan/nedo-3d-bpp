@@ -76,6 +76,16 @@ LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
 DPOR_MAX_ALTERNATE_ATTEMPTS = int(
     os.environ.get("DPOR_MAX_ALTERNATE_ATTEMPTS", "16")
 )
+# Candidate search is breadth-first across prioritized
+# (item, orientation, container) units.  The first pass prevents one
+# infeasible unit from consuming the whole policy budget; later passes keep
+# improving the best validated incumbent.
+ANCHOR_FIRST_PASS_ATTEMPTS = int(
+    os.environ.get("ANCHOR_FIRST_PASS_ATTEMPTS", "64")
+)
+ANCHOR_DEEP_PASS_ATTEMPTS = int(
+    os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
+)
 EPS = 1e-6
 
 
@@ -990,15 +1000,24 @@ def settled_proxy_candidate(candidate, container):
 
 class CandidateGenerator:
     @staticmethod
-    def generate(
+    def iter_attempts(
         observation,
         item,
         container_idx,
         orientation,
         limit=400,
+        deadline=None,
         diagnostics=None,
         item_idx=None,
     ):
+        """
+        Yield every validated candidate attempt lazily.
+
+        A rejected or envelope-pruned anchor yields ``None`` so the caller
+        can time-slice work by attempted anchors rather than by accepted
+        candidates.  This is important late in an episode, where a unit may
+        inspect tens of thousands of invalid anchors before finding nothing.
+        """
         container = observation["container_list"][container_idx]
         if item_idx is None:
             item_idx = item.get("index", -1)
@@ -1037,7 +1056,8 @@ class CandidateGenerator:
         )
         if x_low > x_high + EPS or y_low > y_high + EPS:
             _record_envelope_prune(diagnostics, item_idx)
-            return []
+            yield None
+            return
 
         xs = {x_low, 0.0, x_high}
         ys = {y_low, 0.0, y_high}
@@ -1081,27 +1101,35 @@ class CandidateGenerator:
                 )
             )
 
-        candidates = []
+        accepted = 0
         seen = set()
-        intervals = {
-            (float(x), float(y)): container_z_interval(
-                x,
-                y,
-                dims,
-                container,
-            )
-            for y in ys
-            for x in xs
-        }
+        intervals = {}
+
+        def interval_at(x, y):
+            key = (float(x), float(y))
+            if key not in intervals:
+                intervals[key] = container_z_interval(
+                    x,
+                    y,
+                    dims,
+                    container,
+                )
+            return intervals[key]
+
         for z in sorted(zs):
             for y in sorted(ys, reverse=True):
                 for x in sorted(xs, key=abs):
+                    if (
+                        deadline is not None
+                        and time.perf_counter() >= deadline
+                    ):
+                        return
                     position = (float(x), float(y), float(z))
                     key = tuple(round(value, 4) for value in position)
                     if key in seen:
                         continue
                     seen.add(key)
-                    interval = intervals[(float(x), float(y))]
+                    interval = interval_at(x, y)
                     if (
                         interval is None
                         or float(z) < interval[0] - EPS
@@ -1111,6 +1139,7 @@ class CandidateGenerator:
                             diagnostics,
                             item_idx,
                         )
+                        yield None
                         continue
                     candidate = AABB(position, dims, "candidate")
                     reason = Geometry.rejection_reason(candidate, container)
@@ -1120,21 +1149,30 @@ class CandidateGenerator:
                         reason,
                     )
                     if reason is None:
-                        candidates.append(candidate)
-                        if len(candidates) >= limit:
-                            return candidates
-        if candidates:
-            return candidates
+                        accepted += 1
+                        yield candidate
+                        if accepted >= limit:
+                            return
+                    else:
+                        yield None
+        if accepted:
+            return
 
         for y in sorted(ys, reverse=True):
             for x in sorted(xs, key=abs):
-                interval = intervals[(float(x), float(y))]
+                if (
+                    deadline is not None
+                    and time.perf_counter() >= deadline
+                ):
+                    return
+                interval = interval_at(x, y)
                 if interval is None:
                     _record_envelope_prune(
                         diagnostics,
                         item_idx,
                         kind="release",
                     )
+                    yield None
                     continue
                 rest_height = release_rest_height(
                     x,
@@ -1152,6 +1190,7 @@ class CandidateGenerator:
                         item_idx,
                         kind="release",
                     )
+                    yield None
                     continue
                 position = (float(x), float(y), float(z))
                 key = tuple(round(value, 4) for value in position)
@@ -1170,10 +1209,39 @@ class CandidateGenerator:
                     kind="release",
                 )
                 if reason is None:
-                    candidates.append(candidate)
-                    if len(candidates) >= limit:
-                        return candidates
-        return candidates
+                    accepted += 1
+                    yield candidate
+                    if accepted >= limit:
+                        return
+                else:
+                    yield None
+
+    @staticmethod
+    def generate(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        deadline=None,
+        diagnostics=None,
+        item_idx=None,
+    ):
+        """Compatibility wrapper returning only accepted candidates."""
+        return [
+            candidate
+            for candidate in CandidateGenerator.iter_attempts(
+                observation,
+                item,
+                container_idx,
+                orientation,
+                limit=limit,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                item_idx=item_idx,
+            )
+            if candidate is not None
+        ]
 
 
 class Ranker:
@@ -1307,6 +1375,170 @@ def constructive_order(item_list):
     return [row[-1] for row in scored]
 
 
+def estimated_remaining_container_volume(container):
+    remaining = effective_container_volume(container)
+    for packed in container.get("packed_items", []):
+        try:
+            remaining -= math.prod(packed_dimensions(packed))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return max(0.0, float(remaining))
+
+
+def prioritized_search_units(observation, indexed_items):
+    """
+    Build a deterministic item -> stable-pose -> roomy-container order.
+
+    ``indexed_items`` already carries the strategy order (hard normal,
+    soft, then priority for the online policy).  Within an item, poses with
+    a larger base are visited first, followed by eligible containers with
+    more estimated remaining volume.
+    """
+    containers = observation.get("container_list", [])
+    units = []
+    for item_rank, (item_idx, item) in enumerate(indexed_items):
+        orientations = sorted(
+            unique_orientations(item),
+            key=lambda orientation: (
+                -math.prod(
+                    get_rotated_dimensions(
+                        item["length"],
+                        item["width"],
+                        item["height"],
+                        orientation,
+                    )[:2]
+                ),
+                orientation,
+            ),
+        )
+        container_indices = sorted(
+            eligible_container_indices(item, containers),
+            key=lambda container_idx: (
+                -estimated_remaining_container_volume(
+                    containers[container_idx]
+                ),
+                container_idx,
+            ),
+        )
+        for pose_rank, orientation in enumerate(orientations):
+            for container_rank, container_idx in enumerate(container_indices):
+                units.append(
+                    (
+                        item_rank,
+                        pose_rank,
+                        container_rank,
+                        int(item_idx),
+                        item,
+                        int(container_idx),
+                        int(orientation),
+                    )
+                )
+    units.sort(key=lambda unit: unit[:3])
+    return units
+
+
+def iter_prioritized_candidates(
+    observation,
+    indexed_items,
+    deadline=None,
+    diagnostics=None,
+):
+    """
+    Time-sliced candidate stream.
+
+    Every prioritized (item, pose, container) unit receives a shallow first
+    pass before any unit is deeply expanded.  Subsequent rounds continue in
+    the same priority order, so the caller can retain and improve a safe
+    incumbent without starving later items or poses.
+    """
+    units = prioritized_search_units(observation, indexed_items)
+    states = [
+        {
+            "unit": unit,
+            "iterator": None,
+        }
+        for unit in units
+    ]
+    search_stats = None
+    if diagnostics is not None:
+        search_stats = diagnostics.setdefault(
+            "search",
+            {
+                "units_total": len(units),
+                "units_started": 0,
+                "units_completed": 0,
+                "rounds_started": 0,
+                "deadline_reached": False,
+                "incumbent_updates": 0,
+            },
+        )
+
+    attempts_per_unit = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
+    while states:
+        if search_stats is not None:
+            search_stats["rounds_started"] += 1
+        next_states = []
+        for state in states:
+            if (
+                deadline is not None
+                and time.perf_counter() >= deadline
+            ):
+                if search_stats is not None:
+                    search_stats["deadline_reached"] = True
+                return
+
+            (
+                _item_rank,
+                _pose_rank,
+                _container_rank,
+                item_idx,
+                item,
+                container_idx,
+                orientation,
+            ) = state["unit"]
+            if state["iterator"] is None:
+                state["iterator"] = CandidateGenerator.iter_attempts(
+                    observation,
+                    item,
+                    container_idx,
+                    orientation,
+                    deadline=deadline,
+                    diagnostics=diagnostics,
+                    item_idx=item_idx,
+                )
+                if search_stats is not None:
+                    search_stats["units_started"] += 1
+
+            exhausted = False
+            for _ in range(attempts_per_unit):
+                if (
+                    deadline is not None
+                    and time.perf_counter() >= deadline
+                ):
+                    if search_stats is not None:
+                        search_stats["deadline_reached"] = True
+                    return
+                try:
+                    candidate = next(state["iterator"])
+                except StopIteration:
+                    exhausted = True
+                    if search_stats is not None:
+                        search_stats["units_completed"] += 1
+                    break
+                if candidate is not None:
+                    yield (
+                        item_idx,
+                        item,
+                        container_idx,
+                        orientation,
+                        candidate,
+                    )
+            if not exhausted:
+                next_states.append(state)
+        states = next_states
+        attempts_per_unit = max(1, ANCHOR_DEEP_PASS_ATTEMPTS)
+
+
 class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
@@ -1328,43 +1560,44 @@ class PlacementCore:
         best = None
         best_score = -float("inf")
 
-        for item_idx, item in indexed_items:
-            for container_idx in eligible_container_indices(item, containers):
-                container = containers[container_idx]
-                for orientation in unique_orientations(item):
-                    if deadline is not None and time.perf_counter() >= deadline:
-                        return best
-                    for candidate in CandidateGenerator.generate(
-                        observation,
-                        item,
-                        container_idx,
-                        orientation,
-                        diagnostics=diagnostics,
-                        item_idx=item_idx,
-                    ):
-                        score = Ranker.score(
-                            candidate,
-                            item,
-                            container,
-                            has_priority_container,
-                        )
-                        if score > best_score:
-                            best_score = score
-                            best = PlacementDecision(
-                                action={
-                                    "item_idx": int(item_idx),
-                                    "container_idx": int(container_idx),
-                                    "place_pos": np.asarray(
-                                        simulator_action_center(
-                                            candidate, container
-                                        ),
-                                        dtype=np.float32,
-                                    ),
-                                    "orientation": int(orientation),
-                                },
-                                candidate=candidate,
-                                score=float(score),
-                            )
+        for (
+            item_idx,
+            item,
+            container_idx,
+            orientation,
+            candidate,
+        ) in iter_prioritized_candidates(
+            observation,
+            indexed_items,
+            deadline=deadline,
+            diagnostics=diagnostics,
+        ):
+            container = containers[container_idx]
+            score = Ranker.score(
+                candidate,
+                item,
+                container,
+                has_priority_container,
+            )
+            if score > best_score:
+                best_score = score
+                best = PlacementDecision(
+                    action={
+                        "item_idx": int(item_idx),
+                        "container_idx": int(container_idx),
+                        "place_pos": np.asarray(
+                            simulator_action_center(
+                                candidate, container
+                            ),
+                            dtype=np.float32,
+                        ),
+                        "orientation": int(orientation),
+                    },
+                    candidate=candidate,
+                    score=float(score),
+                )
+                if diagnostics is not None:
+                    diagnostics["search"]["incumbent_updates"] += 1
         return best
 
     @staticmethod
@@ -1392,52 +1625,51 @@ class PlacementCore:
         heap = []
         counter = 0
 
-        for item_idx, item in indexed_items:
-            for container_idx in eligible_container_indices(item, containers):
-                container = containers[container_idx]
-                for orientation in unique_orientations(item):
-                    if deadline is not None and time.perf_counter() >= deadline:
-                        return [
-                            decision
-                            for _, _, decision in sorted(
-                                heap, key=lambda entry: entry[0], reverse=True
-                            )
-                        ]
-                    for candidate in CandidateGenerator.generate(
-                        observation,
-                        item,
-                        container_idx,
-                        orientation,
-                        diagnostics=diagnostics,
-                        item_idx=item_idx,
-                    ):
-                        score = Ranker.score(
-                            candidate,
-                            item,
-                            container,
-                            has_priority_container,
-                        )
-                        decision = PlacementDecision(
-                            action={
-                                "item_idx": int(item_idx),
-                                "container_idx": int(container_idx),
-                                "place_pos": np.asarray(
-                                    simulator_action_center(
-                                        candidate, container
-                                    ),
-                                    dtype=np.float32,
-                                ),
-                                "orientation": int(orientation),
-                            },
-                            candidate=candidate,
-                            score=float(score),
-                        )
-                        counter += 1
-                        entry = (score, counter, decision)
-                        if len(heap) < k:
-                            heapq.heappush(heap, entry)
-                        elif score > heap[0][0]:
-                            heapq.heapreplace(heap, entry)
+        for (
+            item_idx,
+            item,
+            container_idx,
+            orientation,
+            candidate,
+        ) in iter_prioritized_candidates(
+            observation,
+            indexed_items,
+            deadline=deadline,
+            diagnostics=diagnostics,
+        ):
+            container = containers[container_idx]
+            score = Ranker.score(
+                candidate,
+                item,
+                container,
+                has_priority_container,
+            )
+            decision = PlacementDecision(
+                action={
+                    "item_idx": int(item_idx),
+                    "container_idx": int(container_idx),
+                    "place_pos": np.asarray(
+                        simulator_action_center(
+                            candidate, container
+                        ),
+                        dtype=np.float32,
+                    ),
+                    "orientation": int(orientation),
+                },
+                candidate=candidate,
+                score=float(score),
+            )
+            counter += 1
+            entry = (score, counter, decision)
+            updated = False
+            if len(heap) < k:
+                heapq.heappush(heap, entry)
+                updated = True
+            elif score > heap[0][0]:
+                heapq.heapreplace(heap, entry)
+                updated = True
+            if updated and diagnostics is not None:
+                diagnostics["search"]["incumbent_updates"] += 1
         return [
             decision
             for _, _, decision in sorted(

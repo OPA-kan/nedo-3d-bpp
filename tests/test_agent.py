@@ -632,6 +632,201 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertLess(elapsed, agent.POLICY_BUDGET_SECONDS)
         self.assertIn(action["item_idx"], range(40))
 
+    def test_candidate_attempt_iterator_stops_inside_an_orientation(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(0)
+        diagnostics = {}
+
+        class TickingClock:
+            def __init__(self):
+                self.value = 0.0
+
+            def __call__(self):
+                self.value += 1.0
+                return self.value
+
+        clock = TickingClock()
+        with mock.patch.object(agent.time, "perf_counter", side_effect=clock):
+            attempts = list(
+                agent.CandidateGenerator.iter_attempts(
+                    observation,
+                    item,
+                    container_idx=0,
+                    orientation=0,
+                    deadline=4.0,
+                    diagnostics=diagnostics,
+                    item_idx=0,
+                )
+            )
+
+        self.assertLessEqual(clock.value, 5.0)
+        self.assertLess(len(attempts), 10)
+
+    def test_shallow_pass_reaches_later_item_before_exhausting_first(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        first_item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        second_item = sample_item(1, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [first_item, second_item],
+            "container_list": [container],
+        }
+        later_candidate = agent.AABB(
+            (0.3, 0.0, 0.14),
+            (0.2, 0.2, 0.2),
+        )
+
+        def attempts(
+            _observation,
+            _item,
+            _container_idx,
+            _orientation,
+            **kwargs,
+        ):
+            if kwargs["item_idx"] == 0:
+                for _ in range(agent.ANCHOR_FIRST_PASS_ATTEMPTS + 10):
+                    yield None
+                return
+            yield later_candidate
+
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", return_value=7.0),
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, first_item), (1, second_item)],
+            )
+
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.action["item_idx"], 1)
+        self.assertEqual(decision.score, 7.0)
+
+    def test_priority_ordered_search_keeps_best_validated_incumbent(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(0, length=0.6, width=0.4, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        visited_orientations = []
+
+        def attempts(
+            _observation,
+            _item,
+            _container_idx,
+            orientation,
+            **_kwargs,
+        ):
+            visited_orientations.append(orientation)
+            dims = agent.get_rotated_dimensions(
+                item["length"],
+                item["width"],
+                item["height"],
+                orientation,
+            )
+            yield agent.AABB(
+                (float(orientation), 0.0, 0.2),
+                dims,
+            )
+
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(
+                agent.Ranker,
+                "score",
+                side_effect=lambda candidate, *_args: candidate.center[0],
+            ),
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+            )
+
+        first_dims = agent.get_rotated_dimensions(
+            item["length"],
+            item["width"],
+            item["height"],
+            visited_orientations[0],
+        )
+        maximum_base = max(
+            np.prod(
+                agent.get_rotated_dimensions(
+                    item["length"],
+                    item["width"],
+                    item["height"],
+                    orientation,
+                )[:2]
+            )
+            for orientation in agent.unique_orientations(item)
+        )
+        self.assertAlmostEqual(first_dims[0] * first_dims[1], maximum_base)
+        self.assertEqual(
+            decision.score,
+            max(float(orientation) for orientation in visited_orientations),
+        )
+
+    def test_deadline_returns_best_validated_incumbent(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        safe_candidate = agent.AABB(
+            (0.0, 0.0, 0.14),
+            (0.2, 0.2, 0.2),
+        )
+
+        def attempts(*_args, **_kwargs):
+            yield safe_candidate
+            while True:
+                yield None
+
+        started = time.perf_counter()
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", return_value=3.0),
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+                deadline=started + 0.02,
+            )
+        elapsed = time.perf_counter() - started
+
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.score, 3.0)
+        self.assertLess(elapsed, 0.2)
+
     def test_policy_trace_separates_predicted_residual_from_action(self):
         observation = {
             "pool_list": [

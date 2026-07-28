@@ -147,7 +147,12 @@ class LookaheadComparisonTests(unittest.TestCase):
                             "attempted": 12,
                             "accepted": 2,
                             "rejected": {"corridor": 10},
-                        }
+                        },
+                        "search": {
+                            "units_started": 1,
+                            "units_total": 6,
+                            "deadline_reached": True,
+                        },
                     },
                 }
             ]
@@ -179,6 +184,20 @@ class LookaheadComparisonTests(unittest.TestCase):
             case["metric_history"][0]["candidate_kind"],
             "release_candidate",
         )
+        markdown = comparison_markdown(
+            {
+                "timestamp": "2026-07-28T12:00:00+09:00",
+                "git_sha": "abc123",
+                "config": "sample_config.json",
+                "modes": {
+                    "weighted": {
+                        "process_returncode": 0,
+                        "summary": summary,
+                    }
+                },
+            }
+        )
+        self.assertIn("1/6 deadline", markdown)
         self.assertEqual(
             case["metric_history"][0]["settle_displacement_norm"],
             0.04,
