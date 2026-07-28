@@ -131,6 +131,9 @@ def summarize_evaluation(
                 "mean_predicted_feasible_remaining_ratio": (
                     _mean_or_zero(feasible_ratios)
                 ),
+                "predicted_feasible_observation_count": len(
+                    feasible_ratios
+                ),
                 "metric_history": metric_history,
             }
 
@@ -139,7 +142,7 @@ def summarize_evaluation(
     feasible_ratios = [
         case["mean_predicted_feasible_remaining_ratio"]
         for case in cases.values()
-        if case["metric_history"]
+        if case["predicted_feasible_observation_count"] > 0
     ]
     return {
         "cases": cases,
@@ -210,19 +213,26 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
             ]
         )
         for case_id, case in result["summary"]["cases"].items():
+            feasible_text = (
+                "-"
+                if case.get("predicted_feasible_observation_count", 0) == 0
+                else "{:.3f}".format(
+                    case.get(
+                        "mean_predicted_feasible_remaining_ratio",
+                        0.0,
+                    )
+                )
+            )
             lines.append(
                 "| {case_id} | {fill:.6f} | {placed}/{total} | {volume:.4f} | "
-                "{feasible:.3f} | {cog:.3f} | {surface:.4f} | "
+                "{feasible} | {cog:.3f} | {surface:.4f} | "
                 "{valid} | {safe} |".format(
                     case_id=case_id,
                     fill=case["fill_score"],
                     placed=case["placed_count"],
                     total=case["total_items"],
                     volume=case.get("final_placed_volume", 0.0),
-                    feasible=case.get(
-                        "mean_predicted_feasible_remaining_ratio",
-                        0.0,
-                    ),
+                    feasible=feasible_text,
                     cog=case.get("final_center_of_mass_z", 0.0),
                     surface=case.get(
                         "final_surface_total_variation",

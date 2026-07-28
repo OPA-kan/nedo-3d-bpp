@@ -152,6 +152,7 @@ class LookaheadComparisonTests(unittest.TestCase):
         case = summary["cases"]["000"]
         self.assertEqual(case["final_placed_volume"], 0.25)
         self.assertEqual(case["final_center_of_mass_z"], 0.3)
+        self.assertEqual(case["predicted_feasible_observation_count"], 1)
         self.assertEqual(
             case["metric_history"][0][
                 "predicted_feasible_remaining_ratio"
