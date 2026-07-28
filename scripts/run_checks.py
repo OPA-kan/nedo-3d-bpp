@@ -53,6 +53,21 @@ def load_json(path: pathlib.Path) -> Any:
         return json.load(handle)
 
 
+def evaluation_passed(evaluation: Any) -> bool:
+    if not isinstance(evaluation, dict) or not evaluation:
+        return False
+    required_states = ("is_included", "is_valid", "is_placed_safe")
+    for case in evaluation.values():
+        if not isinstance(case, dict) or case.get("status") != "success":
+            return False
+        states = case.get("place_states")
+        if not isinstance(states, dict):
+            return False
+        if not all(states.get(name) is True for name in required_states):
+            return False
+    return True
+
+
 def report_markdown(payload: dict[str, Any]) -> str:
     tests = payload["tests"]
     simulator = payload.get("simulator")
@@ -80,12 +95,20 @@ def report_markdown(payload: dict[str, Any]) -> str:
     if simulator is None:
         lines.extend(["", "## Simulator", "", "- Status: `SKIPPED`"])
     else:
+        process_ok = simulator["returncode"] == 0
+        physics_ok = payload.get("simulator_validation") is True
+        if process_ok and physics_ok:
+            simulator_status = "PASS"
+        elif process_ok:
+            simulator_status = "FAIL (physics validation)"
+        else:
+            simulator_status = "FAIL (process)"
         lines.extend(
             [
                 "",
                 "## Simulator",
                 "",
-                f"- Status: `{'PASS' if simulator['returncode'] == 0 else 'FAIL'}`",
+                f"- Status: `{simulator_status}`",
                 f"- Runtime: `{simulator['seconds']} s`",
                 f"- Command: `{display_command(simulator['command'])}`",
                 "",
@@ -177,6 +200,7 @@ def main() -> int:
             env,
         )
         payload["evaluation"] = load_json(raw_dir / result_name)
+        payload["simulator_validation"] = evaluation_passed(payload["evaluation"])
 
     latest_json = REPORTS / "latest.json"
     latest_md = REPORTS / "latest.md"
@@ -194,7 +218,10 @@ def main() -> int:
         shutil.copy2(latest_md, history / f"{stamp}.md")
 
     test_ok = payload["tests"]["returncode"] == 0
-    simulator_ok = payload.get("simulator", {}).get("returncode", 0) == 0
+    simulator_ok = (
+        payload.get("simulator", {}).get("returncode", 0) == 0
+        and payload.get("simulator_validation", True)
+    )
     print(latest_md)
     return 0 if test_ok and simulator_ok else 1
 

@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-07-28T09:22:47+09:00`
-- Git SHA: `uncommitted/no repository`
+- Timestamp: `2026-07-28T09:46:24+09:00`
+- Git SHA: `7b2b4853df393c3d715f578a48b6abc0a55cf660`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `10.046 s`
+- Runtime: `6.731 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -47,9 +47,12 @@ test_optimize_is_deterministic_and_returns_a_permutation (test_agent.OfflineOpti
 test_optimize_never_returns_worse_than_constructive_seed (test_agent.OfflineOptimizationTests.test_optimize_never_returns_worse_than_constructive_seed) ... ok
 test_pair_macro_neighbor_keeps_internal_order_and_permutation (test_agent.OfflineOptimizationTests.test_pair_macro_neighbor_keeps_internal_order_and_permutation) ... ok
 test_pair_macro_records_executable_order_layout_and_signature (test_agent.OfflineOptimizationTests.test_pair_macro_records_executable_order_layout_and_signature) ... ok
+test_missing_or_empty_evaluation_fails (test_run_checks.EvaluationStatusTests.test_missing_or_empty_evaluation_fails) ... ok
+test_process_success_does_not_hide_physics_failure (test_run_checks.EvaluationStatusTests.test_process_success_does_not_hide_physics_failure) ... ok
+test_valid_safe_cases_pass (test_run_checks.EvaluationStatusTests.test_valid_safe_cases_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 26 tests in 9.692s
+Ran 29 tests in 6.003s
 
 OK
 ```
