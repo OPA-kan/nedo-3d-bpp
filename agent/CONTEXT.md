@@ -37,6 +37,8 @@
 - 候補生成はdeadline-awareなlazy streamとし、戦略順の荷物、底面積の大きい姿勢、
   残余体積の大きいコンテナから優先する。各三組を64 anchorずつ浅く一巡後、
   256 anchor単位で深掘りし、時間切れ時も最良の検証済みincumbentを返す。
+- settled列挙の末尾まで到達しないとrelease候補が出ない退行を避けるため、
+  各三組をsettled/releaseの独立unitに分け、同じ浅い一巡で両方を探索する。
 - 現段階では旧Cartesian anchor集合を維持しているため、跨ぎ支持候補の損失はない。
   支持面ローカルanchorへ縮約するときは旧列挙をoffline oracleとして
   anchor recall、best-score regret、replay配置数差を測る。
@@ -53,6 +55,8 @@
 - 両ケースともstep 13で終了した。Case 000は8秒のpolicy timeout後に
   simulatorのrandom fallbackが失敗、Case 001は候補を受理できず固定fallbackが失敗した。
   次の共通ボトルネックは直積アンカー列挙の時間と後半のstatic/support/corridor棄却。
-- anytime探索実装後の物理結果は未検証。診断には探索unitの開始数/総数、
-  round数、deadline到達、incumbent更新数を保存する。
+- run 30337216417では最大policy時間が9.87秒から6.52秒へ下がり外部timeoutを
+  解消した一方、release候補がsettled全列挙の末尾に隠れてCase 000/001が
+  12/7個へ退行した。release独立unit修正後の物理結果は未検証。
+- 診断には探索unitの開始数/総数、round数、deadline到達、incumbent更新数を保存する。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。

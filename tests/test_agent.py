@@ -827,6 +827,50 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(decision.score, 3.0)
         self.assertLess(elapsed, 0.2)
 
+    def test_release_probe_is_not_hidden_behind_settled_exhaustion(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        release_candidate = agent.AABB(
+            (0.0, 0.0, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+        visited_kinds = []
+
+        def attempts(*_args, **kwargs):
+            attempt_kind = kwargs["attempt_kind"]
+            visited_kinds.append(attempt_kind)
+            if attempt_kind == "settled":
+                for _ in range(agent.ANCHOR_FIRST_PASS_ATTEMPTS + 10):
+                    yield None
+                return
+            yield release_candidate
+
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", return_value=5.0),
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+            )
+
+        self.assertEqual(visited_kinds[:2], ["settled", "release"])
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.candidate.name, "release_candidate")
+
     def test_policy_trace_separates_predicted_residual_from_action(self):
         observation = {
             "pool_list": [

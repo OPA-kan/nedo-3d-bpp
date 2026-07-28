@@ -1009,6 +1009,7 @@ class CandidateGenerator:
         deadline=None,
         diagnostics=None,
         item_idx=None,
+        attempt_kind="both",
     ):
         """
         Yield every validated candidate attempt lazily.
@@ -1018,6 +1019,10 @@ class CandidateGenerator:
         candidates.  This is important late in an episode, where a unit may
         inspect tens of thousands of invalid anchors before finding nothing.
         """
+        if attempt_kind not in {"both", "settled", "release"}:
+            raise ValueError(
+                "attempt_kind must be 'both', 'settled', or 'release'"
+            )
         container = observation["container_list"][container_idx]
         if item_idx is None:
             item_idx = item.get("index", -1)
@@ -1116,7 +1121,53 @@ class CandidateGenerator:
                 )
             return intervals[key]
 
-        for z in sorted(zs):
+        if attempt_kind in {"both", "settled"}:
+            for z in sorted(zs):
+                for y in sorted(ys, reverse=True):
+                    for x in sorted(xs, key=abs):
+                        if (
+                            deadline is not None
+                            and time.perf_counter() >= deadline
+                        ):
+                            return
+                        position = (float(x), float(y), float(z))
+                        key = tuple(round(value, 4) for value in position)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        interval = interval_at(x, y)
+                        if (
+                            interval is None
+                            or float(z) < interval[0] - EPS
+                            or float(z) > interval[1] + EPS
+                        ):
+                            _record_envelope_prune(
+                                diagnostics,
+                                item_idx,
+                            )
+                            yield None
+                            continue
+                        candidate = AABB(position, dims, "candidate")
+                        reason = Geometry.rejection_reason(
+                            candidate,
+                            container,
+                        )
+                        _record_candidate_diagnostic(
+                            diagnostics,
+                            item_idx,
+                            reason,
+                        )
+                        if reason is None:
+                            accepted += 1
+                            yield candidate
+                            if accepted >= limit:
+                                return
+                        else:
+                            yield None
+        if accepted and attempt_kind == "both":
+            return
+
+        if attempt_kind in {"both", "release"}:
             for y in sorted(ys, reverse=True):
                 for x in sorted(xs, key=abs):
                     if (
@@ -1124,29 +1175,52 @@ class CandidateGenerator:
                         and time.perf_counter() >= deadline
                     ):
                         return
+                    interval = interval_at(x, y)
+                    if interval is None:
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                            kind="release",
+                        )
+                        yield None
+                        continue
+                    rest_height = release_rest_height(
+                        x,
+                        y,
+                        dims,
+                        container,
+                    )
+                    z = max(
+                        interval[0] + RELEASE_BOUNDARY_MARGIN,
+                        rest_height + dz / 2.0 + RELEASE_TARGET_LIFT,
+                    )
+                    if z > interval[1] + EPS:
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                            kind="release",
+                        )
+                        yield None
+                        continue
                     position = (float(x), float(y), float(z))
                     key = tuple(round(value, 4) for value in position)
                     if key in seen:
                         continue
                     seen.add(key)
-                    interval = interval_at(x, y)
-                    if (
-                        interval is None
-                        or float(z) < interval[0] - EPS
-                        or float(z) > interval[1] + EPS
-                    ):
-                        _record_envelope_prune(
-                            diagnostics,
-                            item_idx,
-                        )
-                        yield None
-                        continue
-                    candidate = AABB(position, dims, "candidate")
-                    reason = Geometry.rejection_reason(candidate, container)
+                    candidate = AABB(
+                        position,
+                        dims,
+                        "release_candidate",
+                    )
+                    reason = Geometry.release_rejection_reason(
+                        candidate,
+                        container,
+                    )
                     _record_candidate_diagnostic(
                         diagnostics,
                         item_idx,
                         reason,
+                        kind="release",
                     )
                     if reason is None:
                         accepted += 1
@@ -1155,66 +1229,6 @@ class CandidateGenerator:
                             return
                     else:
                         yield None
-        if accepted:
-            return
-
-        for y in sorted(ys, reverse=True):
-            for x in sorted(xs, key=abs):
-                if (
-                    deadline is not None
-                    and time.perf_counter() >= deadline
-                ):
-                    return
-                interval = interval_at(x, y)
-                if interval is None:
-                    _record_envelope_prune(
-                        diagnostics,
-                        item_idx,
-                        kind="release",
-                    )
-                    yield None
-                    continue
-                rest_height = release_rest_height(
-                    x,
-                    y,
-                    dims,
-                    container,
-                )
-                z = max(
-                    interval[0] + RELEASE_BOUNDARY_MARGIN,
-                    rest_height + dz / 2.0 + RELEASE_TARGET_LIFT,
-                )
-                if z > interval[1] + EPS:
-                    _record_envelope_prune(
-                        diagnostics,
-                        item_idx,
-                        kind="release",
-                    )
-                    yield None
-                    continue
-                position = (float(x), float(y), float(z))
-                key = tuple(round(value, 4) for value in position)
-                if key in seen:
-                    continue
-                seen.add(key)
-                candidate = AABB(position, dims, "release_candidate")
-                reason = Geometry.release_rejection_reason(
-                    candidate,
-                    container,
-                )
-                _record_candidate_diagnostic(
-                    diagnostics,
-                    item_idx,
-                    reason,
-                    kind="release",
-                )
-                if reason is None:
-                    accepted += 1
-                    yield candidate
-                    if accepted >= limit:
-                        return
-                else:
-                    yield None
 
     @staticmethod
     def generate(
@@ -1422,18 +1436,23 @@ def prioritized_search_units(observation, indexed_items):
         )
         for pose_rank, orientation in enumerate(orientations):
             for container_rank, container_idx in enumerate(container_indices):
-                units.append(
-                    (
-                        item_rank,
-                        pose_rank,
-                        container_rank,
-                        int(item_idx),
-                        item,
-                        int(container_idx),
-                        int(orientation),
+                for kind_rank, attempt_kind in enumerate(
+                    ("settled", "release")
+                ):
+                    units.append(
+                        (
+                            item_rank,
+                            pose_rank,
+                            container_rank,
+                            kind_rank,
+                            int(item_idx),
+                            item,
+                            int(container_idx),
+                            int(orientation),
+                            attempt_kind,
+                        )
                     )
-                )
-    units.sort(key=lambda unit: unit[:3])
+    units.sort(key=lambda unit: unit[:4])
     return units
 
 
@@ -1491,10 +1510,12 @@ def iter_prioritized_candidates(
                 _item_rank,
                 _pose_rank,
                 _container_rank,
+                _kind_rank,
                 item_idx,
                 item,
                 container_idx,
                 orientation,
+                attempt_kind,
             ) = state["unit"]
             if state["iterator"] is None:
                 state["iterator"] = CandidateGenerator.iter_attempts(
@@ -1505,6 +1526,7 @@ def iter_prioritized_candidates(
                     deadline=deadline,
                     diagnostics=diagnostics,
                     item_idx=item_idx,
+                    attempt_kind=attempt_kind,
                 )
                 if search_stats is not None:
                     search_stats["units_started"] += 1
