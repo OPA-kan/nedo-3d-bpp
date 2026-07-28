@@ -14,6 +14,22 @@
 
 `archive/colab/` は過去の実行履歴を保存するだけで、開発手順の正本ではありません。
 
+## AI向け段階的コンテキスト
+
+GitHubを詳細情報の正本として保ちつつ、AIは作業に必要な領域だけを読みます。
+
+```powershell
+python scripts/context.py list
+python scripts/context.py show agent
+python scripts/context.py show simulator
+python scripts/context.py show theory
+python scripts/context.py show simulator --full
+```
+
+通常の `show` は各領域の短い要約だけを返します。`--full` を付けた場合だけ、
+ソースや完全な数学資料を含めます。AI向けの選択規則と情報の優先順位は
+`AGENTS.md`、機械可読な対応表は `context/manifest.json` が正本です。
+
 ## CPUで実行
 
 Python 3.12を推奨します。
