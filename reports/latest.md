@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-07-28T09:46:24+09:00`
-- Git SHA: `7b2b4853df393c3d715f578a48b6abc0a55cf660`
+- Timestamp: `2026-07-28T10:12:04+09:00`
+- Git SHA: `6bc9784267674e924f3bead5f8a7cf2f21d6bb16`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `6.731 s`
+- Runtime: `19.058 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -47,12 +47,19 @@ test_optimize_is_deterministic_and_returns_a_permutation (test_agent.OfflineOpti
 test_optimize_never_returns_worse_than_constructive_seed (test_agent.OfflineOptimizationTests.test_optimize_never_returns_worse_than_constructive_seed) ... ok
 test_pair_macro_neighbor_keeps_internal_order_and_permutation (test_agent.OfflineOptimizationTests.test_pair_macro_neighbor_keeps_internal_order_and_permutation) ... ok
 test_pair_macro_records_executable_order_layout_and_signature (test_agent.OfflineOptimizationTests.test_pair_macro_records_executable_order_layout_and_signature) ... ok
+test_all_manifest_paths_resolve_inside_repository (test_context.ContextRouterTests.test_all_manifest_paths_resolve_inside_repository) ... ok
+test_expected_profiles_exist (test_context.ContextRouterTests.test_expected_profiles_exist) ... ok
+test_full_cli_handles_utf8_reference_on_windows (test_context.ContextRouterTests.test_full_cli_handles_utf8_reference_on_windows) ... ok
+test_full_profile_adds_detail_files (test_context.ContextRouterTests.test_full_profile_adds_detail_files) ... ok
+test_handoff_profile_is_a_single_short_entrypoint (test_context.ContextRouterTests.test_handoff_profile_is_a_single_short_entrypoint) ... ok
+test_path_escape_is_rejected (test_context.ContextRouterTests.test_path_escape_is_rejected) ... ok
+test_summary_does_not_load_detailed_agent_source (test_context.ContextRouterTests.test_summary_does_not_load_detailed_agent_source) ... ok
 test_missing_or_empty_evaluation_fails (test_run_checks.EvaluationStatusTests.test_missing_or_empty_evaluation_fails) ... ok
 test_process_success_does_not_hide_physics_failure (test_run_checks.EvaluationStatusTests.test_process_success_does_not_hide_physics_failure) ... ok
 test_valid_safe_cases_pass (test_run_checks.EvaluationStatusTests.test_valid_safe_cases_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 29 tests in 6.003s
+Ran 36 tests in 17.667s
 
 OK
 ```

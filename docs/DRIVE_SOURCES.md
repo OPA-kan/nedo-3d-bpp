@@ -10,7 +10,7 @@ GitHubを正本とするための移植元一覧。Driveのファイルを実行
 | `NEDO.ipynb` | `1oVBcQ3Aa7IO40ZkJIbuESiqRZX3HfjdT` | `archive/colab/NEDO.ipynb` | 実行履歴アーカイブ |
 | `NEDO_clean.ipynb` | `1SsHiD2uBeoHQdDdJ-TdK-T3RrpyVTCmh` | 旧作業領域からは移行せず | `NEDO.ipynb`へ統合済みの旧版 |
 | `NEDOコンペ/理論` | `1F2rgldwnUj-Aanfk28tWvYG-PJkRAzZiH9nVVC-szWU` | `docs/theory/MATHEMATICAL_MODEL.md` | 重複議論を整理した正本 |
-| `simulator_guide.md` | `17hFll5JNSV_Jhnz6Cj1WCTxP41NRT8ot` | `simulator/README.md` とソース | 自動抽出ガイドより公式ソースを優先 |
+| `simulator_guide.md` | `17hFll5JNSV_Jhnz6Cj1WCTxP41NRT8ot` | `docs/simulator/API_REFERENCE.md` | 公開API索引。物理契約は公式ソースを優先 |
 | `simulator.zip` | `1_G7DmKvt2XQmpwCnxNvT-8XfoKmGIjTA` | `simulator/` | 展開済み固定スナップショット |
 | `ADR-001-offline-optimization.md` | `1gGHJw8YElUPffZ8rYNyLpYG1NbNVL-ry` | `docs/adr/ADR-001-offline-optimization.md` | 設計判断 |
 | `GEOMETRY_RULES.md` | `1oQtKmEEIUKsgUWWp3jA3qHeH_1g7LG0j` | `docs/GEOMETRY_RULES.md` | 幾何契約 |
@@ -40,4 +40,3 @@ GitHubを正本とするための移植元一覧。Driveのファイルを実行
 - `agent/agent.py` をDriveへ逆同期して正本を二つにしない。
 - Notebookのセルから直接本番コードを編集しない。
 - 実行結果は `scripts/run_checks.py` で `reports/latest.*` に生成する。
-
