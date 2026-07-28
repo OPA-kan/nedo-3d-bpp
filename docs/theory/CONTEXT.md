@@ -27,6 +27,9 @@
 - 2個の部分列テンプレートはImplemented。
 - 3～4個への拡張、署名アブレーション、closed-loop Optionの一般化はProposed。
 - 安定性プロキシと物理振動の相関、重み調整、配置コア速度依存は未解決。
+- pool-awareな残余価値は別profile `preview-value` で扱う。
+  `weighted`、`depth2`、`pool_resilience` の選択機構だけImplementedで、
+  可行アンカー面積と学習価値はProposed。
 
 完全な定式化が必要な場合だけ `MATHEMATICAL_MODEL.md` を読む。
 

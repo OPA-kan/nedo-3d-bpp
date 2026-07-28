@@ -21,8 +21,47 @@ class ContextRouterTests(unittest.TestCase):
     def test_expected_profiles_exist(self) -> None:
         profiles = self.manifest["profiles"]
         self.assertTrue(
-            {"handoff", "agent", "simulator", "theory"} <= set(profiles)
+            {
+                "handoff",
+                "competition",
+                "agent",
+                "simulator",
+                "theory",
+                "preview-value",
+                "preview-experiments",
+            }
+            <= set(profiles)
         )
+
+    def test_competition_rules_are_a_separate_summary(self) -> None:
+        files = profile_files(self.manifest, "competition", full=True)
+        self.assertEqual(files, ["docs/COMPETITION_RULES.md"])
+        self.assertNotIn(
+            "docs/COMPETITION_RULES.md",
+            profile_files(self.manifest, "overview", full=True),
+        )
+
+    def test_preview_value_summary_is_separate_from_full_theory(self) -> None:
+        files = profile_files(self.manifest, "preview-value")
+        self.assertEqual(
+            files,
+            ["docs/theory/PREVIEW_VALUE_CONTEXT.md"],
+        )
+        rendered = render_profile(self.manifest, "preview-value")
+        self.assertNotIn(
+            "--- BEGIN docs/theory/PREVIEW_RESIDUAL_VALUE.md ---",
+            rendered,
+        )
+
+    def test_preview_experiments_do_not_pollute_default_experiments(self) -> None:
+        default_files = profile_files(self.manifest, "experiments", full=True)
+        preview_files = profile_files(
+            self.manifest,
+            "preview-experiments",
+            full=True,
+        )
+        self.assertNotIn("reports/lookahead/README.md", default_files)
+        self.assertEqual(preview_files, ["reports/lookahead/README.md"])
 
     def test_handoff_profile_is_a_single_short_entrypoint(self) -> None:
         self.assertEqual(

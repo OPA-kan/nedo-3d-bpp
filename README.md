@@ -23,12 +23,14 @@ python scripts/context.py list
 python scripts/context.py show agent
 python scripts/context.py show simulator
 python scripts/context.py show theory
+python scripts/context.py show competition
 python scripts/context.py show simulator --full
 ```
 
 通常の `show` は各領域の短い要約だけを返します。`--full` を付けた場合だけ、
 ソースや完全な数学資料を含めます。AI向けの選択規則と情報の優先順位は
 `AGENTS.md`、機械可読な対応表は `context/manifest.json` が正本です。
+競技ルールとローカルscoreの限界は `docs/COMPETITION_RULES.md` に分離しています。
 
 ## CPUで実行
 

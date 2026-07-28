@@ -1,0 +1,42 @@
+name: Lookahead score comparison
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/preview-score-comparison
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lookahead-comparison-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-simulator.txt
+      - run: python scripts/run_checks.py
+      - name: Run same-commit comparison
+        run: python scripts/compare_lookahead.py --run-id "${{ github.run_id }}"
+        env:
+          OFFLINE_SEARCH_BUDGET_SECONDS: "150"
+      - name: Publish comparison table
+        if: always()
+        run: |
+          if [ -f reports/lookahead/latest-summary.md ]; then
+            cat reports/lookahead/latest-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lookahead-score-history
+          path: reports/lookahead/

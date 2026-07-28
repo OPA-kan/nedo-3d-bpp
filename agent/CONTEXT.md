@@ -26,6 +26,10 @@
 - Or-opt、swap、2個の逐次再生可能部分列テンプレートを併用する。
 - 評価は配置失敗を最優先し、その後に充填・支持・重心を比較する。
 - 単品近傍はマクロ近傍で置き換えない。
+- オンラインlookaheadは `LOOKAHEAD_SELECTION_MODE` で切替可能。
+  `weighted` は既定互換、`depth2` は次手可行性を辞書式優先、
+  `pool_resilience` は次に配置可能な可視荷物数を最優先する。
+  詳細は `python scripts/context.py show preview-value`。
 
 ## 現在の状態
 

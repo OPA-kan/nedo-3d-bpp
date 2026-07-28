@@ -57,6 +57,12 @@ OFFLINE_STABILITY_WEIGHT = float(
 # --- Closed-loop lookahead (online policy) ---
 LOOKAHEAD_TOP_K = int(os.environ.get("LOOKAHEAD_TOP_K", "3"))
 LOOKAHEAD_DISCOUNT = float(os.environ.get("LOOKAHEAD_DISCOUNT", "0.5"))
+LOOKAHEAD_SELECTION_MODE = os.environ.get(
+    "LOOKAHEAD_SELECTION_MODE", "weighted"
+).strip().lower()
+LOOKAHEAD_SELECTION_MODES = frozenset(
+    {"weighted", "depth2", "pool_resilience"}
+)
 LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
@@ -215,6 +221,21 @@ class PlacementDecision:
     action: dict
     candidate: AABB
     score: float
+
+
+@dataclass(frozen=True)
+class VisiblePoolFeasibility:
+    feasible_items: int
+    evaluated_items: int
+    best_score: float
+
+
+@dataclass(frozen=True)
+class LookaheadEvaluation:
+    decision: PlacementDecision
+    feasible_next_items: int
+    total_next_items: int
+    best_next_score: float
 
 
 @dataclass(frozen=True)
@@ -1141,6 +1162,75 @@ class PlacementCore:
         ]
 
 
+def normalized_lookahead_mode(mode):
+    normalized = str(mode).strip().lower()
+    if normalized not in LOOKAHEAD_SELECTION_MODES:
+        available = ", ".join(sorted(LOOKAHEAD_SELECTION_MODES))
+        raise ValueError(
+            f"unknown lookahead selection mode '{mode}'; available: {available}"
+        )
+    return normalized
+
+
+def lookahead_rank_key(
+    evaluation,
+    mode=LOOKAHEAD_SELECTION_MODE,
+    discount=LOOKAHEAD_DISCOUNT,
+):
+    mode = normalized_lookahead_mode(mode)
+    immediate_score = float(evaluation.decision.score)
+    best_next_score = float(evaluation.best_next_score)
+    has_feasible_next = (
+        evaluation.total_next_items == 0
+        or evaluation.feasible_next_items > 0
+    )
+
+    if mode == "weighted":
+        return (immediate_score + float(discount) * best_next_score,)
+    if mode == "depth2":
+        return (
+            int(has_feasible_next),
+            best_next_score,
+            immediate_score,
+        )
+    return (
+        int(evaluation.feasible_next_items),
+        best_next_score,
+        immediate_score,
+    )
+
+
+def evaluate_visible_pool_feasibility(
+    observation,
+    indexed_items,
+    deadline=None,
+):
+    feasible_items = 0
+    best_score = -float("inf")
+    evaluated_items = 0
+    for indexed_item in indexed_items:
+        if deadline is not None and time.perf_counter() >= deadline:
+            return None
+        next_decision = PlacementCore.choose(
+            observation,
+            [indexed_item],
+            deadline=deadline,
+        )
+        evaluated_items += 1
+        if next_decision is None:
+            continue
+        feasible_items += 1
+        best_score = max(best_score, float(next_decision.score))
+
+    if feasible_items == 0:
+        best_score = 0.0
+    return VisiblePoolFeasibility(
+        feasible_items=feasible_items,
+        evaluated_items=evaluated_items,
+        best_score=best_score,
+    )
+
+
 def effective_container_volume(container):
     if container.get("volume") is not None:
         return max(EPS, float(container["volume"]))
@@ -1773,14 +1863,21 @@ class Agent:
         Closed-loop 1-ply lookahead. Keep the top-K immediate candidates
         (not just the single best), hypothetically settle each one against
         a deep-copied container state using the exact same PlacementCore
-        used for every other decision, then score it by its own immediate
-        score plus a discounted best-next-placement score for the items
-        still in the pool. This reacts to what is genuinely still placeable
-        after each candidate rather than only the single myopic best.
+        used for every other decision, then rank the resulting pool-aware
+        evaluation with the configured selection mode.
+
+        weighted preserves the original discounted sum. depth2 avoids mixing
+        immediate and future scales by comparing next-step feasibility,
+        best-next score, and immediate score lexicographically.
+        pool_resilience first preserves the number of visible items that
+        remain individually placeable.
         """
         if not ordered_items:
             return None
 
+        selection_mode = normalized_lookahead_mode(
+            LOOKAHEAD_SELECTION_MODE
+        )
         lookahead_deadline = deadline - LOOKAHEAD_TIME_RESERVE_SECONDS
         search_deadline = (
             lookahead_deadline
@@ -1804,7 +1901,7 @@ class Agent:
 
         inner_pool = ordered_items[:LOOKAHEAD_INNER_ITEMS]
         best_decision = top[0]
-        best_total = -float("inf")
+        best_key = None
         for decision in top:
             if time.perf_counter() >= deadline - 0.2:
                 break
@@ -1817,20 +1914,51 @@ class Agent:
             remaining = [
                 (idx, item) for idx, item in inner_pool if idx != item_idx
             ]
-            future_score = 0.0
+            pool_feasibility = VisiblePoolFeasibility(
+                feasible_items=0,
+                evaluated_items=0,
+                best_score=0.0,
+            )
             if remaining:
                 sim_observation = {
                     "pool_list": pool_list,
                     "container_list": sim_containers,
                 }
-                next_decision = PlacementCore.choose(
-                    sim_observation, remaining, deadline=deadline - 0.2
-                )
-                if next_decision is not None:
-                    future_score = next_decision.score
-            total = decision.score + LOOKAHEAD_DISCOUNT * future_score
-            if total > best_total:
-                best_total = total
+                if selection_mode == "pool_resilience":
+                    pool_feasibility = evaluate_visible_pool_feasibility(
+                        sim_observation,
+                        remaining,
+                        deadline=deadline - 0.2,
+                    )
+                    if pool_feasibility is None:
+                        break
+                else:
+                    next_decision = PlacementCore.choose(
+                        sim_observation,
+                        remaining,
+                        deadline=deadline - 0.2,
+                    )
+                    pool_feasibility = VisiblePoolFeasibility(
+                        feasible_items=int(next_decision is not None),
+                        evaluated_items=len(remaining),
+                        best_score=(
+                            0.0
+                            if next_decision is None
+                            else float(next_decision.score)
+                        ),
+                    )
+            evaluation = LookaheadEvaluation(
+                decision=decision,
+                feasible_next_items=pool_feasibility.feasible_items,
+                total_next_items=len(remaining),
+                best_next_score=pool_feasibility.best_score,
+            )
+            rank_key = lookahead_rank_key(
+                evaluation,
+                mode=selection_mode,
+            )
+            if best_key is None or rank_key > best_key:
+                best_key = rank_key
                 best_decision = decision
         return best_decision
 

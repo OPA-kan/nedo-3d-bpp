@@ -334,6 +334,112 @@ class GeometryContractTests(unittest.TestCase):
         action = agent.Agent("").policy(observation)
         self.assertEqual(action["container_idx"], 1)
 
+
+class LookaheadSelectionTests(unittest.TestCase):
+    @staticmethod
+    def decision(score, item_idx=0):
+        return agent.PlacementDecision(
+            action={
+                "item_idx": item_idx,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB((0.0, 0.0, 0.1), (0.2, 0.2, 0.2)),
+            score=score,
+        )
+
+    def test_weighted_mode_preserves_existing_discounted_sum(self):
+        evaluation = agent.LookaheadEvaluation(
+            decision=self.decision(10.0),
+            feasible_next_items=1,
+            total_next_items=2,
+            best_next_score=4.0,
+        )
+
+        self.assertEqual(
+            agent.lookahead_rank_key(
+                evaluation,
+                mode="weighted",
+                discount=0.5,
+            ),
+            (12.0,),
+        )
+
+    def test_depth2_mode_prefers_a_feasible_next_step_without_score_mixing(self):
+        dead_end = agent.LookaheadEvaluation(
+            decision=self.decision(100.0),
+            feasible_next_items=0,
+            total_next_items=1,
+            best_next_score=0.0,
+        )
+        viable = agent.LookaheadEvaluation(
+            decision=self.decision(1.0),
+            feasible_next_items=1,
+            total_next_items=1,
+            best_next_score=-10.0,
+        )
+
+        self.assertGreater(
+            agent.lookahead_rank_key(viable, mode="depth2"),
+            agent.lookahead_rank_key(dead_end, mode="depth2"),
+        )
+
+    def test_pool_resilience_mode_prefers_more_placeable_visible_items(self):
+        narrow = agent.LookaheadEvaluation(
+            decision=self.decision(50.0),
+            feasible_next_items=1,
+            total_next_items=3,
+            best_next_score=20.0,
+        )
+        resilient = agent.LookaheadEvaluation(
+            decision=self.decision(2.0),
+            feasible_next_items=2,
+            total_next_items=3,
+            best_next_score=1.0,
+        )
+
+        self.assertGreater(
+            agent.lookahead_rank_key(resilient, mode="pool_resilience"),
+            agent.lookahead_rank_key(narrow, mode="pool_resilience"),
+        )
+
+    def test_visible_pool_feasibility_uses_real_placement_core(self):
+        valid_item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        oversized_item = sample_item(1, length=5.0, width=5.0, height=5.0)
+        observation = {
+            "pool_list": [valid_item, oversized_item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+
+        result = agent.evaluate_visible_pool_feasibility(
+            observation,
+            [(0, valid_item), (1, oversized_item)],
+            deadline=time.perf_counter() + 2.0,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.feasible_items, 1)
+        self.assertEqual(result.evaluated_items, 2)
+        self.assertGreater(result.best_score, 0.0)
+
+    def test_unknown_lookahead_mode_is_rejected(self):
+        evaluation = agent.LookaheadEvaluation(
+            decision=self.decision(1.0),
+            feasible_next_items=0,
+            total_next_items=0,
+            best_next_score=0.0,
+        )
+
+        with self.assertRaises(ValueError):
+            agent.lookahead_rank_key(evaluation, mode="not-a-mode")
+
     def test_pool_of_40_stays_below_online_time_limit(self):
         template = {
             "length": 0.3,
