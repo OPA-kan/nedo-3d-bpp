@@ -871,6 +871,64 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertIsNotNone(decision)
         self.assertEqual(decision.candidate.name, "release_candidate")
 
+    def test_settled_candidate_is_preferred_over_higher_scoring_release(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        settled_candidate = agent.AABB(
+            (0.0, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "settled_candidate",
+        )
+        release_candidate = agent.AABB(
+            (0.0, 0.0, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "release":
+                yield release_candidate
+            else:
+                yield settled_candidate
+
+        def score(candidate, *_args):
+            return 10.0 if candidate.name == "release_candidate" else 1.0
+
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+            )
+            candidates = agent.PlacementCore.top_candidates(
+                observation,
+                [(0, item)],
+                k=3,
+            )
+
+        self.assertEqual(decision.candidate.name, "settled_candidate")
+        self.assertTrue(candidates)
+        self.assertTrue(
+            all(
+                candidate.candidate.name == "settled_candidate"
+                for candidate in candidates
+            )
+        )
+
     def test_policy_trace_separates_predicted_residual_from_action(self):
         observation = {
             "pool_list": [

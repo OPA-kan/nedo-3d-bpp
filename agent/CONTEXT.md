@@ -60,3 +60,14 @@
   12/7個へ退行した。release独立unit修正後の物理結果は未検証。
 - 診断には探索unitの開始数/総数、round数、deadline到達、incumbent更新数を保存する。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。
+
+## Release fallback ordering
+
+- Settled and release candidates are searched as independent units so that a
+  release probe cannot be hidden behind exhaustive settled-anchor enumeration.
+- Their incumbents are kept separately. If any validated settled candidate
+  exists, it is chosen regardless of the release candidate's heuristic score.
+- A release candidate is returned only when the search found no settled
+  candidate. This is a safety ordering: run 30338524490 reached 14 placements
+  in Case 000, but Case 001 selected a high-scoring release at step 4 and
+  failed after settling by 0.638 m with a 90-degree rotation.

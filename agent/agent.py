@@ -1579,8 +1579,10 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
-        best = None
-        best_score = -float("inf")
+        best_settled = None
+        best_settled_score = -float("inf")
+        best_release = None
+        best_release_score = -float("inf")
 
         for (
             item_idx,
@@ -1601,26 +1603,34 @@ class PlacementCore:
                 container,
                 has_priority_container,
             )
-            if score > best_score:
-                best_score = score
-                best = PlacementDecision(
-                    action={
-                        "item_idx": int(item_idx),
-                        "container_idx": int(container_idx),
-                        "place_pos": np.asarray(
-                            simulator_action_center(
-                                candidate, container
-                            ),
-                            dtype=np.float32,
+            decision = PlacementDecision(
+                action={
+                    "item_idx": int(item_idx),
+                    "container_idx": int(container_idx),
+                    "place_pos": np.asarray(
+                        simulator_action_center(
+                            candidate, container
                         ),
-                        "orientation": int(orientation),
-                    },
-                    candidate=candidate,
-                    score=float(score),
-                )
-                if diagnostics is not None:
-                    diagnostics["search"]["incumbent_updates"] += 1
-        return best
+                        dtype=np.float32,
+                    ),
+                    "orientation": int(orientation),
+                },
+                candidate=candidate,
+                score=float(score),
+            )
+            updated = False
+            if candidate.name == "release_candidate":
+                if score > best_release_score:
+                    best_release_score = score
+                    best_release = decision
+                    updated = True
+            elif score > best_settled_score:
+                best_settled_score = score
+                best_settled = decision
+                updated = True
+            if updated and diagnostics is not None:
+                diagnostics["search"]["incumbent_updates"] += 1
+        return best_settled or best_release
 
     @staticmethod
     def top_candidates(
@@ -1644,7 +1654,8 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
-        heap = []
+        settled_heap = []
+        release_heap = []
         counter = 0
 
         for (
@@ -1683,6 +1694,11 @@ class PlacementCore:
             )
             counter += 1
             entry = (score, counter, decision)
+            heap = (
+                release_heap
+                if candidate.name == "release_candidate"
+                else settled_heap
+            )
             updated = False
             if len(heap) < k:
                 heapq.heappush(heap, entry)
@@ -1695,7 +1711,9 @@ class PlacementCore:
         return [
             decision
             for _, _, decision in sorted(
-                heap, key=lambda entry: entry[0], reverse=True
+                settled_heap or release_heap,
+                key=lambda entry: entry[0],
+                reverse=True,
             )
         ]
 

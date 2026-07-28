@@ -76,3 +76,17 @@ lookahead価値関数ではなく、候補生成の直積列挙削減と時間�
   recall/regret/配置数差は次の独立実験とする。
 
 完全な定式化、限界、実験計画は `PREVIEW_RESIDUAL_VALUE.md` を読む。
+
+## Release fallback ordering
+
+The anytime search maintains separate settled and release incumbents. A
+validated settled candidate has lexicographic priority over every release
+candidate; release is used only if no settled candidate was found before the
+deadline. This prevents the heuristic value function from trading away
+physical certainty for a nominally higher release score.
+
+Run 30338524490 demonstrated why this ordering is required. Case 000 improved
+from 13 to 14 placements, but Case 001 chose a release candidate at step 4 and
+failed after 0.638 m of settle displacement and a 90-degree rotation. The
+ordering change is implemented, but its physics result remains pending until
+the next simulator run.
