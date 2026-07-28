@@ -714,6 +714,86 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(decision.action["item_idx"], 1)
         self.assertEqual(decision.score, 7.0)
 
+    def test_candidate_audit_records_only_accepted_settled_candidates(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(7, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        settled = agent.AABB(
+            (0.1, 0.2, 0.14),
+            (0.2, 0.2, 0.2),
+            "candidate",
+        )
+        release = agent.AABB(
+            (0.1, 0.2, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "settled":
+                yield settled
+            else:
+                yield release
+
+        diagnostics = {}
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent, "CANDIDATE_AUDIT_ENABLED", True),
+        ):
+            candidates = list(
+                agent.iter_prioritized_candidates(
+                    observation,
+                    [(0, item)],
+                    diagnostics=diagnostics,
+                )
+            )
+
+        self.assertGreater(len(candidates), 1)
+        searches = diagnostics["candidate_audit"]
+        self.assertEqual(len(searches), 1)
+        records = searches[0]["accepted_settled"]
+        self.assertTrue(records)
+        self.assertTrue(
+            all(record["kind"] == "candidate" for record in records)
+        )
+        self.assertEqual(records[0]["item_index"], 7)
+        self.assertEqual(records[0]["pool_index"], 0)
+        self.assertEqual(records[0]["action_center"], [0.1, 0.2, 0.14])
+        self.assertIn("elapsed_seconds", records[0])
+
+    def test_candidate_audit_is_absent_by_default(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(7, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        diagnostics = {}
+        with mock.patch.object(agent, "CANDIDATE_AUDIT_ENABLED", False):
+            next(
+                agent.iter_prioritized_candidates(
+                    observation,
+                    [(0, item)],
+                    diagnostics=diagnostics,
+                )
+            )
+        self.assertNotIn("candidate_audit", diagnostics)
+
     def test_priority_ordered_search_keeps_best_validated_incumbent(self):
         container = sample_container(
             require_shelf=False,

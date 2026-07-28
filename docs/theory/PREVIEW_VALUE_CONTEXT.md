@@ -92,3 +92,12 @@ settle displacement and a 90-degree rotation. Thus a high release score
 overriding a settled candidate was not the root cause. The next required
 mechanism is a release stability/risk gate or a safer fallback candidate, not
 another value-function weight change.
+
+## Anchor recall oracle
+
+Before replacing the Cartesian anchor set, run the offline oracle documented
+in `docs/ANCHOR_RECALL_ORACLE.md`. It compares the settled candidates found by
+the actual deadline-bound policy with an unlimited enumeration at the exact
+same pre-action state. Physical recall uses isolated PyBullet settle trials as
+the denominator. Per-support-plane generation is justified when the oracle
+finds safe settled candidates that the anytime search misses.

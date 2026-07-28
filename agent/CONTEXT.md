@@ -74,3 +74,8 @@
   candidate at step 4 and its release fallback failed after settling by
   0.638 m with a 90-degree rotation. Release candidates therefore need an
   additional stability/risk gate; heuristic ordering was not the root cause.
+- `scripts/measure_anchor_recall.py` is an offline-only oracle. It snapshots
+  every requested pre-action state, audits the settled candidates actually
+  found before the policy deadline, enumerates the legacy Cartesian set
+  without a deadline, and validates each oracle candidate with isolated
+  PyBullet settle trials. See `docs/ANCHOR_RECALL_ORACLE.md`.

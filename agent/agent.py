@@ -86,6 +86,10 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+CANDIDATE_AUDIT_ENABLED = (
+    os.environ.get("NEDO_CANDIDATE_AUDIT", "0").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
 EPS = 1e-6
 
 
@@ -1456,6 +1460,31 @@ def prioritized_search_units(observation, indexed_items):
     return units
 
 
+def candidate_audit_record(
+    item_idx,
+    item,
+    container_idx,
+    orientation,
+    candidate,
+    container,
+    elapsed_seconds=None,
+):
+    action_center = simulator_action_center(candidate, container)
+    record = {
+        "pool_index": int(item_idx),
+        "item_index": int(item.get("index", item_idx)),
+        "container_index": int(container_idx),
+        "orientation": int(orientation),
+        "kind": candidate.name or "candidate",
+        "center": [float(value) for value in candidate.center],
+        "size": [float(value) for value in candidate.size],
+        "action_center": [float(value) for value in action_center],
+    }
+    if elapsed_seconds is not None:
+        record["elapsed_seconds"] = float(elapsed_seconds)
+    return record
+
+
 def iter_prioritized_candidates(
     observation,
     indexed_items,
@@ -1471,6 +1500,15 @@ def iter_prioritized_candidates(
     incumbent without starving later items or poses.
     """
     units = prioritized_search_units(observation, indexed_items)
+    search_started = time.perf_counter()
+    audit = None
+    if diagnostics is not None and CANDIDATE_AUDIT_ENABLED:
+        searches = diagnostics.setdefault("candidate_audit", [])
+        audit = {
+            "search_index": len(searches),
+            "accepted_settled": [],
+        }
+        searches.append(audit)
     states = [
         {
             "unit": unit,
@@ -1548,6 +1586,25 @@ def iter_prioritized_candidates(
                         search_stats["units_completed"] += 1
                     break
                 if candidate is not None:
+                    if (
+                        audit is not None
+                        and candidate.name != "release_candidate"
+                    ):
+                        audit["accepted_settled"].append(
+                            candidate_audit_record(
+                                item_idx,
+                                item,
+                                container_idx,
+                                orientation,
+                                candidate,
+                                observation["container_list"][
+                                    container_idx
+                                ],
+                                elapsed_seconds=(
+                                    time.perf_counter() - search_started
+                                ),
+                            )
+                        )
                     yield (
                         item_idx,
                         item,
