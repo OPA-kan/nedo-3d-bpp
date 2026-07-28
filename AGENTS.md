@@ -10,8 +10,9 @@ context profileだけを段階的に取得する。
 3. 実装判断に詳細が必要になった場合だけ `--full` を付ける。
 4. 複数領域を変更する場合も、関係するprofileだけを個別に読む。
 
-主要profileは `agent`、`simulator`、`theory`。実験結果を扱う場合は
-`experiments`、全体の入口には `overview` を使う。
+新しいモデルは最初に `handoff` を使う。主要profileは `agent`、
+`simulator`、`theory`。実験結果を扱う場合は `experiments`、全体の入口には
+`overview` を使う。
 
 ## 情報の優先順位
 
@@ -35,4 +36,3 @@ context profileだけを段階的に取得する。
   Proposed / Accepted / Implementedを明示する。
 - `context/manifest.json`には短い入口と詳細資料を分けて登録する。
 - agent変更後は `python scripts/run_checks.py` を実行する。
-

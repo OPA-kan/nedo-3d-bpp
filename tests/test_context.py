@@ -20,7 +20,15 @@ class ContextRouterTests(unittest.TestCase):
 
     def test_expected_profiles_exist(self) -> None:
         profiles = self.manifest["profiles"]
-        self.assertTrue({"agent", "simulator", "theory"} <= set(profiles))
+        self.assertTrue(
+            {"handoff", "agent", "simulator", "theory"} <= set(profiles)
+        )
+
+    def test_handoff_profile_is_a_single_short_entrypoint(self) -> None:
+        self.assertEqual(
+            profile_files(self.manifest, "handoff"),
+            ["HANDOFF.md"],
+        )
 
     def test_summary_does_not_load_detailed_agent_source(self) -> None:
         files = profile_files(self.manifest, "agent")
