@@ -44,4 +44,15 @@
 表現していないことにある。次は固定fallbackの座標調整ではなく、斜面上の包含下限から
 安全なdrop action候補を作り、PyBullet settle後に再評価する。
 
+## 投下候補（Implemented / physics validation pending）
+
+- コンテナ半空間から姿勢・`(x,y)`ごとの`Zmin/Zmax`を解析的に計算しキャッシュする。
+- 区間外候補は詳細判定前に`envelope_pruned`とし、構造的なcontainment試行を除く。
+- 水平支持候補がない姿勢だけ、footprint最大高さより52 mm上の
+  `release_candidate`を追加する。
+- release候補は投下点で支持率を要求しない。包含、静的干渉、搬入経路は維持する。
+- offline/lookaheadでは包含下限と支持高さによるsettled proxyを使うが、
+  斜面上の傾きは次の実観測まで未知として扱う。
+- settle後の位置変位、角度差、最終quaternion、AABB寸法をstep履歴へ保存する。
+
 完全な定式化、限界、実験計画は `PREVIEW_RESIDUAL_VALUE.md` を読む。

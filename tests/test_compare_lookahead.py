@@ -116,6 +116,8 @@ class LookaheadComparisonTests(unittest.TestCase):
                             "surface_height_std": 0.05,
                             "flat_support_edge_ratio": 0.8,
                             "remaining_volume_ratio": 0.75,
+                            "settle_displacement_norm": 0.04,
+                            "settle_angle_deg": 3.5,
                             "status": {
                                 "is_included": True,
                                 "is_valid": True,
@@ -139,6 +141,7 @@ class LookaheadComparisonTests(unittest.TestCase):
                     "evaluated_remaining_items": 2,
                     "feasible_remaining_ratio": 0.5,
                     "immediate_score": 3.0,
+                    "candidate_kind": "release_candidate",
                     "candidate_diagnostics": {
                         "total": {
                             "attempted": 12,
@@ -171,6 +174,14 @@ class LookaheadComparisonTests(unittest.TestCase):
                 "rejected"
             ]["corridor"],
             10,
+        )
+        self.assertEqual(
+            case["metric_history"][0]["candidate_kind"],
+            "release_candidate",
+        )
+        self.assertEqual(
+            case["metric_history"][0]["settle_displacement_norm"],
+            0.04,
         )
 
 

@@ -6,6 +6,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 
@@ -16,7 +17,8 @@ import numpy as np
 # - The simulator only offsets containers on the world X axis.
 # - Boundary clearance includes official, physics-settle, and float32 guards.
 # - Transport clearance includes the official 15 mm plus a float32 guard.
-# - Candidate poses represent final support contact.
+# - Settled candidates represent final support contact.
+# - Release candidates represent the pose sent to the simulator before settle.
 # - Shelf actions are lifted 5.1 cm to avoid the validator's direct-rest path.
 OFFICIAL_INCLUSION_CLEARANCE = 0.005
 PHYSICS_BOUNDARY_GUARD = 0.010
@@ -38,6 +40,8 @@ SIMULATOR_START_MARGIN = 0.01
 SIMULATOR_CEILING_MARGIN = 0.018
 SIMULATOR_CEILING_CLIP_EPS = 0.0005
 SHELF_ACTION_LIFT = 0.051
+RELEASE_TARGET_LIFT = 0.052
+RELEASE_BOUNDARY_MARGIN = 0.002
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -134,6 +138,68 @@ def world_to_local(world_pos, container):
     x, y, z = (float(value) for value in world_pos)
     return np.array(
         [x - container_offset_x(container), y, z], dtype=np.float64
+    )
+
+
+@lru_cache(maxsize=65536)
+def _cached_container_z_interval(
+    x,
+    y,
+    dims,
+    offset_x,
+    points,
+    normals,
+):
+    half_size = np.asarray(dims, dtype=np.float64) / 2.0
+    center_x = float(x) + float(offset_x)
+    lower = -float("inf")
+    upper = float("inf")
+    limit = -INCLUSION_CLEARANCE + EPS
+
+    for point_values, normal_values in zip(points, normals):
+        point = np.asarray(point_values, dtype=np.float64)
+        normal = np.asarray(normal_values, dtype=np.float64)
+        constant = (
+            normal[0] * (center_x - point[0])
+            + normal[1] * (float(y) - point[1])
+            - normal[2] * point[2]
+            + float(np.abs(normal) @ half_size)
+        )
+        coefficient = float(normal[2])
+        if abs(coefficient) <= EPS:
+            if constant > limit:
+                return None
+            continue
+        boundary = (limit - constant) / coefficient
+        if coefficient > 0.0:
+            upper = min(upper, boundary)
+        else:
+            lower = max(lower, boundary)
+
+    if lower > upper + EPS:
+        return None
+    return (float(lower), float(upper))
+
+
+def container_z_interval(x, y, dims, container):
+    """Exact AABB z interval allowed by the static container half-spaces."""
+    points = container.get("points")
+    normals = container.get("n_vecs")
+    if points is None or normals is None:
+        return (-float("inf"), float("inf"))
+    point_key = tuple(
+        tuple(float(value) for value in point) for point in points
+    )
+    normal_key = tuple(
+        tuple(float(value) for value in normal) for normal in normals
+    )
+    return _cached_container_z_interval(
+        float(x),
+        float(y),
+        tuple(float(value) for value in dims),
+        container_offset_x(container),
+        point_key,
+        normal_key,
     )
 
 
@@ -594,6 +660,8 @@ def transport_samples(candidate, container, step: float = TRANSPORT_SAMPLE_STEP)
 
 def simulator_action_center(candidate, container):
     action_center = np.asarray(candidate.center, dtype=np.float64).copy()
+    if candidate.name == "release_candidate":
+        return action_center
     for shelf in shelf_aabbs(container):
         if (
             abs(float(candidate.minimum[2]) - shelf.top)
@@ -792,19 +860,8 @@ class Geometry:
 
     @classmethod
     def rejection_reason(cls, candidate, container):
-        drop_pose = AABB(
-            center=(
-                float(candidate.center[0]),
-                float(candidate.center[1]),
-                float(candidate.center[2]) + SIMULATOR_DROP_HEIGHT,
-            ),
-            size=candidate.size,
-            name="drop_pose",
-        )
         if not cls.inside_container(candidate, container):
             return "containment"
-        if not cls.inside_container(drop_pose, container):
-            return "headroom"
         if not cls.clears_static_geometry(candidate, container):
             return "static_geometry"
         if not cls.has_stable_support(candidate, container):
@@ -814,7 +871,19 @@ class Geometry:
         return None
 
     @classmethod
+    def release_rejection_reason(cls, candidate, container):
+        if not cls.inside_container(candidate, container):
+            return "containment"
+        if not cls.clears_static_geometry(candidate, container):
+            return "static_geometry"
+        if not cls.transport_path_clear(candidate, container):
+            return "corridor"
+        return None
+
+    @classmethod
     def valid(cls, candidate, container):
+        if candidate.name == "release_candidate":
+            return cls.release_rejection_reason(candidate, container) is None
         return cls.rejection_reason(candidate, container) is None
 
 
@@ -831,22 +900,92 @@ def _new_candidate_counter():
     return {
         "attempted": 0,
         "accepted": 0,
+        "envelope_pruned": 0,
         "rejected": {reason: 0 for reason in REJECTION_REASONS},
     }
 
 
-def _record_candidate_diagnostic(diagnostics, item_idx, reason):
-    if diagnostics is None:
-        return
+def _diagnostic_counters(diagnostics, item_idx, kind):
     total = diagnostics.setdefault("total", _new_candidate_counter())
     by_item = diagnostics.setdefault("by_item", {})
     item_counter = by_item.setdefault(str(item_idx), _new_candidate_counter())
-    for counter in (total, item_counter):
+    by_kind = diagnostics.setdefault("by_kind", {})
+    kind_counter = by_kind.setdefault(str(kind), _new_candidate_counter())
+    return total, item_counter, kind_counter
+
+
+def _record_candidate_diagnostic(
+    diagnostics,
+    item_idx,
+    reason,
+    kind="settled",
+):
+    if diagnostics is None:
+        return
+    for counter in _diagnostic_counters(diagnostics, item_idx, kind):
         counter["attempted"] += 1
         if reason is None:
             counter["accepted"] += 1
         else:
             counter["rejected"][reason] += 1
+
+
+def _record_envelope_prune(diagnostics, item_idx, kind="settled"):
+    if diagnostics is None:
+        return
+    for counter in _diagnostic_counters(diagnostics, item_idx, kind):
+        counter["envelope_pruned"] += 1
+
+
+def release_rest_height(x, y, dims, container):
+    footprint = AABB(
+        center=(float(x), float(y), 0.0),
+        size=(float(dims[0]), float(dims[1]), 0.0),
+        name="release_footprint",
+    )
+    height = float(container["thickness"]) + float(
+        container.get("buffer", 0.0)
+    )
+    obstacles = list(shelf_aabbs(container))
+    obstacles.extend(
+        box for box, _is_soft, _is_priority in packed_aabbs_local(container)
+    )
+    for obstacle in obstacles:
+        if xy_overlap_area(footprint, obstacle) > EPS:
+            height = max(height, obstacle.top)
+    return height
+
+
+def settled_proxy_candidate(candidate, container):
+    if candidate.name != "release_candidate":
+        return candidate
+    interval = container_z_interval(
+        candidate.center[0],
+        candidate.center[1],
+        candidate.size,
+        container,
+    )
+    if interval is None:
+        return candidate
+    rest_height = release_rest_height(
+        candidate.center[0],
+        candidate.center[1],
+        candidate.size,
+        container,
+    )
+    proxy_z = max(
+        interval[0],
+        rest_height + float(candidate.size[2]) / 2.0,
+    )
+    return AABB(
+        center=(
+            float(candidate.center[0]),
+            float(candidate.center[1]),
+            float(proxy_z),
+        ),
+        size=candidate.size,
+        name="release_settled_proxy",
+    )
 
 
 class CandidateGenerator:
@@ -896,6 +1035,9 @@ class CandidateGenerator:
             - dy / 2.0
             - INCLUSION_CLEARANCE
         )
+        if x_low > x_high + EPS or y_low > y_high + EPS:
+            _record_envelope_prune(diagnostics, item_idx)
+            return []
 
         xs = {x_low, 0.0, x_high}
         ys = {y_low, 0.0, y_high}
@@ -941,6 +1083,16 @@ class CandidateGenerator:
 
         candidates = []
         seen = set()
+        intervals = {
+            (float(x), float(y)): container_z_interval(
+                x,
+                y,
+                dims,
+                container,
+            )
+            for y in ys
+            for x in xs
+        }
         for z in sorted(zs):
             for y in sorted(ys, reverse=True):
                 for x in sorted(xs, key=abs):
@@ -949,6 +1101,17 @@ class CandidateGenerator:
                     if key in seen:
                         continue
                     seen.add(key)
+                    interval = intervals[(float(x), float(y))]
+                    if (
+                        interval is None
+                        or float(z) < interval[0] - EPS
+                        or float(z) > interval[1] + EPS
+                    ):
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                        )
+                        continue
                     candidate = AABB(position, dims, "candidate")
                     reason = Geometry.rejection_reason(candidate, container)
                     _record_candidate_diagnostic(
@@ -960,6 +1123,56 @@ class CandidateGenerator:
                         candidates.append(candidate)
                         if len(candidates) >= limit:
                             return candidates
+        if candidates:
+            return candidates
+
+        for y in sorted(ys, reverse=True):
+            for x in sorted(xs, key=abs):
+                interval = intervals[(float(x), float(y))]
+                if interval is None:
+                    _record_envelope_prune(
+                        diagnostics,
+                        item_idx,
+                        kind="release",
+                    )
+                    continue
+                rest_height = release_rest_height(
+                    x,
+                    y,
+                    dims,
+                    container,
+                )
+                z = max(
+                    interval[0] + RELEASE_BOUNDARY_MARGIN,
+                    rest_height + dz / 2.0 + RELEASE_TARGET_LIFT,
+                )
+                if z > interval[1] + EPS:
+                    _record_envelope_prune(
+                        diagnostics,
+                        item_idx,
+                        kind="release",
+                    )
+                    continue
+                position = (float(x), float(y), float(z))
+                key = tuple(round(value, 4) for value in position)
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidate = AABB(position, dims, "release_candidate")
+                reason = Geometry.release_rejection_reason(
+                    candidate,
+                    container,
+                )
+                _record_candidate_diagnostic(
+                    diagnostics,
+                    item_idx,
+                    reason,
+                    kind="release",
+                )
+                if reason is None:
+                    candidates.append(candidate)
+                    if len(candidates) >= limit:
+                        return candidates
         return candidates
 
 
@@ -1338,11 +1551,15 @@ def apply_placement_decision(item, decision, containers):
     action = decision.action
     container_idx = int(action["container_idx"])
     container = containers[container_idx]
-    metrics = Geometry.support_metrics(decision.candidate, container, item)
+    predicted_settled = settled_proxy_candidate(
+        decision.candidate,
+        container,
+    )
+    metrics = Geometry.support_metrics(predicted_settled, container, item)
 
     packed = copy.deepcopy(item)
     packed["pos"] = local_to_world(
-        decision.candidate.center, container
+        predicted_settled.center, container
     ).tolist()
     packed["orientation"] = int(action["orientation"])
     packed["belongs_to"] = container_idx
@@ -1352,7 +1569,7 @@ def apply_placement_decision(item, decision, containers):
         item_index=int(item["index"]),
         container_idx=container_idx,
         orientation=int(action["orientation"]),
-        candidate=decision.candidate,
+        candidate=predicted_settled,
         support=metrics,
         mass=max(EPS, float(item.get("mass", 1.0))),
     )
@@ -2126,6 +2343,9 @@ class Agent:
                         evaluation.best_next_score
                     ),
                     "action_source": "placement_core",
+                    "candidate_kind": (
+                        decision.candidate.name or "candidate"
+                    ),
                     "candidate_diagnostics": self.last_candidate_diagnostics,
                 }
             )
@@ -2157,6 +2377,7 @@ class Agent:
                 "feasible_remaining_ratio": None,
                 "best_next_score": 0.0,
                 "action_source": "fixed_fallback",
+                "candidate_kind": "fixed_fallback",
                 "candidate_diagnostics": self.last_candidate_diagnostics,
             }
         )

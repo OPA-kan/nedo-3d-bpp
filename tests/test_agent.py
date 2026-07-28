@@ -58,6 +58,33 @@ def sample_item(
     }
 
 
+def halfspace_container(lower_point, lower_normal):
+    container = sample_container(
+        require_shelf=False,
+        center_x=0.0,
+        cut_x=0.0,
+    )
+    container["height"] = 1.0
+    container["thickness"] = 0.0
+    container["points"] = [
+        [-1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, -0.725, 0.0],
+        [0.0, 0.725, 0.0],
+        [0.0, 0.0, 1.0],
+        list(lower_point),
+    ]
+    container["n_vecs"] = [
+        [-1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, -1.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        list(lower_normal),
+    ]
+    return container
+
+
 class GeometryContractTests(unittest.TestCase):
     def test_float32_action_preserves_more_than_official_5mm_inclusion_margin(self):
         transmitted_margin = float(np.float32(agent.INCLUSION_CLEARANCE))
@@ -203,15 +230,86 @@ class GeometryContractTests(unittest.TestCase):
         )
 
         self.assertEqual(candidates, [])
-        self.assertGreater(diagnostics["total"]["attempted"], 0)
+        self.assertEqual(diagnostics["total"]["attempted"], 0)
         self.assertEqual(diagnostics["total"]["accepted"], 0)
         self.assertGreater(
-            diagnostics["total"]["rejected"]["containment"],
+            diagnostics["total"]["envelope_pruned"],
             0,
         )
         self.assertEqual(
             diagnostics["by_item"]["7"]["attempted"],
             diagnostics["total"]["attempted"],
+        )
+
+    def test_z_interval_solves_sloped_lower_container_boundary(self):
+        diagonal = 1.0 / np.sqrt(2.0)
+        container = halfspace_container(
+            lower_point=(0.0, 0.0, 0.0),
+            lower_normal=(-diagonal, 0.0, -diagonal),
+        )
+        dims = (0.4, 0.2, 0.2)
+
+        interval = agent.container_z_interval(
+            x=0.0,
+            y=0.0,
+            dims=dims,
+            container=container,
+        )
+
+        self.assertIsNotNone(interval)
+        expected_minimum = 0.3 + agent.INCLUSION_CLEARANCE / diagonal
+        self.assertAlmostEqual(interval[0], expected_minimum, places=5)
+        candidate = agent.AABB(
+            (0.0, 0.0, interval[0] + 1e-5),
+            dims,
+            "release_candidate",
+        )
+        self.assertTrue(agent.Geometry.inside_container(candidate, container))
+
+    def test_release_candidate_is_generated_without_analytic_support(self):
+        container = halfspace_container(
+            lower_point=(0.0, 0.0, 0.3),
+            lower_normal=(0.0, 0.0, -1.0),
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(8, length=0.4, width=0.2, height=0.2)
+        diagnostics = {}
+
+        candidates = agent.CandidateGenerator.generate(
+            observation,
+            item,
+            container_idx=0,
+            orientation=0,
+            diagnostics=diagnostics,
+            item_idx=8,
+        )
+
+        self.assertTrue(candidates)
+        self.assertTrue(
+            all(candidate.name == "release_candidate" for candidate in candidates)
+        )
+        self.assertEqual(
+            agent.Geometry.support_ratio(candidates[0], container),
+            0.0,
+        )
+        self.assertIsNone(
+            agent.Geometry.release_rejection_reason(candidates[0], container)
+        )
+        np.testing.assert_allclose(
+            agent.simulator_action_center(candidates[0], container),
+            candidates[0].center,
+        )
+        settled_proxy = agent.settled_proxy_candidate(
+            candidates[0],
+            container,
+        )
+        self.assertLess(settled_proxy.center[2], candidates[0].center[2])
+        self.assertTrue(
+            agent.Geometry.inside_container(settled_proxy, container)
+        )
+        self.assertGreater(
+            diagnostics["by_kind"]["release"]["accepted"],
+            0,
         )
 
     def test_transport_sweeps_include_official_y_then_x_legs(self):

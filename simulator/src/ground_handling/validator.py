@@ -7,6 +7,7 @@ from pybullet_utils.bullet_client import BulletClient
 from .utils import ORNS, get_half_ext
 from .items import Item
 from .containers import Container
+from .diagnostics import settle_motion_metrics
 
 
 class BaseValidator:
@@ -19,6 +20,7 @@ class BaseValidator:
         self.inclusion_margin: float = self.config.get('inclusion_margin', 0.02)
         self.start_z: float = self.config['start_z']
         self.ceiling_margin: float = self.config.get('ceiling_margin', 0.01)
+        self.last_settle_metrics: dict | None = None
 
 
     def check_action(self, action, action_config: dict, num_containers: int, num_visible_items: int):
@@ -176,6 +178,7 @@ class PlacementValidator(BaseValidator):
 
 
     def place_item(self, item: Item | None, target_pos: tuple[float, float, float], target_orn_idx: int) -> bool:
+        self.last_settle_metrics = None
         if item is None:
             return False
         target_orn = p.getQuaternionFromEuler(ORNS[target_orn_idx])
@@ -194,6 +197,18 @@ class PlacementValidator(BaseValidator):
 
         # 3. 定着後に荷物が大きく崩れ落ちていないか（安定性）を最終チェックする
         final_pos, final_orn = item.get_pose(self.client)
+        final_aabb = (
+            self.client.getAABB(item.pybullet_id)
+            if item.pybullet_id is not None
+            else None
+        )
+        self.last_settle_metrics = settle_motion_metrics(
+            target_position=target_pos,
+            target_quaternion=target_orn,
+            final_position=final_pos,
+            final_quaternion=final_orn,
+            final_aabb=final_aabb,
+        )
 
         # 目標位置と最終位置が大きくズレていれば「配置後に崩れた」と判定
         displacement = np.linalg.norm(np.array(final_pos) - np.array(target_pos))

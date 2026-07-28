@@ -6,6 +6,67 @@ from typing import Any
 import numpy as np
 
 
+def settle_motion_metrics(
+    target_position,
+    target_quaternion,
+    final_position,
+    final_quaternion,
+    final_aabb=None,
+) -> dict[str, float | list[float] | None]:
+    target_position_array = np.asarray(target_position, dtype=np.float64)
+    final_position_array = np.asarray(final_position, dtype=np.float64)
+    displacement = final_position_array - target_position_array
+
+    target_quaternion_array = np.asarray(
+        target_quaternion,
+        dtype=np.float64,
+    )
+    final_quaternion_array = np.asarray(
+        final_quaternion,
+        dtype=np.float64,
+    )
+    target_norm = float(np.linalg.norm(target_quaternion_array))
+    final_norm = float(np.linalg.norm(final_quaternion_array))
+    angle_degrees = 0.0
+    if target_norm > 0.0 and final_norm > 0.0:
+        dot_product = abs(
+            float(
+                np.dot(
+                    target_quaternion_array / target_norm,
+                    final_quaternion_array / final_norm,
+                )
+            )
+        )
+        dot_product = min(1.0, max(0.0, dot_product))
+        angle_degrees = math.degrees(2.0 * math.acos(dot_product))
+
+    aabb_dimensions = None
+    if final_aabb is not None:
+        minimum, maximum = final_aabb
+        aabb_dimensions = [
+            float(value)
+            for value in (
+                np.asarray(maximum, dtype=np.float64)
+                - np.asarray(minimum, dtype=np.float64)
+            )
+        ]
+
+    return {
+        "settle_displacement_xyz": [
+            float(value) for value in displacement.tolist()
+        ],
+        "settle_displacement_norm": float(np.linalg.norm(displacement)),
+        "settle_angle_deg": float(angle_degrees),
+        "settle_final_position": [
+            float(value) for value in final_position_array.tolist()
+        ],
+        "settle_final_quaternion": [
+            float(value) for value in final_quaternion_array.tolist()
+        ],
+        "settle_aabb_dimensions": aabb_dimensions,
+    }
+
+
 def _surface_grid(container: dict[str, Any], grid_size: float) -> np.ndarray:
     length = float(container["length"])
     width = float(container["width"])

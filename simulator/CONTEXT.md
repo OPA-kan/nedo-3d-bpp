@@ -25,6 +25,10 @@
 プロセスの `status=success` は物理配置成功を意味しない。
 `place_states.is_included`、`is_valid`、`is_placed_safe`も確認する。
 
+診断用step metricsには、物理契約を変更せず、targetからsettle後までの
+位置変位、角度差、最終位置・quaternion、最終AABB寸法を記録する。
+安全判定の閾値は公式設定どおりで、診断追加によってvalidatorの合否は変えない。
+
 ## ソース地図
 
 - `app.py`: 評価全体とtimeout呼び出し

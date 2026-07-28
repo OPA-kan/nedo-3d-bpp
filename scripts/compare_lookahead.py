@@ -91,6 +91,7 @@ def summarize_evaluation(
                         "immediate_score"
                     )
                     row["action_source"] = event.get("action_source")
+                    row["candidate_kind"] = event.get("candidate_kind")
                     row["candidate_diagnostics"] = event.get(
                         "candidate_diagnostics"
                     )
@@ -265,9 +266,9 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     f"#### {mode} / {case_id} per-step diagnostics",
                     "",
                     "| step | placed | volume | empty ratio | residual feasible | "
-                    "CoG z | depth center | front/back | top rejection | "
-                    "physical |",
-                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+                    "CoG z | depth center | front/back | kind | settle d/angle | "
+                    "top rejection | physical |",
+                    "|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|",
                 ]
             )
             for row in case.get("metric_history", []):
@@ -300,6 +301,7 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     )
                 )
                 dominant_rejection = "-"
+                dominant_count = 0
                 if rejection_counts:
                     reason, count = max(
                         rejection_counts.items(),
@@ -307,10 +309,30 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                     )
                     if count:
                         dominant_rejection = f"{reason}:{count}"
+                        dominant_count = int(count)
+                envelope_pruned = int(
+                    candidate_diagnostics.get("total", {}).get(
+                        "envelope_pruned",
+                        0,
+                    )
+                )
+                if envelope_pruned > dominant_count:
+                    dominant_rejection = f"envelope:{envelope_pruned}"
+                settle_displacement = row.get("settle_displacement_norm")
+                settle_angle = row.get("settle_angle_deg")
+                settle_text = (
+                    "-"
+                    if settle_displacement is None or settle_angle is None
+                    else (
+                        f"{float(settle_displacement):.3f}m/"
+                        f"{float(settle_angle):.1f}deg"
+                    )
+                )
                 lines.append(
                     "| {step} | {placed} | {volume:.4f} | {empty:.3f} | "
                     "{feasible} | {cog:.3f} | {depth:.3f} | "
-                    "{front:.3f}/{back:.3f} | {rejection} | {physical} |".format(
+                    "{front:.3f}/{back:.3f} | {kind} | {settle} | {rejection} | "
+                    "{physical} |".format(
                         step=row.get("step", 0),
                         placed=row.get("placed_count", 0),
                         volume=float(row.get("placed_volume", 0.0)),
@@ -329,6 +351,8 @@ def comparison_markdown(payload: dict[str, Any]) -> str:
                         back=float(
                             row.get("back_depth_occupancy_mean", 0.0)
                         ),
+                        kind=row.get("candidate_kind") or "-",
+                        settle=settle_text,
                         rejection=dominant_rejection,
                         physical=physical,
                     )

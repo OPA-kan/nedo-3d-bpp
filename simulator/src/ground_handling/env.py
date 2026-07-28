@@ -262,8 +262,13 @@ class GroundHandlingEnv(gym.Env):
                 "orientation": int(target_orn_idx),
                 "place_pos": [float(value) for value in local_xyz],
                 "status": status,
+                "settle_attempted": (
+                    self.validator.last_settle_metrics is not None
+                ),
             }
         )
+        if self.validator.last_settle_metrics is not None:
+            settled_metrics.update(self.validator.last_settle_metrics)
         self.step_metrics.append(settled_metrics)
 
         # -------- 4. 観測情報の出力 ---------

@@ -30,11 +30,15 @@
   `weighted` は既定互換、`depth2` は次手可行性を辞書式優先、
   `pool_resilience` は次に配置可能な可視荷物数を最優先する。
   詳細は `python scripts/context.py show preview-value`。
+- コンテナ半空間から姿勢・`(x,y)`ごとの`Zmin/Zmax`を解析的にキャッシュし、
+  水平支持候補が全滅した姿勢には低高度の`release_candidate`を生成する。
+  release候補は投下点で支持率を要求せず、包含・静的干渉・搬入を通した後、
+  PyBullet settle結果を真値とする。
 
 ## 現在の状態
 
 - 回帰テストは `python scripts/run_checks.py` で一括実行する。
 - GitHub Actions上でCPUシミュレータを再現可能。
-- sample_configでは各ケース7個配置後に物理妥当性・安全性で失敗する。
-- agentの次の修正は、シミュレータログから最初の不正遷移を再現して行う。
-  API索引だけを根拠に配置ロジックを書き換えない。
+- run 30331700531では各ケース7個配置後に失敗し、LD3斜面を水平支持面として
+  表現できないことが主要な偽陰性と判明した。
+- release候補実装後のsample_config物理結果はGitHub Actionsで再検証する。
