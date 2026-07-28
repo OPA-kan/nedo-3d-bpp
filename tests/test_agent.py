@@ -312,6 +312,68 @@ class GeometryContractTests(unittest.TestCase):
             0,
         )
 
+    def test_support_plane_release_does_not_delegate_to_cartesian(self):
+        container = halfspace_container(
+            lower_point=(0.0, 0.0, 0.3),
+            lower_normal=(0.0, 0.0, -1.0),
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(8, length=0.4, width=0.2, height=0.2)
+        diagnostics = {}
+
+        with mock.patch.object(
+            agent.CandidateGenerator,
+            "iter_cartesian_attempts",
+            side_effect=AssertionError(
+                "support-plane release must not scan Cartesian anchors"
+            ),
+        ):
+            attempts = list(
+                agent.CandidateGenerator.iter_attempts(
+                    observation,
+                    item,
+                    container_idx=0,
+                    orientation=0,
+                    diagnostics=diagnostics,
+                    item_idx=8,
+                    attempt_kind="release",
+                    generator_mode="support_plane",
+                )
+            )
+            fallback_candidates = agent.CandidateGenerator.generate(
+                observation,
+                item,
+                container_idx=0,
+                orientation=0,
+                diagnostics={},
+                item_idx=8,
+                generator_mode="support_plane",
+            )
+
+        candidates = [
+            candidate for candidate in attempts if candidate is not None
+        ]
+        self.assertTrue(candidates)
+        self.assertTrue(fallback_candidates)
+        self.assertTrue(
+            all(
+                candidate.name == "release_candidate"
+                for candidate in fallback_candidates
+            )
+        )
+        self.assertLessEqual(
+            attempts.index(candidates[0]) + 1,
+            agent.ANCHOR_FIRST_PASS_ATTEMPTS,
+        )
+        self.assertEqual(
+            diagnostics["release_plane_searches"][0]["component_count"],
+            len(
+                agent.support_plane_components(
+                    agent.support_surfaces(container)
+                )
+            ),
+        )
+
     def test_transport_sweeps_include_official_y_then_x_legs(self):
         container = sample_container()
         candidate = agent.AABB((-0.8, 0.25, 1.0), (0.3, 0.2, 0.2))

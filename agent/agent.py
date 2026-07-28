@@ -1607,6 +1607,183 @@ class CandidateGenerator:
                         yield None
 
     @staticmethod
+    def iter_release_plane_attempts(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        deadline=None,
+        diagnostics=None,
+        item_idx=None,
+    ):
+        """
+        Generate release targets directly from local support-plane anchors.
+
+        Release z is solved analytically for each coupled (x, y) pair.  This
+        avoids the Cartesian prefix formed by crossing every observed x edge
+        with every observed y edge before reaching a feasible release point.
+        """
+        container = observation["container_list"][container_idx]
+        if item_idx is None:
+            item_idx = item.get("index", -1)
+        dims = get_rotated_dimensions(
+            item["length"], item["width"], item["height"], orientation
+        )
+        _dx, _dy, dz = dims
+        x_low, x_high, y_low, y_high = rectangular_container_anchor_bounds(
+            dims, container
+        )
+        if x_low > x_high + EPS or y_low > y_high + EPS:
+            _record_envelope_prune(
+                diagnostics,
+                item_idx,
+                kind="release",
+            )
+            yield None
+            return
+
+        components = order_support_plane_components(
+            support_plane_components(support_surfaces(container))
+        )
+        position_groups = [
+            (
+                component,
+                support_plane_anchor_positions(
+                    component,
+                    dims,
+                    container,
+                ),
+            )
+            for component in components
+        ]
+        if diagnostics is not None:
+            unique_positions = {
+                (
+                    round(float(position[0]), 6),
+                    round(float(position[1]), 6),
+                )
+                for _component, positions in position_groups
+                for position in positions
+            }
+            diagnostics.setdefault("release_plane_searches", []).append(
+                {
+                    "item_index": int(item_idx),
+                    "container_index": int(container_idx),
+                    "orientation": int(orientation),
+                    "surface_count": sum(
+                        len(component.surfaces)
+                        for component in components
+                    ),
+                    "component_count": len(components),
+                    "anchor_count": len(unique_positions),
+                    "round_attempts": max(
+                        1, ANCHOR_FIRST_PASS_ATTEMPTS
+                    ),
+                    "component_order": [
+                        {
+                            "contains_floor": component.contains_floor,
+                            "area": float(component.area),
+                            "depth": float(component.maximum_xy[1]),
+                            "top": float(component.top),
+                            "surface_count": len(component.surfaces),
+                        }
+                        for component in components
+                    ],
+                }
+            )
+
+        states = [
+            {
+                "iterator": iter(positions),
+            }
+            for _component, positions in position_groups
+            if positions
+        ]
+        accepted = 0
+        seen = set()
+        attempts_per_plane = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
+        while states:
+            next_states = []
+            for state in states:
+                exhausted = False
+                for _ in range(attempts_per_plane):
+                    if (
+                        deadline is not None
+                        and time.perf_counter() >= deadline
+                    ):
+                        return
+                    try:
+                        x, y, _support_z = next(state["iterator"])
+                    except StopIteration:
+                        exhausted = True
+                        break
+                    key = (
+                        round(float(x), 4),
+                        round(float(y), 4),
+                    )
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    interval = container_z_interval(
+                        x,
+                        y,
+                        dims,
+                        container,
+                    )
+                    if interval is None:
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                            kind="release",
+                        )
+                        yield None
+                        continue
+                    rest_height = release_rest_height(
+                        x,
+                        y,
+                        dims,
+                        container,
+                    )
+                    z = max(
+                        interval[0] + RELEASE_BOUNDARY_MARGIN,
+                        rest_height + dz / 2.0 + RELEASE_TARGET_LIFT,
+                    )
+                    if z > interval[1] + EPS:
+                        _record_envelope_prune(
+                            diagnostics,
+                            item_idx,
+                            kind="release",
+                        )
+                        yield None
+                        continue
+                    candidate = AABB(
+                        (float(x), float(y), float(z)),
+                        dims,
+                        "release_candidate",
+                    )
+                    reason = Geometry.release_rejection_reason(
+                        candidate,
+                        container,
+                    )
+                    _record_candidate_diagnostic(
+                        diagnostics,
+                        item_idx,
+                        reason,
+                        kind="release",
+                    )
+                    if reason is None:
+                        accepted += 1
+                        yield candidate
+                        if accepted >= limit:
+                            return
+                    else:
+                        yield None
+                if not exhausted:
+                    next_states.append(state)
+            states = next_states
+
+    @staticmethod
     def iter_support_plane_attempts(
         observation,
         item,
@@ -1623,7 +1800,7 @@ class CandidateGenerator:
                 "attempt_kind must be 'both', 'settled', or 'release'"
             )
         if attempt_kind == "release":
-            yield from CandidateGenerator.iter_cartesian_attempts(
+            yield from CandidateGenerator.iter_release_plane_attempts(
                 observation,
                 item,
                 container_idx,
@@ -1632,7 +1809,6 @@ class CandidateGenerator:
                 deadline=deadline,
                 diagnostics=diagnostics,
                 item_idx=item_idx,
-                attempt_kind="release",
             )
             return
 
@@ -1773,7 +1949,7 @@ class CandidateGenerator:
 
         if accepted or attempt_kind == "settled":
             return
-        yield from CandidateGenerator.iter_cartesian_attempts(
+        yield from CandidateGenerator.iter_release_plane_attempts(
             observation,
             item,
             container_idx,
@@ -1782,7 +1958,6 @@ class CandidateGenerator:
             deadline=deadline,
             diagnostics=diagnostics,
             item_idx=item_idx,
-            attempt_kind="release",
         )
 
     @staticmethod

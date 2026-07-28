@@ -95,3 +95,9 @@
   deadline miss / safe release only / oracle集合内dead end /
   incumbent invariant violationへ分類する。対象はCase 000 step 13/14と
   Case 001 step 9/10で、compact結果をrun historyへ残す。
+- run 30364892792のfailure snapshotではCase 000 step 14/Case 001 step 10の
+  settledは0件だったが、物理安全releaseが460/1,014件存在した。releaseを
+  Cartesian直積からsupport-plane局所`(x,y)`と解析的`Zmin/Zmax`の直接生成へ
+  変えた非物理replayでは、最初の候補が2,763→45試行、804→10試行となり、
+  両stepとも固定fallbackではなく0.12秒以内にrelease候補へ到達した。
+  選択候補のPyBullet settleと新trajectoryは未確認。

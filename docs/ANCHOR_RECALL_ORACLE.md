@@ -183,3 +183,29 @@ policy側は各stepで次を `policy_log` に保存する。
 GitHub ActionsはCase 000のstep 13/14、Case 001のstep 9/10を測り、
 `reports/anchor-recall/history/<run-id>/case-000|001/` にcompact summaryを
 commitする。候補JSONLと完全state snapshotはartifactにだけ保存する。
+
+## Direct release replay
+
+run 30364892792では、Case 000 step 14とCase 001 step 10のsettled候補は
+実際に0件だった。一方、Cartesian release oracleには576/1,670件の候補があり、
+PyBulletで460/1,014件が安全だった。旧anytimeは最初のrelease候補まで
+2,763/804試行を必要とし、どちらもdeadline内に1件も受理できなかった。
+
+release列挙を、全観測edgeのCartesian直積ではなく、優先順付き
+support-plane componentの局所`(x,y)`へ直接結び付ける。各点の投下高さは
+
+```text
+z_release = max(
+    Zmin(x, y, pose) + boundary_margin,
+    rest_height(x, y) + item_height / 2 + release_lift,
+)
+```
+
+で解析的に求め、`Zmax`を越える点は生成時に除く。保存snapshotの非物理policy
+replayでは、最初のrelease候補がCase 000で45試行・0.093秒、Case 001で
+10試行・0.118秒へ短縮した。deadline内の受理件数は0から151/94件へ増え、
+両stepとも固定fallbackではなく`release_candidate`を返した。詳細は
+`reports/anchor-recall/replays/direct-release-30364892792.json`。
+
+このreplayは探索到達性だけを確認する。新しく選ばれた投下点の物理settleと、
+その後のtrajectory・配置数はLinux simulator runで別途確認する。
