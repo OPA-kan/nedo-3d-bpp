@@ -373,7 +373,6 @@ class LivePhysicsOracle:
     def validate_spawned(
         self,
         record: dict[str, Any],
-        source_item,
         probe,
     ) -> dict[str, Any]:
         container_index = int(record["container_index"])
@@ -439,30 +438,23 @@ def validate_candidates(
     if max_candidates is not None and len(candidates) > max_candidates:
         selected = candidates[:max_candidates]
         complete = False
-    grouped: dict[int, list[dict[str, Any]]] = {}
-    for candidate in selected:
-        grouped.setdefault(int(candidate["pool_index"]), []).append(candidate)
-
     base_state = env.client.saveState()
     completed = 0
     try:
-        for pool_index, group in grouped.items():
+        for candidate in selected:
             env.client.restoreState(stateId=base_state)
+            pool_index = int(candidate["pool_index"])
             source_item = env.stream_manager.get_item(pool_index)
             if source_item is None:
-                for candidate in group:
-                    results[candidate_key(candidate)] = {
-                        "is_included": False,
-                        "is_transport_valid": False,
-                        "is_placed_safe": False,
-                        "is_physically_valid": False,
-                        "error": "pool item is unavailable",
-                    }
+                results[candidate_key(candidate)] = {
+                    "is_included": False,
+                    "is_transport_valid": False,
+                    "is_placed_safe": False,
+                    "is_physically_valid": False,
+                    "error": "pool item is unavailable",
+                }
                 continue
-            if any(
-                int(candidate["item_index"]) != int(source_item.index)
-                for candidate in group
-            ):
+            if int(candidate["item_index"]) != int(source_item.index):
                 raise RuntimeError(
                     f"pool item {pool_index} changed during oracle validation"
                 )
@@ -474,28 +466,23 @@ def validate_candidates(
             )
             if probe_id is None:
                 raise RuntimeError("failed to create physics probe item")
-            group_state = env.client.saveState()
             try:
-                for candidate in group:
-                    env.client.restoreState(stateId=group_state)
-                    probe.pybullet_id = probe_id
-                    results[candidate_key(candidate)] = (
-                        validator.validate_spawned(
-                            candidate,
-                            source_item,
-                            probe,
-                        )
+                results[candidate_key(candidate)] = (
+                    validator.validate_spawned(
+                        candidate,
+                        probe,
                     )
-                    completed += 1
-                    if completed % 100 == 0:
-                        print(
-                            f"  physics {completed}/{len(selected)} "
-                            f"({time.perf_counter() - started:.1f}s)",
-                            flush=True,
-                        )
+                )
             finally:
-                env.client.removeState(group_state)
-                probe.pybullet_id = None
+                if probe.pybullet_id is not None:
+                    probe.remove(client=env.client)
+            completed += 1
+            if completed % 100 == 0:
+                print(
+                    f"  physics {completed}/{len(selected)} "
+                    f"({time.perf_counter() - started:.1f}s)",
+                    flush=True,
+                )
     finally:
         env.client.restoreState(stateId=base_state)
         env.client.removeState(base_state)

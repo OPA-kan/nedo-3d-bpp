@@ -182,29 +182,52 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
             index: int
             pybullet_id: int | None = None
 
-            def spawn(self, _client, initial_pos, initial_orn):
+            def spawn(self, client, initial_pos, initial_orn):
                 self.pybullet_id = 91
+                client.add_body()
                 return self.pybullet_id
+
+            def remove(self, client):
+                if self.pybullet_id is not None:
+                    client.remove_body()
+                    self.pybullet_id = None
 
         class FakeClient:
             def __init__(self):
                 self.next_state = 1
+                self.body_count = 0
+                self.state_body_counts = {}
                 self.restored = []
                 self.removed = []
+
+            def add_body(self):
+                self.body_count += 1
+
+            def remove_body(self):
+                self.body_count -= 1
 
             def saveState(self):
                 state = self.next_state
                 self.next_state += 1
+                self.state_body_counts[state] = self.body_count
                 return state
 
             def restoreState(self, stateId):
+                expected = self.state_body_counts[stateId]
+                if self.body_count != expected:
+                    raise RuntimeError(
+                        f"body count mismatch: "
+                        f"{self.body_count} != {expected}"
+                    )
                 self.restored.append(stateId)
 
             def removeState(self, state):
                 self.removed.append(state)
+                self.state_body_counts.pop(state)
 
         class FakeValidator:
-            def __init__(self):
+            def __init__(self, client):
+                self.client = client
                 self.last_settle_metrics = None
 
             def check_inclusion(
@@ -220,7 +243,10 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
                 self.last_settle_metrics = {
                     "settle_displacement_norm": abs(float(target[0]))
                 }
-                return float(target[0]) < 0.15
+                stable = float(target[0]) < 0.15
+                if not stable:
+                    _probe.remove(self.client)
+                return stable
 
         class FakeContainer:
             @staticmethod
@@ -242,16 +268,17 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
         class FakeEnv:
             def __init__(self):
                 self.client = FakeClient()
-                self.validator = FakeValidator()
+                self.validator = FakeValidator(self.client)
                 self.container_manager = FakeContainerManager()
                 self.stream_manager = FakeStreamManager()
 
         stable = candidate(3, [0.1, 0.0, 0.2])
         unstable = candidate(3, [0.2, 0.0, 0.2])
+        stable_after_failure = candidate(3, [0.12, 0.0, 0.2])
         env = FakeEnv()
         results, complete, _elapsed = measure.validate_candidates(
             env,
-            [stable, unstable],
+            [stable, unstable, stable_after_failure],
         )
 
         self.assertTrue(complete)
@@ -261,8 +288,12 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
         self.assertFalse(
             results[measure.candidate_key(unstable)]["is_physically_valid"]
         )
-        self.assertGreaterEqual(env.client.restored.count(2), 2)
-        self.assertEqual(set(env.client.removed), {1, 2})
+        self.assertTrue(
+            results[
+                measure.candidate_key(stable_after_failure)
+            ]["is_physically_valid"]
+        )
+        self.assertEqual(env.client.body_count, 0)
 
 
 if __name__ == "__main__":
