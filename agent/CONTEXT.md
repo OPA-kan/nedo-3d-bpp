@@ -68,6 +68,9 @@
 - Their incumbents are kept separately. If any validated settled candidate
   exists, it is chosen regardless of the release candidate's heuristic score.
 - A release candidate is returned only when the search found no settled
-  candidate. This is a safety ordering: run 30338524490 reached 14 placements
-  in Case 000, but Case 001 selected a high-scoring release at step 4 and
-  failed after settling by 0.638 m with a 90-degree rotation.
+  candidate.
+- Run 30340049061 confirmed that this ordering is not sufficient on its own.
+  Case 000 improved to 15 placements, but Case 001 still had no settled
+  candidate at step 4 and its release fallback failed after settling by
+  0.638 m with a 90-degree rotation. Release candidates therefore need an
+  additional stability/risk gate; heuristic ordering was not the root cause.

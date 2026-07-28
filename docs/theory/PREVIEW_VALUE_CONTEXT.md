@@ -85,8 +85,10 @@ candidate; release is used only if no settled candidate was found before the
 deadline. This prevents the heuristic value function from trading away
 physical certainty for a nominally higher release score.
 
-Run 30338524490 demonstrated why this ordering is required. Case 000 improved
-from 13 to 14 placements, but Case 001 chose a release candidate at step 4 and
-failed after 0.638 m of settle displacement and a 90-degree rotation. The
-ordering change is implemented, but its physics result remains pending until
-the next simulator run.
+Run 30340049061 showed that the ordering is useful but insufficient. Case 000
+improved to 15 placements. Case 001 still had no settled candidate at step 4,
+so release was correctly used as the fallback and then failed after 0.638 m of
+settle displacement and a 90-degree rotation. Thus a high release score
+overriding a settled candidate was not the root cause. The next required
+mechanism is a release stability/risk gate or a safer fallback candidate, not
+another value-function weight change.
