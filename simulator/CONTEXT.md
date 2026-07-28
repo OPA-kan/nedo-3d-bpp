@@ -28,6 +28,8 @@
 診断用step metricsには、物理契約を変更せず、targetからsettle後までの
 位置変位、角度差、最終位置・quaternion、最終AABB寸法を記録する。
 安全判定の閾値は公式設定どおりで、診断追加によってvalidatorの合否は変えない。
+各step開始時にsettle telemetryをresetし、搬入失敗などplace未試行のstepへ
+直前の配置結果を持ち越さない。
 
 ## ソース地図
 

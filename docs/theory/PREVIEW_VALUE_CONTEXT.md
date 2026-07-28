@@ -44,7 +44,7 @@
 表現していないことにある。次は固定fallbackの座標調整ではなく、斜面上の包含下限から
 安全なdrop action候補を作り、PyBullet settle後に再評価する。
 
-## 投下候補（Implemented / physics validation pending）
+## 投下候補（Implemented / physics validated）
 
 - コンテナ半空間から姿勢・`(x,y)`ごとの`Zmin/Zmax`を解析的に計算しキャッシュする。
 - 区間外候補は詳細判定前に`envelope_pruned`とし、構造的なcontainment試行を除く。
@@ -54,5 +54,13 @@
 - offline/lookaheadでは包含下限と支持高さによるsettled proxyを使うが、
   斜面上の傾きは次の実観測まで未知として扱う。
 - settle後の位置変位、角度差、最終quaternion、AABB寸法をstep履歴へ保存する。
+
+run 30334277618のsample_configでは、Case 000/001とも配置数が7個から13個へ増えた。
+release候補のsettle変位は概ね鉛直52 mm、姿勢変化は0〜0.1度であり、現時点では
+斜面領域を占有ボクセルへ切り替える根拠となる滑り・傾きはない。一方、両ケースとも
+step 13で停止した。Case 000は候補探索が8秒timeoutに達した後のrandom fallback、
+Case 001は候補全滅後の固定fallbackによる失敗である。したがって次の実験単位は
+lookahead価値関数ではなく、候補生成の直積列挙削減と時間内に確実な候補を返す探索契約。
+30個前後へ到達するまで3方式の優劣比較は保留する。
 
 完全な定式化、限界、実験計画は `PREVIEW_RESIDUAL_VALUE.md` を読む。

@@ -41,4 +41,10 @@
 - GitHub Actions上でCPUシミュレータを再現可能。
 - run 30331700531では各ケース7個配置後に失敗し、LD3斜面を水平支持面として
   表現できないことが主要な偽陰性と判明した。
-- release候補実装後のsample_config物理結果はGitHub Actionsで再検証する。
+- release候補実装後のrun 30334277618ではCase 000/001とも13個まで配置した
+  （旧runは各7個、合計14→26）。release後の変位は概ね鉛直52 mm、
+  姿勢変化は0〜0.1度で、斜面での顕著な滑り・傾きは観測されなかった。
+- 両ケースともstep 13で終了した。Case 000は8秒のpolicy timeout後に
+  simulatorのrandom fallbackが失敗、Case 001は候補を受理できず固定fallbackが失敗した。
+  次の共通ボトルネックは直積アンカー列挙の時間と後半のstatic/support/corridor棄却。
+- 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。

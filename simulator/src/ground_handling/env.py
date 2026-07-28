@@ -195,6 +195,10 @@ class GroundHandlingEnv(gym.Env):
         """
         reward = 0
         start = time.time()
+        # Settle telemetry belongs to this step only.  In particular, a
+        # transport-path failure must not inherit the previous placement's
+        # motion metrics.
+        self.validator.last_settle_metrics = None
         # ------ 0. 行動の型などを確認 ------
         num_visible_items = len(self.stream_manager.visible_pool)
         valid, truncated, info = self.validator.check_action(action, self.config['action'], self.num_containers, num_visible_items)
