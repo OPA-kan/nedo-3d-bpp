@@ -141,6 +141,20 @@ a=(i,k,p,o)
 
 \(T\) には内包判定、棚・荷物との非交差、Y→X搬入掃引、8 cm落下開始、物理settle、観測クォータニオンからの実AABB再構成を含める。
 
+実装のcandidate generatorが返す生の集合には物理的な偽陽性も含み得る。
+そのうち共通物理検証を通った集合を
+\(\widehat{\mathcal A}_{\mathrm{phys}}(s,i)\) とすると、候補ゼロから直ちに
+\(\mathcal A(s,i)=\varnothing\)とは結論できない。anchor生成、支持面表現、
+release生成、搬入近似による偽陰性をoracleで分離し、
+
+\[
+\widehat{\mathcal A}_{\mathrm{phys}}(s,i)
+\subseteq
+\mathcal A(s,i)
+\]
+
+のrecallを測る必要がある。
+
 ## 4. 逐次実行可能性付きブロック
 
 重力と一方向搬入があるため、同じ \(S_b\) でも内部順序によって実現可能性が変わる。現在の基本対象は
@@ -215,6 +229,11 @@ a_2=\pi_o(s_1)
 
 Option失敗時は、成功済みの途中状態を保持してprimitive actionへ戻す。
 
+固定fallback \([0,0,0.25]\) は観測状態から再計画されないopen-loop actionであり、
+Closed-loop Optionの代替ではない。Case 000ではitem 27の候補ゼロ後にこのfallbackが
+衝突して終了した。fallbackは診断用の最終安全網として区別し、実行可能なincumbent
+または観測後に再生成したactionがない限り、継続可能性を保証しない。
+
 ## 6. 未来から見た状態同値と署名
 
 \[
@@ -268,6 +287,40 @@ p\approx q
 - \(C\): 外部から到達可能な空隙
 
 署名間の差は、保証付きbisimulation metricではなく、`state similarity score`または`behavioral discrepancy surrogate`としてbeam重複除去、多様性維持、value cacheに限定して使う。
+
+Mode Bでは幾何署名が近くても、可視pool内のどの荷物を救っているかが異なれば、
+未来は同値ではない。そこで荷物別可行性署名
+
+\[
+\chi_V(s)
+=
+\left(
+\mathbf 1[\mathcal A(s,i)\ne\varnothing]
+\right)_{i\in V}
+\]
+
+を導入し、
+
+\[
+\boxed{
+\sigma_B(s,V)
+=
+\left(
+\sigma_{\mathrm{geom}}(s),
+\chi_V(s)
+\right)
+}
+\]
+
+とする。異なるpool間を比較するときは荷物indexまたは属性classで成分を対応付ける。
+可行荷物数
+
+\[
+G(s,V)=\sum_{i\in V}\chi_V(s)_i
+\]
+
+はこの署名の粗い集約値として残すが、同じ \(G\) でも救っている荷物が違う状態を
+同一視しない。これはMode Bのbeam多様性とvalue cacheへ追加するProposed拡張である。
 
 ## 7. 順序圧縮: 静的独立条件とDPOR
 
@@ -392,13 +445,35 @@ k:
 
 ## 10. Task2
 
-Task2では到着順が未知なので、最適化対象は方策
+Task2では到着順が未知である。到着荷物が外から一意に与えられるMode C型では、
+最適化対象は方策
 
 \[
 \mu:(s_t,i_t)\mapsto a_t
 \]
 
-である。
+でよい。しかしMode Bでは、可視pool \(V_t\) から荷物自体も選ぶため、行動を
+
+\[
+a_t=(i_t,p_t),\qquad i_t\in V_t
+\]
+
+とし、方策と価値を
+
+\[
+\boxed{
+\mu_B:(s_t,V_t)\mapsto(i_t,p_t)
+}
+\]
+
+\[
+\boxed{
+V_B(s,V)
+}
+\]
+
+へ拡張する必要がある。遷移は物理状態だけでなく、選択荷物の除去と新規荷物の
+補充によるpool更新も含む。
 
 \[
 \mu^*
@@ -406,21 +481,35 @@ Task2では到着順が未知なので、最適化対象は方策
 \arg\max_\mu
 \mathbb E_\mu
 \left[
-\sum_{t=0}^{T-1}r(s_t,i_t,a_t)
-+\Phi(s_T)
+\sum_{t=0}^{T-1}r(s_t,V_t,i_t,p_t)
++\Phi(s_T,V_T)
 \right].
 \]
 
 候補評価は概念的に
 
 \[
-Q(s,i,a)
+Q_B(s,V,i,p)
 =
-r(s,i,a)
-+\gamma\hat V(\hat\sigma(T(s,i,a)))
+r(s,V,i,p)
++\gamma\hat V_B(T(s,i,p),V')
 \]
 
 とする。
+
+2026-07-29のTask B proxy実験では、Case 001のitem 0が19step可視で、
+15stepに可行候補を持ち、step 14でimmediate top-Kへ入ったにもかかわらず
+選ばれず、step 18で候補ゼロになった。これは
+
+\[
+\text{置ける間に選ばない}
+\longrightarrow
+\text{後で不可行になる}
+\]
+
+という荷物選択と配置の結合starvationが実在することを示すObserved evidenceである。
+したがって即時scoreや可行荷物数だけでなく、荷物別の可行性寿命、待ち時間、
+選択しない場合の後悔を候補多様性へ入れる必要がある。
 
 未到着荷物を含むブロックは直接行動にできないため、Task2では
 
@@ -461,7 +550,23 @@ r(s,i,a)
 
 という状態・行動空間設計である。
 
+EP/EMSや支持面anchorによる候補圧縮には、
+
+\[
+\boxed{
+\text{列挙削減率}
+\quad\text{vs.}\quad
+\text{物理的candidate recall}
+}
+\]
+
+のトレードオフがある。anchor recall oracleは、圧縮後の候補集合が無制限列挙の
+物理的有効解をどれだけ保持するかを測る。候補ゼロをdead endと判断する前に、
+真の \(\mathcal A(s,i)=\varnothing\) とgenerator recall不足を分離する。
+
 ## 12. 実装優先順位
+
+### 共通配置・圧縮
 
 1. settle観測へ適応するClosed-loop Option
 2. 静的独立証明と小規模DPOR
@@ -469,4 +574,16 @@ r(s,i,a)
 4. reduced costによるオンデマンド候補生成
 5. 同一タイプ置換など限定的SMDP準同型
 6. potential shapingは安全性が整理できるまで保留
+
+### Task2 / Mode B専用
+
+1. candidate recallをfailure stepで計測する
+2. class-awareなpriority-ordered探索でdeadline coverageを維持する
+3. item lifecycle / starvationを荷物別に記録する
+4. \(\chi_V(s)\) によるpool-feasibility署名を導入する
+5. regret-aware diversityで可行性寿命の異なる候補をbeamへ残す
+6. 解析proxyに勝つことを確認してからpool-aware valueを学習する
+
+1〜3は計測基盤までImplemented、4〜6はProposedである。Case 000のようなpool 1の
+候補ゼロは共通配置・圧縮側、Case 001のような後回し不可行化はMode B側で扱う。
 

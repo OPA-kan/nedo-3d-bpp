@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.run_checks import evaluation_passed
+from scripts.run_checks import (
+    evaluation_completed,
+    evaluation_passed,
+    simulator_result_passed,
+)
 
 
 class EvaluationStatusTests(unittest.TestCase):
@@ -23,18 +27,93 @@ class EvaluationStatusTests(unittest.TestCase):
         evaluation = {
             "000": {
                 "status": "success",
+                "evaluation": {
+                    "fill_score": 10.0,
+                    "num_placed_items": 0.5,
+                    "step_metrics": [],
+                },
                 "place_states": {
                     "is_included": True,
                     "is_valid": False,
                     "is_placed_safe": False,
                 },
+                "time_results": {
+                    "optimization": 0.0,
+                    "policy": 6.5,
+                },
             }
         }
         self.assertFalse(evaluation_passed(evaluation))
+        self.assertTrue(evaluation_completed(evaluation))
+        self.assertFalse(
+            simulator_result_passed(
+                simulator_returncode=0,
+                evaluation=evaluation,
+                mode="strict",
+            )
+        )
+        self.assertTrue(
+            simulator_result_passed(
+                simulator_returncode=0,
+                evaluation=evaluation,
+                mode="benchmark",
+            )
+        )
 
     def test_missing_or_empty_evaluation_fails(self) -> None:
         self.assertFalse(evaluation_passed(None))
         self.assertFalse(evaluation_passed({}))
+        self.assertFalse(evaluation_completed(None))
+        self.assertFalse(evaluation_completed({}))
+
+    def test_benchmark_does_not_hide_process_or_result_failure(self) -> None:
+        malformed = {
+            "000": {
+                "status": "format_error",
+                "evaluation": None,
+                "place_states": {},
+                "time_results": {},
+            }
+        }
+        self.assertFalse(
+            simulator_result_passed(
+                simulator_returncode=1,
+                evaluation=malformed,
+                mode="benchmark",
+            )
+        )
+        self.assertFalse(
+            simulator_result_passed(
+                simulator_returncode=0,
+                evaluation=malformed,
+                mode="benchmark",
+            )
+        )
+
+    def test_benchmark_rejects_incomplete_score_schema(self) -> None:
+        incomplete = {
+            "000": {
+                "status": "success",
+                "evaluation": {},
+                "place_states": {
+                    "is_included": True,
+                    "is_valid": False,
+                    "is_placed_safe": False,
+                },
+                "time_results": {
+                    "optimization": 0.0,
+                    "policy": 6.5,
+                },
+            }
+        }
+        self.assertFalse(evaluation_completed(incomplete))
+        self.assertFalse(
+            simulator_result_passed(
+                simulator_returncode=0,
+                evaluation=incomplete,
+                mode="strict",
+            )
+        )
 
 
 if __name__ == "__main__":

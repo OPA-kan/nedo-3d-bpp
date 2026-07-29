@@ -63,7 +63,7 @@ Case 001は候補全滅後の固定fallbackによる失敗である。したが�
 lookahead価値関数ではなく、候補生成の直積列挙削減と時間内に確実な候補を返す探索契約。
 30個前後へ到達するまで3方式の優劣比較は保留する。
 
-## Anytime候補探索（Implemented / physics validation pending）
+## Anytime候補探索（Implemented / physics validated）
 
 - 候補生成をlazy stream化し、anchor試行ごとにdeadlineを監視する。
 - 戦略順の荷物、底面積の大きい姿勢、残余体積の大きいコンテナで三組を順位付けする。
@@ -72,8 +72,9 @@ lookahead価値関数ではなく、候補生成の直積列挙削減と時間�
   同じ第1巡で低高度投下候補も検証する。
 - 幾何・支持・搬入を通った候補のうち最良scoreをincumbentとして更新し、
   deadline時には固定座標ではなく検証済みincumbentを返す。
-- anchor集合自体は旧Cartesian列挙を維持する。支持面ローカル化と跨ぎ支持の
-  recall/regret/配置数差は次の独立実験とする。
+- anchor集合はper-support-plane生成を既定とし、同一高さの隣接面を連結して
+  跨ぎ支持も生成する。旧Cartesian列挙は独立oracleとしてのみ維持し、
+  connected/separate面の候補数差を診断へ残す。
 
 完全な定式化、限界、実験計画は `PREVIEW_RESIDUAL_VALUE.md` を読む。
 
@@ -108,5 +109,24 @@ area, and searches components in a priority round-robin: floor, larger area,
 greater depth, then lower height. The legacy Cartesian generator remains an
 explicit oracle mode. On the run 30348998307 snapshots, step-4 settled trials
 fell from 116,008 to 10,438 while preserving the legacy oracle's best score;
-deadline-bound settled discoveries rose from zero to 427. Physical trajectory
-validation remains pending.
+deadline-bound settled discoveries rose from zero to 427. Linux physical runs
+later reached 20 safe placements in Case 000 and 18 in Case 001 before the
+fixed fallback failed, so the generator trajectory itself is no longer pending.
+
+## Mode B starvation（Observed）
+
+Linux run 30425854515では、Case 001のitem 0がstep 0から18まで19回可視で、
+15stepに配置候補を持ち、step 14でimmediate top-Kへ入ったが選択されなかった。
+step 18では候補ゼロとなり、固定fallbackで終了した。item 18と20もtop-Kへ
+2回ずつ入りながら未選択のまま最終的に候補ゼロになった。
+
+これはMode Bを
+
+\[
+\mu_B:(s,V)\mapsto(i,p),\qquad V_B(s,V)
+\]
+
+として扱う必要性を支持する。現行 `pool_resilience` の
+\(G(s,V)\) は可行荷物数しか保持しないため、次は荷物別可行性
+\(\chi_V(s)\) とregret-aware diversityを同一Task B configで比較する。
+診断はImplemented、選択方策の変更はProposedである。

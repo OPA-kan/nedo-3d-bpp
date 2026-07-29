@@ -68,6 +68,54 @@ def evaluation_passed(evaluation: Any) -> bool:
     return True
 
 
+def evaluation_completed(evaluation: Any) -> bool:
+    """Return whether the simulator produced structurally valid case results."""
+    if not isinstance(evaluation, dict) or not evaluation:
+        return False
+    required_states = ("is_included", "is_valid", "is_placed_safe")
+    for case in evaluation.values():
+        if not isinstance(case, dict) or case.get("status") != "success":
+            return False
+        score = case.get("evaluation")
+        if not isinstance(score, dict):
+            return False
+        if not isinstance(score.get("fill_score"), (int, float)):
+            return False
+        if not isinstance(score.get("num_placed_items"), (int, float)):
+            return False
+        if not isinstance(score.get("step_metrics"), list):
+            return False
+        states = case.get("place_states")
+        if not isinstance(states, dict):
+            return False
+        if not all(isinstance(states.get(name), bool) for name in required_states):
+            return False
+        time_results = case.get("time_results")
+        if not isinstance(time_results, dict):
+            return False
+        if not all(
+            isinstance(time_results.get(name), (int, float))
+            for name in ("optimization", "policy")
+        ):
+            return False
+    return True
+
+
+def simulator_result_passed(
+    *,
+    simulator_returncode: int,
+    evaluation: Any,
+    mode: str,
+) -> bool:
+    if simulator_returncode != 0:
+        return False
+    if mode == "strict":
+        return evaluation_completed(evaluation) and evaluation_passed(evaluation)
+    if mode == "benchmark":
+        return evaluation_completed(evaluation)
+    raise ValueError(f"unknown simulator mode: {mode}")
+
+
 def report_markdown(payload: dict[str, Any]) -> str:
     tests = payload["tests"]
     simulator = payload.get("simulator")
@@ -97,8 +145,14 @@ def report_markdown(payload: dict[str, Any]) -> str:
     else:
         process_ok = simulator["returncode"] == 0
         physics_ok = payload.get("simulator_validation") is True
-        if process_ok and physics_ok:
+        execution_ok = payload.get("simulator_execution_valid") is True
+        simulator_mode = payload.get("simulator_mode", "strict")
+        if process_ok and not execution_ok:
+            simulator_status = "FAIL (invalid evaluation result)"
+        elif process_ok and physics_ok:
             simulator_status = "PASS"
+        elif process_ok and execution_ok and simulator_mode == "benchmark":
+            simulator_status = "BENCHMARK COMPLETE (packing incomplete)"
         elif process_ok:
             simulator_status = "FAIL (physics validation)"
         else:
@@ -109,6 +163,7 @@ def report_markdown(payload: dict[str, Any]) -> str:
                 "## Simulator",
                 "",
                 f"- Status: `{simulator_status}`",
+                f"- Exit policy: `{simulator_mode}`",
                 f"- Runtime: `{simulator['seconds']} s`",
                 f"- Command: `{display_command(simulator['command'])}`",
                 "",
@@ -150,6 +205,16 @@ def report_markdown(payload: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--simulator", action="store_true")
+    parser.add_argument(
+        "--simulator-mode",
+        choices=("strict", "benchmark"),
+        default="strict",
+        help=(
+            "strict requires every case's final placement to be safe; "
+            "benchmark accepts incomplete packing when execution and result "
+            "structure are valid"
+        ),
+    )
     parser.add_argument("--keep-history", action="store_true")
     parser.add_argument(
         "--config",
@@ -200,7 +265,14 @@ def main() -> int:
             env,
         )
         payload["evaluation"] = load_json(raw_dir / result_name)
-        payload["simulator_validation"] = evaluation_passed(payload["evaluation"])
+        payload["simulator_execution_valid"] = evaluation_completed(
+            payload["evaluation"]
+        )
+        payload["simulator_validation"] = (
+            payload["simulator_execution_valid"]
+            and evaluation_passed(payload["evaluation"])
+        )
+        payload["simulator_mode"] = args.simulator_mode
 
     latest_json = REPORTS / "latest.json"
     latest_md = REPORTS / "latest.md"
@@ -218,10 +290,13 @@ def main() -> int:
         shutil.copy2(latest_md, history / f"{stamp}.md")
 
     test_ok = payload["tests"]["returncode"] == 0
-    simulator_ok = (
-        payload.get("simulator", {}).get("returncode", 0) == 0
-        and payload.get("simulator_validation", True)
-    )
+    simulator_ok = True
+    if args.simulator:
+        simulator_ok = simulator_result_passed(
+            simulator_returncode=payload["simulator"]["returncode"],
+            evaluation=payload.get("evaluation"),
+            mode=args.simulator_mode,
+        )
     print(latest_md)
     return 0 if test_ok and simulator_ok else 1
 

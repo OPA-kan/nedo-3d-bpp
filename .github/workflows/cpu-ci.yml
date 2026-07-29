@@ -10,6 +10,20 @@ on:
         required: false
         type: boolean
         default: true
+      run_task_b:
+        description: Run the Task B look-ahead matrix
+        required: false
+        type: boolean
+        default: false
+      selection_mode:
+        description: Task B pool-aware candidate selection mode
+        required: false
+        type: choice
+        options:
+          - weighted
+          - depth2
+          - pool_resilience
+        default: weighted
 
 jobs:
   unit-tests:
@@ -30,7 +44,7 @@ jobs:
             reports/latest.md
             reports/latest.json
 
-  simulator:
+  simulator-benchmark:
     if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -44,7 +58,10 @@ jobs:
             requirements.txt
             requirements-simulator.txt
       - run: pip install -r requirements-simulator.txt
-      - run: python scripts/run_checks.py --simulator
+      - run: >-
+          python scripts/run_checks.py
+          --simulator
+          --simulator-mode benchmark
         env:
           OFFLINE_SEARCH_BUDGET_SECONDS: "150"
           NEDO_POLICY_TRACE_PATH: >-
@@ -57,3 +74,9 @@ jobs:
             reports/latest.md
             reports/latest.json
             reports/raw/
+
+  task-b-benchmark:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_task_b
+    uses: ./.github/workflows/task-b-benchmark.yml
+    with:
+      selection_mode: ${{ inputs.selection_mode }}

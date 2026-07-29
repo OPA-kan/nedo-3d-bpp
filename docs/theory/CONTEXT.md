@@ -30,10 +30,15 @@
 - pool-awareな残余価値は別profile `preview-value` で扱う。
   `weighted`、`depth2`、`pool_resilience` の選択機構だけImplementedで、
   可行アンカー面積と学習価値はProposed。
-- Mode Bのpriority/soft starvationは原因未確定の仮説として扱う。
+- Mode BのstarvationはCase 001のLinux実runでObserved。
+  item 0は19step可視、15stepで候補あり、step 14でtop-K入りしたが未選択のまま、
+  step 18で候補ゼロになった。これは§10の
+  \(\mu_B:(s,V)\mapsto(i,p)\)、\(V_B(s,V)\)への拡張を支持する。
   `NEDO_POLICY_TRACE_PATH`有効時だけ、item cap、探索開始、候補生成、
   immediate top-K、future probe、選択の各段階を荷物別に累積記録する。
-  方策、class quota、regret rankingは未変更。重いbefore/after regretは
+  診断はImplementedだが、方策、class quota、regret rankingは未変更。
+  \(\chi_V(s)\)によるidentity-aware署名とregret-aware diversityはProposed。
+  重いbefore/after regretは
   pre-action snapshotを使うoffline計測として定義する。
 - 課題A/B/Cの修正版実装契約とaction後指標は別profile `abc-spec` で扱う。
 

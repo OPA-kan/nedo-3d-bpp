@@ -44,3 +44,11 @@
 `docs/simulator/API_REFERENCE.md`は提供された自動抽出索引。概要把握には使えるが、
 private methodと実際の分岐条件はソースを読む。
 
+## Task B benchmark
+
+`sample_config.json`のCase 001は `optimize=false`、pool 10のTask B proxy。
+GitHub Actionsではこのcaseを基にpool 3/10/20/40、policy timeout 8秒のconfigを
+生成する。benchmark modeはsimulator processとevaluation構造が正常なら成功とし、
+全荷物完遂は別のstrict physics validationとして記録する。固定fallbackによる
+途中終了を隠さず、CI infrastructure failureとalgorithm benchmark failureを分ける。
+

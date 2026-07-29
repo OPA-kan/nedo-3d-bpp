@@ -87,16 +87,29 @@ N_i(s)=
 表す。
 
 現実装は連続面積をまだ計算しない。実際の `PlacementCore` で、残った可視poolの
-各荷物について少なくとも一つ可行配置があるかを調べ、
+各荷物について少なくとも一つ可行配置があるかを調べ、荷物別可行性署名
 
 \[
-G(s,V)=
-\sum_{i\in V}
+\chi_V(s)
+=
+\left(
 \mathbf 1[\mathcal A(s,i)\ne\varnothing]
+\right)_{i\in V}
 \]
 
-を離散proxyとして使う。候補点数は数えないため、同一荷物に多数の候補があることを
-重複評価しない。
+を基本表現とする。現行実装の離散proxy
+
+\[
+G(s,V)=\sum_{i\in V}\chi_V(s)_i
+\]
+
+は可行荷物数だけを使う粗い射影である。候補点数は数えないため、同一荷物に多数の
+候補があることを重複評価しない一方、「どの荷物が可行か」は失う。
+
+2026-07-29のCase 001では、item 0が15stepで候補を持ちながら未選択となり、
+最終的に不可行化した。同じ \(G\) でもitem 0を救う状態と救わない状態を区別する
+必要があることがObservedとなった。したがって \(G\) はbaselineとして残し、
+diversityと将来価値には \(\chi_V\) を使う。
 
 ## 5. 実装済みの三モード
 
@@ -149,6 +162,7 @@ G(s_t^a,V_t\setminus\{i\}),
 を辞書式比較する。
 
 これは可行アンカー面積の最終実装ではなく、pool-awareな最小proxyである。
+また、可行荷物のidentityを失うためstarvation回避の十分統計ではない。
 
 ## 6. 学習する場合
 
@@ -183,16 +197,20 @@ Y(s^a;\omega)-Y(s^b;\omega)
 1. 現行 `weighted`
 2. `depth2`
 3. `pool_resilience`
-4. 連続または格子近似の可行アンカー面積
-5. 未知荷物分布に対する期待可行面積
-6. sibling rankingによる学習値
+4. \(\chi_V\) のidentity-aware diversity
+5. 待ち時間と可行性消失を使うregret-aware diversity
+6. 連続または格子近似の可行アンカー面積
+7. 未知荷物分布に対する期待可行面積
+8. sibling rankingによる学習値
 
 最低限、配置個数、体積、物理valid/safe、policy時間、次手dead-end回避数、
-pool可行荷物数を比較する。
+pool可行荷物数に加え、候補あり未選択step数、top-K未選択回数、不可行化までの
+待ち時間、deadlineで探索未開始の荷物数を比較する。
 
 物理validationが壊れた状態から生成した仮想遷移は教師にも評価にも使えない。
-現在のPyBullet不具合を修正するまでは、1～3を単体・代理状態で検証し、成績改善を
-主張しない。
+benchmarkが固定fallbackで終了した状態は教師に使わず、その直前のsettle済み観測を
+保存してsibling比較する。1～5はGitHub ActionsのTask B同一config matrixで比較し、
+SIGNATE総合scoreの改善とは区別する。
 
 ## 8. 非目標
 
