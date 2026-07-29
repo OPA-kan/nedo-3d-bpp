@@ -64,6 +64,10 @@
   解消した一方、release候補がsettled全列挙の末尾に隠れてCase 000/001が
   12/7個へ退行した。release独立unit修正後の物理結果は未検証。
 - 診断には探索unitの開始数/総数、round数、deadline到達、incumbent更新数を保存する。
+- `NEDO_POLICY_TRACE_PATH`有効時は、可視poolの各荷物についてitem cap、探索開始、
+  候補生成、immediate top-K、future probe、選択の各stepを累積保存する。
+  `candidate_generated`はdeadline内で観測した候補でありoracle可行性ではない。
+  trace無効時は荷物別lifecycleを収集せず、選択方策も変更しない。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。
 
 ## Release fallback ordering

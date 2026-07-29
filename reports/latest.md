@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-07-28T13:47:20+09:00`
-- Git SHA: `9e6b42cc376115167b3db98462e2271e17d49c94`
+- Timestamp: `2026-07-29T14:10:31+09:00`
+- Git SHA: `28e61500090dec1aee7bced63b997f1a9b128c28`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `15.585 s`
+- Runtime: `24.732 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,7 +21,10 @@
 <details><summary>unit tests</summary>
 
 ```text
+test_candidate_rejections_are_counted_by_reason (test_agent.GeometryContractTests.test_candidate_rejections_are_counted_by_reason) ... ok
+test_connected_support_plane_accepts_bridge_support (test_agent.GeometryContractTests.test_connected_support_plane_accepts_bridge_support) ... ok
 test_coordinate_round_trip_only_offsets_world_x (test_agent.GeometryContractTests.test_coordinate_round_trip_only_offsets_world_x) ... ok
+test_empty_container_corridor_is_clear_at_front_center_and_back (test_agent.GeometryContractTests.test_empty_container_corridor_is_clear_at_front_center_and_back) ... ok
 test_float32_action_preserves_more_than_official_5mm_inclusion_margin (test_agent.GeometryContractTests.test_float32_action_preserves_more_than_official_5mm_inclusion_margin) ... ok
 test_float32_transport_clearance_preserves_official_15mm_margin (test_agent.GeometryContractTests.test_float32_transport_clearance_preserves_official_15mm_margin) ... ok
 test_floating_item_is_rejected (test_agent.GeometryContractTests.test_floating_item_is_rejected) ... ok
@@ -31,17 +34,36 @@ test_official_shelf_key_is_supported (test_agent.GeometryContractTests.test_offi
 test_offline_order_places_hard_items_before_soft_and_priority (test_agent.GeometryContractTests.test_offline_order_places_hard_items_before_soft_and_priority) ... ok
 test_packed_dimensions_use_settled_quaternion (test_agent.GeometryContractTests.test_packed_dimensions_use_settled_quaternion) ... ok
 test_priority_item_is_routed_to_priority_container (test_agent.GeometryContractTests.test_priority_item_is_routed_to_priority_container) ... ok
+test_rectangle_union_area_does_not_double_count_overlap (test_agent.GeometryContractTests.test_rectangle_union_area_does_not_double_count_overlap) ... ok
+test_release_candidate_is_generated_without_analytic_support (test_agent.GeometryContractTests.test_release_candidate_is_generated_without_analytic_support) ... ok
 test_shelf_action_target_is_lifted_above_direct_rest_threshold (test_agent.GeometryContractTests.test_shelf_action_target_is_lifted_above_direct_rest_threshold) ... ok
 test_shelf_boxes_are_derived_from_simulator_dimensions (test_agent.GeometryContractTests.test_shelf_boxes_are_derived_from_simulator_dimensions) ... ok
 test_shelf_top_is_support_but_mid_shelf_is_collision (test_agent.GeometryContractTests.test_shelf_top_is_support_but_mid_shelf_is_collision) ... ok
 test_shelf_transport_sweep_uses_lifted_action_plus_start_height (test_agent.GeometryContractTests.test_shelf_transport_sweep_uses_lifted_action_plus_start_height) ... ok
 test_soft_and_priority_items_are_not_future_support_surfaces (test_agent.GeometryContractTests.test_soft_and_priority_items_are_not_future_support_surfaces) ... ok
+test_support_plane_components_merge_only_coplanar_edge_neighbors (test_agent.GeometryContractTests.test_support_plane_components_merge_only_coplanar_edge_neighbors) ... ok
+test_support_plane_diagnostics_compare_connected_and_separate_counts (test_agent.GeometryContractTests.test_support_plane_diagnostics_compare_connected_and_separate_counts) ... ok
+test_support_plane_priority_is_floor_area_depth_then_height (test_agent.GeometryContractTests.test_support_plane_priority_is_floor_area_depth_then_height) ... ok
+test_support_plane_release_does_not_delegate_to_cartesian (test_agent.GeometryContractTests.test_support_plane_release_does_not_delegate_to_cartesian) ... ok
 test_transport_clearance_uses_3d_closest_distance (test_agent.GeometryContractTests.test_transport_clearance_uses_3d_closest_distance) ... ok
 test_transport_sweeps_include_official_y_then_x_legs (test_agent.GeometryContractTests.test_transport_sweeps_include_official_y_then_x_legs) ... ok
+test_z_interval_solves_sloped_lower_container_boundary (test_agent.GeometryContractTests.test_z_interval_solves_sloped_lower_container_boundary) ... ok
+test_candidate_attempt_iterator_stops_inside_an_orientation (test_agent.LookaheadSelectionTests.test_candidate_attempt_iterator_stops_inside_an_orientation) ... ok
+test_candidate_audit_is_absent_by_default (test_agent.LookaheadSelectionTests.test_candidate_audit_is_absent_by_default) ... ok
+test_candidate_audit_separates_settled_and_release_candidates (test_agent.LookaheadSelectionTests.test_candidate_audit_separates_settled_and_release_candidates) ... ok
+test_deadline_returns_best_validated_incumbent (test_agent.LookaheadSelectionTests.test_deadline_returns_best_validated_incumbent) ... ok
 test_depth2_mode_prefers_a_feasible_next_step_without_score_mixing (test_agent.LookaheadSelectionTests.test_depth2_mode_prefers_a_feasible_next_step_without_score_mixing) ... ok
+test_fixed_fallback_is_included_in_policy_trace (test_agent.LookaheadSelectionTests.test_fixed_fallback_is_included_in_policy_trace) ... ok
+test_item_lifecycle_accumulates_and_resets_per_episode (test_agent.LookaheadSelectionTests.test_item_lifecycle_accumulates_and_resets_per_episode) ... ok
+test_policy_trace_records_item_selection_lifecycle_stages (test_agent.LookaheadSelectionTests.test_policy_trace_records_item_selection_lifecycle_stages) ... ok
 test_policy_trace_separates_predicted_residual_from_action (test_agent.LookaheadSelectionTests.test_policy_trace_separates_predicted_residual_from_action) ... ok
 test_pool_of_40_stays_below_online_time_limit (test_agent.LookaheadSelectionTests.test_pool_of_40_stays_below_online_time_limit) ... ok
 test_pool_resilience_mode_prefers_more_placeable_visible_items (test_agent.LookaheadSelectionTests.test_pool_resilience_mode_prefers_more_placeable_visible_items) ... ok
+test_priority_ordered_search_keeps_best_validated_incumbent (test_agent.LookaheadSelectionTests.test_priority_ordered_search_keeps_best_validated_incumbent) ... ok
+test_release_probe_is_not_hidden_behind_settled_exhaustion (test_agent.LookaheadSelectionTests.test_release_probe_is_not_hidden_behind_settled_exhaustion) ... ok
+test_settled_candidate_is_preferred_over_higher_scoring_release (test_agent.LookaheadSelectionTests.test_settled_candidate_is_preferred_over_higher_scoring_release) ... ok
+test_shallow_pass_reaches_later_item_before_exhausting_first (test_agent.LookaheadSelectionTests.test_shallow_pass_reaches_later_item_before_exhausting_first) ... ok
+test_trace_disabled_does_not_collect_item_lifecycle (test_agent.LookaheadSelectionTests.test_trace_disabled_does_not_collect_item_lifecycle) ... ok
 test_unknown_lookahead_mode_is_rejected (test_agent.LookaheadSelectionTests.test_unknown_lookahead_mode_is_rejected) ... ok
 test_visible_pool_feasibility_uses_real_placement_core (test_agent.LookaheadSelectionTests.test_visible_pool_feasibility_uses_real_placement_core) ... ok
 test_weighted_mode_preserves_existing_discounted_sum (test_agent.LookaheadSelectionTests.test_weighted_mode_preserves_existing_discounted_sum) ... ok
@@ -67,14 +89,27 @@ test_path_escape_is_rejected (test_context.ContextRouterTests.test_path_escape_i
 test_preview_experiments_do_not_pollute_default_experiments (test_context.ContextRouterTests.test_preview_experiments_do_not_pollute_default_experiments) ... ok
 test_preview_value_summary_is_separate_from_full_theory (test_context.ContextRouterTests.test_preview_value_summary_is_separate_from_full_theory) ... ok
 test_summary_does_not_load_detailed_agent_source (test_context.ContextRouterTests.test_summary_does_not_load_detailed_agent_source) ... ok
+test_depth_profile_distinguishes_door_side_from_back_side (test_diagnostics.SettledMetricTests.test_depth_profile_distinguishes_door_side_from_back_side) ... ok
+test_settle_motion_records_position_and_orientation_change (test_diagnostics.SettledMetricTests.test_settle_motion_records_position_and_orientation_change) ... ok
 test_surface_metrics_are_explicit_proxies (test_diagnostics.SettledMetricTests.test_surface_metrics_are_explicit_proxies) ... ok
 test_volume_center_of_mass_and_residual_capacity_are_direct (test_diagnostics.SettledMetricTests.test_volume_center_of_mass_and_residual_capacity_are_direct) ... ok
+test_candidate_key_is_stable_across_transport_precision (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_candidate_key_is_stable_across_transport_precision) ... ok
+test_dual_oracle_deduplicates_and_records_generator_provenance (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_dual_oracle_deduplicates_and_records_generator_provenance) ... ok
+test_extract_anytime_candidates_deduplicates_searches (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_extract_anytime_candidates_deduplicates_searches) ... ok
+test_failure_classification_distinguishes_deadline_and_dead_end (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_failure_classification_distinguishes_deadline_and_dead_end) ... ok
+test_json_safe_preserves_snapshot_quaternion_values (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_json_safe_preserves_snapshot_quaternion_values) ... ok
+test_oracle_forces_legacy_cartesian_generator (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_oracle_forces_legacy_cartesian_generator) ... ok
+test_partial_physics_never_reports_a_recall_value (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_partial_physics_never_reports_a_recall_value) ... ok
+test_physics_validation_restores_state_between_candidates (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_physics_validation_restores_state_between_candidates) ... ok
+test_release_oracle_enumerates_only_release_candidates (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_release_oracle_enumerates_only_release_candidates) ... ok
+test_summary_uses_physically_valid_oracle_candidates_as_denominator (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_summary_uses_physically_valid_oracle_candidates_as_denominator) ... ok
+test_unlimited_oracle_enumerates_settled_candidates (test_measure_anchor_recall.AnchorRecallMeasurementTests.test_unlimited_oracle_enumerates_settled_candidates) ... ok
 test_missing_or_empty_evaluation_fails (test_run_checks.EvaluationStatusTests.test_missing_or_empty_evaluation_fails) ... ok
 test_process_success_does_not_hide_physics_failure (test_run_checks.EvaluationStatusTests.test_process_success_does_not_hide_physics_failure) ... ok
 test_valid_safe_cases_pass (test_run_checks.EvaluationStatusTests.test_valid_safe_cases_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 51 tests in 15.062s
+Ran 86 tests in 24.065s
 
 OK
 ```

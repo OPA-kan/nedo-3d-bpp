@@ -1332,8 +1332,286 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
         self.assertEqual(events[1]["action_source"], "fixed_fallback")
         self.assertEqual(events[1]["selected_item_index"], 9)
+        lifecycle = {
+            record["item_index"]: record
+            for record in events[1]["item_lifecycle"]
+        }
+        self.assertIsNone(lifecycle[9]["selected_step"])
+        self.assertEqual(
+            lifecycle[9]["starvation_observation"],
+            "fixed_fallback_target",
+        )
         self.assertEqual(solver.last_action_source, "fixed_fallback")
         self.assertEqual(solver.last_candidate_kind, "fixed_fallback")
+
+    def test_policy_trace_records_item_selection_lifecycle_stages(self):
+        pool = [sample_item(index) for index in range(11)]
+        pool.append(sample_item(11, is_prioritized=True))
+        observation = {
+            "pool_list": pool,
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        candidate = agent.AABB(
+            center=np.array([0.0, 0.0, 0.1]),
+            size=np.array([0.3, 0.25, 0.2]),
+            name="settled_candidate",
+        )
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": np.array([0.0, 0.0, 0.1]),
+                    "orientation": 0,
+                },
+                candidate=candidate,
+                score=float(10 - pool_index),
+            )
+            for pool_index in (0, 1)
+        ]
+
+        def top_candidates(
+            _observation,
+            _indexed_items,
+            _k,
+            deadline=None,
+            diagnostics=None,
+        ):
+            diagnostics["search"] = {
+                "units_total": 20,
+                "units_started": 20,
+                "units_completed": 20,
+                "rounds_started": 1,
+                "deadline_reached": False,
+                "incumbent_updates": 2,
+                "item_indices_started": list(range(10)),
+                "item_indices_with_candidates": [0, 1, 2],
+            }
+            return decisions
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "policy.jsonl"
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+                ),
+                mock.patch.object(
+                    agent.PlacementCore,
+                    "top_candidates",
+                    side_effect=top_candidates,
+                ),
+                mock.patch.object(
+                    agent,
+                    "evaluate_visible_pool_feasibility",
+                    return_value=agent.VisiblePoolFeasibility(
+                        feasible_items=2,
+                        evaluated_items=2,
+                        best_score=1.0,
+                    ),
+                ),
+            ):
+                solver = agent.Agent("")
+                solver.get_init_states(
+                    {
+                        "optimize": False,
+                        "lookahead_k": len(pool),
+                        "container_list": observation["container_list"],
+                    }
+                )
+                solver.policy(observation)
+
+            events = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+        decision_event = events[1]
+        stages = decision_event["selection_stages"]
+        self.assertEqual(stages["visible_item_indices"], list(range(12)))
+        self.assertEqual(stages["item_cap_item_indices"], list(range(10)))
+        self.assertEqual(stages["search_started_item_indices"], list(range(10)))
+        self.assertEqual(
+            stages["candidate_generated_item_indices"],
+            [0, 1, 2],
+        )
+        self.assertEqual(stages["candidate_topk_item_indices"], [0, 1])
+        self.assertEqual(stages["future_probe_item_indices"], [0, 1, 2])
+
+        lifecycle = {
+            record["item_index"]: record
+            for record in decision_event["item_lifecycle"]
+        }
+        self.assertEqual(lifecycle[0]["item_class"], "normal")
+        self.assertEqual(lifecycle[0]["selected_step"], 0)
+        self.assertEqual(lifecycle[0]["starvation_observation"], "selected")
+        self.assertEqual(lifecycle[2]["candidate_generated_steps"], [0])
+        self.assertEqual(
+            lifecycle[2]["starvation_observation"],
+            "generated_but_low_rank",
+        )
+        self.assertEqual(lifecycle[11]["item_class"], "priority")
+        self.assertEqual(lifecycle[11]["search_included_steps"], [])
+        self.assertEqual(
+            lifecycle[11]["starvation_observation"],
+            "excluded_by_item_cap",
+        )
+
+    def test_trace_disabled_does_not_collect_item_lifecycle(self):
+        item = sample_item(0)
+        observation = {
+            "pool_list": [item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.array([0.0, 0.0, 0.1]),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                center=np.array([0.0, 0.0, 0.1]),
+                size=np.array([0.3, 0.25, 0.2]),
+                name="settled_candidate",
+            ),
+            score=1.0,
+        )
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(
+                agent.Agent,
+                "_closed_loop_choice",
+                return_value=decision,
+            ),
+        ):
+            solver = agent.Agent("")
+            solver.get_init_states(
+                {
+                    "optimize": False,
+                    "lookahead_k": 1,
+                    "container_list": observation["container_list"],
+                }
+            )
+            solver.policy(observation)
+
+        self.assertEqual(solver._item_lifecycle, {})
+        self.assertNotIn(
+            "_record_item_lifecycle",
+            solver.last_candidate_diagnostics,
+        )
+
+    def test_item_lifecycle_accumulates_and_resets_per_episode(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+
+        def top_candidates(
+            _observation,
+            indexed_items,
+            _k,
+            deadline=None,
+            diagnostics=None,
+        ):
+            pool_index, item = indexed_items[0]
+            item_indices = [
+                int(indexed_item["index"])
+                for _, indexed_item in indexed_items
+            ]
+            diagnostics["search"] = {
+                "units_total": len(indexed_items),
+                "units_started": len(indexed_items),
+                "units_completed": len(indexed_items),
+                "rounds_started": 1,
+                "deadline_reached": False,
+                "incumbent_updates": 1,
+                "item_indices_started": item_indices,
+                "item_indices_with_candidates": item_indices,
+            }
+            return [
+                agent.PlacementDecision(
+                    action={
+                        "item_idx": pool_index,
+                        "container_idx": 0,
+                        "place_pos": np.array([0.0, 0.0, 0.1]),
+                        "orientation": 0,
+                    },
+                    candidate=agent.AABB(
+                        center=np.array([0.0, 0.0, 0.1]),
+                        size=np.array([0.3, 0.25, 0.2]),
+                        name="settled_candidate",
+                    ),
+                    score=1.0,
+                )
+            ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "policy.jsonl"
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+                ),
+                mock.patch.object(
+                    agent.PlacementCore,
+                    "top_candidates",
+                    side_effect=top_candidates,
+                ),
+            ):
+                solver = agent.Agent("")
+                init_states = {
+                    "optimize": False,
+                    "lookahead_k": 2,
+                    "container_list": [container],
+                }
+                solver.get_init_states(init_states)
+                solver.policy(
+                    {
+                        "pool_list": [sample_item(0), sample_item(1)],
+                        "container_list": [container],
+                    }
+                )
+                solver.policy(
+                    {
+                        "pool_list": [sample_item(1)],
+                        "container_list": [container],
+                    }
+                )
+                events = [
+                    json.loads(line)
+                    for line in trace_path.read_text(
+                        encoding="utf-8"
+                    ).splitlines()
+                ]
+                second_lifecycle = {
+                    record["item_index"]: record
+                    for record in events[-1]["item_lifecycle"]
+                }
+                self.assertEqual(second_lifecycle[0]["visible_steps"], [0])
+                self.assertEqual(second_lifecycle[0]["selected_step"], 0)
+                self.assertEqual(
+                    second_lifecycle[1]["visible_steps"], [0, 1]
+                )
+                self.assertEqual(second_lifecycle[1]["selected_step"], 1)
+
+                solver.get_init_states(init_states)
+
+        self.assertEqual(solver._item_lifecycle, {})
+        self.assertEqual(solver._policy_step, 0)
 
 
 class OfflineOptimizationTests(unittest.TestCase):

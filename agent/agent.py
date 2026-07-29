@@ -2106,6 +2106,14 @@ def item_group(item):
     return 0
 
 
+def item_class_name(item):
+    if bool(item.get("is_prioritized", False)):
+        return "priority"
+    if bool(item.get("is_soft", False)):
+        return "soft"
+    return "normal"
+
+
 def constructive_order(item_list):
     if not item_list:
         return []
@@ -2287,6 +2295,10 @@ def iter_prioritized_candidates(
         for unit in units
     ]
     search_stats = None
+    record_item_lifecycle = bool(
+        diagnostics is not None
+        and diagnostics.get("_record_item_lifecycle", False)
+    )
     if diagnostics is not None:
         search_stats = diagnostics.setdefault(
             "search",
@@ -2299,6 +2311,9 @@ def iter_prioritized_candidates(
                 "incumbent_updates": 0,
             },
         )
+        if record_item_lifecycle:
+            search_stats.setdefault("item_indices_started", [])
+            search_stats.setdefault("item_indices_with_candidates", [])
 
     attempts_per_unit = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
     while states:
@@ -2338,6 +2353,15 @@ def iter_prioritized_candidates(
                 )
                 if search_stats is not None:
                     search_stats["units_started"] += 1
+                if record_item_lifecycle:
+                    item_index = int(item.get("index", item_idx))
+                    if (
+                        item_index
+                        not in search_stats["item_indices_started"]
+                    ):
+                        search_stats["item_indices_started"].append(
+                            item_index
+                        )
 
             exhausted = False
             for _ in range(attempts_per_unit):
@@ -2356,6 +2380,17 @@ def iter_prioritized_candidates(
                         search_stats["units_completed"] += 1
                     break
                 if candidate is not None:
+                    if record_item_lifecycle:
+                        item_index = int(item.get("index", item_idx))
+                        if (
+                            item_index
+                            not in search_stats[
+                                "item_indices_with_candidates"
+                            ]
+                        ):
+                            search_stats[
+                                "item_indices_with_candidates"
+                            ].append(item_index)
                     if audit is not None:
                         audit_key = (
                             "accepted_release"
@@ -3125,6 +3160,9 @@ class Agent:
         self.last_candidate_diagnostics = {}
         self.last_action_source = None
         self.last_candidate_kind = None
+        self.last_top_candidate_item_indices = []
+        self.last_future_probe_item_indices = []
+        self._item_lifecycle = {}
         self._policy_step = 0
         self._optimize_enabled = False
         self._lookahead_k = 0
@@ -3139,12 +3177,162 @@ class Agent:
         with open(self._policy_trace_path, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
+    @staticmethod
+    def _append_lifecycle_step(record, field, step):
+        steps = record[field]
+        if not steps or steps[-1] != step:
+            steps.append(step)
+
+    def _selection_trace(
+        self,
+        pool_list,
+        ordered_items,
+        selected_pool_index,
+        action_source,
+    ):
+        if not self._policy_trace_path:
+            return {}, []
+        visible_item_indices = [
+            int(item.get("index", pool_index))
+            for pool_index, item in enumerate(pool_list)
+        ]
+        item_cap_item_indices = [
+            int(item.get("index", pool_index))
+            for pool_index, item in ordered_items
+        ]
+        search = self.last_candidate_diagnostics.get("search", {})
+        search_started_item_indices = [
+            int(item_index)
+            for item_index in search.get("item_indices_started", [])
+        ]
+        candidate_generated_item_indices = [
+            int(item_index)
+            for item_index in search.get(
+                "item_indices_with_candidates", []
+            )
+        ]
+        candidate_topk_item_indices = list(
+            self.last_top_candidate_item_indices
+        )
+        future_probe_item_indices = list(
+            self.last_future_probe_item_indices
+        )
+        selected_item_index = None
+        if (
+            selected_pool_index is not None
+            and 0 <= selected_pool_index < len(pool_list)
+        ):
+            selected_item_index = int(
+                pool_list[selected_pool_index].get(
+                    "index", selected_pool_index
+                )
+            )
+
+        stages = {
+            "visible_item_indices": visible_item_indices,
+            "item_cap_item_indices": item_cap_item_indices,
+            "search_started_item_indices": search_started_item_indices,
+            "candidate_generated_item_indices": (
+                candidate_generated_item_indices
+            ),
+            "candidate_topk_item_indices": candidate_topk_item_indices,
+            "future_probe_item_indices": future_probe_item_indices,
+        }
+        stage_sets = {
+            key: set(values)
+            for key, values in stages.items()
+            if key != "visible_item_indices"
+        }
+
+        for pool_index, item in enumerate(pool_list):
+            item_index = int(item.get("index", pool_index))
+            record = self._item_lifecycle.setdefault(
+                item_index,
+                {
+                    "item_index": item_index,
+                    "item_class": item_class_name(item),
+                    "first_visible_step": self._policy_step,
+                    "visible_steps": [],
+                    "search_included_steps": [],
+                    "search_started_steps": [],
+                    "candidate_generated_steps": [],
+                    "candidate_topk_steps": [],
+                    "future_probe_steps": [],
+                    "selected_step": None,
+                    "selected_action_source": None,
+                },
+            )
+            self._append_lifecycle_step(
+                record, "visible_steps", self._policy_step
+            )
+            stage_fields = (
+                ("item_cap_item_indices", "search_included_steps"),
+                ("search_started_item_indices", "search_started_steps"),
+                (
+                    "candidate_generated_item_indices",
+                    "candidate_generated_steps",
+                ),
+                (
+                    "candidate_topk_item_indices",
+                    "candidate_topk_steps",
+                ),
+                (
+                    "future_probe_item_indices",
+                    "future_probe_steps",
+                ),
+            )
+            for stage_name, field_name in stage_fields:
+                if item_index in stage_sets[stage_name]:
+                    self._append_lifecycle_step(
+                        record, field_name, self._policy_step
+                    )
+            if (
+                action_source == "placement_core"
+                and item_index == selected_item_index
+                and record["selected_step"] is None
+            ):
+                record["selected_step"] = self._policy_step
+                record["selected_action_source"] = action_source
+
+        lifecycle = []
+        visible_set = set(visible_item_indices)
+        for item_index in sorted(self._item_lifecycle):
+            record = dict(self._item_lifecycle[item_index])
+            if record["selected_step"] is not None:
+                observation = "selected"
+            elif item_index not in visible_set:
+                observation = "not_visible"
+            elif (
+                action_source == "fixed_fallback"
+                and item_index == selected_item_index
+            ):
+                observation = "fixed_fallback_target"
+            elif item_index not in stage_sets["item_cap_item_indices"]:
+                observation = "excluded_by_item_cap"
+            elif item_index not in stage_sets["search_started_item_indices"]:
+                observation = "search_not_started"
+            elif (
+                item_index
+                not in stage_sets["candidate_generated_item_indices"]
+            ):
+                observation = "no_candidate_observed"
+            elif item_index not in stage_sets["candidate_topk_item_indices"]:
+                observation = "generated_but_low_rank"
+            else:
+                observation = "topk_not_selected"
+            record["starvation_observation"] = observation
+            lifecycle.append(record)
+        return stages, lifecycle
+
     def get_init_states(self, init_states: dict):
         containers = init_states.get("container_list", [])
         self._container_templates = [
             normalize_container(container) for container in containers
         ]
         self._policy_step = 0
+        self._item_lifecycle = {}
+        self.last_top_candidate_item_indices = []
+        self.last_future_probe_item_indices = []
         self._optimize_enabled = bool(init_states.get("optimize", False))
         self._lookahead_k = int(init_states.get("lookahead_k", 0))
         self._append_policy_trace(
@@ -3289,6 +3477,8 @@ class Agent:
         pool_resilience first preserves the number of visible items that
         remain individually placeable.
         """
+        self.last_top_candidate_item_indices = []
+        self.last_future_probe_item_indices = []
         if not ordered_items:
             self.last_lookahead_evaluation = None
             self.last_top_candidate_count = 0
@@ -3311,6 +3501,16 @@ class Agent:
             diagnostics=self.last_candidate_diagnostics,
         )
         self.last_top_candidate_count = len(top)
+        seen_top_items = set()
+        for decision in top:
+            pool_index = int(decision.action["item_idx"])
+            if 0 <= pool_index < len(pool_list):
+                item_index = int(
+                    pool_list[pool_index].get("index", pool_index)
+                )
+                if item_index not in seen_top_items:
+                    seen_top_items.add(item_index)
+                    self.last_top_candidate_item_indices.append(item_index)
         if not top:
             self.last_lookahead_evaluation = None
             return None
@@ -3328,6 +3528,10 @@ class Agent:
             return top[0]
 
         inner_pool = ordered_items[:LOOKAHEAD_INNER_ITEMS]
+        self.last_future_probe_item_indices = [
+            int(item.get("index", pool_index))
+            for pool_index, item in inner_pool
+        ]
         best_decision = top[0]
         best_key = None
         best_evaluation = None
@@ -3386,7 +3590,9 @@ class Agent:
 
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
-        self.last_candidate_diagnostics = {}
+        self.last_candidate_diagnostics = {
+            "_record_item_lifecycle": bool(self._policy_trace_path)
+        }
         self.last_action_source = None
         self.last_candidate_kind = None
         pool_list = observation.get("pool_list", [])
@@ -3429,6 +3635,15 @@ class Agent:
                 if evaluation.total_next_items > 0
                 else None
             )
+            selection_stages, item_lifecycle = self._selection_trace(
+                pool_list,
+                ordered_items,
+                selected_pool_index,
+                "placement_core",
+            )
+            self.last_candidate_diagnostics.pop(
+                "_record_item_lifecycle", None
+            )
             self._append_policy_trace(
                 {
                     "event": "decision",
@@ -3456,6 +3671,8 @@ class Agent:
                         decision.candidate.name or "candidate"
                     ),
                     "candidate_diagnostics": self.last_candidate_diagnostics,
+                    "selection_stages": selection_stages,
+                    "item_lifecycle": item_lifecycle,
                 }
             )
             self._policy_step += 1
@@ -3471,6 +3688,15 @@ class Agent:
         )
         self.last_action_source = "fixed_fallback"
         self.last_candidate_kind = "fixed_fallback"
+        selection_stages, item_lifecycle = self._selection_trace(
+            pool_list,
+            ordered_items,
+            0 if pool_list else None,
+            "fixed_fallback",
+        )
+        self.last_candidate_diagnostics.pop(
+            "_record_item_lifecycle", None
+        )
         self._append_policy_trace(
             {
                 "event": "decision",
@@ -3490,6 +3716,8 @@ class Agent:
                 "action_source": "fixed_fallback",
                 "candidate_kind": "fixed_fallback",
                 "candidate_diagnostics": self.last_candidate_diagnostics,
+                "selection_stages": selection_stages,
+                "item_lifecycle": item_lifecycle,
             }
         )
         self._policy_step += 1
