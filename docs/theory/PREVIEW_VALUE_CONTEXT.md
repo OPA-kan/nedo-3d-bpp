@@ -130,3 +130,28 @@ step 18では候補ゼロとなり、固定fallbackで終了した。item 18と2
 \(G(s,V)\) は可行荷物数しか保持しないため、次は荷物別可行性
 \(\chi_V(s)\) とregret-aware diversityを同一Task B configで比較する。
 診断はImplemented、選択方策の変更はProposedである。
+
+## Task B pool-size matrix（Observed）
+
+GitHub Actions run 30428250206は、Case 001、`weighted`、policy timeout 8秒を固定し、
+可視poolだけを3/10/20/40へ変えた。unit test由来のdecisionを除去した純粋traceである。
+
+| pool | 配置数 | fill | 終了action |
+| ---: | ---: | ---: | --- |
+| 3 | 18 / 42 | 21.035 | fixed fallback、item 16 |
+| 10 | 18 / 42 | 17.948 | fixed fallback、item 0 |
+| 20 | 14 / 42 | 17.350 | release item 10、90.00度転倒 |
+| 40 | 10 / 42 | 13.447 | release item 3、98.76度転倒 |
+
+pool 10ではitem 0がstep 17まで候補を持ち、step 14でtop-Kへ入ったが未選択のまま、
+step 18の固定fallback対象になった。pool 20/40ではitem 0はitem capにより探索対象外
+だった。したがってpool拡大は単調改善せず、class-aware coverageとitem capが
+Mode Bの一部である。
+
+直前run 30427952750は同じ配置方策で18/20/17/19個を置いた。差分はunit testの
+trace出力を分離しただけでsimulator方策には影響しないため、deadlineとrunner速度に
+よるtrajectory非決定性もObservedである。単一runの配置数で方策優劣を決めず、
+反復runまたは試行数budgetの導入が必要である。
+
+またpool 20/40の終了はitem selectionだけでなくrelease stability問題でもある。
+pool-aware diversityとrelease risk gateは別々に評価する。
