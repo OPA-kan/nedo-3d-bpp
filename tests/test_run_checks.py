@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from scripts.run_checks import (
     evaluation_completed,
     evaluation_passed,
     simulator_result_passed,
+    unit_test_environment,
 )
 
 
 class EvaluationStatusTests(unittest.TestCase):
+    def test_unit_tests_do_not_pollute_simulator_policy_trace(self) -> None:
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "NEDO_POLICY_TRACE_PATH": "reports/raw/policy-trace.jsonl",
+                "KEEP_ME": "yes",
+            },
+            clear=True,
+        ):
+            env = unit_test_environment()
+        self.assertNotIn("NEDO_POLICY_TRACE_PATH", env)
+        self.assertEqual(env["KEEP_ME"], "yes")
+
     def test_valid_safe_cases_pass(self) -> None:
         evaluation = {
             "000": {

@@ -53,6 +53,13 @@ def load_json(path: pathlib.Path) -> Any:
         return json.load(handle)
 
 
+def unit_test_environment() -> dict[str, str]:
+    """Keep simulator policy traces free of test-generated decisions."""
+    env = os.environ.copy()
+    env.pop("NEDO_POLICY_TRACE_PATH", None)
+    return env
+
+
 def evaluation_passed(evaluation: Any) -> bool:
     if not isinstance(evaluation, dict) or not evaluation:
         return False
@@ -239,6 +246,7 @@ def main() -> int:
     payload["tests"] = run(
         [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"],
         ROOT,
+        unit_test_environment(),
     )
 
     if args.simulator:
