@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import pathlib
 import random
-import sys
 import tempfile
+import threading
 import unittest
 
 from scripts.build_replay_dataset import (
+    OutputDirectoryClaimed,
     assign_strata,
+    build_dataset_id,
     build_row,
+    claim_output_directory,
     gate_verdict,
     match_selected,
     modelling_features,
@@ -574,64 +577,90 @@ class IdentifierTests(unittest.TestCase):
     def test_dataset_ids_differ_for_runs_started_in_the_same_second(
         self,
     ) -> None:
-        # Two identical configurations launched within one second must not
-        # collide: seconds plus settings are not enough entropy, and a shared
-        # id means a shared output directory and interleaved manifests.
-        ids = {build_dataset_id_for_test() for _ in range(64)}
-        self.assertEqual(len(ids), 64)
+        # Exercises the production builder, not a copy of it: a test that
+        # rebuilt the id itself would still pass if the entropy were dropped
+        # from the real implementation.
+        def make() -> str:
+            return build_dataset_id(
+                run_id="20260730_120000",
+                case_id="000",
+                selection_mode="weighted",
+                coverage_mode="class_aware",
+                risk_gate_mode="shadow",
+                config_digest="0d1bb318ef02a2ae",
+            )
 
-
-def build_dataset_id_for_test() -> str:
-    """Mirror of the id construction in main(), with the clock held fixed."""
-    import uuid
-
-    return "-".join(
-        (
-            "20260730_120000",
-            "000",
-            "weighted",
-            "class_aware",
-            "shadow",
-            "0d1bb318",
-            uuid.uuid4().hex[:12],
+        ids = {make() for _ in range(256)}
+        self.assertEqual(len(ids), 256)
+        # The stable part is still there, so the id stays human-sortable.
+        self.assertTrue(
+            make().startswith(
+                "20260730_120000-000-weighted-class_aware-shadow-0d1bb318-"
+            )
         )
-    )
 
 
 class OutputDirectoryTests(unittest.TestCase):
-    def test_reusing_a_directory_that_holds_a_manifest_is_refused(
-        self,
-    ) -> None:
-        import subprocess
-
+    def test_directory_holding_a_manifest_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = pathlib.Path(directory)
             (target / "manifest.json").write_text("{}", encoding="utf-8")
-            completed = subprocess.run(
-                [
-                    sys.executable,
-                    str(
-                        pathlib.Path(__file__).resolve().parents[1]
-                        / "scripts"
-                        / "build_replay_dataset.py"
-                    ),
-                    "--case",
-                    "000",
-                    "--steps",
-                    "0",
-                    "--output-dir",
-                    str(target),
-                ],
-                capture_output=True,
-                text=True,
-            )
 
-        if sys.version_info[:2] < (3, 12):
-            # The version guard fires first on older interpreters.
-            self.assertIn("Python 3.12+", completed.stderr)
-            return
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("refusing to mix two datasets", completed.stderr)
+            with self.assertRaises(OutputDirectoryClaimed) as caught:
+                claim_output_directory(target)
+
+        self.assertIn("refusing to mix two datasets", str(caught.exception))
+
+    def test_overwrite_reuses_the_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = pathlib.Path(directory)
+            (target / "manifest.json").write_text("{}", encoding="utf-8")
+
+            manifest = claim_output_directory(target, overwrite=True)
+
+        self.assertEqual(manifest.name, "manifest.json")
+
+    def test_only_one_of_many_concurrent_claims_succeeds(self) -> None:
+        # The real race: two runs given the same absent or empty
+        # --output-dir. A mkdir(exist_ok=True) followed by an exists() check
+        # lets both through, after which they interleave two datasets under
+        # the same per-step file names.
+        workers = 16
+        for scenario in ("absent", "empty"):
+            with tempfile.TemporaryDirectory() as directory:
+                target = pathlib.Path(directory) / "out"
+                if scenario == "empty":
+                    target.mkdir()
+
+                start = threading.Barrier(workers)
+                outcomes: list[str] = []
+                lock = threading.Lock()
+
+                def attempt() -> None:
+                    start.wait()
+                    try:
+                        claim_output_directory(target)
+                    except OutputDirectoryClaimed:
+                        result = "refused"
+                    else:
+                        result = "claimed"
+                    with lock:
+                        outcomes.append(result)
+
+                threads = [
+                    threading.Thread(target=attempt) for _ in range(workers)
+                ]
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
+
+                self.assertEqual(
+                    outcomes.count("claimed"),
+                    1,
+                    f"{scenario}: {outcomes.count('claimed')} winners",
+                )
+                self.assertEqual(outcomes.count("refused"), workers - 1)
 
 
 if __name__ == "__main__":

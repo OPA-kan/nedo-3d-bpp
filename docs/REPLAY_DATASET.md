@@ -35,8 +35,12 @@ precision / recallではない。反復回数を増やしてもこの条件づ�
 `(dataset_id, snapshot_id, candidate_id)` が行の一意キー。複数runを結合しても
 衝突しない。`dataset_id` は時刻・設定・config hash に**ランダムsuffix**を足して
 生成する（秒＋設定だけでは、同一設定を同じ秒に起動した2 runが同じIDになる）。
-既定の出力先は排他生成し、`--output-dir` を明示した場合も既に `manifest.json`
-があれば `--overwrite` なしでは拒否する。
+出力先は `manifest.json` を `O_CREAT | O_EXCL`（`open(..., "x")`）で作ることで
+**原子的に確保**する。`mkdir(exist_ok=True)` のあとに `exists()` を見る形だと、
+同じ空ディレクトリを指定した2プロセスが両方とも通過してしまう。
+snapshot と candidate JSONL のファイル名は step から決まり dataset_id を
+含まないので、そのまま2つのデータセットが同じ名前で混ざる。
+既に確保済みなら `--overwrite` なしでは非ゼロ終了する。
 
 **Φ は2列ある。** `phi` は記録された全項目（replay再現用）、`phi_modelling` は
 **学習に使ってよい部分集合**で、利用不能な項目を除いてある。`phi_availability`

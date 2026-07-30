@@ -85,6 +85,70 @@ def require_supported_python() -> None:
         )
 
 
+class OutputDirectoryClaimed(RuntimeError):
+    """Another dataset already owns this output directory."""
+
+
+def build_dataset_id(
+    *,
+    run_id: str,
+    case_id: str,
+    selection_mode: str,
+    coverage_mode: str,
+    risk_gate_mode: str,
+    config_digest: str,
+) -> str:
+    """
+    Identifier for one dataset run.
+
+    The random suffix is load-bearing: seconds plus the settings are not
+    unique, so two runs of the same configuration started in the same
+    second would otherwise share an id and an output directory.
+    """
+    return "-".join(
+        (
+            run_id,
+            str(case_id),
+            str(selection_mode),
+            str(coverage_mode),
+            str(risk_gate_mode),
+            config_digest[:8],
+            uuid.uuid4().hex[:12],
+        )
+    )
+
+
+def claim_output_directory(
+    output_dir: pathlib.Path,
+    *,
+    overwrite: bool = False,
+) -> pathlib.Path:
+    """
+    Take exclusive ownership of an output directory and return its manifest.
+
+    Creating the manifest with ``O_CREAT | O_EXCL`` is what makes this safe.
+    Checking ``exists()`` after ``mkdir(exist_ok=True)`` leaves a window in
+    which two processes aimed at the same absent or empty directory both see
+    no manifest and then interleave two different datasets under the same
+    file names -- the snapshot and candidate JSONL paths are derived from the
+    step, not from the dataset id, so they collide.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "manifest.json"
+    if overwrite:
+        return manifest_path
+    try:
+        with manifest_path.open("x", encoding="utf-8") as handle:
+            handle.write("{}")
+    except FileExistsError as exc:
+        raise OutputDirectoryClaimed(
+            f"{manifest_path} already exists or was claimed by a concurrent "
+            "run; refusing to mix two datasets in one directory. Choose "
+            "another --output-dir or pass --overwrite."
+        ) from exc
+    return manifest_path
+
+
 def file_digest(path: pathlib.Path) -> str | None:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -961,35 +1025,21 @@ def main() -> int:
     config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     config_digest = hashlib.sha256(config_bytes).hexdigest()
-    # Seconds plus the settings are not unique: two runs of the same
-    # configuration started in the same second would share an id and an
-    # output directory, and silently interleave their manifests. The random
-    # suffix makes the id unique per process, and the directory is then
-    # created exclusively so a collision fails loudly instead of merging.
-    dataset_id = "-".join(
-        (
-            run_id,
-            case_id,
-            str(args.mode),
-            str(args.coverage_mode),
-            str(args.risk_gate_mode),
-            config_digest[:8],
-            uuid.uuid4().hex[:12],
-        )
+    dataset_id = build_dataset_id(
+        run_id=run_id,
+        case_id=case_id,
+        selection_mode=args.mode,
+        coverage_mode=args.coverage_mode,
+        risk_gate_mode=args.risk_gate_mode,
+        config_digest=config_digest,
     )
-    if args.output_dir is None:
-        output_dir = DEFAULT_REPORT_ROOT / dataset_id
-        output_dir.mkdir(parents=True, exist_ok=False)
-    else:
-        output_dir = args.output_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
-        existing = output_dir / "manifest.json"
-        if existing.exists() and not args.overwrite:
-            raise SystemExit(
-                f"{existing} already exists; refusing to mix two datasets in "
-                "one directory. Choose another --output-dir or pass "
-                "--overwrite."
-            )
+    output_dir = args.output_dir or (DEFAULT_REPORT_ROOT / dataset_id)
+    try:
+        manifest_path = claim_output_directory(
+            output_dir, overwrite=args.overwrite
+        )
+    except OutputDirectoryClaimed as exc:
+        raise SystemExit(str(exc)) from exc
 
     agent_module = load_agent_module()
     payload: dict[str, Any] = {
@@ -1030,8 +1080,6 @@ def main() -> int:
         },
         "case": None,
     }
-
-    manifest_path = output_dir / "manifest.json"
 
     def write_manifest() -> None:
         # Atomic replace so an interrupted run never leaves a half-written
