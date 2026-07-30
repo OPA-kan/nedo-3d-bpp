@@ -375,12 +375,23 @@ def within_euclidean_clearance(candidate, obstacle, clearance):
     return float(np.linalg.norm(gaps)) < float(clearance) - EPS
 
 
-def transport_sweeps(candidate, container):
+def transport_path_geometry(candidate, container):
+    """
+    Start pose shared by the official two-leg (Y then X) insertion path.
+
+    Returns the X the sweep enters at, the target X/Y, the opening Y, and the
+    Z the item is carried at. The carry height reproduces the official branch:
+    a target resting within 5 cm of the floor or a shelf is carried at the
+    send height, anything else 8 cm above it, clipped under the ceiling.
+    """
     length = float(container["length"])
     width = float(container["width"])
+    height = float(container["height"])
     thickness = float(container["thickness"])
+    buffer = float(container.get("buffer", 0.0))
     cut_x = float(container.get("cut_x", 0.0))
     half_x = float(candidate.size[0]) / 2.0
+    half_z = float(candidate.size[2]) / 2.0
     x_min = (
         -length / 2.0
         + thickness
@@ -398,10 +409,8 @@ def transport_sweeps(candidate, container):
     target_y = float(candidate.center[1])
     start_x = min(max(target_x, x_min), x_max)
     entry_y = -width / 2.0
+
     action_center = simulator_action_center(candidate, container)
-    height = float(container["height"])
-    buffer = float(container.get("buffer", 0.0))
-    half_z = float(candidate.size[2]) / 2.0
     effective_start_z = SIMULATOR_DROP_HEIGHT
     bottom_z = float(action_center[2]) - half_z
     resting_surfaces = (
@@ -444,6 +453,13 @@ def transport_sweeps(candidate, container):
     transport_z = min(
         maximum_start_z,
         float(action_center[2]) + effective_start_z,
+    )
+    return start_x, target_x, target_y, entry_y, transport_z
+
+
+def transport_sweeps(candidate, container):
+    start_x, target_x, target_y, entry_y, transport_z = (
+        transport_path_geometry(candidate, container)
     )
     y_leg = AABB(
         center=(start_x, (entry_y + target_y) / 2.0, transport_z),
@@ -478,74 +494,8 @@ def transport_sweep(candidate, container):
 
 
 def transport_samples(candidate, container, step: float = TRANSPORT_SAMPLE_STEP):
-    length = float(container["length"])
-    width = float(container["width"])
-    thickness = float(container["thickness"])
-    cut_x = float(container.get("cut_x", 0.0))
-    half_x = float(candidate.size[0]) / 2.0
-    x_min = (
-        -length / 2.0
-        + thickness
-        + cut_x
-        + half_x
-        + SIMULATOR_START_MARGIN
-    )
-    x_max = (
-        length / 2.0
-        - thickness
-        - half_x
-        - SIMULATOR_START_MARGIN
-    )
-    target_x = float(candidate.center[0])
-    target_y = float(candidate.center[1])
-    start_x = min(max(target_x, x_min), x_max)
-    entry_y = -width / 2.0
-    action_center = simulator_action_center(candidate, container)
-    height = float(container["height"])
-    buffer = float(container.get("buffer", 0.0))
-    half_z = float(candidate.size[2]) / 2.0
-    effective_start_z = SIMULATOR_DROP_HEIGHT
-    bottom_z = float(action_center[2]) - half_z
-    resting_surfaces = (
-        thickness,
-        height / 2.0 + thickness + buffer,
-    )
-    for resting_z in resting_surfaces:
-        if 0.0 <= bottom_z - resting_z <= 0.05:
-            effective_start_z = 0.0
-            break
-
-    top_z = float(action_center[2]) + half_z
-    if effective_start_z > 0.0:
-        ceiling_surfaces = (
-            height / 2.0 + buffer,
-            height + buffer - thickness,
-        )
-        for ceiling_z in ceiling_surfaces:
-            clearance = ceiling_z - top_z
-            if (
-                0.0
-                <= clearance
-                < effective_start_z + SIMULATOR_CEILING_MARGIN
-            ):
-                effective_start_z = max(
-                    0.0,
-                    clearance
-                    - SIMULATOR_CEILING_MARGIN
-                    - SIMULATOR_CEILING_CLIP_EPS,
-                )
-                break
-
-    maximum_start_z = (
-        height
-        + buffer
-        - thickness
-        - half_z
-        - SIMULATOR_START_MARGIN
-    )
-    transport_z = min(
-        maximum_start_z,
-        float(action_center[2]) + effective_start_z,
+    start_x, target_x, target_y, entry_y, transport_z = (
+        transport_path_geometry(candidate, container)
     )
 
     samples = []
@@ -583,20 +533,27 @@ def simulator_action_center(candidate, container):
     return action_center
 
 
-def support_surfaces(container):
+def static_support_surfaces(container):
+    """Floor and shelves: the surfaces that exist before anything is packed."""
     thickness = float(container["thickness"])
     buffer = float(container.get("buffer", 0.0))
-    length = float(container["length"])
-    width = float(container["width"])
-
     surfaces = [
         AABB(
             center=(0.0, 0.0, thickness + buffer),
-            size=(length, width, 0.0),
+            size=(
+                float(container["length"]),
+                float(container["width"]),
+                0.0,
+            ),
             name="floor",
         )
     ]
     surfaces.extend(shelf_aabbs(container))
+    return surfaces
+
+
+def support_surfaces(container):
+    surfaces = static_support_surfaces(container)
     for box, is_soft, is_prioritized in packed_aabbs_local(container):
         if not is_soft and not is_prioritized:
             surfaces.append(box)
@@ -657,23 +614,10 @@ class Geometry:
         if item_area <= EPS:
             return SupportMetrics(0.0, -1.0, 0, 0.0)
 
-        contacts = []
-        thickness = float(container["thickness"])
-        buffer = float(container.get("buffer", 0.0))
-        static_surfaces = [
-            AABB(
-                center=(0.0, 0.0, thickness + buffer),
-                size=(
-                    float(container["length"]),
-                    float(container["width"]),
-                    0.0,
-                ),
-                name="floor",
-            )
+        contacts = [
+            (surface, 1.0)
+            for surface in static_support_surfaces(container)
         ]
-        static_surfaces.extend(shelf_aabbs(container))
-        for surface in static_surfaces:
-            contacts.append((surface, 1.0))
 
         item_mass = max(EPS, float((item or {}).get("mass", 1.0)))
         for packed in container.get("packed_items", []):
@@ -1021,53 +965,76 @@ class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
     @staticmethod
-    def choose(observation, indexed_items, deadline=None):
+    def scored_placements(observation, indexed_items, deadline=None):
+        """
+        Enumerate every scorable (item, container, orientation, candidate) in
+        the fixed order both search entry points depend on, stopping at the
+        deadline. Yields the tuple `_decision` consumes.
+        """
         containers = observation.get("container_list", [])
         if not containers:
-            return None
+            return
 
         has_priority_container = any(
             bool(container.get("is_prioritized", False))
             for container in containers
         )
-        best = None
-        best_score = -float("inf")
 
         for item_idx, item in indexed_items:
             for container_idx in eligible_container_indices(item, containers):
                 container = containers[container_idx]
                 for orientation in unique_orientations(item):
                     if deadline is not None and time.perf_counter() >= deadline:
-                        return best
+                        return
                     for candidate in CandidateGenerator.generate(
                         observation,
                         item,
                         container_idx,
                         orientation,
                     ):
-                        score = Ranker.score(
-                            candidate,
-                            item,
+                        yield (
+                            item_idx,
+                            container_idx,
                             container,
-                            has_priority_container,
+                            orientation,
+                            candidate,
+                            Ranker.score(
+                                candidate,
+                                item,
+                                container,
+                                has_priority_container,
+                            ),
                         )
-                        if score > best_score:
-                            best_score = score
-                            best = PlacementDecision(
-                                action={
-                                    "item_idx": int(item_idx),
-                                    "container_idx": int(container_idx),
-                                    "place_pos": np.asarray(
-                                        simulator_action_center(
-                                            candidate, container
-                                        ),
-                                        dtype=np.float32,
-                                    ),
-                                    "orientation": int(orientation),
-                                },
-                                candidate=candidate,
-                                score=float(score),
-                            )
+
+    @staticmethod
+    def _decision(
+        item_idx, container_idx, container, orientation, candidate, score
+    ):
+        return PlacementDecision(
+            action={
+                "item_idx": int(item_idx),
+                "container_idx": int(container_idx),
+                "place_pos": np.asarray(
+                    simulator_action_center(candidate, container),
+                    dtype=np.float32,
+                ),
+                "orientation": int(orientation),
+            },
+            candidate=candidate,
+            score=float(score),
+        )
+
+    @staticmethod
+    def choose(observation, indexed_items, deadline=None):
+        best = None
+        best_score = -float("inf")
+        for placement in PlacementCore.scored_placements(
+            observation, indexed_items, deadline
+        ):
+            score = placement[-1]
+            if score > best_score:
+                best_score = score
+                best = PlacementCore._decision(*placement)
         return best
 
     @staticmethod
@@ -1076,63 +1043,29 @@ class PlacementCore:
         Same search as choose(), but keeps the best k decisions (a bounded
         min-heap) instead of only the single best. Used by the closed-loop
         lookahead in Agent.policy() to consider more than one immediate
-        action before committing.
+        action before committing. Only candidates that actually enter the
+        heap pay for building a PlacementDecision.
         """
-        containers = observation.get("container_list", [])
-        if not containers or k <= 0:
+        if k <= 0:
             return []
 
-        has_priority_container = any(
-            bool(container.get("is_prioritized", False))
-            for container in containers
-        )
         heap = []
         counter = 0
-
-        for item_idx, item in indexed_items:
-            for container_idx in eligible_container_indices(item, containers):
-                container = containers[container_idx]
-                for orientation in unique_orientations(item):
-                    if deadline is not None and time.perf_counter() >= deadline:
-                        return [
-                            decision
-                            for _, _, decision in sorted(
-                                heap, key=lambda entry: entry[0], reverse=True
-                            )
-                        ]
-                    for candidate in CandidateGenerator.generate(
-                        observation,
-                        item,
-                        container_idx,
-                        orientation,
-                    ):
-                        score = Ranker.score(
-                            candidate,
-                            item,
-                            container,
-                            has_priority_container,
-                        )
-                        decision = PlacementDecision(
-                            action={
-                                "item_idx": int(item_idx),
-                                "container_idx": int(container_idx),
-                                "place_pos": np.asarray(
-                                    simulator_action_center(
-                                        candidate, container
-                                    ),
-                                    dtype=np.float32,
-                                ),
-                                "orientation": int(orientation),
-                            },
-                            candidate=candidate,
-                            score=float(score),
-                        )
-                        counter += 1
-                        entry = (score, counter, decision)
-                        if len(heap) < k:
-                            heapq.heappush(heap, entry)
-                        elif score > heap[0][0]:
-                            heapq.heapreplace(heap, entry)
+        for placement in PlacementCore.scored_placements(
+            observation, indexed_items, deadline
+        ):
+            score = placement[-1]
+            counter += 1
+            if len(heap) < k:
+                heapq.heappush(
+                    heap,
+                    (score, counter, PlacementCore._decision(*placement)),
+                )
+            elif score > heap[0][0]:
+                heapq.heapreplace(
+                    heap,
+                    (score, counter, PlacementCore._decision(*placement)),
+                )
         return [
             decision
             for _, _, decision in sorted(
@@ -1173,19 +1106,31 @@ def effective_container_volume(container):
     )
 
 
+def append_packed_item(
+    container, container_idx, item, local_center, orientation
+):
+    """Record a settled item on a simulated container, in world coordinates."""
+    packed = copy.deepcopy(item)
+    packed["pos"] = local_to_world(local_center, container).tolist()
+    packed["orientation"] = int(orientation)
+    packed["belongs_to"] = int(container_idx)
+    container.setdefault("packed_items", []).append(packed)
+    return packed
+
+
 def apply_placement_decision(item, decision, containers):
     action = decision.action
     container_idx = int(action["container_idx"])
     container = containers[container_idx]
     metrics = Geometry.support_metrics(decision.candidate, container, item)
 
-    packed = copy.deepcopy(item)
-    packed["pos"] = local_to_world(
-        decision.candidate.center, container
-    ).tolist()
-    packed["orientation"] = int(action["orientation"])
-    packed["belongs_to"] = container_idx
-    container.setdefault("packed_items", []).append(packed)
+    append_packed_item(
+        container,
+        container_idx,
+        item,
+        decision.candidate.center,
+        action["orientation"],
+    )
 
     return PlacementTrace(
         item_index=int(item["index"]),
@@ -1323,14 +1268,13 @@ def containers_after_prefix(container_templates, trace_prefix, items_by_index):
         item = items_by_index.get(record.item_index)
         if item is None:
             continue
-        container = containers[record.container_idx]
-        packed = copy.deepcopy(item)
-        packed["pos"] = local_to_world(
-            record.candidate.center, container
-        ).tolist()
-        packed["orientation"] = int(record.orientation)
-        packed["belongs_to"] = record.container_idx
-        container.setdefault("packed_items", []).append(packed)
+        append_packed_item(
+            containers[record.container_idx],
+            record.container_idx,
+            item,
+            record.candidate.center,
+            record.orientation,
+        )
     return containers
 
 
