@@ -62,6 +62,29 @@ jobs:
             reports/latest.md
             reports/latest.json
 
+  # The unit-tests job installs numpy only, so the replay integration tests
+  # skip there. They assert the physics-isolation contract of the
+  # counterfactual replay, which cannot be left unproven on a normal push --
+  # NEDO_REQUIRE_INTEGRATION turns a skip into a failure so this job cannot
+  # go green without actually running them.
+  replay-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Replay physics isolation
+        run: python -m unittest tests.test_replay_integration -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+
   simulator-benchmark:
     if: github.event_name == 'workflow_dispatch' && inputs.run_simulator
     runs-on: ubuntu-24.04

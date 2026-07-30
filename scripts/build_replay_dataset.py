@@ -38,6 +38,7 @@ import random
 import subprocess
 import sys
 import time
+import uuid
 from typing import Any
 
 import numpy as np
@@ -923,6 +924,15 @@ def main() -> int:
         ),
     )
     parser.add_argument("--skip-optimize", action="store_true")
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help=(
+            "Allow an explicit --output-dir that already holds a manifest to "
+            "be reused. Without this a second run into the same directory is "
+            "refused rather than interleaved."
+        ),
+    )
     args = parser.parse_args()
 
     require_supported_python()
@@ -951,6 +961,11 @@ def main() -> int:
     config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     config_digest = hashlib.sha256(config_bytes).hexdigest()
+    # Seconds plus the settings are not unique: two runs of the same
+    # configuration started in the same second would share an id and an
+    # output directory, and silently interleave their manifests. The random
+    # suffix makes the id unique per process, and the directory is then
+    # created exclusively so a collision fails loudly instead of merging.
     dataset_id = "-".join(
         (
             run_id,
@@ -959,10 +974,22 @@ def main() -> int:
             str(args.coverage_mode),
             str(args.risk_gate_mode),
             config_digest[:8],
+            uuid.uuid4().hex[:12],
         )
     )
-    output_dir = args.output_dir or (DEFAULT_REPORT_ROOT / dataset_id)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if args.output_dir is None:
+        output_dir = DEFAULT_REPORT_ROOT / dataset_id
+        output_dir.mkdir(parents=True, exist_ok=False)
+    else:
+        output_dir = args.output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+        existing = output_dir / "manifest.json"
+        if existing.exists() and not args.overwrite:
+            raise SystemExit(
+                f"{existing} already exists; refusing to mix two datasets in "
+                "one directory. Choose another --output-dir or pass "
+                "--overwrite."
+            )
 
     agent_module = load_agent_module()
     payload: dict[str, Any] = {

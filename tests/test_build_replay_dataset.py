@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import pathlib
 import random
+import sys
+import tempfile
 import unittest
 
 from scripts.build_replay_dataset import (
@@ -567,6 +570,68 @@ class IdentifierTests(unittest.TestCase):
                 )
 
         self.assertEqual(len(triples), 2 * len(sample))
+
+    def test_dataset_ids_differ_for_runs_started_in_the_same_second(
+        self,
+    ) -> None:
+        # Two identical configurations launched within one second must not
+        # collide: seconds plus settings are not enough entropy, and a shared
+        # id means a shared output directory and interleaved manifests.
+        ids = {build_dataset_id_for_test() for _ in range(64)}
+        self.assertEqual(len(ids), 64)
+
+
+def build_dataset_id_for_test() -> str:
+    """Mirror of the id construction in main(), with the clock held fixed."""
+    import uuid
+
+    return "-".join(
+        (
+            "20260730_120000",
+            "000",
+            "weighted",
+            "class_aware",
+            "shadow",
+            "0d1bb318",
+            uuid.uuid4().hex[:12],
+        )
+    )
+
+
+class OutputDirectoryTests(unittest.TestCase):
+    def test_reusing_a_directory_that_holds_a_manifest_is_refused(
+        self,
+    ) -> None:
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = pathlib.Path(directory)
+            (target / "manifest.json").write_text("{}", encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(
+                        pathlib.Path(__file__).resolve().parents[1]
+                        / "scripts"
+                        / "build_replay_dataset.py"
+                    ),
+                    "--case",
+                    "000",
+                    "--steps",
+                    "0",
+                    "--output-dir",
+                    str(target),
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+        if sys.version_info[:2] < (3, 12):
+            # The version guard fires first on older interpreters.
+            self.assertIn("Python 3.12+", completed.stderr)
+            return
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("refusing to mix two datasets", completed.stderr)
 
 
 if __name__ == "__main__":

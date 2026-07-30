@@ -9,8 +9,11 @@ Repository: https://github.com/OPA-kan/nedo-3d-bpp
 - **Live trunk is `experiment/anchor-recall-oracle`, not `main`.** `main` is
   frozen at `d3986a9` and is ~39 commits behind. Reading `main` will give you
   an `agent/agent.py` that is 2,629 lines out of date.
-- Current review branch: `claude/release-counterfactual-replay`
-  (`6f9d272`, branched from `a410943`), awaiting read-only review.
+- Current review branch: `claude/release-counterfactual-replay`, branched
+  from `experiment/anchor-recall-oracle`, awaiting read-only review. No SHA
+  is pinned here on purpose — it would go stale on the next commit and send a
+  reviewer at the wrong diff. Read the tip with
+  `git log --oneline origin/experiment/anchor-recall-oracle..origin/claude/release-counterfactual-replay`.
 - Run `git fetch --all --prune` before judging what exists.
 
 ```powershell

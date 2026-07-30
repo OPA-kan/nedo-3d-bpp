@@ -33,7 +33,10 @@ precision / recallではない。反復回数を増やしてもこの条件づ�
 | ラベル | `physical` |
 
 `(dataset_id, snapshot_id, candidate_id)` が行の一意キー。複数runを結合しても
-衝突しない。
+衝突しない。`dataset_id` は時刻・設定・config hash に**ランダムsuffix**を足して
+生成する（秒＋設定だけでは、同一設定を同じ秒に起動した2 runが同じIDになる）。
+既定の出力先は排他生成し、`--output-dir` を明示した場合も既に `manifest.json`
+があれば `--overwrite` なしでは拒否する。
 
 **Φ は2列ある。** `phi` は記録された全項目（replay再現用）、`phi_modelling` は
 **学習に使ってよい部分集合**で、利用不能な項目を除いてある。`phi_availability`

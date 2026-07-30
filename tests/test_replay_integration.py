@@ -40,6 +40,21 @@ def _simulator_available() -> tuple[bool, str]:
 
 AVAILABLE, SKIP_REASON = _simulator_available()
 
+# A job that is supposed to prove the physics contract must not be able to
+# pass by skipping. Any environment that intends to run these sets
+# NEDO_REQUIRE_INTEGRATION=1, and an unavailable simulator becomes an error
+# instead of a green "OK (skipped=3)".
+REQUIRE_INTEGRATION = os.environ.get(
+    "NEDO_REQUIRE_INTEGRATION", ""
+).strip().lower() in {"1", "true", "yes"}
+
+if REQUIRE_INTEGRATION and not AVAILABLE:
+    raise RuntimeError(
+        "NEDO_REQUIRE_INTEGRATION is set but the replay integration tests "
+        f"cannot run: {SKIP_REASON}. Install requirements-simulator.txt on "
+        "Python 3.12+, or unset the variable to allow skipping."
+    )
+
 
 def body_states(env) -> list[tuple]:
     """Pose and velocity of every body, not just the packed items."""
