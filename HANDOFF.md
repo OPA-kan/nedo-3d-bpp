@@ -1,152 +1,166 @@
 # Handoff for the next model
 
-Updated: 2026-07-28 JST
+Updated: 2026-07-30 JST
 
 ## Start here
 
-Repository: https://github.com/OPA-kan/nedo-3d-bpp  
-Default branch: `main`  
-Current work branch: `agent/context-routing`  
-Draft PR: https://github.com/OPA-kan/nedo-3d-bpp/pull/1
+Repository: https://github.com/OPA-kan/nedo-3d-bpp
 
-Run:
+- **Live trunk is `experiment/anchor-recall-oracle`, not `main`.** `main` is
+  frozen at `d3986a9` and is ~39 commits behind. Reading `main` will give you
+  an `agent/agent.py` that is 2,629 lines out of date.
+- Current review branch: `claude/release-counterfactual-replay`
+  (`6f9d272`, branched from `a410943`), awaiting read-only review.
+- Run `git fetch --all --prune` before judging what exists.
 
 ```powershell
-python scripts/context.py show handoff
 python scripts/context.py list
+python scripts/context.py show handoff
 ```
 
-Do not load the entire repository first. Select `agent`, `simulator`, `theory`,
-or `experiments`, and add `--full` only when source-level detail is needed.
+Do not load the whole repository. Select a profile and add `--full` only when
+source-level detail is needed. New here: the `replay-dataset` profile.
 
 ## User's goal
 
-Build a competitive CPU-first agent for the NEDO airport-baggage constrained
-3D bin-packing competition. GitHub is the single source of truth for code,
-mathematical reasoning, simulator snapshots, tests, and reproducible reports.
-Colab and Google Drive are archives or sources for large derived artifacts,
-not the normal execution path.
+A competitive CPU-first agent for the NEDO airport-baggage constrained 3D
+bin-packing competition. GitHub is the source of truth for code, reasoning,
+simulator snapshots, tests, and reports.
 
-The original mathematical question is:
+## Where results live
 
-> Given baggage subsets that can form useful local geometric structures,
-> how should the candidate subset family be generated and selected so that
-> the downstream packing objective is maximized?
+Persistence differs per experiment **by design** — heavy artifacts stay in
+Actions artifacts so git does not bloat; only compact summaries are committed.
 
-The current engineering interpretation is on-demand local macro generation,
-not exhaustive block enumeration or exact hypergraph optimization.
+| Experiment | Artifact | Auto-committed |
+|---|---|---|
+| Task B benchmark | yes | **no** (`contents: read`) |
+| Anchor recall oracle | yes | compact summary only |
+| Lookahead comparison | yes | compact summary/history |
+| CPU verification | yes | no |
 
-## What is implemented
+So the headline off/shadow/enforce numbers are **not in git**; they are
+downloaded from the Task B aggregate artifact. `reports/lookahead/latest-summary.json`
+is named "latest" but stopped at 2026-07-28 — do not read it as current.
 
-- Canonical submission code: `agent/agent.py`
-- Official simulator snapshot: `simulator/`
-- Geometry contract: `docs/GEOMETRY_RULES.md`
-- Offline strategy: `docs/adr/ADR-001-offline-optimization.md`
-- Unified formulation: `docs/theory/MATHEMATICAL_MODEL.md`
-- CPU unit/report runner: `scripts/run_checks.py`
-- Submission builder: `scripts/build_submission.py`
-- GitHub Actions unit and manual PyBullet jobs
-- Constructive ordering, common-core dry-run, Or-opt/swap, and executable
-  two-item subsequence templates
-- Physics-aware validation reporting: process exit zero is not enough;
-  inclusion, validity, and placed-safely states must all pass
+## Established by evidence
 
-## Current PR
+Treat these as measured, not as opinion. Each is reproducible from the cited
+artifact or from the code line given.
 
-PR #1 adds progressive AI context routing:
+1. **The immediate ranker's volume term is inert.** `Ranker.score`'s
+   `12.0 * volume` uses `math.prod(candidate.size)`, which is invariant under
+   all six orientations and independent of position. It cannot discriminate
+   between candidate placements; it only biases *which item* to take when the
+   pool has several. The live position score is
+   `2.0*support + 0.35y - 0.12|x| - 0.18*z*mass`, and `support` is 1.00 for
+   every chosen candidate, so depth, |x| and height x mass carry the decision.
+2. **The preview term is the same old score.** In `lookahead_rank_key`,
+   `best_next_score` is the immediate `Ranker.score` of the best next
+   placement, so `weighted` computes `q_old(a) + gamma * q_old(a')`. It is not
+   the theory's `V_hat(sigma(T(s,i,a)))`.
+3. **The three selection modes choose identically.** Lookahead run
+   30340049061: of 2,493 leaf fields, 135 differ and all of them are
+   search-effort or timing counters. Every placement-relevant field (placed,
+   fill, kind, cog, valid, safe) is equal across `weighted`, `depth2` and
+   `pool_resilience`. `residual feasible = 1.000` saturates the lexicographic
+   first keys, so both lexicographic modes degenerate to score comparisons.
+4. **Score does not predict survival.** Anchor recall run 30513511959,
+   case 000 step 13: the oracle found 42 physically-settled candidates, the
+   anytime search reached 7 (recall 0.167), yet `best_score_regret = 0.0`.
+   Widening the search alone will not change the chosen action.
+5. **The current failure is a release settle topple**, not a transport
+   collision. Case 000 fails at step 15 with settle 0.871 m / 90.3 deg, case
+   001 at step 4 with 0.638 m / 90.0 deg, both `valid: true, safe: false`,
+   both on `release_candidate`.
 
-- root and scoped `AGENTS.md` files
-- short `CONTEXT.md` capsules for agent, simulator, and theory
-- `context/manifest.json`
-- `scripts/context.py` with summary and explicit `--full` modes
-- the user-provided simulator decomposition at
-  `docs/simulator/API_REFERENCE.md`
-- context path-safety and Windows UTF-8 tests
+## Not established
 
-The production agent is intentionally unchanged in PR #1. The supplied
-simulator guide exposed no new binding contract that justified changing
-placement behavior.
+- **Gate-wide precision/recall.** The `selected_*` confusion matrix is
+  conditioned on the ranking having selected the candidate; the selected set
+  is the top of the ranking, not a sample. More benchmark replicates will not
+  fix this. Only the stratified replay dataset can estimate gate-wide
+  behaviour.
+- Whether a real state-value `V_hat` would beat the current preview term.
+- The replay dataset smoke-test numbers are a pipeline check, not results.
 
-## Fresh verification evidence
+## Recent work (branch `claude/release-counterfactual-replay`)
 
-Local command:
+`cfbef6b` — telemetry corrections:
 
-```powershell
-python scripts/run_checks.py
-```
+- Completed the `selected_*` 2x2 over selected release candidates. The
+  reject-and-dangerous cell (TP) previously fell through both branches in
+  `summarize_task_b.py` and was dropped. All four cells, the reject total and
+  the reject failure rate now exist, and every emission point states the
+  selection conditioning.
+- Removed `initial_tilt_deg` from the gate rules. Every commandable
+  orientation is axis-aligned, so it is identically 0.0 and the `initial_pose`
+  reason could never fire; its threshold gated nothing. The field stays for
+  schema stability and is reported as `unavailable_placeholder` through
+  `feature_availability`.
+- Split the physical labels: rotation, 3D displacement, horizontal
+  displacement, placed-safe, valid, included, plus the continuous angle and
+  xy/z displacements. `physically_dangerous` remains only as the historical
+  composite.
 
-Result on the context branch: 35 tests passed.
+`6f9d272` — `scripts/build_replay_dataset.py`, the stratified counterfactual
+replay dataset. See `docs/REPLAY_DATASET.md`. One row per sampled candidate,
+joining `(s, a, Phi, Q, selected)` with `(x_plus, delta_theta, d_xy, d_z, Y)`,
+carrying its stratum and inclusion probability.
 
-Progressive disclosure check:
+## Next engineering task: the algorithm
 
-- simulator summary: about 1,060 characters
-- simulator full context: about 82,751 characters
+The ordering is deliberate. Do **not** start by rewriting the immediate score.
 
-Last corrected GitHub CPU physics run:
-
-https://github.com/OPA-kan/nedo-3d-bpp/actions/runs/30318345750
-
-- Unit tests passed.
-- PyBullet simulator completed on Ubuntu CPU.
-- Report correctly returned `FAIL (physics validation)`.
-- Case 000: fill 11.954775870881182, 7/41 placed.
-- Case 001: fill 7.825700311249446, 7/42 placed.
-- Both ended with `is_valid=false` and `is_placed_safe=false`.
-
-This red simulator job is a real agent defect, not an Actions infrastructure
-failure. The report artifact is uploaded even when physics validation fails.
-
-## Next engineering task
-
-Do not start by changing scores, macros, or the mathematical model. First find
-the earliest divergence between the planning geometry and PyBullet:
-
-1. Download the latest simulator artifact and inspect the captured simulator
-   output.
-2. Identify the first item whose transport, settle, or boundary state becomes
-   invalid.
-3. Reproduce that transition with the smallest deterministic regression test.
-4. Trace it through `simulator/src/ground_handling/env.py`,
-   `validator.py`, and `containers.py`.
-5. Change `agent/agent.py` only after the mismatch is specific.
-6. Run all unit tests, then dispatch the CPU simulator through GitHub Actions.
-7. Record the commit SHA, item/case, score, placed count, and physics flags.
-
-Known historical failures include close-distance collisions followed by a
-boundary failure after settle. Treat the current Actions artifact as fresher
-evidence than the Colab archive.
+1. Identify `Phi(s,a) -> (delta_theta, d_xy, d_z, Y)` from the replay dataset.
+   Until candidate physical safety is predictable, changing the ranker only
+   moves which unsafe candidate gets chosen.
+2. Only then re-decompose immediate ranker vs preview value. Note that
+   evidence item 3 already shows the preview contribution is currently zero,
+   so the question is whether `V_hat` can be made a real state value, not
+   whether to reweight the existing terms.
+3. Facts 1 and 2 above are the concrete defects to design against: an inert
+   volume term, a non-discriminating support term, and a future term that
+   re-applies the same positional bias.
 
 ## Important invariants
 
-- Candidate placement uses container-local coordinates.
-- Packed observations and container plane data use world coordinates.
-- Local/world conversion changes only the container X offset.
-- Shelf geometry is derived from simulator dimensions, not hard-coded.
-- Internal boundary guard is 16 mm.
-- Transport/lateral clearance is 16 mm.
-- Vertical contact with a valid support surface is allowed.
+- Candidate placement uses container-local coordinates; packed observations
+  and container planes use world coordinates; conversion changes only the
+  container X offset.
+- Shelf geometry is derived from simulator dimensions, never hard-coded.
+- Internal boundary guard 16 mm; transport/lateral clearance 16 mm; vertical
+  contact with a valid support surface is allowed.
 - Settled quaternion determines the subsequent packed-item AABB.
 - Soft and priority items are not future support surfaces.
-- Single-item neighborhoods remain available when macro neighborhoods exist.
 - Block templates are replayed item by item through the common placement core.
+- The release risk gate is an experiment layer: it must annotate the candidate
+  population, never filter its own denominator.
 
 ## Do not
 
 - Do not edit the official simulator to make the agent pass.
-- Do not treat `docs/simulator/API_REFERENCE.md` as exhaustive; it omits
-  private methods and branching conditions.
-- Do not treat proposed theory as an implemented contract.
+- Do not report `selected_*` counts as the gate's precision/recall.
+- Do not use `initial_tilt_deg` as a gate rule or a learned feature while it
+  is constant.
+- Do not run the replay dataset with `risk_gate_mode=enforce`; it removes the
+  rejected candidates the dataset exists to label.
 - Do not call a physics run successful because the process returned zero.
-- Do not make Drive or Colab the code source of truth again.
-- Do not commit large model/log artifacts listed in `docs/DRIVE_SOURCES.md`.
+- Do not treat proposed theory as an implemented contract.
+- Do not commit the large artifacts listed in `docs/DRIVE_SOURCES.md`.
 
 ## Operational notes
 
-- Windows Python 3.12 cannot readily build PyBullet 3.2.7 without MSVC.
-  Use the GitHub Actions Ubuntu CPU simulator job for routine full validation.
-- GitHub App PR creation returned 404 for this newly created private repo.
-  Authenticated GitHub CLI works and created PR #1.
-- `main` currently points to commit `d3986a9`.
-- The context-routing implementation commit is `6bc9784`; this handoff is a
-  follow-up commit on the same PR branch.
-
+- **Python 3.12 is required.** `simulator/src/ground_handling/validator.py`
+  uses PEP 701 nested-quote f-strings; 3.11 fails at import with
+  `SyntaxError: f-string: unmatched '['`.
+- Windows Python 3.12 cannot readily build PyBullet 3.2.7 without MSVC. Use
+  the Actions Ubuntu CPU jobs for routine full validation.
+- The anchor oracle bot commits results to `experiment/anchor-recall-oracle`,
+  so `git fetch origin && git rebase origin/experiment/anchor-recall-oracle`
+  before pushing to it.
+- Some sandboxed sessions cannot reach `*.blob.core.windows.net`, which is
+  where Actions artifacts are served; artifact contents must then be supplied
+  by hand. Ref deletion may also be blocked.
+- Stale remote branch `claude/nedo-3d-bpp-report-t40pjt` (`8796a6d`, a
+  `main`-based cleanup) is discarded and should be deleted server-side.
