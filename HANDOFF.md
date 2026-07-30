@@ -48,31 +48,60 @@ is named "latest" but stopped at 2026-07-28 — do not read it as current.
 Treat these as measured, not as opinion. Each is reproducible from the cited
 artifact or from the code line given.
 
-1. **The immediate ranker's volume term is inert.** `Ranker.score`'s
+1. **The ranker's volume term has two different roles.** `Ranker.score`'s
    `12.0 * volume` uses `math.prod(candidate.size)`, which is invariant under
-   all six orientations and independent of position. It cannot discriminate
-   between candidate placements; it only biases *which item* to take when the
-   pool has several. The live position score is
-   `2.0*support + 0.35y - 0.12|x| - 0.18*z*mass`, and `support` is 1.00 for
-   every chosen candidate, so depth, |x| and height x mass carry the decision.
+   all six orientations and independent of position. *Within one item* it is
+   therefore a dead vote: it cannot discriminate between that item's candidate
+   placements or poses. *Across items* — which is what Task B does every step
+   — it is an active large-item-first bias. Do not quote it as inert without
+   that scope. The remaining position terms are
+   `2.0*support + 0.35y - 0.12|x| - 0.18*z*mass`; in the run 30340049061
+   traces `support` was 1.00 for the candidates that were actually selected,
+   which is an observation about that run's selected set, not a property of
+   the whole candidate population or of release candidates.
 2. **The preview term is the same old score.** In `lookahead_rank_key`,
    `best_next_score` is the immediate `Ranker.score` of the best next
    placement, so `weighted` computes `q_old(a) + gamma * q_old(a')`. It is not
    the theory's `V_hat(sigma(T(s,i,a)))`.
-3. **The three selection modes choose identically.** Lookahead run
-   30340049061: of 2,493 leaf fields, 135 differ and all of them are
-   search-effort or timing counters. Every placement-relevant field (placed,
+3. **In run 30340049061 the three selection modes degenerated to the same
+   action sequence.** Of 2,493 leaf fields, 135 differ and all of them are
+   search-effort or timing counters; every placement-relevant field (placed,
    fill, kind, cog, valid, safe) is equal across `weighted`, `depth2` and
-   `pool_resilience`. `residual feasible = 1.000` saturates the lexicographic
-   first keys, so both lexicographic modes degenerate to score comparisons.
-4. **Score does not predict survival.** Anchor recall run 30513511959,
-   case 000 step 13: the oracle found 42 physically-settled candidates, the
-   anytime search reached 7 (recall 0.167), yet `best_score_regret = 0.0`.
-   Widening the search alone will not change the chosen action.
-5. **The current failure is a release settle topple**, not a transport
+   `pool_resilience`. The mechanism is feature saturation: `residual feasible
+   = 1.000` throughout, so both lexicographic first keys are constant and the
+   modes fall back to score comparisons. **This does not show that preview
+   value contributes nothing in general.** It shows that these three keys,
+   with this implementation, on this run, did not change the choice. A real
+   state value `V_hat(sigma(s'))` is untested.
+4. **On one snapshot, widening anchor enumeration alone would not have
+   changed the choice.** Anchor recall run 30513511959, case 000 step 13: the
+   oracle found 42 physically-settled candidates, the anytime search reached 7
+   (recall 0.167), yet `best_score_regret = 0.0`. Scope this narrowly — it is
+   one snapshot, with the score held fixed, about *candidate* enumeration. It
+   says nothing about which items enter the search (see 5).
+5. **Item-level coverage was the dominant bottleneck at pool 40.** The
+   class-aware coverage change moved placed 10.67 -> 17.00 and fill
+   14.818 -> 24.531, with priority C1 going 0% -> 81.2%. Search breadth *in
+   the item dimension* is a live issue, not a closed one. Do not merge this
+   with 4: 4 is about candidates for a chosen item, 5 is about which items are
+   considered at all.
+6. **The current failure is a release settle topple**, not a transport
    collision. Case 000 fails at step 15 with settle 0.871 m / 90.3 deg, case
    001 at step 4 with 0.638 m / 90.0 deg, both `valid: true, safe: false`,
    both on `release_candidate`.
+7. **Task B risk-gate ablation, `off` column** (run 30528431757, weighted +
+   class_aware, 3 replicates per cell). `off` is the currently adopted
+   configuration; `shadow` is instrumentation validation and `enforce` is a
+   not-adopted ablation.
+
+   | Pool | placed mean | fill mean |
+   | ---: | ---: | ---: |
+   | 10 | 17.00 | 17.018 |
+   | 20 | 18.00 | 23.161 |
+   | 40 | 17.00 | 24.531 |
+
+   These are the risk-ablation `off` cells. For the standalone class-aware
+   effect use the dedicated legacy/class-aware comparison run instead.
 
 ## Not established
 
@@ -81,7 +110,12 @@ artifact or from the code line given.
   is the top of the ranking, not a sample. More benchmark replicates will not
   fix this. Only the stratified replay dataset can estimate gate-wide
   behaviour.
-- Whether a real state-value `V_hat` would beat the current preview term.
+- Whether a real state-value `V_hat(sigma(s'))` helps. Evidence 3 rules out
+  the three saturated keys as implemented, nothing more.
+- Whether any hard gate can work. What was rejected is **enforce with the
+  current static features and thresholds**, not hard rejection as a form. If
+  the replay dataset identifies a dangerous region with a very low false
+  rejection rate, a narrow hard reject stays on the table.
 - The replay dataset smoke-test numbers are a pipeline check, not results.
 
 ## Recent work (branch `claude/release-counterfactual-replay`)
@@ -110,18 +144,26 @@ carrying its stratum and inclusion probability.
 
 ## Next engineering task: the algorithm
 
-The ordering is deliberate. Do **not** start by rewriting the immediate score.
+There are **three** open problems, not one. They are ordered by what is
+already validated, not by how interesting they are.
 
-1. Identify `Phi(s,a) -> (delta_theta, d_xy, d_z, Y)` from the replay dataset.
-   Until candidate physical safety is predictable, changing the ranker only
-   moves which unsafe candidate gets chosen.
-2. Only then re-decompose immediate ranker vs preview value. Note that
-   evidence item 3 already shows the preview contribution is currently zero,
-   so the question is whether `V_hat` can be made a real state value, not
-   whether to reweight the existing terms.
-3. Facts 1 and 2 above are the concrete defects to design against: an inert
-   volume term, a non-discriminating support term, and a future term that
-   re-applies the same positional bias.
+1. **Item coverage — keep and extend.** Pool-adaptive / class-aware coverage
+   is the one change with a confirmed effect (evidence 5). Do not regress it
+   and do not treat search breadth as settled.
+2. **Release dynamics — identify next.** Use the stratified replay dataset to
+   fit `Phi(s,a) -> (delta_theta, d_xy, d_z, Y)`. Until candidate physical
+   safety is predictable, changing the ranker only moves *which* unsafe
+   candidate gets chosen.
+3. **Ranking / value among safe candidates — last.** Once a safe candidate set
+   can be produced, re-evaluate the immediate ranker and the preview value
+   together. The known defects to design against are evidence 1 (a volume term
+   that is dead within an item and a size bias across items) and evidence 2
+   (a future term that re-applies the same immediate score, hence the same
+   positional bias, to the next step).
+
+The ranker problem is real and located, but it is not the thing to open
+first: step 3 is only meaningful once step 2 gives it a safe candidate set to
+rank.
 
 ## Important invariants
 
@@ -141,6 +183,9 @@ The ordering is deliberate. Do **not** start by rewriting the immediate score.
 
 - Do not edit the official simulator to make the agent pass.
 - Do not report `selected_*` counts as the gate's precision/recall.
+- Do not restate a scoped negative result as a general one. Evidence 3 and 4
+  are about specific keys and one snapshot; neither closes preview value or
+  search breadth as topics.
 - Do not use `initial_tilt_deg` as a gate rule or a learned feature while it
   is constant.
 - Do not run the replay dataset with `risk_gate_mode=enforce`; it removes the
