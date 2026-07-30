@@ -18,6 +18,19 @@ class ContextRouterTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.manifest = load_manifest()
 
+    def test_router_only_names_profiles_that_exist(self) -> None:
+        # AGENTS.md is the first thing an agent reads and it routes by name.
+        # A renamed or removed profile would leave the entry procedure
+        # pointing at something the CLI cannot resolve.
+        import re
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        router = (root / "AGENTS.md").read_text(encoding="utf-8")
+        named = set(re.findall(r"^\| `([a-z0-9-]+)` \|", router, re.M))
+
+        self.assertTrue(named, "AGENTS.md lists no profiles")
+        self.assertEqual(named - set(self.manifest["profiles"]), set())
+
     def test_expected_profiles_exist(self) -> None:
         profiles = self.manifest["profiles"]
         self.assertTrue(
