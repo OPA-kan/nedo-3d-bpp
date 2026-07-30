@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from scripts.aggregate_task_b import aggregate_rows, build_aggregate_markdown
+from scripts.summarize_task_b import SELECTED_CONFUSION_SCOPE
 
 
 class TaskBAggregateTests(unittest.TestCase):
@@ -168,6 +169,13 @@ class TaskBAggregateTests(unittest.TestCase):
         self.assertEqual(
             release["selected_not_included_count"]["mean"], 1.0
         )
+        # The conditioning has to survive into the JSON too: analysis code
+        # that never renders the Markdown would otherwise see four bare cells.
+        scope = aggregates[0]["selected_confusion_scope"]
+        self.assertIn("selected_release_candidates_only", scope)
+        self.assertIn("not a gate-wide", scope)
+        self.assertEqual(scope, SELECTED_CONFUSION_SCOPE)
+
         self.assertIn("### Selected-release confusion matrix means", markdown)
         self.assertIn("### Selected-release physical label means", markdown)
         # The conditioning must never be dropped from the report.

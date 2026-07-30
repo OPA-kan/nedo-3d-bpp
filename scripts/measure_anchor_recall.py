@@ -361,6 +361,36 @@ def enrich_score(
     return enriched
 
 
+def policy_indexed_items(
+    agent_module,
+    observation: dict[str, Any],
+) -> list[tuple[int, dict[str, Any]]]:
+    """
+    The item set the live policy would actually search this step.
+
+    ``Agent.policy`` caps the visible pool with ``capped_online_items`` under
+    ``ITEM_COVERAGE_MODE``; the legacy prefix is a different set whenever the
+    mode is ``class_aware`` and the pool is larger than the cap. Any oracle or
+    replay that wants to reason about what the policy could have chosen has to
+    use this, not the prefix.
+    """
+    return agent_module.capped_online_items(
+        observation.get("pool_list", []),
+        agent_module.MAX_POOL_ITEMS_EVALUATED,
+        mode=agent_module.ITEM_COVERAGE_MODE,
+    )
+
+
+def legacy_prefix_indexed_items(
+    agent_module,
+    observation: dict[str, Any],
+) -> list[tuple[int, dict[str, Any]]]:
+    """Historical anchor-recall denominator: the plain ordered prefix."""
+    return agent_module.online_item_order(
+        observation.get("pool_list", [])
+    )[: agent_module.MAX_POOL_ITEMS_EVALUATED]
+
+
 def enumerate_oracle_candidates(
     agent_module,
     observation: dict[str, Any],
@@ -368,13 +398,13 @@ def enumerate_oracle_candidates(
     generator_mode: str = "cartesian",
     attempt_kind: str = "settled",
     max_candidates: int | None = None,
+    indexed_items: list[tuple[int, dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool, dict[str, Any]]:
     if attempt_kind not in {"settled", "release"}:
         raise ValueError("attempt_kind must be 'settled' or 'release'")
     started = time.perf_counter()
-    indexed_items = agent_module.online_item_order(
-        observation.get("pool_list", [])
-    )[: agent_module.MAX_POOL_ITEMS_EVALUATED]
+    if indexed_items is None:
+        indexed_items = legacy_prefix_indexed_items(agent_module, observation)
     units = agent_module.prioritized_search_units(
         observation,
         indexed_items,
@@ -471,6 +501,7 @@ def enumerate_dual_settled_oracle(
     observation: dict[str, Any],
     *,
     max_candidates: int | None = None,
+    indexed_items: list[tuple[int, dict[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool, dict[str, Any]]:
     started = time.perf_counter()
     records_by_mode: dict[str, list[dict[str, Any]]] = {}
@@ -485,6 +516,7 @@ def enumerate_dual_settled_oracle(
             generator_mode=generator_mode,
             attempt_kind="settled",
             max_candidates=max_candidates,
+            indexed_items=indexed_items,
         )
         records_by_mode[generator_mode] = records
         stats_by_mode[generator_mode] = stats

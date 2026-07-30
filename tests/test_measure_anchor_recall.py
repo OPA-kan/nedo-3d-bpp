@@ -370,6 +370,7 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
             generator_mode,
             attempt_kind,
             max_candidates=None,
+            indexed_items=None,
         ):
             self.assertEqual(attempt_kind, "settled")
             records = (

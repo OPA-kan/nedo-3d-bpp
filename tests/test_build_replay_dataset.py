@@ -8,11 +8,20 @@ from scripts.build_replay_dataset import (
     build_row,
     gate_verdict,
     match_selected,
+    modelling_features,
     outcome_labels,
     score_band,
+    selected_action_error,
     stratified_sample,
 )
-from scripts.measure_anchor_recall import candidate_key
+from scripts.measure_anchor_recall import (
+    candidate_key,
+    legacy_prefix_indexed_items,
+    load_agent_module,
+    policy_indexed_items,
+)
+
+agent = load_agent_module()
 
 
 def candidate(
@@ -339,14 +348,19 @@ class RowTests(unittest.TestCase):
 
         row = build_row(
             record,
+            dataset_id="ds-1",
+            snapshot_id="ds-1:000:step-013",
             case_id="000",
             step=13,
             snapshot_name="step-013-state.json",
             selected_key=key,
             anytime_keys=set(),
             physical={"is_included": True},
+            feature_availability={"support_ratio": "available"},
         )
 
+        self.assertEqual(row["dataset_id"], "ds-1")
+        self.assertEqual(row["snapshot_id"], "ds-1:000:step-013")
         self.assertEqual(row["case_id"], "000")
         self.assertEqual(row["step"], 13)
         self.assertEqual(row["snapshot_path"], "step-013-state.json")
@@ -359,6 +373,200 @@ class RowTests(unittest.TestCase):
         self.assertEqual(row["stratum"]["gate"], "reject")
         self.assertIn("inclusion_probability", row["sampling"])
         self.assertEqual(row["physical"], {"is_included": True})
+
+
+class PopulationAlignmentTests(unittest.TestCase):
+    """
+    The replay population must be the item set the policy searched.
+
+    Under the default class_aware coverage the legacy ordered prefix is a
+    different set: it drops the reserved soft/priority representatives and
+    admits normal items the policy never considered. Sampling from the
+    prefix silently changes the estimand and can leave the selected action
+    outside the population entirely.
+    """
+
+    @staticmethod
+    def pool() -> list[dict]:
+        def entry(index: int, soft: bool = False, prio: bool = False) -> dict:
+            return {
+                "index": index,
+                "length": 0.3,
+                "width": 0.3,
+                "height": 0.3,
+                "mass": 10.0 - index * 0.1,
+                "is_soft": soft,
+                "is_prioritized": prio,
+            }
+
+        return (
+            [entry(index) for index in range(12)]
+            + [entry(12, soft=True), entry(13, prio=True)]
+        )
+
+    def test_class_aware_coverage_differs_from_the_legacy_prefix(
+        self,
+    ) -> None:
+        observation = {"pool_list": self.pool()}
+        previous = agent.ITEM_COVERAGE_MODE
+        agent.ITEM_COVERAGE_MODE = "class_aware"
+        try:
+            policy_set = [
+                index
+                for index, _item in policy_indexed_items(agent, observation)
+            ]
+        finally:
+            agent.ITEM_COVERAGE_MODE = previous
+        legacy_set = [
+            index
+            for index, _item in legacy_prefix_indexed_items(agent, observation)
+        ]
+
+        self.assertNotEqual(policy_set, legacy_set)
+        # The soft and priority representatives exist only in the policy set.
+        self.assertIn(12, policy_set)
+        self.assertIn(13, policy_set)
+        self.assertNotIn(12, legacy_set)
+        self.assertNotIn(13, legacy_set)
+        # And the prefix admits normal items the policy never searched.
+        self.assertTrue(set(legacy_set) - set(policy_set))
+
+    def test_legacy_mode_leaves_the_two_sets_equal(self) -> None:
+        observation = {"pool_list": self.pool()}
+        previous = agent.ITEM_COVERAGE_MODE
+        agent.ITEM_COVERAGE_MODE = "legacy"
+        try:
+            policy_set = [
+                index
+                for index, _item in policy_indexed_items(agent, observation)
+            ]
+        finally:
+            agent.ITEM_COVERAGE_MODE = previous
+
+        self.assertEqual(
+            policy_set,
+            [
+                index
+                for index, _item in legacy_prefix_indexed_items(
+                    agent, observation
+                )
+            ],
+        )
+
+
+class SelectedActionErrorTests(unittest.TestCase):
+    def test_missing_placement_candidate_is_an_error(self) -> None:
+        message = selected_action_error(
+            {"action_source": "placement_core"}, None
+        )
+        self.assertIsNotNone(message)
+        self.assertIn("not found in the enumerated population", message)
+
+    def test_protocol_fallback_is_not_an_error(self) -> None:
+        for source in ("fixed_fallback", "unsafe_protocol_fallback"):
+            self.assertIsNone(
+                selected_action_error({"action_source": source}, None)
+            )
+
+    def test_matched_selection_is_not_an_error(self) -> None:
+        self.assertIsNone(
+            selected_action_error({"action_source": "placement_core"}, ("k",))
+        )
+
+
+class UnavailableFeatureTests(unittest.TestCase):
+    def test_unavailable_features_are_kept_out_of_the_modelling_vector(
+        self,
+    ) -> None:
+        availability = agent.ReleaseRiskFeatures.feature_availability()
+        features = {
+            "support_ratio": 0.9,
+            "initial_tilt_deg": 0.0,
+            "initial_orientation": 3,
+        }
+
+        modelling = modelling_features(features, availability)
+
+        self.assertIn("support_ratio", modelling)
+        self.assertNotIn("initial_tilt_deg", modelling)
+
+    def test_row_marks_the_placeholder_machine_readably(self) -> None:
+        records = [candidate(center=(0.0, 0.0, 0.5), passed=True)]
+        records[0]["release_risk"]["features"] = {
+            "support_ratio": 0.9,
+            "initial_tilt_deg": 0.0,
+        }
+        assign_strata(records)
+        sample, _table = stratified_sample(
+            records,
+            per_stratum=1,
+            rng=random.Random(0),
+            forced_keys=set(),
+        )
+
+        row = build_row(
+            sample[0],
+            dataset_id="ds",
+            snapshot_id="ds:000:step-000",
+            case_id="000",
+            step=0,
+            snapshot_name="s.json",
+            selected_key=None,
+            anytime_keys=set(),
+            physical=None,
+            feature_availability=(
+                agent.ReleaseRiskFeatures.feature_availability()
+            ),
+        )
+
+        self.assertIn("initial_tilt_deg", row["phi"])
+        self.assertNotIn("initial_tilt_deg", row["phi_modelling"])
+        self.assertEqual(
+            row["phi_availability"]["initial_tilt_deg"],
+            "unavailable_placeholder",
+        )
+        self.assertIn("initial_tilt_deg", row["phi_unavailable"])
+
+
+class IdentifierTests(unittest.TestCase):
+    def test_dataset_snapshot_candidate_triple_is_unique(self) -> None:
+        records = [
+            candidate(center=(0.0, 0.0, float(index)), score=-float(index))
+            for index in range(12)
+        ]
+        assign_strata(records)
+        sample, _table = stratified_sample(
+            records,
+            per_stratum=12,
+            rng=random.Random(0),
+            forced_keys=set(),
+        )
+        availability = agent.ReleaseRiskFeatures.feature_availability()
+
+        triples = set()
+        for snapshot in ("ds:000:step-000", "ds:000:step-001"):
+            for record in sample:
+                row = build_row(
+                    record,
+                    dataset_id="ds",
+                    snapshot_id=snapshot,
+                    case_id="000",
+                    step=0,
+                    snapshot_name="s.json",
+                    selected_key=None,
+                    anytime_keys=set(),
+                    physical=None,
+                    feature_availability=availability,
+                )
+                triples.add(
+                    (
+                        row["dataset_id"],
+                        row["snapshot_id"],
+                        row["candidate_id"],
+                    )
+                )
+
+        self.assertEqual(len(triples), 2 * len(sample))
 
 
 if __name__ == "__main__":

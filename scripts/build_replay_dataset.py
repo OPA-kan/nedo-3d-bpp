@@ -27,12 +27,15 @@ import collections
 import contextlib
 import copy
 import datetime as dt
+import hashlib
 import io
 import json
 import math
 import os
 import pathlib
+import platform
 import random
+import subprocess
 import sys
 import time
 from typing import Any
@@ -53,6 +56,7 @@ from scripts.measure_anchor_recall import (  # noqa: E402
     extract_anytime_candidates,
     json_safe,
     load_agent_module,
+    policy_indexed_items,
     policy_observation,
     policy_search_log,
     state_snapshot,
@@ -64,6 +68,52 @@ from scripts.summarize_task_b import (  # noqa: E402
 SCHEMA_VERSION = 1
 DEFAULT_REPORT_ROOT = ROOT / "reports" / "replay-dataset"
 ACTION_MATCH_TOLERANCE = 1e-4
+# simulator/src/ground_handling/validator.py uses PEP 701 nested-quote
+# f-strings, which only parse on 3.12+.
+REQUIRED_PYTHON = (3, 12)
+
+
+def require_supported_python() -> None:
+    if sys.version_info[:2] < REQUIRED_PYTHON:
+        raise SystemExit(
+            "this tool needs Python "
+            f"{REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]}+ but is running on "
+            f"{sys.version_info.major}.{sys.version_info.minor}; the bundled "
+            "simulator uses PEP 701 f-strings and would otherwise fail later "
+            "with a confusing SyntaxError during import"
+        )
+
+
+def file_digest(path: pathlib.Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _git(*arguments: str) -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", *arguments],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.strip()
+
+
+def git_sha() -> str | None:
+    return _git("rev-parse", "HEAD")
+
+
+def git_dirty() -> bool | None:
+    status = _git("status", "--porcelain")
+    return None if status is None else bool(status)
 
 
 # --------------------------------------------------------------------------
@@ -393,6 +443,36 @@ def match_selected(
     return None if best is None else candidate_key(best)
 
 
+FALLBACK_ACTION_SOURCES = frozenset(
+    {"fixed_fallback", "unsafe_protocol_fallback"}
+)
+
+
+def selected_action_error(
+    policy_log: dict[str, Any],
+    selected_key: tuple[Any, ...] | None,
+) -> str | None:
+    """
+    Report when the chosen action is missing from the sampled population.
+
+    A protocol fallback is legitimately outside the candidate population, so
+    it is not an error. Anything sourced from a real placement candidate must
+    be present, otherwise the population is not the set the policy searched
+    and the forced-inclusion contract is void.
+    """
+    if selected_key is not None:
+        return None
+    action_source = policy_log.get("action_source")
+    if action_source in FALLBACK_ACTION_SOURCES:
+        return None
+    return (
+        "selected action was not found in the enumerated population "
+        f"(action_source={action_source!r}); the population does not match "
+        "the item set the policy searched, so forced inclusion of the "
+        "selected candidate did not happen"
+    )
+
+
 def preview_value(
     agent_module,
     observation: dict[str, Any],
@@ -459,20 +539,52 @@ def preview_value(
 # --------------------------------------------------------------------------
 # rows
 # --------------------------------------------------------------------------
+def modelling_features(
+    features: dict[str, Any] | None,
+    availability: dict[str, str],
+) -> dict[str, Any] | None:
+    """
+    Drop features that are recorded but carry no information.
+
+    `phi` keeps every field so a replay stays faithful; `phi_modelling` is
+    what may be fed to a model. Without this split a constant placeholder
+    such as `initial_tilt_deg` looks like an ordinary explanatory variable
+    to anything that reads the dataset on its own.
+    """
+    if not isinstance(features, dict):
+        return None
+    return {
+        name: value
+        for name, value in features.items()
+        if availability.get(name, "available") == "available"
+    }
+
+
 def build_row(
     record: dict[str, Any],
     *,
+    dataset_id: str,
+    snapshot_id: str,
     case_id: str,
     step: int,
     snapshot_name: str,
     selected_key: tuple[Any, ...] | None,
     anytime_keys: set[tuple[Any, ...]],
     physical: dict[str, Any] | None,
+    feature_availability: dict[str, str],
 ) -> dict[str, Any]:
     key = candidate_key(record)
     risk = record.get("release_risk")
+    features = (risk or {}).get("features")
+    unavailable = sorted(
+        name
+        for name, state in feature_availability.items()
+        if state != "available"
+    )
     return {
         "schema_version": SCHEMA_VERSION,
+        "dataset_id": dataset_id,
+        "snapshot_id": snapshot_id,
         "case_id": str(case_id),
         "step": int(step),
         # s
@@ -487,8 +599,15 @@ def build_row(
         "center": record["center"],
         "size": record["size"],
         "action_center": record["action_center"],
-        # Phi
-        "phi": (risk or {}).get("features"),
+        # Phi. `phi` is the complete recorded vector; `phi_modelling` is the
+        # subset that is safe to learn on, with the availability map carried
+        # alongside so a consumer can check rather than assume.
+        "phi": features,
+        "phi_modelling": modelling_features(features, feature_availability),
+        "phi_availability": (
+            dict(feature_availability) if features is not None else None
+        ),
+        "phi_unavailable": unavailable if features is not None else None,
         "gate_passed": (risk or {}).get("passed"),
         "gate_reasons": (risk or {}).get("reasons"),
         # Q
@@ -514,6 +633,7 @@ def run_case(
     agent_module,
     task_config: dict[str, Any],
     *,
+    dataset_id: str,
     case_id: str,
     target_steps: set[int],
     output_dir: pathlib.Path,
@@ -522,6 +642,7 @@ def run_case(
     oracle_limit: int | None,
     preview_limit: int,
     skip_optimize: bool,
+    on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
         sys.path.insert(0, str(SIMULATOR))
@@ -556,6 +677,7 @@ def run_case(
                         solver,
                         observation,
                         action,
+                        dataset_id=dataset_id,
                         case_id=case_id,
                         step=step,
                         output_dir=output_dir,
@@ -565,6 +687,10 @@ def run_case(
                         preview_limit=preview_limit,
                     )
                 )
+                # Persist after every completed step so an interrupted run
+                # leaves a manifest that agrees with the JSONL on disk.
+                if on_progress is not None:
+                    on_progress(steps)
             (
                 raw_observation,
                 _reward,
@@ -585,11 +711,17 @@ def run_case(
             f"{unreached}; no candidates were sampled for those steps",
             flush=True,
         )
+    failed_steps = [
+        int(entry["step"])
+        for entry in steps
+        if entry.get("status") != "ok"
+    ]
     return {
         "case_id": str(case_id),
         "target_steps": sorted(target_steps),
         "reached_steps": sorted(reached),
         "unreached_steps": unreached,
+        "failed_steps": failed_steps,
         "episode_steps_executed": step,
         "episode_terminated": bool(terminated),
         "episode_truncated": bool(truncated),
@@ -610,6 +742,7 @@ def collect_step(
     observation: dict[str, Any],
     action: dict[str, Any],
     *,
+    dataset_id: str,
     case_id: str,
     step: int,
     output_dir: pathlib.Path,
@@ -619,6 +752,7 @@ def collect_step(
     preview_limit: int,
 ) -> dict[str, Any]:
     step_label = f"step-{step:03d}"
+    snapshot_id = f"{dataset_id}:{case_id}:{step_label}"
     snapshot_path = output_dir / f"{step_label}-state.json"
     snapshot_path.write_text(
         json.dumps(
@@ -629,8 +763,17 @@ def collect_step(
         encoding="utf-8",
     )
 
+    # The population must be the item set the policy itself searched. Under
+    # the default class_aware coverage that is NOT the legacy ordered prefix:
+    # the prefix drops the reserved soft/priority representatives and adds
+    # normal items the policy never considered, which both breaks the forced
+    # inclusion of the selected action and silently changes what is estimated.
+    indexed_items = policy_indexed_items(agent_module, observation)
     settled, settled_complete, settled_stats = enumerate_dual_settled_oracle(
-        agent_module, observation, max_candidates=oracle_limit
+        agent_module,
+        observation,
+        max_candidates=oracle_limit,
+        indexed_items=indexed_items,
     )
     release, release_complete, release_stats = enumerate_oracle_candidates(
         agent_module,
@@ -638,6 +781,7 @@ def collect_step(
         generator_mode="cartesian",
         attempt_kind="release",
         max_candidates=oracle_limit,
+        indexed_items=indexed_items,
     )
     population = settled + release
     assign_strata(population)
@@ -649,7 +793,14 @@ def collect_step(
             solver.last_candidate_diagnostics, candidate_kind=kind
         )
     }
+    policy_log = policy_search_log(solver)
     selected_key = match_selected(action, population)
+    selection_error = selected_action_error(policy_log, selected_key)
+    if selection_error is not None:
+        # A placement-sourced action that is absent from the population means
+        # the population is not the set the policy searched. Nothing sampled
+        # from it can be trusted, so this must not read as a clean step.
+        print(f"{case_id} step {step}: ERROR {selection_error}", flush=True)
 
     rng = random.Random(f"{seed}:{case_id}:{step}")
     sample, stratum_table = stratified_sample(
@@ -675,16 +826,20 @@ def collect_step(
     results, replay_seconds = replay_sample(env, sample)
 
     dataset_path = output_dir / f"{step_label}-candidates.jsonl"
+    availability = agent_module.ReleaseRiskFeatures.feature_availability()
     with dataset_path.open("w", encoding="utf-8") as handle:
         for record in sample:
             row = build_row(
                 record,
+                dataset_id=dataset_id,
+                snapshot_id=snapshot_id,
                 case_id=case_id,
                 step=step,
                 snapshot_name=snapshot_path.name,
                 selected_key=selected_key,
                 anytime_keys=anytime_keys,
                 physical=results.get(candidate_key(record)),
+                feature_availability=availability,
             )
             handle.write(
                 json.dumps(json_safe(row), ensure_ascii=False) + "\n"
@@ -692,8 +847,12 @@ def collect_step(
 
     return {
         "schema_version": SCHEMA_VERSION,
+        "dataset_id": dataset_id,
+        "snapshot_id": snapshot_id,
         "case_id": str(case_id),
         "step": int(step),
+        "status": "ok" if selection_error is None else "selection_mismatch",
+        "error": selection_error,
         "snapshot_path": snapshot_path.name,
         "dataset_path": dataset_path.name,
         "population": {
@@ -702,6 +861,15 @@ def collect_step(
             "total": len(population),
             "settled_complete": bool(settled_complete),
             "release_complete": bool(release_complete),
+            # Provenance of the item set: this must be the policy's own
+            # capped set, not the legacy ordered prefix.
+            "item_coverage_mode": str(agent_module.ITEM_COVERAGE_MODE),
+            "item_source": "policy_capped_online_items",
+            "pool_indices": [int(index) for index, _item in indexed_items],
+            "item_indices": [
+                int(item.get("index", index))
+                for index, item in indexed_items
+            ],
         },
         "sampling": {
             "design": "stratified without replacement, unequal probability",
@@ -757,6 +925,7 @@ def main() -> int:
     parser.add_argument("--skip-optimize", action="store_true")
     args = parser.parse_args()
 
+    require_supported_python()
     os.environ["NEDO_CANDIDATE_AUDIT"] = "1"
     os.environ["LOOKAHEAD_SELECTION_MODE"] = str(args.mode)
     os.environ["ITEM_COVERAGE_MODE"] = str(args.coverage_mode)
@@ -779,19 +948,30 @@ def main() -> int:
     if not target_steps or min(target_steps) < 0:
         raise SystemExit("--steps must contain non-negative integers")
 
+    config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = args.output_dir or (
-        DEFAULT_REPORT_ROOT / f"{run_id}-{case_id}-{args.mode}"
+    config_digest = hashlib.sha256(config_bytes).hexdigest()
+    dataset_id = "-".join(
+        (
+            run_id,
+            case_id,
+            str(args.mode),
+            str(args.coverage_mode),
+            str(args.risk_gate_mode),
+            config_digest[:8],
+        )
     )
+    output_dir = args.output_dir or (DEFAULT_REPORT_ROOT / dataset_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     agent_module = load_agent_module()
-    payload = {
+    payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
+        "dataset_id": dataset_id,
+        "status": "running",
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"
         ),
-        "config": str(args.config.resolve()),
         "selection_mode": str(args.mode),
         "coverage_mode": str(args.coverage_mode),
         "risk_gate_mode": str(args.risk_gate_mode),
@@ -799,6 +979,19 @@ def main() -> int:
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
+        # Enough to reproduce the run without the original workspace: an
+        # absolute path from an Actions runner is not reproducible on its own.
+        "provenance": {
+            "git_sha": git_sha(),
+            "git_dirty": git_dirty(),
+            "config_path": str(args.config.resolve()),
+            "config_sha256": config_digest,
+            "agent_sha256": file_digest(ROOT / "agent" / "agent.py"),
+            "python": sys.version.replace("\n", " "),
+            "platform": platform.platform(),
+            "case_id": case_id,
+            "target_steps": sorted(target_steps),
+        },
         "label_contract": {
             "transport": "official_check_transport_path",
             "settle": "official_place_item",
@@ -808,9 +1001,32 @@ def main() -> int:
                 "population rate."
             ),
         },
-        "case": run_case(
+        "case": None,
+    }
+
+    manifest_path = output_dir / "manifest.json"
+
+    def write_manifest() -> None:
+        # Atomic replace so an interrupted run never leaves a half-written
+        # manifest next to complete JSONL files.
+        temporary = manifest_path.with_suffix(".json.tmp")
+        temporary.write_text(
+            json.dumps(json_safe(payload), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        temporary.replace(manifest_path)
+
+    write_manifest()
+
+    def on_progress(steps: list[dict[str, Any]]) -> None:
+        payload["case"] = {"partial": True, "steps": steps}
+        write_manifest()
+
+    try:
+        payload["case"] = run_case(
             agent_module,
             config[case_id],
+            dataset_id=dataset_id,
             case_id=case_id,
             target_steps=target_steps,
             output_dir=output_dir,
@@ -819,14 +1035,41 @@ def main() -> int:
             oracle_limit=args.oracle_limit,
             preview_limit=int(args.preview_limit),
             skip_optimize=args.skip_optimize,
-        ),
-    }
-    manifest_path = output_dir / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(json_safe(payload), ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+            on_progress=on_progress,
+        )
+    except BaseException as exc:
+        payload["status"] = "failed"
+        payload["error"] = f"{type(exc).__name__}: {exc}"
+        write_manifest()
+        raise
+
+    case = payload["case"]
+    problems = []
+    if case["unreached_steps"]:
+        problems.append(f"unreached steps {case['unreached_steps']}")
+    if case["failed_steps"]:
+        problems.append(f"failed steps {case['failed_steps']}")
+    empty = [
+        int(entry["step"])
+        for entry in case["steps"]
+        if int(entry["sampling"]["sampled"]) == 0
+    ]
+    if empty:
+        problems.append(f"empty samples at steps {empty}")
+
+    payload["status"] = "complete" if not problems else "incomplete"
+    payload["problems"] = problems
+    write_manifest()
+
     print(manifest_path)
+    if problems:
+        # Silence here would let CI and downstream tooling treat a dataset
+        # with missing or untrustworthy steps as a good one.
+        print(
+            "dataset is incomplete: " + "; ".join(problems),
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

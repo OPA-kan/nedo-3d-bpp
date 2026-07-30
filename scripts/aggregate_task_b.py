@@ -5,7 +5,14 @@ import collections
 import json
 import pathlib
 import statistics
+import sys
 from typing import Any
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+from scripts.summarize_task_b import (  # noqa: E402
+    SELECTED_CONFUSION_SCOPE,
+)
 
 
 def _stats(values: list[float]) -> dict[str, float]:
@@ -126,6 +133,9 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     if isinstance(row.get("release"), dict)
                     and row["release"].get("action_sequence_sha256")
                 },
+                # The Markdown carries this warning, but analysis code that
+                # reads only the JSON would otherwise see four bare cells.
+                "selected_confusion_scope": SELECTED_CONFUSION_SCOPE,
                 "release": {
                     metric: release_stats(metric)
                     for metric in (
