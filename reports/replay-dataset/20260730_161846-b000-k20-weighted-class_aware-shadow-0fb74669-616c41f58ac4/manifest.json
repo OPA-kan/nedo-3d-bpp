@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "dataset_id": "20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4",
-  "status": "running",
+  "status": "complete",
   "timestamp": "2026-07-30T16:18:46+00:00",
   "selection_mode": "weighted",
   "coverage_mode": "class_aware",
@@ -29,5 +29,393 @@
     "settle": "official_place_item",
     "note": "Rows are an unequal-probability sample. Re-weight by sampling.sampling_weight before reading any rate as a population rate."
   },
-  "case": null
+  "case": {
+    "case_id": "b000-k20",
+    "target_steps": [
+      14,
+      16
+    ],
+    "reached_steps": [
+      14,
+      16
+    ],
+    "unreached_steps": [],
+    "failed_steps": [],
+    "episode_steps_executed": 17,
+    "episode_terminated": true,
+    "episode_truncated": false,
+    "final_status": {
+      "is_included": true,
+      "is_valid": true,
+      "is_placed_safe": false
+    },
+    "trajectory": "competition_equivalent",
+    "steps": [
+      {
+        "schema_version": 1,
+        "dataset_id": "20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4",
+        "snapshot_id": "20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4:b000-k20:step-014",
+        "case_id": "b000-k20",
+        "step": 14,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-014-state.json",
+        "dataset_path": "step-014-candidates.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 14723,
+          "total": 14723,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            7,
+            6,
+            11,
+            19,
+            0,
+            2,
+            4,
+            9,
+            10,
+            12
+          ],
+          "item_indices": [
+            17,
+            14,
+            21,
+            33,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260731,
+          "sampled": 25,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 13250,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.0005283417616423881
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 1463,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.005468215994531784
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 3.609299983509118e-05
+        },
+        "replay_seconds": 10.073039452999637,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 335172,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 42.28580046599973,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 26247,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 7.600888675000078,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 49.88674767300017
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 99487,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 231.14784939499987
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 245,
+          "accepted_total_count": 245,
+          "search": {
+            "units_total": 120,
+            "units_started": 22,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 6
+          }
+        },
+        "action": {
+          "item_idx": 6,
+          "container_idx": 0,
+          "place_pos": [
+            0.0,
+            0.17521372437477112,
+            0.912466287612915
+          ],
+          "orientation": 0
+        }
+      },
+      {
+        "schema_version": 1,
+        "dataset_id": "20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4",
+        "snapshot_id": "20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4:b000-k20:step-016",
+        "case_id": "b000-k20",
+        "step": 16,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-016-state.json",
+        "dataset_path": "step-016-candidates.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 9903,
+          "total": 9903,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            6,
+            16,
+            10,
+            18,
+            0,
+            2,
+            4,
+            8,
+            9,
+            11
+          ],
+          "item_indices": [
+            17,
+            30,
+            21,
+            33,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260731,
+          "sampled": 25,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 8912,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0008976660682226212
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 981,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.007142857142857143
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 2.945000005638576e-05
+        },
+        "replay_seconds": 12.330173254999863,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 433440,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 51.75618987200005,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 32537,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 10.325706093999997,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 62.081953849
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 121342,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 183.02670351999996
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 205,
+          "accepted_total_count": 205,
+          "search": {
+            "units_total": 120,
+            "units_started": 26,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 29
+          }
+        },
+        "action": {
+          "item_idx": 16,
+          "container_idx": 0,
+          "place_pos": [
+            0.0,
+            -0.18234238028526306,
+            1.1149499416351318
+          ],
+          "orientation": 3
+        }
+      }
+    ]
+  },
+  "problems": []
 }
