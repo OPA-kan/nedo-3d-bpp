@@ -36,7 +36,9 @@
   \(\mu_B:(s,V)\mapsto(i,p)\)、\(V_B(s,V)\)への拡張を支持する。
   `NEDO_POLICY_TRACE_PATH`有効時だけ、item cap、探索開始、候補生成、
   immediate top-K、future probe、選択の各段階を荷物別に累積記録する。
-  診断はImplementedだが、方策、class quota、regret rankingは未変更。
+  診断とclass-aware shallow coverageはImplemented。
+  normal/soft/priorityの各present classをitem capへ最低1件含め、各included itemの
+  先頭探索unitを一巡する。配置ranking、regret rankingは未変更。
   \(\chi_V(s)\)によるidentity-aware署名とregret-aware diversityはProposed。
   重いbefore/after regretは
   pre-action snapshotを使うoffline計測として定義する。

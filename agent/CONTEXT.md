@@ -68,6 +68,12 @@
   候補生成、immediate top-K、future probe、選択の各stepを累積保存する。
   `candidate_generated`はdeadline内で観測した候補でありoracle可行性ではない。
   trace無効時は荷物別lifecycleを収集せず、選択方策も変更しない。
+- `ITEM_COVERAGE_MODE=class_aware`では、normal/soft/priorityの各present classから
+  最低1荷物をitem cap内へ確保し、各included itemの先頭探索unitを残りposeより先に
+  一巡する。`legacy`で従来prefixへ戻せる。配置ranking scoreは変更しない。
+- policy traceは全体・class別に
+  `included/visible`、`search_started/included`、
+  `candidate_generated/search_started`を記録する。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。
 
 ## Release fallback ordering

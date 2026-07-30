@@ -584,6 +584,8 @@ EP/EMSや支持面anchorによる候補圧縮には、
 5. regret-aware diversityで可行性寿命の異なる候補をbeamへ残す
 6. 解析proxyに勝つことを確認してからpool-aware valueを学習する
 
-1〜3は計測基盤までImplemented、4〜6はProposedである。Case 000のようなpool 1の
+1〜3はImplementedである。class-aware探索は各present classから最低1荷物をcapへ
+含め、各included itemの先頭unitを先に一巡するが、配置rankingは変更しない。
+4〜6はProposedである。Case 000のようなpool 1の
 候補ゼロは共通配置・圧縮側、Case 001のような後回し不可行化はMode B側で扱う。
 

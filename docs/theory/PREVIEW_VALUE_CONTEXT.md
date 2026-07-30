@@ -155,3 +155,25 @@ trace出力を分離しただけでsimulator方策には影響しないため、
 
 またpool 20/40の終了はitem selectionだけでなくrelease stability問題でもある。
 pool-aware diversityとrelease risk gateは別々に評価する。
+
+## Class-aware coverage（Implemented / physics validation pending）
+
+`ITEM_COVERAGE_MODE=class_aware`ではnormal/soft/priorityの各present classから
+最低1荷物をitem capへ含め、各included itemの先頭探索unitを残りposeより先に
+一巡する。残枠と深掘り順は従来のpriority-ordered順を維持し、配置ranking scoreは
+変更しない。`legacy`で従来prefixへ戻せる。
+
+policy traceには全体・class別の
+
+\[
+C_1=\frac{|\mathrm{included}|}{|\mathrm{visible}|},\qquad
+C_2=\frac{|\mathrm{search\ started}|}{|\mathrm{included}|},\qquad
+C_3=\frac{|\mathrm{candidate\ generated}|}{|\mathrm{search\ started}|}
+\]
+
+を記録する。GitHub Actions screeningはpool 3/10/20/40を各3回実行し、
+配置数とfillのmean/median/sample std/min/max、coverage平均、failure mode countを
+集計する。top-K未選択後のfallbackは`starvation_signal`として別計数し、offline
+物理counterfactualまでは確定starvationにしない。コードと単体契約はImplementedだが、
+新trajectoryのPyBullet結果は未検証。
+release risk gateとregret/diversityはこの結果を固定してからの別実験とする。

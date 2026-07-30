@@ -936,6 +936,65 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(decision.action["item_idx"], 1)
         self.assertEqual(decision.score, 7.0)
 
+    def test_class_aware_cap_includes_each_present_item_class(self):
+        pool = [sample_item(index) for index in range(12)]
+        pool.append(sample_item(12, is_soft=True))
+        pool.append(sample_item(13, is_prioritized=True))
+
+        selected = agent.capped_online_items(
+            pool,
+            limit=10,
+            mode="class_aware",
+        )
+        selected_indices = [int(item["index"]) for _, item in selected]
+
+        self.assertEqual(selected_indices[:3], [0, 12, 13])
+        self.assertEqual(len(selected_indices), 10)
+        self.assertEqual(
+            {agent.item_class_name(item) for _, item in selected},
+            {"normal", "soft", "priority"},
+        )
+
+    def test_legacy_cap_preserves_the_original_prefix(self):
+        pool = [sample_item(index) for index in range(12)]
+        pool.append(sample_item(12, is_soft=True))
+        pool.append(sample_item(13, is_prioritized=True))
+
+        selected = agent.capped_online_items(
+            pool,
+            limit=10,
+            mode="legacy",
+        )
+
+        self.assertEqual(
+            [int(item["index"]) for _, item in selected],
+            list(range(10)),
+        )
+
+    def test_class_aware_units_start_each_item_before_remaining_units(self):
+        observation = {
+            "pool_list": [sample_item(index) for index in range(3)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        indexed_items = list(enumerate(observation["pool_list"]))
+
+        units = agent.prioritized_search_units(
+            observation,
+            indexed_items,
+            class_aware_first_pass=True,
+        )
+
+        self.assertEqual(
+            [unit[5]["index"] for unit in units[:3]],
+            [0, 1, 2],
+        )
+
     def test_candidate_audit_separates_settled_and_release_candidates(self):
         container = sample_container(
             require_shelf=False,
@@ -1435,14 +1494,17 @@ class LookaheadSelectionTests(unittest.TestCase):
         decision_event = events[1]
         stages = decision_event["selection_stages"]
         self.assertEqual(stages["visible_item_indices"], list(range(12)))
-        self.assertEqual(stages["item_cap_item_indices"], list(range(10)))
+        self.assertEqual(
+            stages["item_cap_item_indices"],
+            [0, 11, *range(1, 9)],
+        )
         self.assertEqual(stages["search_started_item_indices"], list(range(10)))
         self.assertEqual(
             stages["candidate_generated_item_indices"],
             [0, 1, 2],
         )
         self.assertEqual(stages["candidate_topk_item_indices"], [0, 1])
-        self.assertEqual(stages["future_probe_item_indices"], [0, 1, 2])
+        self.assertEqual(stages["future_probe_item_indices"], [0, 11, 1])
 
         lifecycle = {
             record["item_index"]: record
@@ -1457,10 +1519,39 @@ class LookaheadSelectionTests(unittest.TestCase):
             "generated_but_low_rank",
         )
         self.assertEqual(lifecycle[11]["item_class"], "priority")
-        self.assertEqual(lifecycle[11]["search_included_steps"], [])
+        self.assertEqual(lifecycle[11]["search_included_steps"], [0])
         self.assertEqual(
             lifecycle[11]["starvation_observation"],
-            "excluded_by_item_cap",
+            "search_not_started",
+        )
+        coverage = decision_event["coverage"]
+        self.assertEqual(coverage["overall"]["visible"], 12)
+        self.assertEqual(coverage["overall"]["included"], 10)
+        self.assertEqual(coverage["overall"]["search_started"], 9)
+        self.assertEqual(coverage["overall"]["candidate_generated"], 3)
+        self.assertAlmostEqual(
+            coverage["overall"]["included_over_visible"],
+            10 / 12,
+        )
+        self.assertAlmostEqual(
+            coverage["overall"]["started_over_included"],
+            9 / 10,
+        )
+        self.assertAlmostEqual(
+            coverage["overall"]["generated_over_started"],
+            3 / 9,
+        )
+        self.assertEqual(
+            coverage["by_class"]["priority"],
+            {
+                "visible": 1,
+                "included": 1,
+                "search_started": 0,
+                "candidate_generated": 0,
+                "included_over_visible": 1.0,
+                "started_over_included": 0.0,
+                "generated_over_started": None,
+            },
         )
 
     def test_trace_disabled_does_not_collect_item_lifecycle(self):

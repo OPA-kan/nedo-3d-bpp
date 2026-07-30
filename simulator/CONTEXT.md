@@ -48,7 +48,9 @@ private methodと実際の分岐条件はソースを読む。
 
 `sample_config.json`のCase 001は `optimize=false`、pool 10のTask B proxy。
 GitHub Actionsではこのcaseを基にpool 3/10/20/40、policy timeout 8秒のconfigを
-生成する。benchmark modeはsimulator processとevaluation構造が正常なら成功とし、
+生成し、各条件を3回screeningする。job別artifactに段階別・class別coverageと
+failure modeを保存し、aggregate jobがmean/median/std/min/maxと停止原因回数を出す。
+benchmark modeはsimulator processとevaluation構造が正常なら成功とし、
 全荷物完遂は別のstrict physics validationとして記録する。固定fallbackによる
 途中終了を隠さず、CI infrastructure failureとalgorithm benchmark failureを分ける。
 

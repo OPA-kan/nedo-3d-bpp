@@ -46,6 +46,10 @@ CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
 MAX_POOL_ITEMS_EVALUATED = 10
+ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
+ITEM_COVERAGE_MODE = os.environ.get(
+    "ITEM_COVERAGE_MODE", "class_aware"
+).strip().lower()
 OFFLINE_SEARCH_BUDGET_SECONDS = float(
     os.environ.get("OFFLINE_SEARCH_BUDGET_SECONDS", "150.0")
 )
@@ -2098,6 +2102,55 @@ def online_item_order(pool_list):
     return sorted(enumerate(pool_list), key=key)
 
 
+def capped_online_items(pool_list, limit, mode=ITEM_COVERAGE_MODE):
+    """
+    Apply the online item cap without silently dropping an entire class.
+
+    ``legacy`` preserves the original prefix. ``class_aware`` reserves one
+    slot for each present class, in the existing normal -> soft -> priority
+    strategy order, then fills the remaining slots from the legacy order.
+    Candidate ranking remains unchanged.
+    """
+    normalized_mode = str(mode).strip().lower()
+    if normalized_mode not in ITEM_COVERAGE_MODES:
+        available = ", ".join(sorted(ITEM_COVERAGE_MODES))
+        raise ValueError(
+            f"unknown item coverage mode '{mode}'; available: {available}"
+        )
+    if limit <= 0:
+        return []
+    ordered = online_item_order(pool_list)
+    if normalized_mode == "legacy" or len(ordered) <= limit:
+        return ordered[:limit]
+
+    representatives = []
+    represented_pool_indices = set()
+    for class_id in (0, 1, 2):
+        representative = next(
+            (
+                indexed_item
+                for indexed_item in ordered
+                if item_group(indexed_item[1]) == class_id
+            ),
+            None,
+        )
+        if representative is None:
+            continue
+        representatives.append(representative)
+        represented_pool_indices.add(int(representative[0]))
+        if len(representatives) >= limit:
+            return representatives
+
+    selected = list(representatives)
+    for indexed_item in ordered:
+        if int(indexed_item[0]) in represented_pool_indices:
+            continue
+        selected.append(indexed_item)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def item_group(item):
     if bool(item.get("is_prioritized", False)):
         return 2
@@ -2112,6 +2165,61 @@ def item_class_name(item):
     if bool(item.get("is_soft", False)):
         return "soft"
     return "normal"
+
+
+def selection_stage_coverage(pool_list, stages):
+    """Measure item coverage at each narrowing stage, overall and by class."""
+    visible_by_class = {
+        class_name: set()
+        for class_name in ("normal", "soft", "priority")
+    }
+    for pool_index, item in enumerate(pool_list):
+        item_index = int(item.get("index", pool_index))
+        visible_by_class[item_class_name(item)].add(item_index)
+
+    visible = set().union(*visible_by_class.values())
+    included = set(stages.get("item_cap_item_indices", [])) & visible
+    started = (
+        set(stages.get("search_started_item_indices", []))
+        & included
+    )
+    generated = (
+        set(stages.get("candidate_generated_item_indices", []))
+        & started
+    )
+
+    def ratio(numerator, denominator):
+        if denominator == 0:
+            return None
+        return float(numerator) / float(denominator)
+
+    def metrics(visible_items):
+        class_included = included & visible_items
+        class_started = started & class_included
+        class_generated = generated & class_started
+        return {
+            "visible": len(visible_items),
+            "included": len(class_included),
+            "search_started": len(class_started),
+            "candidate_generated": len(class_generated),
+            "included_over_visible": ratio(
+                len(class_included), len(visible_items)
+            ),
+            "started_over_included": ratio(
+                len(class_started), len(class_included)
+            ),
+            "generated_over_started": ratio(
+                len(class_generated), len(class_started)
+            ),
+        }
+
+    return {
+        "overall": metrics(visible),
+        "by_class": {
+            class_name: metrics(visible_by_class[class_name])
+            for class_name in ("normal", "soft", "priority")
+        },
+    }
 
 
 def constructive_order(item_list):
@@ -2180,7 +2288,11 @@ def estimated_remaining_container_volume(container):
     return max(0.0, float(remaining))
 
 
-def prioritized_search_units(observation, indexed_items):
+def prioritized_search_units(
+    observation,
+    indexed_items,
+    class_aware_first_pass=False,
+):
     """
     Build a deterministic item -> stable-pose -> roomy-container order.
 
@@ -2234,6 +2346,18 @@ def prioritized_search_units(observation, indexed_items):
                         )
                     )
     units.sort(key=lambda unit: unit[:4])
+    if class_aware_first_pass:
+        first_units = []
+        remaining_units = []
+        seen_item_ranks = set()
+        for unit in units:
+            item_rank = int(unit[0])
+            if item_rank not in seen_item_ranks:
+                seen_item_ranks.add(item_rank)
+                first_units.append(unit)
+            else:
+                remaining_units.append(unit)
+        return first_units + remaining_units
     return units
 
 
@@ -2276,7 +2400,15 @@ def iter_prioritized_candidates(
     the same priority order, so the caller can retain and improve a safe
     incumbent without starving later items or poses.
     """
-    units = prioritized_search_units(observation, indexed_items)
+    class_aware_first_pass = bool(
+        diagnostics is not None
+        and diagnostics.get("_class_aware_first_pass", False)
+    )
+    units = prioritized_search_units(
+        observation,
+        indexed_items,
+        class_aware_first_pass=class_aware_first_pass,
+    )
     search_started = time.perf_counter()
     audit = None
     if diagnostics is not None and CANDIDATE_AUDIT_ENABLED:
@@ -3191,7 +3323,7 @@ class Agent:
         action_source,
     ):
         if not self._policy_trace_path:
-            return {}, []
+            return {}, [], {}
         visible_item_indices = [
             int(item.get("index", pool_index))
             for pool_index, item in enumerate(pool_list)
@@ -3238,6 +3370,7 @@ class Agent:
             "candidate_topk_item_indices": candidate_topk_item_indices,
             "future_probe_item_indices": future_probe_item_indices,
         }
+        coverage = selection_stage_coverage(pool_list, stages)
         stage_sets = {
             key: set(values)
             for key, values in stages.items()
@@ -3322,7 +3455,7 @@ class Agent:
                 observation = "topk_not_selected"
             record["starvation_observation"] = observation
             lifecycle.append(record)
-        return stages, lifecycle
+        return stages, lifecycle, coverage
 
     def get_init_states(self, init_states: dict):
         containers = init_states.get("container_list", [])
@@ -3590,16 +3723,20 @@ class Agent:
 
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        class_aware_coverage = ITEM_COVERAGE_MODE == "class_aware"
         self.last_candidate_diagnostics = {
-            "_record_item_lifecycle": bool(self._policy_trace_path)
+            "_record_item_lifecycle": bool(self._policy_trace_path),
+            "_class_aware_first_pass": class_aware_coverage,
         }
         self.last_action_source = None
         self.last_candidate_kind = None
         pool_list = observation.get("pool_list", [])
         containers = observation.get("container_list", [])
-        ordered_items = online_item_order(pool_list)[
-            :MAX_POOL_ITEMS_EVALUATED
-        ]
+        ordered_items = capped_online_items(
+            pool_list,
+            MAX_POOL_ITEMS_EVALUATED,
+            mode=ITEM_COVERAGE_MODE,
+        )
 
         decision = self._closed_loop_choice(
             observation, pool_list, ordered_items, deadline
@@ -3635,7 +3772,11 @@ class Agent:
                 if evaluation.total_next_items > 0
                 else None
             )
-            selection_stages, item_lifecycle = self._selection_trace(
+            (
+                selection_stages,
+                item_lifecycle,
+                coverage,
+            ) = self._selection_trace(
                 pool_list,
                 ordered_items,
                 selected_pool_index,
@@ -3644,11 +3785,15 @@ class Agent:
             self.last_candidate_diagnostics.pop(
                 "_record_item_lifecycle", None
             )
+            self.last_candidate_diagnostics.pop(
+                "_class_aware_first_pass", None
+            )
             self._append_policy_trace(
                 {
                     "event": "decision",
                     "step": self._policy_step,
                     "mode": LOOKAHEAD_SELECTION_MODE,
+                    "item_coverage_mode": ITEM_COVERAGE_MODE,
                     "optimize": self._optimize_enabled,
                     "lookahead_k": self._lookahead_k,
                     "pool_size": len(pool_list),
@@ -3672,6 +3817,7 @@ class Agent:
                     ),
                     "candidate_diagnostics": self.last_candidate_diagnostics,
                     "selection_stages": selection_stages,
+                    "coverage": coverage,
                     "item_lifecycle": item_lifecycle,
                 }
             )
@@ -3688,7 +3834,11 @@ class Agent:
         )
         self.last_action_source = "fixed_fallback"
         self.last_candidate_kind = "fixed_fallback"
-        selection_stages, item_lifecycle = self._selection_trace(
+        (
+            selection_stages,
+            item_lifecycle,
+            coverage,
+        ) = self._selection_trace(
             pool_list,
             ordered_items,
             0 if pool_list else None,
@@ -3697,11 +3847,15 @@ class Agent:
         self.last_candidate_diagnostics.pop(
             "_record_item_lifecycle", None
         )
+        self.last_candidate_diagnostics.pop(
+            "_class_aware_first_pass", None
+        )
         self._append_policy_trace(
             {
                 "event": "decision",
                 "step": self._policy_step,
                 "mode": LOOKAHEAD_SELECTION_MODE,
+                "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,
                 "pool_size": len(pool_list),
@@ -3717,6 +3871,7 @@ class Agent:
                 "candidate_kind": "fixed_fallback",
                 "candidate_diagnostics": self.last_candidate_diagnostics,
                 "selection_stages": selection_stages,
+                "coverage": coverage,
                 "item_lifecycle": item_lifecycle,
             }
         )

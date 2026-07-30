@@ -24,6 +24,14 @@ on:
           - depth2
           - pool_resilience
         default: weighted
+      coverage_mode:
+        description: Task B visible-pool coverage mode
+        required: false
+        type: choice
+        options:
+          - class_aware
+          - legacy
+        default: class_aware
 
 jobs:
   unit-tests:
@@ -80,3 +88,4 @@ jobs:
     uses: ./.github/workflows/task-b-benchmark.yml
     with:
       selection_mode: ${{ inputs.selection_mode }}
+      coverage_mode: ${{ inputs.coverage_mode }}

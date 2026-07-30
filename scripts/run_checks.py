@@ -54,9 +54,14 @@ def load_json(path: pathlib.Path) -> Any:
 
 
 def unit_test_environment() -> dict[str, str]:
-    """Keep simulator policy traces free of test-generated decisions."""
+    """Keep unit tests independent of simulator experiment controls."""
     env = os.environ.copy()
-    env.pop("NEDO_POLICY_TRACE_PATH", None)
+    for name in (
+        "NEDO_POLICY_TRACE_PATH",
+        "LOOKAHEAD_SELECTION_MODE",
+        "ITEM_COVERAGE_MODE",
+    ):
+        env.pop(name, None)
     return env
 
 

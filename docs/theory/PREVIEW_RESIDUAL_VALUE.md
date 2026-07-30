@@ -207,10 +207,27 @@ Y(s^a;\omega)-Y(s^b;\omega)
 pool可行荷物数に加え、候補あり未選択step数、top-K未選択回数、不可行化までの
 待ち時間、deadlineで探索未開始の荷物数を比較する。
 
+探索coverageは全体およびclass \(c\in\{\mathrm{normal},\mathrm{soft},
+\mathrm{priority}\}\) ごとに、
+
+\[
+\frac{|\mathrm{included}|}{|\mathrm{visible}|},\qquad
+\frac{|\mathrm{search\ started}|}{|\mathrm{included}|},\qquad
+\frac{|\mathrm{candidate\ generated}|}{|\mathrm{search\ started}|}
+\]
+
+へ分解する。これによりitem cap、deadline配分、候補生成を同一の低coverageへ
+混同しない。
+
 物理validationが壊れた状態から生成した仮想遷移は教師にも評価にも使えない。
 benchmarkが固定fallbackで終了した状態は教師に使わず、その直前のsettle済み観測を
 保存してsibling比較する。1～5はGitHub ActionsのTask B同一config matrixで比較し、
 SIGNATE総合scoreの改善とは区別する。
+
+screeningは同一条件3run、採用候補は5runとし、mean、median、sample standard
+deviation、min、max、failure mode countを保存する。top-K未選択後のfallbackは
+`starvation_signal`として数え、offline物理counterfactualで安全候補だったことを
+確認するまでは確定starvationと呼ばない。
 
 ## 8. 非目標
 

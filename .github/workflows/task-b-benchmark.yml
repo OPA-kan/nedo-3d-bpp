@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: weighted
+      coverage_mode:
+        description: Visible-pool item coverage mode
+        required: false
+        type: string
+        default: class_aware
   workflow_dispatch:
     inputs:
       selection_mode:
@@ -19,17 +24,25 @@ on:
           - depth2
           - pool_resilience
         default: weighted
+      coverage_mode:
+        description: Visible-pool item coverage mode
+        required: true
+        type: choice
+        options:
+          - class_aware
+          - legacy
+        default: class_aware
 
 permissions:
   contents: read
 
 concurrency:
-  group: task-b-benchmark-${{ github.ref }}-${{ inputs.selection_mode }}
+  group: task-b-benchmark-${{ github.ref }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}
   cancel-in-progress: true
 
 jobs:
   benchmark:
-    name: pool-${{ matrix.look_ahead }}-${{ inputs.selection_mode }}
+    name: pool-${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r${{ matrix.replicate }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -40,6 +53,10 @@ jobs:
           - 10
           - 20
           - 40
+        replicate:
+          - 1
+          - 2
+          - 3
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,16 +73,17 @@ jobs:
           --look-ahead "${{ matrix.look_ahead }}"
           --policy-timeout 8
           --output
-          "reports/task-b/config-k${{ matrix.look_ahead }}.json"
+          "reports/task-b/config-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.json"
       - name: Run Task B benchmark
         run: >-
           python scripts/run_checks.py
           --simulator
           --simulator-mode benchmark
           --config
-          "reports/task-b/config-k${{ matrix.look_ahead }}.json"
+          "reports/task-b/config-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.json"
         env:
           LOOKAHEAD_SELECTION_MODE: ${{ inputs.selection_mode }}
+          ITEM_COVERAGE_MODE: ${{ inputs.coverage_mode }}
           NEDO_POLICY_TRACE_PATH: >-
             ${{ github.workspace }}/reports/raw/policy-trace.jsonl
       - name: Publish compact summary
@@ -75,18 +93,49 @@ jobs:
             reports/latest.json \
             --look-ahead "${{ matrix.look_ahead }}" \
             --selection-mode "${{ inputs.selection_mode }}" \
+            --coverage-mode "${{ inputs.coverage_mode }}" \
+            --replicate "${{ matrix.replicate }}" \
+            --trace reports/raw/policy-trace.jsonl \
             --output \
-              "reports/task-b/summary-k${{ matrix.look_ahead }}.md"
+              "reports/task-b/summary-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.md" \
+            --json-output \
+              "reports/task-b/summary-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.json"
           cat \
-            "reports/task-b/summary-k${{ matrix.look_ahead }}.md" \
+            "reports/task-b/summary-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.md" \
             >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: >-
-            task-b-k${{ matrix.look_ahead }}-${{ inputs.selection_mode }}
+          name: task-b-k${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r${{ matrix.replicate }}
           path: |
             reports/latest.md
             reports/latest.json
             reports/raw/
             reports/task-b/
+
+  aggregate:
+    name: screening-aggregate
+    needs: benchmark
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: task-b-k*-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r*
+          path: reports/task-b-screening
+      - name: Aggregate screening runs
+        run: >-
+          python scripts/aggregate_task_b.py
+          reports/task-b-screening
+          --output reports/task-b-screening/aggregate.md
+          --json-output reports/task-b-screening/aggregate.json
+      - run: cat reports/task-b-screening/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-b-aggregate-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}
+          path: |
+            reports/task-b-screening/aggregate.md
+            reports/task-b-screening/aggregate.json
