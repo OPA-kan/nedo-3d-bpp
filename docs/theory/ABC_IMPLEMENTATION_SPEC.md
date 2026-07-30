@@ -82,7 +82,9 @@ soft/priority、残余、重心、表面の公式重みが不明な間は、そ�
 
 release risk gateは通常rankingとは独立した実験層とする。初版は
 `off` / `shadow` / `enforce` を切り替え、support、CoM margin、overhang、
-drop、support imbalance、initial poseの固定閾値だけを使う。
+drop、support imbalanceの固定閾値だけを使う。initial poseは閾値判定に
+含めない。指令姿勢が軸平行に限られる間、`initial_tilt_deg`は恒等的に0で
+判定に寄与できないため、利用不能なplaceholderとしてtraceに記録するだけとする。
 `shadow`は棄却予定と特徴を記録するが候補を残し、`enforce`だけがranking前に
 危険候補を除外する。gate通過候補のscore式は全モードで同じにする。
 オンライン特徴の由来はcommand state / predicted contact stateへ明示的に分け、
@@ -189,5 +191,19 @@ hardフィルタにしない。2コンテナの充填率差そのものにもペ
 action command列のSHA-256を比較し、一件でも不一致ならhard gate評価へ進まない。
 placed count、fill、gate通過率、全棄却、protocol fallback、gate通過releaseの
 物理failure、shadowで棄却予定だったが物理的に安全だった選択候補を集計する。
+
+選択releaseについては2×2の`selected_*`混同行列を全セル取る。
+pass/safe、pass/failure、reject/safe、reject/failureの4セルであり、
+`enforce`ではreject列は構成上空になる。
+
+**この行列はrankingが実際に選択した候補にのみ条件づけられている。**
+選択集合はrankingの上位であって全候補の標本ではないので、ここから
+precision / recallを計算しても、それをgate全体の実力と呼ばない。
+gate全体の挙動を推定するには層化counterfactual replayのデータセットが要る。
+通常runの反復回数を増やしても、この条件づけは解消しない。
+
+物理ラベルは合成ORに集約せず、回転、水平変位、placed-safe、valid、included
+を分離して保存する。`physically_dangerous`は過去系列との継続性のためだけに
+残す旧複合指標であり、モデル化には分離ラベルを使う。
 
 物理FAIL中のfillは診断値であり、コンペscore改善の根拠にはしない。

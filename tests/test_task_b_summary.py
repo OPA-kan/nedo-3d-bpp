@@ -253,6 +253,190 @@ class TaskBSummaryTests(unittest.TestCase):
             1,
         )
 
+    def test_selected_confusion_matrix_covers_all_four_cells(self) -> None:
+        def metric(step: int, *, dangerous: bool) -> dict:
+            return {
+                "step": step,
+                "placed_count": step + 1,
+                "settle_angle_deg": 45.0 if dangerous else 0.1,
+                "settle_displacement_norm": 0.01,
+                "settle_displacement_xyz": [0.01, 0.0, 0.0],
+                "settle_aabb_dimensions": [0.2, 0.3, 0.4],
+                "status": {
+                    "is_included": True,
+                    "is_valid": True,
+                    "is_placed_safe": True,
+                },
+            }
+
+        def decision(step: int, *, passed: bool) -> dict:
+            return {
+                "event": "decision",
+                "step": step,
+                "candidate_kind": "release_candidate",
+                "action_source": "placement_core",
+                "candidate_diagnostics": {
+                    "selected_release_risk": {
+                        "mode": "shadow",
+                        "passed": passed,
+                        "reasons": [] if passed else ["support"],
+                    }
+                },
+            }
+
+        # step 0 TN, step 1 FN, step 2 FP, step 3 TP
+        cells = [(True, False), (True, True), (False, False), (False, True)]
+        payload = {
+            "evaluation": {
+                "case": {
+                    "status": "success",
+                    "evaluation": {
+                        "fill_score": 1.0,
+                        "num_placed_items": 1.0,
+                        "step_metrics": [
+                            metric(step, dangerous=dangerous)
+                            for step, (_, dangerous) in enumerate(cells)
+                        ],
+                    },
+                    "time_results": {"policy": 1.0},
+                }
+            }
+        }
+        trace_events = [
+            decision(step, passed=passed)
+            for step, (passed, _) in enumerate(cells)
+        ]
+
+        rows = task_b_result_rows(
+            payload,
+            look_ahead=20,
+            selection_mode="weighted",
+            risk_gate_mode="shadow",
+            trace_events=trace_events,
+        )
+        release = rows[0]["release"]
+
+        self.assertEqual(
+            release["selected_gate_pass_physical_safe_count"], 1
+        )
+        self.assertEqual(
+            release["selected_gate_pass_physical_failure_count"], 1
+        )
+        self.assertEqual(
+            release["selected_gate_reject_physical_safe_count"], 1
+        )
+        self.assertEqual(
+            release["selected_gate_reject_physical_failure_count"], 1
+        )
+        self.assertEqual(release["selected_gate_reject_count"], 2)
+        self.assertEqual(release["selected_gate_scored_count"], 4)
+        self.assertAlmostEqual(
+            release["selected_gate_reject_physical_failure_rate"], 0.5
+        )
+        # The pre-existing shadow counter stays the safe-reject cell only.
+        self.assertEqual(release["shadow_rejected_but_safe_count"], 1)
+
+    def test_confusion_matrix_is_labelled_as_selection_conditioned(
+        self,
+    ) -> None:
+        rows = task_b_result_rows(
+            {
+                "evaluation": {
+                    "case": {
+                        "status": "success",
+                        "evaluation": {
+                            "fill_score": 1.0,
+                            "num_placed_items": 1.0,
+                            "step_metrics": [
+                                {"step": 0, "placed_count": 1}
+                            ],
+                        },
+                        "time_results": {"policy": 1.0},
+                    }
+                }
+            },
+            look_ahead=20,
+            selection_mode="weighted",
+            risk_gate_mode="shadow",
+            trace_events=[],
+        )
+
+        scope = rows[0]["release"]["selected_confusion_scope"]
+        self.assertIn("selected_release_candidates_only", scope)
+        self.assertIn("not a gate-wide", scope)
+
+    def test_separates_physical_labels_from_the_composite(self) -> None:
+        payload = {
+            "evaluation": {
+                "case": {
+                    "status": "success",
+                    "evaluation": {
+                        "fill_score": 1.0,
+                        "num_placed_items": 1.0,
+                        "step_metrics": [
+                            {
+                                "step": 0,
+                                "placed_count": 1,
+                                "settle_angle_deg": 0.1,
+                                # Purely vertical settle: the 3D rule fires
+                                # but the horizontal one must not.
+                                "settle_displacement_norm": 0.5,
+                                "settle_displacement_xyz": [0.0, 0.0, -0.5],
+                                "settle_aabb_dimensions": [0.2, 0.3, 0.4],
+                                "status": {
+                                    "is_included": False,
+                                    "is_valid": True,
+                                    "is_placed_safe": True,
+                                },
+                            }
+                        ],
+                    },
+                    "time_results": {"policy": 1.0},
+                }
+            }
+        }
+        trace_events = [
+            {
+                "event": "decision",
+                "step": 0,
+                "candidate_kind": "release_candidate",
+                "action_source": "placement_core",
+                "candidate_diagnostics": {
+                    "selected_release_risk": {
+                        "mode": "shadow",
+                        "passed": True,
+                        "reasons": [],
+                    }
+                },
+            }
+        ]
+
+        rows = task_b_result_rows(
+            payload,
+            look_ahead=20,
+            selection_mode="weighted",
+            risk_gate_mode="shadow",
+            trace_events=trace_events,
+        )
+        release = rows[0]["release"]
+
+        self.assertEqual(release["selected_labelled_count"], 1)
+        self.assertEqual(release["selected_rotated_over_30_count"], 0)
+        self.assertEqual(
+            release["selected_displaced_over_half_footprint_count"], 1
+        )
+        self.assertEqual(
+            release[
+                "selected_horizontal_displaced_over_half_footprint_count"
+            ],
+            0,
+        )
+        self.assertEqual(release["selected_not_placed_safe_count"], 0)
+        self.assertEqual(release["selected_not_valid_count"], 0)
+        self.assertEqual(release["selected_not_included_count"], 1)
+        # is_included is deliberately outside the historical composite.
+        self.assertEqual(release["selected_physically_dangerous_count"], 1)
+
     def test_trace_is_partitioned_by_init_for_each_case(self) -> None:
         payload = {
             "evaluation": {

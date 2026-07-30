@@ -36,9 +36,13 @@
 - 投下点では支持率を要求しない。目標包含、静的干渉、公式と同じ搬入経路を
   static hard判定する。その後、release risk gateを有効にした実験では、
   settled proxy上の支持率、重心投影margin、overhang、正規化drop、
-  左右・前後の支持偏り、初期姿勢をranking前に閾値判定する。
+  左右・前後の支持偏りをranking前に閾値判定する。
   現行actionの姿勢は離散的な軸平行姿勢なので、initial poseはorientation codeを
-  保存し、指令時tiltは0度とする。
+  保存し、指令時tiltは常に0度になる。したがって`initial_tilt_deg`は
+  **判定に使わない利用不能なplaceholder**であり、閾値もgate判定理由も持たない。
+  traceの`feature_availability`で`unavailable_placeholder`と明示する。
+  定数列なので学習特徴にも使わない。非軸平行コマンドを導入して実際に値が
+  入るようになるまで、この欄を根拠にした判定を復活させない。
   support、CoM margin、overhang、support imbalanceは
   `predicted_contact_state`、initial poseは`command_state`、dropは両者の差から
   算出する。オンライン特徴へsettle後telemetryを混入させない。

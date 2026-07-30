@@ -148,6 +148,25 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         "selected_gate_pass_count",
                         "selected_gate_pass_physical_failure_count",
                         "shadow_rejected_but_safe_count",
+                        # 2x2 over selected release candidates only.
+                        "selected_gate_reject_count",
+                        "selected_gate_scored_count",
+                        "selected_gate_pass_physical_safe_count",
+                        "selected_gate_reject_physical_safe_count",
+                        "selected_gate_reject_physical_failure_count",
+                        "selected_gate_reject_physical_failure_rate",
+                        # Separated physical labels.
+                        "selected_labelled_count",
+                        "selected_rotated_over_30_count",
+                        "selected_displaced_over_half_footprint_count",
+                        (
+                            "selected_horizontal_displaced"
+                            "_over_half_footprint_count"
+                        ),
+                        "selected_not_placed_safe_count",
+                        "selected_not_valid_count",
+                        "selected_not_included_count",
+                        "selected_physically_dangerous_count",
                     )
                 },
                 "failure_modes": dict(sorted(failures.items())),
@@ -244,6 +263,67 @@ def build_aggregate_markdown(aggregates: list[dict[str, Any]]) -> str:
             f"{release['physical_failure_count']['mean']:.1f} | "
             f"{release['selected_gate_pass_physical_failure_count']['mean']:.1f} | "
             f"{release['shadow_rejected_but_safe_count']['mean']:.1f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### Selected-release confusion matrix means",
+            "",
+            "Means over release candidates the ranking actually selected. "
+            "They are conditioned on that selection and are **not** the "
+            "gate's overall precision/recall: the selected set is the top of "
+            "the ranking, not a sample of all candidates. In `enforce` the "
+            "reject cells are empty by construction. Estimating gate-wide "
+            "behaviour needs the stratified counterfactual replay dataset, "
+            "not more runs of this benchmark.",
+            "",
+            "| Pool | Risk gate | Scored | TN pass/safe | FN pass/failed | "
+            "FP reject/safe | TP reject/failed | Reject failure rate |",
+            "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for result in aggregates:
+        release = result["release"]
+        lines.append(
+            f"| {result['look_ahead']} | {result['risk_gate_mode']} | "
+            f"{release['selected_gate_scored_count']['mean']:.1f} | "
+            f"{release['selected_gate_pass_physical_safe_count']['mean']:.1f} | "
+            f"{release['selected_gate_pass_physical_failure_count']['mean']:.1f} | "
+            f"{release['selected_gate_reject_physical_safe_count']['mean']:.1f} | "
+            f"{release['selected_gate_reject_physical_failure_count']['mean']:.1f} | "
+            f"{percent_mean(release['selected_gate_reject_physical_failure_rate'])} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### Selected-release physical label means",
+            "",
+            "Independent outcomes. `Dangerous` is the historical OR of "
+            "rotation, 3D displacement and not-placed-safe, kept only for "
+            "continuity with earlier runs.",
+            "",
+            "| Pool | Risk gate | Labelled | Rotated >30° | Displaced 3D | "
+            "Displaced XY | Not placed safe | Not valid | Not included | "
+            "Dangerous |",
+            "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: "
+            "| ---: |",
+        ]
+    )
+    for result in aggregates:
+        release = result["release"]
+        horizontal = release[
+            "selected_horizontal_displaced_over_half_footprint_count"
+        ]
+        lines.append(
+            f"| {result['look_ahead']} | {result['risk_gate_mode']} | "
+            f"{release['selected_labelled_count']['mean']:.1f} | "
+            f"{release['selected_rotated_over_30_count']['mean']:.1f} | "
+            f"{release['selected_displaced_over_half_footprint_count']['mean']:.1f} | "
+            f"{horizontal['mean']:.1f} | "
+            f"{release['selected_not_placed_safe_count']['mean']:.1f} | "
+            f"{release['selected_not_valid_count']['mean']:.1f} | "
+            f"{release['selected_not_included_count']['mean']:.1f} | "
+            f"{release['selected_physically_dangerous_count']['mean']:.1f} |"
         )
     lines.extend(
         [

@@ -825,6 +825,77 @@ class GeometryContractTests(unittest.TestCase):
         self.assertEqual(left_assessment.passed, right_assessment.passed)
         self.assertEqual(left_assessment.reasons, right_assessment.reasons)
 
+    def test_initial_tilt_is_an_unavailable_placeholder_and_never_gates(self):
+        self.assertIn(
+            "initial_tilt_deg",
+            agent.ReleaseRiskFeatures.unavailable_features(),
+        )
+        availability = agent.ReleaseRiskFeatures.feature_availability()
+        self.assertEqual(
+            availability["initial_tilt_deg"], "unavailable_placeholder"
+        )
+        self.assertEqual(
+            {
+                name
+                for name, state in availability.items()
+                if state != "available"
+            },
+            {"initial_tilt_deg"},
+        )
+
+        # No tilt threshold exists, so no rule can consume the field.
+        thresholds = agent.ReleaseRiskThresholds()
+        self.assertNotIn("max_initial_tilt_deg", thresholds.as_dict())
+        self.assertFalse(hasattr(thresholds, "max_initial_tilt_deg"))
+
+        # Even an arbitrarily tilted feature vector cannot be rejected for
+        # its pose while every commandable orientation is axis-aligned.
+        tilted = agent.ReleaseRiskFeatures(
+            support_ratio=1.0,
+            com_margin=1.0,
+            overhang_ratio=0.0,
+            drop_normalized=0.0,
+            support_imbalance=0.0,
+            left_right_imbalance=0.0,
+            front_back_imbalance=0.0,
+            initial_tilt_deg=90.0,
+            initial_orientation=0,
+        )
+        assessment = agent.evaluate_release_risk(tilted)
+        self.assertTrue(assessment.passed)
+        self.assertNotIn("initial_pose", assessment.reasons)
+
+    def test_gate_diagnostics_expose_feature_availability(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(31)
+        release = agent.AABB(
+            center=(0.0, 0.0, 0.5),
+            size=(0.3, 0.25, 0.2),
+            name="release_candidate",
+        )
+        diagnostics = {}
+
+        agent.release_candidate_passes_risk_gate(
+            release,
+            item,
+            container,
+            orientation=0,
+            mode="shadow",
+            diagnostics=diagnostics,
+            item_idx=31,
+        )
+
+        gate = diagnostics["release_risk_gate"]
+        self.assertEqual(
+            gate["feature_availability"]["initial_tilt_deg"],
+            "unavailable_placeholder",
+        )
+        self.assertIn("initial_tilt_deg", gate["unavailable_features"])
+
     def test_release_risk_gate_modes_only_filter_before_ranking(self):
         container = sample_container(
             require_shelf=False,
@@ -843,7 +914,6 @@ class GeometryContractTests(unittest.TestCase):
             max_overhang_ratio=0.1,
             max_drop_normalized=0.1,
             max_support_imbalance=0.1,
-            max_initial_tilt_deg=1.0,
         )
         original_score = agent.Ranker.score(
             release, item, container, False

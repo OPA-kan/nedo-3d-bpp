@@ -366,7 +366,14 @@ class SupportMetrics:
 
 @dataclass(frozen=True)
 class ReleaseRiskThresholds:
-    """Provisional deterministic thresholds for the isolated gate ablation."""
+    """
+    Provisional deterministic thresholds for the isolated gate ablation.
+
+    There is deliberately no initial-tilt threshold. Every orientation the
+    agent can command is axis-aligned, so ``initial_tilt_deg`` is always
+    0.0 and a tilt rule could never fire; see
+    ``ReleaseRiskFeatures.feature_availability``.
+    """
 
     min_support_ratio: float = float(
         os.environ.get("RELEASE_RISK_MIN_SUPPORT_RATIO", "0.25")
@@ -383,9 +390,6 @@ class ReleaseRiskThresholds:
     max_support_imbalance: float = float(
         os.environ.get("RELEASE_RISK_MAX_SUPPORT_IMBALANCE", "0.90")
     )
-    max_initial_tilt_deg: float = float(
-        os.environ.get("RELEASE_RISK_MAX_INITIAL_TILT_DEG", "1.0")
-    )
 
     def as_dict(self):
         return {
@@ -394,7 +398,6 @@ class ReleaseRiskThresholds:
             "max_overhang_ratio": float(self.max_overhang_ratio),
             "max_drop_normalized": float(self.max_drop_normalized),
             "max_support_imbalance": float(self.max_support_imbalance),
-            "max_initial_tilt_deg": float(self.max_initial_tilt_deg),
         }
 
 
@@ -441,6 +444,32 @@ class ReleaseRiskFeatures:
             "front_back_imbalance": "predicted_contact_state",
             "initial_tilt_deg": "command_state",
             "initial_orientation": "command_state",
+        }
+
+    @staticmethod
+    def unavailable_features():
+        """
+        Fields that are recorded but carry no information today.
+
+        ``initial_tilt_deg`` is a placeholder: every orientation the agent
+        can command is axis-aligned, so the commanded tilt is identically
+        0.0.  It is kept in the record so that replays stay schema-stable
+        and so a future non-axis-aligned command can populate it, but it
+        must not be used as a gate rule or as a learned feature while it is
+        constant.
+        """
+        return ("initial_tilt_deg",)
+
+    @staticmethod
+    def feature_availability():
+        unavailable = set(ReleaseRiskFeatures.unavailable_features())
+        return {
+            name: (
+                "unavailable_placeholder"
+                if name in unavailable
+                else "available"
+            )
+            for name in ReleaseRiskFeatures.feature_sources()
         }
 
 
@@ -1430,8 +1459,11 @@ def evaluate_release_risk(features, thresholds=None):
         > thresholds.max_support_imbalance + EPS
     ):
         reasons.append("support_imbalance")
-    if features.initial_tilt_deg > thresholds.max_initial_tilt_deg + EPS:
-        reasons.append("initial_pose")
+    # No initial-pose rule: initial_tilt_deg is an unavailable placeholder
+    # that is always 0.0 for the axis-aligned orientations the agent can
+    # command, so such a rule could never reject a candidate. Reinstate it
+    # only together with non-axis-aligned commands that actually populate
+    # the field.
     return ReleaseRiskAssessment(
         passed=not reasons,
         reasons=tuple(reasons),
@@ -1466,6 +1498,12 @@ def _record_release_risk_diagnostic(
             "mode": mode,
             "thresholds": thresholds.as_dict(),
             "feature_sources": ReleaseRiskFeatures.feature_sources(),
+            "feature_availability": (
+                ReleaseRiskFeatures.feature_availability()
+            ),
+            "unavailable_features": list(
+                ReleaseRiskFeatures.unavailable_features()
+            ),
             "offline_settled_telemetry_used": False,
             "evaluated": 0,
             "passed": 0,
@@ -1584,6 +1622,8 @@ def record_selected_release_risk(
         "mode": RELEASE_RISK_GATE_MODE,
         "features": features.as_dict(),
         "feature_sources": features.feature_sources(),
+        "feature_availability": features.feature_availability(),
+        "unavailable_features": list(features.unavailable_features()),
         "offline_settled_telemetry_used": False,
         "passed": bool(assessment.passed),
         "reasons": list(assessment.reasons),

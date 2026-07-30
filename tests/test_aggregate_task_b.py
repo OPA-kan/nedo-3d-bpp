@@ -113,6 +113,68 @@ class TaskBAggregateTests(unittest.TestCase):
         )
         self.assertIn("fixed_fallback=2", markdown)
 
+    def test_selected_confusion_matrix_and_labels_reach_the_aggregate(
+        self,
+    ) -> None:
+        def row(replicate: int, tp: int) -> dict:
+            return {
+                "look_ahead": 20,
+                "selection_mode": "weighted",
+                "coverage_mode": "class_aware",
+                "risk_gate_mode": "shadow",
+                "replicate": replicate,
+                "placed_count": 17,
+                "fill_score": 24.531,
+                "failure_mode": "release_failure",
+                "starvation_signal": False,
+                "coverage": {"overall": {}, "by_class": {}},
+                "release": {
+                    "selected_gate_scored_count": 6,
+                    "selected_gate_pass_physical_safe_count": 3,
+                    "selected_gate_pass_physical_failure_count": 1,
+                    "selected_gate_reject_physical_safe_count": 2,
+                    "selected_gate_reject_physical_failure_count": tp,
+                    "selected_gate_reject_count": 2 + tp,
+                    "selected_gate_reject_physical_failure_rate": 0.5,
+                    "selected_labelled_count": 6,
+                    "selected_rotated_over_30_count": 1,
+                    "selected_displaced_over_half_footprint_count": 2,
+                    "selected_horizontal_displaced"
+                    "_over_half_footprint_count": 1,
+                    "selected_not_placed_safe_count": 1,
+                    "selected_not_valid_count": 0,
+                    "selected_not_included_count": 1,
+                    "selected_physically_dangerous_count": 2,
+                },
+            }
+
+        aggregates = aggregate_rows([row(1, 2), row(2, 4)])
+        markdown = build_aggregate_markdown(aggregates)
+        release = aggregates[0]["release"]
+
+        self.assertEqual(
+            release["selected_gate_reject_physical_failure_count"]["mean"],
+            3.0,
+        )
+        self.assertEqual(
+            release["selected_gate_pass_physical_safe_count"]["mean"], 3.0
+        )
+        self.assertEqual(
+            release[
+                "selected_horizontal_displaced_over_half_footprint_count"
+            ]["mean"],
+            1.0,
+        )
+        self.assertEqual(
+            release["selected_not_included_count"]["mean"], 1.0
+        )
+        self.assertIn("### Selected-release confusion matrix means", markdown)
+        self.assertIn("### Selected-release physical label means", markdown)
+        # The conditioning must never be dropped from the report.
+        self.assertIn("not** the gate's overall precision/recall", markdown)
+        self.assertIn("stratified counterfactual replay dataset", markdown)
+        self.assertIn("| 20 | shadow | 6.0 | 3.0 | 1.0 | 2.0 | 3.0 |", markdown)
+
     def test_off_shadow_action_mismatch_is_reported_as_blocker(self) -> None:
         rows = []
         for mode, digest in (("off", "old-action"), ("shadow", "changed")):

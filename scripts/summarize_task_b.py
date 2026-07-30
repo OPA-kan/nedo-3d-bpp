@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import pathlib
 from typing import Any
 
@@ -141,6 +142,106 @@ def _coverage_values(
     }
 
 
+ROTATION_LABEL_DEG = 30.0
+DISPLACEMENT_LABEL_FOOTPRINT_RATIO = 0.5
+
+# Physical outcomes are kept apart on purpose. `physically_dangerous` is the
+# historical composite (rotation OR 3D displacement OR not placed safe) and
+# stays only so existing series remain comparable; anything that models the
+# outcome should use the separated labels instead.
+_SEPARATED_LABEL_NAMES = (
+    "rotated_over_30",
+    "displaced_over_half_footprint",
+    "horizontal_displaced_over_half_footprint",
+    "not_placed_safe",
+    "not_valid",
+    "not_included",
+    "physically_dangerous",
+)
+
+# 2x2 over SELECTED release candidates only. These cells are conditioned on
+# the ranking having chosen the candidate, so they are not gate-wide.
+_CONFUSION_CELL_NAMES = (
+    "selected_gate_pass_physical_safe_count",
+    "selected_gate_pass_physical_failure_count",
+    "selected_gate_reject_physical_safe_count",
+    "selected_gate_reject_physical_failure_count",
+)
+
+SELECTED_CONFUSION_SCOPE = (
+    "selected_release_candidates_only; conditioned on ranking selection, "
+    "not a gate-wide precision/recall"
+)
+
+
+def _finite(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
+def separated_physical_labels(metric: dict[str, Any]) -> dict[str, Any]:
+    """
+    Split one step's settle telemetry into independent outcomes.
+
+    Returns the continuous quantities (angle, horizontal and vertical
+    displacement) next to the individual boolean labels, so a caller can
+    threshold them differently without re-deriving anything.
+    """
+    angle_deg = _finite(metric.get("settle_angle_deg"))
+    displacement_norm = _finite(metric.get("settle_displacement_norm"))
+
+    displacement_xyz = metric.get("settle_displacement_xyz")
+    d_xy = None
+    d_z = None
+    if isinstance(displacement_xyz, list) and len(displacement_xyz) >= 3:
+        dx = _finite(displacement_xyz[0])
+        dy = _finite(displacement_xyz[1])
+        dz = _finite(displacement_xyz[2])
+        if dx is not None and dy is not None:
+            d_xy = math.hypot(dx, dy)
+        if dz is not None:
+            d_z = abs(dz)
+
+    aabb = metric.get("settle_aabb_dimensions")
+    footprint = None
+    if isinstance(aabb, list) and len(aabb) >= 2:
+        side_x = _finite(aabb[0])
+        side_y = _finite(aabb[1])
+        if side_x is not None and side_y is not None:
+            footprint = max(1e-9, min(side_x, side_y))
+
+    def over_footprint(distance: float | None) -> bool:
+        if distance is None or footprint is None:
+            return False
+        return distance / footprint > DISPLACEMENT_LABEL_FOOTPRINT_RATIO
+
+    status = metric.get("status")
+    status = status if isinstance(status, dict) else {}
+
+    rotated = angle_deg is not None and angle_deg > ROTATION_LABEL_DEG
+    displaced = over_footprint(displacement_norm)
+    not_placed_safe = status.get("is_placed_safe") is False
+
+    return {
+        "settle_angle_deg": angle_deg,
+        "settle_displacement_norm": displacement_norm,
+        "settle_displacement_xy": d_xy,
+        "settle_displacement_z": d_z,
+        "settle_footprint": footprint,
+        "rotated_over_30": rotated,
+        "displaced_over_half_footprint": displaced,
+        "horizontal_displaced_over_half_footprint": over_footprint(d_xy),
+        "not_placed_safe": not_placed_safe,
+        "not_valid": status.get("is_valid") is False,
+        "not_included": status.get("is_included") is False,
+        "physically_dangerous": bool(
+            rotated or displaced or not_placed_safe
+        ),
+    }
+
+
 def _release_values(
     trace_events: list[dict[str, Any]] | None,
     step_metrics: list[dict[str, Any]] | None,
@@ -223,6 +324,9 @@ def _release_values(
     rotation_over_30 = 0
     displacement_over_half_footprint = 0
     physical_failures = 0
+    labels = {name: 0 for name in _SEPARATED_LABEL_NAMES}
+    labelled_steps = 0
+    confusion = {name: 0 for name in _CONFUSION_CELL_NAMES}
     selected_gate_pass_count = 0
     selected_gate_pass_physical_failure_count = 0
     shadow_rejected_but_safe_count = 0
@@ -230,31 +334,21 @@ def _release_values(
         metric = metrics_by_step.get(decision.get("step"))
         if not isinstance(metric, dict):
             continue
-        rotated = float(metric.get("settle_angle_deg", 0.0)) > 30.0
+        outcome = separated_physical_labels(metric)
+        rotated = outcome["rotated_over_30"]
+        displaced = outcome["displaced_over_half_footprint"]
         if rotated:
             rotation_over_30 += 1
-        displacement = metric.get("settle_displacement_norm")
-        aabb = metric.get("settle_aabb_dimensions")
-        displaced = False
-        if (
-            isinstance(displacement, (int, float))
-            and isinstance(aabb, list)
-            and len(aabb) >= 2
-        ):
-            footprint = max(1e-9, min(float(aabb[0]), float(aabb[1])))
-            if float(displacement) / footprint > 0.5:
-                displacement_over_half_footprint += 1
-                displaced = True
-        status = metric.get("status")
-        physically_invalid = (
-            isinstance(status, dict)
-            and status.get("is_placed_safe") is False
-        )
-        if physically_invalid:
+        if displaced:
+            displacement_over_half_footprint += 1
+        if outcome["not_placed_safe"]:
             physical_failures += 1
-        physically_dangerous = bool(
-            rotated or displaced or physically_invalid
-        )
+        labelled_steps += 1
+        for name in _SEPARATED_LABEL_NAMES:
+            labels[name] += int(bool(outcome[name]))
+        # Kept as the historical composite so existing series stay
+        # comparable; the separated labels above are the ones to model on.
+        physically_dangerous = bool(outcome["physically_dangerous"])
         diagnostics = decision.get("candidate_diagnostics")
         selected_risk = (
             diagnostics.get("selected_release_risk")
@@ -263,16 +357,27 @@ def _release_values(
         )
         if not isinstance(selected_risk, dict):
             continue
-        if selected_risk.get("passed") is True:
+        passed = selected_risk.get("passed")
+        if passed is True:
             selected_gate_pass_count += 1
             if physically_dangerous:
                 selected_gate_pass_physical_failure_count += 1
-        elif (
-            selected_risk.get("mode") == "shadow"
-            and selected_risk.get("passed") is False
-            and not physically_dangerous
-        ):
-            shadow_rejected_but_safe_count += 1
+                confusion["selected_gate_pass_physical_failure_count"] += 1
+            else:
+                confusion["selected_gate_pass_physical_safe_count"] += 1
+        elif passed is False:
+            if physically_dangerous:
+                confusion["selected_gate_reject_physical_failure_count"] += 1
+            else:
+                confusion["selected_gate_reject_physical_safe_count"] += 1
+                if selected_risk.get("mode") == "shadow":
+                    shadow_rejected_but_safe_count += 1
+
+    selected_gate_reject_count = (
+        confusion["selected_gate_reject_physical_failure_count"]
+        + confusion["selected_gate_reject_physical_safe_count"]
+    )
+    selected_scored_count = selected_gate_pass_count + selected_gate_reject_count
 
     return {
         "gate_mode_observed": (
@@ -325,6 +430,25 @@ def _release_values(
         "shadow_rejected_but_safe_count": (
             shadow_rejected_but_safe_count
         ),
+        # --- 2x2 over selected release candidates only -------------------
+        # Conditioned on the ranking having selected the candidate. Do not
+        # report these as the gate's precision/recall.
+        "selected_confusion_scope": SELECTED_CONFUSION_SCOPE,
+        "selected_gate_reject_count": selected_gate_reject_count,
+        "selected_gate_scored_count": selected_scored_count,
+        **{name: confusion[name] for name in _CONFUSION_CELL_NAMES},
+        "selected_gate_reject_physical_failure_rate": (
+            confusion["selected_gate_reject_physical_failure_count"]
+            / selected_gate_reject_count
+            if selected_gate_reject_count > 0
+            else None
+        ),
+        # --- separated physical labels over selected release candidates --
+        "selected_labelled_count": labelled_steps,
+        **{
+            f"selected_{name}_count": labels[name]
+            for name in _SEPARATED_LABEL_NAMES
+        },
     }
 
 
@@ -545,6 +669,61 @@ def build_task_b_summary(
             f"{release['physical_failure_count']} | "
             f"{_percent(release['gate_passing_release_failure_rate'])} | "
             f"{release['shadow_rejected_but_safe_count']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### Selected-release confusion matrix",
+            "",
+            "Counts cover only release candidates the ranking actually "
+            "selected, so they are conditioned on that selection and are "
+            "**not** the gate's overall precision/recall. In `enforce` the "
+            "reject column is empty by construction, because rejected "
+            "candidates never reach selection.",
+            "",
+            "| Case | Risk gate | Scored | TN pass/safe | FN pass/failed | "
+            "FP reject/safe | TP reject/failed | Reject failure rate |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for row in rows:
+        release = row["release"]
+        lines.append(
+            f"| {row['case']} | {row['risk_gate_mode']} | "
+            f"{release['selected_gate_scored_count']} | "
+            f"{release['selected_gate_pass_physical_safe_count']} | "
+            f"{release['selected_gate_pass_physical_failure_count']} | "
+            f"{release['selected_gate_reject_physical_safe_count']} | "
+            f"{release['selected_gate_reject_physical_failure_count']} | "
+            f"{_percent(release['selected_gate_reject_physical_failure_rate'])} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### Selected-release physical labels",
+            "",
+            "Independent outcomes, not the composite. `Dangerous` is the "
+            "historical OR of rotation, 3D displacement and not-placed-safe, "
+            "kept only for continuity with earlier runs.",
+            "",
+            "| Case | Labelled | Rotated >30° | Displaced 3D | "
+            "Displaced XY | Not placed safe | Not valid | Not included | "
+            "Dangerous |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for row in rows:
+        release = row["release"]
+        lines.append(
+            f"| {row['case']} | "
+            f"{release['selected_labelled_count']} | "
+            f"{release['selected_rotated_over_30_count']} | "
+            f"{release['selected_displaced_over_half_footprint_count']} | "
+            f"{release['selected_horizontal_displaced_over_half_footprint_count']} | "
+            f"{release['selected_not_placed_safe_count']} | "
+            f"{release['selected_not_valid_count']} | "
+            f"{release['selected_not_included_count']} | "
+            f"{release['selected_physically_dangerous_count']} |"
         )
     return "\n".join(lines) + "\n"
 
