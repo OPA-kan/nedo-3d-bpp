@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "dataset_id": "20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a",
-  "status": "running",
+  "status": "complete",
   "timestamp": "2026-07-30T16:33:02+00:00",
   "selection_mode": "weighted",
   "coverage_mode": "class_aware",
@@ -29,5 +29,465 @@
     "settle": "official_place_item",
     "note": "Rows are an unequal-probability sample. Re-weight by sampling.sampling_weight before reading any rate as a population rate."
   },
-  "case": null
+  "case": {
+    "case_id": "b000-k40",
+    "target_steps": [
+      10,
+      11
+    ],
+    "reached_steps": [
+      10,
+      11
+    ],
+    "unreached_steps": [],
+    "failed_steps": [],
+    "episode_steps_executed": 12,
+    "episode_terminated": true,
+    "episode_truncated": false,
+    "final_status": {
+      "is_included": true,
+      "is_valid": true,
+      "is_placed_safe": false
+    },
+    "trajectory": "competition_equivalent",
+    "steps": [
+      {
+        "schema_version": 1,
+        "dataset_id": "20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a",
+        "snapshot_id": "20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a:b000-k40:step-010",
+        "case_id": "b000-k40",
+        "step": 10,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-010-state.json",
+        "dataset_path": "step-010-candidates.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 7531,
+          "total": 7531,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            10,
+            22,
+            7,
+            12,
+            13,
+            14,
+            15,
+            25,
+            29,
+            0
+          ],
+          "item_indices": [
+            17,
+            31,
+            11,
+            19,
+            20,
+            22,
+            23,
+            35,
+            39,
+            0
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260731,
+          "sampled": 25,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 6777,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0011804633318577543
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 744,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.009421265141318977
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 3.658799960248871e-05
+        },
+        "replay_seconds": 6.469877907999944,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 473862,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 59.70988874500017,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 29343,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 9.327797403000659,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 69.03774872700069
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 83468,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 83.84862791100022
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 274,
+          "accepted_total_count": 274,
+          "search": {
+            "units_total": 120,
+            "units_started": 55,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 28
+          }
+        },
+        "action": {
+          "item_idx": 7,
+          "container_idx": 0,
+          "place_pos": [
+            0.0,
+            -0.3440000116825104,
+            0.6852744817733765
+          ],
+          "orientation": 3
+        }
+      },
+      {
+        "schema_version": 1,
+        "dataset_id": "20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a",
+        "snapshot_id": "20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a:b000-k40:step-011",
+        "case_id": "b000-k40",
+        "step": 11,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-011-state.json",
+        "dataset_path": "step-011-candidates.jsonl",
+        "population": {
+          "settled": 5550,
+          "release": 14027,
+          "total": 19577,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            9,
+            21,
+            11,
+            12,
+            13,
+            14,
+            24,
+            28,
+            0,
+            3
+          ],
+          "item_indices": [
+            17,
+            31,
+            19,
+            20,
+            22,
+            23,
+            35,
+            39,
+            0,
+            4
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260731,
+          "sampled": 66,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=tail",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "tail"
+              },
+              "population": 4995,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0016016016016016017
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top1",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10pct",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10pct"
+              },
+              "population": 545,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.014678899082568808
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "tail"
+              },
+              "population": 5783,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0013833650354487291
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10pct"
+              },
+              "population": 505,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.015841584158415842
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 6841,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.0010233918128654971
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 888,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.009009009009009009
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 6.199099971126998e-05
+        },
+        "replay_seconds": 19.17448308100029,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 685699,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 137.6646633800001,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 40858,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 20.069922688999213,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 5186,
+            "support_plane": 922
+          },
+          "union_count": 5550,
+          "overlap_count": 558,
+          "cartesian_only_count": 4628,
+          "support_plane_only_count": 364,
+          "elapsed_seconds": 157.98746972699973
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 102367,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 157.49386033799965
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 252,
+          "accepted_total_count": 252,
+          "search": {
+            "units_total": 120,
+            "units_started": 46,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 22
+          }
+        },
+        "action": {
+          "item_idx": 11,
+          "container_idx": 0,
+          "place_pos": [
+            0.6141970157623291,
+            0.03620269149541855,
+            0.7269766926765442
+          ],
+          "orientation": 3
+        }
+      }
+    ]
+  },
+  "problems": []
 }
