@@ -9,11 +9,10 @@ Repository: https://github.com/OPA-kan/nedo-3d-bpp
 - **Live trunk is `experiment/anchor-recall-oracle`, not `main`.** `main` is
   frozen at `d3986a9` and is ~39 commits behind. Reading `main` will give you
   an `agent/agent.py` that is 2,629 lines out of date.
-- Current review branch: `claude/release-counterfactual-replay`, branched
-  from `experiment/anchor-recall-oracle`, awaiting read-only review. No SHA
-  is pinned here on purpose — it would go stale on the next commit and send a
-  reviewer at the wrong diff. Read the tip with
-  `git log --oneline origin/experiment/anchor-recall-oracle..origin/claude/release-counterfactual-replay`.
+- The counterfactual replay work from `claude/release-counterfactual-replay`
+  has been fast-forwarded into the live trunk. No SHA is pinned here on
+  purpose — generated report commits move the branch. Confirm branch state
+  with `git fetch --all --prune` and `git log --oneline --decorate -10`.
 - Run `git fetch --all --prune` before judging what exists.
 
 ```powershell
@@ -37,14 +36,17 @@ Actions artifacts so git does not bloat; only compact summaries are committed.
 
 | Experiment | Artifact | Auto-committed |
 |---|---|---|
-| Task B benchmark | yes | **no** (`contents: read`) |
+| Task B benchmark | raw runs | compact aggregate/history |
 | Anchor recall oracle | yes | compact summary only |
 | Lookahead comparison | yes | compact summary/history |
 | CPU verification | yes | no |
 
-So the headline off/shadow/enforce numbers are **not in git**; they are
-downloaded from the Task B aggregate artifact. `reports/lookahead/latest-summary.json`
-is named "latest" but stopped at 2026-07-28 — do not read it as current.
+New Task B runs persist `aggregate.md` and `aggregate.json` under
+`reports/task-b/history/<run_id>/`; raw traces and per-replicate simulator
+outputs stay in the Actions artifact. Historical runs from before this policy
+change remain artifact-only unless imported deliberately.
+`reports/lookahead/latest-summary.json` is named "latest" but stopped at
+2026-07-28 — do not read it as current.
 
 ## Established by evidence
 

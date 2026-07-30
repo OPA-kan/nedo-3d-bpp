@@ -134,6 +134,8 @@ jobs:
     name: screening-aggregate
     needs: benchmark
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -156,3 +158,36 @@ jobs:
           path: |
             reports/task-b-screening/aggregate.md
             reports/task-b-screening/aggregate.json
+      - name: Persist compact aggregate history
+        if: github.ref == 'refs/heads/experiment/anchor-recall-oracle'
+        env:
+          HISTORY_DIR: reports/task-b/history/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HISTORY_DIR"
+          cp reports/task-b-screening/aggregate.md \
+            "$HISTORY_DIR/aggregate.md"
+          cp reports/task-b-screening/aggregate.json \
+            "$HISTORY_DIR/aggregate.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$HISTORY_DIR/aggregate.md" "$HISTORY_DIR/aggregate.json"
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit \
+            -m "Record Task B aggregate ${{ github.run_id }} [skip ci]"
+
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Failed to push aggregate after $attempt attempts" >&2
+              exit 1
+            fi
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+          done

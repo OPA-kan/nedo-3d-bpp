@@ -118,6 +118,8 @@ jobs:
 
   task-b-benchmark:
     if: github.event_name == 'workflow_dispatch' && inputs.run_task_b
+    permissions:
+      contents: write
     uses: ./.github/workflows/task-b-benchmark.yml
     with:
       selection_mode: ${{ inputs.selection_mode }}
