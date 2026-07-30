@@ -16,7 +16,13 @@ import numpy as np
 # - Boundary clearance includes official, physics-settle, and float32 guards.
 # - Transport clearance includes the official 15 mm plus a float32 guard.
 # - Candidate poses represent final support contact.
+# - The inclusion check applies to the transmitted action pose, so contact
+#   poses on inclusion planes (the container floor) are lifted before the
+#   inclusion test, exactly as the emitted action is.
 # - Shelf actions are lifted 5.1 cm to avoid the validator's direct-rest path.
+# - Floor actions are lifted 2 cm: enough to clear the official 5 mm
+#   floor-plane inclusion margin plus guards, small enough to stay inside
+#   the validator's 5 cm direct-rest window (no extra drop dynamics).
 OFFICIAL_INCLUSION_CLEARANCE = 0.005
 PHYSICS_BOUNDARY_GUARD = 0.010
 FLOAT32_CLEARANCE_GUARD = 0.001
@@ -31,14 +37,28 @@ TRANSPORT_CLEARANCE = (
 )
 PHYSICS_LATERAL_GUARD = 0.010
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
-TRANSPORT_SAMPLE_STEP = 0.03
+# The validator samples the transport path every 1 cm; the distance to any
+# fixed box is 1-Lipschitz in the moving pose, so with our sample step s the
+# continuous minimum is at least (SETTLED_ITEM_CLEARANCE - s/2). With
+# s = 0.02 that lower bound is 16 mm > the official 15 mm margin.
+TRANSPORT_SAMPLE_STEP = 0.02
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
 SIMULATOR_CEILING_MARGIN = 0.018
 SIMULATOR_CEILING_CLIP_EPS = 0.0005
 SHELF_ACTION_LIFT = 0.051
+FLOOR_ACTION_LIFT = 0.02
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
+# Side-by-side placement gap: settled clearance plus 1 mm slack so both the
+# final-pose lateral guard and the transport clearance pass without sitting
+# exactly on the rejection threshold.
+ADJACENCY_GAP = SETTLED_ITEM_CLEARANCE + 0.001
+# When the strict search finds nothing, retry once with relaxed support
+# before emitting any blind fallback: a partially supported settle is far
+# more survivable than a transport collision, which ends the episode.
+RELAXED_MIN_SUPPORT_RATIO = 0.30
+RELAXED_FALLBACK_RESERVE_SECONDS = 1.2
 POLICY_BUDGET_SECONDS = 6.5
 MAX_POOL_ITEMS_EVALUATED = 10
 OFFLINE_SEARCH_BUDGET_SECONDS = float(
@@ -375,7 +395,13 @@ def within_euclidean_clearance(candidate, obstacle, clearance):
     return float(np.linalg.norm(gaps)) < float(clearance) - EPS
 
 
-def transport_sweeps(candidate, container):
+def transport_start_and_z(candidate, container, geo=None):
+    """
+    Mirror of the validator's start-pose computation: clamped start X, the
+    entry Y just outside the opening, and the transport height including the
+    direct-rest and ceiling-clip rules, all derived from the transmitted
+    action pose (with any shelf/floor lift applied).
+    """
     length = float(container["length"])
     width = float(container["width"])
     thickness = float(container["thickness"])
@@ -398,7 +424,7 @@ def transport_sweeps(candidate, container):
     target_y = float(candidate.center[1])
     start_x = min(max(target_x, x_min), x_max)
     entry_y = -width / 2.0
-    action_center = simulator_action_center(candidate, container)
+    action_center = simulator_action_center(candidate, container, geo)
     height = float(container["height"])
     buffer = float(container.get("buffer", 0.0))
     half_z = float(candidate.size[2]) / 2.0
@@ -444,6 +470,13 @@ def transport_sweeps(candidate, container):
     transport_z = min(
         maximum_start_z,
         float(action_center[2]) + effective_start_z,
+    )
+    return start_x, entry_y, transport_z, target_x, target_y
+
+
+def transport_sweeps(candidate, container, geo=None):
+    start_x, entry_y, transport_z, target_x, target_y = transport_start_and_z(
+        candidate, container, geo
     )
     y_leg = AABB(
         center=(start_x, (entry_y + target_y) / 2.0, transport_z),
@@ -477,109 +510,51 @@ def transport_sweep(candidate, container):
     )
 
 
+def transport_sample_centers(
+    candidate, container, geo=None, step: float = TRANSPORT_SAMPLE_STEP
+):
+    """Sample centers along the Y-then-X transport path as an (n, 3) array."""
+    start_x, entry_y, transport_z, target_x, target_y = transport_start_and_z(
+        candidate, container, geo
+    )
+    steps_y = max(int(math.ceil(abs(target_y - entry_y) / step)), 1)
+    ys = np.linspace(entry_y, target_y, steps_y + 1)
+    steps_x = max(int(math.ceil(abs(target_x - start_x) / step)), 1)
+    xs = np.linspace(start_x, target_x, steps_x + 1)
+
+    centers = np.empty((len(ys) + len(xs), 3), dtype=np.float64)
+    centers[: len(ys), 0] = start_x
+    centers[: len(ys), 1] = ys
+    centers[len(ys):, 0] = xs
+    centers[len(ys):, 1] = target_y
+    centers[:, 2] = transport_z
+    return centers
+
+
 def transport_samples(candidate, container, step: float = TRANSPORT_SAMPLE_STEP):
-    length = float(container["length"])
-    width = float(container["width"])
-    thickness = float(container["thickness"])
-    cut_x = float(container.get("cut_x", 0.0))
-    half_x = float(candidate.size[0]) / 2.0
-    x_min = (
-        -length / 2.0
-        + thickness
-        + cut_x
-        + half_x
-        + SIMULATOR_START_MARGIN
-    )
-    x_max = (
-        length / 2.0
-        - thickness
-        - half_x
-        - SIMULATOR_START_MARGIN
-    )
-    target_x = float(candidate.center[0])
-    target_y = float(candidate.center[1])
-    start_x = min(max(target_x, x_min), x_max)
-    entry_y = -width / 2.0
-    action_center = simulator_action_center(candidate, container)
-    height = float(container["height"])
-    buffer = float(container.get("buffer", 0.0))
-    half_z = float(candidate.size[2]) / 2.0
-    effective_start_z = SIMULATOR_DROP_HEIGHT
-    bottom_z = float(action_center[2]) - half_z
-    resting_surfaces = (
-        thickness,
-        height / 2.0 + thickness + buffer,
-    )
-    for resting_z in resting_surfaces:
-        if 0.0 <= bottom_z - resting_z <= 0.05:
-            effective_start_z = 0.0
-            break
-
-    top_z = float(action_center[2]) + half_z
-    if effective_start_z > 0.0:
-        ceiling_surfaces = (
-            height / 2.0 + buffer,
-            height + buffer - thickness,
-        )
-        for ceiling_z in ceiling_surfaces:
-            clearance = ceiling_z - top_z
-            if (
-                0.0
-                <= clearance
-                < effective_start_z + SIMULATOR_CEILING_MARGIN
-            ):
-                effective_start_z = max(
-                    0.0,
-                    clearance
-                    - SIMULATOR_CEILING_MARGIN
-                    - SIMULATOR_CEILING_CLIP_EPS,
-                )
-                break
-
-    maximum_start_z = (
-        height
-        + buffer
-        - thickness
-        - half_z
-        - SIMULATOR_START_MARGIN
-    )
-    transport_z = min(
-        maximum_start_z,
-        float(action_center[2]) + effective_start_z,
-    )
-
-    samples = []
-    dist_y = abs(target_y - entry_y)
-    steps_y = max(int(math.ceil(dist_y / step)), 1)
-    for i in range(steps_y + 1):
-        frac = i / steps_y
-        y = entry_y + (target_y - entry_y) * frac
-        samples.append(
-            AABB((start_x, y, transport_z), candidate.size, "transport_sample_y")
-        )
-
-    dist_x = abs(target_x - start_x)
-    steps_x = max(int(math.ceil(dist_x / step)), 1)
-    for i in range(steps_x + 1):
-        frac = i / steps_x
-        x = start_x + (target_x - start_x) * frac
-        samples.append(
-            AABB((x, target_y, transport_z), candidate.size, "transport_sample_x")
-        )
-
-    return samples
+    centers = transport_sample_centers(candidate, container, step=step)
+    return [
+        AABB(tuple(center), candidate.size, "transport_sample")
+        for center in centers
+    ]
 
 
-def simulator_action_center(candidate, container):
+def simulator_action_center(candidate, container, geo=None):
     action_center = np.asarray(candidate.center, dtype=np.float64).copy()
-    for shelf in shelf_aabbs(container):
+    bottom = float(candidate.minimum[2])
+    shelves = geo.shelves if geo is not None else shelf_aabbs(container)
+    for shelf in shelves:
         if (
-            abs(float(candidate.minimum[2]) - shelf.top)
-            <= CONTACT_TOLERANCE
+            abs(bottom - shelf.top) <= CONTACT_TOLERANCE
             and xy_overlap_area(candidate, shelf) > EPS
         ):
             action_center[2] += SHELF_ACTION_LIFT
-            break
+            return action_center
+    floor_top = float(container["thickness"]) + float(
+        container.get("buffer", 0.0)
+    )
+    if abs(bottom - floor_top) <= CONTACT_TOLERANCE:
+        action_center[2] += FLOOR_ACTION_LIFT
     return action_center
 
 
@@ -603,18 +578,81 @@ def support_surfaces(container):
     return surfaces
 
 
-class Geometry:
-    @staticmethod
-    def inside_container(candidate, container):
+class ContainerGeometry:
+    """
+    Precomputed geometry for one container observation state. Shelf boxes,
+    packed AABBs, boundary planes, and support surfaces are static for the
+    duration of a placement search, so computing them once per container
+    per search (instead of per candidate) removes the dominant cost of
+    candidate generation.
+    """
+
+    def __init__(self, container):
+        self.container = container
+        self.offset_x = container_offset_x(container)
+        self.floor_top = float(container["thickness"]) + float(
+            container.get("buffer", 0.0)
+        )
+        self.shelves = shelf_aabbs(container)
+        self.packed = packed_aabbs_local(container)
+
+        self.support = [
+            AABB(
+                center=(0.0, 0.0, self.floor_top),
+                size=(
+                    float(container["length"]),
+                    float(container["width"]),
+                    0.0,
+                ),
+                name="floor",
+            )
+        ]
+        self.support.extend(self.shelves)
+        self.support.extend(
+            box
+            for box, is_soft, is_prioritized in self.packed
+            if not is_soft and not is_prioritized
+        )
+        self.support_min = np.array([s.minimum for s in self.support])
+        self.support_max = np.array([s.maximum for s in self.support])
+        self.support_top = np.array([s.top for s in self.support])
+
+        obstacles = list(self.shelves) + [box for box, _s, _p in self.packed]
+        if obstacles:
+            self.obstacle_min = np.array([b.minimum for b in obstacles])
+            self.obstacle_max = np.array([b.maximum for b in obstacles])
+        else:
+            self.obstacle_min = None
+            self.obstacle_max = None
+
         points = container.get("points")
         normals = container.get("n_vecs")
+        if points is not None and normals is not None:
+            self.plane_points = np.asarray(points, dtype=np.float64)
+            self.plane_normals = np.asarray(normals, dtype=np.float64)
+        else:
+            self.plane_points = None
+            self.plane_normals = None
+
+
+class Geometry:
+    @staticmethod
+    def inside_container(candidate, container, geo=None):
+        if geo is not None:
+            points = geo.plane_points
+            normals = geo.plane_normals
+        else:
+            points = container.get("points")
+            normals = container.get("n_vecs")
+            if points is not None:
+                points = np.asarray(points, dtype=np.float64)
+            if normals is not None:
+                normals = np.asarray(normals, dtype=np.float64)
         if points is None or normals is None:
             return True
 
         center_world = local_to_world(candidate.center, container)
         half_size = np.asarray(candidate.size, dtype=np.float64) / 2.0
-        points = np.asarray(points, dtype=np.float64)
-        normals = np.asarray(normals, dtype=np.float64)
         signed_extents = (
             np.sum(normals * (center_world - points), axis=1)
             + np.abs(normals) @ half_size
@@ -622,33 +660,50 @@ class Geometry:
         return bool(np.all(signed_extents <= -INCLUSION_CLEARANCE + EPS))
 
     @staticmethod
-    def clears_static_geometry(candidate, container):
-        for shelf in shelf_aabbs(container):
-            if penetrates_with_lateral_clearance(
-                candidate, shelf, SETTLED_ITEM_CLEARANCE
-            ):
-                return False
-        for packed, _is_soft, _is_prioritized in packed_aabbs_local(container):
-            if penetrates_with_lateral_clearance(
-                candidate, packed, SETTLED_ITEM_CLEARANCE
-            ):
-                return False
-        return True
+    def clears_static_geometry(candidate, container, geo=None):
+        if geo is None:
+            geo = ContainerGeometry(container)
+        if geo.obstacle_min is None:
+            return True
+        cmin = np.asarray(candidate.minimum)
+        cmax = np.asarray(candidate.maximum)
+        vertical_gap = np.maximum(
+            geo.obstacle_min[:, 2] - cmax[2],
+            cmin[2] - geo.obstacle_max[:, 2],
+        )
+        x_gap = np.maximum(
+            geo.obstacle_min[:, 0] - cmax[0],
+            cmin[0] - geo.obstacle_max[:, 0],
+        )
+        y_gap = np.maximum(
+            geo.obstacle_min[:, 1] - cmax[1],
+            cmin[1] - geo.obstacle_max[:, 1],
+        )
+        penetrates = (
+            (vertical_gap < -CONTACT_TOLERANCE)
+            & (x_gap < SETTLED_ITEM_CLEARANCE - EPS)
+            & (y_gap < SETTLED_ITEM_CLEARANCE - EPS)
+        )
+        return not bool(penetrates.any())
 
     @staticmethod
-    def support_ratio(candidate, container):
+    def support_ratio(candidate, container, geo=None):
         item_area = float(candidate.size[0] * candidate.size[1])
         if item_area <= EPS:
             return 0.0
+        if geo is None:
+            geo = ContainerGeometry(container)
 
         bottom = float(candidate.minimum[2])
-        supported_area = 0.0
-        for surface in support_surfaces(container):
-            vertical_release = bottom - surface.top
-            if abs(vertical_release) <= CONTACT_TOLERANCE:
-                supported_area = max(
-                    supported_area, xy_overlap_area(candidate, surface)
-                )
+        matching = np.abs(bottom - geo.support_top) <= CONTACT_TOLERANCE
+        if not matching.any():
+            return 0.0
+        cmin = np.asarray(candidate.minimum[:2])
+        cmax = np.asarray(candidate.maximum[:2])
+        overlap_min = np.maximum(cmin, geo.support_min[matching, :2])
+        overlap_max = np.minimum(cmax, geo.support_max[matching, :2])
+        span = np.maximum(0.0, overlap_max - overlap_min)
+        supported_area = float((span[:, 0] * span[:, 1]).max())
         return min(1.0, supported_area / item_area)
 
     @staticmethod
@@ -748,50 +803,68 @@ class Geometry:
         )
 
     @staticmethod
-    def has_stable_support(candidate, container):
-        return Geometry.support_ratio(candidate, container) >= MIN_SUPPORT_RATIO
+    def has_stable_support(candidate, container, geo=None, min_support=None):
+        threshold = MIN_SUPPORT_RATIO if min_support is None else min_support
+        return Geometry.support_ratio(candidate, container, geo) >= threshold
 
     @staticmethod
-    def transport_path_clear(candidate, container):
-        for sample in transport_samples(candidate, container):
-            for obstacle in shelf_aabbs(container):
-                if within_euclidean_clearance(
-                    sample, obstacle, SETTLED_ITEM_CLEARANCE
-                ):
-                    return False
-            for obstacle, _is_soft, _is_prioritized in packed_aabbs_local(
-                container
-            ):
-                if within_euclidean_clearance(
-                    sample, obstacle, SETTLED_ITEM_CLEARANCE
-                ):
-                    return False
-        return True
+    def transport_path_clear(candidate, container, geo=None):
+        if geo is None:
+            geo = ContainerGeometry(container)
+        if geo.obstacle_min is None:
+            return True
+        centers = transport_sample_centers(candidate, container, geo)
+        half = np.asarray(candidate.size, dtype=np.float64) / 2.0
+        sample_min = centers - half
+        sample_max = centers + half
+        gaps = np.maximum(
+            0.0,
+            np.maximum(
+                geo.obstacle_min[None, :, :] - sample_max[:, None, :],
+                sample_min[:, None, :] - geo.obstacle_max[None, :, :],
+            ),
+        )
+        squared = (gaps * gaps).sum(axis=2)
+        threshold = SETTLED_ITEM_CLEARANCE - EPS
+        return not bool((squared < threshold * threshold).any())
 
     @classmethod
-    def valid(cls, candidate, container):
-        drop_pose = AABB(
-            center=(
-                float(candidate.center[0]),
-                float(candidate.center[1]),
-                float(candidate.center[2]) + SIMULATOR_DROP_HEIGHT,
+    def valid(cls, candidate, container, geo=None, min_support=None):
+        if geo is None:
+            geo = ContainerGeometry(container)
+        # The inclusion contract applies to the transmitted action pose,
+        # which carries the shelf/floor lift; the raw contact pose may rest
+        # exactly on the floor inclusion plane and would wrongly fail.
+        action_pose = AABB(
+            center=tuple(
+                float(value)
+                for value in simulator_action_center(candidate, container, geo)
             ),
             size=candidate.size,
-            name="drop_pose",
+            name="action_pose",
         )
         return (
-            cls.inside_container(candidate, container)
-            and cls.inside_container(drop_pose, container)
-            and cls.clears_static_geometry(candidate, container)
-            and cls.has_stable_support(candidate, container)
-            and cls.transport_path_clear(candidate, container)
+            cls.inside_container(action_pose, container, geo)
+            and cls.clears_static_geometry(candidate, container, geo)
+            and cls.has_stable_support(candidate, container, geo, min_support)
+            and cls.transport_path_clear(candidate, container, geo)
         )
 
 
 class CandidateGenerator:
     @staticmethod
-    def generate(observation, item, container_idx, orientation, limit=400):
+    def generate(
+        observation,
+        item,
+        container_idx,
+        orientation,
+        limit=400,
+        geo=None,
+        min_support=None,
+    ):
         container = observation["container_list"][container_idx]
+        if geo is None:
+            geo = ContainerGeometry(container)
         dims = get_rotated_dimensions(
             item["length"], item["width"], item["height"], orientation
         )
@@ -836,10 +909,10 @@ class CandidateGenerator:
                 + thickness
                 + cut_x
                 + dx / 2.0
-                + TRANSPORT_CLEARANCE
+                + ADJACENCY_GAP
             )
 
-        for surface in support_surfaces(container):
+        for surface in geo.support:
             zs.add(surface.top + dz / 2.0)
             xs.update(
                 (
@@ -854,42 +927,141 @@ class CandidateGenerator:
                 )
             )
 
-        for packed, _is_soft, _is_prioritized in packed_aabbs_local(container):
+        for packed, _is_soft, _is_prioritized in geo.packed:
             xs.update(
                 (
-                    packed.minimum[0] - dx / 2.0 - TRANSPORT_CLEARANCE,
-                    packed.maximum[0] + dx / 2.0 + TRANSPORT_CLEARANCE,
+                    packed.minimum[0] - dx / 2.0 - ADJACENCY_GAP,
+                    packed.maximum[0] + dx / 2.0 + ADJACENCY_GAP,
                 )
             )
             ys.update(
                 (
-                    packed.minimum[1] - dy / 2.0 - TRANSPORT_CLEARANCE,
-                    packed.maximum[1] + dy / 2.0 + TRANSPORT_CLEARANCE,
+                    packed.minimum[1] - dy / 2.0 - ADJACENCY_GAP,
+                    packed.maximum[1] + dy / 2.0 + ADJACENCY_GAP,
                 )
             )
+
+        # Grid in the historical iteration order: y descending outer,
+        # x sorted by |x| inner; each z-layer is culled with vectorized
+        # inclusion / static-clearance / support tests, and only the
+        # survivors pay for the per-candidate transport-path check.
+        xs_sorted = np.asarray(sorted(xs, key=abs), dtype=np.float64)
+        ys_sorted = np.asarray(sorted(ys, reverse=True), dtype=np.float64)
+        grid_x = np.tile(xs_sorted, len(ys_sorted))
+        grid_y = np.repeat(ys_sorted, len(xs_sorted))
+        half = np.asarray(dims, dtype=np.float64) / 2.0
+        threshold = MIN_SUPPORT_RATIO if min_support is None else min_support
+        item_area = float(dx * dy)
+        if item_area <= EPS:
+            return []
 
         candidates = []
         seen = set()
         for z in sorted(zs):
-            for y in sorted(ys, reverse=True):
-                for x in sorted(xs, key=abs):
-                    position = (float(x), float(y), float(z))
-                    key = tuple(round(value, 4) for value in position)
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    candidate = AABB(position, dims, "candidate")
-                    if Geometry.valid(candidate, container):
-                        candidates.append(candidate)
-                        if len(candidates) >= limit:
-                            return candidates
+            bottom = float(z) - half[2]
+            top = float(z) + half[2]
+
+            matching = np.abs(bottom - geo.support_top) <= CONTACT_TOLERANCE
+            if not matching.any():
+                continue
+
+            lifts = np.zeros(len(grid_x), dtype=np.float64)
+            shelf_contact = np.zeros(len(grid_x), dtype=bool)
+            for shelf in geo.shelves:
+                if abs(bottom - shelf.top) <= CONTACT_TOLERANCE:
+                    overlap_x = np.minimum(
+                        grid_x + half[0], shelf.maximum[0]
+                    ) - np.maximum(grid_x - half[0], shelf.minimum[0])
+                    overlap_y = np.minimum(
+                        grid_y + half[1], shelf.maximum[1]
+                    ) - np.maximum(grid_y - half[1], shelf.minimum[1])
+                    shelf_contact |= (
+                        np.maximum(0.0, overlap_x) * np.maximum(0.0, overlap_y)
+                        > EPS
+                    )
+            lifts[shelf_contact] = SHELF_ACTION_LIFT
+            if abs(bottom - geo.floor_top) <= CONTACT_TOLERANCE:
+                lifts[~shelf_contact] = FLOOR_ACTION_LIFT
+
+            mask = np.ones(len(grid_x), dtype=bool)
+
+            if geo.plane_points is not None:
+                centers_world = np.stack(
+                    (
+                        grid_x + geo.offset_x,
+                        grid_y,
+                        np.full(len(grid_x), float(z)) + lifts,
+                    ),
+                    axis=1,
+                )
+                extents = (
+                    (centers_world[:, None, :] - geo.plane_points[None, :, :])
+                    * geo.plane_normals[None, :, :]
+                ).sum(axis=2) + (np.abs(geo.plane_normals) @ half)[None, :]
+                mask &= (extents <= -INCLUSION_CLEARANCE + EPS).all(axis=1)
+                if not mask.any():
+                    continue
+
+            if geo.obstacle_min is not None:
+                vertical_gap = np.maximum(
+                    geo.obstacle_min[None, :, 2] - top,
+                    bottom - geo.obstacle_max[None, :, 2],
+                )
+                x_gap = np.maximum(
+                    geo.obstacle_min[None, :, 0]
+                    - (grid_x[:, None] + half[0]),
+                    (grid_x[:, None] - half[0])
+                    - geo.obstacle_max[None, :, 0],
+                )
+                y_gap = np.maximum(
+                    geo.obstacle_min[None, :, 1]
+                    - (grid_y[:, None] + half[1]),
+                    (grid_y[:, None] - half[1])
+                    - geo.obstacle_max[None, :, 1],
+                )
+                penetrates = (
+                    (vertical_gap < -CONTACT_TOLERANCE)
+                    & (x_gap < SETTLED_ITEM_CLEARANCE - EPS)
+                    & (y_gap < SETTLED_ITEM_CLEARANCE - EPS)
+                )
+                mask &= ~penetrates.any(axis=1)
+                if not mask.any():
+                    continue
+
+            support_min = geo.support_min[matching, :2]
+            support_max = geo.support_max[matching, :2]
+            overlap_x = np.minimum(
+                grid_x[:, None] + half[0], support_max[None, :, 0]
+            ) - np.maximum(grid_x[:, None] - half[0], support_min[None, :, 0])
+            overlap_y = np.minimum(
+                grid_y[:, None] + half[1], support_max[None, :, 1]
+            ) - np.maximum(grid_y[:, None] - half[1], support_min[None, :, 1])
+            areas = np.maximum(0.0, overlap_x) * np.maximum(0.0, overlap_y)
+            ratios = areas.max(axis=1) / item_area
+            mask &= ratios >= threshold
+
+            for index in np.flatnonzero(mask):
+                position = (
+                    float(grid_x[index]),
+                    float(grid_y[index]),
+                    float(z),
+                )
+                key = tuple(round(value, 4) for value in position)
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidate = AABB(position, dims, "candidate")
+                if Geometry.transport_path_clear(candidate, container, geo):
+                    candidates.append(candidate)
+                    if len(candidates) >= limit:
+                        return candidates
         return candidates
 
 
 class Ranker:
     @staticmethod
-    def score(candidate, item, container, has_priority_container):
-        support = Geometry.support_ratio(candidate, container)
+    def score(candidate, item, container, has_priority_container, geo=None):
+        support = Geometry.support_ratio(candidate, container, geo)
         volume = math.prod(candidate.size)
         mass = float(item.get("mass", 1.0))
         x, y, z = candidate.center
@@ -1021,7 +1193,7 @@ class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
     @staticmethod
-    def choose(observation, indexed_items, deadline=None):
+    def choose(observation, indexed_items, deadline=None, min_support=None):
         containers = observation.get("container_list", [])
         if not containers:
             return None
@@ -1030,12 +1202,17 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
+        geos = {}
         best = None
         best_score = -float("inf")
 
         for item_idx, item in indexed_items:
             for container_idx in eligible_container_indices(item, containers):
                 container = containers[container_idx]
+                geo = geos.get(container_idx)
+                if geo is None:
+                    geo = ContainerGeometry(container)
+                    geos[container_idx] = geo
                 for orientation in unique_orientations(item):
                     if deadline is not None and time.perf_counter() >= deadline:
                         return best
@@ -1044,12 +1221,15 @@ class PlacementCore:
                         item,
                         container_idx,
                         orientation,
+                        geo=geo,
+                        min_support=min_support,
                     ):
                         score = Ranker.score(
                             candidate,
                             item,
                             container,
                             has_priority_container,
+                            geo,
                         )
                         if score > best_score:
                             best_score = score
@@ -1059,7 +1239,7 @@ class PlacementCore:
                                     "container_idx": int(container_idx),
                                     "place_pos": np.asarray(
                                         simulator_action_center(
-                                            candidate, container
+                                            candidate, container, geo
                                         ),
                                         dtype=np.float32,
                                     ),
@@ -1086,12 +1266,17 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
+        geos = {}
         heap = []
         counter = 0
 
         for item_idx, item in indexed_items:
             for container_idx in eligible_container_indices(item, containers):
                 container = containers[container_idx]
+                geo = geos.get(container_idx)
+                if geo is None:
+                    geo = ContainerGeometry(container)
+                    geos[container_idx] = geo
                 for orientation in unique_orientations(item):
                     if deadline is not None and time.perf_counter() >= deadline:
                         return [
@@ -1105,12 +1290,14 @@ class PlacementCore:
                         item,
                         container_idx,
                         orientation,
+                        geo=geo,
                     ):
                         score = Ranker.score(
                             candidate,
                             item,
                             container,
                             has_priority_container,
+                            geo,
                         )
                         decision = PlacementDecision(
                             action={
@@ -1118,7 +1305,7 @@ class PlacementCore:
                                 "container_idx": int(container_idx),
                                 "place_pos": np.asarray(
                                     simulator_action_center(
-                                        candidate, container
+                                        candidate, container, geo
                                     ),
                                     dtype=np.float32,
                                 ),
@@ -1836,6 +2023,7 @@ class Agent:
 
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        primary_deadline = deadline - RELAXED_FALLBACK_RESERVE_SECONDS
         pool_list = observation.get("pool_list", [])
         containers = observation.get("container_list", [])
         ordered_items = online_item_order(pool_list)[
@@ -1843,25 +2031,59 @@ class Agent:
         ]
 
         decision = self._closed_loop_choice(
-            observation, pool_list, ordered_items, deadline
+            observation, pool_list, ordered_items, primary_deadline
         )
         if decision is None:
             decision = PlacementCore.choose(
                 observation,
                 ordered_items,
+                deadline=primary_deadline,
+            )
+        if decision is None:
+            # A failed step ends the whole episode, so before emitting any
+            # blind pose, retry with relaxed support: a partially supported
+            # settle usually survives, a transport collision never does.
+            decision = PlacementCore.choose(
+                observation,
+                ordered_items,
                 deadline=deadline,
+                min_support=RELAXED_MIN_SUPPORT_RATIO,
             )
         if decision is not None:
             return decision.action
 
+        # Last resort: a floor pose just inside the opening. The packing
+        # heuristics fill the container from the far wall (+y) first, so
+        # the door-side floor strip is the least likely region to collide.
         fallback_container = 0
         if pool_list and containers:
             eligible = eligible_container_indices(pool_list[0], containers)
             if eligible:
                 fallback_container = eligible[0]
+        place_pos = np.array([0.0, 0.0, 0.25], dtype=np.float32)
+        if pool_list and containers:
+            item = pool_list[0]
+            container = containers[fallback_container]
+            dims = get_rotated_dimensions(
+                item["length"], item["width"], item["height"], 0
+            )
+            thickness = float(container["thickness"])
+            buffer = float(container.get("buffer", 0.0))
+            width = float(container["width"])
+            place_pos = np.array(
+                [
+                    0.0,
+                    -width / 2.0
+                    + thickness
+                    + dims[1] / 2.0
+                    + INCLUSION_CLEARANCE,
+                    thickness + buffer + dims[2] / 2.0 + FLOOR_ACTION_LIFT,
+                ],
+                dtype=np.float32,
+            )
         return {
             "item_idx": 0,
             "container_idx": fallback_container,
-            "place_pos": np.array([0.0, 0.0, 0.25], dtype=np.float32),
+            "place_pos": place_pos,
             "orientation": 0,
         }

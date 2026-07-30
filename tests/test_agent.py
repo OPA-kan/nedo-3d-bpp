@@ -54,7 +54,150 @@ def sample_item(
     }
 
 
+SIM_UTILS_PATH = (
+    pathlib.Path(__file__).parents[1]
+    / "simulator"
+    / "src"
+    / "ground_handling"
+    / "utils.py"
+)
+
+
+def load_sim_utils():
+    spec = importlib.util.spec_from_file_location("sim_utils", SIM_UTILS_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def official_container(center_x=0.0):
+    """
+    Case-000-like container carrying the real inclusion planes, built with
+    the same mesh math the official simulator uses in Container.create().
+    """
+    import math
+    import os
+    import tempfile
+
+    sim_utils = load_sim_utils()
+    length, width, height, thickness = 2.0, 1.45, 1.61, 0.04
+    cut_x, cut_y, buffer = 0.44, 0.4, 0.0
+    with tempfile.TemporaryDirectory() as tmp:
+        points, n_vecs = sim_utils.write_open_cut_corner_cup_obj(
+            os.path.join(tmp, "container.obj"),
+            width=length,
+            height=height,
+            cut_x=cut_x,
+            cut_y=cut_y,
+            depth=width,
+            wall=thickness,
+            bottom=thickness,
+        )
+    rot = [
+        [1, 0, 0],
+        [0, math.cos(math.pi / 2), -math.sin(math.pi / 2)],
+        [0, math.sin(math.pi / 2), math.cos(math.pi / 2)],
+    ]
+    pos = (center_x, 0.0, height / 2 + buffer)
+    aff_points = sim_utils.aff(points, rot, pos)
+    aff_n_vecs = sim_utils.aff(n_vecs, rot, intercept=(0, 0, 0))
+    return {
+        "length": length,
+        "width": width,
+        "height": height,
+        "thickness": thickness,
+        "buffer": buffer,
+        "cut_x": cut_x,
+        "cut_y": cut_y,
+        "require_shelf": False,
+        "is_prioritized": False,
+        "center": [center_x, 0.0, height / 2 + buffer],
+        "points": [list(point) for point in aff_points],
+        "n_vecs": [list(vec) for vec in aff_n_vecs],
+        "packed_items": [],
+    }
+
+
+class FloorPlacementRegressionTests(unittest.TestCase):
+    """
+    Regression for the episode-terminating defect where no floor-resting
+    candidate survived the boundary-plane inclusion check (the container
+    floor is itself an inclusion plane), leaving the policy with nothing
+    but a blind fallback pose that eventually caused a transport collision.
+    """
+
+    def setUp(self):
+        self.container = official_container()
+        self.item = sample_item(
+            0, length=0.65, width=0.45, height=0.25, mass=8
+        )
+        self.observation = {
+            "pool_list": [self.item],
+            "container_list": [self.container],
+        }
+
+    def test_empty_container_yields_floor_candidates(self):
+        candidates = agent.CandidateGenerator.generate(
+            self.observation, self.item, 0, 0
+        )
+        self.assertTrue(candidates)
+        floor_center_z = self.container["thickness"] + 0.25 / 2.0
+        self.assertTrue(
+            any(
+                abs(candidate.center[2] - floor_center_z) < 1e-6
+                for candidate in candidates
+            )
+        )
+
+    def test_floor_action_passes_official_inclusion_margin(self):
+        decision = agent.PlacementCore.choose(
+            self.observation, [(0, self.item)]
+        )
+        self.assertIsNotNone(decision)
+        action_pos = np.asarray(
+            decision.action["place_pos"], dtype=np.float64
+        )
+        dims = agent.get_rotated_dimensions(
+            self.item["length"],
+            self.item["width"],
+            self.item["height"],
+            decision.action["orientation"],
+        )
+        half = np.asarray(dims, dtype=np.float64) / 2.0
+        points = np.asarray(self.container["points"], dtype=np.float64)
+        normals = np.asarray(self.container["n_vecs"], dtype=np.float64)
+        dots = (
+            np.sum(normals * (action_pos - points), axis=1)
+            + np.abs(normals) @ half
+        )
+        official_margin = -0.005
+        self.assertTrue(
+            np.all(dots <= official_margin),
+            f"action pose violates the official inclusion margin: {dots}",
+        )
+
+    def test_policy_emits_action_for_empty_official_container(self):
+        action = agent.Agent("").policy(self.observation)
+        floor_bottom = (
+            float(action["place_pos"][2])
+            - 0.25 / 2.0
+            - agent.FLOOR_ACTION_LIFT
+        )
+        self.assertAlmostEqual(
+            floor_bottom, self.container["thickness"], delta=0.02
+        )
+
+
 class GeometryContractTests(unittest.TestCase):
+    def test_transport_sampling_covers_validator_margin(self):
+        # Distance to a fixed box is 1-Lipschitz along the path, so the
+        # continuous minimum is at least the sampled clearance minus half
+        # the sample step; that bound must exceed the official 15 mm.
+        continuous_bound = (
+            agent.SETTLED_ITEM_CLEARANCE - agent.TRANSPORT_SAMPLE_STEP / 2.0
+        )
+        self.assertGreater(continuous_bound, 0.015)
+
     def test_float32_action_preserves_more_than_official_5mm_inclusion_margin(self):
         transmitted_margin = float(np.float32(agent.INCLUSION_CLEARANCE))
 
@@ -145,7 +288,20 @@ class GeometryContractTests(unittest.TestCase):
 
         sweep = agent.transport_sweep(candidate, container)
 
-        self.assertAlmostEqual(sweep.center[2], center_z)
+        # The action is lifted off the floor inclusion plane, but stays
+        # inside the validator's 5 cm direct-rest window so the transport
+        # height is the action height itself (no extra drop applied).
+        self.assertAlmostEqual(
+            sweep.center[2], center_z + agent.FLOOR_ACTION_LIFT
+        )
+        action_bottom = (
+            center_z + agent.FLOOR_ACTION_LIFT - item_height / 2.0
+        )
+        self.assertGreaterEqual(
+            action_bottom - container["thickness"],
+            agent.OFFICIAL_INCLUSION_CLEARANCE,
+        )
+        self.assertLessEqual(action_bottom - container["thickness"], 0.05)
 
     def test_transport_sweeps_include_official_y_then_x_legs(self):
         container = sample_container()
