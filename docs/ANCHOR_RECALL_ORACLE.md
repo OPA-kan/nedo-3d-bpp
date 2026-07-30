@@ -209,3 +209,18 @@ replayでは、最初のrelease候補がCase 000で45試行・0.093秒、Case 00
 
 このreplayは探索到達性だけを確認する。新しく選ばれた投下点の物理settleと、
 その後のtrajectory・配置数はLinux simulator runで別途確認する。
+
+## Release risk gate replay
+
+release oracle recordには、rankingとは独立に
+`release_risk.features`、`passed`、`reasons`を保存する。同じ候補のPyBullet結果を
+次のいずれかで危険とする。
+
+- `is_physically_valid != true`
+- settle角度が30度を超える
+- settle変位を荷物底面の短辺で正規化した値が0.5を超える
+
+gate棄却を陽性として、true/false positive/negative、危険候補に対する
+true-positive rate、安全候補に対するfalse-positive rateを
+`release_oracle` summaryへ保存する。閾値付きgateの採用、risk penalty、
+確率モデル化はこのreplay結果を見てから判断する。

@@ -125,13 +125,17 @@ s_t=(P_t,U_t)
 - \(P_t\): settle後の実姿勢を含む配置済み状態
 - \(U_t\): 未配置荷物
 
-単品行動は
+単品行動は、物理へ渡す指令値と実現状態を混同しないように
 
 \[
-a=(i,k,p,o)
+a=(i,k,p^{\mathrm{cmd}},o^{\mathrm{cmd}},m),
+\qquad
+m\in\{\mathrm{settled},\mathrm{release}\}
 \]
 
-で、荷物、コンテナ、位置、姿勢を指定する。原始状態遷移系は
+とする。\(m=\mathrm{settled}\) は水平支持面に接した静止位置を指令する候補、
+\(m=\mathrm{release}\) は物理settle前の投下点を指令する候補である。
+原始状態遷移系は
 
 \[
 \mathcal M=(\mathcal S,\mathcal A,T,R)
@@ -139,7 +143,20 @@ a=(i,k,p,o)
 
 である。
 
-\(T\) には内包判定、棚・荷物との非交差、Y→X搬入掃引、8 cm落下開始、物理settle、観測クォータニオンからの実AABB再構成を含める。
+\(T\) には内包判定、棚・荷物との非交差、Y→X搬入掃引、8 cm落下開始、
+物理settle、観測クォータニオンからの実AABB再構成を含める。指令後の実現状態を
+
+\[
+x^+=\operatorname{Settle}(s,a)
+\]
+
+と書く。特にreleaseでは一般に
+
+\[
+(p^+,o^+)\ne(p^{\mathrm{cmd}},o^{\mathrm{cmd}})
+\]
+
+であり、この位置・姿勢差がrelease failureの直接評価対象である。
 
 実装のcandidate generatorが返す生の集合には物理的な偽陽性も含み得る。
 そのうち共通物理検証を通った集合を
@@ -197,7 +214,143 @@ k!\longrightarrow q,\quad q\ll k!
 
 として保持する。
 
-## 5. Open-loopテンプレートからClosed-loop Optionへ
+## 5. Release指令、事前risk gate、fallback、Closed-loop Option
+
+### 5.1 Release候補の生成
+
+姿勢 \(o^{\mathrm{cmd}}\) と水平位置 \((x,y)\) ごとに、コンテナ半空間から
+包含可能区間
+
+\[
+[Z_{\min}(x,y,o),Z_{\max}(x,y,o)]
+\]
+
+を解析的に求める。support-plane componentから生成した局所anchorに対し、
+
+\[
+z_{\mathrm{release}}
+=
+\max\left\{
+Z_{\min}+\delta_{\mathrm{boundary}},
+h_{\mathrm{rest}}(x,y)+\frac{h_i}{2}+\delta_{\mathrm{lift}}
+\right\}
+\]
+
+を指令高さとし、\(z_{\mathrm{release}}>Z_{\max}\) は生成時に除外する。
+releaseは静止位置予測ではなく投下指令であり、支持・滑り・傾きの真値は
+\(\operatorname{Settle}\) 後の観測に置く。
+
+### 5.2 静的候補集合と初版risk gate
+
+包含、静的非交差、搬入経路を通るrelease候補集合を
+\(\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{release}}(s,i)\) とする。
+初版は確率モデルやranking penaltyを使わず、各候補について
+
+\[
+\Phi_{\mathrm{risk}}(s,a)=
+(
+\mathrm{support},
+\mathrm{CoM\ margin},
+\mathrm{overhang},
+\mathrm{drop},
+\mathrm{support\ imbalance},
+\mathrm{initial\ pose}
+)
+\]
+
+を計算する。
+support、CoM margin、overhang、support imbalanceは
+predicted-contact state、initial poseはcommand state、dropは両状態の差から
+計算する。実行前の \(\Phi_{\mathrm{risk}}\) にsettle後telemetryを使わず、
+物理観測 \(x^+\) はoffline replayでラベルとしてのみ結合する。
+
+固定した閾値条件を満たすかを
+
+\[
+\operatorname{Gate}(s,a)
+=
+\mathbf 1[
+\Phi_{\mathrm{risk}}(s,a)\text{ が閾値条件を満たす}
+]
+\]
+
+とし、
+
+\[
+\widehat{\mathcal A}^{\mathrm{gated}}_{\mathrm{release}}(s,i)
+=
+\left\{
+a\in\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{release}}(s,i)
+\mid \operatorname{Gate}(s,a)=1
+\right\}
+\subseteq
+\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{release}}(s,i)
+\]
+
+とする。gateはranking前に適用し、通過候補のscoreと順位は変更しない。
+risk閾値は安全/危険の真の決定境界ではなく、初版では明らかに危険なreleaseを
+除くための暫定的・保守的ルールである。
+risk penalty付きrankingまたは
+\(\Pr(\mathrm{fall}\mid s,a)\) の推定は、offline PyBullet replayで
+危険候補の検出率と安全候補の誤棄却率を測った後の課題とする。
+
+\(\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{release}}\neq\varnothing\)
+かつ
+\(\widehat{\mathcal A}^{\mathrm{gated}}_{\mathrm{release}}=\varnothing\)
+は、候補生成ゼロとは異なる状態である。traceはstatic候補数、gate通過数、
+gate棄却数、全棄却フラグを分け、後続のprotocol fallback回数と接続して記録する。
+
+### 5.3 方向別特徴と鏡像契約
+
+群論は主契約ではなく、risk特徴とmetamorphic testの設計根拠として使う。
+支持量を鏡像で不変な共通量と、左右・前後で符号が反転する偏り量へ分ける。
+一般群、軌道、既約表現を初版コードで計算しない。
+
+物理条件を保存する左右・前後鏡像 \(g\) について、理想契約を
+
+\[
+\operatorname{Settle}(gs,ga)=g\operatorname{Settle}(s,a),
+\qquad
+Y(gs,ga)=Y(s,a)
+\]
+
+とする。実装テストでは、support、overhang、drop、偏りの絶対値、
+gate判定が鏡像で不変であり、対応する方向別偏りだけが符号反転することを要求する。
+将来、角速度・トルクを追加する場合は擬ベクトルであるため、静的位置座標と同じ
+単純な符号反転則を流用しない。
+
+### 5.4 Fallback契約
+
+最終的な選択順は
+
+\[
+\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{settled}}
+\rightarrow
+\widehat{\mathcal A}^{\mathrm{static}}_{\mathrm{release}}
+\rightarrow
+\widehat{\mathcal A}^{\mathrm{gated}}_{\mathrm{release}}
+\rightarrow
+F(s,i,d)
+\rightarrow
+\mathtt{no\_safe\_action}
+\]
+
+である。\(F(s,i,d)\) はdeadline \(d\) の予約時間を使い、現在の観測状態から
+再生成する状態依存fallback生成器である。
+
+1. 検証済みsettled incumbentがあれば返す。
+2. settledがなければgate通過release incumbentを返す。
+3. どちらもなければ予約時間で \(F(s,i,d)\) を実行する。
+4. \(F\) も失敗した場合、内部状態として
+   \(\mathtt{no\_safe\_action}\) を記録する。
+5. 外部APIがaction返却を必須とする場合だけ、固定座標またはrandom actionを
+   \(\mathtt{unsafe\_protocol\_fallback}\) と明示して返す。
+
+\(\mathtt{unsafe\_protocol\_fallback}\) は安全性を保証するfallbackではない。
+外部API契約を確認せず削除もしない。現行実装の固定 \([0,0,0.25]\) と
+simulator timeout時のrandom actionはこの分類に入る。
+
+### 5.5 Open-loopテンプレートからClosed-loop Optionへ
 
 固定列
 
@@ -231,8 +384,8 @@ Option失敗時は、成功済みの途中状態を保持してprimitive action�
 
 固定fallback \([0,0,0.25]\) は観測状態から再計画されないopen-loop actionであり、
 Closed-loop Optionの代替ではない。Case 000ではitem 27の候補ゼロ後にこのfallbackが
-衝突して終了した。fallbackは診断用の最終安全網として区別し、実行可能なincumbent
-または観測後に再生成したactionがない限り、継続可能性を保証しない。
+衝突して終了した。これは上記の
+\(\mathtt{unsafe\_protocol\_fallback}\) であり、継続可能性を保証しない。
 
 ## 6. 未来から見た状態同値と署名
 

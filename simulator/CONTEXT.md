@@ -53,4 +53,7 @@ failure modeを保存し、aggregate jobがmean/median/std/min/maxと停止原�
 benchmark modeはsimulator processとevaluation構造が正常なら成功とし、
 全荷物完遂は別のstrict physics validationとして記録する。固定fallbackによる
 途中終了を隠さず、CI infrastructure failureとalgorithm benchmark failureを分ける。
+agent内候補枯渇は`no_safe_action`として意味論を分け、外部APIへ返す固定座標は
+`unsafe_protocol_fallback`と診断する。policy timeout時にsimulatorが返すrandom
+actionも安全性非保証のprotocol fallbackであり、現時点では削除しない。
 

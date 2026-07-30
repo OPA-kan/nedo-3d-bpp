@@ -34,6 +34,13 @@
   水平支持候補が全滅した姿勢には低高度の`release_candidate`を生成する。
   release候補は投下点で支持率を要求せず、包含・静的干渉・搬入を通した後、
   PyBullet settle結果を真値とする。
+- `RELEASE_RISK_GATE_MODE=off|shadow|enforce`で、releaseのsettled proxyから
+  support、CoM margin、overhang、正規化drop、左右/前後support imbalance、
+  initial poseを計算する。`shadow`は棄却予定だけを記録し、`enforce`は
+  ranking前に閾値外候補を除く。通過候補の`Ranker.score`は変更しない。
+  online特徴はcommand/predicted-contact由来だけで、settle telemetryはofflineで
+  結合する。traceはstatic/pass/reject/all-rejected/protocol-fallbackを分離し、
+  off/shadowのaction command列hash不一致を実験ブロッカーとして集計する。
 - 候補生成はdeadline-awareなlazy streamとし、戦略順の荷物、底面積の大きい姿勢、
   残余体積の大きいコンテナから優先する。各三組を64 anchorずつ浅く一巡後、
   256 anchor単位で深掘りし、時間切れ時も最良の検証済みincumbentを返す。
@@ -84,6 +91,9 @@
   exists, it is chosen regardless of the release candidate's heuristic score.
 - A release candidate is returned only when the search found no settled
   candidate.
+- 候補が尽きた内部状態は`no_safe_action`、外部APIへ残している固定座標は
+  `unsafe_protocol_fallback`としてtraceする。状態依存fallback生成器
+  \(F(s,i,d)\) は未実装で、固定座標を安全なfallbackとは扱わない。
 - Run 30340049061 confirmed that this ordering is not sufficient on its own.
   Case 000 improved to 15 placements, but Case 001 still had no settled
   candidate at step 4 and its release fallback failed after settling by
@@ -94,6 +104,9 @@
   found before the policy deadline, enumerates the legacy Cartesian set
   without a deadline, and validates each oracle candidate with isolated
   PyBullet settle trials. See `docs/ANCHOR_RECALL_ORACLE.md`.
+- release oracleは同じ候補についてgateのpass/reasonsと物理結果を突き合わせ、
+  30度超回転・底面短辺の0.5倍超変位・physical invalidを危険ラベルとして
+  TPR/FPRを保存する。
 - Run 30348998307の保存snapshotへper-support-plane版を再生すると、step 3の
   deadline内settled発見数は0から349、step 4は0から427へ増えた。step 4の
   選択は旧oracle最良候補と一致した。全列挙比較ではstep 4の試行を

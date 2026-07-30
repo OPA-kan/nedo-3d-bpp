@@ -214,11 +214,27 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
             ],
         }
 
-        records, complete, stats = measure.enumerate_oracle_candidates(
-            agent,
-            observation,
-            attempt_kind="release",
-        )
+        original_mode = agent.RELEASE_RISK_GATE_MODE
+        agent.RELEASE_RISK_GATE_MODE = "enforce"
+        try:
+            with mock.patch.object(
+                agent,
+                "evaluate_release_risk",
+                return_value=agent.ReleaseRiskAssessment(
+                    passed=False,
+                    reasons=("support",),
+                ),
+            ):
+                records, complete, stats = (
+                    measure.enumerate_oracle_candidates(
+                        agent,
+                        observation,
+                        attempt_kind="release",
+                    )
+                )
+        finally:
+            self.assertEqual(agent.RELEASE_RISK_GATE_MODE, "enforce")
+            agent.RELEASE_RISK_GATE_MODE = original_mode
 
         self.assertTrue(complete)
         self.assertTrue(records)
@@ -228,6 +244,72 @@ class AnchorRecallMeasurementTests(unittest.TestCase):
         )
         self.assertEqual(stats["attempt_kind"], "release")
         self.assertNotIn("settled_units_started", stats)
+
+    def test_release_replay_reports_gate_true_and_false_rates(self):
+        records = [
+            candidate(4, [0.0, 0.0, 0.2]),
+            candidate(4, [0.2, 0.0, 0.2]),
+            candidate(4, [0.4, 0.0, 0.2]),
+            candidate(4, [0.6, 0.0, 0.2]),
+        ]
+        for record, passed in zip(
+            records,
+            (False, False, True, True),
+        ):
+            record["kind"] = "release_candidate"
+            record["release_risk"] = {
+                "passed": passed,
+                "features": {},
+                "reasons": [] if passed else ["support"],
+            }
+        physical = {
+            measure.candidate_key(records[0]): {
+                "is_physically_valid": False,
+                "settle_metrics": {},
+            },
+            measure.candidate_key(records[1]): {
+                "is_physically_valid": True,
+                "settle_metrics": {
+                    "settle_angle_deg": 0.0,
+                    "settle_displacement_norm": 0.01,
+                },
+            },
+            measure.candidate_key(records[2]): {
+                "is_physically_valid": True,
+                "settle_metrics": {
+                    "settle_angle_deg": 0.0,
+                    "settle_displacement_norm": 0.01,
+                },
+            },
+            measure.candidate_key(records[3]): {
+                "is_physically_valid": True,
+                "settle_metrics": {
+                    "settle_angle_deg": 45.0,
+                    "settle_displacement_norm": 0.01,
+                },
+            },
+        }
+
+        summary = measure.summarize_release_recall(
+            records,
+            [],
+            physical,
+            oracle_complete=True,
+            physics_complete=True,
+        )
+
+        self.assertEqual(summary["risk_gate_evaluated_count"], 4)
+        self.assertEqual(
+            summary["risk_gate_confusion"],
+            {
+                "true_positive": 1,
+                "false_positive": 1,
+                "true_negative": 1,
+                "false_negative": 1,
+            },
+        )
+        self.assertEqual(summary["risk_gate_true_positive_rate"], 0.5)
+        self.assertEqual(summary["risk_gate_false_positive_rate"], 0.5)
 
     def test_oracle_forces_legacy_cartesian_generator(self):
         agent = measure.load_agent_module()

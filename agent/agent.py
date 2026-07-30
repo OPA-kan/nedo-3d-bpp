@@ -42,6 +42,13 @@ SIMULATOR_CEILING_CLIP_EPS = 0.0005
 SHELF_ACTION_LIFT = 0.051
 RELEASE_TARGET_LIFT = 0.052
 RELEASE_BOUNDARY_MARGIN = 0.002
+RELEASE_RISK_GATE_MODES = frozenset({"off", "shadow", "enforce"})
+RELEASE_RISK_GATE_MODE = os.environ.get(
+    "RELEASE_RISK_GATE_MODE", "off"
+).strip().lower()
+RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT = int(
+    os.environ.get("RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT", "64")
+)
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -355,6 +362,92 @@ class SupportMetrics:
     center_margin: float
     contact_count: int
     mass_support_ratio: float
+
+
+@dataclass(frozen=True)
+class ReleaseRiskThresholds:
+    """Provisional deterministic thresholds for the isolated gate ablation."""
+
+    min_support_ratio: float = float(
+        os.environ.get("RELEASE_RISK_MIN_SUPPORT_RATIO", "0.25")
+    )
+    min_com_margin: float = float(
+        os.environ.get("RELEASE_RISK_MIN_COM_MARGIN", "-0.25")
+    )
+    max_overhang_ratio: float = float(
+        os.environ.get("RELEASE_RISK_MAX_OVERHANG_RATIO", "0.75")
+    )
+    max_drop_normalized: float = float(
+        os.environ.get("RELEASE_RISK_MAX_DROP_NORMALIZED", "0.75")
+    )
+    max_support_imbalance: float = float(
+        os.environ.get("RELEASE_RISK_MAX_SUPPORT_IMBALANCE", "0.90")
+    )
+    max_initial_tilt_deg: float = float(
+        os.environ.get("RELEASE_RISK_MAX_INITIAL_TILT_DEG", "1.0")
+    )
+
+    def as_dict(self):
+        return {
+            "min_support_ratio": float(self.min_support_ratio),
+            "min_com_margin": float(self.min_com_margin),
+            "max_overhang_ratio": float(self.max_overhang_ratio),
+            "max_drop_normalized": float(self.max_drop_normalized),
+            "max_support_imbalance": float(self.max_support_imbalance),
+            "max_initial_tilt_deg": float(self.max_initial_tilt_deg),
+        }
+
+
+@dataclass(frozen=True)
+class ReleaseRiskFeatures:
+    support_ratio: float
+    com_margin: float
+    overhang_ratio: float
+    drop_normalized: float
+    support_imbalance: float
+    left_right_imbalance: float
+    front_back_imbalance: float
+    initial_tilt_deg: float
+    initial_orientation: int
+
+    def as_dict(self):
+        return {
+            "support_ratio": float(self.support_ratio),
+            "com_margin": float(self.com_margin),
+            "overhang_ratio": float(self.overhang_ratio),
+            "drop_normalized": float(self.drop_normalized),
+            "support_imbalance": float(self.support_imbalance),
+            "left_right_imbalance": float(self.left_right_imbalance),
+            "front_back_imbalance": float(self.front_back_imbalance),
+            "initial_tilt_deg": float(self.initial_tilt_deg),
+            "initial_orientation": int(self.initial_orientation),
+        }
+
+    @staticmethod
+    def feature_sources():
+        """
+        Provenance of every online feature.
+
+        No field uses PyBullet settle telemetry.  That telemetry is joined
+        only by the offline replay/summary tools after the action executes.
+        """
+        return {
+            "support_ratio": "predicted_contact_state",
+            "com_margin": "predicted_contact_state",
+            "overhang_ratio": "predicted_contact_state",
+            "drop_normalized": "command_and_predicted_contact_state",
+            "support_imbalance": "predicted_contact_state",
+            "left_right_imbalance": "predicted_contact_state",
+            "front_back_imbalance": "predicted_contact_state",
+            "initial_tilt_deg": "command_state",
+            "initial_orientation": "command_state",
+        }
+
+
+@dataclass(frozen=True)
+class ReleaseRiskAssessment:
+    passed: bool
+    reasons: tuple
 
 
 @dataclass(frozen=True)
@@ -1223,6 +1316,317 @@ def settled_proxy_candidate(candidate, container):
     )
 
 
+def _release_support_rectangles(candidate, container):
+    rectangles = []
+    bottom = float(candidate.minimum[2])
+    for surface in support_surfaces(container):
+        if abs(bottom - float(surface.top)) > CONTACT_TOLERANCE:
+            continue
+        overlap_min = np.maximum(
+            candidate.minimum[:2],
+            surface.minimum[:2],
+        )
+        overlap_max = np.minimum(
+            candidate.maximum[:2],
+            surface.maximum[:2],
+        )
+        rectangles.append(
+            (
+                float(overlap_min[0]),
+                float(overlap_max[0]),
+                float(overlap_min[1]),
+                float(overlap_max[1]),
+            )
+        )
+    return rectangles
+
+
+def _split_rectangle_area(rectangles, axis, split, positive):
+    clipped = []
+    for x0, x1, y0, y1 in rectangles:
+        if axis == 0:
+            if positive:
+                x0 = max(float(x0), float(split))
+            else:
+                x1 = min(float(x1), float(split))
+        else:
+            if positive:
+                y0 = max(float(y0), float(split))
+            else:
+                y1 = min(float(y1), float(split))
+        clipped.append((x0, x1, y0, y1))
+    return rectangle_union_area(clipped)
+
+
+def release_risk_features(
+    candidate,
+    item,
+    container,
+    orientation,
+):
+    """
+    Calculate deterministic pre-ranking proxies for one release command.
+
+    The returned drop compares the commanded center with the static settled
+    proxy.  All discrete orientations currently sent by the agent are
+    axis-aligned, so their commanded tilt is zero; the orientation code is
+    retained explicitly for replay and future non-axis-aligned commands.
+    """
+    proxy = settled_proxy_candidate(candidate, container)
+    support = Geometry.support_metrics(proxy, container, item)
+    rectangles = _release_support_rectangles(proxy, container)
+    supported_area = rectangle_union_area(rectangles)
+    center_x = float(proxy.center[0])
+    center_y = float(proxy.center[1])
+    left = _split_rectangle_area(
+        rectangles, axis=0, split=center_x, positive=False
+    )
+    right = _split_rectangle_area(
+        rectangles, axis=0, split=center_x, positive=True
+    )
+    back = _split_rectangle_area(
+        rectangles, axis=1, split=center_y, positive=False
+    )
+    front = _split_rectangle_area(
+        rectangles, axis=1, split=center_y, positive=True
+    )
+    if supported_area > EPS:
+        left_right = (right - left) / supported_area
+        front_back = (front - back) / supported_area
+    else:
+        left_right = 0.0
+        front_back = 0.0
+    drop = max(
+        0.0,
+        float(candidate.center[2]) - float(proxy.center[2]),
+    )
+    height = max(EPS, float(candidate.size[2]))
+    return ReleaseRiskFeatures(
+        support_ratio=float(support.ratio),
+        com_margin=float(support.center_margin),
+        overhang_ratio=max(0.0, 1.0 - float(support.ratio)),
+        drop_normalized=float(drop / height),
+        support_imbalance=max(abs(left_right), abs(front_back)),
+        left_right_imbalance=float(left_right),
+        front_back_imbalance=float(front_back),
+        initial_tilt_deg=0.0,
+        initial_orientation=int(orientation),
+    )
+
+
+def evaluate_release_risk(features, thresholds=None):
+    thresholds = thresholds or ReleaseRiskThresholds()
+    reasons = []
+    if features.support_ratio < thresholds.min_support_ratio - EPS:
+        reasons.append("support")
+    if features.com_margin < thresholds.min_com_margin - EPS:
+        reasons.append("com_margin")
+    if features.overhang_ratio > thresholds.max_overhang_ratio + EPS:
+        reasons.append("overhang")
+    if features.drop_normalized > thresholds.max_drop_normalized + EPS:
+        reasons.append("drop")
+    if (
+        features.support_imbalance
+        > thresholds.max_support_imbalance + EPS
+    ):
+        reasons.append("support_imbalance")
+    if features.initial_tilt_deg > thresholds.max_initial_tilt_deg + EPS:
+        reasons.append("initial_pose")
+    return ReleaseRiskAssessment(
+        passed=not reasons,
+        reasons=tuple(reasons),
+    )
+
+
+def normalized_release_risk_gate_mode(mode):
+    normalized = str(mode).strip().lower()
+    if normalized not in RELEASE_RISK_GATE_MODES:
+        available = ", ".join(sorted(RELEASE_RISK_GATE_MODES))
+        raise ValueError(
+            f"unknown release risk gate mode {mode!r}; expected {available}"
+        )
+    return normalized
+
+
+def _record_release_risk_diagnostic(
+    diagnostics,
+    item_idx,
+    candidate,
+    container,
+    features,
+    assessment,
+    mode,
+    thresholds,
+):
+    if diagnostics is None:
+        return
+    event = diagnostics.setdefault(
+        "release_risk_gate",
+        {
+            "mode": mode,
+            "thresholds": thresholds.as_dict(),
+            "feature_sources": ReleaseRiskFeatures.feature_sources(),
+            "offline_settled_telemetry_used": False,
+            "evaluated": 0,
+            "passed": 0,
+            "would_reject": 0,
+            "enforced_rejections": 0,
+            "reasons": {},
+            "samples": [],
+        },
+    )
+    event["evaluated"] += 1
+    if assessment.passed:
+        event["passed"] += 1
+    else:
+        event["would_reject"] += 1
+        if mode == "enforce":
+            event["enforced_rejections"] += 1
+        for reason in assessment.reasons:
+            event["reasons"][reason] = event["reasons"].get(reason, 0) + 1
+    if len(event["samples"]) < max(0, RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT):
+        event["samples"].append(
+            {
+                "item_index": int(item_idx),
+                "command_center": [
+                    float(value) for value in candidate.center
+                ],
+                "predicted_contact_center": [
+                    float(value)
+                    for value in settled_proxy_candidate(
+                        candidate, container
+                    ).center
+                ],
+                "features": features.as_dict(),
+                "passed": bool(assessment.passed),
+                "reasons": list(assessment.reasons),
+            }
+        )
+
+
+def finalize_release_flow_diagnostics(diagnostics):
+    """
+    Expose the static -> gated boundary independently of final action choice.
+
+    ``by_kind.release.accepted`` counts candidates that passed static
+    geometry before the risk gate.  In ``off`` mode the gate is deliberately
+    not evaluated, preserving the legacy policy cost and candidate order.
+    """
+    if diagnostics is None:
+        return
+    by_kind = diagnostics.get("by_kind")
+    release_counter = (
+        by_kind.get("release")
+        if isinstance(by_kind, dict)
+        else None
+    )
+    static_count = (
+        int(release_counter.get("accepted", 0))
+        if isinstance(release_counter, dict)
+        else 0
+    )
+    gate = diagnostics.get("release_risk_gate")
+    gate_mode = (
+        str(gate.get("mode"))
+        if isinstance(gate, dict) and gate.get("mode")
+        else normalized_release_risk_gate_mode(RELEASE_RISK_GATE_MODE)
+    )
+    gate_pass_count = (
+        int(gate.get("passed", 0)) if isinstance(gate, dict) else 0
+    )
+    gate_reject_count = (
+        int(gate.get("would_reject", 0))
+        if isinstance(gate, dict)
+        else 0
+    )
+    diagnostics["release_static_count"] = static_count
+    diagnostics["release_gate_pass_count"] = gate_pass_count
+    diagnostics["release_gate_reject_count"] = gate_reject_count
+    diagnostics["release_all_rejected"] = bool(
+        gate_mode == "enforce"
+        and static_count > 0
+        and gate_pass_count == 0
+        and gate_reject_count == static_count
+    )
+
+
+def record_selected_release_risk(
+    diagnostics,
+    decision,
+    pool_list,
+    containers,
+):
+    """Attach the chosen release's online assessment for later telemetry join."""
+    if (
+        diagnostics is None
+        or decision is None
+        or decision.candidate.name != "release_candidate"
+        or RELEASE_RISK_GATE_MODE == "off"
+    ):
+        return
+    item_idx = int(decision.action["item_idx"])
+    container_idx = int(decision.action["container_idx"])
+    if not (
+        0 <= item_idx < len(pool_list)
+        and 0 <= container_idx < len(containers)
+    ):
+        return
+    item = pool_list[item_idx]
+    container = containers[container_idx]
+    features = release_risk_features(
+        decision.candidate,
+        item,
+        container,
+        int(decision.action["orientation"]),
+    )
+    assessment = evaluate_release_risk(features)
+    diagnostics["selected_release_risk"] = {
+        "mode": RELEASE_RISK_GATE_MODE,
+        "features": features.as_dict(),
+        "feature_sources": features.feature_sources(),
+        "offline_settled_telemetry_used": False,
+        "passed": bool(assessment.passed),
+        "reasons": list(assessment.reasons),
+    }
+
+
+def release_candidate_passes_risk_gate(
+    candidate,
+    item,
+    container,
+    orientation,
+    *,
+    mode=None,
+    thresholds=None,
+    diagnostics=None,
+    item_idx=None,
+):
+    mode = normalized_release_risk_gate_mode(
+        RELEASE_RISK_GATE_MODE if mode is None else mode
+    )
+    if mode == "off":
+        return True
+    features = release_risk_features(
+        candidate,
+        item,
+        container,
+        orientation,
+    )
+    thresholds = thresholds or ReleaseRiskThresholds()
+    assessment = evaluate_release_risk(features, thresholds=thresholds)
+    _record_release_risk_diagnostic(
+        diagnostics,
+        item.get("index", -1) if item_idx is None else item_idx,
+        candidate,
+        container,
+        features,
+        assessment,
+        mode,
+        thresholds,
+    )
+    return bool(assessment.passed or mode == "shadow")
+
+
 def rectangular_container_anchor_bounds(dims, container):
     dx, dy, _dz = dims
     length = float(container["length"])
@@ -1603,6 +2007,16 @@ class CandidateGenerator:
                         kind="release",
                     )
                     if reason is None:
+                        if not release_candidate_passes_risk_gate(
+                            candidate,
+                            item,
+                            container,
+                            orientation,
+                            diagnostics=diagnostics,
+                            item_idx=item_idx,
+                        ):
+                            yield None
+                            continue
                         accepted += 1
                         yield candidate
                         if accepted >= limit:
@@ -1777,6 +2191,16 @@ class CandidateGenerator:
                         kind="release",
                     )
                     if reason is None:
+                        if not release_candidate_passes_risk_gate(
+                            candidate,
+                            item,
+                            container,
+                            orientation,
+                            diagnostics=diagnostics,
+                            item_idx=item_idx,
+                        ):
+                            yield None
+                            continue
                         accepted += 1
                         yield candidate
                         if accepted >= limit:
@@ -3436,10 +3860,10 @@ class Agent:
             elif item_index not in visible_set:
                 observation = "not_visible"
             elif (
-                action_source == "fixed_fallback"
+                action_source == "unsafe_protocol_fallback"
                 and item_index == selected_item_index
             ):
-                observation = "fixed_fallback_target"
+                observation = "unsafe_protocol_fallback_target"
             elif item_index not in stage_sets["item_cap_item_indices"]:
                 observation = "excluded_by_item_cap"
             elif item_index not in stage_sets["search_started_item_indices"]:
@@ -3473,6 +3897,11 @@ class Agent:
                 "event": "init",
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,
+                "item_coverage_mode": ITEM_COVERAGE_MODE,
+                "release_risk_gate_mode": RELEASE_RISK_GATE_MODE,
+                "release_risk_thresholds": (
+                    ReleaseRiskThresholds().as_dict()
+                ),
             }
         )
         return True
@@ -3782,6 +4211,15 @@ class Agent:
                 selected_pool_index,
                 "placement_core",
             )
+            record_selected_release_risk(
+                self.last_candidate_diagnostics,
+                decision,
+                pool_list,
+                containers,
+            )
+            finalize_release_flow_diagnostics(
+                self.last_candidate_diagnostics
+            )
             self.last_candidate_diagnostics.pop(
                 "_record_item_lifecycle", None
             )
@@ -3815,6 +4253,19 @@ class Agent:
                     "candidate_kind": (
                         decision.candidate.name or "candidate"
                     ),
+                    "action_command": {
+                        "item_idx": selected_pool_index,
+                        "container_idx": int(
+                            decision.action["container_idx"]
+                        ),
+                        "place_pos": [
+                            float(value)
+                            for value in decision.action["place_pos"]
+                        ],
+                        "orientation": int(
+                            decision.action["orientation"]
+                        ),
+                    },
                     "candidate_diagnostics": self.last_candidate_diagnostics,
                     "selection_stages": selection_stages,
                     "coverage": coverage,
@@ -3832,8 +4283,8 @@ class Agent:
         selected_item_index = (
             int(pool_list[0]["index"]) if pool_list else None
         )
-        self.last_action_source = "fixed_fallback"
-        self.last_candidate_kind = "fixed_fallback"
+        self.last_action_source = "unsafe_protocol_fallback"
+        self.last_candidate_kind = "unsafe_protocol_fallback"
         (
             selection_stages,
             item_lifecycle,
@@ -3842,7 +4293,10 @@ class Agent:
             pool_list,
             ordered_items,
             0 if pool_list else None,
-            "fixed_fallback",
+            "unsafe_protocol_fallback",
+        )
+        finalize_release_flow_diagnostics(
+            self.last_candidate_diagnostics
         )
         self.last_candidate_diagnostics.pop(
             "_record_item_lifecycle", None
@@ -3867,8 +4321,18 @@ class Agent:
                 "feasible_remaining_items": 0,
                 "feasible_remaining_ratio": None,
                 "best_next_score": 0.0,
-                "action_source": "fixed_fallback",
-                "candidate_kind": "fixed_fallback",
+                "action_source": "unsafe_protocol_fallback",
+                "candidate_kind": "unsafe_protocol_fallback",
+                "internal_outcome": "no_safe_action",
+                "no_safe_action": True,
+                "protocol_fallback": "fixed",
+                "protocol_fallback_kind": "fixed_coordinate",
+                "action_command": {
+                    "item_idx": 0,
+                    "container_idx": fallback_container,
+                    "place_pos": [0.0, 0.0, 0.25],
+                    "orientation": 0,
+                },
                 "candidate_diagnostics": self.last_candidate_diagnostics,
                 "selection_stages": selection_stages,
                 "coverage": coverage,

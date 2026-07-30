@@ -103,7 +103,10 @@ def classify_failure_state(
     oracle_complete: bool,
     physics_complete: bool,
 ) -> str:
-    if policy_log.get("action_source") != "fixed_fallback":
+    if policy_log.get("action_source") not in {
+        "fixed_fallback",
+        "unsafe_protocol_fallback",
+    }:
         return "action_selected"
     if (
         int(policy_log.get("accepted_settled_count", 0)) > 0
@@ -220,6 +223,57 @@ def summarize_release_recall(
             for key, result in physical_results.items()
             if result.get("is_physically_valid") is True
         }
+    risk_confusion = {
+        "true_positive": 0,
+        "false_positive": 0,
+        "true_negative": 0,
+        "false_negative": 0,
+    }
+    risk_evaluated = 0
+    if physical_results is not None:
+        for record in oracle_candidates:
+            result = physical_results.get(candidate_key(record))
+            risk = record.get("release_risk")
+            if not isinstance(result, dict) or not isinstance(risk, dict):
+                continue
+            passed = risk.get("passed")
+            if not isinstance(passed, bool):
+                continue
+            settle = result.get("settle_metrics")
+            settle = settle if isinstance(settle, dict) else {}
+            angle = float(settle.get("settle_angle_deg", 0.0))
+            displacement = float(
+                settle.get("settle_displacement_norm", 0.0)
+            )
+            size = record.get("size")
+            footprint = (
+                max(1e-9, min(float(size[0]), float(size[1])))
+                if isinstance(size, list) and len(size) >= 2
+                else 1.0
+            )
+            dangerous = bool(
+                result.get("is_physically_valid") is not True
+                or angle > 30.0
+                or displacement / footprint > 0.5
+            )
+            rejected = not passed
+            risk_evaluated += 1
+            if dangerous and rejected:
+                risk_confusion["true_positive"] += 1
+            elif dangerous:
+                risk_confusion["false_negative"] += 1
+            elif rejected:
+                risk_confusion["false_positive"] += 1
+            else:
+                risk_confusion["true_negative"] += 1
+    dangerous_count = (
+        risk_confusion["true_positive"]
+        + risk_confusion["false_negative"]
+    )
+    safe_count = (
+        risk_confusion["true_negative"]
+        + risk_confusion["false_positive"]
+    )
     return {
         "oracle_complete": bool(oracle_complete),
         "physics_complete": bool(physics_complete),
@@ -234,6 +288,18 @@ def summarize_release_recall(
         "anytime_physical_safe_count": (
             len(safe_keys & anytime_keys)
             if oracle_complete and physics_complete
+            else None
+        ),
+        "risk_gate_evaluated_count": risk_evaluated,
+        "risk_gate_confusion": risk_confusion,
+        "risk_gate_true_positive_rate": (
+            risk_confusion["true_positive"] / dangerous_count
+            if dangerous_count > 0
+            else None
+        ),
+        "risk_gate_false_positive_rate": (
+            risk_confusion["false_positive"] / safe_count
+            if safe_count > 0
             else None
         ),
     }
@@ -279,6 +345,19 @@ def enrich_score(
             has_priority_container,
         )
     )
+    if candidate.name == "release_candidate":
+        features = agent_module.release_risk_features(
+            candidate,
+            item,
+            container,
+            int(record["orientation"]),
+        )
+        assessment = agent_module.evaluate_release_risk(features)
+        enriched["release_risk"] = {
+            "features": features.as_dict(),
+            "passed": bool(assessment.passed),
+            "reasons": list(assessment.reasons),
+        }
     return enriched
 
 
@@ -322,56 +401,64 @@ def enumerate_oracle_candidates(
             stats["settled_units_total"] = candidate_units_total
         return stats
 
-    for unit in units:
-        (
-            _item_rank,
-            _pose_rank,
-            _container_rank,
-            _kind_rank,
-            item_idx,
-            item,
-            container_idx,
-            orientation,
-            unit_attempt_kind,
-        ) = unit
-        if unit_attempt_kind != attempt_kind:
-            continue
-        candidate_units += 1
-        for candidate in agent_module.CandidateGenerator.iter_attempts(
-            observation,
-            item,
-            container_idx,
-            orientation,
-            limit=sys.maxsize,
-            deadline=None,
-            diagnostics=None,
-            item_idx=item_idx,
-            attempt_kind=attempt_kind,
-            generator_mode=generator_mode,
-        ):
-            attempts += 1
-            if candidate is None:
-                continue
-            record = agent_module.candidate_audit_record(
+    original_gate_mode = agent_module.RELEASE_RISK_GATE_MODE
+    if attempt_kind == "release":
+        # The oracle denominator is the full static set.  The evaluated gate
+        # must annotate that set, never filter its own denominator.
+        agent_module.RELEASE_RISK_GATE_MODE = "off"
+    try:
+        for unit in units:
+            (
+                _item_rank,
+                _pose_rank,
+                _container_rank,
+                _kind_rank,
                 item_idx,
                 item,
                 container_idx,
                 orientation,
-                candidate,
-                observation["container_list"][container_idx],
-                elapsed_seconds=time.perf_counter() - started,
-            )
-            record = enrich_score(agent_module, observation, record)
-            records.setdefault(candidate_key(record), record)
-            if (
-                max_candidates is not None
-                and len(records) >= max_candidates
+                unit_attempt_kind,
+            ) = unit
+            if unit_attempt_kind != attempt_kind:
+                continue
+            candidate_units += 1
+            for candidate in agent_module.CandidateGenerator.iter_attempts(
+                observation,
+                item,
+                container_idx,
+                orientation,
+                limit=sys.maxsize,
+                deadline=None,
+                diagnostics=None,
+                item_idx=item_idx,
+                attempt_kind=attempt_kind,
+                generator_mode=generator_mode,
             ):
-                return (
-                    list(records.values()),
-                    False,
-                    enumeration_stats(),
+                attempts += 1
+                if candidate is None:
+                    continue
+                record = agent_module.candidate_audit_record(
+                    item_idx,
+                    item,
+                    container_idx,
+                    orientation,
+                    candidate,
+                    observation["container_list"][container_idx],
+                    elapsed_seconds=time.perf_counter() - started,
                 )
+                record = enrich_score(agent_module, observation, record)
+                records.setdefault(candidate_key(record), record)
+                if (
+                    max_candidates is not None
+                    and len(records) >= max_candidates
+                ):
+                    return (
+                        list(records.values()),
+                        False,
+                        enumeration_stats(),
+                    )
+    finally:
+        agent_module.RELEASE_RISK_GATE_MODE = original_gate_mode
     return (
         list(records.values()),
         True,

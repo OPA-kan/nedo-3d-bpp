@@ -32,6 +32,16 @@ on:
           - class_aware
           - legacy
         default: class_aware
+      risk_gate_mode:
+        description: Task B release risk gate ablation mode
+        required: false
+        type: choice
+        options:
+          - all
+          - "off"
+          - shadow
+          - enforce
+        default: all
 
 jobs:
   unit-tests:
@@ -89,3 +99,4 @@ jobs:
     with:
       selection_mode: ${{ inputs.selection_mode }}
       coverage_mode: ${{ inputs.coverage_mode }}
+      risk_gate_mode: ${{ inputs.risk_gate_mode }}

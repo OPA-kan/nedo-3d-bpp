@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import json
 import os
@@ -721,6 +722,424 @@ class GeometryContractTests(unittest.TestCase):
         action = agent.Agent("").policy(observation)
         self.assertEqual(action["container_idx"], 1)
 
+    def test_release_risk_features_separate_command_from_settled_proxy(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(21, length=0.4, width=0.2, height=0.2)
+        release = agent.AABB(
+            center=(0.0, 0.0, 0.04 + 0.1 + agent.RELEASE_TARGET_LIFT),
+            size=(0.4, 0.2, 0.2),
+            name="release_candidate",
+        )
+
+        features = agent.release_risk_features(
+            release,
+            item,
+            container,
+            orientation=0,
+        )
+
+        self.assertAlmostEqual(features.support_ratio, 1.0)
+        self.assertAlmostEqual(features.overhang_ratio, 0.0)
+        self.assertAlmostEqual(
+            features.drop_normalized,
+            agent.RELEASE_TARGET_LIFT / item["height"],
+        )
+        self.assertAlmostEqual(features.left_right_imbalance, 0.0)
+        self.assertAlmostEqual(features.front_back_imbalance, 0.0)
+        self.assertAlmostEqual(features.support_imbalance, 0.0)
+        self.assertAlmostEqual(features.initial_tilt_deg, 0.0)
+        self.assertEqual(
+            features.feature_sources(),
+            {
+                "support_ratio": "predicted_contact_state",
+                "com_margin": "predicted_contact_state",
+                "overhang_ratio": "predicted_contact_state",
+                "drop_normalized": (
+                    "command_and_predicted_contact_state"
+                ),
+                "support_imbalance": "predicted_contact_state",
+                "left_right_imbalance": "predicted_contact_state",
+                "front_back_imbalance": "predicted_contact_state",
+                "initial_tilt_deg": "command_state",
+                "initial_orientation": "command_state",
+            },
+        )
+
+    def test_release_risk_is_mirror_invariant_with_direction_sign_flip(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        base = {
+            "length": 0.2,
+            "width": 0.4,
+            "height": 0.2,
+            "mass": 10,
+            "orientation": 0,
+            "is_soft": False,
+            "is_prioritized": False,
+        }
+        container["packed_items"] = [
+            {**base, "pos": [-0.1, 0.0, 0.14]},
+        ]
+        mirrored = copy.deepcopy(container)
+        mirrored["packed_items"][0]["pos"][0] *= -1.0
+        item = sample_item(22, length=0.4, width=0.4, height=0.2)
+        release = agent.AABB(
+            center=(0.0, 0.0, 0.24 + 0.1 + agent.RELEASE_TARGET_LIFT),
+            size=(0.4, 0.4, 0.2),
+            name="release_candidate",
+        )
+
+        left = agent.release_risk_features(
+            release, item, container, orientation=0
+        )
+        right = agent.release_risk_features(
+            release, item, mirrored, orientation=0
+        )
+        left_assessment = agent.evaluate_release_risk(left)
+        right_assessment = agent.evaluate_release_risk(right)
+
+        self.assertAlmostEqual(left.support_ratio, right.support_ratio)
+        self.assertAlmostEqual(left.com_margin, right.com_margin)
+        self.assertAlmostEqual(left.overhang_ratio, right.overhang_ratio)
+        self.assertAlmostEqual(left.drop_normalized, right.drop_normalized)
+        self.assertAlmostEqual(left.initial_tilt_deg, right.initial_tilt_deg)
+        self.assertEqual(left.initial_orientation, right.initial_orientation)
+        self.assertAlmostEqual(
+            left.support_imbalance, right.support_imbalance
+        )
+        self.assertAlmostEqual(
+            left.left_right_imbalance,
+            -right.left_right_imbalance,
+        )
+        self.assertAlmostEqual(
+            left.front_back_imbalance,
+            right.front_back_imbalance,
+        )
+        self.assertEqual(left_assessment.passed, right_assessment.passed)
+        self.assertEqual(left_assessment.reasons, right_assessment.reasons)
+
+    def test_release_risk_gate_modes_only_filter_before_ranking(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(23)
+        release = agent.AABB(
+            center=(0.0, 0.0, 0.5),
+            size=(0.3, 0.25, 0.2),
+            name="release_candidate",
+        )
+        thresholds = agent.ReleaseRiskThresholds(
+            min_support_ratio=0.9,
+            min_com_margin=0.5,
+            max_overhang_ratio=0.1,
+            max_drop_normalized=0.1,
+            max_support_imbalance=0.1,
+            max_initial_tilt_deg=1.0,
+        )
+        original_score = agent.Ranker.score(
+            release, item, container, False
+        )
+        diagnostics = {}
+
+        self.assertTrue(
+            agent.release_candidate_passes_risk_gate(
+                release,
+                item,
+                container,
+                orientation=0,
+                mode="off",
+                thresholds=thresholds,
+            )
+        )
+        self.assertTrue(
+            agent.release_candidate_passes_risk_gate(
+                release,
+                item,
+                container,
+                orientation=0,
+                mode="shadow",
+                thresholds=thresholds,
+                diagnostics=diagnostics,
+                item_idx=23,
+            )
+        )
+        self.assertFalse(
+            agent.release_candidate_passes_risk_gate(
+                release,
+                item,
+                container,
+                orientation=0,
+                mode="enforce",
+                thresholds=thresholds,
+            )
+        )
+        self.assertEqual(
+            original_score,
+            agent.Ranker.score(release, item, container, False),
+        )
+        self.assertEqual(
+            diagnostics["release_risk_gate"]["would_reject"],
+            1,
+        )
+
+    def test_release_generator_applies_gate_before_yielding_candidate(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(24)
+        rejected = agent.ReleaseRiskAssessment(
+            passed=False,
+            reasons=("drop",),
+        )
+
+        def generated(mode):
+            diagnostics = {}
+            with (
+                mock.patch.object(
+                    agent,
+                    "RELEASE_RISK_GATE_MODE",
+                    mode,
+                ),
+                mock.patch.object(
+                    agent,
+                    "evaluate_release_risk",
+                    return_value=rejected,
+                ),
+            ):
+                candidates = [
+                    candidate
+                    for candidate in agent.CandidateGenerator.iter_attempts(
+                        observation,
+                        item,
+                        container_idx=0,
+                        orientation=0,
+                        limit=1,
+                        diagnostics=diagnostics,
+                        item_idx=24,
+                        attempt_kind="release",
+                    )
+                    if candidate is not None
+                ]
+            return candidates, diagnostics
+
+        shadow, shadow_diagnostics = generated("shadow")
+        enforced, enforced_diagnostics = generated("enforce")
+
+        self.assertEqual(len(shadow), 1)
+        self.assertEqual(enforced, [])
+        self.assertGreater(
+            shadow_diagnostics["release_risk_gate"]["would_reject"],
+            0,
+        )
+
+        self.assertGreater(
+            enforced_diagnostics["release_risk_gate"][
+                "enforced_rejections"
+            ],
+            0,
+        )
+
+    def test_release_flow_distinguishes_static_candidates_from_all_rejected(self):
+        diagnostics = {
+            "by_kind": {
+                "release": {
+                    "attempted": 7,
+                    "accepted": 4,
+                    "envelope_pruned": 0,
+                    "rejected": {},
+                }
+            },
+            "release_risk_gate": {
+                "mode": "enforce",
+                "evaluated": 4,
+                "passed": 0,
+                "would_reject": 4,
+                "enforced_rejections": 4,
+            },
+        }
+
+        agent.finalize_release_flow_diagnostics(diagnostics)
+
+        self.assertEqual(diagnostics["release_static_count"], 4)
+        self.assertEqual(diagnostics["release_gate_pass_count"], 0)
+        self.assertEqual(diagnostics["release_gate_reject_count"], 4)
+        self.assertTrue(diagnostics["release_all_rejected"])
+
+    def test_enforce_without_release_candidates_matches_off_action(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(26)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        settled = agent.AABB(
+            center=(0.0, 0.0, 0.1),
+            size=(0.2, 0.2, 0.2),
+            name="settled_candidate",
+        )
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "settled":
+                yield settled
+
+        actions = {}
+        for mode in ("off", "enforce"):
+            with (
+                mock.patch.object(
+                    agent.CandidateGenerator,
+                    "iter_attempts",
+                    side_effect=attempts,
+                ),
+                mock.patch.object(agent, "RELEASE_RISK_GATE_MODE", mode),
+            ):
+                decision = agent.PlacementCore.choose(
+                    observation,
+                    [(0, item)],
+                )
+            actions[mode] = decision.action
+
+        self.assertEqual(
+            actions["off"]["item_idx"],
+            actions["enforce"]["item_idx"],
+        )
+        self.assertEqual(
+            actions["off"]["container_idx"],
+            actions["enforce"]["container_idx"],
+        )
+        self.assertEqual(
+            actions["off"]["orientation"],
+            actions["enforce"]["orientation"],
+        )
+        np.testing.assert_array_equal(
+            actions["off"]["place_pos"],
+            actions["enforce"]["place_pos"],
+        )
+
+    def test_settled_generator_never_invokes_release_gate(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(27, length=0.2, width=0.2, height=0.2)
+
+        with mock.patch.object(
+            agent,
+            "release_candidate_passes_risk_gate",
+            side_effect=AssertionError("settled candidate entered gate"),
+        ):
+            candidates = [
+                candidate
+                for candidate in agent.CandidateGenerator.iter_attempts(
+                    observation,
+                    item,
+                    container_idx=0,
+                    orientation=0,
+                    limit=1,
+                    attempt_kind="settled",
+                )
+                if candidate is not None
+            ]
+
+        self.assertEqual(len(candidates), 1)
+
+    def test_shadow_gate_preserves_release_candidates_and_scores(self):
+        container = halfspace_container(
+            lower_point=(0.0, 0.0, 0.3),
+            lower_normal=(0.0, 0.0, -1.0),
+        )
+        observation = {"container_list": [container]}
+        item = sample_item(25, length=0.4, width=0.2, height=0.2)
+
+        def generated(mode):
+            diagnostics = {}
+            with mock.patch.object(
+                agent,
+                "RELEASE_RISK_GATE_MODE",
+                mode,
+            ):
+                candidates = [
+                    candidate
+                    for candidate in agent.CandidateGenerator.iter_attempts(
+                        observation,
+                        item,
+                        container_idx=0,
+                        orientation=0,
+                        limit=8,
+                        diagnostics=diagnostics,
+                        item_idx=25,
+                        attempt_kind="release",
+                    )
+                    if candidate is not None
+                ]
+            return candidates, diagnostics
+
+        off, _off_diagnostics = generated("off")
+        shadow, shadow_diagnostics = generated("shadow")
+
+        self.assertEqual(off, shadow)
+        self.assertEqual(
+            [
+                agent.Ranker.score(candidate, item, container, False)
+                for candidate in off
+            ],
+            [
+                agent.Ranker.score(candidate, item, container, False)
+                for candidate in shadow
+            ],
+        )
+        self.assertGreater(
+            shadow_diagnostics["release_risk_gate"]["would_reject"],
+            0,
+        )
+
+        def selected_action(candidates):
+            stream = [
+                (0, item, 0, 0, candidate)
+                for candidate in candidates
+            ]
+            with mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=iter(stream),
+            ):
+                return agent.PlacementCore.choose(
+                    observation,
+                    [(0, item)],
+                ).action
+
+        off_action = selected_action(off)
+        shadow_action = selected_action(shadow)
+        self.assertEqual(
+            off_action["container_idx"],
+            shadow_action["container_idx"],
+        )
+        self.assertEqual(
+            off_action["orientation"],
+            shadow_action["orientation"],
+        )
+        np.testing.assert_array_equal(
+            off_action["place_pos"],
+            shadow_action["place_pos"],
+        )
+
 
 class LookaheadSelectionTests(unittest.TestCase):
     @staticmethod
@@ -1344,7 +1763,7 @@ class LookaheadSelectionTests(unittest.TestCase):
             0,
         )
 
-    def test_fixed_fallback_is_included_in_policy_trace(self):
+    def test_unsafe_protocol_fallback_is_included_in_policy_trace(self):
         observation = {
             "pool_list": [sample_item(9)],
             "container_list": [
@@ -1389,7 +1808,17 @@ class LookaheadSelectionTests(unittest.TestCase):
             ]
 
         self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
-        self.assertEqual(events[1]["action_source"], "fixed_fallback")
+        self.assertEqual(
+            events[1]["action_source"],
+            "unsafe_protocol_fallback",
+        )
+        self.assertEqual(events[1]["internal_outcome"], "no_safe_action")
+        self.assertTrue(events[1]["no_safe_action"])
+        self.assertEqual(events[1]["protocol_fallback"], "fixed")
+        self.assertEqual(
+            events[1]["protocol_fallback_kind"],
+            "fixed_coordinate",
+        )
         self.assertEqual(events[1]["selected_item_index"], 9)
         lifecycle = {
             record["item_index"]: record
@@ -1398,10 +1827,16 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertIsNone(lifecycle[9]["selected_step"])
         self.assertEqual(
             lifecycle[9]["starvation_observation"],
-            "fixed_fallback_target",
+            "unsafe_protocol_fallback_target",
         )
-        self.assertEqual(solver.last_action_source, "fixed_fallback")
-        self.assertEqual(solver.last_candidate_kind, "fixed_fallback")
+        self.assertEqual(
+            solver.last_action_source,
+            "unsafe_protocol_fallback",
+        )
+        self.assertEqual(
+            solver.last_candidate_kind,
+            "unsafe_protocol_fallback",
+        )
 
     def test_policy_trace_records_item_selection_lifecycle_stages(self):
         pool = [sample_item(index) for index in range(11)]

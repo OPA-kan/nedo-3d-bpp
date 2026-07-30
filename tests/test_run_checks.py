@@ -19,6 +19,7 @@ class EvaluationStatusTests(unittest.TestCase):
                 "NEDO_POLICY_TRACE_PATH": "reports/raw/policy-trace.jsonl",
                 "LOOKAHEAD_SELECTION_MODE": "depth2",
                 "ITEM_COVERAGE_MODE": "legacy",
+                "RELEASE_RISK_GATE_MODE": "enforce",
                 "KEEP_ME": "yes",
             },
             clear=True,
@@ -27,6 +28,7 @@ class EvaluationStatusTests(unittest.TestCase):
         self.assertNotIn("NEDO_POLICY_TRACE_PATH", env)
         self.assertNotIn("LOOKAHEAD_SELECTION_MODE", env)
         self.assertNotIn("ITEM_COVERAGE_MODE", env)
+        self.assertNotIn("RELEASE_RISK_GATE_MODE", env)
         self.assertEqual(env["KEEP_ME"], "yes")
 
     def test_valid_safe_cases_pass(self) -> None:

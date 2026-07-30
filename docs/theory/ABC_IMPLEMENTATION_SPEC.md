@@ -1,6 +1,6 @@
 # NEDO 課題A/B/C 実装spec
 
-**Status:** Proposed architecture / diagnostics implemented
+**Status:** Proposed architecture / diagnostics and release risk gate implemented
 
 **Scope:** 配布シミュレータ上の候補生成、選択、計測。非公開の最終score重みは含まない。
 
@@ -12,6 +12,8 @@
 4. soft/priority、残余、重心、表面は公式重みが不明な間は辞書式またはtie-breakに使う。
 5. onlineは最初に可行incumbentを確保し、内部締切まで改善する。
 6. 診断では直接測定値とproxyを分離し、単一の擬似総合scoreへ混ぜない。
+7. releaseの指令位置・姿勢とsettle後の実現位置・姿勢を分離し、その差を
+   物理failureとして測る。
 
 ## 2. 共通状態
 
@@ -77,6 +79,20 @@ K(p)=(
 
 soft/priority、残余、重心、表面の公式重みが不明な間は、それらを絶対hard制約へ
 格上げしない。
+
+release risk gateは通常rankingとは独立した実験層とする。初版は
+`off` / `shadow` / `enforce` を切り替え、support、CoM margin、overhang、
+drop、support imbalance、initial poseの固定閾値だけを使う。
+`shadow`は棄却予定と特徴を記録するが候補を残し、`enforce`だけがranking前に
+危険候補を除外する。gate通過候補のscore式は全モードで同じにする。
+オンライン特徴の由来はcommand state / predicted contact stateへ明示的に分け、
+settle telemetryはoffline評価時だけ結合する。traceではstatic候補数、gate通過数、
+gate棄却数、全棄却、protocol fallbackを別々に数える。
+
+候補が尽きた場合の内部結果は `no_safe_action` とする。共通の状態依存fallback
+生成器 \(F(s,i,d)\) はProposedであり、未実装の間に外部APIへ返す固定座標または
+random actionは `unsafe_protocol_fallback` として診断する。これを安全な
+Task C fallbackや検証済みincumbentと同一視しない。
 
 ## 6. 課題C
 
@@ -167,5 +183,11 @@ hardフィルタにしない。2コンテナの充填率差そのものにもペ
 6. proxyが将来の配置数・fillを予測するか相関を見る
 7. 効果が確認できたproxyだけrankingへ昇格
 8. 完全な訓練scoreが得られた後にCEMや学習価値を検討
+
+初回risk gateアブレーションはcoverage方策を固定し、pool 10/20/40、
+`off` / `shadow` / `enforce`、各3反復を同時に取る。`off`と`shadow`は
+action command列のSHA-256を比較し、一件でも不一致ならhard gate評価へ進まない。
+placed count、fill、gate通過率、全棄却、protocol fallback、gate通過releaseの
+物理failure、shadowで棄却予定だったが物理的に安全だった選択候補を集計する。
 
 物理FAIL中のfillは診断値であり、コンペscore改善の根拠にはしない。

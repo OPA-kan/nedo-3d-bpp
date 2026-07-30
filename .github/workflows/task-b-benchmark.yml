@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: class_aware
+      risk_gate_mode:
+        description: Release risk gate ablation mode, or all three modes
+        required: false
+        type: string
+        default: all
   workflow_dispatch:
     inputs:
       selection_mode:
@@ -32,24 +37,33 @@ on:
           - class_aware
           - legacy
         default: class_aware
+      risk_gate_mode:
+        description: Release risk gate ablation mode
+        required: true
+        type: choice
+        options:
+          - all
+          - "off"
+          - shadow
+          - enforce
+        default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: task-b-benchmark-${{ github.ref }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}
+  group: task-b-benchmark-${{ github.ref }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-${{ inputs.risk_gate_mode }}
   cancel-in-progress: true
 
 jobs:
   benchmark:
-    name: pool-${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r${{ matrix.replicate }}
+    name: pool-${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-${{ matrix.risk_gate_mode }}-r${{ matrix.replicate }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         look_ahead:
-          - 3
           - 10
           - 20
           - 40
@@ -57,6 +71,7 @@ jobs:
           - 1
           - 2
           - 3
+        risk_gate_mode: ${{ fromJSON(inputs.risk_gate_mode == 'all' && '["off","shadow","enforce"]' || format('["{0}"]', inputs.risk_gate_mode)) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -84,6 +99,7 @@ jobs:
         env:
           LOOKAHEAD_SELECTION_MODE: ${{ inputs.selection_mode }}
           ITEM_COVERAGE_MODE: ${{ inputs.coverage_mode }}
+          RELEASE_RISK_GATE_MODE: ${{ matrix.risk_gate_mode }}
           NEDO_POLICY_TRACE_PATH: >-
             ${{ github.workspace }}/reports/raw/policy-trace.jsonl
       - name: Publish compact summary
@@ -94,6 +110,7 @@ jobs:
             --look-ahead "${{ matrix.look_ahead }}" \
             --selection-mode "${{ inputs.selection_mode }}" \
             --coverage-mode "${{ inputs.coverage_mode }}" \
+            --risk-gate-mode "${{ matrix.risk_gate_mode }}" \
             --replicate "${{ matrix.replicate }}" \
             --trace reports/raw/policy-trace.jsonl \
             --output \
@@ -106,7 +123,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: task-b-k${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r${{ matrix.replicate }}
+          name: task-b-k${{ matrix.look_ahead }}-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-${{ matrix.risk_gate_mode }}-r${{ matrix.replicate }}
           path: |
             reports/latest.md
             reports/latest.json
@@ -124,7 +141,7 @@ jobs:
           python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
-          pattern: task-b-k*-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-r*
+          pattern: task-b-k*-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-*-r*
           path: reports/task-b-screening
       - name: Aggregate screening runs
         run: >-
@@ -135,7 +152,7 @@ jobs:
       - run: cat reports/task-b-screening/aggregate.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: task-b-aggregate-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}
+          name: task-b-aggregate-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-${{ inputs.risk_gate_mode }}
           path: |
             reports/task-b-screening/aggregate.md
             reports/task-b-screening/aggregate.json

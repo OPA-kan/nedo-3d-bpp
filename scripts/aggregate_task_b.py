@@ -39,11 +39,20 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row.get("look_ahead"),
             row.get("selection_mode"),
             row.get("coverage_mode"),
+            row.get("risk_gate_mode") or "unspecified",
         )
         groups[key].append(row)
 
     aggregates = []
-    for key in sorted(groups, key=lambda value: (value[0], value[1], value[2])):
+    for key in sorted(
+        groups,
+        key=lambda value: (
+            value[0],
+            str(value[1]),
+            str(value[2]),
+            str(value[3]),
+        ),
+    ):
         group = groups[key]
         failures = collections.Counter(
             str(row.get("failure_mode", "unknown")) for row in group
@@ -68,11 +77,23 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 result[metric] = _stats(values)
             return result
 
+        def release_stats(metric: str):
+            values = []
+            for row in group:
+                release = row.get("release")
+                if not isinstance(release, dict):
+                    continue
+                value = release.get(metric)
+                if isinstance(value, (int, float)):
+                    values.append(float(value))
+            return _stats(values)
+
         aggregates.append(
             {
                 "look_ahead": key[0],
                 "selection_mode": key[1],
                 "coverage_mode": key[2],
+                "risk_gate_mode": key[3],
                 "runs": len(group),
                 "placed": _stats(
                     [float(row.get("placed_count", 0)) for row in group]
@@ -97,6 +118,38 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     bool(row.get("starvation_signal"))
                     for row in group
                 ),
+                "action_sequences_by_replicate": {
+                    f"{row.get('replicate')}:{row.get('case')}": row["release"][
+                        "action_sequence_sha256"
+                    ]
+                    for row in group
+                    if isinstance(row.get("release"), dict)
+                    and row["release"].get("action_sequence_sha256")
+                },
+                "release": {
+                    metric: release_stats(metric)
+                    for metric in (
+                        "gate_evaluated",
+                        "gate_would_reject",
+                        "gate_enforced_rejections",
+                        "release_static_count",
+                        "release_gate_pass_count",
+                        "release_gate_reject_count",
+                        "release_all_rejected_count",
+                        "release_static_step_count",
+                        "protocol_fallback_count",
+                        "gate_pass_ratio",
+                        "release_all_rejected_ratio",
+                        "protocol_fallback_ratio",
+                        "selected_release_count",
+                        "rotation_over_30_count",
+                        "large_displacement_count",
+                        "physical_failure_count",
+                        "selected_gate_pass_count",
+                        "selected_gate_pass_physical_failure_count",
+                        "shadow_rejected_but_safe_count",
+                    )
+                },
                 "failure_modes": dict(sorted(failures.items())),
             }
         )
@@ -112,10 +165,10 @@ def build_aggregate_markdown(aggregates: list[dict[str, Any]]) -> str:
     lines = [
         "## Task B screening aggregate",
         "",
-        "| Pool | Selection | Coverage | Runs | Placed mean/median/std "
+        "| Pool | Selection | Coverage | Risk gate | Runs | Placed mean/median/std "
         "| Placed min-max | Fill mean/median/std | C1/C2/C3 mean "
         "| Failure modes | Starvation signals |",
-        "| ---: | --- | --- | ---: | --- | --- | --- | --- | --- | ---: |",
+        "| ---: | --- | --- | --- | ---: | --- | --- | --- | --- | --- | ---: |",
     ]
     for result in aggregates:
         placed = result["placed"]
@@ -127,7 +180,8 @@ def build_aggregate_markdown(aggregates: list[dict[str, Any]]) -> str:
         coverage = result["coverage"]["overall"]
         lines.append(
             f"| {result['look_ahead']} | {result['selection_mode']} | "
-            f"{result['coverage_mode']} | {result['runs']} | "
+            f"{result['coverage_mode']} | {result['risk_gate_mode']} | "
+            f"{result['runs']} | "
             f"{placed['mean']:.2f}/{placed['median']:.2f}/"
             f"{placed['stddev']:.2f} | "
             f"{placed['min']:.0f}-{placed['max']:.0f} | "
@@ -156,6 +210,90 @@ def build_aggregate_markdown(aggregates: list[dict[str, Any]]) -> str:
                 f"{percent_mean(coverage['c2'])} | "
                 f"{percent_mean(coverage['c3'])} |"
             )
+    lines.extend(
+        [
+            "",
+            "### Release risk means",
+            "",
+            "| Pool | Risk gate | Static | Gate pass | Pass rate | "
+            "Gate reject | All rejected | All-reject rate | "
+            "Protocol fallback | Evaluated | Enforced | "
+            "Selected | >30° | Large displacement | Physical failure | "
+            "Gate-pass failures | Shadow reject but safe |",
+            "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: |",
+        ]
+    )
+    for result in aggregates:
+        release = result["release"]
+        lines.append(
+            f"| {result['look_ahead']} | {result['risk_gate_mode']} | "
+            f"{release['release_static_count']['mean']:.1f} | "
+            f"{release['release_gate_pass_count']['mean']:.1f} | "
+            f"{percent_mean(release['gate_pass_ratio'])} | "
+            f"{release['release_gate_reject_count']['mean']:.1f} | "
+            f"{release['release_all_rejected_count']['mean']:.1f} | "
+            f"{percent_mean(release['release_all_rejected_ratio'])} | "
+            f"{release['protocol_fallback_count']['mean']:.1f} | "
+            f"{release['gate_evaluated']['mean']:.1f} | "
+            f"{release['gate_enforced_rejections']['mean']:.1f} | "
+            f"{release['selected_release_count']['mean']:.1f} | "
+            f"{release['rotation_over_30_count']['mean']:.1f} | "
+            f"{release['large_displacement_count']['mean']:.1f} | "
+            f"{release['physical_failure_count']['mean']:.1f} | "
+            f"{release['selected_gate_pass_physical_failure_count']['mean']:.1f} | "
+            f"{release['shadow_rejected_but_safe_count']['mean']:.1f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### Off/shadow action-sequence invariant",
+            "",
+            "| Pool | Comparable replicates | Exact matches | Blocker |",
+            "| ---: | ---: | ---: | --- |",
+        ]
+    )
+    indexed = {
+        (
+            result["look_ahead"],
+            result["selection_mode"],
+            result["coverage_mode"],
+            result["risk_gate_mode"],
+        ): result
+        for result in aggregates
+    }
+    base_keys = sorted(
+        {
+            (
+                result["look_ahead"],
+                result["selection_mode"],
+                result["coverage_mode"],
+            )
+            for result in aggregates
+        },
+        key=lambda value: (value[0], str(value[1]), str(value[2])),
+    )
+    for look_ahead, selection_mode, coverage_mode in base_keys:
+        off = indexed.get(
+            (look_ahead, selection_mode, coverage_mode, "off")
+        )
+        shadow = indexed.get(
+            (look_ahead, selection_mode, coverage_mode, "shadow")
+        )
+        if off is None or shadow is None:
+            continue
+        off_hashes = off["action_sequences_by_replicate"]
+        shadow_hashes = shadow["action_sequences_by_replicate"]
+        replicates = sorted(set(off_hashes) & set(shadow_hashes))
+        matches = sum(
+            off_hashes[replicate] == shadow_hashes[replicate]
+            for replicate in replicates
+        )
+        lines.append(
+            f"| {look_ahead} | {len(replicates)} | {matches} | "
+            f"{'yes' if matches != len(replicates) else 'no'} |"
+        )
     return "\n".join(lines) + "\n"
 
 

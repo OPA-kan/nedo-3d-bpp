@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pathlib
 from typing import Any
@@ -21,6 +22,25 @@ def _last_decision(trace_events: list[dict[str, Any]] | None) -> dict[str, Any]:
     return decisions[-1] if decisions else {}
 
 
+def _trace_episodes(
+    trace_events: list[dict[str, Any]] | None,
+) -> list[list[dict[str, Any]]]:
+    episodes = []
+    current = []
+    for event in trace_events or []:
+        if not isinstance(event, dict):
+            continue
+        if event.get("event") == "init" and any(
+            record.get("event") == "decision" for record in current
+        ):
+            episodes.append(current)
+            current = []
+        current.append(event)
+    if any(record.get("event") == "decision" for record in current):
+        episodes.append(current)
+    return episodes
+
+
 def _failure_mode(
     *,
     final_safe: bool,
@@ -30,8 +50,11 @@ def _failure_mode(
         return "none"
     action_source = decision.get("action_source")
     candidate_kind = decision.get("candidate_kind")
-    if action_source == "fixed_fallback":
-        return "fixed_fallback"
+    if action_source in {
+        "fixed_fallback",
+        "unsafe_protocol_fallback",
+    }:
+        return "unsafe_protocol_fallback"
     if candidate_kind == "release_candidate":
         return "release_failure"
     if action_source == "placement_core":
@@ -40,7 +63,10 @@ def _failure_mode(
 
 
 def _starvation_signal(decision: dict[str, Any]) -> bool:
-    if decision.get("action_source") != "fixed_fallback":
+    if decision.get("action_source") not in {
+        "fixed_fallback",
+        "unsafe_protocol_fallback",
+    }:
         return False
     selected_item = decision.get("selected_item_index")
     lifecycle = decision.get("item_lifecycle")
@@ -115,21 +141,216 @@ def _coverage_values(
     }
 
 
+def _release_values(
+    trace_events: list[dict[str, Any]] | None,
+    step_metrics: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    decisions = [
+        event
+        for event in (trace_events or [])
+        if isinstance(event, dict) and event.get("event") == "decision"
+    ]
+    metrics_by_step = {
+        metric.get("step"): metric
+        for metric in (step_metrics or [])
+        if isinstance(metric, dict)
+    }
+    action_commands = [
+        decision.get("action_command")
+        for decision in decisions
+        if isinstance(decision.get("action_command"), dict)
+    ]
+    action_sequence_sha256 = (
+        hashlib.sha256(
+            json.dumps(
+                action_commands,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        if action_commands
+        else None
+    )
+    gate_evaluated = 0
+    gate_would_reject = 0
+    gate_enforced_rejections = 0
+    release_static_count = 0
+    release_gate_pass_count = 0
+    release_gate_reject_count = 0
+    release_all_rejected_count = 0
+    release_static_step_count = 0
+    protocol_fallback_count = 0
+    gate_modes = set()
+    selected_release = []
+    for decision in decisions:
+        diagnostics = decision.get("candidate_diagnostics")
+        gate = (
+            diagnostics.get("release_risk_gate")
+            if isinstance(diagnostics, dict)
+            else None
+        )
+        if isinstance(gate, dict):
+            gate_evaluated += int(gate.get("evaluated", 0))
+            gate_would_reject += int(gate.get("would_reject", 0))
+            gate_enforced_rejections += int(
+                gate.get("enforced_rejections", 0)
+            )
+            if gate.get("mode"):
+                gate_modes.add(str(gate["mode"]))
+        if isinstance(diagnostics, dict):
+            step_static_count = int(
+                diagnostics.get("release_static_count", 0)
+            )
+            release_static_count += step_static_count
+            release_static_step_count += int(step_static_count > 0)
+            release_gate_pass_count += int(
+                diagnostics.get("release_gate_pass_count", 0)
+            )
+            release_gate_reject_count += int(
+                diagnostics.get("release_gate_reject_count", 0)
+            )
+            release_all_rejected_count += int(
+                bool(diagnostics.get("release_all_rejected", False))
+            )
+        if decision.get("action_source") in {
+            "fixed_fallback",
+            "unsafe_protocol_fallback",
+        }:
+            protocol_fallback_count += 1
+        if decision.get("candidate_kind") == "release_candidate":
+            selected_release.append(decision)
+
+    rotation_over_30 = 0
+    displacement_over_half_footprint = 0
+    physical_failures = 0
+    selected_gate_pass_count = 0
+    selected_gate_pass_physical_failure_count = 0
+    shadow_rejected_but_safe_count = 0
+    for decision in selected_release:
+        metric = metrics_by_step.get(decision.get("step"))
+        if not isinstance(metric, dict):
+            continue
+        rotated = float(metric.get("settle_angle_deg", 0.0)) > 30.0
+        if rotated:
+            rotation_over_30 += 1
+        displacement = metric.get("settle_displacement_norm")
+        aabb = metric.get("settle_aabb_dimensions")
+        displaced = False
+        if (
+            isinstance(displacement, (int, float))
+            and isinstance(aabb, list)
+            and len(aabb) >= 2
+        ):
+            footprint = max(1e-9, min(float(aabb[0]), float(aabb[1])))
+            if float(displacement) / footprint > 0.5:
+                displacement_over_half_footprint += 1
+                displaced = True
+        status = metric.get("status")
+        physically_invalid = (
+            isinstance(status, dict)
+            and status.get("is_placed_safe") is False
+        )
+        if physically_invalid:
+            physical_failures += 1
+        physically_dangerous = bool(
+            rotated or displaced or physically_invalid
+        )
+        diagnostics = decision.get("candidate_diagnostics")
+        selected_risk = (
+            diagnostics.get("selected_release_risk")
+            if isinstance(diagnostics, dict)
+            else None
+        )
+        if not isinstance(selected_risk, dict):
+            continue
+        if selected_risk.get("passed") is True:
+            selected_gate_pass_count += 1
+            if physically_dangerous:
+                selected_gate_pass_physical_failure_count += 1
+        elif (
+            selected_risk.get("mode") == "shadow"
+            and selected_risk.get("passed") is False
+            and not physically_dangerous
+        ):
+            shadow_rejected_but_safe_count += 1
+
+    return {
+        "gate_mode_observed": (
+            ",".join(sorted(gate_modes)) if gate_modes else None
+        ),
+        "action_sequence_sha256": action_sequence_sha256,
+        "gate_evaluated": gate_evaluated,
+        "gate_would_reject": gate_would_reject,
+        "gate_enforced_rejections": gate_enforced_rejections,
+        "release_static_count": release_static_count,
+        "release_gate_pass_count": release_gate_pass_count,
+        "release_gate_reject_count": release_gate_reject_count,
+        "release_all_rejected_count": release_all_rejected_count,
+        "release_static_step_count": release_static_step_count,
+        "protocol_fallback_count": protocol_fallback_count,
+        "gate_pass_ratio": (
+            release_gate_pass_count / gate_evaluated
+            if gate_evaluated > 0
+            else None
+        ),
+        "release_all_rejected_ratio": (
+            release_all_rejected_count / release_static_step_count
+            if release_static_step_count > 0
+            else None
+        ),
+        "protocol_fallback_ratio": (
+            protocol_fallback_count / len(decisions)
+            if decisions
+            else None
+        ),
+        "gate_rejection_ratio": (
+            gate_would_reject / gate_evaluated
+            if gate_evaluated > 0
+            else None
+        ),
+        "selected_release_count": len(selected_release),
+        "rotation_over_30_count": rotation_over_30,
+        "large_displacement_count": displacement_over_half_footprint,
+        "physical_failure_count": physical_failures,
+        "selected_gate_pass_count": selected_gate_pass_count,
+        "selected_gate_pass_physical_failure_count": (
+            selected_gate_pass_physical_failure_count
+        ),
+        "gate_passing_release_failure_rate": (
+            selected_gate_pass_physical_failure_count
+            / selected_gate_pass_count
+            if selected_gate_pass_count > 0
+            else None
+        ),
+        "shadow_rejected_but_safe_count": (
+            shadow_rejected_but_safe_count
+        ),
+    }
+
+
 def task_b_result_rows(
     payload: dict[str, Any],
     *,
     look_ahead: int,
     selection_mode: str,
     coverage_mode: str | None = None,
+    risk_gate_mode: str | None = None,
     replicate: int | None = None,
     trace_events: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     evaluation = payload.get("evaluation")
     if not isinstance(evaluation, dict):
         return []
-    decision = _last_decision(trace_events)
+    trace_episodes = _trace_episodes(trace_events)
+    case_count = len(evaluation)
     rows = []
-    for case_id, case in evaluation.items():
+    for case_index, (case_id, case) in enumerate(evaluation.items()):
+        case_trace = (
+            trace_episodes[case_index]
+            if len(trace_episodes) == case_count
+            else trace_events
+        )
+        decision = _last_decision(case_trace)
         score = case.get("evaluation") if isinstance(case, dict) else None
         if not isinstance(score, dict):
             continue
@@ -155,6 +376,7 @@ def task_b_result_rows(
                 "look_ahead": int(look_ahead),
                 "selection_mode": selection_mode,
                 "coverage_mode": coverage_mode or "unspecified",
+                "risk_gate_mode": risk_gate_mode or "unspecified",
                 "replicate": replicate,
                 "placed_count": placed_count,
                 "total_items": _total_items(
@@ -171,7 +393,11 @@ def task_b_result_rows(
                     decision=decision,
                 ),
                 "starvation_signal": _starvation_signal(decision),
-                "coverage": _coverage_values(trace_events),
+                "coverage": _coverage_values(case_trace),
+                "release": _release_values(
+                    case_trace,
+                    metrics if isinstance(metrics, list) else None,
+                ),
             }
         )
     return rows
@@ -189,6 +415,7 @@ def build_task_b_summary(
     look_ahead: int,
     selection_mode: str,
     coverage_mode: str | None = None,
+    risk_gate_mode: str | None = None,
     replicate: int | None = None,
     trace_events: list[dict[str, Any]] | None = None,
 ) -> str:
@@ -204,6 +431,8 @@ def build_task_b_summary(
     title_parts.append(selection_mode)
     if coverage_mode is not None:
         title_parts.append(coverage_mode)
+    if risk_gate_mode is not None:
+        title_parts.append(f"risk={risk_gate_mode}")
     lines = [
         f"## Task B benchmark: {', '.join(title_parts)}",
         "",
@@ -221,6 +450,7 @@ def build_task_b_summary(
         look_ahead=look_ahead,
         selection_mode=selection_mode,
         coverage_mode=coverage_mode,
+        risk_gate_mode=risk_gate_mode,
         replicate=replicate,
         trace_events=trace_events,
     )
@@ -280,6 +510,42 @@ def build_task_b_summary(
                 f"{_percent(values['c2'])} | "
                 f"{_percent(values['c3'])} |"
             )
+    lines.extend(
+        [
+            "",
+            "### Release risk gate",
+            "",
+            "| Case | Gate mode | Static | Gate pass | Pass rate | "
+            "Gate reject | All rejected | All-reject rate | "
+            "Protocol fallback | Evaluated | Enforced | "
+            "Selected release | >30° | Large displacement | "
+            "Physical failure | Gate-pass failure rate | "
+            "Shadow reject but safe |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: |",
+        ]
+    )
+    for row in rows:
+        release = row["release"]
+        lines.append(
+            f"| {row['case']} | {row['risk_gate_mode']} | "
+            f"{release['release_static_count']} | "
+            f"{release['release_gate_pass_count']} | "
+            f"{_percent(release['gate_pass_ratio'])} | "
+            f"{release['release_gate_reject_count']} | "
+            f"{release['release_all_rejected_count']} | "
+            f"{_percent(release['release_all_rejected_ratio'])} | "
+            f"{release['protocol_fallback_count']} | "
+            f"{release['gate_evaluated']} | "
+            f"{release['gate_enforced_rejections']} | "
+            f"{release['selected_release_count']} | "
+            f"{release['rotation_over_30_count']} | "
+            f"{release['large_displacement_count']} | "
+            f"{release['physical_failure_count']} | "
+            f"{_percent(release['gate_passing_release_failure_rate'])} | "
+            f"{release['shadow_rejected_but_safe_count']} |"
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -289,6 +555,7 @@ def main() -> int:
     parser.add_argument("--look-ahead", type=int, required=True)
     parser.add_argument("--selection-mode", required=True)
     parser.add_argument("--coverage-mode")
+    parser.add_argument("--risk-gate-mode")
     parser.add_argument("--replicate", type=int)
     parser.add_argument("--trace", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
@@ -308,6 +575,7 @@ def main() -> int:
         look_ahead=args.look_ahead,
         selection_mode=args.selection_mode,
         coverage_mode=args.coverage_mode,
+        risk_gate_mode=args.risk_gate_mode,
         replicate=args.replicate,
         trace_events=trace_events,
     )
@@ -323,6 +591,7 @@ def main() -> int:
             look_ahead=args.look_ahead,
             selection_mode=args.selection_mode,
             coverage_mode=args.coverage_mode,
+            risk_gate_mode=args.risk_gate_mode,
             replicate=args.replicate,
             trace_events=trace_events,
         )

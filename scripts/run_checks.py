@@ -60,6 +60,7 @@ def unit_test_environment() -> dict[str, str]:
         "NEDO_POLICY_TRACE_PATH",
         "LOOKAHEAD_SELECTION_MODE",
         "ITEM_COVERAGE_MODE",
+        "RELEASE_RISK_GATE_MODE",
     ):
         env.pop(name, None)
     return env

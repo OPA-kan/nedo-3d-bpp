@@ -34,7 +34,19 @@
   - `z = max(Zmin + 2 mm, footprint最大高さ + 荷物半高さ + 52 mm)`
   - `z > Zmax` なら無効。
 - 投下点では支持率を要求しない。目標包含、静的干渉、公式と同じ搬入経路を
-  hard判定し、支持・傾き・滑りはPyBullet settle後に確認する。
+  static hard判定する。その後、release risk gateを有効にした実験では、
+  settled proxy上の支持率、重心投影margin、overhang、正規化drop、
+  左右・前後の支持偏り、初期姿勢をranking前に閾値判定する。
+  現行actionの姿勢は離散的な軸平行姿勢なので、initial poseはorientation codeを
+  保存し、指令時tiltは0度とする。
+  support、CoM margin、overhang、support imbalanceは
+  `predicted_contact_state`、initial poseは`command_state`、dropは両者の差から
+  算出する。オンライン特徴へsettle後telemetryを混入させない。
+  gate通過候補のranking scoreは変更しない。支持・傾き・滑りの真値は
+  PyBullet settle後に確認する。
+- traceは`release_static_count`、`release_gate_pass_count`、
+  `release_gate_reject_count`、`release_all_rejected`を分ける。static候補が存在して
+  enforce gateで全滅した状態を、候補生成ゼロと同一視しない。
 - offline dry-runでは、投下点をそのまま静止位置にせず、
   `max(Zmin, footprint最大高さ + 荷物半高さ)` をsettled proxyに使う。
   これは斜面上の傾きを保証する値ではなく、次の実観測までの近似である。
@@ -44,6 +56,8 @@
 - 搬入開始高さは公式分岐をそのまま再現する。送信底面が床・棚から5 cm以内なら送信高さのまま、そうでなければ送信高さ+8 cmとし、天井余裕18 mmと上限10 mmでクリップする。
 - 搬入経路は公式実装どおり、開口部から基準Xまで進むY軸区間と、そこから目標Xへ動くX軸区間の2本を別々に検査する。
 - 既配置荷物は、settle後に観測されるクォータニオン `orn` から世界軸AABBを再計算する。要求した整数orientationをそのまま使わず、物理落下後の傾きを後続搬入へ反映する。
+- 左右または前後を鏡像化した状態・候補では、支持率、overhang、drop、偏りの
+  絶対値、risk gate判定を不変とし、対応する方向別支持偏りだけを符号反転する。
 - 静止位置候補の支持面は床、棚、または硬い既配置荷物。
 - 支持面との垂直接触には15 mmの空間を要求しない。
 - 静止位置候補は、底面積の55%以上が支持されなければ拒否する。
