@@ -25,7 +25,13 @@ fetch前はremoteに`main`しか見えないことがあり、そのまま読む
 ```bash
 python scripts/context.py list
 python scripts/context.py show handoff
+python scripts/context.py show operations   # 日々の作業ループ規則（必読）
 ```
+
+測定済みの事実は `python scripts/context.py evidence --topic <t>`、
+コードの単一関数は `python scripts/context.py symbol <名前>` で引く。
+複数ジョブは `scripts/run_queue.py` の計画ファイルで一括実行する。
+詳細は `docs/AGENT_OPERATIONS.md`。
 
 `HANDOFF.md`の次の3節は必ず読む。
 
