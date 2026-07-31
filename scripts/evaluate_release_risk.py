@@ -321,18 +321,23 @@ def extrapolation_report(
     case_ids: list[str],
     splitter,
 ) -> dict[str, Any]:
-    """Train on one side of the split, test on the other, both ways."""
+    """
+    Leave-one-side-out extrapolation: for every side of the split, train
+    on all other sides and test on the held-out one. With two sides this
+    is the original both-ways split; with more (several pools) each side
+    still gets a genuine out-of-side test.
+    """
     sides = sorted({splitter(case) for case in case_ids})
     report: dict[str, Any] = {}
-    if len(sides) != 2:
-        return {"skipped": f"expected 2 sides, got {sides}"}
-    for train_side in sides:
-        train = np.array(
-            [splitter(case) == train_side for case in case_ids]
+    if len(sides) < 2:
+        return {f"test_{sides[0]}": {"skipped": "single side"}} if sides else {}
+    for test_side in sides:
+        test = np.array(
+            [splitter(case) == test_side for case in case_ids]
         )
-        test = ~train
+        train = ~test
         if targets[train].sum() in (0, train.sum()):
-            report[f"train_{train_side}"] = {"skipped": "one-class train"}
+            report[f"test_{test_side}"] = {"skipped": "one-class train"}
             continue
         weights, mean, scale = fit_logistic_np(
             features[train], targets[train]
@@ -340,7 +345,7 @@ def extrapolation_report(
         scores = predict_logistic_np(
             features[test], weights, mean, scale
         )
-        report[f"train_{train_side}"] = {
+        report[f"test_{test_side}"] = {
             "train_n": int(train.sum()),
             "test_n": int(test.sum()),
             "test_auc": rank_auc(scores, targets[test]),
@@ -761,10 +766,15 @@ def render_markdown(result: dict[str, Any]) -> str:
         for split in ("case", "pool"):
             report = result[f"extrapolation_{split}_{label}"]
             for direction, entry in sorted(report.items()):
-                if "skipped" in entry:
+                if not isinstance(entry, dict) or "skipped" in entry:
+                    reason = (
+                        entry.get("skipped")
+                        if isinstance(entry, dict)
+                        else str(entry)
+                    )
                     lines.append(
                         f"| {label} | {split} | {direction} | - | - "
-                        f"| {entry['skipped']} |"
+                        f"| {reason} |"
                     )
                 else:
                     lines.append(
