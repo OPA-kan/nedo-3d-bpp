@@ -321,12 +321,13 @@ def render_markdown(result: dict[str, Any]) -> str:
         "rotated_over_30 being a coarse proxy for the true loss, and "
         "score not being a utility scale could each still justify a "
         "nonlinear form. None of those was tested here.",
-        "- Linear-lambda sweeps and hard-epsilon sweeps produced nearly "
-        "the same empirical frontier ON these 24 snapshots, these "
-        "candidate sets, and this parameter grid. With finite discrete "
-        "candidate sets this is not guaranteed in general (unsupported "
-        "Pareto points can exist), so it is an empirical observation, "
-        "not a duality theorem.",
+        f"- Linear-lambda sweeps and hard-epsilon sweeps produced "
+        f"nearly the same empirical frontier ON these "
+        f"{result['snapshots']} snapshots, these candidate sets, and "
+        "this parameter grid. With finite discrete candidate sets this "
+        "is not guaranteed in general (unsupported Pareto points can "
+        "exist), so it is an empirical observation, not a duality "
+        "theorem.",
         "- hard+fallback never starved here, but this is offline on "
         "saved candidate sets with a calibrated probability and a "
         "least-risky fallback. It rehabilitates neither the old static "
@@ -346,8 +347,9 @@ def render_markdown(result: dict[str, Any]) -> str:
         "widen the remaining-items range.",
         "- With only "
         f"{result['baseline_rotated']}/{result['snapshots']} baseline "
-        "topple snapshots, 3->0 and loss differences like 0.042 vs "
-        "0.047 are unstable; family-level micro-ranking is unreadable. "
+        "topple snapshots, single-topple and third-decimal loss "
+        "differences are unstable; family-level micro-ranking is "
+        "unreadable. "
         "The robust statement: every family shows signs of avoiding "
         "dangerous candidates, and no clear ordering between families "
         "is visible. There is no evidence to adopt a more complex form "

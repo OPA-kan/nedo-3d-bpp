@@ -1,23 +1,23 @@
 # Loss structure: official safe judgment vs rotation magnitude
 
-- release rows with settle metrics: 1121 (all non-holdout datasets; exploratory, not frozen-split)
+- release rows with settle metrics: 1180 (all non-holdout datasets; exploratory, not frozen-split)
 
 | angle band (deg) | n | not_placed_safe rate | median displacement (m) |
 |---|---:|---:|---:|
-| 0-5 | 609 | 0.053 | 0.052 |
-| 5-10 | 62 | 0.065 | 0.117 |
-| 10-20 | 82 | 0.122 | 0.145 |
-| 20-30 | 107 | 0.159 | 0.171 |
-| 30-45 | 32 | 0.375 | 0.248 |
-| 45-60 | 45 | 1.000 | 0.307 |
-| 60-80 | 26 | 1.000 | 0.594 |
-| 80-100 | 128 | 1.000 | 0.558 |
-| 100-181 | 30 | 1.000 | 0.678 |
+| 0-5 | 641 | 0.050 | 0.052 |
+| 5-10 | 64 | 0.062 | 0.116 |
+| 10-20 | 83 | 0.120 | 0.145 |
+| 20-30 | 109 | 0.165 | 0.172 |
+| 30-45 | 33 | 0.364 | 0.243 |
+| 45-60 | 58 | 1.000 | 0.328 |
+| 60-80 | 29 | 1.000 | 0.563 |
+| 80-100 | 131 | 1.000 | 0.554 |
+| 100-181 | 32 | 1.000 | 0.690 |
 
 ## Below the rotation threshold (<30 deg)
 
-- rows: 860, unsafe rate 0.073
-- median displacement among unsafe 0.432 m vs safe 0.062 m: low-angle failures are displacement (slide) failures, i.e. the unresolved d_xy channel, not small rotations.
+- rows: 897, unsafe rate 0.071
+- median displacement among unsafe 0.443 m vs safe 0.062 m: low-angle failures are displacement (slide) failures, i.e. the unresolved d_xy channel, not small rotations.
 
 ## Reading
 

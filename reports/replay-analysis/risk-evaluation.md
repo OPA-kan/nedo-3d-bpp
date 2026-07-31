@@ -1,6 +1,6 @@
 # Release risk: uncertainty and offline re-ranking evaluation
 
-- rows: 1291 (release: 849) in 24 snapshots
+- rows: 1797 (release: 1180) in 33 snapshots
 - All CIs are snapshot-clustered bootstrap (1000 iterations, percentile 2.5/97.5).
 - Predictions are leave-one-snapshot-out: no row is scored by a model that saw its snapshot.
 
@@ -8,40 +8,40 @@
 
 | label | LOSO AUC | 95% CI |
 |---|---:|---|
-| rotated_over_30 | 0.732 | [0.646, 0.807] |
-| not_placed_safe | 0.721 | [0.626, 0.808] |
+| rotated_over_30 | 0.698 | [0.620, 0.767] |
+| not_placed_safe | 0.709 | [0.634, 0.780] |
 
 ## Extrapolation splits
 
 | label | split | direction | train n | test n | AUC |
 |---|---|---|---:|---:|---:|
-| rotated_over_30 | case | test_b000 | 346 | 503 | 0.676 |
-| rotated_over_30 | case | test_b001 | 503 | 346 | 0.781 |
-| rotated_over_30 | pool | test_k10 | 775 | 74 | 0.982 |
-| rotated_over_30 | pool | test_k15 | 701 | 148 | 0.638 |
-| rotated_over_30 | pool | test_k20 | 494 | 355 | 0.642 |
-| rotated_over_30 | pool | test_k30 | 684 | 165 | 0.810 |
-| rotated_over_30 | pool | test_k40 | 742 | 107 | 0.717 |
-| not_placed_safe | case | test_b000 | 346 | 503 | 0.666 |
-| not_placed_safe | case | test_b001 | 503 | 346 | 0.756 |
-| not_placed_safe | pool | test_k10 | 775 | 74 | 0.956 |
-| not_placed_safe | pool | test_k15 | 701 | 148 | 0.805 |
-| not_placed_safe | pool | test_k20 | 494 | 355 | 0.639 |
-| not_placed_safe | pool | test_k30 | 684 | 165 | 0.812 |
-| not_placed_safe | pool | test_k40 | 742 | 107 | 0.692 |
+| rotated_over_30 | case | test_b000 | 504 | 676 | 0.534 |
+| rotated_over_30 | case | test_b001 | 676 | 504 | 0.632 |
+| rotated_over_30 | pool | test_k10 | 1106 | 74 | 0.985 |
+| rotated_over_30 | pool | test_k15 | 950 | 230 | 0.683 |
+| rotated_over_30 | pool | test_k20 | 724 | 456 | 0.604 |
+| rotated_over_30 | pool | test_k30 | 933 | 247 | 0.739 |
+| rotated_over_30 | pool | test_k40 | 1007 | 173 | 0.575 |
+| not_placed_safe | case | test_b000 | 504 | 676 | 0.564 |
+| not_placed_safe | case | test_b001 | 676 | 504 | 0.697 |
+| not_placed_safe | pool | test_k10 | 1106 | 74 | 0.959 |
+| not_placed_safe | pool | test_k15 | 950 | 230 | 0.787 |
+| not_placed_safe | pool | test_k20 | 724 | 456 | 0.634 |
+| not_placed_safe | pool | test_k30 | 933 | 247 | 0.745 |
+| not_placed_safe | pool | test_k40 | 1007 | 173 | 0.584 |
 
 ## Danger rates with uncertainty (weighted)
 
 | label | segment | n | raw+ | rate | 95% CI |
 |---|---|---:|---:|---:|---|
-| rotated_over_30 | all_release | 849 | 187 | 0.300 | [0.215, 0.393] |
-| rotated_over_30 | gate_pass | 329 | 37 | 0.051 | [0.014, 0.109] |
-| rotated_over_30 | gate_reject | 520 | 150 | 0.437 | [0.337, 0.528] |
-| rotated_over_30 | support_ratio_ge_0.6 | 272 | 13 | 0.021 | [0.005, 0.053] |
-| not_placed_safe | all_release | 849 | 213 | 0.375 | [0.284, 0.484] |
-| not_placed_safe | gate_pass | 329 | 47 | 0.116 | [0.040, 0.238] |
-| not_placed_safe | gate_reject | 520 | 166 | 0.517 | [0.412, 0.613] |
-| not_placed_safe | support_ratio_ge_0.6 | 272 | 18 | 0.077 | [0.012, 0.192] |
+| rotated_over_30 | all_release | 1180 | 283 | 0.309 | [0.238, 0.383] |
+| rotated_over_30 | gate_pass | 464 | 71 | 0.108 | [0.047, 0.182] |
+| rotated_over_30 | gate_reject | 716 | 212 | 0.426 | [0.351, 0.497] |
+| rotated_over_30 | support_ratio_ge_0.6 | 386 | 34 | 0.065 | [0.026, 0.116] |
+| not_placed_safe | all_release | 1180 | 326 | 0.386 | [0.303, 0.472] |
+| not_placed_safe | gate_pass | 464 | 83 | 0.155 | [0.079, 0.234] |
+| not_placed_safe | gate_reject | 716 | 243 | 0.519 | [0.428, 0.602] |
+| not_placed_safe | support_ratio_ge_0.6 | 386 | 41 | 0.112 | [0.047, 0.198] |
 
 `support_ratio_ge_0.6` is a low-risk *region estimate*, not a safety proof; its CI is the thing to read.
 
@@ -49,45 +49,45 @@
 
 | lambda | snapshots | selected rotated | selected unsafe | changed vs score-argmax | changed vs original release sel. | mean P_rot of selection | mean score loss | median | max |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.0 | 24 | 3 | 1 | 0 | 19/20 | 0.173 | 0.000 | 0.000 | 0.000 |
-| 0.25 | 24 | 2 | 1 | 2 | 19/20 | 0.137 | 0.002 | 0.000 | 0.031 |
-| 0.5 | 24 | 2 | 1 | 3 | 19/20 | 0.136 | 0.002 | 0.000 | 0.031 |
-| 1.0 | 24 | 2 | 1 | 5 | 19/20 | 0.136 | 0.002 | 0.000 | 0.031 |
-| 2.0 | 24 | 2 | 1 | 8 | 19/20 | 0.120 | 0.020 | 0.000 | 0.209 |
-| 4.0 | 24 | 2 | 2 | 11 | 20/20 | 0.109 | 0.058 | 0.000 | 0.356 |
-| 8.0 | 24 | 3 | 3 | 15 | 20/20 | 0.082 | 0.214 | 0.027 | 1.189 |
+| 0.0 | 33 | 5 | 3 | 0 | 27/28 | 0.193 | 0.000 | 0.000 | 0.000 |
+| 0.25 | 33 | 4 | 3 | 2 | 27/28 | 0.171 | 0.001 | 0.000 | 0.031 |
+| 0.5 | 33 | 4 | 3 | 3 | 27/28 | 0.171 | 0.002 | 0.000 | 0.031 |
+| 1.0 | 33 | 4 | 3 | 6 | 27/28 | 0.161 | 0.010 | 0.000 | 0.209 |
+| 2.0 | 33 | 5 | 3 | 10 | 27/28 | 0.156 | 0.016 | 0.000 | 0.209 |
+| 4.0 | 33 | 7 | 5 | 13 | 27/28 | 0.146 | 0.047 | 0.000 | 0.356 |
+| 8.0 | 33 | 6 | 4 | 23 | 26/28 | 0.107 | 0.273 | 0.061 | 1.548 |
 
 Restricted to sampled release candidates (the population the risk model scores); the live settled-preference and lookahead are not reproduced here. P_rot is the leave-one-snapshot-out prediction, so no selection is scored by a model that saw its snapshot.
 
 ## Counterfactual pairs on changed snapshots (primary)
 
-- changed snapshots: 2 (labelled pairs: 2, unmatched: 0)
-- rotation danger difference (baseline - shadow): 0 (baseline 0 vs shadow 0)
-- placed-safe difference: 0 (not_placed_safe baseline 0 vs shadow 0)
-- safe -> dangerous reversals: 0 (dangerous -> safe: 0)
-- mean pair score loss: 0.006
+- changed snapshots: 4 (labelled pairs: 4, unmatched: 0)
+- rotation danger difference (baseline - shadow): 0 (baseline 1 vs shadow 1)
+- placed-safe difference: 1 (not_placed_safe baseline 1 vs shadow 0)
+- safe -> dangerous reversals: 0 (dangerous -> safe: 1)
+- mean pair score loss: -0.190
 
 ## Horizontal displacement with item attributes
 
-Rows with joined item attributes: 849
+Rows with joined item attributes: 1180
 
 | feature | Spearman vs d_xy |
 |---|---:|
-| support_ratio | -0.097 |
-| com_margin | -0.108 |
-| drop_normalized | -0.149 |
-| abs_support_imbalance | 0.243 |
-| abs_left_right_imbalance | 0.087 |
-| abs_front_back_imbalance | 0.220 |
-| mass | 0.036 |
-| lateral_friction | -0.094 |
-| restitution | 0.094 |
-| is_soft | -0.089 |
-| density | -0.053 |
-| min_over_max_extent | 0.054 |
+| support_ratio | -0.068 |
+| com_margin | -0.086 |
+| drop_normalized | -0.131 |
+| abs_support_imbalance | 0.204 |
+| abs_left_right_imbalance | 0.068 |
+| abs_front_back_imbalance | 0.202 |
+| mass | 0.042 |
+| lateral_friction | -0.070 |
+| restitution | 0.070 |
+| is_soft | -0.066 |
+| density | -0.027 |
+| min_over_max_extent | 0.033 |
 
 | model | binary LOSO AUC | 95% CI | continuous LOSO Spearman |
 |---|---:|---|---:|
-| phi_only | 0.714 | [0.618, 0.803] | 0.309 |
-| phi_plus_item | 0.707 | [0.618, 0.784] | 0.303 |
+| phi_only | 0.704 | [0.626, 0.775] | 0.274 |
+| phi_plus_item | 0.699 | [0.630, 0.762] | 0.289 |
 
