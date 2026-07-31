@@ -18,7 +18,15 @@ Repository: https://github.com/OPA-kan/nedo-3d-bpp
 ```powershell
 python scripts/context.py list
 python scripts/context.py show handoff
+python scripts/context.py evidence --topic risk   # measured facts, machine-readable
+python scripts/context.py symbol PlacementCore.choose  # one symbol, not the module
 ```
+
+Measured facts now live in `context/evidence.json` with explicit
+active/superseded/historical status; the prose below points at it rather
+than being the source of truth. When you need one function from
+`agent/agent.py` (4,400 lines), pull it with `symbol` instead of reading
+the file.
 
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.

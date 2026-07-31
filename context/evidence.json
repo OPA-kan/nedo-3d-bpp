@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Machine-readable ledger of measured facts. Read this instead of re-deriving state from prose; query with scripts/context.py evidence [--topic T] [--all].",
+    "status_values": {
+      "active": "current best knowledge, safe to build on",
+      "superseded": "replaced by a later measurement; see superseded_by",
+      "historical": "true at the time on an old baseline; do not use as current state"
+    },
+    "rule": "When a new measurement replaces an entry, set status=superseded and superseded_by, and add the new entry. Never silently edit values."
+  },
+  "entries": [
+    {
+      "id": "ranker-volume-dual-role",
+      "topic": "ranker",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "Ranker.score's 12.0*volume term is orientation- and position-invariant within one item (dead vote for pose choice) but an active large-item-first bias across items.",
+      "values": "position terms: 2.0*support + 0.35y - 0.12|x| - 0.18*z*mass",
+      "source": "HANDOFF evidence 1; run 30340049061 traces"
+    },
+    {
+      "id": "preview-term-same-score",
+      "topic": "preview",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "lookahead weighted mode computes q_old(a) + gamma*q_old(a'), not a state value V(sigma(T(s,i,a))).",
+      "source": "HANDOFF evidence 2; agent.py lookahead_rank_key"
+    },
+    {
+      "id": "three-modes-degenerate-run30340049061",
+      "topic": "preview",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "On run 30340049061 the three selection modes produced identical placement-relevant behaviour because residual-feasible saturated at 1.0; scoped to those keys on that run, does not close preview value in general.",
+      "source": "HANDOFF evidence 3"
+    },
+    {
+      "id": "anchor-recall-one-snapshot",
+      "topic": "search",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "Case 000 step 13: oracle found 42 settled candidates, anytime search 7 (recall 0.167), best_score_regret 0.0; one snapshot, candidate dimension only.",
+      "source": "HANDOFF evidence 4; run 30513511959"
+    },
+    {
+      "id": "class-aware-coverage-effect",
+      "topic": "coverage",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "Class-aware item coverage moved pool-40 placed 10.67->17.00, fill 14.818->24.531, priority C1 0%->81.2%. Item-dimension search breadth is a live issue.",
+      "source": "HANDOFF evidence 5"
+    },
+    {
+      "id": "current-failure-release-settle-topple",
+      "topic": "risk",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "The current dominant failure is a release candidate that passes transport validation and topples ~90 deg during settle (valid true, safe false), not a transport collision.",
+      "values": "case 000 step 15: 0.871 m / 90.3 deg; case 001 step 4: 0.638 m / 90.0 deg",
+      "source": "HANDOFF evidence 6"
+    },
+    {
+      "id": "risk-gate-ablation-off-baseline",
+      "topic": "risk",
+      "date": "2026-07-28",
+      "status": "active",
+      "claim": "Task B risk-gate ablation 'off' column (adopted config): pool 10/20/40 placed 17.00/18.00/17.00, fill 17.018/23.161/24.531.",
+      "source": "HANDOFF evidence 7; run 30528431757"
+    },
+    {
+      "id": "gate-high-recall-low-precision",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "The threshold gate is high-recall / low-precision: it rejects most release candidates and the majority of rejects are physically safe; every active threshold has FP:TP near 2.5:1 and the drop threshold never fires.",
+      "values": "24-snapshot dev+val: reject recall 0.93 / precision 0.42 weighted (not_placed_safe, first-dataset figures); gate_reject danger 0.437 [0.337,0.528] vs gate_pass 0.051 [0.014,0.109] for rotation",
+      "source": "reports/replay-analysis/findings-20260730.md; risk-evaluation.md"
+    },
+    {
+      "id": "rotation-signal-coefficients-unfrozen",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Existing Phi carries rotation-danger signal in combination, but snapshot-level extrapolation is unstable, so coefficients stay unfrozen and the live action stays baseline.",
+      "values": "LOSO AUC rotated 0.732 [0.646,0.807], not_placed_safe 0.721 [0.626,0.808]; per-pool extrapolation 0.638-0.982; provisional-v1-20260731 logistic used for shadow only",
+      "source": "reports/replay-analysis/risk-evaluation.md; docs/RELEASE_RISK_PROTOCOL.md"
+    },
+    {
+      "id": "support06-low-risk-region",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "support_ratio>=0.6 is a low-risk region, not a safety proof; the first dataset's 0/92 was an overestimate and no hard-accept rule is adopted.",
+      "values": "rotation 0.021 [0.005,0.053] weighted (raw 13/272) on 24 snapshots",
+      "source": "reports/replay-analysis/risk-evaluation.md"
+    },
+    {
+      "id": "dxy-unresolved",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Horizontal displacement stays unresolved: the item-attribute gain seen on the first dataset did not replicate at 24 snapshots.",
+      "values": "binary LOSO AUC phi_only 0.714 vs phi_plus_item 0.707; continuous d_xy held-out Spearman ~0.31",
+      "source": "reports/replay-analysis/risk-evaluation.md"
+    },
+    {
+      "id": "shadow-rerank-low-live-leverage",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Live-stack shadow rerank at lambda=1.0 changed the selection on 2 of 24 dev/val snapshots; both counterfactual pairs were safe on both sides (zero safe->dangerous reversals). Settled preference caps the risk term's leverage on mid-episode snapshots.",
+      "values": "mean pair score loss 0.006",
+      "source": "reports/replay-analysis/risk-evaluation.md (shadow pairs)"
+    },
+    {
+      "id": "split-assignment",
+      "topic": "protocol",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Evaluation splits are machine-enforced via manifest 'split': development = b000-k20/k40, b001-k20 (+new trajectories b000-k15, b001-k30); validation = b000-k10; final_holdout = b001-k40 (both runs; provisional-v1 contamination noted) and b001-k10. final_holdout is skipped by every analysis tool unless --open-final-holdout.",
+      "source": "docs/RELEASE_RISK_PROTOCOL.md section 3.1"
+    },
+    {
+      "id": "stage-a-settled-only-negative",
+      "topic": "residual-capacity",
+      "date": "2026-07-31",
+      "status": "superseded",
+      "superseded_by": "capacity-instrument-calibration",
+      "claim": "First Stage A run: descriptors worsened LOSO prediction of placed-to-go and correlated inversely, caused by settled-only enumeration (endgame runs on release candidates) and deterministic-scan attempt budgets producing false zeros.",
+      "values": "baseline MAE 0.979 / R2 0.597 vs +descriptors 1.024 / 0.396",
+      "source": "reports/replay-analysis/residual-capacity-stage-a.md (first run); PREVIEW_RESIDUAL_VALUE.md 9.7"
+    },
+    {
+      "id": "capacity-instrument-calibration",
+      "topic": "residual-capacity",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Stride systematic sampling calibrates: release series exact at stride<=16 and stable, settled series sparse (~2-20% error from stride 16, presence detection limited), combined simultaneous bound identical between stride 16 and 4. The former false-zero snapshot truly has 0 settled anchors but ~4.8k release anchors with combined bound 7 vs actual placed-to-go 5.",
+      "source": "reports/replay-analysis/residual-capacity-calibration.md"
+    },
+    {
+      "id": "floor-lift-era-fix",
+      "topic": "historical",
+      "date": "2026-07-30",
+      "status": "historical",
+      "claim": "On the pre-trunk baseline (main d3986a9), floor-resting candidates were rejected by the inclusion check for lack of a floor lift, causing candidate starvation and blind-fallback transport collisions; fixed by FLOOR_ACTION_LIFT and vectorized generation. Superseded as a diagnosis of current behaviour by the release settle-topple evidence.",
+      "source": "branch claude/algorithm-improvement-testing-uni3wj commit 9b300f0 (historical)"
+    }
+  ]
+}
