@@ -159,6 +159,18 @@ python scripts/build_replay_dataset.py \
 
 ## 8. 改訂記録
 
+- **2026-07-31 (3)**: **確証的凍結: 特徴集合 = 力学のみ、λ = 1.0。**
+  validation split(b000-k10, 74行/2 snapshot)は全特徴集合が
+  AUC 0.96–0.99 と天井付近で弁別不能のため、§4 基準(val AUC ≥ 0.70)は
+  全集合が満たし、選択は最悪方向外挿(力学 0.697 vs static 0.534)と
+  オンライン実証に基づく。λ は未使用の validation case b000-k10 の
+  オンライン episode で選択: baseline が既にほぼ最適な同 case で
+  λ=1 のみ placed 同数・fill 損失 1.2–1.8%(≤5% 基準内)・最大 settle 角
+  4°→1° 改善。λ=2 は placed −2 / fill −22% で棄却、λ=4 は不安定。
+  development 構成では λ=1 が placed 集計最良(16.8 vs off 13.3)。
+  凍結モデル: `RELEASE_RISK_MECH_LOGISTIC_V1`(`mech-dev-v1-20260731`、
+  development のみで fit)。**提出デフォルトは引き続き off。次の手順は
+  final_holdout の一度きり評価のみで、開封はオーナー判断を待つ。**
 - **2026-07-31 (2)**: **オンラインablation実験と提出デフォルトの区別を明文化。**
   オフライン側は意思決定に必要な材料が出揃った(力学特徴の優位、線形
   ペナルティの非劣性、損失の閾値型、安全→危険逆転ゼロ)ため、残る主問

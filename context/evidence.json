@@ -214,6 +214,14 @@
       "status": "active",
       "claim": "First online ablation (5 development configs, off vs live mechanics rerank at lambda 1/2/4, episode-level): every risk arm beat the submission-default baseline on aggregate placed (off 13.0 vs lam1 16.8 / lam2 14.0 / lam4 15.0) and fill (off 13.3 vs 17.1 / 16.7 / 17.4). Per-config: 4 of 5 configs improved or tied on placed under every lambda; fill improved even at equal placed (b000-k15: 14 placed both arms, fill 7.27 -> 15.39). Every episode still ends by an unsafe placement -- the risk term delays the topple, it does not eliminate it. Caveats: n=1 per (config, arm) at lambda 1/4; b000 episodes are deterministic under fixed timing while b001 episodes show timing nondeterminism with baseline variance up to 4 placed (b001-k20 off: 13 vs 17), so single-config differences of 1-3 are inconclusive there; the aggregate direction across configs and lambdas is the finding. Round 1 was invalidated by a stale simulator agent copy on both arms (instrument note in run_risk_ablation.py).",
       "source": "reports/risk-ablation/summary.md; rows.jsonl"
+    },
+    {
+      "id": "risk-freeze-mech-lambda1",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Confirmatory freeze per protocol 3.1/4: feature set = mechanics only (RELEASE_RISK_MECH_LOGISTIC_V1, mech-dev-v1-20260731, fit on development rows only), lambda = 1.0. Validation split (b000-k10, 74 rows, 2 snapshots) is near-ceiling for every feature set (AUC static 0.985 / mech 0.967 / static+mech 0.978 rotated) so it cannot discriminate; the choice rests on worst-direction extrapolation (mech 0.697 vs static 0.534) and online evidence. Online lambda selection on the unused validation case b000-k10: baseline is already near-optimal there (26 placed / 28.5 fill); lambda=1 ties placed, loses 1.2-1.8% fill, improves max settle angle 4->1 deg; lambda=2 clearly loses (24 placed, fill -22%) and is rejected; lambda=4 is mixed/nondeterministic. Combined with development configs (lambda=1 best aggregate placed 16.8 vs 13.3), lambda=1.0 is the only setting that never loses materially anywhere. Submission default stays risk-off until the one-shot final_holdout evaluation.",
+      "source": "reports/risk-ablation/summary.md; risk-rule-comparison.md; protocol section 8"
     }
   ]
 }
