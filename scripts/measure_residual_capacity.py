@@ -35,12 +35,16 @@ DEFAULT_DATASET_ROOT = ROOT / "reports" / "replay-dataset"
 DEFAULT_OUTPUT_DIR = ROOT / "reports" / "replay-analysis"
 SOURCE_CONFIG = ROOT / "simulator" / "configs" / "sample_config.json"
 
-ANCHORS_PER_CLASS_ORIENTATION = 40
-# The trunk generator walks rejected anchors lazily; late-episode grids
-# hold 100k+ anchors, so each class gets a total attempt budget across
-# its orientations. Truncation is deterministic (generator order) and is
-# recorded per snapshot.
-ATTEMPTS_PER_CLASS = 8000
+# Systematic sampling of the anchor grid replaces the earlier attempt
+# budget: every stride-th deduped grid position is validated (random
+# phase = seed), so coverage is uniform over the scan instead of dying in
+# the occupied bottom layers, and accepted_count * stride is a
+# Horvitz-Thompson estimate of the full-grid count. The release grid is
+# 2D and far smaller, so it gets a proportionally smaller stride.
+DEFAULT_STRIDE = 64
+RELEASE_STRIDE_DIVISOR = 16
+DEFAULT_PHASES = 3
+ACCEPT_CAP_PER_ORIENTATION = 1000
 DIMS_ROUND = 3
 
 
@@ -104,13 +108,20 @@ def class_anchors(
     agent,
     observation: dict[str, Any],
     representative: dict[str, Any],
-    per_orientation: int = ANCHORS_PER_CLASS_ORIENTATION,
-    attempt_budget: int = ATTEMPTS_PER_CLASS,
-) -> tuple[list[Any], bool]:
-    """Reachable settled anchors for one class; (anchors, truncated)."""
+    kind: str,
+    stride: int,
+    phase: int,
+    accept_cap: int = ACCEPT_CAP_PER_ORIENTATION,
+) -> tuple[list[Any], float, bool]:
+    """
+    Systematically sampled reachable anchors of one kind for one class.
+
+    Returns (sampled anchors, Horvitz-Thompson count estimate, capped).
+    The estimate is accepted_count * stride; it is biased low only if the
+    accept cap fires, which is recorded.
+    """
     anchors: list[Any] = []
-    truncated = False
-    attempts = 0
+    capped = False
     for orientation in agent.unique_orientations(representative):
         produced = 0
         for candidate in agent.CandidateGenerator.iter_cartesian_attempts(
@@ -118,23 +129,19 @@ def class_anchors(
             representative,
             0,
             orientation,
-            limit=per_orientation,
-            attempt_kind="settled",
+            limit=accept_cap,
+            attempt_kind=kind,
+            stride=stride,
+            stride_offset=phase,
         ):
-            attempts += 1
-            if attempts >= attempt_budget:
-                truncated = True
-                break
             if candidate is None:
                 continue
             anchors.append(candidate)
             produced += 1
-            if produced >= per_orientation:
-                truncated = True
+            if produced >= accept_cap:
+                capped = True
                 break
-        if attempts >= attempt_budget:
-            break
-    return anchors, truncated
+    return anchors, float(len(anchors) * stride), capped
 
 
 def anchors_conflict(first, second, clearance: float) -> bool:
@@ -225,25 +232,26 @@ def anchor_components(anchors: list[Any]) -> tuple[int, int]:
     return len(sizes), max(sizes.values())
 
 
-def snapshot_descriptors(
+def kind_series(
     agent,
     observation: dict[str, Any],
-    item_list: list[dict[str, Any]],
+    classes: list[dict[str, Any]],
+    kind: str,
+    stride: int,
+    phase: int,
 ) -> dict[str, Any]:
-    container = observation["container_list"][0]
-    packed = {
-        int(item["index"]) for item in container.get("packed_items", [])
-    }
-    classes = remaining_classes(item_list, packed)
+    """Descriptor series for one candidate kind (settled or release)."""
     anchor_lists: list[list[Any]] = []
-    truncated_any = False
+    capped_any = False
+    estimates = []
     per_class = []
     for entry in classes:
-        anchors, truncated = class_anchors(
-            agent, observation, entry["representative"]
+        anchors, estimate, capped = class_anchors(
+            agent, observation, entry["representative"], kind, stride, phase
         )
         anchor_lists.append(anchors)
-        truncated_any = truncated_any or truncated
+        estimates.append(estimate)
+        capped_any = capped_any or capped
         components, largest = anchor_components(anchors)
         depth = max(
             (float(anchor.center[1]) for anchor in anchors),
@@ -254,17 +262,17 @@ def snapshot_descriptors(
                 "signature": list(entry["signature"]),
                 "count": entry["count"],
                 "volume": entry["volume"],
-                "anchors": len(anchors),
+                "anchors_sampled": len(anchors),
+                "anchors_ht": estimate,
                 "components": components,
                 "largest_component": largest,
                 "max_depth": depth,
             }
         )
-
     placeable = [
         (entry, stats)
         for entry, stats in zip(classes, per_class)
-        if stats["anchors"] > 0
+        if stats["anchors_sampled"] > 0
     ]
     cap_volume = max(
         (entry["volume"] for entry, _stats in placeable), default=0.0
@@ -280,21 +288,119 @@ def snapshot_descriptors(
     simultaneous_count, simultaneous_volume = (
         greedy_simultaneous_placements(agent, classes, anchor_lists)
     )
-    largest_class_components = (
-        placeable[0][1]["components"] if placeable else 0
-    )
     return {
-        "remaining_items": sum(entry["count"] for entry in classes),
-        "remaining_classes": len(classes),
-        "anchor_total": int(sum(len(a) for a in anchor_lists)),
+        "anchor_ht_total": float(sum(estimates)),
+        "anchor_sampled_total": int(
+            sum(len(anchors) for anchors in anchor_lists)
+        ),
         "cap_volume": float(cap_volume),
         "corridor_volume": float(corridor_volume),
         "simultaneous_count": int(simultaneous_count),
         "simultaneous_volume": float(simultaneous_volume),
-        "largest_class_components": int(largest_class_components),
-        "anchors_truncated": bool(truncated_any),
+        "largest_class_components": int(
+            placeable[0][1]["components"] if placeable else 0
+        ),
+        "accept_capped": bool(capped_any),
         "per_class": per_class,
+        "anchor_lists": anchor_lists,
     }
+
+
+SERIES_SCALARS = (
+    "anchor_ht_total",
+    "cap_volume",
+    "corridor_volume",
+    "simultaneous_count",
+    "simultaneous_volume",
+    "largest_class_components",
+)
+
+
+def snapshot_descriptors(
+    agent,
+    observation: dict[str, Any],
+    item_list: list[dict[str, Any]],
+    stride: int = DEFAULT_STRIDE,
+    phases: int = DEFAULT_PHASES,
+) -> dict[str, Any]:
+    """
+    Phase-averaged settled and release descriptor series plus a combined
+    simultaneous-placement bound. Per-phase values are kept so the
+    caller can report sampling variance.
+    """
+    container = observation["container_list"][0]
+    packed = {
+        int(item["index"]) for item in container.get("packed_items", [])
+    }
+    classes = remaining_classes(item_list, packed)
+    release_stride = max(1, stride // RELEASE_STRIDE_DIVISOR)
+
+    result: dict[str, Any] = {
+        "remaining_items": sum(entry["count"] for entry in classes),
+        "remaining_classes": len(classes),
+        "stride": stride,
+        "release_stride": release_stride,
+        "phases": phases,
+        "per_phase": [],
+    }
+    combined_counts = []
+    combined_volumes = []
+    for phase in range(phases):
+        settled = kind_series(
+            agent, observation, classes, "settled", stride, phase
+        )
+        release = kind_series(
+            agent, observation, classes, "release", release_stride, phase
+        )
+        both_count, both_volume = greedy_simultaneous_placements(
+            agent,
+            classes + classes,
+            settled["anchor_lists"] + release["anchor_lists"],
+        )
+        combined_counts.append(both_count)
+        combined_volumes.append(both_volume)
+        result["per_phase"].append(
+            {
+                "phase": phase,
+                "settled": {
+                    key: value
+                    for key, value in settled.items()
+                    if key != "anchor_lists"
+                },
+                "release": {
+                    key: value
+                    for key, value in release.items()
+                    if key != "anchor_lists"
+                },
+                "combined_simultaneous_count": both_count,
+                "combined_simultaneous_volume": both_volume,
+            }
+        )
+
+    for kind in ("settled", "release"):
+        for scalar in SERIES_SCALARS:
+            values = np.array(
+                [
+                    float(entry[kind][scalar])
+                    for entry in result["per_phase"]
+                ]
+            )
+            result[f"{kind}_{scalar}"] = float(values.mean())
+            result[f"{kind}_{scalar}_sd"] = float(values.std())
+    result["combined_simultaneous_count"] = float(
+        np.mean(combined_counts)
+    )
+    result["combined_simultaneous_count_sd"] = float(
+        np.std(combined_counts)
+    )
+    result["combined_simultaneous_volume"] = float(
+        np.mean(combined_volumes)
+    )
+    result["accept_capped"] = any(
+        entry["settled"]["accept_capped"] or entry["release"]["accept_capped"]
+        for entry in result["per_phase"]
+    )
+    return result
 
 
 def occupied_volume_ratio(observation: dict[str, Any]) -> float:
@@ -308,7 +414,10 @@ def occupied_volume_ratio(observation: dict[str, Any]) -> float:
 
 
 def collect_rows(
-    dataset_dirs: list[pathlib.Path], agent
+    dataset_dirs: list[pathlib.Path],
+    agent,
+    stride: int = DEFAULT_STRIDE,
+    phases: int = DEFAULT_PHASES,
 ) -> list[dict[str, Any]]:
     rows = []
     item_cache: dict[str, tuple[list[dict[str, Any]], int]] = {}
@@ -344,7 +453,7 @@ def collect_rows(
                 flush=True,
             )
             descriptors = snapshot_descriptors(
-                agent, observation, item_list
+                agent, observation, item_list, stride=stride, phases=phases
             )
             rows.append(
                 {
@@ -362,9 +471,9 @@ def collect_rows(
                     **{
                         key: value
                         for key, value in descriptors.items()
-                        if key != "per_class"
+                        if key != "per_phase"
                     },
-                    "per_class": descriptors["per_class"],
+                    "per_phase": descriptors["per_phase"],
                 }
             )
     return rows
@@ -377,12 +486,12 @@ BASELINE_FEATURES = (
     "look_ahead",
 )
 DESCRIPTOR_FEATURES = (
-    "cap_volume",
-    "corridor_volume",
-    "simultaneous_count",
-    "simultaneous_volume",
-    "largest_class_components",
-    "anchor_total",
+    "settled_cap_volume",
+    "settled_simultaneous_volume",
+    "release_cap_volume",
+    "release_corridor_volume",
+    "combined_simultaneous_count",
+    "release_anchor_ht_total",
 )
 
 
@@ -510,7 +619,10 @@ def render_markdown(result: dict[str, Any]) -> str:
         "",
         f"- snapshots: {result['n_snapshots']} "
         f"(rows {result['n_rows']}, final_holdout closed)",
-        f"- anchors truncated somewhere: {result['any_truncated']}",
+        f"- stride: {result['stride']} "
+        f"(release stride divisor {RELEASE_STRIDE_DIVISOR}), "
+        f"phases: {result['phases']}",
+        f"- accept cap fired somewhere: {result['any_capped']}",
         "",
         "## LOSO regression on placed-to-go",
         "",
@@ -536,26 +648,143 @@ def render_markdown(result: dict[str, Any]) -> str:
     for feature, value in result["residual_spearman"].items():
         lines.append(f"| {feature} | {fmt(value)} |")
     lines.append("")
-    lines.append("## Snapshot table")
+    lines.append("## Snapshot table (phase means)")
     lines.append("")
     lines.append(
-        "| snapshot | step | to-go | occ.vol | cap_vol | corr_vol "
-        "| simul# | simul_vol | comp(top) | anchors |"
+        "| snapshot | to-go | occ.vol | settled cap | settled simulV "
+        "| release cap | release corr | comb simul# | release HT "
+        "| settled HT sd |"
     )
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in result["rows"]:
         lines.append(
-            f"| {row['case_id']}:{row['step']} | {row['step']} "
-            f"| {row['placed_to_go']} "
+            f"| {row['case_id']}:{row['step']} | {row['placed_to_go']} "
             f"| {fmt(row['occupied_volume_ratio'])} "
-            f"| {fmt(row['cap_volume'])} | {fmt(row['corridor_volume'])} "
-            f"| {row['simultaneous_count']} "
-            f"| {fmt(row['simultaneous_volume'])} "
-            f"| {row['largest_class_components']} "
-            f"| {row['anchor_total']} |"
+            f"| {fmt(row['settled_cap_volume'])} "
+            f"| {fmt(row['settled_simultaneous_volume'])} "
+            f"| {fmt(row['release_cap_volume'])} "
+            f"| {fmt(row['release_corridor_volume'])} "
+            f"| {fmt(row['combined_simultaneous_count'], 1)} "
+            f"| {fmt(row['release_anchor_ht_total'], 0)} "
+            f"| {fmt(row['settled_anchor_ht_total_sd'], 1)} |"
         )
     lines.append("")
     return "\n".join(lines) + "\n"
+
+
+CALIBRATION_SNAPSHOTS = (
+    ("b000-k20", 8),
+    ("b000-k20", 10),
+    ("b000-k20", 15),
+    ("b001-k30", 11),
+)
+CALIBRATION_STRIDES = (256, 64, 16, 4)
+
+
+def run_calibration(
+    dataset_dirs: list[pathlib.Path],
+    agent,
+    output_dir: pathlib.Path,
+    phases: int,
+) -> pathlib.Path:
+    """
+    Stride-ladder convergence and phase variance on representative
+    snapshots (early / observed-false-zero / late). If the descriptors
+    do not stabilize as the stride shrinks, Stage A numbers cannot be
+    trusted at the production stride.
+    """
+    wanted = {pair: None for pair in CALIBRATION_SNAPSHOTS}
+    for directory in dataset_dirs:
+        manifest_path = directory / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("split", "development") == "final_holdout":
+            continue
+        case_id = str((manifest.get("case") or {}).get("case_id", ""))
+        for state_path in sorted(directory.glob("step-*-state.json")):
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            key = (case_id, int(state["step"]))
+            if key in wanted and wanted[key] is None:
+                wanted[key] = state["observation"]
+
+    report = []
+    item_cache: dict[str, tuple[list[dict[str, Any]], int]] = {}
+    for (case_id, step), observation in wanted.items():
+        if observation is None:
+            continue
+        if case_id not in item_cache:
+            item_cache[case_id] = rebuild_case_items(case_id)
+        item_list, _look_ahead = item_cache[case_id]
+        entry = {"case_id": case_id, "step": step, "strides": []}
+        for stride in CALIBRATION_STRIDES:
+            print(
+                f"calibrate: {case_id} step {step} stride {stride}",
+                file=sys.stderr,
+                flush=True,
+            )
+            descriptors = snapshot_descriptors(
+                agent, observation, item_list, stride=stride, phases=phases
+            )
+            entry["strides"].append(
+                {
+                    "stride": stride,
+                    **{
+                        key: descriptors[key]
+                        for key in (
+                            "settled_anchor_ht_total",
+                            "settled_anchor_ht_total_sd",
+                            "settled_cap_volume",
+                            "settled_cap_volume_sd",
+                            "release_anchor_ht_total",
+                            "release_anchor_ht_total_sd",
+                            "release_cap_volume",
+                            "combined_simultaneous_count",
+                            "combined_simultaneous_count_sd",
+                            "accept_capped",
+                        )
+                    },
+                }
+            )
+        report.append(entry)
+
+    lines = [
+        "# Residual capacity instrument calibration",
+        "",
+        f"Phases per stride: {phases}. Values are phase means (sd).",
+        "",
+    ]
+    for entry in report:
+        lines.append(f"## {entry['case_id']} step {entry['step']}")
+        lines.append("")
+        lines.append(
+            "| stride | settled HT (sd) | settled cap (sd) "
+            "| release HT (sd) | release cap | comb simul# (sd) | capped |"
+        )
+        lines.append("|---:|---|---|---|---:|---|---|")
+        for row in entry["strides"]:
+            lines.append(
+                f"| {row['stride']} "
+                f"| {fmt(row['settled_anchor_ht_total'], 0)} "
+                f"({fmt(row['settled_anchor_ht_total_sd'], 0)}) "
+                f"| {fmt(row['settled_cap_volume'])} "
+                f"({fmt(row['settled_cap_volume_sd'])}) "
+                f"| {fmt(row['release_anchor_ht_total'], 0)} "
+                f"({fmt(row['release_anchor_ht_total_sd'], 0)}) "
+                f"| {fmt(row['release_cap_volume'])} "
+                f"| {fmt(row['combined_simultaneous_count'], 1)} "
+                f"({fmt(row['combined_simultaneous_count_sd'], 1)}) "
+                f"| {row['accept_capped']} |"
+            )
+        lines.append("")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "residual-capacity-calibration.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    markdown_path = output_dir / "residual-capacity-calibration.md"
+    markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return markdown_path
 
 
 def main() -> int:
@@ -566,13 +795,33 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", type=pathlib.Path, default=DEFAULT_OUTPUT_DIR
     )
+    parser.add_argument("--stride", type=int, default=DEFAULT_STRIDE)
+    parser.add_argument("--phases", type=int, default=DEFAULT_PHASES)
+    parser.add_argument(
+        "--calibrate",
+        action="store_true",
+        help=(
+            "Run the stride-ladder / phase-variance instrument "
+            "calibration instead of Stage A."
+        ),
+    )
     args = parser.parse_args()
 
     agent = load_agent_module()
     dataset_dirs = sorted(
         path for path in args.dataset_root.iterdir() if path.is_dir()
     )
-    rows = collect_rows(dataset_dirs, agent)
+    if args.calibrate:
+        print(
+            run_calibration(
+                dataset_dirs, agent, args.output_dir, args.phases
+            )
+        )
+        return 0
+
+    rows = collect_rows(
+        dataset_dirs, agent, stride=args.stride, phases=args.phases
+    )
     if len(rows) < 8:
         print("not enough snapshots", file=sys.stderr)
         return 1
@@ -584,7 +833,9 @@ def main() -> int:
     result = {
         "n_rows": len(rows),
         "n_snapshots": len({row["snapshot_id"] for row in rows}),
-        "any_truncated": any(row["anchors_truncated"] for row in rows),
+        "stride": args.stride,
+        "phases": args.phases,
+        "any_capped": any(row["accept_capped"] for row in rows),
         "baseline": baseline,
         "baseline_plus_descriptors": extended,
         "mae_improvement": baseline["loso_mae"] - extended["loso_mae"],
@@ -598,7 +849,7 @@ def main() -> int:
         "residual_spearman": residual_correlations(rows),
         "rows": sorted(
             (
-                {k: v for k, v in row.items() if k != "per_class"}
+                {k: v for k, v in row.items() if k != "per_phase"}
                 for row in rows
             ),
             key=lambda row: (row["case_id"], row["step"]),

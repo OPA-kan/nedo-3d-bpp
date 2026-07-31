@@ -156,12 +156,12 @@ class RegressionTests(unittest.TestCase):
                     "step": index,
                     "look_ahead": 20,
                     "occupied_volume_ratio": index / 12.0,
-                    "cap_volume": capacity,
-                    "corridor_volume": capacity / 2.0,
-                    "simultaneous_count": index % 4,
-                    "simultaneous_volume": capacity * 2.0,
-                    "largest_class_components": 1,
-                    "anchor_total": 10 * (index % 4),
+                    "settled_cap_volume": capacity,
+                    "settled_simultaneous_volume": capacity * 2.0,
+                    "release_cap_volume": capacity / 2.0,
+                    "release_corridor_volume": capacity / 3.0,
+                    "combined_simultaneous_count": index % 4,
+                    "release_anchor_ht_total": 10.0 * (index % 4),
                     "placed_to_go": 12 - index,
                 }
             )

@@ -2212,6 +2212,53 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(solver._policy_step, 0)
 
 
+class StrideSamplingTests(unittest.TestCase):
+    def _observation(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        item = sample_item(0, length=0.3, width=0.25, height=0.2)
+        return {"pool_list": [item], "container_list": [container]}, item
+
+    def _accepted(self, observation, item, kind, stride=1, offset=0):
+        results = []
+        for candidate in agent.CandidateGenerator.iter_cartesian_attempts(
+            observation,
+            item,
+            0,
+            0,
+            limit=10_000,
+            attempt_kind=kind,
+            stride=stride,
+            stride_offset=offset,
+        ):
+            if candidate is not None:
+                results.append(
+                    tuple(round(v, 6) for v in candidate.center)
+                )
+        return results
+
+    def test_stride_one_is_unchanged_default(self):
+        observation, item = self._observation()
+        self.assertEqual(
+            self._accepted(observation, item, "settled"),
+            self._accepted(observation, item, "settled", stride=1),
+        )
+
+    def test_stride_phases_partition_the_accepted_set(self):
+        observation, item = self._observation()
+        for kind in ("settled", "release"):
+            full = self._accepted(observation, item, kind)
+            phases = [
+                self._accepted(observation, item, kind, stride=3, offset=k)
+                for k in range(3)
+            ]
+            combined = sorted(sum(phases, []))
+            self.assertEqual(combined, sorted(full))
+            for phase in phases:
+                self.assertLess(len(phase), len(full))
+
+
 class ShadowRerankTests(unittest.TestCase):
     def _release_scenario(self):
         container = sample_container(

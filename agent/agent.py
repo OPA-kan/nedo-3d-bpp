@@ -1919,6 +1919,8 @@ class CandidateGenerator:
         diagnostics=None,
         item_idx=None,
         attempt_kind="both",
+        stride=1,
+        stride_offset=0,
     ):
         """
         Yield every validated candidate attempt lazily.
@@ -1927,11 +1929,22 @@ class CandidateGenerator:
         can time-slice work by attempted anchors rather than by accepted
         candidates.  This is important late in an episode, where a unit may
         inspect tens of thousands of invalid anchors before finding nothing.
+
+        ``stride``/``stride_offset`` perform systematic sampling of the
+        anchor grid for offline measurement: only every stride-th deduped
+        grid position (starting at the offset phase) is validated and
+        yielded, the rest are skipped without paying validation cost. With
+        the default stride 1 behaviour is unchanged. Because the scan order
+        is deterministic, a caller can treat ``count * stride`` as a
+        Horvitz-Thompson estimate of the full-grid count and vary the
+        offset to measure sampling variance.
         """
         if attempt_kind not in {"both", "settled", "release"}:
             raise ValueError(
                 "attempt_kind must be 'both', 'settled', or 'release'"
             )
+        stride = max(1, int(stride))
+        stride_offset = int(stride_offset) % stride
         container = observation["container_list"][container_idx]
         if item_idx is None:
             item_idx = item.get("index", -1)
@@ -2018,6 +2031,7 @@ class CandidateGenerator:
         accepted = 0
         seen = set()
         intervals = {}
+        grid_index = -1
 
         def interval_at(x, y):
             key = (float(x), float(y))
@@ -2044,6 +2058,12 @@ class CandidateGenerator:
                         if key in seen:
                             continue
                         seen.add(key)
+                        grid_index += 1
+                        if (
+                            stride > 1
+                            and (grid_index - stride_offset) % stride != 0
+                        ):
+                            continue
                         interval = interval_at(x, y)
                         if (
                             interval is None
@@ -2077,6 +2097,7 @@ class CandidateGenerator:
             return
 
         if attempt_kind in {"both", "release"}:
+            release_index = -1
             for y in sorted(ys, reverse=True):
                 for x in sorted(xs, key=abs):
                     if (
@@ -2084,6 +2105,12 @@ class CandidateGenerator:
                         and time.perf_counter() >= deadline
                     ):
                         return
+                    release_index += 1
+                    if (
+                        stride > 1
+                        and (release_index - stride_offset) % stride != 0
+                    ):
+                        continue
                     interval = interval_at(x, y)
                     if interval is None:
                         _record_envelope_prune(
