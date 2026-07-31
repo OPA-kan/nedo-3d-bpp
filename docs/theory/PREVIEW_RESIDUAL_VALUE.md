@@ -328,3 +328,24 @@ deviation、min、max、failure mode countを保存する。top-K未選択後の
 - 厳密な大域対称群・軌道分解(この容器では自明群に退化する。§9は
   互換クラス・競合グラフ・同時配置可能数による近似定式化)。
 - 学習モデル化(まず解析descriptorの追加説明力を確認する)。
+
+### 9.7 段階A第1回結果(2026-07-31、陰性)
+
+24 snapshot(dev+validation)でのLOSO: baseline MAE 0.979 / R² 0.597 に
+対し、descriptor追加で MAE 1.024 / R² 0.396 と**悪化**(n=24に特徴10個の
+過学習)。残差Spearmanは cap/simul/components が −0.18〜−0.25 と**逆符号**。
+
+ただしこれはdescriptor概念の棄却ではなく、**測定の欠陥2件**が特定された:
+
+1. **settled限定列挙は実受け入れ能力と乖離する。** anchors=0 の snapshot
+   (例 b000-k20 step10)が placed-to-go=5 を持つ。終盤の配置は release
+   候補で続くため、settled限定の \(A_c\) は実際の受け入れ余地より早く
+   0 に落ちる。逆符号相関はこのラベル・測定のミスマッチで説明できる。
+2. **attempt予算の打ち切りが偽ゼロを作る。** 生成器は決定的順序で anchor
+   を走査するため、有効 anchor が走査順の後方に集中する状態では予算内で
+   1つも見つからない(step14で0、step15で200という不連続が示唆)。
+
+修正方針(次回実装): release種のanchorを別系列
+\(A^{\mathrm{rel}}_c\) として追加し、settled系列と分離して報告する。
+attempt予算は走査順のstride間引き(等間隔サブサンプル)で偽ゼロを避ける。
+この測定修正が済むまで段階Bへ進まない。μ統合はしない。
