@@ -254,6 +254,14 @@
       "status": "active",
       "claim": "Official QA: inclusion_margin in the evaluation environment equals the bundled sample (-0.005); items placed flush against container walls are NOT counted toward fill. Wall-hugging placements lose fill credit -- affects candidate-generation wall margins.",
       "source": "docs/COMPETITION_QA.md"
+    },
+    {
+      "id": "final-holdout-passed-default-switch",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "One-shot final_holdout evaluation PASSED and the submission default switched to risk-on. Offline (frozen mech-dev-v1-20260731, no refit): rotated AUC 0.903 [0.761, 0.980], not_placed_safe 0.877 [0.684, 0.969] on 198 rows / 5 snapshots (per-case rotated: b001-k40 0.826, b001-k10 0.980; mech coefficients clean w.r.t. the noted provisional-v1 static contamination of b001-k40). Online (2 unseen cases x 2 repeats): placed mean off 16.25 -> lambda=1 18.0, fill 21.7 -> 22.6, catastrophic max settle angles (51-180 deg under off) reduced. agent.py defaults now RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech, lambda 1.0; env vars recover the old baseline. final_holdout is now OPENED: it can no longer serve as an unseen split, and future 'baseline' means the risk-on policy.",
+      "source": "docs/RELEASE_RISK_PROTOCOL.md section 8 (4); reports/risk-ablation/summary.md"
     }
   ]
 }

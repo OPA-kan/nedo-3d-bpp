@@ -60,10 +60,11 @@ RELEASE_RISK_RERANK_LAMBDA = float(
 )
 # Which P(rotation) model the risk-adjusted score uses: the static-Phi
 # logistic ("static") or the mechanical topple-feature logistic ("mech",
-# MATHEMATICAL_MODEL 5.2.1).
+# MATHEMATICAL_MODEL 5.2.1). "mech" is the submission default since the
+# 2026-07-31 final_holdout evaluation.
 RELEASE_RISK_P_MODELS = frozenset({"static", "mech"})
 RELEASE_RISK_P_MODEL = os.environ.get(
-    "RELEASE_RISK_P_MODEL", "static"
+    "RELEASE_RISK_P_MODEL", "mech"
 ).strip().lower()
 if RELEASE_RISK_P_MODEL not in RELEASE_RISK_P_MODELS:
     raise ValueError(
@@ -71,11 +72,13 @@ if RELEASE_RISK_P_MODEL not in RELEASE_RISK_P_MODELS:
         f"expected one of {sorted(RELEASE_RISK_P_MODELS)}"
     )
 # Live rerank: apply the risk-adjusted release ranking to the REAL action.
-# Experiment gate for the online ablation on development configurations;
-# the submission default stays off until the final_holdout evaluation
-# (docs/RELEASE_RISK_PROTOCOL.md section 4).
+# ON by default since the one-shot final_holdout evaluation passed
+# (2026-07-31: offline frozen-model AUC 0.903 [0.761, 0.980]; online
+# lambda=1 improved placed on both unseen cases). Set to 0 to recover the
+# pre-risk baseline; docs/RELEASE_RISK_PROTOCOL.md section 8 records the
+# switch.
 RELEASE_RISK_LIVE_RERANK = os.environ.get(
-    "RELEASE_RISK_LIVE_RERANK", "0"
+    "RELEASE_RISK_LIVE_RERANK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55

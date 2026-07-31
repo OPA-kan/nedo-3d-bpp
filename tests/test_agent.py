@@ -2301,6 +2301,11 @@ class ShadowRerankTests(unittest.TestCase):
                 agent, "release_rotation_risk_probability",
                 side_effect=probability,
             ),
+            # These scenarios mock the STATIC probability and exercise
+            # baseline-vs-shadow behaviour, so pin the pre-switch
+            # defaults explicitly.
+            mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "static"),
+            mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", False),
         )
         return observation, risky, safe, patches
 
@@ -2324,7 +2329,8 @@ class ShadowRerankTests(unittest.TestCase):
         observation, risky, _safe, patches = self._release_scenario()
         solver = agent.Agent("")
         with (
-            patches[0], patches[1], patches[2], patches[3],
+            patches[0], patches[1], patches[2],
+            patches[3], patches[4], patches[5],
             mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
         ):
@@ -2370,6 +2376,7 @@ class ShadowRerankTests(unittest.TestCase):
                 side_effect=attempts,
             ),
             mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", False),
         ):
             solver.policy(observation)
 
@@ -2383,7 +2390,8 @@ class ShadowRerankTests(unittest.TestCase):
     def test_shadow_rerank_disabled_leaves_no_diagnostics(self):
         observation, _risky, _safe, patches = self._release_scenario()
         solver = agent.Agent("")
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], \
+                patches[3], patches[4], patches[5]:
             solver.policy(observation)
         self.assertNotIn(
             "shadow_rerank", solver.last_candidate_diagnostics
@@ -2483,13 +2491,21 @@ class MechanicsRiskModelTests(unittest.TestCase):
 
 
 class LiveRerankTests(unittest.TestCase):
+    def test_submission_defaults_are_risk_on_mech_lambda1(self):
+        # Frozen by the 2026-07-31 final_holdout evaluation (protocol
+        # section 8). A failure here means the submission default moved.
+        self.assertTrue(agent.RELEASE_RISK_LIVE_RERANK)
+        self.assertEqual(agent.RELEASE_RISK_P_MODEL, "mech")
+        self.assertAlmostEqual(agent.RELEASE_RISK_RERANK_LAMBDA, 1.0)
+
     def test_live_rerank_changes_the_real_action(self):
         observation, _risky, safe, patches = (
             ShadowRerankTests._release_scenario(self)
         )
         solver = agent.Agent("")
         with (
-            patches[0], patches[1], patches[2], patches[3],
+            patches[0], patches[1], patches[2],
+            patches[3], patches[4], patches[5],
             mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
         ):
@@ -2510,7 +2526,8 @@ class LiveRerankTests(unittest.TestCase):
         )
         solver = agent.Agent("")
         with (
-            patches[0], patches[1], patches[2], patches[3],
+            patches[0], patches[1], patches[2],
+            patches[3], patches[4], patches[5],
             mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
@@ -2525,7 +2542,8 @@ class LiveRerankTests(unittest.TestCase):
             ShadowRerankTests._release_scenario(self)
         )
         solver = agent.Agent("")
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], \
+                patches[3], patches[4], patches[5]:
             action = solver.policy(observation)
         np.testing.assert_allclose(
             action["place_pos"][:2], risky.center[:2], atol=1e-6

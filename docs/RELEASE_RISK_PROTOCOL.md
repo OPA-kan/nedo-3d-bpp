@@ -159,6 +159,21 @@ python scripts/build_replay_dataset.py \
 
 ## 8. 改訂記録
 
+- **2026-07-31 (4)**: **final_holdout 一度きり評価を実施(開封済み)、
+  提出デフォルトを risk-on に切り替え。**
+  オフライン: 凍結力学モデル(`mech-dev-v1-20260731`、refitなし)で
+  holdout 198行/5 snapshot に対し rotated AUC 0.903 [0.761, 0.980]、
+  not_placed_safe 0.877 [0.684, 0.969](case別 rotated: b001-k40 0.826、
+  b001-k10 0.980)。b001-k40 の provisional-v1(static)汚染は注記の通り
+  だが、力学係数は development のみで fit しておりこの評価に対して
+  クリーン。オンライン(各case×2反復): placed 平均 off 16.25 → λ=1 18.0、
+  fill 21.7 → 22.6、最大settle角の壊滅域(51–180°)が縮小。
+  §4 の切り替え条件を満たしたため、`agent.py` のデフォルトを
+  `RELEASE_RISK_LIVE_RERANK=1` / `RELEASE_RISK_P_MODEL=mech` /
+  λ=1.0 に変更(env で従来動作に戻せる)。以後の「baseline」は
+  risk-on の方策を指す。holdout は開封済みであり、今後の分析では
+  development / validation と同格に扱わない(再度の「未見」評価には
+  使えない)。
 - **2026-07-31 (3)**: **確証的凍結: 特徴集合 = 力学のみ、λ = 1.0。**
   validation split(b000-k10, 74行/2 snapshot)は全特徴集合が
   AUC 0.96–0.99 と天井付近で弁別不能のため、§4 基準(val AUC ≥ 0.70)は
