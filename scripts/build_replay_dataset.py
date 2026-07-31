@@ -884,11 +884,12 @@ def collect_step(
     # counterfactual physical labels are collected alongside the real one.
     shadow_record = solver.last_candidate_diagnostics.get("shadow_rerank")
     shadow_key: tuple[Any, ...] | None = None
-    if (
-        isinstance(shadow_record, dict)
-        and shadow_record.get("applies")
-        and isinstance(shadow_record.get("risk_selection"), dict)
+    if isinstance(shadow_record, dict) and isinstance(
+        shadow_record.get("risk_selection"), dict
     ):
+        # applies=False (settled baseline) still matches: the risk stack
+        # would select the same candidate, so the selected row doubles as
+        # the shadow selection instead of reading as "unmatched".
         shadow_key = match_selected(
             shadow_record["risk_selection"].get("action_command"),
             population,
