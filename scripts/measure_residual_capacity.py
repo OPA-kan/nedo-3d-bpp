@@ -36,6 +36,11 @@ DEFAULT_OUTPUT_DIR = ROOT / "reports" / "replay-analysis"
 SOURCE_CONFIG = ROOT / "simulator" / "configs" / "sample_config.json"
 
 ANCHORS_PER_CLASS_ORIENTATION = 40
+# The trunk generator walks rejected anchors lazily; late-episode grids
+# hold 100k+ anchors, so each class gets a total attempt budget across
+# its orientations. Truncation is deterministic (generator order) and is
+# recorded per snapshot.
+ATTEMPTS_PER_CLASS = 8000
 DIMS_ROUND = 3
 
 
@@ -100,10 +105,12 @@ def class_anchors(
     observation: dict[str, Any],
     representative: dict[str, Any],
     per_orientation: int = ANCHORS_PER_CLASS_ORIENTATION,
+    attempt_budget: int = ATTEMPTS_PER_CLASS,
 ) -> tuple[list[Any], bool]:
     """Reachable settled anchors for one class; (anchors, truncated)."""
     anchors: list[Any] = []
     truncated = False
+    attempts = 0
     for orientation in agent.unique_orientations(representative):
         produced = 0
         for candidate in agent.CandidateGenerator.iter_cartesian_attempts(
@@ -114,6 +121,10 @@ def class_anchors(
             limit=per_orientation,
             attempt_kind="settled",
         ):
+            attempts += 1
+            if attempts >= attempt_budget:
+                truncated = True
+                break
             if candidate is None:
                 continue
             anchors.append(candidate)
@@ -121,6 +132,8 @@ def class_anchors(
             if produced >= per_orientation:
                 truncated = True
                 break
+        if attempts >= attempt_budget:
+            break
     return anchors, truncated
 
 
@@ -325,6 +338,11 @@ def collect_rows(
             state = json.loads(state_path.read_text(encoding="utf-8"))
             step = int(state["step"])
             observation = state["observation"]
+            print(
+                f"descriptors: {case_id} step {step}",
+                file=sys.stderr,
+                flush=True,
+            )
             descriptors = snapshot_descriptors(
                 agent, observation, item_list
             )
