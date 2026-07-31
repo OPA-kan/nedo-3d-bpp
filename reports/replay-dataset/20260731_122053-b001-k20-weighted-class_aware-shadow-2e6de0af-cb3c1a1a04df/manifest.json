@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "dataset_id": "20260731_122053-b001-k20-weighted-class_aware-shadow-2e6de0af-cb3c1a1a04df",
+  "status": "incomplete",
+  "timestamp": "2026-07-31T12:20:53+00:00",
+  "selection_mode": "weighted",
+  "coverage_mode": "class_aware",
+  "risk_gate_mode": "shadow",
+  "split": "development",
+  "per_stratum": 8,
+  "seed": 20260817,
+  "oracle_limit": null,
+  "preview_limit": 0,
+  "provenance": {
+    "git_sha": "1335a34ce8355f498f3d1e554fc20120b434e839",
+    "git_dirty": true,
+    "config_path": "/tmp/claude-0/-home-user-nedo-3d-bpp/8742c2e5-7bc0-58d7-867e-465323942d8a/scratchpad/task-b-configs/b001-k20.json",
+    "config_sha256": "2e6de0af57f0fdce64d5faecee86eee5c19bc32b398c06b99d41f50e2634378d",
+    "agent_sha256": "9ff5b81e7aae5a5aaa3a0c341468ef3ef2b06fb0f649231e285d5c2f634cf519",
+    "python": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
+    "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+    "case_id": "b001-k20",
+    "target_steps": [
+      12,
+      14
+    ]
+  },
+  "label_contract": {
+    "transport": "official_check_transport_path",
+    "settle": "official_place_item",
+    "note": "Rows are an unequal-probability sample. Re-weight by sampling.sampling_weight before reading any rate as a population rate."
+  },
+  "case": {
+    "case_id": "b001-k20",
+    "target_steps": [
+      12,
+      14
+    ],
+    "reached_steps": [
+      12
+    ],
+    "unreached_steps": [
+      14
+    ],
+    "failed_steps": [],
+    "episode_steps_executed": 14,
+    "episode_terminated": true,
+    "episode_truncated": false,
+    "final_status": {
+      "is_included": true,
+      "is_valid": true,
+      "is_placed_safe": false
+    },
+    "trajectory": "competition_equivalent",
+    "steps": [
+      {
+        "schema_version": 1,
+        "dataset_id": "20260731_122053-b001-k20-weighted-class_aware-shadow-2e6de0af-cb3c1a1a04df",
+        "snapshot_id": "20260731_122053-b001-k20-weighted-class_aware-shadow-2e6de0af-cb3c1a1a04df:b001-k20:step-012",
+        "case_id": "b001-k20",
+        "step": 12,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-012-state.json",
+        "dataset_path": "step-012-candidates.jsonl",
+        "population": {
+          "settled": 6659,
+          "release": 8281,
+          "total": 14940,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            6,
+            1,
+            12,
+            0,
+            4,
+            5,
+            7,
+            9,
+            18,
+            19
+          ],
+          "item_indices": [
+            16,
+            7,
+            24,
+            6,
+            10,
+            15,
+            18,
+            20,
+            30,
+            31
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260817,
+          "sampled": 59,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=tail",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "tail"
+              },
+              "population": 5993,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0013348907058234607
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top1",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10pct",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10pct"
+              },
+              "population": 656,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.012195121951219513
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "tail"
+              },
+              "population": 5829,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0013724481043060558
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10"
+              },
+              "population": 3,
+              "forced": 0,
+              "sampled": 3,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10pct"
+              },
+              "population": 819,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.008557457212713936
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 1623,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.004929143561306223
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 6,
+              "forced": 0,
+              "sampled": 6,
+              "inclusion_probability": 1.0
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 5.659599992213771e-05
+        },
+        "replay_seconds": 12.761702864000199,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 767832,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 77.72822773899998,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 39127,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 12.786013324000123,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 5884,
+            "support_plane": 1052
+          },
+          "union_count": 6659,
+          "overlap_count": 277,
+          "cartesian_only_count": 5607,
+          "support_plane_only_count": 775,
+          "elapsed_seconds": 90.65796010099984
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 158794,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 82.13783906800018
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 156,
+          "accepted_total_count": 156,
+          "search": {
+            "units_total": 120,
+            "units_started": 120,
+            "units_completed": 0,
+            "rounds_started": 2,
+            "deadline_reached": true,
+            "incumbent_updates": 13
+          }
+        },
+        "action": {
+          "item_idx": 0,
+          "container_idx": 0,
+          "place_pos": [
+            0.0,
+            -0.36899998784065247,
+            0.956958532333374
+          ],
+          "orientation": 3
+        },
+        "shadow_rerank": {
+          "enabled": true,
+          "lambda": 1.0,
+          "model": "provisional-v1-20260731",
+          "baseline": {
+            "kind": "release_candidate",
+            "pool_index": 0,
+            "item_index": 6,
+            "container_index": 0,
+            "orientation": 3,
+            "score": -1.4909329086049414,
+            "center": [
+              0.0,
+              -0.36899999999999994,
+              0.9569585079508298
+            ],
+            "size": [
+              0.45,
+              0.65,
+              0.25
+            ],
+            "action_command": {
+              "item_idx": 0,
+              "container_idx": 0,
+              "place_pos": [
+                0.0,
+                -0.36899998784065247,
+                0.956958532333374
+              ],
+              "orientation": 3
+            },
+            "p_rot": 0.03141297967216214
+          },
+          "applies": true,
+          "risk_selection": {
+            "kind": "release_candidate",
+            "pool_index": 0,
+            "item_index": 6,
+            "container_index": 0,
+            "orientation": 3,
+            "score": -1.5223458882771035,
+            "center": [
+              0.0,
+              -0.36899999999999994,
+              0.9569585079508298
+            ],
+            "size": [
+              0.45,
+              0.65,
+              0.25
+            ],
+            "action_command": {
+              "item_idx": 0,
+              "container_idx": 0,
+              "place_pos": [
+                0.0,
+                -0.36899998784065247,
+                0.956958532333374
+              ],
+              "orientation": 3
+            },
+            "p_rot": 0.03141297967216214
+          },
+          "changed": false
+        },
+        "shadow_rerank_matched": true,
+        "shadow_pair": {
+          "changed": false,
+          "baseline_candidate_id": "6|0|0|3|(0.0, -0.369, 0.956959)|(0.45, 0.65, 0.25)",
+          "shadow_candidate_id": "6|0|0|3|(0.0, -0.369, 0.956959)|(0.45, 0.65, 0.25)"
+        }
+      }
+    ]
+  },
+  "problems": [
+    "unreached steps [14]"
+  ]
+}
