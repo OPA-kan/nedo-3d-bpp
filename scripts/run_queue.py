@@ -15,7 +15,7 @@ Plan format:
       "jobs": [
         {
           "id": "b000-k15-late",
-          "command": ["python", "scripts/build_replay_dataset.py",
+          "command": ["python3", "scripts/build_replay_dataset.py",
                        "--case", "b000-k15", "--steps", "13", "14"],
           "env": {"RELEASE_RISK_SHADOW_RERANK": "1"},
           "timeout_seconds": 1800
@@ -44,11 +44,18 @@ QUEUE_ROOT = ROOT / "reports" / "raw" / "queue"
 
 
 def repo_relative(path: pathlib.Path) -> str:
-    """Repository-relative when inside the repo, absolute otherwise."""
+    """
+    Repository-relative POSIX-style path when inside the repo, absolute
+    otherwise. Forward slashes are deliberate: recorded paths land in
+    JSON and in cross-platform docs, and Windows backslashes both break
+    path expectations and read as escape sequences.
+    """
     try:
-        return str(path.relative_to(ROOT))
+        return path.relative_to(ROOT).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
+
+
 DEFAULT_JOB_TIMEOUT_SECONDS = 3600
 
 

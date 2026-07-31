@@ -17,9 +17,16 @@ git switch --track origin/experiment/anchor-recall-oracle  # 未追跡なら
 # 既にローカルbranchがあるなら: git switch experiment/anchor-recall-oracle
 ```
 
-worktreeがdirtyなら**switchしない**。作業を退避するか、
-`git worktree add ../nedo-trunk origin/experiment/anchor-recall-oracle`
-で別worktreeを切ってそちらで作業する。
+worktreeがdirtyなら**switchしない**。作業を退避するか、別worktreeを
+**必ずローカルbranch付きで**切る（branch無しだとdetached HEADになり、
+閲覧はできてもcommit/pushの作業導線として危険）:
+
+```bash
+git worktree add -b work-<topic> ../nedo-trunk \
+  origin/experiment/anchor-recall-oracle
+cd ../nedo-trunk
+cat AGENTS.md   # switch後は必ず明示的に読み直す（自動再読込は保証されない）
+```
 
 以降のコマンドは `python3` と書く。環境によって `python` はPATHに無い
 （Codex系sandboxで実測）。Windowsのみ `python` に読み替える。
@@ -77,8 +84,11 @@ python3 -m unittest discover -s tests
 
 テスト件数は増え続けるので数を当てにしない。読むべきは**skip数**である。
 
-**Python 3.12が必須。** `simulator/src/ground_handling/validator.py`が
-PEP 701のf-stringを使うため、3.11では`SyntaxError`でimportに失敗する。
+**Python 3.12以上が必須。** `simulator/src/ground_handling/validator.py`が
+PEP 701のf-stringを使うため、3.11以下では`SyntaxError`でimportに失敗する
+（3.13でも可）。**正式な検証環境はLinux（CI）である。** Windowsローカルは
+提出コードの実行はできるが、テストのgreenは保証しない（path separator等の
+環境差）。Windowsで失敗したら、まずCIの同一コミットの結果を見る。
 さらに**3.12でもPyBullet未導入なら物理統合テスト3件はskipされる**
 （`OK (skipped=3)`）。skipが出た実行は物理契約を検証していない。
 物理契約を確かめるにはPyBulletを入れてskip 0で回すか、CIの
@@ -135,4 +145,4 @@ CIは毎pushで`unit-tests`と`replay-integration`を回す。後者は
 - `context/manifest.json`には短い入口と詳細資料を分けて登録する。
 - 現在地が変わったら `HANDOFF.md` を更新する。固定SHAは書かない。次のコミットで
   腐り、レビュアーを誤ったdiffへ送る。
-- agent変更後は `python scripts/run_checks.py` を実行する。
+- agent変更後は `python3 scripts/run_checks.py` を実行する。
