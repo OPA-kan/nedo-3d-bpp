@@ -62,7 +62,7 @@ class QueueExecutionTests(unittest.TestCase):
                     python_job(
                         "ok-job",
                         "import pathlib;"
-                        f"p = pathlib.Path({str(marker)!r});"
+                        f"p = pathlib.Path({marker.as_posix()!r});"
                         "p.write_text("
                         "str(int(p.read_text()) + 1) "
                         "if p.exists() else '1')",

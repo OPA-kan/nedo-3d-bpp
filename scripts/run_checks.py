@@ -67,7 +67,7 @@ def externalize_output(step_payload, name, raw_dir) -> None:
     tail_lines = combined.splitlines()[-LOG_TAIL_LINES:]
     step_payload["stdout"] = ""
     step_payload["stderr"] = ""
-    step_payload["log_path"] = str(log_path.relative_to(ROOT))
+    step_payload["log_path"] = log_path.relative_to(ROOT).as_posix()
     step_payload["log_tail"] = "\n".join(tail_lines)
 
 

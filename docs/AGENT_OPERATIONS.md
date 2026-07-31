@@ -88,7 +88,7 @@ python3 scripts/run_queue.py /tmp/plan.json
 
 ## 5. 検証と記録
 
-1. 変更したら `python3 -m unittest discover -s tests`(3.12必須)。
+1. 変更したら `python3 -m unittest discover -s tests`(3.12以上; 正式検証はLinux CI)。
 2. agent変更なら `python3 scripts/run_checks.py`。
    レポートは `reports/latest.{json,md}` に**要約+末尾30行のみ**、
    生ログは `reports/raw/*.log`(gitignore済み・CIアーティファクト)。
