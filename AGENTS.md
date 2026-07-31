@@ -13,7 +13,16 @@ context profileだけを段階的に取得する。
 ```bash
 git fetch --all --prune
 git log --oneline --decorate -10
+git switch --track origin/experiment/anchor-recall-oracle  # 未追跡なら
+# 既にローカルbranchがあるなら: git switch experiment/anchor-recall-oracle
 ```
+
+worktreeがdirtyなら**switchしない**。作業を退避するか、
+`git worktree add ../nedo-trunk origin/experiment/anchor-recall-oracle`
+で別worktreeを切ってそちらで作業する。
+
+以降のコマンドは `python3` と書く。環境によって `python` はPATHに無い
+（Codex系sandboxで実測）。Windowsのみ `python` に読み替える。
 
 **`main`は正本ではない。** live trunkは`experiment/anchor-recall-oracle`で、
 `main`は48コミット以上遅れている。`agent/agent.py`だけで2,600行以上の差がある。
@@ -23,13 +32,13 @@ fetch前はremoteに`main`しか見えないことがあり、そのまま読む
 ### Step 1 — 現在地を読む（約11 KB）
 
 ```bash
-python scripts/context.py list
-python scripts/context.py show handoff
-python scripts/context.py show operations   # 日々の作業ループ規則（必読）
+python3 scripts/context.py list
+python3 scripts/context.py show handoff
+python3 scripts/context.py show operations   # 日々の作業ループ規則（必読）
 ```
 
-測定済みの事実は `python scripts/context.py evidence --topic <t>`、
-コードの単一関数は `python scripts/context.py symbol <名前>` で引く。
+測定済みの事実は `python3 scripts/context.py evidence --topic <t>`、
+コードの単一関数は `python3 scripts/context.py symbol <名前>` で引く。
 複数ジョブは `scripts/run_queue.py` の計画ファイルで一括実行する。
 詳細は `docs/AGENT_OPERATIONS.md`。
 
@@ -63,17 +72,23 @@ python scripts/context.py show operations   # 日々の作業ループ規則（�
 ### Step 3 — 手を動かす前に
 
 ```bash
-python -m unittest discover -s tests    # 148 tests
+python3 -m unittest discover -s tests
 ```
+
+テスト件数は増え続けるので数を当てにしない。読むべきは**skip数**である。
 
 **Python 3.12が必須。** `simulator/src/ground_handling/validator.py`が
 PEP 701のf-stringを使うため、3.11では`SyntaxError`でimportに失敗する。
-3.11で走らせると物理統合テスト3件がskipされ、**契約未検証のままgreenに見える**。
+さらに**3.12でもPyBullet未導入なら物理統合テスト3件はskipされる**
+（`OK (skipped=3)`）。skipが出た実行は物理契約を検証していない。
+物理契約を確かめるにはPyBulletを入れてskip 0で回すか、CIの
+`replay-integration` job（`NEDO_REQUIRE_INTEGRATION=1`でskipをエラー化）
+の結果を見る。
 
 ### Step 4 — 変更したら
 
 ```bash
-python scripts/run_checks.py            # agent変更後は必須
+python3 scripts/run_checks.py           # agent変更後は必須
 ```
 
 CIは毎pushで`unit-tests`と`replay-integration`を回す。後者は

@@ -131,7 +131,7 @@ artifact or from the code line given.
   rejection rate, a narrow hard reject stays on the table.
 - The replay dataset smoke-test numbers are a pipeline check, not results.
 
-## Recent work (branch `claude/release-counterfactual-replay`)
+## Recent integrated work (originally `claude/release-counterfactual-replay`, merged into the trunk)
 
 `cfbef6b` — telemetry corrections:
 
