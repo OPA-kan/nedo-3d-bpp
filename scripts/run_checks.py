@@ -46,6 +46,31 @@ def git_sha() -> str | None:
     return result["stdout"].strip() if result["returncode"] == 0 else None
 
 
+LOG_TAIL_LINES = 30
+
+
+def externalize_output(step_payload, name, raw_dir) -> None:
+    """
+    Move a step's captured stdout/stderr into reports/raw/<name>.log
+    (gitignored; uploaded as a CI artifact) and keep only a short tail in
+    the committed payload. Full logs belong in artifacts, not in git:
+    before this, every latest.json committed ~45 KB of raw test output.
+    """
+    if not isinstance(step_payload, dict):
+        return
+    combined = (
+        step_payload.get("stdout", "") + step_payload.get("stderr", "")
+    ).strip()
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    log_path = raw_dir / f"{name}.log"
+    log_path.write_text(combined + "\n", encoding="utf-8")
+    tail_lines = combined.splitlines()[-LOG_TAIL_LINES:]
+    step_payload["stdout"] = ""
+    step_payload["stderr"] = ""
+    step_payload["log_path"] = str(log_path.relative_to(ROOT))
+    step_payload["log_tail"] = "\n".join(tail_lines)
+
+
 def load_json(path: pathlib.Path) -> Any:
     if not path.exists():
         return None
@@ -187,27 +212,24 @@ def report_markdown(payload: dict[str, Any]) -> str:
                 "```",
             ]
         )
-    lines.extend(
-        [
-            "",
-            "## Captured output",
-            "",
-            "<details><summary>unit tests</summary>",
-            "",
-            "```text",
-            (tests["stdout"] + tests["stderr"]).strip(),
-            "```",
-            "</details>",
-        ]
-    )
-    if simulator is not None:
+    lines.extend(["", "## Captured output"])
+    for name, step in (("unit tests", tests), ("simulator", simulator)):
+        if step is None:
+            continue
+        if "log_tail" in step:
+            body = step["log_tail"]
+            location = step.get("log_path", "reports/raw/")
+            summary = f"{name} (tail; full log: {location})"
+        else:
+            body = (step["stdout"] + step["stderr"]).strip()
+            summary = name
         lines.extend(
             [
                 "",
-                "<details><summary>simulator</summary>",
+                f"<details><summary>{summary}</summary>",
                 "",
                 "```text",
-                (simulator["stdout"] + simulator["stderr"]).strip(),
+                body,
                 "```",
                 "</details>",
             ]
@@ -287,6 +309,10 @@ def main() -> int:
             and evaluation_passed(payload["evaluation"])
         )
         payload["simulator_mode"] = args.simulator_mode
+
+    raw_dir = REPORTS / "raw"
+    externalize_output(payload.get("tests"), "unit-tests", raw_dir)
+    externalize_output(payload.get("simulator"), "simulator", raw_dir)
 
     latest_json = REPORTS / "latest.json"
     latest_md = REPORTS / "latest.md"

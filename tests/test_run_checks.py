@@ -6,6 +6,8 @@ from unittest import mock
 from scripts.run_checks import (
     evaluation_completed,
     evaluation_passed,
+    externalize_output,
+    report_markdown,
     simulator_result_passed,
     unit_test_environment,
 )
@@ -139,3 +141,71 @@ class EvaluationStatusTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class CapturedOutputTests(unittest.TestCase):
+    def test_externalize_moves_logs_out_of_the_payload(self) -> None:
+        import pathlib
+        import tempfile
+
+        step = {
+            "stdout": "\n".join(f"line {i}" for i in range(100)),
+            "stderr": "boom",
+            "returncode": 0,
+            "seconds": 1.0,
+            "command": ["python"],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            raw_dir = pathlib.Path(tmp) / "raw"
+            with mock.patch("scripts.run_checks.ROOT", pathlib.Path(tmp)):
+                externalize_output(step, "unit-tests", raw_dir)
+            log = raw_dir / "unit-tests.log"
+            self.assertTrue(log.exists())
+            self.assertIn("line 0", log.read_text(encoding="utf-8"))
+        self.assertEqual(step["stdout"], "")
+        self.assertEqual(step["stderr"], "")
+        self.assertIn("boom", step["log_tail"])
+        self.assertNotIn("line 0", step["log_tail"])
+        self.assertLessEqual(len(step["log_tail"].splitlines()), 30)
+        self.assertEqual(step["log_path"], "raw/unit-tests.log")
+
+    def test_markdown_uses_tail_and_points_at_the_log(self) -> None:
+        payload = {
+            "timestamp": "t",
+            "git_sha": "sha",
+            "environment": {
+                "python": "3",
+                "platform": "linux",
+                "processor": "x",
+            },
+            "tests": {
+                "returncode": 0,
+                "seconds": 1.0,
+                "command": ["python", "-m", "unittest"],
+                "stdout": "",
+                "stderr": "",
+                "log_tail": "OK (tail only)",
+                "log_path": "reports/raw/unit-tests.log",
+            },
+        }
+        markdown = report_markdown(payload)
+        self.assertIn("OK (tail only)", markdown)
+        self.assertIn("reports/raw/unit-tests.log", markdown)
+
+    def test_markdown_falls_back_to_inline_output(self) -> None:
+        payload = {
+            "timestamp": "t",
+            "git_sha": "sha",
+            "environment": {
+                "python": "3",
+                "platform": "linux",
+                "processor": "x",
+            },
+            "tests": {
+                "returncode": 0,
+                "seconds": 1.0,
+                "command": ["python"],
+                "stdout": "inline output",
+                "stderr": "",
+            },
+        }
+        self.assertIn("inline output", report_markdown(payload))
