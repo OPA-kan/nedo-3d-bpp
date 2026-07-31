@@ -222,6 +222,38 @@
       "status": "active",
       "claim": "Confirmatory freeze per protocol 3.1/4: feature set = mechanics only (RELEASE_RISK_MECH_LOGISTIC_V1, mech-dev-v1-20260731, fit on development rows only), lambda = 1.0. Validation split (b000-k10, 74 rows, 2 snapshots) is near-ceiling for every feature set (AUC static 0.985 / mech 0.967 / static+mech 0.978 rotated) so it cannot discriminate; the choice rests on worst-direction extrapolation (mech 0.697 vs static 0.534) and online evidence. Online lambda selection on the unused validation case b000-k10: baseline is already near-optimal there (26 placed / 28.5 fill); lambda=1 ties placed, loses 1.2-1.8% fill, improves max settle angle 4->1 deg; lambda=2 clearly loses (24 placed, fill -22%) and is rejected; lambda=4 is mixed/nondeterministic. Combined with development configs (lambda=1 best aggregate placed 16.8 vs 13.3), lambda=1.0 is the only setting that never loses materially anywhere. Submission default stays risk-off until the one-shot final_holdout evaluation.",
       "source": "reports/risk-ablation/summary.md; risk-rule-comparison.md; protocol section 8"
+    },
+    {
+      "id": "score-cutoff-gate",
+      "topic": "competition",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Official QA: unless a threshold number of items is loaded, every score component except fill becomes 0 (cutoff value undisclosed). Placed count is therefore a GATE for cog/stability/placement/soft scores, not just one metric among five -- episode survival (topple avoidance) matters more than any fill trade-off near the cutoff. Also: the composite total is a weighted aggregate of per-requirement evaluations with undisclosed weights/formulas.",
+      "source": "docs/COMPETITION_QA.md (official QA xlsx, 2026-07-31)"
+    },
+    {
+      "id": "shake-test-stability",
+      "topic": "competition",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Official QA: evaluation includes a shaking test; friction coefficients are stated to affect collapse risk at placement and shaking-test stability. stability_score is dynamic-response-based, raising the priority of the unresolved slide channel (d_xy) and Phi_slide item attributes (lateralFriction).",
+      "source": "docs/COMPETITION_QA.md"
+    },
+    {
+      "id": "com-centroid-official",
+      "topic": "competition",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Official QA: items are cuboids with the centre of mass at the diagonal intersection (uniform density). The mechanics features' z_com = z_rest + h/2 assumption matches the official spec.",
+      "source": "docs/COMPETITION_QA.md"
+    },
+    {
+      "id": "wall-flush-fill-exclusion",
+      "topic": "competition",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Official QA: inclusion_margin in the evaluation environment equals the bundled sample (-0.005); items placed flush against container walls are NOT counted toward fill. Wall-hugging placements lose fill credit -- affects candidate-generation wall margins.",
+      "source": "docs/COMPETITION_QA.md"
     }
   ]
 }
