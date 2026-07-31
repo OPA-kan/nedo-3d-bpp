@@ -67,17 +67,38 @@ BOOTSTRAP_SEED = 20260731
 
 def load_release_rows(
     dataset_dirs: list[pathlib.Path],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Return (all rows, release rows with phi), with item attrs joined."""
+    open_final_holdout: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Return (all rows, release rows with phi, step summaries), with item
+    attributes joined. Datasets whose manifest carries
+    ``split == "final_holdout"`` are skipped unless explicitly opened
+    (protocol section 3.1).
+    """
     all_rows: list[dict[str, Any]] = []
+    summaries: list[dict[str, Any]] = []
     for directory in dataset_dirs:
         manifest = directory / "manifest.json"
         if not manifest.exists():
             continue
-        if json.loads(manifest.read_text(encoding="utf-8")).get(
-            "status"
-        ) == "running":
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        if payload.get("status") == "running":
             continue
+        split = payload.get("split", "development")
+        if split == "final_holdout" and not open_final_holdout:
+            print(
+                f"skip (final_holdout stays closed): {directory.name}",
+                file=sys.stderr,
+            )
+            continue
+        case_payload = payload.get("case")
+        if isinstance(case_payload, dict):
+            for step_summary in case_payload.get("steps", []):
+                if isinstance(step_summary, dict):
+                    step_summary = dict(step_summary)
+                    step_summary["_dataset_dir"] = directory.name
+                    step_summary["_split"] = split
+                    summaries.append(step_summary)
         states: dict[str, dict[int, dict[str, Any]]] = {}
         for state_path in directory.glob("step-*-state.json"):
             state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -90,6 +111,7 @@ def load_release_rows(
                 for line in handle:
                     row = json.loads(line)
                     row["_dataset_dir"] = directory.name
+                    row["_split"] = split
                     items = states.get(row["snapshot_path"], {})
                     row["_item"] = items.get(int(row["item_index"]))
                     all_rows.append(row)
@@ -99,7 +121,7 @@ def load_release_rows(
         if row["kind"] == "release_candidate"
         and isinstance(row.get("phi_modelling"), dict)
     ]
-    return all_rows, release
+    return all_rows, release, summaries
 
 
 def phi_vector(row: dict[str, Any]) -> list[float]:
@@ -421,6 +443,92 @@ def rerank_sweep(
     return sweep
 
 
+def shadow_pair_report(
+    summaries: list[dict[str, Any]],
+    all_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Counterfactual pair comparison on changed snapshots: for every step
+    where the shadow rerank chose a different candidate than the policy,
+    join both force-included rows and compare their physical labels.
+    These are the protocol's primary adoption metrics: rotation danger
+    difference, placed-safe difference, and safe -> dangerous reversals.
+    """
+    rows_by_id: dict[tuple[str, str], dict[str, Any]] = {
+        (row["snapshot_id"], row["candidate_id"]): row for row in all_rows
+    }
+    pairs = []
+    changed_total = 0
+    unmatched = 0
+    for summary in summaries:
+        pair = summary.get("shadow_pair")
+        if not isinstance(pair, dict) or not pair.get("changed"):
+            continue
+        changed_total += 1
+        snapshot_id = summary.get("snapshot_id")
+        baseline = rows_by_id.get(
+            (snapshot_id, pair.get("baseline_candidate_id"))
+        )
+        shadow = rows_by_id.get(
+            (snapshot_id, pair.get("shadow_candidate_id"))
+        )
+        if (
+            baseline is None
+            or shadow is None
+            or not isinstance(baseline.get("physical"), dict)
+            or not isinstance(shadow.get("physical"), dict)
+        ):
+            unmatched += 1
+            continue
+        pairs.append(
+            {
+                "snapshot_id": snapshot_id,
+                "split": summary.get("_split"),
+                "baseline_rotated": label_of(baseline, "rotated_over_30"),
+                "shadow_rotated": label_of(shadow, "rotated_over_30"),
+                "baseline_unsafe": label_of(baseline, "not_placed_safe"),
+                "shadow_unsafe": label_of(shadow, "not_placed_safe"),
+                "score_loss": (
+                    float(baseline.get("score_immediate", 0.0))
+                    - float(shadow.get("score_immediate", 0.0))
+                ),
+            }
+        )
+    baseline_rotated = sum(1 for p in pairs if p["baseline_rotated"])
+    shadow_rotated = sum(1 for p in pairs if p["shadow_rotated"])
+    baseline_unsafe = sum(1 for p in pairs if p["baseline_unsafe"])
+    shadow_unsafe = sum(1 for p in pairs if p["shadow_unsafe"])
+    safe_to_dangerous = sum(
+        1
+        for p in pairs
+        if not p["baseline_unsafe"] and p["shadow_unsafe"]
+    )
+    dangerous_to_safe = sum(
+        1
+        for p in pairs
+        if p["baseline_unsafe"] and not p["shadow_unsafe"]
+    )
+    return {
+        "changed_snapshots": changed_total,
+        "labelled_pairs": len(pairs),
+        "unmatched_pairs": unmatched,
+        "rotation_danger_difference": baseline_rotated - shadow_rotated,
+        "baseline_rotated": baseline_rotated,
+        "shadow_rotated": shadow_rotated,
+        "placed_safe_difference": baseline_unsafe - shadow_unsafe,
+        "baseline_not_placed_safe": baseline_unsafe,
+        "shadow_not_placed_safe": shadow_unsafe,
+        "safe_to_dangerous_reversals": safe_to_dangerous,
+        "dangerous_to_safe_conversions": dangerous_to_safe,
+        "mean_pair_score_loss": (
+            float(np.mean([p["score_loss"] for p in pairs]))
+            if pairs
+            else None
+        ),
+        "pairs": pairs,
+    }
+
+
 def spearman_np(x: np.ndarray, y: np.ndarray) -> float | None:
     if len(x) < 3:
         return None
@@ -517,8 +625,13 @@ def dxy_report(release_rows: list[dict[str, Any]]) -> dict[str, Any]:
     return report
 
 
-def evaluate(dataset_dirs: list[pathlib.Path]) -> dict[str, Any]:
-    all_rows, release = load_release_rows(dataset_dirs)
+def evaluate(
+    dataset_dirs: list[pathlib.Path],
+    open_final_holdout: bool = False,
+) -> dict[str, Any]:
+    all_rows, release, summaries = load_release_rows(
+        dataset_dirs, open_final_holdout=open_final_holdout
+    )
     groups = [row["snapshot_id"] for row in release]
     features = np.array([phi_vector(row) for row in release])
     weights = np.array(
@@ -593,7 +706,18 @@ def evaluate(dataset_dirs: list[pathlib.Path]) -> dict[str, Any]:
         for row, pred in zip(release, loso_predictions["rotated_over_30"])
     }
     result["rerank_sweep"] = rerank_sweep(all_rows, rotation_predictions)
+    result["shadow_pairs"] = shadow_pair_report(summaries, all_rows)
     result["d_xy"] = dxy_report(release)
+    result["splits"] = dict(
+        sorted(
+            {
+                row["_split"]: sum(
+                    1 for r in all_rows if r["_split"] == row["_split"]
+                )
+                for row in all_rows
+            }.items()
+        )
+    )
     return result
 
 
@@ -712,6 +836,37 @@ def render_markdown(result: dict[str, Any]) -> str:
     )
     lines.append("")
 
+    pairs = result.get("shadow_pairs", {})
+    lines.append("## Counterfactual pairs on changed snapshots (primary)")
+    lines.append("")
+    lines.append(
+        f"- changed snapshots: {pairs.get('changed_snapshots', 0)} "
+        f"(labelled pairs: {pairs.get('labelled_pairs', 0)}, "
+        f"unmatched: {pairs.get('unmatched_pairs', 0)})"
+    )
+    lines.append(
+        f"- rotation danger difference (baseline - shadow): "
+        f"{pairs.get('rotation_danger_difference')} "
+        f"(baseline {pairs.get('baseline_rotated')} vs shadow "
+        f"{pairs.get('shadow_rotated')})"
+    )
+    lines.append(
+        f"- placed-safe difference: {pairs.get('placed_safe_difference')} "
+        f"(not_placed_safe baseline "
+        f"{pairs.get('baseline_not_placed_safe')} vs shadow "
+        f"{pairs.get('shadow_not_placed_safe')})"
+    )
+    lines.append(
+        f"- safe -> dangerous reversals: "
+        f"{pairs.get('safe_to_dangerous_reversals')} "
+        f"(dangerous -> safe: "
+        f"{pairs.get('dangerous_to_safe_conversions')})"
+    )
+    lines.append(
+        f"- mean pair score loss: {fmt(pairs.get('mean_pair_score_loss'))}"
+    )
+    lines.append("")
+
     dxy = result["d_xy"]
     lines.append("## Horizontal displacement with item attributes")
     lines.append("")
@@ -752,6 +907,14 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", type=pathlib.Path, default=DEFAULT_OUTPUT_DIR
     )
+    parser.add_argument(
+        "--open-final-holdout",
+        action="store_true",
+        help=(
+            "Include final_holdout datasets. ONLY for the one-shot final "
+            "evaluation of docs/RELEASE_RISK_PROTOCOL.md section 7."
+        ),
+    )
     args = parser.parse_args()
     if args.dataset:
         dataset_dirs = list(args.dataset)
@@ -759,7 +922,15 @@ def main() -> int:
         dataset_dirs = sorted(
             path for path in args.dataset_root.iterdir() if path.is_dir()
         )
-    result = evaluate(dataset_dirs)
+    if args.open_final_holdout:
+        print(
+            "WARNING: final_holdout datasets are being opened; this is "
+            "only legitimate for the one-shot final evaluation.",
+            file=sys.stderr,
+        )
+    result = evaluate(
+        dataset_dirs, open_final_holdout=args.open_final_holdout
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "risk-evaluation.json").write_text(
         json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"

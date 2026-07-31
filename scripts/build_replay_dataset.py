@@ -993,6 +993,26 @@ def collect_step(
         "action": json_safe(action),
         "shadow_rerank": json_safe(shadow_record),
         "shadow_rerank_matched": shadow_key is not None,
+        # Join key for the counterfactual pair: on changed snapshots both
+        # candidates are force-included, so their rows carry the physical
+        # labels of the real and the hypothetical selection side by side.
+        "shadow_pair": {
+            "changed": (
+                bool(shadow_record.get("changed"))
+                if isinstance(shadow_record, dict)
+                else None
+            ),
+            "baseline_candidate_id": (
+                "|".join(str(part) for part in selected_key)
+                if selected_key is not None
+                else None
+            ),
+            "shadow_candidate_id": (
+                "|".join(str(part) for part in shadow_key)
+                if shadow_key is not None
+                else None
+            ),
+        },
     }
 
 
@@ -1010,6 +1030,17 @@ def main() -> int:
     parser.add_argument("--mode", default="weighted")
     parser.add_argument("--coverage-mode", default="class_aware")
     parser.add_argument("--risk-gate-mode", default="shadow")
+    parser.add_argument(
+        "--split",
+        choices=("development", "validation", "final_holdout"),
+        default="development",
+        help=(
+            "Evaluation split recorded in the manifest. final_holdout "
+            "datasets are mechanically skipped by the analysis tools "
+            "until the one-shot final evaluation; see "
+            "docs/RELEASE_RISK_PROTOCOL.md section 3.1."
+        ),
+    )
     parser.add_argument("--output-dir", type=pathlib.Path)
     parser.add_argument("--per-stratum", type=int, default=16)
     parser.add_argument("--seed", type=int, default=20260730)
@@ -1089,6 +1120,7 @@ def main() -> int:
         "selection_mode": str(args.mode),
         "coverage_mode": str(args.coverage_mode),
         "risk_gate_mode": str(args.risk_gate_mode),
+        "split": str(args.split),
         "per_stratum": int(args.per_stratum),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,

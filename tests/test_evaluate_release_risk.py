@@ -151,6 +151,103 @@ class RerankTests(unittest.TestCase):
         self.assertEqual(entry["original_release_snapshots"], 0)
 
 
+class ShadowPairTests(unittest.TestCase):
+    def test_pairs_join_baseline_and_shadow_labels(self):
+        baseline = release_row(
+            candidate_id="base", rotated=True, unsafe=True, selected=True
+        )
+        baseline["candidate_id"] = "base"
+        shadow = release_row(candidate_id="shadow")
+        shadow["candidate_id"] = "shadow"
+        summaries = [
+            {
+                "snapshot_id": "snap-0",
+                "_split": "development",
+                "shadow_pair": {
+                    "changed": True,
+                    "baseline_candidate_id": "base",
+                    "shadow_candidate_id": "shadow",
+                },
+            },
+            {
+                "snapshot_id": "snap-1",
+                "_split": "development",
+                "shadow_pair": {
+                    "changed": False,
+                    "baseline_candidate_id": None,
+                    "shadow_candidate_id": None,
+                },
+            },
+        ]
+        report = risk_mod.shadow_pair_report(summaries, [baseline, shadow])
+        self.assertEqual(report["changed_snapshots"], 1)
+        self.assertEqual(report["labelled_pairs"], 1)
+        self.assertEqual(report["rotation_danger_difference"], 1)
+        self.assertEqual(report["placed_safe_difference"], 1)
+        self.assertEqual(report["safe_to_dangerous_reversals"], 0)
+        self.assertEqual(report["dangerous_to_safe_conversions"], 1)
+        self.assertAlmostEqual(
+            report["mean_pair_score_loss"], 0.0, places=6
+        )
+
+    def test_safe_to_dangerous_reversal_is_counted(self):
+        baseline = release_row(candidate_id="base", selected=True)
+        baseline["candidate_id"] = "base"
+        shadow = release_row(candidate_id="shadow", unsafe=True)
+        shadow["candidate_id"] = "shadow"
+        summaries = [
+            {
+                "snapshot_id": "snap-0",
+                "_split": "development",
+                "shadow_pair": {
+                    "changed": True,
+                    "baseline_candidate_id": "base",
+                    "shadow_candidate_id": "shadow",
+                },
+            }
+        ]
+        report = risk_mod.shadow_pair_report(summaries, [baseline, shadow])
+        self.assertEqual(report["safe_to_dangerous_reversals"], 1)
+        self.assertEqual(report["placed_safe_difference"], -1)
+
+
+class HoldoutExclusionTests(unittest.TestCase):
+    def test_final_holdout_dataset_is_skipped_by_default(self):
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(tmp)
+            for name, split in (
+                ("dev", "development"),
+                ("hold", "final_holdout"),
+            ):
+                directory = base / name
+                directory.mkdir()
+                (directory / "manifest.json").write_text(
+                    json.dumps({"status": "complete", "split": split})
+                )
+                row = release_row(snapshot=name, candidate_id=name)
+                row["snapshot_path"] = "step-000-state.json"
+                row["item_index"] = 0
+                (directory / "step-000-candidates.jsonl").write_text(
+                    json.dumps(row) + "\n"
+                )
+            closed, _release, _summaries = risk_mod.load_release_rows(
+                [base / "dev", base / "hold"]
+            )
+            self.assertEqual(
+                {row["_split"] for row in closed}, {"development"}
+            )
+            opened, _release, _summaries = risk_mod.load_release_rows(
+                [base / "dev", base / "hold"], open_final_holdout=True
+            )
+            self.assertEqual(
+                {row["_split"] for row in opened},
+                {"development", "final_holdout"},
+            )
+
+
 class VectorTests(unittest.TestCase):
     def test_item_vector_derives_density_and_aspect(self):
         row = {

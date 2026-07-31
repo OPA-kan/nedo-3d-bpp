@@ -46,13 +46,29 @@
 
 ## 3. 評価(凍結)
 
-1. **LOSO(leave-one-snapshot-out)**: 診断・モデル比較用。全ての行は
-   自分の snapshot を見ていないモデルで採点される。
-2. **完全holdout**: 最終報告用。以下は**学習・チューニングに一切使わない**:
-   - **holdout case**: source case `001` × pool 40(`b001-k40` 系の全step)
-   - **holdout pool**: 新規生成する pool 10(`b000-k10` / `b001-k10`)
-   既存の b001-k40 データは今後の係数fitから除外する(今回のprovisional v1
-   は全データfitなので、次回refitからこの規律を適用する)。
+### 3.1 データ分割(manifestの `split` フィールドで機械的に判定)
+
+| split | 構成 | 用途 |
+|---|---|---|
+| `development` | b000-k20, b000-k40, b001-k20 とその追加step、新trajectory(b000-k15, b001-k30 等) | 係数fit・特徴選択・診断 |
+| `validation` | b000-k10 | λ選択・モデル比較の検証(fitには使わない) |
+| `final_holdout` | b001-k40(既存run含む)、b001-k10 | 最終報告で**一度だけ**開く |
+
+- 各データセットの `manifest.json` に `split` を記録する。生成時は
+  `build_replay_dataset.py --split` で指定する(既定 `development`)。
+- **`final_holdout` は学習・特徴選択・λ選択・通常分析から機械的に除外**
+  される: `analyze_replay_dataset.py` / `evaluate_release_risk.py` は
+  manifest の `split == "final_holdout"` を読み飛ばし、明示フラグ
+  `--open-final-holdout` を渡したときだけ読む。このフラグは§7の最終評価
+  以外で渡してはならない。
+- 既存の b001-k40 の2 run は provisional v1 の fit に混入済み(既知の汚染)。
+  `final_holdout` に指定した時点から先は一切使わず、最終評価の報告時に
+  この汚染を注記する。
+
+1. **LOSO(leave-one-snapshot-out)**: development 内の診断・モデル比較用。
+   全ての行は自分の snapshot を見ていないモデルで採点される。
+2. **validation**: development で fit した係数を固定し、λ・特徴集合・
+   モデル形の選択だけを validation で行う。
 3. **不確実性**: 率・AUCとも snapshot-clustered bootstrap 1000回、
    percentile 2.5/97.5。行単位bootstrapは使わない(クラスタ相関を消すため)。
 4. **重み付け**: 母集団率は必ず `sampling.sampling_weight` で
@@ -60,17 +76,27 @@
 
 ## 4. 主要指標(凍結)
 
+採用判断は AUC と score 損失だけでは行わない。**changed snapshot
+(shadow rerank が baseline と異なる候補を選んだ step)上のペア比較**が
+主要指標である。両候補とも counterfactual 物理ラベルが強制包含で
+付いているため、直接差が取れる。
+
 | 指標 | 定義 |
 |---|---|
-| 主 | holdout AUC(`rotated_over_30`、LOSO予測ではなくholdout予測) |
-| 主 | オフライン再ランキング: λ∈{0.5, 1.0} での選択回転数の削減と平均score機会損失(snapshot単位) |
+| 主 | changed snapshot 上の**回転危険差**: baseline の `rotated_over_30` 数 − shadow 選択の `rotated_over_30` 数 |
+| 主 | changed snapshot 上の **placed-safe 差**: shadow 選択の placed-safe 数 − baseline の placed-safe 数 |
+| 主 | **安全→危険の逆転数**: baseline が safe かつ shadow 選択が dangerous になった snapshot 数(この逆転は 0 に近いことが採用条件) |
+| 主 | validation AUC(`rotated_over_30`) |
+| 副 | オフライン再ランキング: λ∈{0.5, 1.0} での選択回転数の削減と平均score機会損失(snapshot単位) |
 | 副 | LOSO AUC + 95% CI(`rotated_over_30`, `not_placed_safe`) |
 | 副 | gate pass / reject 別の重み付き危険率 + CI |
 | 副 | 連続 d_xy の held-out Spearman(`Phi_slide`) |
 
-判断基準(目安、変更時は本文書を更新): holdout AUC が 0.70 を下回る場合は
-係数を凍結しない。オフライン再ランキングで score 損失 5% 超を要する場合は
-λ を採用しない。
+判断基準(目安、変更時は本文書を更新): validation AUC が 0.70 を下回る
+場合は係数を凍結しない。score 損失 5% 超を要する λ は採用しない。
+安全→危険の逆転が回転危険削減を上回る λ は採用しない。
+**実 action の risk-adjusted への切り替えは、final_holdout 評価が
+完了するまで行わない。**
 
 ## 5. データ追加の優先順位(凍結)
 
@@ -78,9 +104,16 @@
 
 1. **独立 snapshot**(未使用の step、特に終了直前)
 2. **独立 trajectory**(別の look_ahead、別の policy_timeout、
-   `--seed` 違いの抽出ではなく軌道自体が変わる構成)
-3. **未使用 case 構成**(pool 10 の task-b、元の case 000(k=1)/
-   001(k=10)構成)
+   `--seed` 違いの抽出ではなく軌道自体が変わる構成。
+   development 用の新構成例: b000-k15, b001-k30)
+3. **未使用 case 構成** — ただし §3.1 の split 割当に従う:
+   b000-k10 は validation、b001-k10 / b001-k40 は final_holdout であり
+   development の追加データにはならない。
+
+追加生成は `RELEASE_RISK_SHADOW_RERANK=1` を併用し、changed=true の
+snapshot では baseline 候補と shadow 候補の counterfactual ラベルが
+**ペアで**保存されることを確認する(step summary の
+`shadow_pair`、行の `selected` / `shadow_rerank_selected`)。
 
 per-stratum は 8 のままでよい。1構成あたり数十行×snapshot数で足りる。
 

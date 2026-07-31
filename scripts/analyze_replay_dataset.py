@@ -42,7 +42,10 @@ DANGER_LABELS = (
 CONTINUOUS_TARGETS = ("delta_theta_deg", "d_xy", "d_z")
 
 
-def load_rows(dataset_dirs: list[pathlib.Path]) -> list[dict[str, Any]]:
+def load_rows(
+    dataset_dirs: list[pathlib.Path],
+    open_final_holdout: bool = False,
+) -> list[dict[str, Any]]:
     rows = []
     for directory in dataset_dirs:
         manifest_path = directory / "manifest.json"
@@ -52,11 +55,22 @@ def load_rows(dataset_dirs: list[pathlib.Path]) -> list[dict[str, Any]]:
         if manifest.get("status") == "running":
             print(f"skip (still running): {directory.name}", file=sys.stderr)
             continue
+        split = manifest.get("split", "development")
+        if split == "final_holdout" and not open_final_holdout:
+            # Protocol section 3.1: the final holdout stays closed for
+            # training, feature selection, lambda selection, and every
+            # routine analysis run.
+            print(
+                f"skip (final_holdout stays closed): {directory.name}",
+                file=sys.stderr,
+            )
+            continue
         for jsonl in sorted(directory.glob("step-*-candidates.jsonl")):
             with jsonl.open(encoding="utf-8") as handle:
                 for line in handle:
                     row = json.loads(line)
                     row["_dataset_dir"] = directory.name
+                    row["_split"] = split
                     rows.append(row)
     return rows
 
@@ -837,6 +851,14 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", type=pathlib.Path, default=DEFAULT_OUTPUT_DIR
     )
+    parser.add_argument(
+        "--open-final-holdout",
+        action="store_true",
+        help=(
+            "Include final_holdout datasets. ONLY for the one-shot final "
+            "evaluation of docs/RELEASE_RISK_PROTOCOL.md section 7."
+        ),
+    )
     args = parser.parse_args()
 
     if args.dataset:
@@ -845,7 +867,13 @@ def main() -> int:
         dataset_dirs = sorted(
             path for path in args.dataset_root.iterdir() if path.is_dir()
         )
-    rows = load_rows(dataset_dirs)
+    if args.open_final_holdout:
+        print(
+            "WARNING: final_holdout datasets are being opened; this is "
+            "only legitimate for the one-shot final evaluation.",
+            file=sys.stderr,
+        )
+    rows = load_rows(dataset_dirs, open_final_holdout=args.open_final_holdout)
     if not rows:
         print("no rows found", file=sys.stderr)
         return 1
