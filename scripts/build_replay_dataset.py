@@ -238,18 +238,23 @@ def stratified_sample(
     *,
     per_stratum: int,
     rng: random.Random,
-    forced_keys: set[tuple[Any, ...]],
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Draw up to ``per_stratum`` candidates from each stratum.
 
-    Forced candidates (the action the policy actually selected) are always
-    included with probability 1.0; the remainder of their stratum is then
-    sampled from what is left, so the design stays a valid
-    unequal-probability sample rather than a biased top-up.
+    Forced candidates (the action the policy actually selected, and any
+    hypothetical shadow-rerank selection) are always included with
+    probability 1.0; the remainder of their stratum is then sampled from
+    what is left, so the design stays a valid unequal-probability sample
+    rather than a biased top-up. ``forced_keys`` may be a mapping from
+    candidate key to the forced reason; a plain set keeps the historical
+    reason ``selected_action``.
 
     Returns the sampled records and a per-stratum table.
     """
+    if not isinstance(forced_keys, dict):
+        forced_keys = {key: "selected_action" for key in forced_keys}
     groups: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
     for record in records:
         groups[record["stratum_key"]].append(record)
@@ -281,7 +286,7 @@ def stratified_sample(
                 "inclusion_probability": 1.0,
                 "sampling_weight": 1.0,
                 "forced": True,
-                "forced_reason": "selected_action",
+                "forced_reason": forced_keys[candidate_key(record)],
             }
         for record in drawn:
             record["sampling"] = {
@@ -637,6 +642,7 @@ def build_row(
     anytime_keys: set[tuple[Any, ...]],
     physical: dict[str, Any] | None,
     feature_availability: dict[str, str],
+    shadow_key: tuple[Any, ...] | None = None,
 ) -> dict[str, Any]:
     key = candidate_key(record)
     risk = record.get("release_risk")
@@ -682,6 +688,12 @@ def build_row(
         "preview": record.get("preview"),
         # selected
         "selected": key == selected_key,
+        # The hypothetical shadow-rerank choice: what the risk-adjusted
+        # stack would have selected instead. Its physical labels are the
+        # counterfactual outcome of adopting the risk rule at this step.
+        "shadow_rerank_selected": (
+            shadow_key is not None and key == shadow_key
+        ),
         "found_by_anytime": key in anytime_keys,
         # sampling design
         "stratum": record["stratum"],
@@ -867,12 +879,34 @@ def collect_step(
         # from it can be trusted, so this must not read as a clean step.
         print(f"{case_id} step {step}: ERROR {selection_error}", flush=True)
 
+    # Shadow rerank: when the risk-adjusted stack would have chosen a
+    # different candidate, force-include that hypothetical selection so its
+    # counterfactual physical labels are collected alongside the real one.
+    shadow_record = solver.last_candidate_diagnostics.get("shadow_rerank")
+    shadow_key: tuple[Any, ...] | None = None
+    if (
+        isinstance(shadow_record, dict)
+        and shadow_record.get("applies")
+        and isinstance(shadow_record.get("risk_selection"), dict)
+    ):
+        shadow_key = match_selected(
+            shadow_record["risk_selection"].get("action_command"),
+            population,
+        )
+
+    forced_reasons: dict[tuple[Any, ...], str] = {}
+    if shadow_key is not None:
+        forced_reasons[shadow_key] = "shadow_rerank_selection"
+    if selected_key is not None:
+        # The real selection wins when both point at the same candidate.
+        forced_reasons[selected_key] = "selected_action"
+
     rng = random.Random(f"{seed}:{case_id}:{step}")
     sample, stratum_table = stratified_sample(
         population,
         per_stratum=per_stratum,
         rng=rng,
-        forced_keys={selected_key} if selected_key is not None else set(),
+        forced_keys=forced_reasons,
     )
     print(
         f"{case_id} step {step}: population={len(population)} "
@@ -905,6 +939,7 @@ def collect_step(
                 anytime_keys=anytime_keys,
                 physical=results.get(candidate_key(record)),
                 feature_availability=availability,
+                shadow_key=shadow_key,
             )
             handle.write(
                 json.dumps(json_safe(row), ensure_ascii=False) + "\n"
@@ -956,6 +991,8 @@ def collect_step(
         "release_oracle_stats": release_stats,
         "policy_log": policy_search_log(solver),
         "action": json_safe(action),
+        "shadow_rerank": json_safe(shadow_record),
+        "shadow_rerank_matched": shadow_key is not None,
     }
 
 

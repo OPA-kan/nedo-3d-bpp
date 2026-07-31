@@ -265,6 +265,38 @@ class SamplingTests(unittest.TestCase):
         # 0.0 would read as "sampled with probability zero".
         self.assertIsNone(entry["inclusion_probability"])
 
+    def test_forced_reason_mapping_marks_shadow_rerank_selection(
+        self,
+    ) -> None:
+        records = [
+            candidate(center=(0.0, 0.0, float(index)), score=-float(index))
+            for index in range(6)
+        ]
+        assign_strata(records)
+        selected = records[0]
+        shadow = records[-1]
+
+        sample, _table = stratified_sample(
+            records,
+            per_stratum=1,
+            rng=random.Random(3),
+            forced_keys={
+                candidate_key(shadow): "shadow_rerank_selection",
+                candidate_key(selected): "selected_action",
+            },
+        )
+
+        chosen = {candidate_key(row) for row in sample}
+        self.assertIn(candidate_key(selected), chosen)
+        self.assertIn(candidate_key(shadow), chosen)
+        self.assertEqual(
+            selected["sampling"]["forced_reason"], "selected_action"
+        )
+        self.assertEqual(
+            shadow["sampling"]["forced_reason"], "shadow_rerank_selection"
+        )
+        self.assertEqual(shadow["sampling"]["inclusion_probability"], 1.0)
+
 
 class LabelTests(unittest.TestCase):
     def test_outcome_splits_regression_targets_and_labels(self) -> None:

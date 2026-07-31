@@ -49,6 +49,15 @@ RELEASE_RISK_GATE_MODE = os.environ.get(
 RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT = int(
     os.environ.get("RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT", "64")
 )
+# Shadow reranking: run the real selection stack a second time with a
+# risk-adjusted release ranking and record how the final choice would have
+# differed. Instrumentation only -- the returned action never changes.
+RELEASE_RISK_SHADOW_RERANK = os.environ.get(
+    "RELEASE_RISK_SHADOW_RERANK", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+RELEASE_RISK_RERANK_LAMBDA = float(
+    os.environ.get("RELEASE_RISK_RERANK_LAMBDA", "1.0")
+)
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -1478,6 +1487,82 @@ def normalized_release_risk_gate_mode(mode):
             f"unknown release risk gate mode {mode!r}; expected {available}"
         )
     return normalized
+
+
+# Provisional v1 rotation-risk logistic, fit on the first stratified replay
+# dataset (462 release rows / 13 snapshots, standardized batch-GD logistic,
+# target rotated_over_30). The coefficients are NOT final -- snapshot-level
+# extrapolation is unstable (LOSO AUC 0.699 [0.581, 0.804]) -- and exist
+# only so shadow reranking can be instrumented; the refit/refreeze procedure
+# lives in docs/RELEASE_RISK_PROTOCOL.md. Feature order matters and the
+# imbalance features enter as absolute values.
+RELEASE_RISK_LOGISTIC_V1 = {
+    "version": "provisional-v1-20260731",
+    "target": "rotated_over_30",
+    "features": (
+        "support_ratio",
+        "com_margin",
+        "drop_normalized",
+        "abs_support_imbalance",
+        "abs_left_right_imbalance",
+        "abs_front_back_imbalance",
+    ),
+    "mean": (0.30744, -0.336992, 0.173174, 0.281372, 0.139214, 0.177689),
+    "scale": (0.369019, 0.804913, 0.052053, 0.401402, 0.296668, 0.34478),
+    # Intercept first, then one weight per standardized feature.
+    "weights": (
+        -1.873689,
+        -3.391304,
+        1.842337,
+        -0.19114,
+        0.682616,
+        -0.047121,
+        0.202496,
+    ),
+}
+
+
+def release_rotation_risk_probability(features):
+    """P(rotated_over_30 | Phi) from the provisional v1 logistic."""
+    phi = features.as_dict() if hasattr(features, "as_dict") else dict(features)
+    values = (
+        float(phi["support_ratio"]),
+        float(phi["com_margin"]),
+        float(phi["drop_normalized"]),
+        abs(float(phi["support_imbalance"])),
+        abs(float(phi["left_right_imbalance"])),
+        abs(float(phi["front_back_imbalance"])),
+    )
+    model = RELEASE_RISK_LOGISTIC_V1
+    z = model["weights"][0]
+    for value, mean, scale, weight in zip(
+        values, model["mean"], model["scale"], model["weights"][1:]
+    ):
+        z += weight * (value - mean) / scale
+    z = max(-30.0, min(30.0, z))
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def risk_adjusted_score(
+    score,
+    candidate,
+    item,
+    container,
+    orientation,
+    risk_lambda,
+):
+    """
+    Q_lambda = Q_old - lambda * P_rot for release candidates; settled
+    candidates are returned unchanged. Returns (score, probability).
+    """
+    if risk_lambda is None or candidate.name != "release_candidate":
+        return float(score), None
+    features = release_risk_features(candidate, item, container, orientation)
+    probability = release_rotation_risk_probability(features)
+    return (
+        float(score) - float(risk_lambda) * float(probability),
+        float(probability),
+    )
 
 
 def _record_release_risk_diagnostic(
@@ -3030,6 +3115,7 @@ class PlacementCore:
         indexed_items,
         deadline=None,
         diagnostics=None,
+        risk_lambda=None,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -3062,6 +3148,14 @@ class PlacementCore:
                 item,
                 container,
                 has_priority_container,
+            )
+            score, _risk_probability = risk_adjusted_score(
+                score,
+                candidate,
+                item,
+                container,
+                orientation,
+                risk_lambda,
             )
             decision = PlacementDecision(
                 action={
@@ -3099,6 +3193,7 @@ class PlacementCore:
         k,
         deadline=None,
         diagnostics=None,
+        risk_lambda=None,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -3136,6 +3231,14 @@ class PlacementCore:
                 item,
                 container,
                 has_priority_container,
+            )
+            score, _risk_probability = risk_adjusted_score(
+                score,
+                candidate,
+                item,
+                container,
+                orientation,
+                risk_lambda,
             )
             decision = PlacementDecision(
                 action={
@@ -4065,7 +4168,15 @@ class Agent:
         self.last_offline_cache_hits = evaluator.cache_hits
         return [int(item["index"]) for item in best_items]
 
-    def _closed_loop_choice(self, observation, pool_list, ordered_items, deadline):
+    def _closed_loop_choice(
+        self,
+        observation,
+        pool_list,
+        ordered_items,
+        deadline,
+        risk_lambda=None,
+        diagnostics=...,
+    ):
         """
         Closed-loop 1-ply lookahead. Keep the top-K immediate candidates
         (not just the single best), hypothetically settle each one against
@@ -4078,7 +4189,13 @@ class Agent:
         best-next score, and immediate score lexicographically.
         pool_resilience first preserves the number of visible items that
         remain individually placeable.
+
+        ``risk_lambda`` switches the release ranking to the risk-adjusted
+        score; the shadow rerank passes ``diagnostics=None`` so its second
+        search never pollutes the audit trail of the real one.
         """
+        if diagnostics is ...:
+            diagnostics = self.last_candidate_diagnostics
         self.last_top_candidate_item_indices = []
         self.last_future_probe_item_indices = []
         if not ordered_items:
@@ -4100,7 +4217,8 @@ class Agent:
             ordered_items,
             LOOKAHEAD_TOP_K,
             deadline=search_deadline,
-            diagnostics=self.last_candidate_diagnostics,
+            diagnostics=diagnostics,
+            risk_lambda=risk_lambda,
         )
         self.last_top_candidate_count = len(top)
         seen_top_items = set()
@@ -4190,6 +4308,123 @@ class Agent:
         self.last_lookahead_evaluation = best_evaluation
         return best_decision
 
+    def _decision_summary(self, decision, pool_list, containers):
+        """Compact, JSON-safe description of one decision for telemetry."""
+        pool_index = int(decision.action["item_idx"])
+        container_index = int(decision.action["container_idx"])
+        entry = {
+            "kind": decision.candidate.name or "candidate",
+            "pool_index": pool_index,
+            "item_index": (
+                int(pool_list[pool_index].get("index", pool_index))
+                if 0 <= pool_index < len(pool_list)
+                else None
+            ),
+            "container_index": container_index,
+            "orientation": int(decision.action["orientation"]),
+            "score": float(decision.score),
+            "center": [float(value) for value in decision.candidate.center],
+            "size": [float(value) for value in decision.candidate.size],
+            "action_command": {
+                "item_idx": pool_index,
+                "container_idx": container_index,
+                "place_pos": [
+                    float(value)
+                    for value in decision.action["place_pos"]
+                ],
+                "orientation": int(decision.action["orientation"]),
+            },
+        }
+        if (
+            decision.candidate.name == "release_candidate"
+            and 0 <= pool_index < len(pool_list)
+            and 0 <= container_index < len(containers)
+        ):
+            features = release_risk_features(
+                decision.candidate,
+                pool_list[pool_index],
+                containers[container_index],
+                int(decision.action["orientation"]),
+            )
+            entry["p_rot"] = release_rotation_risk_probability(features)
+        return entry
+
+    def _shadow_rerank_record(
+        self,
+        observation,
+        pool_list,
+        containers,
+        ordered_items,
+        decision,
+    ):
+        """
+        Re-run the real selection stack with the risk-adjusted release
+        ranking and report how the final choice would differ. The returned
+        action is never changed; this only annotates diagnostics. When the
+        baseline chose a settled candidate the risk term cannot alter the
+        outcome (it only reweights release candidates below the settled
+        preference), so the second search is skipped.
+        """
+        if not RELEASE_RISK_SHADOW_RERANK or decision is None:
+            return None
+        baseline = self._decision_summary(decision, pool_list, containers)
+        record = {
+            "enabled": True,
+            "lambda": float(RELEASE_RISK_RERANK_LAMBDA),
+            "model": RELEASE_RISK_LOGISTIC_V1["version"],
+            "baseline": baseline,
+        }
+        if decision.candidate.name != "release_candidate":
+            record["applies"] = False
+            record["risk_selection"] = baseline
+            record["changed"] = False
+            return record
+
+        saved_state = (
+            self.last_top_candidate_item_indices,
+            self.last_future_probe_item_indices,
+            self.last_lookahead_evaluation,
+            self.last_top_candidate_count,
+        )
+        shadow_deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        try:
+            shadow_decision = self._closed_loop_choice(
+                observation,
+                pool_list,
+                ordered_items,
+                shadow_deadline,
+                risk_lambda=RELEASE_RISK_RERANK_LAMBDA,
+                diagnostics=None,
+            )
+            if shadow_decision is None:
+                shadow_decision = PlacementCore.choose(
+                    observation,
+                    ordered_items,
+                    deadline=shadow_deadline,
+                    diagnostics=None,
+                    risk_lambda=RELEASE_RISK_RERANK_LAMBDA,
+                )
+        finally:
+            (
+                self.last_top_candidate_item_indices,
+                self.last_future_probe_item_indices,
+                self.last_lookahead_evaluation,
+                self.last_top_candidate_count,
+            ) = saved_state
+        record["applies"] = True
+        if shadow_decision is None:
+            record["risk_selection"] = None
+            record["changed"] = None
+            return record
+        risk_selection = self._decision_summary(
+            shadow_decision, pool_list, containers
+        )
+        record["risk_selection"] = risk_selection
+        record["changed"] = (
+            risk_selection["action_command"] != baseline["action_command"]
+        )
+        return record
+
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
         class_aware_coverage = ITEM_COVERAGE_MODE == "class_aware"
@@ -4257,6 +4492,17 @@ class Agent:
                 pool_list,
                 containers,
             )
+            shadow_record = self._shadow_rerank_record(
+                observation,
+                pool_list,
+                containers,
+                ordered_items,
+                decision,
+            )
+            if shadow_record is not None:
+                self.last_candidate_diagnostics["shadow_rerank"] = (
+                    shadow_record
+                )
             finalize_release_flow_diagnostics(
                 self.last_candidate_diagnostics
             )

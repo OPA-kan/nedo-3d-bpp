@@ -1946,6 +1946,7 @@ class LookaheadSelectionTests(unittest.TestCase):
             _k,
             deadline=None,
             diagnostics=None,
+            risk_lambda=None,
         ):
             diagnostics["search"] = {
                 "units_total": 20,
@@ -2122,6 +2123,7 @@ class LookaheadSelectionTests(unittest.TestCase):
             _k,
             deadline=None,
             diagnostics=None,
+            risk_lambda=None,
         ):
             pool_index, item = indexed_items[0]
             item_indices = [
@@ -2208,6 +2210,137 @@ class LookaheadSelectionTests(unittest.TestCase):
 
         self.assertEqual(solver._item_lifecycle, {})
         self.assertEqual(solver._policy_step, 0)
+
+
+class ShadowRerankTests(unittest.TestCase):
+    def _release_scenario(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        risky = agent.AABB((0.0, 0.0, 0.2), (0.2, 0.2, 0.2),
+                           "release_candidate")
+        safe = agent.AABB((0.3, 0.0, 0.2), (0.2, 0.2, 0.2),
+                          "release_candidate")
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "release":
+                yield risky
+                yield safe
+
+        def score(candidate, *_args):
+            return 10.0 if candidate.center[0] == 0.0 else 8.0
+
+        def probability(features):
+            return 0.9 if features.center[0] == 0.0 else 0.05
+
+        patches = (
+            mock.patch.object(
+                agent.CandidateGenerator, "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
+            mock.patch.object(
+                agent, "release_risk_features",
+                side_effect=lambda candidate, *_a, **_k: candidate,
+            ),
+            mock.patch.object(
+                agent, "release_rotation_risk_probability",
+                side_effect=probability,
+            ),
+        )
+        return observation, risky, safe, patches
+
+    def test_risk_probability_decreases_with_support_ratio(self):
+        base = {
+            "support_ratio": 0.2,
+            "com_margin": 0.0,
+            "drop_normalized": 0.15,
+            "support_imbalance": 0.2,
+            "left_right_imbalance": 0.0,
+            "front_back_imbalance": 0.0,
+        }
+        low_support = agent.release_rotation_risk_probability(base)
+        high_support = agent.release_rotation_risk_probability(
+            {**base, "support_ratio": 0.9}
+        )
+        self.assertGreater(low_support, high_support)
+        self.assertTrue(0.0 <= high_support <= 1.0)
+
+    def test_shadow_rerank_records_change_but_keeps_the_action(self):
+        observation, risky, _safe, patches = self._release_scenario()
+        solver = agent.Agent("")
+        with (
+            patches[0], patches[1], patches[2], patches[3],
+            mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
+        ):
+            action = solver.policy(observation)
+
+        # The real action is still the baseline (higher raw score) choice.
+        np.testing.assert_allclose(
+            action["place_pos"][:2], risky.center[:2], atol=1e-6
+        )
+        record = solver.last_candidate_diagnostics["shadow_rerank"]
+        self.assertTrue(record["applies"])
+        self.assertTrue(record["changed"])
+        self.assertEqual(record["baseline"]["kind"], "release_candidate")
+        self.assertAlmostEqual(record["baseline"]["p_rot"], 0.9)
+        self.assertAlmostEqual(
+            record["risk_selection"]["center"][0], 0.3
+        )
+        self.assertAlmostEqual(record["risk_selection"]["p_rot"], 0.05)
+        self.assertAlmostEqual(
+            record["risk_selection"]["score"], 8.0 - 10.0 * 0.05
+        )
+
+    def test_shadow_rerank_skips_second_search_for_settled_choice(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        settled = agent.AABB((0.0, 0.0, 0.1), (0.2, 0.2, 0.2),
+                             "settled_candidate")
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] != "release":
+                yield settled
+
+        solver = agent.Agent("")
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator, "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
+        ):
+            solver.policy(observation)
+
+        record = solver.last_candidate_diagnostics["shadow_rerank"]
+        self.assertFalse(record["applies"])
+        self.assertFalse(record["changed"])
+        self.assertEqual(
+            record["risk_selection"], record["baseline"]
+        )
+
+    def test_shadow_rerank_disabled_leaves_no_diagnostics(self):
+        observation, _risky, _safe, patches = self._release_scenario()
+        solver = agent.Agent("")
+        with patches[0], patches[1], patches[2], patches[3]:
+            solver.policy(observation)
+        self.assertNotIn(
+            "shadow_rerank", solver.last_candidate_diagnostics
+        )
 
 
 class OfflineOptimizationTests(unittest.TestCase):
