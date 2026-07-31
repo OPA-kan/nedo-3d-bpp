@@ -262,6 +262,14 @@
       "status": "active",
       "claim": "One-shot final_holdout evaluation PASSED and the submission default switched to risk-on. Offline (frozen mech-dev-v1-20260731, no refit): rotated AUC 0.903 [0.761, 0.980], not_placed_safe 0.877 [0.684, 0.969] on 198 rows / 5 snapshots (per-case rotated: b001-k40 0.826, b001-k10 0.980; mech coefficients clean w.r.t. the noted provisional-v1 static contamination of b001-k40). Online (2 unseen cases x 2 repeats): placed mean off 16.25 -> lambda=1 18.0, fill 21.7 -> 22.6, catastrophic max settle angles (51-180 deg under off) reduced. agent.py defaults now RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech, lambda 1.0; env vars recover the old baseline. final_holdout is now OPENED: it can no longer serve as an unseen split, and future 'baseline' means the risk-on policy.",
       "source": "docs/RELEASE_RISK_PROTOCOL.md section 8 (4); reports/risk-ablation/summary.md"
+    },
+    {
+      "id": "slide-direction-downhill",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Slide direction is predictable from the pre-release contact state: on 422 release rows with |d_xy| > 5 cm, the mean cosine between the observed horizontal displacement and the CoM-offset-from-support-centroid direction is 0.651; 87.4% slide 'downhill' (cos > 0) and 76.3% have cos > 0.5. The long-unresolved d_xy channel was attacked with invariant scalars that discard direction; an equivariant formulation (predict in the local support frame, mirror symmetry by construction) is the indicated fix. Ladder: S0 equivariant baseline without new losses -> S1 learned local-geometry encoder with invariance loss -> S2 test fixed SketchGeo vs Gated Iota on the frozen worst-group extrapolation metrics (user's loss-function document, 2026-07-31).",
+      "source": "inline probe over 33-snapshot dev+val replay rows; docs/theory (pending S0 script)"
     }
   ]
 }
