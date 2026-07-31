@@ -78,9 +78,41 @@ def case_summary(
             for key, value in score.items()
             if isinstance(value, (int, float))
         }
+        angles = [
+            float(step["settle_angle_deg"])
+            for step in steps
+            if step.get("settle_angle_deg") is not None
+        ]
+        displacements = [
+            float(step["settle_displacement_norm"])
+            for step in steps
+            if step.get("settle_displacement_norm") is not None
+        ]
         cases[case_id] = {
             "status": case.get("status"),
             "message": case.get("message"),
+            # Stability proxies (per the diagnostics decomposition: no
+            # pseudo-total score, each proxy kept separate).
+            "max_settle_angle_deg": max(angles) if angles else None,
+            "settle_over_30_steps": sum(1 for a in angles if a > 30.0),
+            "settle_5_to_30_steps": sum(
+                1 for a in angles if 5.0 < a <= 30.0
+            ),
+            "mean_settle_displacement": (
+                sum(displacements) / len(displacements)
+                if displacements
+                else None
+            ),
+            "final_surface_total_variation": (
+                float(final_step["surface_total_variation"])
+                if "surface_total_variation" in final_step
+                else None
+            ),
+            "final_flat_support_edge_ratio": (
+                float(final_step["flat_support_edge_ratio"])
+                if "flat_support_edge_ratio" in final_step
+                else None
+            ),
             "fill_score": float(score.get("fill_score", 0.0)),
             "score_components": components,
             "placed_fraction": placed_fraction,
@@ -203,13 +235,28 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         for case_id, case in row["cases"].items():
             arm_bucket = per_arm.setdefault(
                 row["arm"],
-                {"placed": [], "fill": [], "steps": [], "com_z": []},
+                {
+                    "placed": [],
+                    "fill": [],
+                    "steps": [],
+                    "com_z": [],
+                    "near_miss": [],
+                    "surface_tv": [],
+                },
             )
             arm_bucket["placed"].append(case["placed_count"])
             arm_bucket["fill"].append(case["fill_score"])
             arm_bucket["steps"].append(case["steps"])
             if case.get("final_com_z") is not None:
                 arm_bucket["com_z"].append(case["final_com_z"])
+            if case.get("settle_5_to_30_steps") is not None:
+                arm_bucket["near_miss"].append(
+                    case["settle_5_to_30_steps"]
+                )
+            if case.get("final_surface_total_variation") is not None:
+                arm_bucket["surface_tv"].append(
+                    case["final_surface_total_variation"]
+                )
             case_bucket = per_case_arm.setdefault(
                 (case_id, row["arm"]),
                 {"placed": [], "fill": []},
@@ -273,8 +320,8 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
         "## Per arm",
         "",
         "| arm | episodes | placed mean | fill mean | steps mean "
-        "| final CoM z mean |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| final CoM z | near-miss settles (5-30 deg) | surface TV |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for arm, stats in sorted(summary["arms"].items()):
         lines.append(
@@ -282,7 +329,9 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['placed'].get('mean', '-')} "
             f"| {stats['fill'].get('mean', '-')} "
             f"| {stats['steps'].get('mean', '-')} "
-            f"| {stats['com_z'].get('mean', '-')} |"
+            f"| {stats['com_z'].get('mean', '-')} "
+            f"| {stats['near_miss'].get('mean', '-')} "
+            f"| {stats['surface_tv'].get('mean', '-')} |"
         )
     lines += [
         "",

@@ -6,12 +6,12 @@
 
 ## Per arm
 
-| arm | episodes | placed mean | fill mean | steps mean | final CoM z mean |
-|---|---:|---:|---:|---:|---:|
-| mech-lam1 | 5 | 16.8 | 17.058 | 17.8 | 0.677 |
-| mech-lam2 | 10 | 14.0 | 16.496 | 15.0 | 0.651 |
-| mech-lam4 | 5 | 15.0 | 17.44 | 16.0 | 0.66 |
-| off | 10 | 13.3 | 13.768 | 14.3 | 0.639 |
+| arm | episodes | placed mean | fill mean | steps mean | final CoM z | near-miss settles (5-30 deg) | surface TV |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| mech-lam1 | 5 | 16.8 | 17.058 | 17.8 | 0.677 | 2.4 | 0.029 |
+| mech-lam2 | 10 | 14.0 | 16.496 | 15.0 | 0.651 | 0.8 | 0.028 |
+| mech-lam4 | 5 | 15.0 | 17.44 | 16.0 | 0.66 | 0.6 | 0.03 |
+| off | 10 | 13.3 | 13.768 | 14.3 | 0.639 | 2.1 | 0.027 |
 
 ## Paired per-case difference vs off
 
