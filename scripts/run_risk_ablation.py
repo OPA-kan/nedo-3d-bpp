@@ -29,8 +29,24 @@ if str(ROOT) not in sys.path:
 from scripts.run_checks import load_json, run  # noqa: E402
 
 SIMULATOR = ROOT / "simulator"
+AGENT = ROOT / "agent" / "agent.py"
 DEFAULT_OUTPUT_DIR = ROOT / "reports" / "risk-ablation"
 FINAL_HOLDOUT_CASES = frozenset({"b001-k40", "b001-k10"})
+
+
+def sync_agent_into_simulator() -> None:
+    """
+    The simulator imports SIMULATOR/agent.py, which is a copy -- the
+    checks harness refreshes it before every run (run_checks.py). Without
+    this step an ablation silently measures a stale agent on BOTH arms
+    (that is exactly how round 1 failed). Content-compare first so
+    parallel episodes of the same commit skip the racy rewrite.
+    """
+    target = SIMULATOR / "agent.py"
+    source_bytes = AGENT.read_bytes()
+    if target.exists() and target.read_bytes() == source_bytes:
+        return
+    target.write_bytes(source_bytes)
 
 
 def case_summary(
@@ -82,6 +98,7 @@ def run_episode(
             f"{sorted(holdout)} (protocol section 8)"
         )
 
+    sync_agent_into_simulator()
     label = f"{'-'.join(case_ids)}-{arm}-r{repeat}"
     run_dir = output_dir / "runs" / label
     run_dir.mkdir(parents=True, exist_ok=True)
