@@ -2490,6 +2490,195 @@ class MechanicsRiskModelTests(unittest.TestCase):
         static.assert_not_called()
 
 
+class SlideRiskModelTests(unittest.TestCase):
+    def test_geometric_parity_with_offline_implementation(self):
+        import scripts.evaluate_slide_equivariant as ese
+
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            {
+                "index": 99,
+                "length": 0.4,
+                "width": 0.4,
+                "height": 0.3,
+                "orientation": 0,
+                "is_soft": False,
+                "is_prioritized": False,
+                "pos": [0.3, 0.0, 0.19],
+                "orn": [0.0, 0.0, 0.0, 1.0],
+            }
+        ]
+        dims = (0.4, 0.3, 0.2)
+        item = {
+            "length": dims[0],
+            "width": dims[1],
+            "height": dims[2],
+            "mass": 2.0,
+            "lateralFriction": 0.4,
+            "is_soft": False,
+        }
+        candidate = agent.AABB((0.15, 0.0, 0.6), dims, "release_candidate")
+        live = agent.release_slide_features(candidate, item, container, 0)
+        offline_row = {
+            "center": [0.15, 0.0, 0.6],
+            "size": list(dims),
+            "snapshot_id": "s",
+            "case_id": "b000-k20",
+            "phi_modelling": {
+                "support_ratio": 0.5,
+                "com_margin": 0.1,
+                "drop_normalized": 0.1,
+                "support_imbalance": 0.0,
+                "left_right_imbalance": 0.0,
+                "front_back_imbalance": 0.0,
+            },
+            "physical": {
+                "settle_metrics": {
+                    "settle_displacement_xyz": [0.0, 0.0, 0.0]
+                }
+            },
+            "_item": item,
+        }
+        offline = ese.frame_row(agent, offline_row, container)
+        for key in (
+            "com_offset",
+            "downhill_margin",
+            "uphill_margin",
+            "d_min",
+            "B_min",
+            "log1p_eta_max",
+            "drop_meters",
+            "mass",
+            "lateral_friction",
+            "density",
+            "is_soft",
+        ):
+            self.assertAlmostEqual(
+                live[key], offline["features"][key], places=9, msg=key
+            )
+        self.assertTrue(0.0 <= live["support_ratio"] <= 1.0)
+
+    def test_probability_falls_with_friction(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        dims = (0.4, 0.3, 0.2)
+        candidate = agent.AABB((0.1, 0.0, 0.3), dims, "release_candidate")
+
+        def item(friction):
+            return {
+                "length": dims[0],
+                "width": dims[1],
+                "height": dims[2],
+                "mass": 2.0,
+                "lateralFriction": friction,
+                "is_soft": False,
+            }
+
+        slippery = agent.release_large_slide_probability(
+            candidate, item(0.1), container, 0
+        )
+        grippy = agent.release_large_slide_probability(
+            candidate, item(0.9), container, 0
+        )
+        self.assertGreater(slippery, grippy)
+        self.assertTrue(0.0 <= grippy <= slippery <= 1.0)
+
+    def test_risk_adjusted_score_includes_slide_term_when_enabled(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.3), (0.4, 0.3, 0.2), "release_candidate"
+        )
+        with (
+            mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "mech"),
+            mock.patch.object(
+                agent,
+                "release_rotation_risk_probability_mech",
+                return_value=0.2,
+            ),
+            mock.patch.object(
+                agent,
+                "release_large_slide_probability",
+                return_value=0.5,
+            ),
+            mock.patch.object(agent, "RELEASE_RISK_SLIDE_LAMBDA", 2.0),
+        ):
+            adjusted, p_rot = agent.risk_adjusted_score(
+                10.0, candidate, None, container, 0, 1.0
+            )
+        self.assertAlmostEqual(adjusted, 10.0 - 1.0 * 0.2 - 2.0 * 0.5)
+        self.assertAlmostEqual(p_rot, 0.2)
+
+    def test_slide_shadow_runs_under_live_rerank_and_restores_lambda(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        item = sample_item(0, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        slidey = agent.AABB((0.0, 0.0, 0.2), (0.2, 0.2, 0.2),
+                            "release_candidate")
+        steady = agent.AABB((0.3, 0.0, 0.2), (0.2, 0.2, 0.2),
+                            "release_candidate")
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "release":
+                yield slidey
+                yield steady
+
+        def score(candidate, *_args):
+            return 10.0 if candidate.center[0] == 0.0 else 8.0
+
+        def slide_probability(candidate, *_a, **_k):
+            return 0.9 if candidate.center[0] == 0.0 else 0.05
+
+        solver = agent.Agent("")
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator, "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
+            mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "mech"),
+            mock.patch.object(
+                agent,
+                "release_rotation_risk_probability_mech",
+                return_value=0.1,
+            ),
+            mock.patch.object(
+                agent,
+                "release_large_slide_probability",
+                side_effect=slide_probability,
+            ),
+            mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 1.0),
+            mock.patch.object(
+                agent, "RELEASE_RISK_SLIDE_SHADOW_LAMBDA", 5.0
+            ),
+        ):
+            action = solver.policy(observation)
+
+        # Live action is rot-only (equal p_rot): the higher score wins.
+        np.testing.assert_allclose(
+            action["place_pos"][:2], slidey.center[:2], atol=1e-6
+        )
+        record = solver.last_candidate_diagnostics["shadow_rerank"]
+        self.assertAlmostEqual(record["slide_lambda"], 5.0)
+        self.assertTrue(record["changed"])
+        self.assertAlmostEqual(
+            record["risk_selection"]["center"][0], 0.3
+        )
+        # The live slide lambda is restored after the shadow pass.
+        self.assertEqual(agent.RELEASE_RISK_SLIDE_LAMBDA, 0.0)
+
+
 class LiveRerankTests(unittest.TestCase):
     def test_submission_defaults_are_risk_on_mech_lambda1(self):
         # Frozen by the 2026-07-31 final_holdout evaluation (protocol
