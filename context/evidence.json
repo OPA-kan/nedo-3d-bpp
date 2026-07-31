@@ -99,10 +99,11 @@
       "id": "dxy-unresolved",
       "topic": "risk",
       "date": "2026-07-31",
-      "status": "active",
+      "status": "superseded",
       "claim": "Horizontal displacement stays unresolved: the item-attribute gain seen on the first dataset did not replicate at 24 snapshots.",
       "values": "binary LOSO AUC phi_only 0.714 vs phi_plus_item 0.707; continuous d_xy held-out Spearman ~0.31",
-      "source": "reports/replay-analysis/risk-evaluation.md"
+      "source": "reports/replay-analysis/risk-evaluation.md",
+      "superseded_by": "dxy-equivariant-s0"
     },
     {
       "id": "shadow-rerank-low-live-leverage",
@@ -270,6 +271,14 @@
       "status": "active",
       "claim": "Slide direction is predictable from the pre-release contact state: on 422 release rows with |d_xy| > 5 cm, the mean cosine between the observed horizontal displacement and the CoM-offset-from-support-centroid direction is 0.651; 87.4% slide 'downhill' (cos > 0) and 76.3% have cos > 0.5. The long-unresolved d_xy channel was attacked with invariant scalars that discard direction; an equivariant formulation (predict in the local support frame, mirror symmetry by construction) is the indicated fix. Ladder: S0 equivariant baseline without new losses -> S1 learned local-geometry encoder with invariance loss -> S2 test fixed SketchGeo vs Gated Iota on the frozen worst-group extrapolation metrics (user's loss-function document, 2026-07-31).",
       "source": "inline probe over 33-snapshot dev+val replay rows; docs/theory (pending S0 script)"
+    },
+    {
+      "id": "dxy-equivariant-s0",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "The d_xy channel yields to the equivariant local-frame formulation (S0, no learned representation): LOSO Spearman |d_xy| 0.282 -> 0.567, signed longitudinal 0.641, large-slide AUC 0.718 -> 0.787, and worst-side extrapolation 0.037 -> 0.399 (better on 6 of 7 sides; only the easy k10 side favours the invariant baseline). Mirror-symmetry prediction confirmed label-side: mean |transverse| 0.039 m vs |longitudinal| 0.085 m. Direction is carried by the zero-parameter downhill prior (0.856); the model's contribution is magnitude and extrapolation stability. Features: com_offset, downhill/uphill margins to the support hull, mechanics scalars, friction/mass/density/is_soft. S1 (learned local-geometry encoder + invariance loss) and S2 (SketchGeo vs Gated Iota on worst-group metrics) remain open as the next rungs.",
+      "source": "reports/replay-analysis/slide-equivariant.md"
     }
   ]
 }
