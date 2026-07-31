@@ -58,6 +58,25 @@ RELEASE_RISK_SHADOW_RERANK = os.environ.get(
 RELEASE_RISK_RERANK_LAMBDA = float(
     os.environ.get("RELEASE_RISK_RERANK_LAMBDA", "1.0")
 )
+# Which P(rotation) model the risk-adjusted score uses: the static-Phi
+# logistic ("static") or the mechanical topple-feature logistic ("mech",
+# MATHEMATICAL_MODEL 5.2.1).
+RELEASE_RISK_P_MODELS = frozenset({"static", "mech"})
+RELEASE_RISK_P_MODEL = os.environ.get(
+    "RELEASE_RISK_P_MODEL", "static"
+).strip().lower()
+if RELEASE_RISK_P_MODEL not in RELEASE_RISK_P_MODELS:
+    raise ValueError(
+        f"unknown RELEASE_RISK_P_MODEL {RELEASE_RISK_P_MODEL!r}; "
+        f"expected one of {sorted(RELEASE_RISK_P_MODELS)}"
+    )
+# Live rerank: apply the risk-adjusted release ranking to the REAL action.
+# Experiment gate for the online ablation on development configurations;
+# the submission default stays off until the final_holdout evaluation
+# (docs/RELEASE_RISK_PROTOCOL.md section 4).
+RELEASE_RISK_LIVE_RERANK = os.environ.get(
+    "RELEASE_RISK_LIVE_RERANK", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -1522,6 +1541,215 @@ RELEASE_RISK_LOGISTIC_V1 = {
 }
 
 
+# Mechanical topple features (MATHEMATICAL_MODEL 5.2.1) computed from the
+# predicted contact state only. This is the live port of
+# scripts/evaluate_mechanics_features.py::mechanics_features; a parity
+# unit test keeps the two implementations from drifting.
+MECH_ETA_CAP = 1e6
+MECH_ETA_EPSILON = 1e-6
+
+
+def _convex_hull_2d(points):
+    """Monotone chain; returns CCW hull without the repeated last point."""
+    unique = sorted(set(points))
+    if len(unique) <= 2:
+        return unique
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower = []
+    for p in unique:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    upper = []
+    for p in reversed(unique):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
+
+
+def _release_contact_patches(container, x, y, dims, z_rest):
+    """Footprint-intersected predicted contact patches at the rest height.
+
+    The surface universe matches release_rest_height exactly: floor,
+    shelves, and every packed AABB (soft and priority included -- they
+    physically support even though they are excluded as planning surfaces
+    elsewhere).
+    """
+    dx, dy, _dz = dims
+    fx0, fx1 = x - dx / 2.0, x + dx / 2.0
+    fy0, fy1 = y - dy / 2.0, y + dy / 2.0
+
+    floor_top = float(container["thickness"]) + float(
+        container.get("buffer", 0.0)
+    )
+    length = float(container["length"])
+    width = float(container["width"])
+    surfaces = [
+        (-length / 2.0, length / 2.0, -width / 2.0, width / 2.0, floor_top)
+    ]
+    for box in shelf_aabbs(container):
+        surfaces.append(
+            (
+                float(box.minimum[0]),
+                float(box.maximum[0]),
+                float(box.minimum[1]),
+                float(box.maximum[1]),
+                float(box.top),
+            )
+        )
+    for box, _soft, _prio in packed_aabbs_local(container):
+        surfaces.append(
+            (
+                float(box.minimum[0]),
+                float(box.maximum[0]),
+                float(box.minimum[1]),
+                float(box.maximum[1]),
+                float(box.top),
+            )
+        )
+
+    patches = []
+    for sx0, sx1, sy0, sy1, top in surfaces:
+        if abs(top - z_rest) > CONTACT_TOLERANCE:
+            continue
+        ox0, ox1 = max(fx0, sx0), min(fx1, sx1)
+        oy0, oy1 = max(fy0, sy0), min(fy1, sy1)
+        if ox1 - ox0 <= 1e-9 or oy1 - oy0 <= 1e-9:
+            continue
+        patches.append(
+            {
+                "corners": [
+                    (ox0, oy0),
+                    (ox0, oy1),
+                    (ox1, oy0),
+                    (ox1, oy1),
+                ],
+                "top": top,
+            }
+        )
+    return patches
+
+
+def release_mechanics_features(x, y, z_command, dims, container):
+    """Phi_mech for one release command from predicted contact state."""
+    _dx, _dy, dz = dims
+    z_rest = float(release_rest_height(x, y, dims, container))
+    z_com = z_rest + dz / 2.0
+    drop = max(0.0, (float(z_command) - dz / 2.0) - z_rest)
+
+    patches = _release_contact_patches(container, x, y, dims, z_rest)
+    degenerate = not patches
+    if degenerate:
+        # By construction of release_rest_height at least one surface
+        # matched; an empty set means numeric-tolerance starvation, which
+        # we score as the worst case rather than dropping the candidate.
+        d_min = 0.0
+        h_at_min = dz / 2.0
+        b_min = 0.0
+    else:
+        corner_tops = {}
+        for patch in patches:
+            for corner in patch["corners"]:
+                previous = corner_tops.get(corner)
+                if previous is None or patch["top"] > previous:
+                    corner_tops[corner] = patch["top"]
+        hull = _convex_hull_2d(list(corner_tops))
+        d_min = math.inf
+        h_at_min = dz / 2.0
+        b_min = math.inf
+        if len(hull) < 3:
+            # Line or point contact: no interior, zero margin about the
+            # contact line itself.
+            d_min = 0.0
+            z_e = max(patch["top"] for patch in patches)
+            h_at_min = max(1e-6, z_com - z_e)
+            b_min = 0.0
+        else:
+            for index, start in enumerate(hull):
+                end = hull[(index + 1) % len(hull)]
+                ex, ey = end[0] - start[0], end[1] - start[1]
+                norm = math.hypot(ex, ey)
+                if norm <= 1e-12:
+                    continue
+                # CCW hull: interior lies left of each edge.
+                signed = (
+                    (x - start[0]) * ey - (y - start[1]) * ex
+                ) / norm * -1.0
+                z_e = max(
+                    corner_tops.get(start, z_rest),
+                    corner_tops.get(end, z_rest),
+                )
+                h_e = max(1e-6, z_com - z_e)
+                b_e = (
+                    math.sqrt(signed * signed + h_e * h_e) - h_e
+                    if signed > 0.0
+                    else 0.0
+                )
+                if signed < d_min:
+                    d_min = signed
+                    h_at_min = h_e
+                if b_e < b_min:
+                    b_min = b_e
+            if not math.isfinite(d_min):
+                d_min, b_min = 0.0, 0.0
+
+    theta_c = math.atan2(d_min, h_at_min)
+    eta = min(MECH_ETA_CAP, drop / max(b_min, MECH_ETA_EPSILON))
+    return {
+        "d_min": float(d_min),
+        "theta_c_min": float(theta_c),
+        "B_min": float(b_min),
+        "log1p_eta_max": float(math.log1p(eta)),
+        "drop_meters": float(drop),
+        "z_rest": float(z_rest),
+        "degenerate_contact": bool(degenerate),
+    }
+
+
+# Mechanics rotation-risk logistic, fit on the development split only
+# (33-snapshot round: 1106 release rows, 267 positives, in-sample AUC
+# 0.824 vs LOSO 0.819 -- no overfit gap). Frozen as the EXPERIMENTAL
+# model for the online ablation; the confirmatory feature-set/lambda
+# selection still runs on the validation split per
+# docs/RELEASE_RISK_PROTOCOL.md, and the submission default stays off
+# until the final_holdout evaluation.
+RELEASE_RISK_MECH_LOGISTIC_V1 = {
+    "version": "mech-dev-v1-20260731",
+    "target": "rotated_over_30",
+    "features": ("d_min", "theta_c_min", "B_min", "log1p_eta_max"),
+    "mean": (0.037038, 0.205288, 0.032355, 4.394738),
+    "scale": (0.140667, 0.671682, 0.03931, 4.553431),
+    # Intercept first, then one weight per standardized feature.
+    "weights": (-1.749795, 0.05247, 1.422137, -1.963219, 1.249267),
+}
+
+
+def release_rotation_risk_probability_mech(x, y, z_command, dims, container):
+    """P(rotated_over_30 | Phi_mech) from the dev-fit mechanics logistic."""
+    mech = release_mechanics_features(x, y, z_command, dims, container)
+    model = RELEASE_RISK_MECH_LOGISTIC_V1
+    z = model["weights"][0]
+    for name, mean, scale, weight in zip(
+        model["features"],
+        model["mean"],
+        model["scale"],
+        model["weights"][1:],
+    ):
+        z += weight * (mech[name] - mean) / scale
+    z = max(-30.0, min(30.0, z))
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def active_release_risk_model_version():
+    if RELEASE_RISK_P_MODEL == "mech":
+        return RELEASE_RISK_MECH_LOGISTIC_V1["version"]
+    return RELEASE_RISK_LOGISTIC_V1["version"]
+
+
 def release_rotation_risk_probability(features):
     """P(rotated_over_30 | Phi) from the provisional v1 logistic."""
     phi = features.as_dict() if hasattr(features, "as_dict") else dict(features)
@@ -1557,8 +1785,19 @@ def risk_adjusted_score(
     """
     if risk_lambda is None or candidate.name != "release_candidate":
         return float(score), None
-    features = release_risk_features(candidate, item, container, orientation)
-    probability = release_rotation_risk_probability(features)
+    if RELEASE_RISK_P_MODEL == "mech":
+        probability = release_rotation_risk_probability_mech(
+            float(candidate.center[0]),
+            float(candidate.center[1]),
+            float(candidate.center[2]),
+            tuple(float(v) for v in candidate.size),
+            container,
+        )
+    else:
+        features = release_risk_features(
+            candidate, item, container, orientation
+        )
+        probability = release_rotation_risk_probability(features)
     return (
         float(score) - float(risk_lambda) * float(probability),
         float(probability),
@@ -4069,6 +4308,8 @@ class Agent:
                 "lookahead_k": self._lookahead_k,
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "release_risk_gate_mode": RELEASE_RISK_GATE_MODE,
+                "release_risk_p_model": RELEASE_RISK_P_MODEL,
+                "release_risk_live_rerank": RELEASE_RISK_LIVE_RERANK,
                 "release_risk_thresholds": (
                     ReleaseRiskThresholds().as_dict()
                 ),
@@ -4394,11 +4635,16 @@ class Agent:
         """
         if not RELEASE_RISK_SHADOW_RERANK or decision is None:
             return None
+        if RELEASE_RISK_LIVE_RERANK:
+            # The real action already used the risk-adjusted ranking; a
+            # shadow pass with the same lambda would compare it with
+            # itself.
+            return None
         baseline = self._decision_summary(decision, pool_list, containers)
         record = {
             "enabled": True,
             "lambda": float(RELEASE_RISK_RERANK_LAMBDA),
-            "model": RELEASE_RISK_LOGISTIC_V1["version"],
+            "model": active_release_risk_model_version(),
             "baseline": baseline,
         }
         if decision.candidate.name != "release_candidate":
@@ -4469,8 +4715,20 @@ class Agent:
             mode=ITEM_COVERAGE_MODE,
         )
 
+        live_lambda = (
+            RELEASE_RISK_RERANK_LAMBDA if RELEASE_RISK_LIVE_RERANK else None
+        )
+        if live_lambda is not None:
+            self.last_candidate_diagnostics["release_risk_live_rerank"] = {
+                "lambda": float(live_lambda),
+                "model": active_release_risk_model_version(),
+            }
         decision = self._closed_loop_choice(
-            observation, pool_list, ordered_items, deadline
+            observation,
+            pool_list,
+            ordered_items,
+            deadline,
+            risk_lambda=live_lambda,
         )
         if decision is None:
             decision = PlacementCore.choose(
@@ -4478,6 +4736,7 @@ class Agent:
                 ordered_items,
                 deadline=deadline,
                 diagnostics=self.last_candidate_diagnostics,
+                risk_lambda=live_lambda,
             )
         if decision is not None:
             self.last_action_source = "placement_core"

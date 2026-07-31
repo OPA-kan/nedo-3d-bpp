@@ -159,6 +159,19 @@ python scripts/build_replay_dataset.py \
 
 ## 8. 改訂記録
 
+- **2026-07-31 (2)**: **オンラインablation実験と提出デフォルトの区別を明文化。**
+  オフライン側は意思決定に必要な材料が出揃った(力学特徴の優位、線形
+  ペナルティの非劣性、損失の閾値型、安全→危険逆転ゼロ)ため、残る主問
+  「実 action に Q−λP̂ を使うと placed/fill が伸びるか」はオンラインで
+  検証する。実装: `RELEASE_RISK_LIVE_RERANK=1`(実 action に risk調整
+  ranking を適用)+ `RELEASE_RISK_P_MODEL=mech`(development のみで fit
+  した `mech-dev-v1-20260731` 係数、実験中は再調整しない)。制約:
+  (a) ablation は **development 構成のみ**。final_holdout の case
+  (b001-k40, b001-k10)ではオンライン実験もしない。
+  (b) **提出経路のデフォルトは off のまま**。§4 の「実 action の
+  risk-adjusted への切り替えは final_holdout 評価が完了するまで行わない」
+  は提出デフォルトについて引き続き有効であり、本実験はそれに含まれない。
+  (c) validation split での確証的な特徴集合・λ 選択手続きは変更なし。
 - **2026-07-31**: §1 の特徴集合に、MATHEMATICAL_MODEL §5.2.1 の力学特徴
   `Phi_mech = (d_min, theta_c_min, B_min, log1p(eta_max))` を**候補**として
   追加(定義・入力制約は §5.2.1 が正本)。development での凍結手続き比較で

@@ -2390,6 +2390,151 @@ class ShadowRerankTests(unittest.TestCase):
         )
 
 
+class MechanicsRiskModelTests(unittest.TestCase):
+    def test_parity_with_offline_implementation(self):
+        import scripts.evaluate_mechanics_features as emf
+
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        scenarios = [
+            (container, 0.0, 0.0, 0.3, (0.4, 0.3, 0.2)),
+            (container, 0.1, -0.05, 0.6, (0.4, 0.3, 0.2)),
+        ]
+        offset = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        offset["packed_items"] = [
+            {
+                "index": 99,
+                "length": 0.4,
+                "width": 0.4,
+                "height": 0.3,
+                "orientation": 0,
+                "is_soft": False,
+                "is_prioritized": False,
+                "pos": [0.3, 0.0, 0.19],
+                "orn": [0.0, 0.0, 0.0, 1.0],
+            }
+        ]
+        scenarios.append((offset, 0.1, 0.0, 0.6, (0.4, 0.3, 0.2)))
+        for scenario_container, x, y, z, dims in scenarios:
+            live = agent.release_mechanics_features(
+                x, y, z, dims, scenario_container
+            )
+            offline = emf.mechanics_features(
+                agent, scenario_container, x, y, z, dims
+            )
+            for key in (
+                "d_min",
+                "theta_c_min",
+                "B_min",
+                "log1p_eta_max",
+                "drop_meters",
+                "z_rest",
+            ):
+                self.assertAlmostEqual(
+                    live[key], offline[key], places=9, msg=key
+                )
+            self.assertEqual(
+                live["degenerate_contact"], offline["degenerate_contact"]
+            )
+
+    def test_mech_probability_rises_with_drop(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        dims = (0.4, 0.3, 0.2)
+        low = agent.release_rotation_risk_probability_mech(
+            0.0, 0.0, 0.20, dims, container
+        )
+        high = agent.release_rotation_risk_probability_mech(
+            0.0, 0.0, 0.80, dims, container
+        )
+        self.assertGreater(high, low)
+        self.assertTrue(0.0 <= low <= 1.0)
+        self.assertTrue(0.0 <= high <= 1.0)
+
+    def test_risk_adjusted_score_dispatches_to_mech_model(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.3), (0.4, 0.3, 0.2), "release_candidate"
+        )
+        with (
+            mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "mech"),
+            mock.patch.object(
+                agent,
+                "release_rotation_risk_probability_mech",
+                return_value=0.25,
+            ) as mech,
+            mock.patch.object(
+                agent, "release_rotation_risk_probability"
+            ) as static,
+        ):
+            adjusted, probability = agent.risk_adjusted_score(
+                10.0, candidate, None, container, 0, 2.0
+            )
+        self.assertAlmostEqual(adjusted, 10.0 - 2.0 * 0.25)
+        self.assertAlmostEqual(probability, 0.25)
+        mech.assert_called_once()
+        static.assert_not_called()
+
+
+class LiveRerankTests(unittest.TestCase):
+    def test_live_rerank_changes_the_real_action(self):
+        observation, _risky, safe, patches = (
+            ShadowRerankTests._release_scenario(self)
+        )
+        solver = agent.Agent("")
+        with (
+            patches[0], patches[1], patches[2], patches[3],
+            mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
+        ):
+            action = solver.policy(observation)
+
+        # With the risk term live, the safe candidate wins the real action.
+        np.testing.assert_allclose(
+            action["place_pos"][:2], safe.center[:2], atol=1e-6
+        )
+        record = solver.last_candidate_diagnostics[
+            "release_risk_live_rerank"
+        ]
+        self.assertAlmostEqual(record["lambda"], 10.0)
+
+    def test_live_rerank_suppresses_shadow_record(self):
+        observation, _risky, _safe, patches = (
+            ShadowRerankTests._release_scenario(self)
+        )
+        solver = agent.Agent("")
+        with (
+            patches[0], patches[1], patches[2], patches[3],
+            mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
+            mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
+        ):
+            solver.policy(observation)
+        self.assertNotIn(
+            "shadow_rerank", solver.last_candidate_diagnostics
+        )
+
+    def test_live_rerank_off_keeps_baseline_action(self):
+        observation, risky, _safe, patches = (
+            ShadowRerankTests._release_scenario(self)
+        )
+        solver = agent.Agent("")
+        with patches[0], patches[1], patches[2], patches[3]:
+            action = solver.policy(observation)
+        np.testing.assert_allclose(
+            action["place_pos"][:2], risky.center[:2], atol=1e-6
+        )
+        self.assertNotIn(
+            "release_risk_live_rerank", solver.last_candidate_diagnostics
+        )
+
+
 class OfflineOptimizationTests(unittest.TestCase):
     def test_pair_macro_records_executable_order_layout_and_signature(self):
         container = sample_container(
