@@ -17,9 +17,9 @@
 ## 1. 事実の照会(コードを読む前に)
 
 ```bash
-python scripts/context.py evidence --topic risk      # 測定済み事実(activeのみ)
-python scripts/context.py evidence --topic residual-capacity
-python scripts/context.py evidence --all             # superseded/historical込み
+python3 scripts/context.py evidence --topic risk      # 測定済み事実(activeのみ)
+python3 scripts/context.py evidence --topic residual-capacity
+python3 scripts/context.py evidence --all             # superseded/historical込み
 ```
 
 - topic: `ranker` / `preview` / `search` / `coverage` / `risk` /
@@ -33,9 +33,9 @@ python scripts/context.py evidence --all             # superseded/historical込�
 ## 2. コードの参照(モジュールを開く前に)
 
 ```bash
-python scripts/context.py symbol --list                    # agent.pyの索引
-python scripts/context.py symbol PlacementCore.choose      # 関数1個だけ
-python scripts/context.py symbol rerank_sweep --file scripts/evaluate_release_risk.py
+python3 scripts/context.py symbol --list                    # agent.pyの索引
+python3 scripts/context.py symbol PlacementCore.choose      # 関数1個だけ
+python3 scripts/context.py symbol rerank_sweep --file scripts/evaluate_release_risk.py
 ```
 
 - `agent/agent.py`(4,400行)を丸読みしない。まず `--list` で当たりを
@@ -53,7 +53,7 @@ cat > /tmp/plan.json <<'PLAN'
   "name": "replay-gen-20260801",
   "jobs": [
     {"id": "b000-k15-late",
-     "command": ["python", "scripts/build_replay_dataset.py",
+     "command": ["python3", "scripts/build_replay_dataset.py",
                  "--case", "b000-k15", "--steps", "13", "14",
                  "--per-stratum", "8", "--risk-gate-mode", "shadow",
                  "--split", "development"],
@@ -63,7 +63,7 @@ cat > /tmp/plan.json <<'PLAN'
   ]
 }
 PLAN
-python scripts/run_queue.py /tmp/plan.json
+python3 scripts/run_queue.py /tmp/plan.json
 ```
 
 - 成功済みジョブは再実行時にスキップされる(`--no-resume` で無効化)。
@@ -88,8 +88,8 @@ python scripts/run_queue.py /tmp/plan.json
 
 ## 5. 検証と記録
 
-1. 変更したら `python -m unittest discover -s tests`(3.12必須)。
-2. agent変更なら `python scripts/run_checks.py`。
+1. 変更したら `python3 -m unittest discover -s tests`(3.12必須)。
+2. agent変更なら `python3 scripts/run_checks.py`。
    レポートは `reports/latest.{json,md}` に**要約+末尾30行のみ**、
    生ログは `reports/raw/*.log`(gitignore済み・CIアーティファクト)。
 3. 新しい測定結果が出たら:
