@@ -236,3 +236,95 @@ deviation、min、max、failure mode countを保存する。top-K未選択後の
 - lookahead自体を新規性として主張しない。
 - マクロ、Option、DPORを本理論で置き換えない。
 - Gated Iotaを価値学習へ持ち込まない。
+
+## 9. Proposed: 残余受け入れ能力descriptor(2026-07-31)
+
+状態: **Proposed**(未実装の正式契約。段階Aのみ実装対象、μのscore統合は非目標)。
+
+### 9.1 目的と二段階の区別
+
+測るべきは2つで、混同しない。
+
+\[
+\boxed{\text{状態が詰まっているか}} = V_{\mathrm{cap}}(s)
+\qquad
+\boxed{\text{この行動が状態をどれだけ詰まらせるか}} = R_{\mathrm{future}}(s,a)
+\]
+
+- **段階A(sanity check)**: 既存snapshotの \(s\) に対する
+  \(V_{\mathrm{cap}}(s)\) が、step・占有体積・case・poolのbaselineを超えて
+  placed-to-goを説明するかのLOSO検証。これは状態価値の健全性確認であり、
+  行動別 \(R_{\mathrm{future}}\) の検証ではない。
+- **段階B(正本)**: 各counterfactual候補のsettle後状態
+  \(T(s,a)\)(replay行の `x_plus` を packed に追加した解析的状態)へ同じ
+  descriptorを計算し、**同一snapshot内の候補間差** を保存する。将来の
+  shadow rerank第2項はこちらから作る。
+
+### 9.2 記号
+
+- 残余荷物多重集合 \(U(s)\): configのitem列から、snapshotのpacked
+  indexを除いたもの。寸法を丸めた署名で類 \(c\in C(s)\) に量子化し、
+  多重度 \(m_c\) を持つ。
+- 到達可能可行アンカー集合 \(A_c(s)\): 類 \(c\) の代表itemに対し、
+  `CandidateGenerator.iter_cartesian_attempts(attempt_kind="settled")`
+  が返す解析的settled候補(inclusion・静的クリアランス・支持・搬送掃引
+  モデルを全て通過)。姿勢は `unique_orientations`、類×姿勢ごとに
+  上限 \(M\)(既定40)で打ち切り、打ち切りは記録する。
+  release候補は含めない(descriptorは「余裕を持って受けられる」領域を測る)。
+
+### 9.3 descriptor定義
+
+1. **到達可能候補数** \(N_c(s)=|A_c(s)|\)、および集約
+   \(N(s)=\sum_c \min(N_c, M)\)。生のアンカー数は近傍を二重計上するため、
+   **単独では価値指標にしない**(4の下界を主とする)。
+2. **最大受け入れ類容量** \(\mathrm{cap}(s)=\max\{\mathrm{vol}(c): N_c(s)\ge 1\}\)。
+   置ける最大類の体積。0なら大型類は全滅。
+3. **連結構造**: 類 \(c\) のアンカー同士を「footprint AABBが重なる」とき
+   隣接とみなすグラフの連結成分。成分数 \(\kappa_c(s)\) と最大成分サイズ。
+   軌道分裂 \(\mathcal O\to\mathcal O_L\sqcup\mathcal O_R\) の実装的対応物。
+4. **同時配置可能数の下界** \(\Pi(s)\): 占有競合グラフ
+   (ノード=(類,アンカー)、辺=side clearance込みの3D AABB干渉、
+   類多重度 \(m_c\) 制約付き)上のgreedy independent set。
+   greedy順は体積降順→支持率降順で決定的にする。個数版
+   \(\Pi_{\#}\) と体積版 \(\Pi_{\mathrm{vol}}\) を併記。
+5. **搬送回廊幅の代理**: 類別最大到達奥行き
+   \(D_c(s)=\max\{y(a): a\in A_c(s)\}\)。集約は
+   「後半 \(y\ge 0\) に到達できる最大類体積」
+   \(\mathrm{corr}(s)=\max\{\mathrm{vol}(c): D_c(s)\ge 0\}\)。
+   搬送到達性は解析搬送モデル(Y→X掃引、settledクリアランス)に含まれて
+   いるため、静的空き空間ではなく到達可能配置空間で測っている。
+
+### 9.4 段階Aの検証プロトコル
+
+- 対象: development + validation snapshot(final_holdoutは開かない)。
+- 目的変数: \(\text{placed-to-go}(s_t) = (\text{episode\_steps\_executed}-1)-t\)
+  (最終stepは失敗stepなので数えない)。
+- baseline特徴: \(t\)、占有体積比、case source(b000/b001)、look_ahead。
+- 追加特徴: \(\mathrm{cap}, \Pi_{\#}, \Pi_{\mathrm{vol}}, \mathrm{corr},
+  \kappa\)系、\(N\)。
+- モデル: OLS(snapshot数が少ないため)。LOSO(snapshot単位)で
+  baseline vs baseline+descriptor のMAE / R² を比較。
+  n≈24では検出力が低いことを明記し、効果方向と大きさを主に読む。
+- 交絡への態度: descriptorがstep・占有体積と強く相関することは前提。
+  問うのは**残差への追加説明力**のみ。
+
+### 9.5 計算量と再利用
+
+- 1 snapshotあたり: 類数(~10-20)× 姿勢(≤6)× ベクトル化列挙。
+  実測オーダーで1〜5秒/snapshot、24 snapshotで数分。
+- 競合グラフ: ノード \(\le \sum_c \min(N_c,M)\)(数百)、辺判定は
+  AABBペアのベクトル化で \(O(n^2)\) 許容。
+- 再利用: `ContainerGeometry` / `Geometry` / 搬送モデル /
+  `iter_cartesian_attempts` / `unique_orientations`(agent本体)、
+  state snapshot(observationにpoints/n_vecs込み)、
+  `build_task_b_config`(残余荷物の復元)。シミュレータ不要(解析のみ)。
+- 段階B: replay行の `x_plus`(settle後pose)をpackedへ追加した観測に
+  同じ関数を適用するだけで、追加物理は不要。
+
+### 9.6 非目標(この提案の範囲)
+
+- Rankerやshadow scoreへの \(\mu R_{\mathrm{future}}\) 追加(段階Bの
+  同一snapshot内候補間差の検証が通るまで行わない)。
+- 厳密な大域対称群・軌道分解(この容器では自明群に退化する。§9は
+  互換クラス・競合グラフ・同時配置可能数による近似定式化)。
+- 学習モデル化(まず解析descriptorの追加説明力を確認する)。
