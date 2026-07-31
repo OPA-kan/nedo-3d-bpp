@@ -67,14 +67,39 @@ def case_summary(
         place_states = case.get("place_states") or {}
         placed_fraction = float(score.get("num_placed_items", 0.0))
         steps = score.get("step_metrics") or []
+        final_step = steps[-1] if steps else {}
+        # Copy every scalar score component generically: the bundled
+        # simulator only emits fill_score / num_placed_items, but the
+        # official environment adds cog_score, stability_score,
+        # placement_score, and soft_item_score -- picked up here
+        # automatically when present.
+        components = {
+            key: float(value)
+            for key, value in score.items()
+            if isinstance(value, (int, float))
+        }
         cases[case_id] = {
             "status": case.get("status"),
+            "message": case.get("message"),
             "fill_score": float(score.get("fill_score", 0.0)),
+            "score_components": components,
             "placed_fraction": placed_fraction,
             "placed_count": int(round(placed_fraction * len(item_list))),
             "total_items": len(item_list),
             "steps": len(steps),
+            "is_included": place_states.get("is_included") is True,
+            "is_valid": place_states.get("is_valid") is True,
             "is_placed_safe": place_states.get("is_placed_safe") is True,
+            "final_com_z": (
+                float(final_step["center_of_mass_z"])
+                if "center_of_mass_z" in final_step
+                else None
+            ),
+            "final_surface_height_std": (
+                float(final_step["surface_height_std"])
+                if "surface_height_std" in final_step
+                else None
+            ),
             "policy_seconds": float(
                 (case.get("time_results") or {}).get("policy", 0.0)
             ),
@@ -177,11 +202,14 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         for case_id, case in row["cases"].items():
             arm_bucket = per_arm.setdefault(
-                row["arm"], {"placed": [], "fill": [], "steps": []}
+                row["arm"],
+                {"placed": [], "fill": [], "steps": [], "com_z": []},
             )
             arm_bucket["placed"].append(case["placed_count"])
             arm_bucket["fill"].append(case["fill_score"])
             arm_bucket["steps"].append(case["steps"])
+            if case.get("final_com_z") is not None:
+                arm_bucket["com_z"].append(case["final_com_z"])
             case_bucket = per_case_arm.setdefault(
                 (case_id, row["arm"]),
                 {"placed": [], "fill": []},
@@ -236,17 +264,25 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
         "baseline (off) with live mechanics rerank "
         "(RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech).",
         "",
+        "- fill_score / num_placed_items are the only official "
+        "components the bundled simulator computes; cog / stability / "
+        "placement / soft_item scores exist only in the official "
+        "environment and are captured automatically when present "
+        "(score_components). final CoM z is the local cog proxy.",
+        "",
         "## Per arm",
         "",
-        "| arm | episodes | placed mean | fill mean | steps mean |",
-        "|---|---:|---:|---:|---:|",
+        "| arm | episodes | placed mean | fill mean | steps mean "
+        "| final CoM z mean |",
+        "|---|---:|---:|---:|---:|---:|",
     ]
     for arm, stats in sorted(summary["arms"].items()):
         lines.append(
             f"| {arm} | {stats['placed']['n']} "
             f"| {stats['placed'].get('mean', '-')} "
             f"| {stats['fill'].get('mean', '-')} "
-            f"| {stats['steps'].get('mean', '-')} |"
+            f"| {stats['steps'].get('mean', '-')} "
+            f"| {stats['com_z'].get('mean', '-')} |"
         )
     lines += [
         "",

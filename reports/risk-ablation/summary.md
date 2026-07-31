@@ -2,14 +2,16 @@
 
 - episode rows: 30; arms compare the submission-default baseline (off) with live mechanics rerank (RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech).
 
+- fill_score / num_placed_items are the only official components the bundled simulator computes; cog / stability / placement / soft_item scores exist only in the official environment and are captured automatically when present (score_components). final CoM z is the local cog proxy.
+
 ## Per arm
 
-| arm | episodes | placed mean | fill mean | steps mean |
-|---|---:|---:|---:|---:|
-| mech-lam1 | 5 | 16.8 | 17.058 | 17.8 |
-| mech-lam2 | 10 | 14.0 | 16.496 | 15.0 |
-| mech-lam4 | 5 | 15.0 | 17.44 | 16.0 |
-| off | 10 | 13.3 | 13.768 | 14.3 |
+| arm | episodes | placed mean | fill mean | steps mean | final CoM z mean |
+|---|---:|---:|---:|---:|---:|
+| mech-lam1 | 5 | 16.8 | 17.058 | 17.8 | 0.677 |
+| mech-lam2 | 10 | 14.0 | 16.496 | 15.0 | 0.651 |
+| mech-lam4 | 5 | 15.0 | 17.44 | 16.0 | 0.66 |
+| off | 10 | 13.3 | 13.768 | 14.3 | 0.639 |
 
 ## Paired per-case difference vs off
 
