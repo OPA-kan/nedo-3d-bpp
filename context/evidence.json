@@ -154,6 +154,14 @@
       "status": "active",
       "claim": "With the calibrated instrument (stride 16, converged, no cap firing), V_cap(s) descriptors do not explain placed-to-go beyond step/volume/case/pool (LOSO MAE 0.979 -> 1.456 when added; all residual Spearman |rho|<=0.24). Mechanistic byproduct: release acceptance capacity for the largest class persists to terminal steps (cap_volume ~constant, thousands of anchors) and settled-zero states still placed 5 more items -- episodes end by physics failure (release topple), not capacity exhaustion, on these 24 snapshots. Stage B, if pursued, must not use placed-to-go as its label; priority stays with the rotation-risk line.",
       "source": "reports/replay-analysis/residual-capacity-stage-a.md; PREVIEW_RESIDUAL_VALUE.md 9.8"
+    },
+    {
+      "id": "mechanics-features-dominate-static",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Mechanical topple features (support-polygon edge margins, critical angle, energy barrier, drop-energy ratio; MATHEMATICAL_MODEL 5.2.1, predicted-contact-state inputs only) dominate the static Phi on every frozen-protocol metric for rotation: LOSO AUC 0.841 [0.776,0.898] vs 0.732 [0.646,0.807]; worst-direction extrapolation 0.771 vs 0.638; within-snapshot discordant-pair ranking accuracy 0.842 vs 0.720 (n=4884 pairs). Single feature log1p(eta) alone (0.825) beats the full static combination. Adding static to mechanics slightly hurts rotation (0.827) but helps not_placed_safe (0.838 vs 0.821). Coefficients remain unfrozen; feature-set choice among {static, mech, static+mech} goes to the validation split per protocol.",
+      "source": "reports/replay-analysis/mechanics-features.md"
     }
   ]
 }

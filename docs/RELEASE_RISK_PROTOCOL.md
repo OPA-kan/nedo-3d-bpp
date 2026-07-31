@@ -156,3 +156,15 @@ python scripts/build_replay_dataset.py \
    `RELEASE_RISK_LOGISTIC_V1` を新バージョン名で置き換える
    (旧係数はgit履歴に残る)。
 4. holdout 評価は**一度だけ**行い、結果を findings に記録する。
+
+## 8. 改訂記録
+
+- **2026-07-31**: §1 の特徴集合に、MATHEMATICAL_MODEL §5.2.1 の力学特徴
+  `Phi_mech = (d_min, theta_c_min, B_min, log1p(eta_max))` を**候補**として
+  追加(定義・入力制約は §5.2.1 が正本)。development での凍結手続き比較で
+  力学特徴が全主要指標を支配したため
+  (LOSO AUC 0.841 vs 0.732、最悪方向外挿 0.771 vs 0.638、
+  snapshot内ペアranking精度 0.842 vs 0.720)。
+  **最終的な特徴集合の選択(static / mech / static+mech)と λ は
+  §3.1 の validation split で行い、final_holdout は引き続き開かない。**
+  評価指標・モデル仕様・split は変更なし。
