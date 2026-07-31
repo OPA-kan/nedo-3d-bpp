@@ -145,14 +145,16 @@ def run_episode(
     risk_lambda: float,
     repeat: int,
     output_dir: pathlib.Path,
+    open_final_holdout: bool = False,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     case_ids = list(config)
     holdout = FINAL_HOLDOUT_CASES.intersection(case_ids)
-    if holdout:
+    if holdout and not open_final_holdout:
         raise SystemExit(
             f"refusing to run online ablation on final_holdout cases: "
-            f"{sorted(holdout)} (protocol section 8)"
+            f"{sorted(holdout)} (protocol section 8; the one-shot final "
+            "evaluation passes --open-final-holdout explicitly)"
         )
 
     sync_agent_into_simulator()
@@ -364,6 +366,14 @@ def main() -> int:
         action="store_true",
         help="Aggregate rows.jsonl into summary.md/json and exit.",
     )
+    parser.add_argument(
+        "--open-final-holdout",
+        action="store_true",
+        help=(
+            "Allow a final_holdout case. Reserved for the one-shot "
+            "final evaluation (protocol section 7)."
+        ),
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -389,6 +399,7 @@ def main() -> int:
         args.risk_lambda,
         args.repeat,
         args.output_dir,
+        open_final_holdout=args.open_final_holdout,
     )
     print(json.dumps({k: row[k] for k in ("label", "cases")}, indent=1))
     return 0 if row["process_returncode"] == 0 else 1
