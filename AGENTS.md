@@ -11,19 +11,23 @@
 git fetch --all --prune
 git status --short --branch
 git switch --track origin/experiment/anchor-recall-oracle
+cat AGENTS.md   # switch後は必ず明示的に読み直す（自動再読込は保証されない）
 ```
 
 - 既にローカルにそのbranchがあるなら `git switch experiment/anchor-recall-oracle`
-- **worktreeがdirtyならswitchしない。** 別worktreeで作業する:
+- **worktreeがdirtyならswitchしない。** 別worktreeを**ローカルbranch付きで**
+  切る（branch無しだとdetached HEADになり、commit/pushの作業導線として危険）:
 
 ```bash
-git worktree add ../nedo-trunk origin/experiment/anchor-recall-oracle
+git worktree add -b work-<topic> ../nedo-trunk \
+  origin/experiment/anchor-recall-oracle
 cd ../nedo-trunk
+cat AGENTS.md
 ```
 
-切り替えたら、そのbranchの`AGENTS.md`から開始する（Codex等はswitch後に
-自動で読み直す）。コマンドは`python3`を使う（`python`がPATHに無い
-sandboxが実在する）。
+切り替え後は、そのbranchの`AGENTS.md`の手順に従う。コマンドは`python3`を
+使う（`python`がPATHに無いsandboxが実在する）。Windowsは`python`に
+読み替えてよいが、**正式な検証環境はLinux（CI）**である。
 
 > リポジトリ管理者へ: GitHubのdefault branchを
 > `experiment/anchor-recall-oracle`に変更すれば（Settings → General →
