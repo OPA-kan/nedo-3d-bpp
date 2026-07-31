@@ -206,6 +206,14 @@
       "status": "active",
       "claim": "Live-stack shadow rerank at lambda=1.0 has now changed the selection on 4 of 33 dev/val snapshots (labelled pairs 4, unmatched 0): rotation danger difference 0 (1 vs 1), placed-safe difference +1 in shadow's favour, 0 safe->dangerous reversals, 1 dangerous->safe. Direction is favourable but the pair count is still far too small for the protocol's primary adoption metrics.",
       "source": "reports/replay-analysis/risk-evaluation.md (shadow pairs)"
+    },
+    {
+      "id": "online-ablation-round2-positive",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "First online ablation (5 development configs, off vs live mechanics rerank at lambda 1/2/4, episode-level): every risk arm beat the submission-default baseline on aggregate placed (off 13.0 vs lam1 16.8 / lam2 14.0 / lam4 15.0) and fill (off 13.3 vs 17.1 / 16.7 / 17.4). Per-config: 4 of 5 configs improved or tied on placed under every lambda; fill improved even at equal placed (b000-k15: 14 placed both arms, fill 7.27 -> 15.39). Every episode still ends by an unsafe placement -- the risk term delays the topple, it does not eliminate it. Caveats: n=1 per (config, arm) at lambda 1/4; b000 episodes are deterministic under fixed timing while b001 episodes show timing nondeterminism with baseline variance up to 4 placed (b001-k20 off: 13 vs 17), so single-config differences of 1-3 are inconclusive there; the aggregate direction across configs and lambdas is the finding. Round 1 was invalidated by a stale simulator agent copy on both arms (instrument note in run_risk_ablation.py).",
+      "source": "reports/risk-ablation/summary.md; rows.jsonl"
     }
   ]
 }
