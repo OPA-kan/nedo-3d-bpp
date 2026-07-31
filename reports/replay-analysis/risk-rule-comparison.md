@@ -50,9 +50,11 @@
 
 Frontier = not dominated on (selected rotated, mean score loss). Baseline (lambda=0): 3 rotated, 0 loss by definition.
 
-## Reading
+## Reading (model-selection conclusions, not truths)
 
-- Calibration: decile-mean predictions track observed rates closely across the range, so P_hat is usable as a probability. Nonlinear penalties are only justified as fixes for miscalibration; there is none to fix here.
-- state_scaled_linear is numerically identical to linear at every lambda because the sampled snapshots span remaining items 25-34 (scale 0.831-1.130 around the mean). This dataset cannot test state-dependent lambda(s); it is not evidence against it.
-- With only 3/24 baseline topple snapshots, differences of 1-2 selected topples between configurations are within noise; the family-level conclusion (no family separates from linear at matched loss) is the robust part.
+- Calibration: decile-mean predictions track observed rates closely, so P_hat is usable as a probability. Within the range compared here, no nonlinear rule beat the linear one. That removes one motivation for nonlinearity (miscalibration), but not the others: candidate-dependent loss L(s,a), different damage for large vs small rotations, nonlinear risk tolerance, rotated_over_30 being a coarse proxy for the true loss, and score not being a utility scale could each still justify a nonlinear form. None of those was tested here.
+- Linear-lambda sweeps and hard-epsilon sweeps produced nearly the same empirical frontier ON these 24 snapshots, these candidate sets, and this parameter grid. With finite discrete candidate sets this is not guaranteed in general (unsupported Pareto points can exist), so it is an empirical observation, not a duality theorem.
+- hard+fallback never starved here, but this is offline on saved candidate sets with a calibrated probability and a least-risky fallback. It rehabilitates neither the old static enforce gate (different features, thresholds, and fallback design) nor online enforcement: live candidate generation and search cutoffs change the candidate set, so online starvation is not ruled out.
+- state_scaled_linear is numerically identical to linear at every lambda because the sampled snapshots span remaining items 25-34 (scale 0.831-1.130 around the mean). This dataset cannot test state-dependent lambda(s) -- and remaining items is itself an unverified proxy for the failure loss V_safe - V_fail. Early snapshots would be added to identify whether the failure loss varies with state, not merely to widen the remaining-items range.
+- With only 3/24 baseline topple snapshots, 3->0 and loss differences like 0.042 vs 0.047 are unstable; family-level micro-ranking is unreadable. The robust statement: every family shows signs of avoiding dangerous candidates, and no clear ordering between families is visible. There is no evidence to adopt a more complex form than Q - lambda*P_hat on current data.
 
