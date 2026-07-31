@@ -162,6 +162,15 @@
       "status": "active",
       "claim": "Mechanical topple features (support-polygon edge margins, critical angle, energy barrier, drop-energy ratio; MATHEMATICAL_MODEL 5.2.1, predicted-contact-state inputs only) dominate the static Phi on every frozen-protocol metric for rotation: LOSO AUC 0.841 [0.776,0.898] vs 0.732 [0.646,0.807]; worst-direction extrapolation 0.771 vs 0.638; within-snapshot discordant-pair ranking accuracy 0.842 vs 0.720 (n=4884 pairs). Single feature log1p(eta) alone (0.825) beats the full static combination. Adding static to mechanics slightly hurts rotation (0.827) but helps not_placed_safe (0.838 vs 0.821). Coefficients remain unfrozen; feature-set choice among {static, mech, static+mech} goes to the validation split per protocol.",
       "source": "reports/replay-analysis/mechanics-features.md"
+    },
+    {
+      "id": "risk-rule-family-comparison",
+      "topic": "risk",
+      "date": "2026-07-31",
+      "status": "active",
+      "claim": "Offline rule-family comparison on held-out mechanics P_hat (24 dev+val snapshots, 849 release rows): P_hat is decile-calibrated (predicted tracks observed across the range), so nonlinear penalties have no miscalibration to fix. Linear, quadratic, hinge, and hard-with-least-risky-fallback all reach 0 selected topples (baseline 3/24) at mean score losses within 0.005 of each other -- no family separates from linear Q - lambda*P at matched loss, consistent with Lagrangian duality under a calibrated probability. State-dependent lambda(s) is untestable on this data: snapshots span remaining items 25-34 only (scale 0.83-1.13 around the mean); this is absence of leverage, not evidence against state dependence. Hard eps=0.1 never starved here (calibrated P_hat + fallback), unlike the rejected static enforce gate.",
+      "values": "at 0 selected topples: hard eps=0.1 mean loss 0.042, quadratic 16 0.044, linear 2.0 0.047 (max loss 0.269 identical); at 1: quadratic 1.0 loss 0.007; top calibration decile predicted 0.713 vs observed 0.624",
+      "source": "reports/replay-analysis/risk-rule-comparison.md"
     }
   ]
 }
