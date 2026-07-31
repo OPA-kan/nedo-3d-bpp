@@ -157,8 +157,8 @@ class SymbolExtractionTests(unittest.TestCase):
         from scripts.context import extract_symbol
 
         with self.assertRaises(KeyError) as ctx:
-            extract_symbol("release_rotation")
-        self.assertIn("release_rotation_risk_probability", str(ctx.exception))
+            extract_symbol("PlacementCore.cho")
+        self.assertIn("PlacementCore.choose", str(ctx.exception))
 
     def test_list_symbols_reports_line_ranges(self) -> None:
         from scripts.context import list_symbols
