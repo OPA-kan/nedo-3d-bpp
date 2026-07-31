@@ -300,6 +300,86 @@ risk penalty付きrankingまたは
 は、候補生成ゼロとは異なる状態である。traceはstatic候補数、gate通過数、
 gate棄却数、全棄却フラグを分け、後続のprotocol fallback回数と接続して記録する。
 
+### 5.2.1 力学的転倒特徴(Proposed, 2026-07-31)
+
+状態: **Proposed**。§5.2の静的 \(\Phi_{\mathrm{risk}}\) を置き換えるのではなく、
+剛体静力学に基づく無次元・力学量の特徴族 \(\Phi_{\mathrm{mech}}\) を追加定義する。
+動機は実測2点: (1) 現行主要失敗はrelease後のsettle転倒である、
+(2) \(\Phi_{\mathrm{risk}}\) の組合せモデルはsnapshot間・pool間の外挿が
+不安定である(幾何量が正規化されていないため、と仮説する)。
+
+#### 入力制約
+
+全ての量は **release前に算出可能な予測接触状態(predicted contact state)
+とcommand stateのみ**から計算する。すなわち §5.1 の
+\(h_{\mathrm{rest}}(x,y)\)(床・棚・全既配置AABBのtop max)、候補寸法
+\((d_x,d_y,d_z)\)、指令release高さである。**実replayで観測される
+初接触点・インパルス・角速度・settle後姿勢はラベル側の診断情報であり、
+モデル入力へ混ぜない**(§5.2のtelemetry分離則をそのまま引き継ぐ)。
+
+#### 支持多角形と転倒軸
+
+予測静止底面高さ \(z_{\mathrm{rest}}=h_{\mathrm{rest}}(x,y)\) に対し、
+予測接触patch集合を
+
+\[
+\mathcal C(a)=
+\{\,\mathrm{footprint}(a)\cap \mathrm{top}(u)
+\;\mid\;
+u\in\mathcal U(s),\ |\mathrm{top}_z(u)-z_{\mathrm{rest}}|\le\tau
+,\ \mathrm{area}>0\,\}
+\]
+
+とする(\(\mathcal U(s)\) = 床・棚・全既配置AABB、\(\tau\) は接触許容)。
+支持多角形 \(P(a)\) は \(\mathcal C(a)\) の頂点集合の凸包とする。
+**転倒軸は \(P(a)\) の各辺 \(e\) であり、底面half-widthを転倒軸の代用に
+しない**(部分支持ではCoM直下に辺が入り込むのが転倒の本体だからである)。
+
+#### 辺ごとの特徴(一様密度仮定)
+
+CoM を \(c=(x,y,\,z_{\mathrm{rest}}+d_z/2)\) とし、辺 \(e\) の軸高
+\(z_e\)(辺を提供するpatchのtop高さ)に対して:
+
+- **方向別margin** \(d_e\): CoM水平投影から辺 \(e\) の直線への符号付き
+  垂直距離(多角形内側を正)。\(d_e\le 0\) は静的にも当該方向へ転倒余裕
+  ゼロを意味する。
+- **軸高基準CoM高さ** \(h_e = c_z - z_e\)。
+- **臨界角** \(\theta_{c,e} = \arctan(d_e / h_e)\)。
+- **単位質量あたりエネルギー障壁**
+  \[
+  B_e = \sqrt{d_e^2+h_e^2}-h_e
+  \qquad(\text{単位: m。エネルギーは } m\,g\,B_e)
+  \]
+  ただし \(d_e\le 0\) のとき \(B_e=0\) と定める。
+- **落下エネルギー比**
+  \[
+  \eta_e = \frac{\Delta z_{\mathrm{drop}}}{B_e},
+  \qquad
+  \Delta z_{\mathrm{drop}}
+  = \bigl(z^{\mathrm{cmd}}-\tfrac{d_z}{2}\bigr)-z_{\mathrm{rest}}
+  \]
+  (指令底面高さから予測静止底面までの自由落下距離)。
+
+#### 解釈の制約(明示)
+
+\(\eta_e>1\) は「落下運動エネルギーが辺 \(e\) の障壁を名目上超える」
+ことを意味するが、**hardな転倒条件として扱わない**。この定式化は
+散逸(反発・接触減衰・摩擦)、多点接触へのエネルギー分配、並進・滑り
+モードへの逃げ、そして初接触後の姿勢再配分を一切含まない、
+**予測特徴(共変量)**である。判定は学習器と較正されたデータに委ねる。
+
+#### モデル入力への集約
+
+辺集合上の集約として
+\[
+\Phi_{\mathrm{mech}}
+=(\,d_{\min},\ \theta_{c,\min},\ B_{\min},\ \log(1+\eta_{\max})\,)
+\]
+を用いる(\(\eta_{\max}=\Delta z_{\mathrm{drop}}/\max(B_{\min},\varepsilon)\)、
+\(B\to 0\) の裾は対数で正則化し上限でクリップする)。全て鏡像不変な
+スカラーであり、§5.3 の鏡像契約(不変量は符号不変)と整合する。
+方向別の符号付き成分をモデルへ入れる場合は§5.3の符号反転則に従う。
+
 ### 5.3 方向別特徴と鏡像契約
 
 群論は主契約ではなく、risk特徴とmetamorphic testの設計根拠として使う。
