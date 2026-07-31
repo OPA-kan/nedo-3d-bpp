@@ -301,6 +301,234 @@ def within_snapshot_contrast(
     return result
 
 
+def rank_auc(scores: list[float], labels: list[bool]) -> float | None:
+    """AUC via average ranks (ties averaged); None without both classes."""
+    positives = sum(1 for flag in labels if flag)
+    negatives = len(labels) - positives
+    if positives == 0 or negatives == 0:
+        return None
+    ranks = average_ranks(scores)
+    positive_rank_sum = sum(
+        rank for rank, flag in zip(ranks, labels) if flag
+    )
+    return (
+        positive_rank_sum - positives * (positives + 1) / 2.0
+    ) / (positives * negatives)
+
+
+def danger_scores(row: dict[str, Any], feature: str) -> float:
+    """Orient every feature so that higher = claimed more dangerous."""
+    phi = row["phi_modelling"]
+    if feature in ("support_ratio", "com_margin"):
+        return -float(phi[feature])
+    if feature.startswith("abs_"):
+        return abs(float(phi[feature[len("abs_"):]]))
+    return float(phi[feature])
+
+
+AUC_FEATURES = (
+    "support_ratio",
+    "com_margin",
+    "overhang_ratio",
+    "drop_normalized",
+    "abs_support_imbalance",
+    "abs_left_right_imbalance",
+    "abs_front_back_imbalance",
+)
+AUC_LABELS = (
+    "not_placed_safe",
+    "rotated_over_30",
+    "horizontal_displaced_over_half_footprint",
+)
+
+
+def auc_report(release_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    rows = [
+        row
+        for row in release_rows
+        if isinstance(row.get("phi_modelling"), dict)
+    ]
+    report: dict[str, Any] = {"n": len(rows)}
+    for feature in AUC_FEATURES:
+        entry: dict[str, Any] = {}
+        try:
+            scores = [danger_scores(row, feature) for row in rows]
+        except KeyError:
+            report[feature] = None
+            continue
+        for target in AUC_LABELS:
+            labels = [label_value(row, target) for row in rows]
+            entry[target] = rank_auc(scores, labels)
+        report[feature] = entry
+    return report
+
+
+def gate_reason_report(release_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Which threshold fires, split by whether the reject was justified."""
+    tp: collections.Counter = collections.Counter()
+    fp: collections.Counter = collections.Counter()
+    for row in release_rows:
+        if row.get("gate_passed") is not False:
+            continue
+        target = tp if label_value(row, "not_placed_safe") else fp
+        for reason in row.get("gate_reasons") or []:
+            target[reason] += 1
+    reasons = sorted(set(tp) | set(fp))
+    return {
+        reason: {
+            "rejected_dangerous": tp.get(reason, 0),
+            "rejected_safe": fp.get(reason, 0),
+        }
+        for reason in reasons
+    }
+
+
+SUPPORT_SWEEP_THRESHOLDS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
+
+
+def support_sweep_report(
+    release_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    Danger rate among release candidates whose support_ratio clears a
+    threshold, versus the weighted share of the population accepted:
+    the candidate hard-accept region for an A-style rule.
+    """
+    rows = [
+        row
+        for row in release_rows
+        if isinstance(row.get("phi_modelling"), dict)
+    ]
+    total_weight = sum(row_weight(row) for row in rows)
+    sweep = []
+    for threshold in SUPPORT_SWEEP_THRESHOLDS:
+        accepted = [
+            row
+            for row in rows
+            if float(row["phi_modelling"]["support_ratio"]) >= threshold
+        ]
+        entry: dict[str, Any] = {
+            "min_support_ratio": threshold,
+            "n": len(accepted),
+            "weighted_share_accepted": (
+                sum(row_weight(row) for row in accepted) / total_weight
+                if total_weight > 0
+                else None
+            ),
+        }
+        for target in ("not_placed_safe", "rotated_over_30"):
+            entry[f"rate_{target}"] = (
+                sum(1 for row in accepted if label_value(row, target))
+                / len(accepted)
+                if accepted
+                else None
+            )
+            entry[f"weighted_rate_{target}"] = weighted_rate(
+                [
+                    (label_value(row, target), row_weight(row))
+                    for row in accepted
+                ]
+            )
+        sweep.append(entry)
+    return sweep
+
+
+LOGISTIC_FEATURES = (
+    "support_ratio",
+    "com_margin",
+    "drop_normalized",
+    "abs_support_imbalance",
+    "abs_left_right_imbalance",
+    "abs_front_back_imbalance",
+)
+
+
+def logistic_design(row: dict[str, Any]) -> list[float]:
+    phi = row["phi_modelling"]
+    return [
+        1.0,
+        float(phi["support_ratio"]),
+        float(phi["com_margin"]),
+        float(phi["drop_normalized"]),
+        abs(float(phi["support_imbalance"])),
+        abs(float(phi["left_right_imbalance"])),
+        abs(float(phi["front_back_imbalance"])),
+    ]
+
+
+def fit_logistic(
+    rows: list[dict[str, Any]],
+    label: str,
+    epochs: int = 4000,
+    learning_rate: float = 0.5,
+) -> list[float]:
+    design = [logistic_design(row) for row in rows]
+    targets = [1.0 if label_value(row, label) else 0.0 for row in rows]
+    weights = [0.0] * len(design[0])
+    for _ in range(epochs):
+        gradient = [0.0] * len(weights)
+        for x, y in zip(design, targets):
+            z = sum(w * value for w, value in zip(weights, x))
+            z = max(-30.0, min(30.0, z))
+            error = 1.0 / (1.0 + math.exp(-z)) - y
+            for k, value in enumerate(x):
+                gradient[k] += error * value
+        for k in range(len(weights)):
+            weights[k] -= learning_rate * gradient[k] / len(design)
+    return weights
+
+
+def logistic_report(
+    release_rows: list[dict[str, Any]], seed: int = 7
+) -> dict[str, Any]:
+    """
+    Snapshot-held-out logistic fit on ``phi_modelling`` (with absolute
+    imbalance transforms). This is a separability probe for the A/B/C
+    decision, not the production risk model.
+    """
+    import random
+
+    rows = [
+        row
+        for row in release_rows
+        if isinstance(row.get("phi_modelling"), dict)
+    ]
+    snapshots = sorted({row["snapshot_id"] for row in rows})
+    if len(snapshots) < 3 or len(rows) < 30:
+        return {"skipped": "not enough snapshots or rows"}
+    random.Random(seed).shuffle(snapshots)
+    held_out = set(snapshots[: len(snapshots) // 3])
+    train = [row for row in rows if row["snapshot_id"] not in held_out]
+    test = [row for row in rows if row["snapshot_id"] in held_out]
+    report: dict[str, Any] = {
+        "train_n": len(train),
+        "test_n": len(test),
+        "features": ["intercept", *LOGISTIC_FEATURES],
+    }
+    for label in ("not_placed_safe", "rotated_over_30"):
+        weights = fit_logistic(train, label)
+        scores = [
+            sum(w * value for w, value in zip(weights, logistic_design(row)))
+            for row in test
+        ]
+        labels = [label_value(row, label) for row in test]
+        best_single = None
+        for feature in AUC_FEATURES:
+            single = rank_auc(
+                [danger_scores(row, feature) for row in test], labels
+            )
+            if single is not None and (
+                best_single is None or single > best_single
+            ):
+                best_single = single
+        report[label] = {
+            "test_auc": rank_auc(scores, labels),
+            "best_single_feature_test_auc": best_single,
+            "weights": [round(w, 3) for w in weights],
+        }
+    return report
+
+
 def band_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     bands: dict[str, Any] = {}
     for band in ("top1", "top10", "top10pct", "tail"):
@@ -373,6 +601,10 @@ def analyze(rows: list[dict[str, Any]]) -> dict[str, Any]:
             for feature in features
         },
         "within_snapshot": within_snapshot_contrast(release_rows, features),
+        "gate_reasons": gate_reason_report(release_rows),
+        "auc": auc_report(release_rows),
+        "support_sweep": support_sweep_report(release_rows),
+        "logistic_probe": logistic_report(release_rows),
         "score_band": {
             "release_candidate": band_report(release_rows),
             "candidate": band_report(settled_rows),
@@ -493,6 +725,79 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"| {fmt(entry['mean_diff_safe_minus_dangerous'])} "
             f"| {entry['positive']} |"
         )
+    lines.append("")
+
+    lines.append("## Gate reject reasons (release candidates)")
+    lines.append("")
+    lines.append("| reason | rejected dangerous (TP) | rejected safe (FP) |")
+    lines.append("|---|---:|---:|")
+    for reason, entry in result["gate_reasons"].items():
+        lines.append(
+            f"| {reason} | {entry['rejected_dangerous']} "
+            f"| {entry['rejected_safe']} |"
+        )
+    lines.append("")
+    lines.append(
+        "Dangerous/safe by `not_placed_safe`; a candidate can carry several "
+        "reasons."
+    )
+    lines.append("")
+
+    lines.append("## Single-feature AUC (higher score = claimed dangerous)")
+    lines.append("")
+    lines.append("| feature | " + " | ".join(AUC_LABELS) + " |")
+    lines.append("|---|" + "---:|" * len(AUC_LABELS))
+    for feature in AUC_FEATURES:
+        entry = result["auc"].get(feature)
+        if not entry:
+            continue
+        lines.append(
+            f"| {feature} | "
+            + " | ".join(fmt(entry[label]) for label in AUC_LABELS)
+            + " |"
+        )
+    lines.append("")
+
+    lines.append("## Hard-accept sweep on support_ratio (release candidates)")
+    lines.append("")
+    lines.append(
+        "| min support_ratio | n | weighted share accepted "
+        "| not_placed_safe raw/weighted | rotated_over_30 raw/weighted |"
+    )
+    lines.append("|---:|---:|---:|---:|---:|")
+    for entry in result["support_sweep"]:
+        lines.append(
+            f"| {entry['min_support_ratio']} | {entry['n']} "
+            f"| {fmt(entry['weighted_share_accepted'])} "
+            f"| {fmt(entry['rate_not_placed_safe'])} / "
+            f"{fmt(entry['weighted_rate_not_placed_safe'])} "
+            f"| {fmt(entry['rate_rotated_over_30'])} / "
+            f"{fmt(entry['weighted_rate_rotated_over_30'])} |"
+        )
+    lines.append("")
+
+    probe = result["logistic_probe"]
+    lines.append("## Logistic separability probe (snapshot-held-out)")
+    lines.append("")
+    if "skipped" in probe:
+        lines.append(f"Skipped: {probe['skipped']}")
+    else:
+        lines.append(
+            f"Train n={probe['train_n']}, test n={probe['test_n']}; "
+            f"features: {', '.join(probe['features'])}"
+        )
+        lines.append("")
+        lines.append(
+            "| label | test AUC | best single-feature test AUC | weights |"
+        )
+        lines.append("|---|---:|---:|---|")
+        for label in ("not_placed_safe", "rotated_over_30"):
+            entry = probe[label]
+            lines.append(
+                f"| {label} | {fmt(entry['test_auc'])} "
+                f"| {fmt(entry['best_single_feature_test_auc'])} "
+                f"| {entry['weights']} |"
+            )
     lines.append("")
 
     lines.append("## Danger rate by score band (raw)")

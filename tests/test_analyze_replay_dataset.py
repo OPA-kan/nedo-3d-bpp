@@ -132,6 +132,66 @@ class WithinSnapshotTests(unittest.TestCase):
         self.assertEqual(feature["positive"], 1)
 
 
+class AucTests(unittest.TestCase):
+    def test_rank_auc_perfect_separation_is_one(self):
+        self.assertAlmostEqual(
+            analyze_mod.rank_auc(
+                [0.1, 0.2, 0.8, 0.9], [False, False, True, True]
+            ),
+            1.0,
+        )
+
+    def test_rank_auc_handles_ties_as_half_credit(self):
+        self.assertAlmostEqual(
+            analyze_mod.rank_auc([0.5, 0.5], [True, False]), 0.5
+        )
+
+    def test_rank_auc_single_class_is_none(self):
+        self.assertIsNone(analyze_mod.rank_auc([0.1, 0.2], [True, True]))
+
+
+class GateReasonTests(unittest.TestCase):
+    def test_reasons_split_by_actual_outcome(self):
+        rows = [
+            release_row(gate_passed=False, not_placed_safe=True),
+            release_row(gate_passed=False, not_placed_safe=False),
+            release_row(gate_passed=True, not_placed_safe=False),
+        ]
+        rows[0]["gate_reasons"] = ["support"]
+        rows[1]["gate_reasons"] = ["support", "com_margin"]
+        rows[2]["gate_reasons"] = []
+        report = analyze_mod.gate_reason_report(rows)
+        self.assertEqual(
+            report["support"],
+            {"rejected_dangerous": 1, "rejected_safe": 1},
+        )
+        self.assertEqual(
+            report["com_margin"],
+            {"rejected_dangerous": 0, "rejected_safe": 1},
+        )
+
+
+class SupportSweepTests(unittest.TestCase):
+    def test_sweep_counts_only_rows_above_threshold(self):
+        rows = [
+            release_row(support_ratio=0.95, not_placed_safe=False),
+            release_row(support_ratio=0.55, not_placed_safe=True),
+            release_row(support_ratio=0.10, not_placed_safe=True),
+        ]
+        sweep = analyze_mod.support_sweep_report(rows)
+        by_threshold = {
+            entry["min_support_ratio"]: entry for entry in sweep
+        }
+        self.assertEqual(by_threshold[0.9]["n"], 1)
+        self.assertAlmostEqual(
+            by_threshold[0.9]["rate_not_placed_safe"], 0.0
+        )
+        self.assertEqual(by_threshold[0.5]["n"], 2)
+        self.assertAlmostEqual(
+            by_threshold[0.5]["rate_not_placed_safe"], 0.5
+        )
+
+
 class EndToEndTests(unittest.TestCase):
     def test_analyze_and_render_run_on_synthetic_rows(self):
         rows = [
