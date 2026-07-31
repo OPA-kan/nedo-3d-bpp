@@ -137,5 +137,80 @@ class ContextRouterTests(unittest.TestCase):
         )
 
 
+class SymbolExtractionTests(unittest.TestCase):
+    def test_extract_module_function_carries_location_header(self) -> None:
+        from scripts.context import extract_symbol
+
+        text = extract_symbol("unique_orientations")
+        self.assertTrue(text.startswith("# agent/agent.py:"))
+        self.assertIn("def unique_orientations", text)
+        # The whole module must not come along for the ride.
+        self.assertLess(len(text.splitlines()), 60)
+
+    def test_extract_class_method(self) -> None:
+        from scripts.context import extract_symbol
+
+        text = extract_symbol("PlacementCore.choose")
+        self.assertIn("def choose", text)
+
+    def test_unknown_symbol_suggests_close_matches(self) -> None:
+        from scripts.context import extract_symbol
+
+        with self.assertRaises(KeyError) as ctx:
+            extract_symbol("release_rotation")
+        self.assertIn("release_rotation_risk_probability", str(ctx.exception))
+
+    def test_list_symbols_reports_line_ranges(self) -> None:
+        from scripts.context import list_symbols
+
+        listing = list_symbols()
+        self.assertTrue(any("PlacementCore\t" in line for line in listing))
+
+
+class EvidenceLedgerTests(unittest.TestCase):
+    def test_ledger_loads_and_ids_are_unique(self) -> None:
+        from scripts.context import load_evidence
+
+        entries = load_evidence()
+        ids = [entry["id"] for entry in entries]
+        self.assertEqual(len(ids), len(set(ids)))
+        for entry in entries:
+            self.assertIn(
+                entry.get("status"), {"active", "superseded", "historical"}
+            )
+            self.assertTrue(entry.get("claim"))
+            self.assertTrue(entry.get("source"))
+            if entry["status"] == "superseded":
+                self.assertIn(entry.get("superseded_by"), ids)
+
+    def test_render_hides_inactive_by_default(self) -> None:
+        from scripts.context import render_evidence
+
+        entries = [
+            {
+                "id": "a",
+                "topic": "t",
+                "date": "2026-07-31",
+                "status": "active",
+                "claim": "still true",
+                "source": "x",
+            },
+            {
+                "id": "b",
+                "topic": "t",
+                "date": "2026-07-30",
+                "status": "superseded",
+                "superseded_by": "a",
+                "claim": "old",
+                "source": "x",
+            },
+        ]
+        default_view = render_evidence(entries, topic="t")
+        self.assertIn("[a]", default_view)
+        self.assertNotIn("[b]", default_view)
+        full_view = render_evidence(entries, topic="t", include_inactive=True)
+        self.assertIn("[b]", full_view)
+
+
 if __name__ == "__main__":
     unittest.main()
