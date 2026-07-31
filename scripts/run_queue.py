@@ -147,28 +147,62 @@ def run_plan(
     resume: bool = True,
     stop_on_failure: bool = False,
     queue_root: pathlib.Path = QUEUE_ROOT,
+    parallel: int = 1,
 ) -> dict[str, Any]:
     queue_dir = queue_root / plan["name"]
     queue_dir.mkdir(parents=True, exist_ok=True)
     state = load_state(queue_dir) if resume else {"jobs": {}}
 
+    pending: list[dict[str, Any]] = []
     for job in plan["jobs"]:
-        job_id = job["id"]
-        previous = state["jobs"].get(job_id)
+        previous = state["jobs"].get(job["id"])
         if resume and previous and previous.get("status") == "ok":
-            print(f"skip (already ok): {job_id}", flush=True)
+            print(f"skip (already ok): {job['id']}", flush=True)
             continue
-        print(f"run: {job_id}", flush=True)
-        record = run_job(job, queue_dir)
-        state["jobs"][job_id] = record
-        save_state(queue_dir, state)
-        print(
-            f"  -> {record['status']} ({record['seconds']}s, "
-            f"log {record['log']})",
-            flush=True,
-        )
-        if stop_on_failure and record["status"] != "ok":
-            break
+        pending.append(job)
+
+    if parallel <= 1:
+        for job in pending:
+            print(f"run: {job['id']}", flush=True)
+            record = run_job(job, queue_dir)
+            state["jobs"][job["id"]] = record
+            save_state(queue_dir, state)
+            print(
+                f"  -> {record['status']} ({record['seconds']}s, "
+                f"log {record['log']})",
+                flush=True,
+            )
+            if stop_on_failure and record["status"] != "ok":
+                break
+    else:
+        # Jobs are independent processes with their own logs; state.json
+        # is only ever written from this thread via as_completed.
+        import concurrent.futures
+
+        stop = False
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=parallel
+        ) as pool:
+            futures = {}
+            for job in pending:
+                if stop:
+                    break
+                print(f"run: {job['id']}", flush=True)
+                futures[pool.submit(run_job, job, queue_dir)] = job
+            for future in concurrent.futures.as_completed(futures):
+                job = futures[future]
+                record = future.result()
+                state["jobs"][job["id"]] = record
+                save_state(queue_dir, state)
+                print(
+                    f"  -> {job['id']}: {record['status']} "
+                    f"({record['seconds']}s, log {record['log']})",
+                    flush=True,
+                )
+                if stop_on_failure and record["status"] != "ok":
+                    stop = True
+                    for other in futures:
+                        other.cancel()
 
     summary = {
         "name": plan["name"],
@@ -207,6 +241,16 @@ def main() -> int:
         action="store_true",
         help="Halt the queue at the first non-ok job.",
     )
+    parser.add_argument(
+        "--parallel",
+        type=int,
+        default=1,
+        help=(
+            "Run up to N jobs concurrently. Use only for jobs that do "
+            "not write to the same output directory; physics replay "
+            "generation is single-core, so N up to (cores - 1) is safe."
+        ),
+    )
     args = parser.parse_args()
     try:
         plan = load_plan(args.plan)
@@ -216,6 +260,7 @@ def main() -> int:
         plan,
         resume=not args.no_resume,
         stop_on_failure=args.stop_on_failure,
+        parallel=max(1, args.parallel),
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0 if not summary["failed"] and not summary["not_run"] else 1

@@ -121,5 +121,34 @@ class QueueExecutionTests(unittest.TestCase):
             self.assertEqual(state["jobs"]["slow"]["status"], "timeout")
 
 
+
+
+class ParallelExecutionTests(unittest.TestCase):
+    def test_parallel_runs_all_jobs_and_resumes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            queue_root = pathlib.Path(tmp)
+            plan = plan_dict(
+                [python_job(f"j{i}", "print('x')") for i in range(4)]
+            )
+            summary = run_plan(plan, queue_root=queue_root, parallel=3)
+            self.assertEqual(summary["ok"], 4)
+            self.assertEqual(summary["failed"], [])
+            again = run_plan(plan, queue_root=queue_root, parallel=3)
+            self.assertEqual(again["ok"], 4)
+
+    def test_parallel_records_failures_without_raising(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            queue_root = pathlib.Path(tmp)
+            plan = plan_dict(
+                [
+                    python_job("ok", "print('x')"),
+                    python_job("bad", "raise SystemExit(3)"),
+                ]
+            )
+            summary = run_plan(plan, queue_root=queue_root, parallel=2)
+            self.assertEqual(summary["ok"], 1)
+            self.assertEqual(summary["failed"], ["bad"])
+
+
 if __name__ == "__main__":
     unittest.main()

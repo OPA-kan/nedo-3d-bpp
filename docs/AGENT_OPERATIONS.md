@@ -68,6 +68,9 @@ python3 scripts/run_queue.py /tmp/plan.json
 
 - 成功済みジョブは再実行時にスキップされる(`--no-resume` で無効化)。
 - 失敗してもキューは続行(`--stop-on-failure` で停止)。
+- `--parallel N` で最大N job同時実行。物理replay生成は1プロセス1コア
+  なので、`コア数-1` まで(4コア環境なら3)。**同じ出力ディレクトリに
+  書くjobは並列にしない。**
 - ログ: `reports/raw/queue/<plan名>/<job id>.log`、
   状態: 同 `state.json`。**キュー完了後はstateの要約だけ読む。**
 - 長時間キューはバックグラウンドで1回起動し、完了通知まで**ポーリング
