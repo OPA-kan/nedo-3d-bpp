@@ -55,7 +55,9 @@ from scripts.measure_anchor_recall import (  # noqa: E402
     policy_indexed_items,
 )
 
-SCHEMA_VERSION = 1
+# 2 added the enforce-decision fields (would_enforce and the selected /
+# proposed pool indices). render_markdown still accepts a schema 1 report.
+SCHEMA_VERSION = 2
 DEFAULT_LATE_STEP = 10
 DEFAULT_IMMEDIATE_BUDGET = 4096
 
@@ -399,15 +401,16 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "",
                 "| arm | stride | attempts/step | non-degenerate | rate | "
                 "any future placement | recovered baseline ties | "
-                "mean ms |",
-                "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+                "would enforce | mean ms |",
+                "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: "
+                "| ---: |",
             ]
         )
         for name, arm in data["arms"].items():
             lines.append(
                 "| {name} | {stride} | {attempts_per_step} | "
                 "{non_degenerate} | {rate} | {future} | "
-                "{recovered}/{tied} | {ms} |".format(
+                "{recovered}/{tied} | {enforce} | {ms} |".format(
                     name=name,
                     stride=arm["stride"],
                     attempts_per_step=arm["attempts_per_step"],
@@ -416,6 +419,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                     future=arm["any_future_placement"],
                     recovered=arm["recovered_from_baseline_ties"],
                     tied=arm["baseline_tied_snapshots"],
+                    # schema 1 reports predate the enforce columns
+                    enforce=arm.get("would_enforce", "-"),
                     ms=arm["mean_elapsed_ms"],
                 )
             )
