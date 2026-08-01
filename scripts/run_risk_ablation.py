@@ -171,6 +171,43 @@ def case_summary(
     return cases
 
 
+def policy_trace_summary(path: pathlib.Path) -> dict[str, int]:
+    summary = {
+        "decision_count": 0,
+        "rescue_trigger_count": 0,
+        "rescue_action_count": 0,
+        "protocol_fallback_count": 0,
+    }
+    if not path.exists():
+        return summary
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            if record.get("event") != "decision":
+                continue
+            summary["decision_count"] += 1
+            source = record.get("action_source")
+            if source == "rescue_scan":
+                summary["rescue_action_count"] += 1
+            if source in {
+                "fixed_fallback",
+                "unsafe_protocol_fallback",
+            }:
+                summary["protocol_fallback_count"] += 1
+            diagnostics = record.get("candidate_diagnostics")
+            rescue = (
+                diagnostics.get("rescue_scan")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(rescue, dict) and rescue.get("triggered") is True:
+                summary["rescue_trigger_count"] += 1
+    return summary
+
+
 def run_episode(
     config_path: pathlib.Path,
     arm: str,
@@ -199,6 +236,8 @@ def run_episode(
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SIMULATOR)
     configure_arm_environment(env, arm, risk_lambda, slide_lambda)
+    trace_path = run_dir / "policy-trace.jsonl"
+    env["NEDO_POLICY_TRACE_PATH"] = str(trace_path.resolve())
 
     result = run(
         [
@@ -233,6 +272,7 @@ def run_episode(
         "process_returncode": result["returncode"],
         "process_seconds": result["seconds"],
         "cases": case_summary(evaluation, config),
+        "policy_trace": policy_trace_summary(trace_path),
     }
     rows_path = output_dir / "rows.jsonl"
     with rows_path.open("a", encoding="utf-8") as handle:

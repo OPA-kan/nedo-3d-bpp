@@ -48,3 +48,11 @@ The rejected 0.9-second ablation is preserved under
 but lost nine placements on b001-k20. The reserve ladder then recovered a
 candidate in all 37 snapshots with only 0.1 seconds, motivating the 0.2-second
 second ablation rather than tuning the Ranker or risk terms.
+
+The 0.2-second second ablation is preserved under
+`reports/rescue-scan/ci-30698434932`: base/rescue totals were 80/74 placed and
+98.00/88.02 fill. It recovered b001-k20 by two placements but lost two on
+b000-k20 and six on b000-k40. This also rejects the current rescue policy.
+The next diagnostic run records rescue-trigger, rescue-action, and remaining
+protocol-fallback counts so reserve-induced trajectory changes can be
+separated from the rescued action's physical outcome.

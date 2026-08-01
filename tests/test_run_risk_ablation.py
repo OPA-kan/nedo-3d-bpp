@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import unittest
+import json
+import pathlib
+import tempfile
 
-from scripts.run_risk_ablation import configure_arm_environment, summarize
+from scripts.run_risk_ablation import (
+    configure_arm_environment,
+    policy_trace_summary,
+    summarize,
+)
 
 
 def episode_row(arm, case_id, placed, fill, returncode=0):
@@ -86,6 +93,52 @@ class ArmEnvironmentTests(unittest.TestCase):
         configure_arm_environment(env, "base", 2.0, 0.0)
 
         self.assertNotIn("RESCUE_SCAN_ENABLED", env)
+
+
+class PolicyTraceSummaryTests(unittest.TestCase):
+    def test_counts_rescue_and_protocol_fallback_separately(self):
+        records = [
+            {"event": "init"},
+            {
+                "event": "decision",
+                "action_source": "placement_core",
+                "candidate_diagnostics": {
+                    "rescue_scan": {"triggered": False}
+                },
+            },
+            {
+                "event": "decision",
+                "action_source": "rescue_scan",
+                "candidate_diagnostics": {
+                    "rescue_scan": {"triggered": True}
+                },
+            },
+            {
+                "event": "decision",
+                "action_source": "unsafe_protocol_fallback",
+                "candidate_diagnostics": {
+                    "rescue_scan": {"triggered": True}
+                },
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(
+            summary,
+            {
+                "decision_count": 3,
+                "rescue_trigger_count": 2,
+                "rescue_action_count": 1,
+                "protocol_fallback_count": 1,
+            },
+        )
 
 
 if __name__ == "__main__":
