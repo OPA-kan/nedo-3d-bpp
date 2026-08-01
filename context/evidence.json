@@ -303,6 +303,14 @@
       "status": "active",
       "claim": "Candidate supply is NOT the endgame constraint: at all 27 late replay snapshots (steps 11-16, dev+val), the HT-estimated population of official-transport-valid candidates is in the thousands (minimum ~1038, typically 10k-36k), physically placeable-safe candidates are also in the thousands (never zero), and the minimum frozen-mech P_rot among valid sampled candidates is 0.003-0.101. Per the terminal-failure trichotomy: transport_invalid deaths (21) mean the anytime search failed to find/execute any of thousands of valid candidates within budget (recall failure, plausibly the 8 s timeout -> forced random action), and topple deaths mean risky candidates were chosen while near-zero-risk options existed (selection/recall, not perception, and not candidate starvation). Caveat: measured on replay snapshots near-terminal, not the exact dying states of the ablation episodes.",
       "source": "inline probe over 33-snapshot replay data (population counts + is_valid/is_placed_safe HT weights + frozen mech P_rot); consistent with anchor-recall-one-snapshot (0.167)"
+    },
+    {
+      "id": "aabb-cache-guard-mixed",
+      "topic": "search",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "The packed-AABB cache (6.4x candidate throughput) produced a MIXED regression-guard result: b000-k40 +10 placed (11->21, fill 14->27 -- search starvation was binding there) and b000-k15 +1, but b000-k20 -12 (26->14) and b001-k20 -6; net placed 92->84 across the 5 dev configs. Interpretation: higher recall changes every selection, and with the known-defective utility (Ranker volume dead vote, q+gamma*q lookahead) a larger candidate pool can select worse trajectories -- the starved search was acting as an accidental regularizer. The cache is kept (the 78%-waste defect is real and the starvation mechanism is not a defensible control), which promotes selection quality under enlarged candidate sets (Ranker/lookahead) from deferred to blocking. Guard episodes are single trajectories; b001 configs carry timing nondeterminism, but the b000-k20 drop is deterministic-environment real.",
+      "source": "reports/benchmarks/baseline.json vs base-r7 guard episodes; commit of the cache change"
     }
   ]
 }
