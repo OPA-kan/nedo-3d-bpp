@@ -92,6 +92,52 @@ without the per-configuration split.
 The registered development baseline is placed 88 / fill 114.6 across the five
 development configurations (`reports/benchmarks/baseline.json`).
 
-## Result
+## Result: rejected as a default
 
-<!-- filled in from the screening run -->
+`reports/live-interleave/local-20260801-screening/`. Local Linux, PyBullet
+3.2.7, one repeat per cell, `base` versus `live_interleave4` on the five
+development configurations.
+
+| case | base placed | il4 placed | d | base fill | il4 fill | d |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `b000-k15` | 17 | 14 | -3 | 23.119 | 12.655 | -10.464 |
+| `b000-k20` | 16 | 12 | -4 | 17.287 | 12.804 | -4.483 |
+| `b000-k40` | 14 | 19 | **+5** | 19.525 | 25.603 | **+6.078** |
+| `b001-k20` | 18 | 17 | -1 | 20.989 | 19.708 | -1.281 |
+| `b001-k30` | 18 | 18 | 0 | 23.822 | 21.225 | -2.597 |
+| **total** | **83** | **80** | **-3** | **104.742** | **91.995** | **-12.747** |
+
+`LIVE_SEARCH_INTERLEAVE` stays 1.
+
+The warning above was the right one, and the outcome is the shape it
+predicted. One configuration gains and it is the one the ledger already calls
+search-starved: `b000-k40`, the same configuration where the packed-AABB
+cache gained +10 while `b000-k20` lost 12. Two independent coverage
+interventions - one enlarging the candidate set, one only reordering it - now
+produce the same per-configuration signature.
+
+The search diagnostics rule out the obvious alternative explanation. The
+interleave did not make the search worse at finding candidates: both arms are
+deadline-limited on most steps, the unit completion ratio does not fall, and
+no episode ended in a no-candidate branch the base arm avoided. What changed
+is which candidate a truncated search settles on, and so which trajectory is
+taken.
+
+The constraint is therefore the one already on the books: under the
+known-defective utility, changing which candidates the search surfaces
+reshuffles trajectories instead of improving them. **Selection quality is
+blocking for coverage work**, and this is now the second measurement saying
+so.
+
+Scope: one repeat per cell; the two smallest deltas are on the b001 cases
+that carry timing nondeterminism. Local base totals (83 / 104.742) are below
+the registered development baseline (88 / 114.6) because the search is
+deadline-limited and absolute totals are machine-dependent - only base-vs-arm
+inside one run is comparable, which matters especially for a change whose
+whole effect is about what a deadline truncates.
+
+This rejects the interleave as an *unconditional default*. It does not
+retract the coverage hole, which is measured and real, and the `b000-k40`
+gain is that hole being closed where closing it helps. A targeted form -
+interleaving only when the search is actually starving - is a different
+design rather than a tuning of this one, and is untested.

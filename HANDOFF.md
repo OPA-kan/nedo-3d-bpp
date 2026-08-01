@@ -351,28 +351,80 @@ and with far more leverage:
   a wider scan makes rarer.
 
 Both were previously blocked on stride not existing on the shipped generator.
-It exists now. **Live-path stride is the formal next line after the b000-k15
-re-run**, and its expected value is an order of magnitude above the rollout
-diagnostic. It needs its own env gate, its own regression guard
-(`run_risk_ablation.py --arm base` against `reports/benchmarks/baseline.json`),
-and its own repeated ablation - the coverage/selection-quality interaction in
-`aabb-cache-guard-mixed` is the standing warning that raising recall can
-select worse trajectories under a defective utility. Do not fold it into the
-rollout work.
-
-Open design option, not yet measured: rotate `stride_offset` per rollout step
-(or per search round) so successive passes cover complementary phases of the
-grid at the same total budget. The phase arms measured so far
-(`stride-4+1..+3`) differ by at most one snapshot, which suggests phases are
-close to interchangeable and rotation would buy effective coverage cheaply -
-but that is an inference from the spread, not a measurement.
+**That line has now been built and screened, and it is rejected as a
+default** — see the next section.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
-`reports/slide-patches/`, Gated Iota enters at S2), live stride
-sampling port for further recall (the generator side of this is now
-implemented and reaches `support_plane`, not only the Cartesian mode).
+`reports/slide-patches/`, Gated Iota enters at S2).
+
+## Latest experiment: live scan interleave (rejected as a default)
+
+`docs/LIVE_SCAN_INTERLEAVE.md`,
+`reports/live-interleave/local-20260801-screening/`.
+
+The live candidate search runs through the same `support_plane` generator as
+the rollout, so the diagnosed scan-order hole is present there too. It needs a
+**different** instrument, and this distinction is the durable part of the
+work: the rollout's future search is capped by an attempt count it can never
+exhaust, so a `stride` that *drops* anchors is free reach; the live search is
+capped by a deadline it often *does* exhaust, so dropping anchors there would
+lose candidates the current search finds. `LIVE_SEARCH_INTERLEAVE` therefore
+**permutes** the anchor order instead of subsampling it — at exhaustion the
+candidate set is identical, and only what a truncated search reaches first
+changes.
+
+Local screening, one repeat per cell, `base` vs `live_interleave4` on the
+five development configurations:
+
+| case | base placed | il4 placed | delta placed | delta fill |
+| --- | ---: | ---: | ---: | ---: |
+| b000-k15 | 17 | 14 | -3 | -10.464 |
+| b000-k20 | 16 | 12 | -4 | -4.483 |
+| **b000-k40** | 14 | 19 | **+5** | **+6.078** |
+| b001-k20 | 18 | 17 | -1 | -1.281 |
+| b001-k30 | 18 | 18 | 0 | -2.597 |
+| total | 83 | 80 | **-3** | **-12.747** |
+
+`LIVE_SEARCH_INTERLEAVE` stays 1.
+
+**The per-config split is the finding, not the total.** The single winner is
+`b000-k40` — the configuration `aabb-cache-guard-mixed` already calls
+search-starved, and the same one that gained +10 from the packed-AABB cache
+while b000-k20 lost 12. Two independent coverage interventions, one enlarging
+the candidate set and one only reordering it, now produce the same
+per-configuration signature. Search diagnostics exclude reduced recall as the
+cause: both arms are deadline-limited on most steps, the unit completion
+ratio does not fall, and no episode ended in a no-candidate branch the base
+arm avoided. What changed is which candidate a truncated search settles on,
+and so which trajectory is taken.
+
+**This is the second measurement saying selection quality is blocking for
+coverage work**, not the reverse. Coverage interventions are now
+twice-observed to redistribute placements rather than add them while the
+utility stays defective (`Ranker` volume dead vote, `q + gamma*q` lookahead).
+
+Scope and cautions:
+
+- One repeat per cell; the two smallest deltas are on the
+  timing-nondeterministic b001 cases.
+- Local `base` totals (83 / 104.742) are **below** the registered development
+  baseline (88 / 114.6). The search is deadline-limited, so absolute totals
+  are machine-dependent — only base-vs-arm inside one run is comparable. That
+  caveat binds hardest on exactly this kind of change, whose whole effect is
+  about what a deadline truncates. Do not read the local base number as a
+  regression.
+- This rejects the interleave as an unconditional default. It does not
+  retract the scan-order hole, which stays measured and real.
+
+Two designs remain open and are untested: interleaving only when the search
+is actually starving (a conditional, not a tuning of this knob), and rotating
+`stride_offset` per rollout step or search round so successive passes cover
+complementary phases at the same total budget. The measured phase arms
+(`stride-4+1..+3`) differ by at most one snapshot, which suggests phases are
+near-interchangeable and rotation would be cheap — but that is an inference
+from spread, not a measurement.
 
 ## Important invariants
 
