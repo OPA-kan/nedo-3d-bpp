@@ -311,6 +311,22 @@
       "status": "active",
       "claim": "The packed-AABB cache (6.4x candidate throughput) produced a MIXED regression-guard result: b000-k40 +10 placed (11->21, fill 14->27 -- search starvation was binding there) and b000-k15 +1, but b000-k20 -12 (26->14) and b001-k20 -6; net placed 92->84 across the 5 dev configs. Interpretation: higher recall changes every selection, and with the known-defective utility (Ranker volume dead vote, q+gamma*q lookahead) a larger candidate pool can select worse trajectories -- the starved search was acting as an accidental regularizer. The cache is kept (the 78%-waste defect is real and the starvation mechanism is not a defensible control), which promotes selection quality under enlarged candidate sets (Ranker/lookahead) from deferred to blocking. Guard episodes are single trajectories; b001 configs carry timing nondeterminism, but the b000-k20 drop is deterministic-environment real.",
       "source": "reports/benchmarks/baseline.json vs base-r7 guard episodes; commit of the cache change"
+    },
+    {
+      "id": "lookahead-modes-degenerate-rich-search",
+      "topic": "preview",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "The three lookahead selection modes remain essentially degenerate even under the 6.4x-richer search: weighted and depth2 produced identical episodes on all 5 dev configs (84 placed total), pool_resilience differed only on b000-k20 (12 vs 14 placed) and b001-k30 fill, net slightly worse (82). The 1-ply binary pool-feasibility signal stays saturated, so it cannot serve as the graded future-value term the Ranker lacks; a graded V(s)-like signal is required instead.",
+      "source": "risk-ablation rows repeats 30-32 (LOOKAHEAD_SELECTION_MODE comparison)"
+    },
+    {
+      "id": "b000-k20-regression-is-slide-death",
+      "topic": "risk",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "Forensic diff of b000-k20 pre/post cache: first divergence at step 9 where the rich search chose a rotation-safer placement (settle 0.6 deg vs the starved run's lucky 22.5-deg near-miss); the new trajectory then destabilised cumulatively (angles 3.7 -> 8.2 -> 27.8 deg over steps 12-14) and died at step 14 by a sub-30-deg 0.44 m SLIDE -- exactly the hazard the frozen slide model predicts (val AUC 0.884) and which lambda_slide=0 leaves uncontrolled. The slide-lambda-not-adopted-v1 verdict was measured on the starved search; under rich search slide becomes the leading uncontrolled hazard, so the slide ablation is being re-run under the cached search before that verdict stands.",
+      "source": "runs b000-k20-base-r0 vs base-r7 step_metrics diff"
     }
   ]
 }
