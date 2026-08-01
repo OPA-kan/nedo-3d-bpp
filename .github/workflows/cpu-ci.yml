@@ -141,3 +141,12 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/cross-step-incumbent-ablation.yml
+
+  visible-pool-rollout-ablation:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/experiment/visible-pool-rollout' &&
+      !contains(github.event.head_commit.message, '[skip rollout]')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/visible-pool-rollout-ablation.yml

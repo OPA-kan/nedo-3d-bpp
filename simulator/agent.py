@@ -153,6 +153,28 @@ LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
+VISIBLE_POOL_ROLLOUT_MODES = frozenset({"off", "shadow"})
+VISIBLE_POOL_ROLLOUT_MODE = os.environ.get(
+    "VISIBLE_POOL_ROLLOUT_MODE", "off"
+).strip().lower()
+if VISIBLE_POOL_ROLLOUT_MODE not in VISIBLE_POOL_ROLLOUT_MODES:
+    raise ValueError(
+        f"unknown VISIBLE_POOL_ROLLOUT_MODE "
+        f"{VISIBLE_POOL_ROLLOUT_MODE!r}; expected one of "
+        f"{sorted(VISIBLE_POOL_ROLLOUT_MODES)}"
+    )
+VISIBLE_POOL_ROLLOUT_TOP_K = max(
+    1, int(os.environ.get("VISIBLE_POOL_ROLLOUT_TOP_K", "3"))
+)
+VISIBLE_POOL_ROLLOUT_DEPTH = max(
+    1, int(os.environ.get("VISIBLE_POOL_ROLLOUT_DEPTH", "3"))
+)
+VISIBLE_POOL_ROLLOUT_ATTEMPTS = max(
+    1, int(os.environ.get("VISIBLE_POOL_ROLLOUT_ATTEMPTS", "64"))
+)
+VISIBLE_POOL_ROLLOUT_Q_BAND = max(
+    0.0, float(os.environ.get("VISIBLE_POOL_ROLLOUT_Q_BAND", "0.15"))
+)
 # --- DPOR (dynamic partial-order reduction) for pair-block ordering ---
 DPOR_MAX_ALTERNATE_ATTEMPTS = int(
     os.environ.get("DPOR_MAX_ALTERNATE_ATTEMPTS", "16")
@@ -631,6 +653,71 @@ class CrossStepCandidateCollector:
         return retained
 
 
+class VisiblePoolRolloutCollector:
+    """Best accepted live-search candidate for each stable item."""
+
+    def __init__(self):
+        self._best_by_item = {}
+        self._class_by_item = {}
+
+    def observe(
+        self,
+        item_idx,
+        item,
+        _container_idx,
+        _orientation,
+        decision,
+    ):
+        item_index = int(item.get("index", item_idx))
+        current = self._best_by_item.get(item_index)
+        if current is None or float(decision.score) > float(current.score):
+            self._best_by_item[item_index] = decision
+            self._class_by_item[item_index] = (
+                tuple(
+                    sorted(
+                        round(float(item[name]), 6)
+                        for name in ("length", "width", "height")
+                    )
+                ),
+                round(float(item.get("mass", 1.0)), 6),
+                bool(item.get("is_soft", False)),
+                bool(item.get("is_prioritized", False)),
+            )
+
+    def snapshot(self, limit=None):
+        ordered = sorted(
+            self._best_by_item.values(),
+            key=lambda decision: float(decision.score),
+            reverse=True,
+        )
+        if limit is None:
+            return ordered
+        limit = max(0, int(limit))
+        item_for_decision = {
+            id(decision): item_index
+            for item_index, decision in self._best_by_item.items()
+        }
+        diverse = []
+        seen_classes = set()
+        for decision in ordered:
+            item_index = item_for_decision[id(decision)]
+            item_class = self._class_by_item[item_index]
+            if item_class in seen_classes:
+                continue
+            seen_classes.add(item_class)
+            diverse.append(decision)
+            if len(diverse) >= limit:
+                return diverse
+        selected_ids = {id(decision) for decision in diverse}
+        for decision in ordered:
+            if id(decision) in selected_ids:
+                continue
+            diverse.append(decision)
+            if len(diverse) >= limit:
+                break
+        return diverse
+
+
 @dataclass(frozen=True)
 class VisiblePoolFeasibility:
     feasible_items: int
@@ -644,6 +731,22 @@ class LookaheadEvaluation:
     feasible_next_items: int
     total_next_items: int
     best_next_score: float
+
+
+@dataclass(frozen=True)
+class VisiblePoolRolloutValue:
+    """Deterministic static-proxy value after one candidate action."""
+
+    placed_count: int
+    added_volume: float
+    cumulative_rotation_risk: float
+    cumulative_slide_risk: float
+    attempts_used: int
+    accepted_candidates: int
+    initial_release_proxy: bool
+    release_truncated: bool
+    terminal_reason: str
+    trace: tuple
 
 
 @dataclass(frozen=True)
@@ -3688,6 +3791,7 @@ def iter_prioritized_candidates(
     indexed_items,
     deadline=None,
     diagnostics=None,
+    attempt_budget=None,
 ):
     """
     Time-sliced candidate stream.
@@ -3744,6 +3848,7 @@ def iter_prioritized_candidates(
             search_stats.setdefault("item_indices_started", [])
             search_stats.setdefault("item_indices_with_candidates", [])
 
+    attempts_used = 0
     attempts_per_unit = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
     while states:
         if search_stats is not None:
@@ -3795,6 +3900,11 @@ def iter_prioritized_candidates(
             exhausted = False
             for _ in range(attempts_per_unit):
                 if (
+                    attempt_budget is not None
+                    and attempts_used >= int(attempt_budget)
+                ):
+                    return
+                if (
                     deadline is not None
                     and time.perf_counter() >= deadline
                 ):
@@ -3808,6 +3918,12 @@ def iter_prioritized_candidates(
                     if search_stats is not None:
                         search_stats["units_completed"] += 1
                     break
+                attempts_used += 1
+                if (
+                    search_stats is not None
+                    and attempt_budget is not None
+                ):
+                    search_stats["attempts_consumed"] = attempts_used
                 if candidate is not None:
                     if record_item_lifecycle:
                         item_index = int(item.get("index", item_idx))
@@ -4361,6 +4477,347 @@ def apply_placement_decision(item, decision, containers):
     )
 
 
+def _rollout_candidate_key(candidate, item, container, score):
+    """Proxy-policy key deliberately independent of the live Ranker."""
+    predicted = settled_proxy_candidate(candidate, container)
+    support = Geometry.support_metrics(predicted, container, item)
+    volume = math.prod(float(value) for value in candidate.size)
+    return (
+        int(candidate.name != "release_candidate"),
+        float(support.ratio),
+        -float(predicted.center[2]),
+        float(volume),
+        float(score),
+    )
+
+
+def bounded_rollout_decision(
+    observation,
+    indexed_items,
+    attempt_budget,
+    risk_lambda=None,
+):
+    """
+    Select one proxy-rollout transition under an anchor-attempt budget.
+
+    Unlike the live Ranker, the proxy policy first prefers settled support,
+    then support quality and low height.  Q_live is only the final stable
+    tie-break, so the rollout does not recursively reproduce the utility it
+    is intended to diagnose.
+    """
+    best = None
+    best_key = None
+    diagnostics = {}
+    accepted = 0
+    containers = observation.get("container_list", [])
+    has_priority_container = any(
+        bool(container.get("is_prioritized", False))
+        for container in containers
+    )
+    for item_idx, item, container_idx, orientation, candidate in (
+        iter_prioritized_candidates(
+            observation,
+            indexed_items,
+            diagnostics=diagnostics,
+            attempt_budget=max(0, int(attempt_budget)),
+        )
+    ):
+        accepted += 1
+        container = containers[container_idx]
+        score = Ranker.score(
+            candidate, item, container, has_priority_container
+        )
+        score, _ = risk_adjusted_score(
+            score,
+            candidate,
+            item,
+            container,
+            orientation,
+            risk_lambda,
+        )
+        key = _rollout_candidate_key(candidate, item, container, score)
+        if best_key is None or key > best_key:
+            best_key = key
+            best = PlacementDecision(
+                action={
+                    "item_idx": int(item_idx),
+                    "container_idx": int(container_idx),
+                    "place_pos": np.asarray(
+                        simulator_action_center(candidate, container),
+                        dtype=np.float32,
+                    ),
+                    "orientation": int(orientation),
+                },
+                candidate=candidate,
+                score=float(score),
+            )
+    search = diagnostics.get("search", {})
+    attempts_before = int(search.get("attempts_consumed", 0))
+    return best, attempts_before, accepted
+
+
+def visible_pool_rollout_value(
+    observation,
+    indexed_items,
+    initial_decision,
+    depth=3,
+    attempts_per_step=512,
+    risk_lambda=None,
+):
+    """
+    Evaluate a candidate with a bounded visible-pool static rollout.
+
+    The commanded initial release is converted through the existing settled
+    proxy and explicitly marked.  A later release transition is not applied:
+    without PyBullet its next state is uncertain, so the branch terminates.
+    """
+    pool_list = observation.get("pool_list", [])
+    initial_pool_idx = int(initial_decision.action["item_idx"])
+    if not (0 <= initial_pool_idx < len(pool_list)):
+        raise IndexError("initial decision item_idx is outside the pool")
+
+    containers = copy.deepcopy(observation.get("container_list", []))
+    initial_item = pool_list[initial_pool_idx]
+    initial_release_proxy = (
+        initial_decision.candidate.name == "release_candidate"
+    )
+    apply_placement_decision(initial_item, initial_decision, containers)
+    remaining = [
+        (idx, item)
+        for idx, item in indexed_items
+        if int(idx) != initial_pool_idx
+    ]
+    placed_count = 0
+    added_volume = 0.0
+    cumulative_rotation_risk = 0.0
+    cumulative_slide_risk = 0.0
+    attempts_used = 0
+    accepted_candidates = 0
+    release_truncated = False
+    terminal_reason = "depth_reached"
+    trace = []
+
+    for rollout_step in range(max(0, int(depth) - 1)):
+        if not remaining:
+            terminal_reason = "pool_exhausted"
+            break
+        sim_observation = {
+            "pool_list": pool_list,
+            "container_list": containers,
+        }
+        decision, step_attempts, step_accepted = bounded_rollout_decision(
+            sim_observation,
+            remaining,
+            attempts_per_step,
+            risk_lambda=risk_lambda,
+        )
+        attempts_used += int(step_attempts)
+        accepted_candidates += int(step_accepted)
+        if decision is None:
+            terminal_reason = "no_candidate"
+            break
+        item_idx = int(decision.action["item_idx"])
+        item = pool_list[item_idx]
+        if decision.candidate.name == "release_candidate":
+            container = containers[int(decision.action["container_idx"])]
+            rotation_probability = release_rotation_risk_probability_mech(
+                float(decision.candidate.center[0]),
+                float(decision.candidate.center[1]),
+                float(decision.candidate.center[2]),
+                tuple(float(v) for v in decision.candidate.size),
+                container,
+            )
+            slide_probability = release_large_slide_probability(
+                decision.candidate,
+                item,
+                container,
+                int(decision.action["orientation"]),
+            )
+            cumulative_rotation_risk += float(rotation_probability)
+            cumulative_slide_risk += float(slide_probability)
+            release_truncated = True
+            terminal_reason = "release_transition_uncertain"
+            trace.append(
+                {
+                    "step": int(rollout_step + 1),
+                    "item_index": int(item.get("index", item_idx)),
+                    "kind": "release_candidate",
+                    "applied": False,
+                    "rotation_risk": float(rotation_probability),
+                    "slide_risk": float(slide_probability),
+                }
+            )
+            break
+        apply_placement_decision(item, decision, containers)
+        placed_count += 1
+        volume = float(
+            item["length"] * item["width"] * item["height"]
+        )
+        added_volume += volume
+        trace.append(
+            {
+                "step": int(rollout_step + 1),
+                "item_index": int(item.get("index", item_idx)),
+                "kind": str(decision.candidate.name),
+                "applied": True,
+                "volume": volume,
+            }
+        )
+        remaining = [
+            (idx, remaining_item)
+            for idx, remaining_item in remaining
+            if int(idx) != item_idx
+        ]
+
+    return VisiblePoolRolloutValue(
+        placed_count=int(placed_count),
+        added_volume=float(added_volume),
+        cumulative_rotation_risk=float(cumulative_rotation_risk),
+        cumulative_slide_risk=float(cumulative_slide_risk),
+        attempts_used=int(attempts_used),
+        accepted_candidates=int(accepted_candidates),
+        initial_release_proxy=bool(initial_release_proxy),
+        release_truncated=bool(release_truncated),
+        terminal_reason=str(terminal_reason),
+        trace=tuple(trace),
+    )
+
+
+def visible_pool_rollout_rank_key(value):
+    return (
+        int(value.placed_count),
+        float(value.added_volume),
+        -float(value.cumulative_rotation_risk),
+        -float(value.cumulative_slide_risk),
+    )
+
+
+def _rollout_action_record(decision, pool_list, value):
+    pool_index = int(decision.action["item_idx"])
+    item_index = None
+    if 0 <= pool_index < len(pool_list):
+        item_index = int(pool_list[pool_index].get("index", pool_index))
+    return {
+        "pool_index": pool_index,
+        "item_index": item_index,
+        "container_index": int(decision.action["container_idx"]),
+        "orientation": int(decision.action["orientation"]),
+        "kind": str(decision.candidate.name or "candidate"),
+        "q_live": float(decision.score),
+        "rollout_key": list(visible_pool_rollout_rank_key(value)),
+        "value": {
+            **dataclass_to_dict(value),
+            "trace": list(value.trace),
+        },
+    }
+
+
+def dataclass_to_dict(value):
+    """Small local serializer that keeps submission dependencies minimal."""
+    return {
+        field_name: getattr(value, field_name)
+        for field_name in value.__dataclass_fields__
+        if field_name != "trace"
+    }
+
+
+def visible_pool_rollout_shadow_record(
+    observation,
+    indexed_items,
+    candidates,
+    selected_decision,
+    *,
+    depth=VISIBLE_POOL_ROLLOUT_DEPTH,
+    attempts_per_step=VISIBLE_POOL_ROLLOUT_ATTEMPTS,
+    q_band=VISIBLE_POOL_ROLLOUT_Q_BAND,
+    risk_lambda=None,
+):
+    """Evaluate live Top-K without changing the action returned by policy."""
+    started = time.perf_counter()
+    pool_list = observation.get("pool_list", [])
+    unique = []
+    seen = set()
+    selected_key = (
+        int(selected_decision.action["item_idx"]),
+        int(selected_decision.action["container_idx"]),
+        int(selected_decision.action["orientation"]),
+        tuple(
+            round(float(v), 6)
+            for v in selected_decision.candidate.center
+        ),
+        tuple(
+            round(float(v), 6)
+            for v in selected_decision.candidate.size
+        ),
+    )
+    for decision in candidates:
+        if decision is None:
+            continue
+        key = (
+            int(decision.action["item_idx"]),
+            int(decision.action["container_idx"]),
+            int(decision.action["orientation"]),
+            tuple(round(float(v), 6) for v in decision.candidate.center),
+            tuple(round(float(v), 6) for v in decision.candidate.size),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(decision)
+        if len(unique) >= int(VISIBLE_POOL_ROLLOUT_TOP_K):
+            break
+    if selected_key not in seen:
+        if len(unique) >= int(VISIBLE_POOL_ROLLOUT_TOP_K):
+            unique[-1] = selected_decision
+        else:
+            unique.append(selected_decision)
+
+    records = []
+    for decision in unique:
+        value = visible_pool_rollout_value(
+            observation,
+            indexed_items,
+            decision,
+            depth=depth,
+            attempts_per_step=attempts_per_step,
+            risk_lambda=risk_lambda,
+        )
+        records.append(_rollout_action_record(decision, pool_list, value))
+
+    selected_score = float(selected_decision.score)
+    eligible = [
+        record
+        for record in records
+        if record["q_live"] >= selected_score - float(q_band)
+    ]
+    proposed = max(
+        eligible,
+        key=lambda record: (
+            tuple(record["rollout_key"]), record["q_live"]
+        ),
+        default=None,
+    )
+    selected_pool_index = int(selected_decision.action["item_idx"])
+    return {
+        "mode": "shadow",
+        "depth": int(depth),
+        "attempts_per_step": int(attempts_per_step),
+        "q_band": float(q_band),
+        "candidate_count": len(records),
+        "eligible_count": len(eligible),
+        "selected_pool_index": selected_pool_index,
+        "proposed_pool_index": (
+            None if proposed is None else int(proposed["pool_index"])
+        ),
+        "would_change_item": bool(
+            proposed is not None
+            and int(proposed["pool_index"]) != selected_pool_index
+        ),
+        "elapsed_seconds": float(time.perf_counter() - started),
+        "candidates": records,
+    }
+
+
 def replay_placement_trace(ordered_items, container_templates, deadline=None):
     containers = [
         normalize_container(container) for container in container_templates
@@ -4807,6 +5264,7 @@ class Agent:
         self.last_pair_macro_adoptions = 0
         self.last_lookahead_evaluation = None
         self.last_top_candidate_count = 0
+        self.last_top_candidates = []
         self.last_candidate_diagnostics = {}
         self.last_action_source = None
         self.last_candidate_kind = None
@@ -5188,6 +5646,7 @@ class Agent:
             **top_candidate_kwargs,
         )
         self.last_top_candidate_count = len(top)
+        self.last_top_candidates = list(top)
         seen_top_items = set()
         for decision in top:
             pool_index = int(decision.action["item_idx"])
@@ -5448,6 +5907,9 @@ class Agent:
             cross_step_collector = CrossStepCandidateCollector(
                 CROSS_STEP_INCUMBENT_PER_ITEM
             )
+        rollout_collector = None
+        if VISIBLE_POOL_ROLLOUT_MODE == "shadow":
+            rollout_collector = VisiblePoolRolloutCollector()
 
         live_lambda = (
             RELEASE_RISK_RERANK_LAMBDA if RELEASE_RISK_LIVE_RERANK else None
@@ -5458,10 +5920,17 @@ class Agent:
                 "model": active_release_risk_model_version(),
             }
         closed_loop_kwargs = {"risk_lambda": live_lambda}
+        candidate_observers = []
         if cross_step_collector is not None:
-            closed_loop_kwargs["candidate_observer"] = (
-                cross_step_collector.observe
-            )
+            candidate_observers.append(cross_step_collector.observe)
+        if rollout_collector is not None:
+            candidate_observers.append(rollout_collector.observe)
+        if candidate_observers:
+            def observe_candidate(*args):
+                for observer in candidate_observers:
+                    observer(*args)
+
+            closed_loop_kwargs["candidate_observer"] = observe_candidate
         decision = self._closed_loop_choice(
             observation,
             pool_list,
@@ -5475,10 +5944,8 @@ class Agent:
                 "diagnostics": self.last_candidate_diagnostics,
                 "risk_lambda": live_lambda,
             }
-            if cross_step_collector is not None:
-                choose_kwargs["candidate_observer"] = (
-                    cross_step_collector.observe
-                )
+            if candidate_observers:
+                choose_kwargs["candidate_observer"] = observe_candidate
             decision = PlacementCore.choose(
                 observation,
                 ordered_items,
@@ -5593,6 +6060,21 @@ class Agent:
             if shadow_record is not None:
                 self.last_candidate_diagnostics["shadow_rerank"] = (
                     shadow_record
+                )
+            if (
+                VISIBLE_POOL_ROLLOUT_MODE == "shadow"
+                and action_source != "rescue_scan"
+            ):
+                self.last_candidate_diagnostics[
+                    "visible_pool_rollout"
+                ] = visible_pool_rollout_shadow_record(
+                    observation,
+                    ordered_items,
+                    rollout_collector.snapshot(
+                        VISIBLE_POOL_ROLLOUT_TOP_K
+                    ),
+                    decision,
+                    risk_lambda=live_lambda,
                 )
             finalize_release_flow_diagnostics(
                 self.last_candidate_diagnostics

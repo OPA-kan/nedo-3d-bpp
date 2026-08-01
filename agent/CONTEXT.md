@@ -80,6 +80,13 @@
   返却actionには使わず、`would_prevent_protocol_fallback`、生存数、棄却理由、
   再検証時間だけをtraceする。既定は`off`で、`enforce`は未実装。
   詳細は`docs/CROSS_STEP_INCUMBENT.md`。
+- `VISIBLE_POOL_ROLLOUT_MODE=shadow`はlive actionを変えず、探索中に受理済みの
+  候補をitemごとに1件保持し、寸法・質量・soft/priority属性の同値classを
+  多様化したTop-Kだけに固定attempt数の静的rolloutを行う。値は
+  `(future settled配置数, 追加体積, -累積回転risk, -累積slide risk)`。
+  初手releaseはsettled proxy利用を明記し、rollout途中のreleaseは適用せず
+  `release_transition_uncertain`で打ち切る。既定`off`、`enforce`未実装。
+  詳細は`docs/VISIBLE_POOL_ROLLOUT.md`。
 - `ITEM_COVERAGE_MODE=class_aware`では、normal/soft/priorityの各present classから
   最低1荷物をitem cap内へ確保し、各included itemの先頭探索unitを残りposeより先に
   一巡する。`legacy`で従来prefixへ戻せる。配置ranking scoreは変更しない。

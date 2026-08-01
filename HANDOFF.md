@@ -222,28 +222,30 @@ but it did not cover the fatal state. Compact result:
 `reports/cross-step-incumbent/history/30707120494/summary.{md,json}`. Contract:
 `docs/CROSS_STEP_INCUMBENT.md`.
 
-## Next engineering task: Ranker mis-ranking decomposition
+## Latest experiment: graded visible-pool rollout shadow
 
-The Q_old utility is now the blocker (evidence: aabb-cache-guard-mixed,
-lookahead-modes-degenerate-rich-search, b000-k20-regression-is-slide-death).
-Before redesigning it, produce the diagnostic report:
+Branch `experiment/visible-pool-rollout` implements the first graded Ranker
+future term without changing live selection. `VISIBLE_POOL_ROLLOUT_MODE=off`
+is the default; `shadow` collects the best accepted candidate per stable item,
+selects a Top-K diverse across `(dimensions, mass, soft, priority)` classes,
+and evaluates each with a fixed anchor-attempt budget. The proxy rollout
+prefers settled support and does not recursively use Q_live as its main key.
 
-1. Take the first trajectory-divergence step between cache ON/OFF or
-   old/new policy runs. A located instance: b000-k20 step 9 —
-   base-r0 (26 placed, item 17 at [0.66, 0.29, 0.48]) vs base-r7
-   (14 placed, item 28 at [0.59, -0.16, 0.54]); episode artifacts in
-   `reports/risk-ablation/runs/`, state snapshots in
-   `reports/replay-dataset/`.
-2. For every candidate at that step, tabulate the score decomposition:
-   `12V, 2R, D(0.35y), -0.12|x|, -0.18zm, B_route, P_rot, P_slide`.
-3. Report: within-item rank, across-item rank, candidates that only the
-   rich search reaches, the margin to the selected candidate, and the
-   next-step valid-candidate count after each hypothetical placement.
-4. Known defects to design against once the table exists: the volume
-   term is dead within an item (evidence 1), the lookahead re-applies
-   the same immediate score (evidence 2), and the 1-ply binary
-   feasibility signal is saturated (lookahead-modes-degenerate-rich-search)
-   — the missing future term must be graded, not binary.
+On the known b000-k20 step-9 divergence, the historical item-17 action kept
+one additional settled placement (item 28, 0.08 m3), while item 28 kept zero.
+The ordering was unchanged at attempt budgets 64/128/256/512. The current
+policy's live class-diverse shadow on the same snapshot cost about 0.15 s,
+did not alter the returned item-5 action, and graded items 5/17/28 as 2/1/0
+future settled placements. See `docs/VISIBLE_POOL_ROLLOUT.md` and
+`reports/visible-pool-rollout/`.
+
+This is signal, not adoption evidence: the immediate candidate is a release
+and is represented by the settled proxy; later release transitions terminate
+the rollout, and no PyBullet counterfactual or full-episode enforce run has
+been performed. Next run a default-off vs shadow Linux guard on the 5
+development configs. If added wall time stays below the online limit and the
+shadow value remains non-degenerate, add a separate `enforce` ablation using
+the frozen Q band; do not change the default on this branch.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),

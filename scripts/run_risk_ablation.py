@@ -48,6 +48,11 @@ def configure_arm_environment(
         "RESCUE_SCAN_ATTEMPTS_PER_UNIT",
         "CROSS_STEP_INCUMBENT_MODE",
         "CROSS_STEP_INCUMBENT_PER_ITEM",
+        "VISIBLE_POOL_ROLLOUT_MODE",
+        "VISIBLE_POOL_ROLLOUT_TOP_K",
+        "VISIBLE_POOL_ROLLOUT_DEPTH",
+        "VISIBLE_POOL_ROLLOUT_ATTEMPTS",
+        "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
         "RELEASE_RISK_RERANK_LAMBDA",
@@ -57,11 +62,18 @@ def configure_arm_environment(
         env.pop(name, None)
     if arm == "off":
         env["RELEASE_RISK_LIVE_RERANK"] = "0"
-    elif arm in {"base", "rescue", "cross_step_shadow"}:
+    elif arm in {
+        "base",
+        "rescue",
+        "cross_step_shadow",
+        "rollout_shadow",
+    }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":
             env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"
+        elif arm == "rollout_shadow":
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
@@ -189,6 +201,13 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "cross_step_validation_seconds_total": 0.0,
         "cross_step_validation_seconds_max": 0.0,
         "cross_step_deadline_overrun_count": 0,
+        "rollout_observed_steps": 0,
+        "rollout_candidate_count": 0,
+        "rollout_eligible_count": 0,
+        "rollout_non_degenerate_count": 0,
+        "rollout_would_change_count": 0,
+        "rollout_seconds_total": 0.0,
+        "rollout_seconds_max": 0.0,
     }
     if not path.exists():
         return summary
@@ -252,6 +271,33 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 if remaining is not None and float(remaining) < 0.0:
                     summary["cross_step_deadline_overrun_count"] += 1
+            rollout = (
+                diagnostics.get("visible_pool_rollout")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(rollout, dict):
+                summary["rollout_observed_steps"] += 1
+                summary["rollout_candidate_count"] += int(
+                    rollout.get("candidate_count", 0)
+                )
+                summary["rollout_eligible_count"] += int(
+                    rollout.get("eligible_count", 0)
+                )
+                if rollout.get("would_change_item") is True:
+                    summary["rollout_would_change_count"] += 1
+                keys = {
+                    tuple(candidate.get("rollout_key", []))
+                    for candidate in rollout.get("candidates", [])
+                    if isinstance(candidate, dict)
+                }
+                if len(keys) > 1:
+                    summary["rollout_non_degenerate_count"] += 1
+                elapsed = float(rollout.get("elapsed_seconds", 0.0))
+                summary["rollout_seconds_total"] += elapsed
+                summary["rollout_seconds_max"] = max(
+                    summary["rollout_seconds_max"], elapsed
+                )
     return summary
 
 
@@ -361,6 +407,13 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "validation_seconds_total": 0.0,
                     "validation_seconds_max": 0.0,
                     "deadline_overrun_count": 0,
+                    "rollout_observed_steps": 0,
+                    "rollout_candidate_count": 0,
+                    "rollout_eligible_count": 0,
+                    "rollout_non_degenerate_count": 0,
+                    "rollout_would_change_count": 0,
+                    "rollout_seconds_total": 0.0,
+                    "rollout_seconds_max": 0.0,
                 },
             )
             trace_bucket["episodes"] += 1
@@ -392,6 +445,21 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             )
             trace_bucket["deadline_overrun_count"] += int(
                 trace.get("cross_step_deadline_overrun_count", 0)
+            )
+            for name in (
+                "rollout_observed_steps",
+                "rollout_candidate_count",
+                "rollout_eligible_count",
+                "rollout_non_degenerate_count",
+                "rollout_would_change_count",
+            ):
+                trace_bucket[name] += int(trace.get(name, 0))
+            trace_bucket["rollout_seconds_total"] += float(
+                trace.get("rollout_seconds_total", 0.0)
+            )
+            trace_bucket["rollout_seconds_max"] = max(
+                trace_bucket["rollout_seconds_max"],
+                float(trace.get("rollout_seconds_max", 0.0)),
             )
         for case_id, case in row["cases"].items():
             arm_bucket = per_arm.setdefault(
@@ -522,6 +590,37 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "deadline_overrun_count": int(
                 bucket["deadline_overrun_count"]
             ),
+            "rollout_observed_steps": int(
+                bucket["rollout_observed_steps"]
+            ),
+            "rollout_candidate_count": int(
+                bucket["rollout_candidate_count"]
+            ),
+            "rollout_eligible_count": int(
+                bucket["rollout_eligible_count"]
+            ),
+            "rollout_non_degenerate_count": int(
+                bucket["rollout_non_degenerate_count"]
+            ),
+            "rollout_would_change_count": int(
+                bucket["rollout_would_change_count"]
+            ),
+            "rollout_seconds_total": round(
+                bucket["rollout_seconds_total"], 6
+            ),
+            "rollout_seconds_max": round(
+                bucket["rollout_seconds_max"], 6
+            ),
+            "rollout_ms_per_observed_step": (
+                round(
+                    1000.0
+                    * bucket["rollout_seconds_total"]
+                    / bucket["rollout_observed_steps"],
+                    3,
+                )
+                if bucket["rollout_observed_steps"]
+                else None
+            ),
         }
     return {
         "arms": arms,
@@ -583,6 +682,24 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['would_prevent_fallback_count']} "
                 f"| {trace['validation_ms_per_observed_step']} "
                 f"| {trace['deadline_overrun_count']} |"
+            )
+        lines += [
+            "",
+            "## Visible-pool rollout telemetry",
+            "",
+            "| arm | steps | candidates | eligible | non-degenerate "
+            "| would change item | ms/step | max seconds |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['rollout_observed_steps']} "
+                f"| {trace['rollout_candidate_count']} "
+                f"| {trace['rollout_eligible_count']} "
+                f"| {trace['rollout_non_degenerate_count']} "
+                f"| {trace['rollout_would_change_count']} "
+                f"| {trace['rollout_ms_per_observed_step']} "
+                f"| {trace['rollout_seconds_max']} |"
             )
     lines += [
         "",

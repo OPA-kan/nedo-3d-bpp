@@ -135,6 +135,18 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["CROSS_STEP_INCUMBENT_MODE"], "shadow")
         self.assertNotIn("CROSS_STEP_INCUMBENT_PER_ITEM", env)
 
+    def test_rollout_shadow_is_the_shipped_baseline_plus_telemetry(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "VISIBLE_POOL_ROLLOUT_ATTEMPTS": "999",
+        }
+
+        configure_arm_environment(env, "rollout_shadow", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "shadow")
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_ATTEMPTS", env)
+
 
 class PolicyTraceSummaryTests(unittest.TestCase):
     def test_counts_rescue_and_protocol_fallback_separately(self):
@@ -194,8 +206,43 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "cross_step_validation_seconds_total": 0.004,
                 "cross_step_validation_seconds_max": 0.004,
                 "cross_step_deadline_overrun_count": 1,
+                "rollout_observed_steps": 0,
+                "rollout_candidate_count": 0,
+                "rollout_eligible_count": 0,
+                "rollout_non_degenerate_count": 0,
+                "rollout_would_change_count": 0,
+                "rollout_seconds_total": 0.0,
+                "rollout_seconds_max": 0.0,
             },
         )
+
+    def test_rollout_shadow_summary_counts_discrimination_and_cost(self):
+        record = {
+            "event": "decision",
+            "candidate_diagnostics": {
+                "visible_pool_rollout": {
+                    "candidate_count": 3,
+                    "eligible_count": 2,
+                    "would_change_item": True,
+                    "elapsed_seconds": 0.15,
+                    "candidates": [
+                        {"rollout_key": [2, 0.1, 0.0, 0.0]},
+                        {"rollout_key": [1, 0.2, 0.0, 0.0]},
+                    ],
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["rollout_observed_steps"], 1)
+        self.assertEqual(summary["rollout_candidate_count"], 3)
+        self.assertEqual(summary["rollout_non_degenerate_count"], 1)
+        self.assertEqual(summary["rollout_would_change_count"], 1)
+        self.assertAlmostEqual(summary["rollout_seconds_total"], 0.15)
 
 
 if __name__ == "__main__":

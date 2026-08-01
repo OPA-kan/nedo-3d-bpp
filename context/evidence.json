@@ -376,6 +376,14 @@
       "status": "active",
       "claim": "The first cross-step incumbent design (top 2 accepted candidates per stable item and per settled/release kind, shadow only) is rejected as a replacement for unsafe_protocol_fallback. In the 5-config development ablation it retained 1,603 candidates across 76 decisions; every retained item's identity remained visible, but only 702 candidates (43.793%) passed the complete next-state static contract. Revalidation cost 2.864 s total / 37.684 ms per observed step, max 145 ms, with one deadline overrun. The only protocol fallback occurred in b001-k30 in both arms. At the shadow fatal step 16, all 18 retained candidates still had visible items but zero remained valid (17 corridor, 1 static_geometry); validation began 27.8 ms after the internal deadline. would_prevent_protocol_fallback was 0/1. Keep mode default OFF and do not add enforce. Scope: this rejects score-top2 carryover as the fallback guarantee, not diverse carryover as a warm start; general-step survival was nonzero but did not cover the fatal state.",
       "source": "reports/cross-step-incumbent/history/30707120494/summary.json; Actions run 30707120494; b001-k30 shadow policy trace artifact"
+    },
+    {
+      "id": "visible-pool-rollout-step9-signal",
+      "topic": "ranker",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "A bounded graded visible-pool rollout separates the known b000-k20 step-9 Ranker divergence where raw next-candidate counts were 2712 vs 1140. Across fixed per-step attempt budgets 64, 128, 256 and 512, the historically successful item-17 action retained one additional settled placement (item 28, 0.08 m3) while the item-28 action retained zero before the static rollout reached an uncertain release transition; the lexicographic rollout therefore ranks item 17 above item 28 at every tested budget. On the current-policy replay of the same snapshot, a class-diverse live Top-3 shadow cost about 0.15 s, preserved the returned item-5 action, and produced graded values 2/1/0 future settled placements for items 5/17/28. Scope: one saved snapshot, static settled proxy for the commanded release, no PyBullet counterfactual and no evidence yet that enforcing the tie-break improves full episodes.",
+      "source": "reports/visible-pool-rollout/b000-k20-step009-d3-a{64,128,256,512}/report.json; docs/VISIBLE_POOL_ROLLOUT.md"
     }
   ]
 }

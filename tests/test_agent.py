@@ -3373,6 +3373,12 @@ class CrossStepIncumbentTests(unittest.TestCase):
         with (
             mock.patch.object(agent, "CROSS_STEP_INCUMBENT_MODE", "off"),
             mock.patch.object(
+                agent, "VISIBLE_POOL_ROLLOUT_MODE", "off"
+            ),
+            mock.patch.object(
+                agent, "visible_pool_rollout_shadow_record"
+            ) as rollout_shadow,
+            mock.patch.object(
                 agent.Agent,
                 "_closed_loop_choice",
                 autospec=True,
@@ -3390,6 +3396,260 @@ class CrossStepIncumbentTests(unittest.TestCase):
         self.assertNotIn(
             "cross_step_incumbent", solver.last_candidate_diagnostics
         )
+        rollout_shadow.assert_not_called()
+
+    def test_rollout_shadow_records_but_does_not_change_action(self):
+        item = sample_item(0)
+        observation = {
+            "pool_list": [item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+        decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.array(
+                    [0.1, 0.0, 0.1], dtype=np.float32
+                ),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.1, 0.0, 0.1),
+                (0.2, 0.2, 0.2),
+                "candidate",
+            ),
+            score=1.0,
+        )
+        shadow = {
+            "mode": "shadow",
+            "would_change_item": True,
+            "proposed_pool_index": 1,
+        }
+        with (
+            mock.patch.object(
+                agent, "VISIBLE_POOL_ROLLOUT_MODE", "shadow"
+            ),
+            mock.patch.object(
+                agent.Agent,
+                "_closed_loop_choice",
+                return_value=decision,
+            ),
+            mock.patch.object(
+                agent,
+                "visible_pool_rollout_shadow_record",
+                return_value=shadow,
+            ) as rollout_shadow,
+        ):
+            solver = agent.Agent("")
+            solver.last_top_candidates = [decision]
+            action = solver.policy(observation)
+
+        self.assertEqual(action["item_idx"], 0)
+        self.assertEqual(
+            solver.last_candidate_diagnostics["visible_pool_rollout"],
+            shadow,
+        )
+        rollout_shadow.assert_called_once()
+
+    def test_rollout_collector_keeps_best_candidate_per_item(self):
+        collector = agent.VisiblePoolRolloutCollector()
+        item_a = sample_item(10)
+        item_b = sample_item(11)
+        item_c = sample_item(12)
+        item_c["length"] = 0.37
+
+        def observe(item, score):
+            decision = agent.PlacementDecision(
+                action={
+                    "item_idx": item["index"],
+                    "container_idx": 0,
+                    "place_pos": np.zeros(3, dtype=np.float32),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.0, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=score,
+            )
+            collector.observe(item["index"], item, 0, 0, decision)
+
+        observe(item_a, 1.0)
+        observe(item_a, 3.0)
+        observe(item_a, 2.0)
+        observe(item_b, 2.5)
+        observe(item_c, 2.0)
+
+        retained = collector.snapshot()
+        self.assertEqual(
+            [value.score for value in retained], [3.0, 2.5, 2.0]
+        )
+        diverse = collector.snapshot(limit=2)
+        self.assertEqual([value.score for value in diverse], [3.0, 2.0])
+
+    def test_prioritized_candidates_respects_attempt_budget(self):
+        item = sample_item(7)
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.2), (0.2, 0.2, 0.2), "candidate"
+        )
+        unit = (0, 0, 0, 0, 0, item, 0, 0, "settled")
+        diagnostics = {}
+        with (
+            mock.patch.object(
+                agent, "prioritized_search_units", return_value=[unit]
+            ),
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                return_value=iter([candidate] * 5),
+            ),
+        ):
+            found = list(
+                agent.iter_prioritized_candidates(
+                    {"container_list": [sample_container()]},
+                    [(0, item)],
+                    diagnostics=diagnostics,
+                    attempt_budget=2,
+                )
+            )
+
+        self.assertEqual(len(found), 2)
+        self.assertEqual(diagnostics["search"]["attempts_consumed"], 2)
+
+    def test_bounded_rollout_prefers_settled_before_live_score(self):
+        item = sample_item(7)
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        release = agent.AABB(
+            (0.0, 0.0, 0.3),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+        settled = agent.AABB(
+            (0.0, 0.0, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        stream = [
+            (0, item, 0, 0, release),
+            (0, item, 0, 0, settled),
+        ]
+        support = agent.SupportMetrics(1.0, 0.1, 1, 1.0)
+        with (
+            mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=iter(stream),
+            ),
+            mock.patch.object(
+                agent.Geometry, "support_metrics", return_value=support
+            ),
+            mock.patch.object(
+                agent.Ranker,
+                "score",
+                side_effect=lambda candidate, *_: (
+                    100.0
+                    if candidate.name == "release_candidate"
+                    else -100.0
+                ),
+            ),
+        ):
+            decision, _attempts, accepted = agent.bounded_rollout_decision(
+                {
+                    "pool_list": [item],
+                    "container_list": [container],
+                },
+                [(0, item)],
+                attempt_budget=8,
+            )
+
+        self.assertEqual(accepted, 2)
+        self.assertEqual(decision.candidate.name, "candidate")
+
+    def test_rollout_marks_initial_proxy_and_stops_at_future_release(self):
+        pool = [sample_item(index) for index in range(3)]
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        initial = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.3),
+                (0.2, 0.2, 0.2),
+                "release_candidate",
+            ),
+            score=0.0,
+        )
+        settled = agent.PlacementDecision(
+            action={
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.1),
+                (0.2, 0.2, 0.2),
+                "candidate",
+            ),
+            score=0.0,
+        )
+        release = agent.PlacementDecision(
+            action={
+                "item_idx": 2,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.3),
+                (0.2, 0.2, 0.2),
+                "release_candidate",
+            ),
+            score=0.0,
+        )
+        with (
+            mock.patch.object(agent, "apply_placement_decision"),
+            mock.patch.object(
+                agent,
+                "bounded_rollout_decision",
+                side_effect=[(settled, 7, 2), (release, 5, 1)],
+            ),
+            mock.patch.object(
+                agent,
+                "release_rotation_risk_probability_mech",
+                return_value=0.4,
+            ),
+            mock.patch.object(
+                agent,
+                "release_large_slide_probability",
+                return_value=0.2,
+            ),
+        ):
+            value = agent.visible_pool_rollout_value(
+                {"pool_list": pool, "container_list": [container]},
+                list(enumerate(pool)),
+                initial,
+                depth=3,
+                attempts_per_step=16,
+            )
+
+        self.assertTrue(value.initial_release_proxy)
+        self.assertTrue(value.release_truncated)
+        self.assertEqual(value.terminal_reason, "release_transition_uncertain")
+        self.assertEqual(value.placed_count, 1)
+        self.assertEqual(value.attempts_used, 12)
+        self.assertEqual(value.accepted_candidates, 3)
+        self.assertAlmostEqual(value.cumulative_rotation_risk, 0.4)
 
 
 if __name__ == "__main__":
