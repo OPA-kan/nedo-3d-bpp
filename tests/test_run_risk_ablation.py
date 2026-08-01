@@ -71,6 +71,31 @@ class SummarizeTests(unittest.TestCase):
             {"placed_diff": 2.0, "fill_diff": 2.5},
         )
 
+    def test_cross_step_telemetry_is_preserved_in_compact_summary(self):
+        row = episode_row("cross_step_shadow", "b000-k20", 13, 14.5)
+        row["policy_trace"] = {
+            "cross_step_observed_steps": 14,
+            "cross_step_previous_count": 40,
+            "cross_step_pool_survivor_count": 30,
+            "cross_step_static_valid_count": 24,
+            "cross_step_would_prevent_fallback_count": 1,
+            "cross_step_validation_seconds_total": 0.028,
+            "cross_step_validation_seconds_max": 0.004,
+            "cross_step_deadline_overrun_count": 0,
+        }
+
+        trace = summarize([row])["policy_trace_by_arm"][
+            "cross_step_shadow"
+        ]
+
+        self.assertEqual(trace["observed_steps"], 14)
+        self.assertEqual(trace["previous_count"], 40)
+        self.assertEqual(trace["pool_survival_rate"], 0.75)
+        self.assertEqual(trace["static_survival_rate"], 0.6)
+        self.assertEqual(trace["static_survival_given_pool"], 0.8)
+        self.assertEqual(trace["would_prevent_fallback_count"], 1)
+        self.assertEqual(trace["validation_ms_per_observed_step"], 2.0)
+
 
 class ArmEnvironmentTests(unittest.TestCase):
     def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):

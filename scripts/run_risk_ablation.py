@@ -343,9 +343,56 @@ def load_rows(output_dir: pathlib.Path) -> list[dict[str, Any]]:
 def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     per_arm: dict[str, dict[str, list[float]]] = {}
     per_case_arm: dict[tuple[str, str], dict[str, list[float]]] = {}
+    policy_trace_by_arm: dict[str, dict[str, float]] = {}
     for row in rows:
         if row["process_returncode"] != 0:
             continue
+        trace = row.get("policy_trace")
+        if isinstance(trace, dict):
+            trace_bucket = policy_trace_by_arm.setdefault(
+                row["arm"],
+                {
+                    "episodes": 0,
+                    "observed_steps": 0,
+                    "previous_count": 0,
+                    "pool_survivor_count": 0,
+                    "static_valid_count": 0,
+                    "would_prevent_fallback_count": 0,
+                    "validation_seconds_total": 0.0,
+                    "validation_seconds_max": 0.0,
+                    "deadline_overrun_count": 0,
+                },
+            )
+            trace_bucket["episodes"] += 1
+            trace_bucket["observed_steps"] += int(
+                trace.get("cross_step_observed_steps", 0)
+            )
+            trace_bucket["previous_count"] += int(
+                trace.get("cross_step_previous_count", 0)
+            )
+            trace_bucket["pool_survivor_count"] += int(
+                trace.get("cross_step_pool_survivor_count", 0)
+            )
+            trace_bucket["static_valid_count"] += int(
+                trace.get("cross_step_static_valid_count", 0)
+            )
+            trace_bucket["would_prevent_fallback_count"] += int(
+                trace.get(
+                    "cross_step_would_prevent_fallback_count", 0
+                )
+            )
+            trace_bucket["validation_seconds_total"] += float(
+                trace.get("cross_step_validation_seconds_total", 0.0)
+            )
+            trace_bucket["validation_seconds_max"] = max(
+                trace_bucket["validation_seconds_max"],
+                float(
+                    trace.get("cross_step_validation_seconds_max", 0.0)
+                ),
+            )
+            trace_bucket["deadline_overrun_count"] += int(
+                trace.get("cross_step_deadline_overrun_count", 0)
+            )
         for case_id, case in row["cases"].items():
             arm_bucket = per_arm.setdefault(
                 row["arm"],
@@ -424,12 +471,65 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     3,
                 ),
             }
+    policy_trace = {}
+    for arm, bucket in sorted(policy_trace_by_arm.items()):
+        previous_count = int(bucket["previous_count"])
+        pool_survivor_count = int(bucket["pool_survivor_count"])
+        observed_steps = int(bucket["observed_steps"])
+        policy_trace[arm] = {
+            "episodes": int(bucket["episodes"]),
+            "observed_steps": observed_steps,
+            "previous_count": previous_count,
+            "pool_survivor_count": pool_survivor_count,
+            "static_valid_count": int(bucket["static_valid_count"]),
+            "pool_survival_rate": (
+                round(pool_survivor_count / previous_count, 6)
+                if previous_count
+                else None
+            ),
+            "static_survival_rate": (
+                round(bucket["static_valid_count"] / previous_count, 6)
+                if previous_count
+                else None
+            ),
+            "static_survival_given_pool": (
+                round(
+                    bucket["static_valid_count"] / pool_survivor_count,
+                    6,
+                )
+                if pool_survivor_count
+                else None
+            ),
+            "would_prevent_fallback_count": int(
+                bucket["would_prevent_fallback_count"]
+            ),
+            "validation_seconds_total": round(
+                bucket["validation_seconds_total"], 6
+            ),
+            "validation_seconds_max": round(
+                bucket["validation_seconds_max"], 6
+            ),
+            "validation_ms_per_observed_step": (
+                round(
+                    1000.0
+                    * bucket["validation_seconds_total"]
+                    / observed_steps,
+                    3,
+                )
+                if observed_steps
+                else None
+            ),
+            "deadline_overrun_count": int(
+                bucket["deadline_overrun_count"]
+            ),
+        }
     return {
         "arms": arms,
         "cases": cases,
         "baseline_arm": baseline_arm,
         "paired_vs_baseline": paired,
         "paired_vs_off": paired if baseline_arm == "off" else {},
+        "policy_trace_by_arm": policy_trace,
     }
 
 
@@ -462,6 +562,28 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['near_miss'].get('mean', '-')} "
             f"| {stats['surface_tv'].get('mean', '-')} |"
         )
+    policy_trace = summary.get("policy_trace_by_arm", {})
+    if policy_trace:
+        lines += [
+            "",
+            "## Cross-step incumbent telemetry",
+            "",
+            "| arm | steps | carried | pool survived | static valid "
+            "| static survival | would prevent fallback | validation ms/step "
+            "| deadline overruns |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['observed_steps']} "
+                f"| {trace['previous_count']} "
+                f"| {trace['pool_survivor_count']} "
+                f"| {trace['static_valid_count']} "
+                f"| {trace['static_survival_rate']} "
+                f"| {trace['would_prevent_fallback_count']} "
+                f"| {trace['validation_ms_per_observed_step']} "
+                f"| {trace['deadline_overrun_count']} |"
+            )
     lines += [
         "",
         "## Paired per-case difference vs "
