@@ -336,6 +336,14 @@
       "status": "active",
       "claim": "lambda_slide = 0.5 adopted as the live default. Re-ablation under the cached (6.4x) search reversed the starved-search verdict: dev 5 configs placed 84 -> 88 and fill 86.8 -> 114.6 (slide 1.0: 88 / 110.5, zero slide deaths); validation single episode disagreed (21 -> 20 placed, fill -26%); both former-holdout cases identical between arms; the 7-case aggregate decides for adoption (placed 137 -> 140, fill 149.4 -> 171.6, +15%). Meta-lesson recorded: search, selection, and risk components cannot be evaluated independently -- changing one requires re-measuring the adoption verdicts of the others.",
       "source": "risk-ablation rows repeats 40-42 / 50-52 / 60-61; docs/RELEASE_RISK_PROTOCOL.md section 8"
+    },
+    {
+      "id": "official-score-calibration-point-1",
+      "topic": "competition",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "First official-evaluation calibration pair. OLD submission (pre-risk era): fill 14.41, num_placed 0.201, cog/stability/placement/soft ALL ZERO, status stopped-in-middle. NEW submission (current risk line: rot lambda=1 mech + slide lambda=0.5 + AABB cache, with minor uncommitted Codex tweaks of unknown diff): fill 27.90, num_placed 0.405, cog 9.60, stability 12.68, placement 2.25, soft 5.00, optimization 150.0 s, policy mean 6.53 s, status still stopped-in-middle (final action failed is_placed_safe/is_valid/is_included). Reads: (1) the placed-count cutoff sits between num_placed 0.201 and 0.405 on this scenario -- crossing it unlocked every component, confirming the gate structure; (2) official fill and placed roughly doubled, matching the local dev-suite direction (+35% placed / +71% fill); (3) policy mean 6.53 s matches POLICY_BUDGET_SECONDS=6.5 exactly -- no timeout margin problem; optimization 150 s is the internal offline budget, inside the 180 s limit; (4) episodes still end by a failed action, so terminal-survival remains the top lever officially too. Component scales/weights remain unknown (single scenario, units unpublished).",
+      "source": "user-provided SIGNATE result logs (resultlog_3, 2026-08-01; earlier zero-component log 2026-07-31)"
     }
   ]
 }
