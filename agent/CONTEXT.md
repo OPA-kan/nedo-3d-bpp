@@ -75,6 +75,11 @@
   候補生成、immediate top-K、future probe、選択の各stepを累積保存する。
   `candidate_generated`はdeadline内で観測した候補でありoracle可行性ではない。
   trace無効時は荷物別lifecycleを収集せず、選択方策も変更しない。
+- `CROSS_STEP_INCUMBENT_MODE=shadow`は通常探索で合格した候補をstable item index
+  ごとに保持し、次stepでpool再対応付けと完全な静的可行性再検証を行う。
+  返却actionには使わず、`would_prevent_protocol_fallback`、生存数、棄却理由、
+  再検証時間だけをtraceする。既定は`off`で、`enforce`は未実装。
+  詳細は`docs/CROSS_STEP_INCUMBENT.md`。
 - `ITEM_COVERAGE_MODE=class_aware`では、normal/soft/priorityの各present classから
   最低1荷物をitem cap内へ確保し、各included itemの先頭探索unitを残りposeより先に
   一巡する。`legacy`で従来prefixへ戻せる。配置ranking scoreは変更しない。
@@ -94,6 +99,8 @@
 - 候補が尽きた内部状態は`no_safe_action`、外部APIへ残している固定座標は
   `unsafe_protocol_fallback`としてtraceする。状態依存fallback生成器
   \(F(s,i,d)\) は未実装で、固定座標を安全なfallbackとは扱わない。
+- cross-step incumbentは上記固定fallbackをまだ置換しない。shadowで次step
+  生存率と再検証税を測ってから、別アブレーションで返却契約を検討する。
 - Run 30340049061 confirmed that this ordering is not sufficient on its own.
   Case 000 improved to 15 placements, but Case 001 still had no settled
   candidate at step 4 and its release fallback failed after settling by

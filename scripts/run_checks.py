@@ -89,6 +89,8 @@ def unit_test_environment() -> dict[str, str]:
         "RESCUE_SCAN_RESERVE_SECONDS",
         "RESCUE_SCAN_ATTEMPT_BUDGET",
         "RESCUE_SCAN_ATTEMPTS_PER_UNIT",
+        "CROSS_STEP_INCUMBENT_MODE",
+        "CROSS_STEP_INCUMBENT_PER_ITEM",
         "RELEASE_RISK_GATE_MODE",
     ):
         env.pop(name, None)

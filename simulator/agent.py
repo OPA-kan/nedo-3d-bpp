@@ -81,12 +81,15 @@ RELEASE_RISK_LIVE_RERANK = os.environ.get(
     "RELEASE_RISK_LIVE_RERANK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Slide hazard weight in the risk-adjusted score:
-# Q - lambda_rot*P_rot - lambda_slide*P_slide. The LIVE default stays 0
-# (rotation-only) until the slide line completes its protocol steps;
+# Q - lambda_rot*P_rot - lambda_slide*P_slide. Default 0.5 since
+# 2026-08-01: under the cached (rich) search the slide term won the
+# 7-case aggregate (placed 137 -> 140, fill 149 -> 172); the earlier
+# not-adopted verdict was an artifact of the starved search. Set to 0
+# to recover the rotation-only policy;
 # RELEASE_RISK_SLIDE_SHADOW_LAMBDA > 0 makes the shadow rerank compare
-# the live policy against rot+slide without touching the real action.
+# the live policy against a different slide weight.
 RELEASE_RISK_SLIDE_LAMBDA = float(
-    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.0")
+    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.5")
 )
 RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
     os.environ.get("RELEASE_RISK_SLIDE_SHADOW_LAMBDA", "0.0")
@@ -95,6 +98,31 @@ CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
 MAX_POOL_ITEMS_EVALUATED = 10
+RESCUE_SCAN_ENABLED = os.environ.get(
+    "RESCUE_SCAN_ENABLED", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+RESCUE_SCAN_RESERVE_SECONDS = float(
+    os.environ.get("RESCUE_SCAN_RESERVE_SECONDS", "0.2")
+)
+RESCUE_SCAN_ATTEMPT_BUDGET = int(
+    os.environ.get("RESCUE_SCAN_ATTEMPT_BUDGET", "512")
+)
+RESCUE_SCAN_ATTEMPTS_PER_UNIT = int(
+    os.environ.get("RESCUE_SCAN_ATTEMPTS_PER_UNIT", "32")
+)
+CROSS_STEP_INCUMBENT_MODES = frozenset({"off", "shadow"})
+CROSS_STEP_INCUMBENT_MODE = os.environ.get(
+    "CROSS_STEP_INCUMBENT_MODE", "off"
+).strip().lower()
+if CROSS_STEP_INCUMBENT_MODE not in CROSS_STEP_INCUMBENT_MODES:
+    raise ValueError(
+        f"unknown CROSS_STEP_INCUMBENT_MODE "
+        f"{CROSS_STEP_INCUMBENT_MODE!r}; expected one of "
+        f"{sorted(CROSS_STEP_INCUMBENT_MODES)}"
+    )
+CROSS_STEP_INCUMBENT_PER_ITEM = max(
+    1, int(os.environ.get("CROSS_STEP_INCUMBENT_PER_ITEM", "2"))
+)
 ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
 ITEM_COVERAGE_MODE = os.environ.get(
     "ITEM_COVERAGE_MODE", "class_aware"
@@ -526,6 +554,81 @@ class PlacementDecision:
     action: dict
     candidate: AABB
     score: float
+
+
+@dataclass(frozen=True)
+class CrossStepCandidate:
+    """A validated candidate retained under a stable item identity."""
+
+    item_index: int
+    previous_pool_index: int
+    container_index: int
+    orientation: int
+    candidate: AABB
+    previous_score: float
+
+
+class CrossStepCandidateCollector:
+    """Keep a bounded top-N per (item, settled/release) group."""
+
+    def __init__(self, per_item):
+        self.per_item = max(1, int(per_item))
+        self._groups = {}
+        self._seen = set()
+        self._sequence = 0
+
+    def observe(self, item_idx, item, container_idx, orientation, decision):
+        candidate = decision.candidate
+        item_index = int(item.get("index", item_idx))
+        kind = (
+            "release"
+            if candidate.name == "release_candidate"
+            else "settled"
+        )
+        candidate_key = (
+            item_index,
+            int(container_idx),
+            int(orientation),
+            kind,
+            tuple(round(float(value), 6) for value in candidate.center),
+            tuple(round(float(value), 6) for value in candidate.size),
+        )
+        if candidate_key in self._seen:
+            return
+        self._seen.add(candidate_key)
+        retained = CrossStepCandidate(
+            item_index=item_index,
+            previous_pool_index=int(item_idx),
+            container_index=int(container_idx),
+            orientation=int(orientation),
+            candidate=candidate,
+            previous_score=float(decision.score),
+        )
+        self._sequence += 1
+        entry = (float(decision.score), self._sequence, retained)
+        group = self._groups.setdefault((item_index, kind), [])
+        if len(group) < self.per_item:
+            heapq.heappush(group, entry)
+        elif entry[0] > group[0][0]:
+            heapq.heapreplace(group, entry)
+
+    def snapshot(self, excluded_item_index=None):
+        retained = []
+        for (item_index, _kind), group in sorted(self._groups.items()):
+            if (
+                excluded_item_index is not None
+                and item_index == int(excluded_item_index)
+            ):
+                continue
+            retained.extend(
+                candidate
+                for _score, _sequence, candidate in sorted(
+                    group,
+                    key=lambda entry: (entry[0], entry[1]),
+                    reverse=True,
+                )
+            )
+        return retained
 
 
 @dataclass(frozen=True)
@@ -3161,6 +3264,21 @@ def capped_online_items(pool_list, limit, mode=ITEM_COVERAGE_MODE):
     return selected
 
 
+def rescue_online_items(pool_list):
+    """Return every visible item in deterministic class round-robin order."""
+    grouped = {class_id: [] for class_id in (0, 1, 2)}
+    for indexed_item in online_item_order(pool_list):
+        grouped[item_group(indexed_item[1])].append(indexed_item)
+    ordered = []
+    depth = 0
+    while any(depth < len(grouped[class_id]) for class_id in grouped):
+        for class_id in (0, 1, 2):
+            if depth < len(grouped[class_id]):
+                ordered.append(grouped[class_id][depth])
+        depth += 1
+    return ordered
+
+
 def item_group(item):
     if bool(item.get("is_prioritized", False)):
         return 2
@@ -3371,6 +3489,29 @@ def prioritized_search_units(
     return units
 
 
+def rescue_search_units(observation, indexed_items):
+    """
+    Put one release and one settled unit for every item before deepening.
+
+    The ordinary anytime stream prioritizes quality.  Rescue instead
+    prioritizes breadth: every visible item and both candidate modes get a
+    shallow chance before another pose/container unit is expanded.
+    """
+    units = prioritized_search_units(observation, indexed_items)
+    first_units = []
+    remaining_units = []
+    seen_item_kinds = set()
+    for unit in units:
+        key = (int(unit[0]), str(unit[8]))
+        if key in seen_item_kinds:
+            remaining_units.append(unit)
+        else:
+            seen_item_kinds.add(key)
+            first_units.append(unit)
+    first_units.sort(key=lambda unit: (-int(unit[3]), int(unit[0])))
+    return first_units + remaining_units
+
+
 def candidate_audit_record(
     item_idx,
     item,
@@ -3394,6 +3535,152 @@ def candidate_audit_record(
     if elapsed_seconds is not None:
         record["elapsed_seconds"] = float(elapsed_seconds)
     return record
+
+
+def revalidate_cross_step_candidates(
+    observation,
+    retained_candidates,
+    *,
+    deadline=None,
+    risk_lambda=None,
+):
+    """Revalidate retained commands against the next observed state.
+
+    This is shadow telemetry only.  It deliberately uses the complete
+    current static contract instead of assuming that a candidate survives
+    merely because it does not overlap the newest packed item.
+    """
+    started = time.perf_counter()
+    pool_list = observation.get("pool_list", [])
+    containers = observation.get("container_list", [])
+    pool_by_item_index = {}
+    for pool_index, item in enumerate(pool_list):
+        item_index = int(item.get("index", pool_index))
+        pool_by_item_index.setdefault(item_index, (pool_index, item))
+
+    failure_counts = {}
+    valid = []
+    pool_survivor_items = set()
+    valid_items = set()
+    valid_kinds = {"settled": 0, "release": 0}
+    records = []
+    for retained in retained_candidates:
+        pool_entry = pool_by_item_index.get(retained.item_index)
+        if pool_entry is None:
+            reason = "item_not_visible"
+        elif not 0 <= retained.container_index < len(containers):
+            reason = "container_not_visible"
+        else:
+            pool_index, item = pool_entry
+            pool_survivor_items.add(retained.item_index)
+            container = containers[retained.container_index]
+            candidate = retained.candidate
+            if candidate.name == "release_candidate":
+                reason = Geometry.release_rejection_reason(
+                    candidate, container
+                )
+                if reason is None and not release_candidate_passes_risk_gate(
+                    candidate,
+                    item,
+                    container,
+                    retained.orientation,
+                    mode=RELEASE_RISK_GATE_MODE,
+                    diagnostics=None,
+                    item_idx=pool_index,
+                ):
+                    reason = "risk_gate"
+            else:
+                reason = Geometry.rejection_reason(candidate, container)
+
+        record = {
+            "item_index": int(retained.item_index),
+            "previous_pool_index": int(retained.previous_pool_index),
+            "container_index": int(retained.container_index),
+            "orientation": int(retained.orientation),
+            "kind": retained.candidate.name or "candidate",
+            "previous_score": float(retained.previous_score),
+            "valid": reason is None,
+            "rejection_reason": reason,
+        }
+        if pool_entry is not None:
+            record["current_pool_index"] = int(pool_entry[0])
+        records.append(record)
+        if reason is not None:
+            failure_counts[reason] = failure_counts.get(reason, 0) + 1
+            continue
+
+        pool_index, item = pool_entry
+        container = containers[retained.container_index]
+        score = Ranker.score(
+            retained.candidate,
+            item,
+            container,
+            any(
+                bool(candidate_container.get("is_prioritized", False))
+                for candidate_container in containers
+            ),
+        )
+        score, _risk_probability = risk_adjusted_score(
+            score,
+            retained.candidate,
+            item,
+            container,
+            retained.orientation,
+            risk_lambda,
+        )
+        decision = PlacementDecision(
+            action={
+                "item_idx": int(pool_index),
+                "container_idx": int(retained.container_index),
+                "place_pos": np.asarray(
+                    simulator_action_center(
+                        retained.candidate,
+                        container,
+                    ),
+                    dtype=np.float32,
+                ),
+                "orientation": int(retained.orientation),
+            },
+            candidate=retained.candidate,
+            score=float(score),
+        )
+        valid.append(decision)
+        valid_items.add(retained.item_index)
+        kind = (
+            "release"
+            if retained.candidate.name == "release_candidate"
+            else "settled"
+        )
+        valid_kinds[kind] += 1
+        record["current_score"] = float(score)
+
+    finished = time.perf_counter()
+    return {
+        "mode": "shadow",
+        "previous_count": len(retained_candidates),
+        "previous_item_count": len(
+            {candidate.item_index for candidate in retained_candidates}
+        ),
+        "pool_survivor_count": sum(
+            1
+            for candidate in retained_candidates
+            if candidate.item_index in pool_by_item_index
+        ),
+        "pool_survivor_item_count": len(pool_survivor_items),
+        "static_valid_count": len(valid),
+        "static_valid_item_count": len(valid_items),
+        "valid_settled_count": valid_kinds["settled"],
+        "valid_release_count": valid_kinds["release"],
+        "failure_counts": failure_counts,
+        "validation_seconds": float(finished - started),
+        "deadline_remaining_before_validation": (
+            None if deadline is None else float(deadline - started)
+        ),
+        "deadline_remaining_after_validation": (
+            None if deadline is None else float(deadline - finished)
+        ),
+        "candidates": records,
+    }, valid
 
 
 def iter_prioritized_candidates(
@@ -3577,6 +3864,7 @@ class PlacementCore:
         deadline=None,
         diagnostics=None,
         risk_lambda=None,
+        candidate_observer=None,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -3633,6 +3921,14 @@ class PlacementCore:
                 candidate=candidate,
                 score=float(score),
             )
+            if candidate_observer is not None:
+                candidate_observer(
+                    item_idx,
+                    item,
+                    container_idx,
+                    orientation,
+                    decision,
+                )
             updated = False
             if candidate.name == "release_candidate":
                 if score > best_release_score:
@@ -3648,6 +3944,191 @@ class PlacementCore:
         return best_settled or best_release
 
     @staticmethod
+    def rescue_choose(
+        observation,
+        indexed_items,
+        deadline,
+        attempt_budget=RESCUE_SCAN_ATTEMPT_BUDGET,
+        diagnostics=None,
+        risk_lambda=None,
+    ):
+        """Breadth-first emergency scan with a deterministic work budget."""
+        containers = observation.get("container_list", [])
+        budget = max(0, int(attempt_budget))
+        stats = {
+            "enabled": True,
+            "triggered": True,
+            "reserve_seconds": float(RESCUE_SCAN_RESERVE_SECONDS),
+            "attempt_budget": budget,
+            "attempts": 0,
+            "units_total": 0,
+            "units_started": 0,
+            "units_completed": 0,
+            "deadline_reached": False,
+            "accepted_settled": 0,
+            "accepted_release": 0,
+            "incumbent_updates": 0,
+            "item_indices_started": [],
+            "item_indices_with_candidates": [],
+            "selected_kind": None,
+            "selected_item_index": None,
+        }
+        if diagnostics is not None:
+            diagnostics["rescue_scan"] = stats
+        if not containers or not indexed_items or budget == 0:
+            return None
+
+        units = rescue_search_units(observation, indexed_items)
+        stats["units_total"] = len(units)
+        states = [{"unit": unit, "iterator": None} for unit in units]
+        has_priority_container = any(
+            bool(container.get("is_prioritized", False))
+            for container in containers
+        )
+        best_settled = None
+        best_settled_score = -float("inf")
+        best_release = None
+        best_release_score = -float("inf")
+
+        deadline_reached = False
+        while (
+            states
+            and stats["attempts"] < budget
+            and not deadline_reached
+        ):
+            next_states = []
+            for state in states:
+                if stats["attempts"] >= budget:
+                    break
+                if time.perf_counter() >= deadline:
+                    stats["deadline_reached"] = True
+                    deadline_reached = True
+                    break
+                (
+                    _item_rank,
+                    _pose_rank,
+                    _container_rank,
+                    _kind_rank,
+                    item_idx,
+                    item,
+                    container_idx,
+                    orientation,
+                    attempt_kind,
+                ) = state["unit"]
+                if state["iterator"] is None:
+                    state["iterator"] = CandidateGenerator.iter_attempts(
+                        observation,
+                        item,
+                        container_idx,
+                        orientation,
+                        deadline=deadline,
+                        diagnostics=diagnostics,
+                        item_idx=item_idx,
+                        attempt_kind=attempt_kind,
+                    )
+                    stats["units_started"] += 1
+                    item_index = int(item.get("index", item_idx))
+                    if item_index not in stats["item_indices_started"]:
+                        stats["item_indices_started"].append(item_index)
+                exhausted = False
+                for _ in range(
+                    max(1, int(RESCUE_SCAN_ATTEMPTS_PER_UNIT))
+                ):
+                    if stats["attempts"] >= budget:
+                        break
+                    if time.perf_counter() >= deadline:
+                        stats["deadline_reached"] = True
+                        deadline_reached = True
+                        break
+                    try:
+                        candidate = next(state["iterator"])
+                        stats["attempts"] += 1
+                    except StopIteration:
+                        stats["units_completed"] += 1
+                        exhausted = True
+                        break
+                    if candidate is None:
+                        continue
+
+                    item_index = int(item.get("index", item_idx))
+                    if (
+                        item_index
+                        not in stats["item_indices_with_candidates"]
+                    ):
+                        stats["item_indices_with_candidates"].append(
+                            item_index
+                        )
+                    container = containers[container_idx]
+                    score = Ranker.score(
+                        candidate,
+                        item,
+                        container,
+                        has_priority_container,
+                    )
+                    score, _risk_probability = risk_adjusted_score(
+                        score,
+                        candidate,
+                        item,
+                        container,
+                        orientation,
+                        risk_lambda,
+                    )
+                    decision = PlacementDecision(
+                        action={
+                            "item_idx": int(item_idx),
+                            "container_idx": int(container_idx),
+                            "place_pos": np.asarray(
+                                simulator_action_center(
+                                    candidate, container
+                                ),
+                                dtype=np.float32,
+                            ),
+                            "orientation": int(orientation),
+                        },
+                        candidate=candidate,
+                        score=float(score),
+                    )
+                    if candidate.name == "release_candidate":
+                        stats["accepted_release"] += 1
+                        if score > best_release_score:
+                            best_release_score = score
+                            best_release = decision
+                            stats["incumbent_updates"] += 1
+                    else:
+                        stats["accepted_settled"] += 1
+                        if score > best_settled_score:
+                            best_settled_score = score
+                            best_settled = decision
+                            stats["incumbent_updates"] += 1
+                if not exhausted:
+                    next_states.append(state)
+            states = next_states
+
+        decision = best_settled or best_release
+        if decision is not None:
+            stats["selected_kind"] = decision.candidate.name
+            selected_pool_index = int(decision.action["item_idx"])
+            if 0 <= selected_pool_index < len(
+                observation.get("pool_list", [])
+            ):
+                stats["selected_item_index"] = int(
+                    observation["pool_list"][selected_pool_index].get(
+                        "index", selected_pool_index
+                    )
+                )
+        if diagnostics is not None:
+            search = diagnostics.setdefault("search", {})
+            for key in (
+                "item_indices_started",
+                "item_indices_with_candidates",
+            ):
+                merged = search.setdefault(key, [])
+                for item_index in stats[key]:
+                    if item_index not in merged:
+                        merged.append(item_index)
+        return decision
+
+    @staticmethod
     def top_candidates(
         observation,
         indexed_items,
@@ -3655,6 +4136,7 @@ class PlacementCore:
         deadline=None,
         diagnostics=None,
         risk_lambda=None,
+        candidate_observer=None,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -3716,6 +4198,14 @@ class PlacementCore:
                 candidate=candidate,
                 score=float(score),
             )
+            if candidate_observer is not None:
+                candidate_observer(
+                    item_idx,
+                    item,
+                    container_idx,
+                    orientation,
+                    decision,
+                )
             counter += 1
             entry = (score, counter, decision)
             heap = (
@@ -4327,6 +4817,8 @@ class Agent:
         self._optimize_enabled = False
         self._lookahead_k = 0
         self._policy_trace_path = os.environ.get("NEDO_POLICY_TRACE_PATH")
+        self._cross_step_candidates = []
+        self.last_cross_step_valid_decisions = []
 
     def _append_policy_trace(self, payload):
         if not self._policy_trace_path:
@@ -4448,7 +4940,7 @@ class Agent:
                         record, field_name, self._policy_step
                     )
             if (
-                action_source == "placement_core"
+                action_source in {"placement_core", "rescue_scan"}
                 and item_index == selected_item_index
                 and record["selected_step"] is None
             ):
@@ -4494,6 +4986,8 @@ class Agent:
         self._item_lifecycle = {}
         self.last_top_candidate_item_indices = []
         self.last_future_probe_item_indices = []
+        self._cross_step_candidates = []
+        self.last_cross_step_valid_decisions = []
         self._optimize_enabled = bool(init_states.get("optimize", False))
         self._lookahead_k = int(init_states.get("lookahead_k", 0))
         self._append_policy_trace(
@@ -4505,6 +4999,10 @@ class Agent:
                 "release_risk_gate_mode": RELEASE_RISK_GATE_MODE,
                 "release_risk_p_model": RELEASE_RISK_P_MODEL,
                 "release_risk_live_rerank": RELEASE_RISK_LIVE_RERANK,
+                "cross_step_incumbent_mode": CROSS_STEP_INCUMBENT_MODE,
+                "cross_step_incumbent_per_item": (
+                    CROSS_STEP_INCUMBENT_PER_ITEM
+                ),
                 "release_risk_thresholds": (
                     ReleaseRiskThresholds().as_dict()
                 ),
@@ -4639,6 +5137,7 @@ class Agent:
         deadline,
         risk_lambda=None,
         diagnostics=...,
+        candidate_observer=None,
     ):
         """
         Closed-loop 1-ply lookahead. Keep the top-K immediate candidates
@@ -4675,13 +5174,18 @@ class Agent:
             if lookahead_deadline > time.perf_counter()
             else deadline
         )
+        top_candidate_kwargs = {
+            "deadline": search_deadline,
+            "diagnostics": diagnostics,
+            "risk_lambda": risk_lambda,
+        }
+        if candidate_observer is not None:
+            top_candidate_kwargs["candidate_observer"] = candidate_observer
         top = PlacementCore.top_candidates(
             observation,
             ordered_items,
             LOOKAHEAD_TOP_K,
-            deadline=search_deadline,
-            diagnostics=diagnostics,
-            risk_lambda=risk_lambda,
+            **top_candidate_kwargs,
         )
         self.last_top_candidate_count = len(top)
         seen_top_items = set()
@@ -4912,11 +5416,24 @@ class Agent:
 
     def policy(self, observation: dict):
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        primary_deadline = deadline
+        if RESCUE_SCAN_ENABLED:
+            primary_deadline = max(
+                time.perf_counter(),
+                deadline - max(0.0, RESCUE_SCAN_RESERVE_SECONDS),
+            )
         class_aware_coverage = ITEM_COVERAGE_MODE == "class_aware"
         self.last_candidate_diagnostics = {
             "_record_item_lifecycle": bool(self._policy_trace_path),
             "_class_aware_first_pass": class_aware_coverage,
         }
+        if RESCUE_SCAN_ENABLED:
+            self.last_candidate_diagnostics["rescue_scan"] = {
+                "enabled": True,
+                "triggered": False,
+                "attempt_budget": int(RESCUE_SCAN_ATTEMPT_BUDGET),
+                "reserve_seconds": float(RESCUE_SCAN_RESERVE_SECONDS),
+            }
         self.last_action_source = None
         self.last_candidate_kind = None
         pool_list = observation.get("pool_list", [])
@@ -4926,6 +5443,11 @@ class Agent:
             MAX_POOL_ITEMS_EVALUATED,
             mode=ITEM_COVERAGE_MODE,
         )
+        cross_step_collector = None
+        if CROSS_STEP_INCUMBENT_MODE == "shadow":
+            cross_step_collector = CrossStepCandidateCollector(
+                CROSS_STEP_INCUMBENT_PER_ITEM
+            )
 
         live_lambda = (
             RELEASE_RISK_RERANK_LAMBDA if RELEASE_RISK_LIVE_RERANK else None
@@ -4935,23 +5457,88 @@ class Agent:
                 "lambda": float(live_lambda),
                 "model": active_release_risk_model_version(),
             }
+        closed_loop_kwargs = {"risk_lambda": live_lambda}
+        if cross_step_collector is not None:
+            closed_loop_kwargs["candidate_observer"] = (
+                cross_step_collector.observe
+            )
         decision = self._closed_loop_choice(
             observation,
             pool_list,
             ordered_items,
-            deadline,
-            risk_lambda=live_lambda,
+            primary_deadline,
+            **closed_loop_kwargs,
         )
         if decision is None:
+            choose_kwargs = {
+                "deadline": primary_deadline,
+                "diagnostics": self.last_candidate_diagnostics,
+                "risk_lambda": live_lambda,
+            }
+            if cross_step_collector is not None:
+                choose_kwargs["candidate_observer"] = (
+                    cross_step_collector.observe
+                )
             decision = PlacementCore.choose(
                 observation,
                 ordered_items,
+                **choose_kwargs,
+            )
+        action_source = "placement_core"
+        if decision is None and RESCUE_SCAN_ENABLED:
+            rescue_items = rescue_online_items(pool_list)
+            decision = PlacementCore.rescue_choose(
+                observation,
+                rescue_items,
                 deadline=deadline,
+                attempt_budget=RESCUE_SCAN_ATTEMPT_BUDGET,
                 diagnostics=self.last_candidate_diagnostics,
                 risk_lambda=live_lambda,
             )
+            if decision is not None:
+                action_source = "rescue_scan"
+        if cross_step_collector is not None:
+            selected_item_index_for_buffer = None
+            if decision is not None:
+                selected_pool_index_for_buffer = int(
+                    decision.action["item_idx"]
+                )
+                if 0 <= selected_pool_index_for_buffer < len(pool_list):
+                    selected_item_index_for_buffer = int(
+                        pool_list[selected_pool_index_for_buffer].get(
+                            "index", selected_pool_index_for_buffer
+                        )
+                    )
+            cross_step_summary, cross_step_valid = (
+                revalidate_cross_step_candidates(
+                    observation,
+                    self._cross_step_candidates,
+                    deadline=deadline,
+                    risk_lambda=live_lambda,
+                )
+            )
+            cross_step_summary["would_prevent_protocol_fallback"] = bool(
+                decision is None and cross_step_valid
+            )
+            next_cross_step_candidates = cross_step_collector.snapshot(
+                excluded_item_index=selected_item_index_for_buffer
+            )
+            cross_step_summary["collected_for_next_step_count"] = len(
+                next_cross_step_candidates
+            )
+            cross_step_summary["collected_for_next_step_item_count"] = len(
+                {
+                    candidate.item_index
+                    for candidate in next_cross_step_candidates
+                }
+            )
+            self.last_candidate_diagnostics["cross_step_incumbent"] = (
+                cross_step_summary
+            )
+            self.last_cross_step_valid_decisions = cross_step_valid
+            self._cross_step_candidates = next_cross_step_candidates
         if decision is not None:
-            self.last_action_source = "placement_core"
+            self.last_action_source = action_source
             self.last_candidate_kind = (
                 decision.candidate.name or "candidate"
             )
@@ -4980,9 +5567,13 @@ class Agent:
                 coverage,
             ) = self._selection_trace(
                 pool_list,
-                ordered_items,
+                (
+                    rescue_online_items(pool_list)
+                    if action_source == "rescue_scan"
+                    else ordered_items
+                ),
                 selected_pool_index,
-                "placement_core",
+                action_source,
             )
             record_selected_release_risk(
                 self.last_candidate_diagnostics,
@@ -4990,13 +5581,15 @@ class Agent:
                 pool_list,
                 containers,
             )
-            shadow_record = self._shadow_rerank_record(
-                observation,
-                pool_list,
-                containers,
-                ordered_items,
-                decision,
-            )
+            shadow_record = None
+            if action_source != "rescue_scan":
+                shadow_record = self._shadow_rerank_record(
+                    observation,
+                    pool_list,
+                    containers,
+                    ordered_items,
+                    decision,
+                )
             if shadow_record is not None:
                 self.last_candidate_diagnostics["shadow_rerank"] = (
                     shadow_record
@@ -5033,7 +5626,7 @@ class Agent:
                     "best_next_score": float(
                         evaluation.best_next_score
                     ),
-                    "action_source": "placement_core",
+                    "action_source": action_source,
                     "candidate_kind": (
                         decision.candidate.name or "candidate"
                     ),

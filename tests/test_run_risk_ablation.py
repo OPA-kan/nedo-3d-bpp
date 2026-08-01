@@ -88,11 +88,27 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RESCUE_SCAN_ATTEMPT_BUDGET", env)
 
     def test_base_clears_rescue_controls(self):
-        env = {"RESCUE_SCAN_ENABLED": "1"}
+        env = {
+            "RESCUE_SCAN_ENABLED": "1",
+            "CROSS_STEP_INCUMBENT_MODE": "shadow",
+        }
 
         configure_arm_environment(env, "base", 2.0, 0.0)
 
         self.assertNotIn("RESCUE_SCAN_ENABLED", env)
+        self.assertNotIn("CROSS_STEP_INCUMBENT_MODE", env)
+
+    def test_cross_step_shadow_is_the_shipped_baseline_plus_telemetry(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "CROSS_STEP_INCUMBENT_PER_ITEM": "99",
+        }
+
+        configure_arm_environment(env, "cross_step_shadow", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["CROSS_STEP_INCUMBENT_MODE"], "shadow")
+        self.assertNotIn("CROSS_STEP_INCUMBENT_PER_ITEM", env)
 
 
 class PolicyTraceSummaryTests(unittest.TestCase):
@@ -117,7 +133,15 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "event": "decision",
                 "action_source": "unsafe_protocol_fallback",
                 "candidate_diagnostics": {
-                    "rescue_scan": {"triggered": True}
+                    "rescue_scan": {"triggered": True},
+                    "cross_step_incumbent": {
+                        "previous_count": 4,
+                        "pool_survivor_count": 3,
+                        "static_valid_count": 2,
+                        "would_prevent_protocol_fallback": True,
+                        "validation_seconds": 0.004,
+                        "deadline_remaining_after_validation": -0.001,
+                    },
                 },
             },
         ]
@@ -137,6 +161,14 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "rescue_trigger_count": 2,
                 "rescue_action_count": 1,
                 "protocol_fallback_count": 1,
+                "cross_step_observed_steps": 1,
+                "cross_step_previous_count": 4,
+                "cross_step_pool_survivor_count": 3,
+                "cross_step_static_valid_count": 2,
+                "cross_step_would_prevent_fallback_count": 1,
+                "cross_step_validation_seconds_total": 0.004,
+                "cross_step_validation_seconds_max": 0.004,
+                "cross_step_deadline_overrun_count": 1,
             },
         )
 

@@ -197,6 +197,23 @@ visit one release unit as well as one settled unit for every included item,
 so the normal incumbent is established before the deadline. Keep this
 separate from Ranker/risk changes and compare fallback count plus placed/fill.
 
+## Active experiment: cross-step incumbent survival (shadow only)
+
+Branch `experiment/cross-step-incumbent` implements the first measurement
+stage of a no-reserved-time fallback design. The normal search retains the
+top two accepted candidates per stable item and per settled/release kind,
+excludes the selected item, then revalidates those commands against the next
+observed state. `CROSS_STEP_INCUMBENT_MODE=off` is the default and preserves
+the shipped path; `shadow` records survival and cost but never returns a
+carried action. `enforce` is deliberately absent.
+
+The decisive fields are `static_valid_count`,
+`would_prevent_protocol_fallback`, `validation_seconds`, and the deadline
+margins in `candidate_diagnostics.cross_step_incumbent`. The ablation runner
+has a `cross_step_shadow` arm and aggregates these values. No physical result
+exists yet, so do not claim that candidates usually survive or that the
+instrument is runtime-neutral. Contract: `docs/CROSS_STEP_INCUMBENT.md`.
+
 ## Next engineering task: Ranker mis-ranking decomposition
 
 The Q_old utility is now the blocker (evidence: aabb-cache-guard-mixed,

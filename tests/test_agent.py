@@ -3196,5 +3196,201 @@ class RescueScanTests(unittest.TestCase):
         self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
 
 
+class CrossStepIncumbentTests(unittest.TestCase):
+    def test_collector_keeps_top_n_per_item_and_candidate_kind(self):
+        item = sample_item(42)
+        collector = agent.CrossStepCandidateCollector(per_item=2)
+
+        def observe(score, x, kind="candidate"):
+            candidate = agent.AABB(
+                (x, 0.0, 0.2), (0.2, 0.2, 0.2), kind
+            )
+            decision = agent.PlacementDecision(
+                action={
+                    "item_idx": 3,
+                    "container_idx": 0,
+                    "place_pos": np.array(
+                        [x, 0.0, 0.2], dtype=np.float32
+                    ),
+                    "orientation": 0,
+                },
+                candidate=candidate,
+                score=score,
+            )
+            collector.observe(3, item, 0, 0, decision)
+
+        observe(1.0, 0.1)
+        observe(3.0, 0.3)
+        observe(2.0, 0.2)
+        observe(3.0, 0.3)  # duplicate command is not counted twice
+        observe(0.5, 0.4, "release_candidate")
+
+        retained = collector.snapshot()
+
+        self.assertEqual(len(retained), 3)
+        self.assertEqual(
+            sorted(
+                candidate.previous_score
+                for candidate in retained
+                if candidate.candidate.name == "candidate"
+            ),
+            [2.0, 3.0],
+        )
+        self.assertEqual(
+            [
+                candidate.previous_score
+                for candidate in retained
+                if candidate.candidate.name == "release_candidate"
+            ],
+            [0.5],
+        )
+
+    def test_revalidation_remaps_stable_item_index_to_current_pool(self):
+        item = sample_item(42)
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.2), (0.2, 0.2, 0.2), "candidate"
+        )
+        retained = agent.CrossStepCandidate(
+            item_index=42,
+            previous_pool_index=7,
+            container_index=0,
+            orientation=0,
+            candidate=candidate,
+            previous_score=1.5,
+        )
+
+        with mock.patch.object(
+            agent.Geometry, "rejection_reason", return_value=None
+        ):
+            summary, valid = agent.revalidate_cross_step_candidates(
+                {
+                    "pool_list": [sample_item(99), item],
+                    "container_list": [container],
+                },
+                [retained],
+            )
+
+        self.assertEqual(summary["static_valid_count"], 1)
+        self.assertEqual(summary["pool_survivor_item_count"], 1)
+        self.assertEqual(valid[0].action["item_idx"], 1)
+        self.assertEqual(
+            summary["candidates"][0]["current_pool_index"], 1
+        )
+
+    def test_shadow_records_rescue_opportunity_without_using_it(self):
+        item = sample_item(42)
+        observation = {
+            "pool_list": [item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        candidate = agent.AABB(
+            (0.2, 0.0, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+        retained = agent.CrossStepCandidate(
+            item_index=42,
+            previous_pool_index=1,
+            container_index=0,
+            orientation=0,
+            candidate=candidate,
+            previous_score=1.0,
+        )
+        valid_decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.array(
+                    [0.2, 0.0, 0.2], dtype=np.float32
+                ),
+                "orientation": 0,
+            },
+            candidate=candidate,
+            score=1.0,
+        )
+
+        solver = agent.Agent("")
+        solver._cross_step_candidates = [retained]
+        with (
+            mock.patch.object(agent, "CROSS_STEP_INCUMBENT_MODE", "shadow"),
+            mock.patch.object(
+                agent.Agent, "_closed_loop_choice", return_value=None
+            ),
+            mock.patch.object(
+                agent.PlacementCore, "choose", return_value=None
+            ),
+            mock.patch.object(
+                agent,
+                "revalidate_cross_step_candidates",
+                return_value=(
+                    {
+                        "mode": "shadow",
+                        "static_valid_count": 1,
+                    },
+                    [valid_decision],
+                ),
+            ),
+        ):
+            action = solver.policy(observation)
+
+        self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
+        self.assertEqual(solver.last_action_source, "unsafe_protocol_fallback")
+        self.assertTrue(
+            solver.last_candidate_diagnostics["cross_step_incumbent"][
+                "would_prevent_protocol_fallback"
+            ]
+        )
+        self.assertEqual(solver.last_cross_step_valid_decisions, [valid_decision])
+
+    def test_mode_off_does_not_attach_candidate_observer(self):
+        observation = {
+            "pool_list": [sample_item(0)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        seen = {}
+
+        def closed_loop(_self, *_args, **kwargs):
+            seen["observer"] = kwargs.get("candidate_observer")
+            return None
+
+        with (
+            mock.patch.object(agent, "CROSS_STEP_INCUMBENT_MODE", "off"),
+            mock.patch.object(
+                agent.Agent,
+                "_closed_loop_choice",
+                autospec=True,
+                side_effect=closed_loop,
+            ),
+            mock.patch.object(
+                agent.PlacementCore, "choose", return_value=None
+            ) as choose,
+        ):
+            solver = agent.Agent("")
+            solver.policy(observation)
+
+        self.assertIsNone(seen["observer"])
+        self.assertNotIn("candidate_observer", choose.call_args.kwargs)
+        self.assertNotIn(
+            "cross_step_incumbent", solver.last_candidate_diagnostics
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

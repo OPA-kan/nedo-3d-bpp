@@ -21,6 +21,8 @@ class EvaluationStatusTests(unittest.TestCase):
                 "NEDO_POLICY_TRACE_PATH": "reports/raw/policy-trace.jsonl",
                 "LOOKAHEAD_SELECTION_MODE": "depth2",
                 "ITEM_COVERAGE_MODE": "legacy",
+                "CROSS_STEP_INCUMBENT_MODE": "shadow",
+                "CROSS_STEP_INCUMBENT_PER_ITEM": "99",
                 "RELEASE_RISK_GATE_MODE": "enforce",
                 "KEEP_ME": "yes",
             },
@@ -30,6 +32,8 @@ class EvaluationStatusTests(unittest.TestCase):
         self.assertNotIn("NEDO_POLICY_TRACE_PATH", env)
         self.assertNotIn("LOOKAHEAD_SELECTION_MODE", env)
         self.assertNotIn("ITEM_COVERAGE_MODE", env)
+        self.assertNotIn("CROSS_STEP_INCUMBENT_MODE", env)
+        self.assertNotIn("CROSS_STEP_INCUMBENT_PER_ITEM", env)
         self.assertNotIn("RELEASE_RISK_GATE_MODE", env)
         self.assertEqual(env["KEEP_ME"], "yes")
 

@@ -46,6 +46,8 @@ def configure_arm_environment(
         "RESCUE_SCAN_RESERVE_SECONDS",
         "RESCUE_SCAN_ATTEMPT_BUDGET",
         "RESCUE_SCAN_ATTEMPTS_PER_UNIT",
+        "CROSS_STEP_INCUMBENT_MODE",
+        "CROSS_STEP_INCUMBENT_PER_ITEM",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
         "RELEASE_RISK_RERANK_LAMBDA",
@@ -55,9 +57,11 @@ def configure_arm_environment(
         env.pop(name, None)
     if arm == "off":
         env["RELEASE_RISK_LIVE_RERANK"] = "0"
-    elif arm in {"base", "rescue"}:
+    elif arm in {"base", "rescue", "cross_step_shadow"}:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
+        elif arm == "cross_step_shadow":
+            env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
@@ -171,12 +175,20 @@ def case_summary(
     return cases
 
 
-def policy_trace_summary(path: pathlib.Path) -> dict[str, int]:
+def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
     summary = {
         "decision_count": 0,
         "rescue_trigger_count": 0,
         "rescue_action_count": 0,
         "protocol_fallback_count": 0,
+        "cross_step_observed_steps": 0,
+        "cross_step_previous_count": 0,
+        "cross_step_pool_survivor_count": 0,
+        "cross_step_static_valid_count": 0,
+        "cross_step_would_prevent_fallback_count": 0,
+        "cross_step_validation_seconds_total": 0.0,
+        "cross_step_validation_seconds_max": 0.0,
+        "cross_step_deadline_overrun_count": 0,
     }
     if not path.exists():
         return summary
@@ -205,6 +217,41 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, int]:
             )
             if isinstance(rescue, dict) and rescue.get("triggered") is True:
                 summary["rescue_trigger_count"] += 1
+            cross_step = (
+                diagnostics.get("cross_step_incumbent")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(cross_step, dict):
+                summary["cross_step_observed_steps"] += 1
+                summary["cross_step_previous_count"] += int(
+                    cross_step.get("previous_count", 0)
+                )
+                summary["cross_step_pool_survivor_count"] += int(
+                    cross_step.get("pool_survivor_count", 0)
+                )
+                summary["cross_step_static_valid_count"] += int(
+                    cross_step.get("static_valid_count", 0)
+                )
+                if cross_step.get("would_prevent_protocol_fallback") is True:
+                    summary[
+                        "cross_step_would_prevent_fallback_count"
+                    ] += 1
+                validation_seconds = float(
+                    cross_step.get("validation_seconds", 0.0)
+                )
+                summary["cross_step_validation_seconds_total"] += (
+                    validation_seconds
+                )
+                summary["cross_step_validation_seconds_max"] = max(
+                    summary["cross_step_validation_seconds_max"],
+                    validation_seconds,
+                )
+                remaining = cross_step.get(
+                    "deadline_remaining_after_validation"
+                )
+                if remaining is not None and float(remaining) < 0.0:
+                    summary["cross_step_deadline_overrun_count"] += 1
     return summary
 
 
