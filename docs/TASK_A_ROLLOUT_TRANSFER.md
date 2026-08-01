@@ -100,6 +100,23 @@ CI base minimum). So the shipped path, not just the forced one, produces the
 adopted result. Per-repeat numbers and the local reproduction table are in
 `reports/task-a-rollout/history/30717998654/analysis.md`.
 
+Run `30719944050` then re-ran the matrix on CI *after* the default flip, with
+`default` in place of `bounded128`:
+
+| arm | placed | fill mean [min,max] | evaluated orders | optimization s |
+|---|---:|---:|---:|---:|
+| base | 20 / 20 / 20 | 29.297655 [27.540719, 30.176123] | 3.3 | 115.0 |
+| default | 25 / 25 / 25 | 34.949049 [34.949049, 34.949049] | 49.3 | 146.7 |
+
+Every outcome column is identical to run `30717998654` — including the base
+arm's full fill distribution, mean *and* min *and* max. Only the search-effort
+counters moved (evaluated orders 51.3 -> 49.3 bounded, 3.0 -> 3.3 base;
+optimization 147.3 -> 146.7 s), and neither moved an outcome. The adopted
+result now stands on three independent executions — forced arm on CI, shipped
+default locally, shipped default on CI — with bit-identical fill in all three.
+One base repeat reached 4 evaluated orders instead of 3 and still placed 20,
+which is further evidence that the legacy arm is starved rather than unlucky.
+
 Task B and Task C are unaffected. Both constants are read only by
 `DryRunEvaluator` and `Agent.optimize`, and the official harness calls
 `optimize` only when the case sets `agent.optimize`, which is Task A alone.

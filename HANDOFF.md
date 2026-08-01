@@ -303,6 +303,14 @@ order and the physics reproduced exactly; base's fill varied 27.541–30.176 on
 a constant placed count. Compact result and per-repeat analysis:
 `reports/task-a-rollout/history/30717998654/{summary,analysis}.md`.
 
+Confirmed post-flip by run `30719944050`, which re-ran the matrix with the
+`default` arm (no `OFFLINE_*` variable set, i.e. the submission path) instead
+of `bounded128`. Every outcome column matched, including the base arm's full
+fill distribution; only search-effort counters moved. Three independent
+executions now agree bit-for-bit on fill, so treat run-to-run variance as a
+non-issue here — unlike the visible-pool screening, where the base arm itself
+moved 16.2 → 14.6 between runs.
+
 Two things this did **not** establish, both easy to overstate:
 
 - The offline proxy is a **relative order selector**, not a score. It
