@@ -2306,6 +2306,7 @@ class ShadowRerankTests(unittest.TestCase):
             # defaults explicitly.
             mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "static"),
             mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", False),
+            mock.patch.object(agent, "RELEASE_RISK_SLIDE_LAMBDA", 0.0),
         )
         return observation, risky, safe, patches
 
@@ -2330,7 +2331,7 @@ class ShadowRerankTests(unittest.TestCase):
         solver = agent.Agent("")
         with (
             patches[0], patches[1], patches[2],
-            patches[3], patches[4], patches[5],
+            patches[3], patches[4], patches[5], patches[6],
             mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
         ):
@@ -2391,7 +2392,7 @@ class ShadowRerankTests(unittest.TestCase):
         observation, _risky, _safe, patches = self._release_scenario()
         solver = agent.Agent("")
         with patches[0], patches[1], patches[2], \
-                patches[3], patches[4], patches[5]:
+                patches[3], patches[4], patches[5], patches[6]:
             solver.policy(observation)
         self.assertNotIn(
             "shadow_rerank", solver.last_candidate_diagnostics
@@ -2480,6 +2481,7 @@ class MechanicsRiskModelTests(unittest.TestCase):
             mock.patch.object(
                 agent, "release_rotation_risk_probability"
             ) as static,
+            mock.patch.object(agent, "RELEASE_RISK_SLIDE_LAMBDA", 0.0),
         ):
             adjusted, probability = agent.risk_adjusted_score(
                 10.0, candidate, None, container, 0, 2.0
@@ -2653,7 +2655,7 @@ class SlideRiskModelTests(unittest.TestCase):
                 return_value=0.5,
             ),
             mock.patch.object(agent, "RELEASE_RISK_SLIDE_LAMBDA", 2.0),
-        ):
+        ):  # noqa: explicit slide lambda regardless of shipped default
             adjusted, p_rot = agent.risk_adjusted_score(
                 10.0, candidate, None, container, 0, 1.0
             )
@@ -2709,8 +2711,10 @@ class SlideRiskModelTests(unittest.TestCase):
             mock.patch.object(
                 agent, "RELEASE_RISK_SLIDE_SHADOW_LAMBDA", 5.0
             ),
+            mock.patch.object(agent, "RELEASE_RISK_SLIDE_LAMBDA", 0.0),
         ):
             action = solver.policy(observation)
+            restored = agent.RELEASE_RISK_SLIDE_LAMBDA
 
         # Live action is rot-only (equal p_rot): the higher score wins.
         np.testing.assert_allclose(
@@ -2723,7 +2727,7 @@ class SlideRiskModelTests(unittest.TestCase):
             record["risk_selection"]["center"][0], 0.3
         )
         # The live slide lambda is restored after the shadow pass.
-        self.assertEqual(agent.RELEASE_RISK_SLIDE_LAMBDA, 0.0)
+        self.assertEqual(restored, 0.0)
 
 
 class LiveRerankTests(unittest.TestCase):
@@ -2733,6 +2737,7 @@ class LiveRerankTests(unittest.TestCase):
         self.assertTrue(agent.RELEASE_RISK_LIVE_RERANK)
         self.assertEqual(agent.RELEASE_RISK_P_MODEL, "mech")
         self.assertAlmostEqual(agent.RELEASE_RISK_RERANK_LAMBDA, 1.0)
+        self.assertAlmostEqual(agent.RELEASE_RISK_SLIDE_LAMBDA, 0.5)
 
     def test_live_rerank_changes_the_real_action(self):
         observation, _risky, safe, patches = (
@@ -2741,7 +2746,7 @@ class LiveRerankTests(unittest.TestCase):
         solver = agent.Agent("")
         with (
             patches[0], patches[1], patches[2],
-            patches[3], patches[4], patches[5],
+            patches[3], patches[4], patches[5], patches[6],
             mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
         ):
@@ -2763,7 +2768,7 @@ class LiveRerankTests(unittest.TestCase):
         solver = agent.Agent("")
         with (
             patches[0], patches[1], patches[2],
-            patches[3], patches[4], patches[5],
+            patches[3], patches[4], patches[5], patches[6],
             mock.patch.object(agent, "RELEASE_RISK_LIVE_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_SHADOW_RERANK", True),
             mock.patch.object(agent, "RELEASE_RISK_RERANK_LAMBDA", 10.0),
@@ -2779,7 +2784,7 @@ class LiveRerankTests(unittest.TestCase):
         )
         solver = agent.Agent("")
         with patches[0], patches[1], patches[2], \
-                patches[3], patches[4], patches[5]:
+                patches[3], patches[4], patches[5], patches[6]:
             action = solver.policy(observation)
         np.testing.assert_allclose(
             action["place_pos"][:2], risky.center[:2], atol=1e-6

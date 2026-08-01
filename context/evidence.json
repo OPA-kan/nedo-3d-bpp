@@ -292,9 +292,10 @@
       "id": "slide-lambda-not-adopted-v1",
       "topic": "risk",
       "date": "2026-08-01",
-      "status": "active",
+      "status": "superseded",
       "claim": "First slide online ablation (5 dev configs, base vs slide lambda 0.5 / 1.0 on top of rot-only lambda=1): slide lambda trades placed for slide-death reduction -- lambda=1.0 cut low-angle unsafe endings 4 -> 1 but cost 4.4 placed per episode (18.4 -> 14.0); lambda=0.5 gained fill (+2.0) at -1.8 placed with slide deaths unchanged. Under the official cutoff gate (placed count gates all non-fill scores) this trade is rejected: RELEASE_RISK_SLIDE_LAMBDA stays 0 in the live default. Slide shadow produced zero changed single selections (4 steps) -- the slide term acts through cumulative trajectory divergence, not single-step swaps. The frozen slide model (slide-dev-v1-20260731) remains available; revisit after S1 improves the estimator or with smaller lambda once the transport channel is fixed.",
-      "source": "reports/risk-ablation/rows.jsonl (slide ablation arms); slide-shadow datasets 20260801_003952-*"
+      "source": "reports/risk-ablation/rows.jsonl (slide ablation arms); slide-shadow datasets 20260801_003952-*",
+      "superseded_by": "slide-lambda-05-adopted"
     },
     {
       "id": "late-snapshots-not-starved",
@@ -327,6 +328,14 @@
       "status": "active",
       "claim": "Forensic diff of b000-k20 pre/post cache: first divergence at step 9 where the rich search chose a rotation-safer placement (settle 0.6 deg vs the starved run's lucky 22.5-deg near-miss); the new trajectory then destabilised cumulatively (angles 3.7 -> 8.2 -> 27.8 deg over steps 12-14) and died at step 14 by a sub-30-deg 0.44 m SLIDE -- exactly the hazard the frozen slide model predicts (val AUC 0.884) and which lambda_slide=0 leaves uncontrolled. The slide-lambda-not-adopted-v1 verdict was measured on the starved search; under rich search slide becomes the leading uncontrolled hazard, so the slide ablation is being re-run under the cached search before that verdict stands.",
       "source": "runs b000-k20-base-r0 vs base-r7 step_metrics diff"
+    },
+    {
+      "id": "slide-lambda-05-adopted",
+      "topic": "risk",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "lambda_slide = 0.5 adopted as the live default. Re-ablation under the cached (6.4x) search reversed the starved-search verdict: dev 5 configs placed 84 -> 88 and fill 86.8 -> 114.6 (slide 1.0: 88 / 110.5, zero slide deaths); validation single episode disagreed (21 -> 20 placed, fill -26%); both former-holdout cases identical between arms; the 7-case aggregate decides for adoption (placed 137 -> 140, fill 149.4 -> 171.6, +15%). Meta-lesson recorded: search, selection, and risk components cannot be evaluated independently -- changing one requires re-measuring the adoption verdicts of the others.",
+      "source": "risk-ablation rows repeats 40-42 / 50-52 / 60-61; docs/RELEASE_RISK_PROTOCOL.md section 8"
     }
   ]
 }

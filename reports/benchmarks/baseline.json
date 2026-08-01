@@ -1,33 +1,33 @@
 {
-  "policy": "risk-on rot-only lambda=1 (mech-dev-v1-20260731), shipped defaults",
+  "policy": "risk-on rot lambda=1 (mech-dev-v1) + slide lambda=0.5 (slide-dev-v1), shipped defaults",
   "date": "2026-08-01",
-  "source": "reports/risk-ablation rows, arm=base r0",
+  "source": "reports/risk-ablation rows, repeat 41 (slide05 arm, cached search)",
   "contract": "Regression guard: rerun these configs with run_risk_ablation --arm base after any algorithm change; a drop in placed_count or fill_score must be explained or the change rejected. Timing-sensitive nondeterminism exists on b001 configs; judge direction across configs, not single-config noise.",
   "cases": {
     "b000-k15": {
       "placed_count": 17,
-      "fill_score": 13.541,
+      "fill_score": 23.119,
       "steps": 18
     },
     "b000-k20": {
-      "placed_count": 26,
-      "fill_score": 18.838,
-      "steps": 27
+      "placed_count": 15,
+      "fill_score": 16.347,
+      "steps": 16
     },
     "b000-k40": {
-      "placed_count": 11,
-      "fill_score": 14.059,
-      "steps": 12
+      "placed_count": 21,
+      "fill_score": 29.22,
+      "steps": 22
     },
     "b001-k20": {
-      "placed_count": 20,
-      "fill_score": 25.415,
-      "steps": 21
+      "placed_count": 18,
+      "fill_score": 22.818,
+      "steps": 19
     },
     "b001-k30": {
-      "placed_count": 18,
-      "fill_score": 21.225,
-      "steps": 19
+      "placed_count": 17,
+      "fill_score": 23.166,
+      "steps": 18
     }
   }
 }

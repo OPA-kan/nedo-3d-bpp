@@ -81,12 +81,15 @@ RELEASE_RISK_LIVE_RERANK = os.environ.get(
     "RELEASE_RISK_LIVE_RERANK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Slide hazard weight in the risk-adjusted score:
-# Q - lambda_rot*P_rot - lambda_slide*P_slide. The LIVE default stays 0
-# (rotation-only) until the slide line completes its protocol steps;
+# Q - lambda_rot*P_rot - lambda_slide*P_slide. Default 0.5 since
+# 2026-08-01: under the cached (rich) search the slide term won the
+# 7-case aggregate (placed 137 -> 140, fill 149 -> 172); the earlier
+# not-adopted verdict was an artifact of the starved search. Set to 0
+# to recover the rotation-only policy;
 # RELEASE_RISK_SLIDE_SHADOW_LAMBDA > 0 makes the shadow rerank compare
-# the live policy against rot+slide without touching the real action.
+# the live policy against a different slide weight.
 RELEASE_RISK_SLIDE_LAMBDA = float(
-    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.0")
+    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.5")
 )
 RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
     os.environ.get("RELEASE_RISK_SLIDE_SHADOW_LAMBDA", "0.0")

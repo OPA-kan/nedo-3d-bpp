@@ -159,6 +159,14 @@ python scripts/build_replay_dataset.py \
 
 ## 8. 改訂記録
 
+- **2026-08-01**: **λ_slide = 0.5 を live デフォルトに採用。** packed-AABB
+  キャッシュ(候補6.4倍)後の再 ablation で判定が逆転(dev 5構成:
+  placed 84→88、fill 86.8→114.6)。validation 単独では劣後(21→20p)、
+  旧 holdout 2 case は同一のため、7 case 合計(placed 137→140、
+  fill 149.4→171.6)で採用。旧判定 slide-lambda-not-adopted-v1 は
+  飢餓探索上の測定として supersede。探索・選択・リスクの各部品は
+  独立に評価できない — 部品変更時は他部品の採否も再測定する。
+
 - **2026-07-31 (4)**: **final_holdout 一度きり評価を実施(開封済み)、
   提出デフォルトを risk-on に切り替え。**
   オフライン: 凍結力学モデル(`mech-dev-v1-20260731`、refitなし)で
