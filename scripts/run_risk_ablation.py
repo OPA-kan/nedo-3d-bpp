@@ -353,6 +353,7 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                         "observed": 0,
                         "non_degenerate": 0,
                         "would_change": 0,
+                        "enforced": 0,
                         "unrestricted_change": 0,
                         "seconds_total": 0.0,
                         "seconds_max": 0.0,
@@ -362,6 +363,9 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 step_bucket["non_degenerate"] += int(len(keys) > 1)
                 step_bucket["would_change"] += int(
                     rollout.get("would_change_item") is True
+                )
+                step_bucket["enforced"] += int(
+                    rollout.get("enforced") is True
                 )
                 step_bucket["unrestricted_change"] += int(
                     unrestricted_change
@@ -548,6 +552,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                         "observed": 0,
                         "non_degenerate": 0,
                         "would_change": 0,
+                        "enforced": 0,
                         "unrestricted_change": 0,
                         "seconds_total": 0.0,
                         "seconds_max": 0.0,
@@ -557,6 +562,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "observed",
                     "non_degenerate",
                     "would_change",
+                    "enforced",
                     "unrestricted_change",
                 ):
                     step_bucket[name] += int(values.get(name, 0))
@@ -914,8 +920,9 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             "### Rollout telemetry by step index",
             "",
             "| arm | step | observed | non-degenerate | rate "
-            "| would change | unrestricted change | ms/step | max seconds |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+            "| would change | enforced | unrestricted change | ms/step "
+            "| max seconds |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for arm, trace in sorted(policy_trace.items()):
             for step, values in trace["rollout_by_step"].items():
@@ -924,6 +931,7 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                     f"| {values['non_degenerate']} "
                     f"| {values['non_degenerate_rate']} "
                     f"| {values['would_change']} "
+                    f"| {values['enforced']} "
                     f"| {values['unrestricted_change']} "
                     f"| {values['ms_per_step']} "
                     f"| {values['seconds_max']} |"

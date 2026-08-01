@@ -3633,32 +3633,46 @@ class CrossStepIncumbentTests(unittest.TestCase):
 
         selected = decision(0, 1.0)
         proposed = decision(1, 0.9)
-        record = {"mode": "enforce", "would_change_item": True}
-        with (
-            mock.patch.object(
-                agent, "VISIBLE_POOL_ROLLOUT_MODE", "enforce"
-            ),
-            mock.patch.object(
-                agent.Agent,
-                "_closed_loop_choice",
-                return_value=selected,
-            ),
-            mock.patch.object(
-                agent,
-                "visible_pool_rollout_evaluation",
-                return_value=(record, proposed),
-            ),
-        ):
-            solver = agent.Agent("")
-            action = solver.policy(observation)
+        for non_degenerate, expected_item in ((True, 1), (False, 0)):
+            with self.subTest(non_degenerate=non_degenerate):
+                record = {
+                    "mode": "enforce",
+                    "would_change_item": True,
+                    "non_degenerate": non_degenerate,
+                }
+                with (
+                    mock.patch.object(
+                        agent, "VISIBLE_POOL_ROLLOUT_MODE", "enforce"
+                    ),
+                    mock.patch.object(
+                        agent.Agent,
+                        "_closed_loop_choice",
+                        return_value=selected,
+                    ),
+                    mock.patch.object(
+                        agent,
+                        "visible_pool_rollout_evaluation",
+                        return_value=(record, proposed),
+                    ),
+                ):
+                    solver = agent.Agent("")
+                    action = solver.policy(observation)
 
-        self.assertEqual(action["item_idx"], 1)
-        self.assertEqual(solver.last_action_source, "rollout_enforce")
-        self.assertTrue(
-            solver.last_candidate_diagnostics["visible_pool_rollout"][
-                "enforced"
-            ]
-        )
+                self.assertEqual(action["item_idx"], expected_item)
+                self.assertEqual(
+                    solver.last_action_source,
+                    (
+                        "rollout_enforce"
+                        if non_degenerate
+                        else "placement_core"
+                    ),
+                )
+                self.assertEqual(
+                    solver.last_candidate_diagnostics[
+                        "visible_pool_rollout"
+                    ]["enforced"],
+                    non_degenerate,
+                )
 
     def test_rollout_collector_keeps_best_candidate_per_item(self):
         collector = agent.VisiblePoolRolloutCollector()

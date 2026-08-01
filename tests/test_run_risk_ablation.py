@@ -296,6 +296,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
             summary["rollout_q_loss_bins"]["0.10_to_0.15"], 1
         )
         self.assertEqual(summary["rollout_by_step"]["9"]["observed"], 1)
+        self.assertEqual(summary["rollout_by_step"]["9"]["enforced"], 1)
         self.assertAlmostEqual(summary["rollout_seconds_total"], 0.15)
 
 

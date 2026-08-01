@@ -4844,6 +4844,10 @@ def visible_pool_rollout_evaluation(
     proposed = None if proposed_pair is None else proposed_pair[1]
     unrestricted_record = None if unrestricted is None else unrestricted[1]
     selected_pool_index = int(selected_decision.action["item_idx"])
+    rollout_keys = {
+        tuple(candidate_record["rollout_key"])
+        for _decision, candidate_record in evaluated
+    }
     record = {
         "mode": str(VISIBLE_POOL_ROLLOUT_MODE),
         "depth": int(depth),
@@ -4852,6 +4856,7 @@ def visible_pool_rollout_evaluation(
         "risk_scope": "future_transitions_only",
         "candidate_count": len(evaluated),
         "eligible_count": len(eligible),
+        "non_degenerate": len(rollout_keys) > 1,
         "selected_pool_index": selected_pool_index,
         "proposed_pool_index": (
             None if proposed is None else int(proposed["pool_index"])
@@ -6065,6 +6070,7 @@ class Agent:
             )
             rollout_record["enforced"] = bool(
                 VISIBLE_POOL_ROLLOUT_MODE == "enforce"
+                and rollout_record.get("non_degenerate") is True
                 and rollout_proposal is not None
                 and rollout_proposal is not decision
             )
