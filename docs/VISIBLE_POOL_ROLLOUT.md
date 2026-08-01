@@ -85,3 +85,22 @@ configurations (development 5 + b000-k10 validation + the two already-opened
 former holdouts), three repeats per arm. The workflow reports the unrestricted
 rollout proposal's Q-loss distribution and the fraction that survives the
 0.15 band, plus non-degeneracy and runtime by exact step index.
+
+## Enforce result
+
+The final strict-improvement ablation is Actions run `30716558143`. It only
+enforced when the proposed rollout key was greater than the current choice's
+key and the Q-loss was at most 0.15. Across eight configurations and three
+repeats, base/enforce totals were:
+
+| scope | base placed | enforce placed | base fill | enforce fill |
+|---|---:|---:|---:|---:|
+| development 5 | 84.000 | 79.333 | 104.239 | 95.233 |
+| all 8 | 137.667 | 131.000 | 167.881 | 151.656 |
+
+The result is heterogeneous (b000-k20 and k40 improve, deterministic b000-k15
+loses six placements), so the rollout value is retained as telemetry but
+rejected as the live ordering. `VISIBLE_POOL_ROLLOUT_MODE` remains `off`.
+Non-degeneracy was 138/240 (57.5%) at steps 0-9 and 2/166 (1.2%) thereafter;
+the mean cost was 111.1 ms/step and the maximum was 617.6 ms. Diagnose the
+b000-k15 first divergence before changing the band or rollout weights.

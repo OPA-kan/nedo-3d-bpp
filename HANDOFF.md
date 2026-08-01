@@ -1,6 +1,6 @@
 # Handoff for the next model
 
-Updated: 2026-08-01 JST
+Updated: 2026-08-02 JST
 
 ## Start here
 
@@ -222,7 +222,7 @@ but it did not cover the fatal state. Compact result:
 `reports/cross-step-incumbent/history/30707120494/summary.{md,json}`. Contract:
 `docs/CROSS_STEP_INCUMBENT.md`.
 
-## Latest experiment: graded visible-pool rollout shadow
+## Latest experiment: graded visible-pool rollout (signal yes, enforce rejected)
 
 Branch `experiment/visible-pool-rollout` implements the first graded Ranker
 future term without changing live selection. `VISIBLE_POOL_ROLLOUT_MODE=off`
@@ -248,12 +248,21 @@ runs; do not read the single-run arm difference as an algorithm effect. See
 `docs/VISIBLE_POOL_ROLLOUT.md`, `reports/visible-pool-rollout/`, and Actions
 run 30708961145.
 
-This is signal, not adoption evidence: the immediate candidate is a release
-and is represented by the settled proxy; later release transitions terminate
-the rollout, and no PyBullet counterfactual or full-episode enforce run has
-been performed. The next step is a separate `enforce` ablation using the
-frozen Q band, preferably with paired/repeated execution because the single
-runner trajectories are noisy. Do not change the default on this branch.
+The repeated enforce test is now complete. The final implementation changes
+an action only when its rollout key strictly improves on the selected action
+and its `Q_live` loss is at most 0.15. Across eight configurations and three
+repeats per arm (Actions 30716558143), same-run totals regressed from placed
+137.667 / fill 167.881 to 131.000 / 151.656. Development totals regressed
+84.000 / 104.239 to 79.333 / 95.233. b000-k20 and k40 improved, but b000-k15
+lost six placements in every repeat. Keep the default `off`; do not adopt or
+tune the band without first explaining the b000-k15 first divergence.
+
+The discriminator itself remains real but is early-heavy: 138/240 step 0-9
+observations were non-degenerate, versus only 2/166 later observations. It
+cost 111.1 ms/step on average (617.6 ms max). Immediate candidate risk is
+already in `Q_live`; rollout risk contains future transitions only. The proxy
+rollout is not the current Q_live policy, so no textbook policy-improvement
+guarantee applies.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
