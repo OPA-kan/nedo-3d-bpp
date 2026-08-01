@@ -368,6 +368,14 @@
       "status": "active",
       "claim": "A terminal deadline-reserved rescue scan is rejected in its current form. The breadth-first class/item release scan recovered a statically validated candidate on 37/37 checked-in late snapshots (17/17 case-001), but physical ablations regressed overall: the 0.9 s reserve produced base/rescue totals 83/75 placed and 100.32/86.98 fill; the 0.2 s reserve produced 80/74 and 98.00/88.02. A third trace-enabled run produced 82/78 and 100.32/94.25. In that diagnostic run b001-k20 and b001-k30 each triggered rescue once, but rescue_action_count stayed 0 and the unsafe protocol fallback still fired once; b000-k20 regressed by two placements despite rescue_trigger_count=0. Therefore the late rescue neither replaced the poison fallback nor justified stealing time from the primary search. Keep it default OFF. The next falsifiable design is to include one release unit per item in the primary first pass so a validated incumbent exists before the deadline, without a terminal reserve.",
       "source": "reports/rescue-scan/ci-30698074510; reports/rescue-scan/ci-30698434932; reports/rescue-scan/ci-30698558132; Actions runs 30698074510, 30698434932, 30698558132"
+    },
+    {
+      "id": "cross-step-incumbent-top2-rejected-as-fallback",
+      "topic": "search",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "The first cross-step incumbent design (top 2 accepted candidates per stable item and per settled/release kind, shadow only) is rejected as a replacement for unsafe_protocol_fallback. In the 5-config development ablation it retained 1,603 candidates across 76 decisions; every retained item's identity remained visible, but only 702 candidates (43.793%) passed the complete next-state static contract. Revalidation cost 2.864 s total / 37.684 ms per observed step, max 145 ms, with one deadline overrun. The only protocol fallback occurred in b001-k30 in both arms. At the shadow fatal step 16, all 18 retained candidates still had visible items but zero remained valid (17 corridor, 1 static_geometry); validation began 27.8 ms after the internal deadline. would_prevent_protocol_fallback was 0/1. Keep mode default OFF and do not add enforce. Scope: this rejects score-top2 carryover as the fallback guarantee, not diverse carryover as a warm start; general-step survival was nonzero but did not cover the fatal state.",
+      "source": "reports/cross-step-incumbent/history/30707120494/summary.json; Actions run 30707120494; b001-k30 shadow policy trace artifact"
     }
   ]
 }

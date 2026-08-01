@@ -101,6 +101,10 @@
   \(F(s,i,d)\) は未実装で、固定座標を安全なfallbackとは扱わない。
 - cross-step incumbentは上記固定fallbackをまだ置換しない。shadowで次step
   生存率と再検証税を測ってから、別アブレーションで返却契約を検討する。
+- run 30707120494では一般stepの静的生存率は702/1,603 (43.8%)だったが、
+  唯一のprotocol fallback stepでは18件全てが再検証落ちとなった
+  (`corridor` 17、`static_geometry` 1)。`would_prevent=0`のため、現行top2
+  持越しをfallbackとして使う案は棄却し、既定`off`を維持する。
 - Run 30340049061 confirmed that this ordering is not sufficient on its own.
   Case 000 improved to 15 placements, but Case 001 still had no settled
   candidate at step 4 and its release fallback failed after settling by

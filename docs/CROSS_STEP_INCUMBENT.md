@@ -75,3 +75,17 @@ Do not implement or enable `enforce` unless the measurements show both:
    to matter; and
 2. collection/revalidation cost does not cause an unexplained placed/fill or
    deadline regression.
+
+## Measured result
+
+Actions run `30707120494` rejected fallback enforcement for the current
+score-top2 population. Across five development configurations, 702 of 1,603
+retained candidates (43.8%) passed next-state static revalidation. The cost
+was 37.7 ms per observed step on average (145 ms maximum), with one internal
+deadline overrun. The only protocol fallback was b001-k30 step 16; all 18
+retained commands failed there (`corridor`: 17, `static_geometry`: 1), so
+`would_prevent_protocol_fallback` was zero.
+
+This leaves a bounded warm-start or diversity-stratified carryover experiment
+open, but the present retained set is not a fallback guarantee. Mode `off`
+remains the default and no `enforce` mode should be added from this result.

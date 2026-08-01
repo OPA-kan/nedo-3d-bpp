@@ -197,7 +197,7 @@ visit one release unit as well as one settled unit for every included item,
 so the normal incumbent is established before the deadline. Keep this
 separate from Ranker/risk changes and compare fallback count plus placed/fill.
 
-## Active experiment: cross-step incumbent survival (shadow only)
+## Latest experiment: cross-step incumbent survival (fallback use rejected)
 
 Branch `experiment/cross-step-incumbent` implements the first measurement
 stage of a no-reserved-time fallback design. The normal search retains the
@@ -207,12 +207,20 @@ observed state. `CROSS_STEP_INCUMBENT_MODE=off` is the default and preserves
 the shipped path; `shadow` records survival and cost but never returns a
 carried action. `enforce` is deliberately absent.
 
-The decisive fields are `static_valid_count`,
-`would_prevent_protocol_fallback`, `validation_seconds`, and the deadline
-margins in `candidate_diagnostics.cross_step_incumbent`. The ablation runner
-has a `cross_step_shadow` arm and aggregates these values. No physical result
-exists yet, so do not claim that candidates usually survive or that the
-instrument is runtime-neutral. Contract: `docs/CROSS_STEP_INCUMBENT.md`.
+Actions run 30707120494 completed 5 base + 5 shadow development episodes.
+Across 76 shadow decisions, 702/1,603 retained candidates (43.8%) survived the
+complete next-state static contract. Revalidation cost 37.7 ms/step on
+average, max 145 ms, and crossed the internal deadline once. The sole
+protocol fallback occurred in b001-k30 in both arms. At shadow step 16 all 18
+retained candidates still had visible items but zero were valid: 17 failed
+`corridor`, one `static_geometry`. `would_prevent_protocol_fallback=0`.
+
+Therefore score-top2 cross-step carryover is rejected as the fallback
+guarantee; keep the default `off` and do not add `enforce`. The 43.8% general
+survival signal leaves a separately-testable warm-start/diversity use open,
+but it did not cover the fatal state. Compact result:
+`reports/cross-step-incumbent/history/30707120494/summary.{md,json}`. Contract:
+`docs/CROSS_STEP_INCUMBENT.md`.
 
 ## Next engineering task: Ranker mis-ranking decomposition
 
