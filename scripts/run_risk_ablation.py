@@ -34,6 +34,38 @@ DEFAULT_OUTPUT_DIR = ROOT / "reports" / "risk-ablation"
 FINAL_HOLDOUT_CASES = frozenset({"b001-k40", "b001-k10"})
 
 
+def configure_arm_environment(
+    env: dict[str, str],
+    arm: str,
+    risk_lambda: float,
+    slide_lambda: float,
+) -> None:
+    """Apply one ablation arm without inheriting experiment controls."""
+    for name in (
+        "RESCUE_SCAN_ENABLED",
+        "RESCUE_SCAN_RESERVE_SECONDS",
+        "RESCUE_SCAN_ATTEMPT_BUDGET",
+        "RESCUE_SCAN_ATTEMPTS_PER_UNIT",
+        "RELEASE_RISK_LIVE_RERANK",
+        "RELEASE_RISK_P_MODEL",
+        "RELEASE_RISK_RERANK_LAMBDA",
+        "RELEASE_RISK_SLIDE_LAMBDA",
+        "RELEASE_RISK_SHADOW_RERANK",
+    ):
+        env.pop(name, None)
+    if arm == "off":
+        env["RELEASE_RISK_LIVE_RERANK"] = "0"
+    elif arm in {"base", "rescue"}:
+        if arm == "rescue":
+            env["RESCUE_SCAN_ENABLED"] = "1"
+    else:
+        env["RELEASE_RISK_LIVE_RERANK"] = "1"
+        env["RELEASE_RISK_P_MODEL"] = "mech"
+        env["RELEASE_RISK_RERANK_LAMBDA"] = str(risk_lambda)
+    if slide_lambda > 0.0:
+        env["RELEASE_RISK_SLIDE_LAMBDA"] = str(slide_lambda)
+
+
 def sync_agent_into_simulator() -> None:
     """
     The simulator imports SIMULATOR/agent.py, which is a copy -- the
@@ -166,24 +198,7 @@ def run_episode(
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SIMULATOR)
-    if arm == "off":
-        # Pre-risk baseline: force the risk term off (the shipped
-        # default is risk-on since the final_holdout switch).
-        env["RELEASE_RISK_LIVE_RERANK"] = "0"
-    elif arm == "base":
-        # Shipped defaults (risk-on, rot-only): no overrides.
-        env.pop("RELEASE_RISK_LIVE_RERANK", None)
-        env.pop("RELEASE_RISK_SLIDE_LAMBDA", None)
-    else:
-        env["RELEASE_RISK_LIVE_RERANK"] = "1"
-        env["RELEASE_RISK_P_MODEL"] = "mech"
-        env["RELEASE_RISK_RERANK_LAMBDA"] = str(risk_lambda)
-    if slide_lambda > 0.0:
-        env["RELEASE_RISK_SLIDE_LAMBDA"] = str(slide_lambda)
-    # Ablation runs never do shadow reranking: it is suppressed under
-    # live rerank anyway, and the off arm should match the submission
-    # default exactly.
-    env.pop("RELEASE_RISK_SHADOW_RERANK", None)
+    configure_arm_environment(env, arm, risk_lambda, slide_lambda)
 
     result = run(
         [

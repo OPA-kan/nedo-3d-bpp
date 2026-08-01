@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.run_risk_ablation import summarize
+from scripts.run_risk_ablation import configure_arm_environment, summarize
 
 
 def episode_row(arm, case_id, placed, fill, returncode=0):
@@ -48,6 +48,29 @@ class SummarizeTests(unittest.TestCase):
         rows = [episode_row("mech-lam2", "b000-k20", 19, 24.0)]
         summary = summarize(rows)
         self.assertEqual(summary["paired_vs_off"], {})
+
+
+class ArmEnvironmentTests(unittest.TestCase):
+    def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "RELEASE_RISK_SLIDE_LAMBDA": "9",
+            "RESCUE_SCAN_ATTEMPT_BUDGET": "1",
+        }
+
+        configure_arm_environment(env, "rescue", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertNotIn("RELEASE_RISK_SLIDE_LAMBDA", env)
+        self.assertEqual(env["RESCUE_SCAN_ENABLED"], "1")
+        self.assertNotIn("RESCUE_SCAN_ATTEMPT_BUDGET", env)
+
+    def test_base_clears_rescue_controls(self):
+        env = {"RESCUE_SCAN_ENABLED": "1"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("RESCUE_SCAN_ENABLED", env)
 
 
 if __name__ == "__main__":

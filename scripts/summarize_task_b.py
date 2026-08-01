@@ -58,7 +58,7 @@ def _failure_mode(
         return "unsafe_protocol_fallback"
     if candidate_kind == "release_candidate":
         return "release_failure"
-    if action_source == "placement_core":
+    if action_source in {"placement_core", "rescue_scan"}:
         return "placement_failure"
     return "unknown"
 

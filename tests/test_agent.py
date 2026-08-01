@@ -2989,5 +2989,212 @@ class OfflineOptimizationTests(unittest.TestCase):
         self.assertGreater(solver.last_pair_macro_candidates, 0)
 
 
+class RescueScanTests(unittest.TestCase):
+    def test_visible_items_are_round_robin_by_class(self):
+        pool = [sample_item(index) for index in range(3)]
+        pool.extend(
+            [
+                sample_item(3, is_soft=True),
+                sample_item(4, is_soft=True),
+                sample_item(5, is_prioritized=True),
+            ]
+        )
+
+        ordered = agent.rescue_online_items(pool)
+
+        self.assertEqual(
+            [agent.item_class_name(item) for _index, item in ordered],
+            ["normal", "soft", "priority", "normal", "soft", "normal"],
+        )
+        self.assertEqual({index for index, _item in ordered}, set(range(6)))
+
+    def test_rescue_units_cover_both_modes_per_item_before_deepening(self):
+        items = [(0, sample_item(0)), (1, sample_item(1))]
+        observation = {
+            "pool_list": [item for _index, item in items],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+
+        units = agent.rescue_search_units(observation, items)
+
+        self.assertEqual(
+            [(unit[4], unit[8]) for unit in units[:4]],
+            [
+                (0, "release"),
+                (1, "release"),
+                (0, "settled"),
+                (1, "settled"),
+            ],
+        )
+
+    def test_rescue_keeps_best_incumbent_but_prefers_settled(self):
+        item = sample_item(0)
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        units = [
+            (0, 0, 0, 0, 0, item, 0, 0, "settled"),
+            (0, 0, 0, 1, 0, item, 0, 0, "release"),
+        ]
+        settled = agent.AABB(
+            (0.1, 0.0, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        release = agent.AABB(
+            (0.9, 0.0, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+
+        def attempts(*_args, **kwargs):
+            return iter(
+                [release]
+                if kwargs["attempt_kind"] == "release"
+                else [settled]
+            )
+
+        diagnostics = {}
+        with (
+            mock.patch.object(
+                agent, "rescue_search_units", return_value=units
+            ),
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(
+                agent.Ranker,
+                "score",
+                side_effect=lambda candidate, *_args: float(
+                    candidate.center[0]
+                ),
+            ),
+        ):
+            decision = agent.PlacementCore.rescue_choose(
+                observation,
+                [(0, item)],
+                deadline=time.perf_counter() + 1.0,
+                attempt_budget=8,
+                diagnostics=diagnostics,
+            )
+
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.candidate.name, "candidate")
+        self.assertEqual(diagnostics["rescue_scan"]["attempts"], 2)
+        self.assertEqual(
+            diagnostics["rescue_scan"]["accepted_release"], 1
+        )
+        self.assertEqual(
+            diagnostics["rescue_scan"]["accepted_settled"], 1
+        )
+
+    def test_policy_reserves_time_and_returns_rescue_action(self):
+        item = sample_item(0)
+        observation = {
+            "pool_list": [item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        candidate = agent.AABB(
+            (0.2, 0.0, 0.2),
+            (0.2, 0.2, 0.2),
+            "release_candidate",
+        )
+        rescue_decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.array([0.2, 0.0, 0.2], dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=candidate,
+            score=1.0,
+        )
+        observed_deadlines = []
+
+        def no_closed_loop(
+            _self,
+            _observation,
+            _pool_list,
+            _ordered_items,
+            deadline,
+            **_kwargs,
+        ):
+            observed_deadlines.append(deadline)
+            return None
+
+        with (
+            mock.patch.object(agent, "RESCUE_SCAN_ENABLED", True),
+            mock.patch.object(agent, "RESCUE_SCAN_RESERVE_SECONDS", 0.9),
+            mock.patch.object(agent.time, "perf_counter", return_value=100.0),
+            mock.patch.object(
+                agent.Agent,
+                "_closed_loop_choice",
+                autospec=True,
+                side_effect=no_closed_loop,
+            ),
+            mock.patch.object(
+                agent.PlacementCore, "choose", return_value=None
+            ),
+            mock.patch.object(
+                agent.PlacementCore,
+                "rescue_choose",
+                return_value=rescue_decision,
+            ) as rescue,
+        ):
+            solver = agent.Agent("")
+            action = solver.policy(observation)
+
+        self.assertEqual(observed_deadlines, [105.6])
+        self.assertEqual(rescue.call_args.kwargs["deadline"], 106.5)
+        np.testing.assert_array_equal(
+            action["place_pos"], rescue_decision.action["place_pos"]
+        )
+        self.assertEqual(solver.last_action_source, "rescue_scan")
+
+    def test_disabled_policy_never_calls_rescue(self):
+        observation = {
+            "pool_list": [sample_item(0)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+            ],
+        }
+        with (
+            mock.patch.object(agent, "RESCUE_SCAN_ENABLED", False),
+            mock.patch.object(
+                agent.Agent, "_closed_loop_choice", return_value=None
+            ),
+            mock.patch.object(
+                agent.PlacementCore, "choose", return_value=None
+            ),
+            mock.patch.object(agent.PlacementCore, "rescue_choose") as rescue,
+        ):
+            action = agent.Agent("").policy(observation)
+
+        rescue.assert_not_called()
+        self.assertEqual(action["place_pos"].tolist(), [0.0, 0.0, 0.25])
+
+
 if __name__ == "__main__":
     unittest.main()

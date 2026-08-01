@@ -1,0 +1,95 @@
+name: Rescue scan ablation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rescue-scan-ablation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, rescue]
+        case:
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+          - case_id: b000-k40
+            source_case: "000"
+            look_ahead: 40
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+          - case_id: b001-k30
+            source_case: "001"
+            look_ahead: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output "reports/rescue-scan/${{ matrix.case.case_id }}.json"
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/rescue-scan/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --output-dir
+          "reports/rescue-scan/${{ matrix.case.case_id }}-${{ matrix.arm }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rescue-${{ matrix.case.case_id }}-${{ matrix.arm }}
+          path: reports/rescue-scan/${{ matrix.case.case_id }}-${{ matrix.arm }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rescue-*
+          path: reports/rescue-scan/downloads
+      - name: Combine and summarize
+        run: |
+          mkdir -p reports/rescue-scan/aggregate
+          find reports/rescue-scan/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/rescue-scan/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/rescue-scan/aggregate
+          cat reports/rescue-scan/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rescue-scan-aggregate
+          path: reports/rescue-scan/aggregate/
