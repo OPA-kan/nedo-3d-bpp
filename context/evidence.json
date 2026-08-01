@@ -352,6 +352,14 @@
       "status": "active",
       "claim": "Under the current shipped policy (rich search + rot lambda=1 + slide lambda=0.5), transport_invalid is the LEADING death channel: 10/22 episode endings (45%), vs topple 8 (36%) and slide 4 (18%). In the pre-cache era the split was topple 48% / transport 38% / slide 14%. Controlling rotation and slide raised the transport channel's relative share -- the Route-Survival Lookahead (corridor-preservation tie-break, Codex branch) targets the current largest channel. Its success metric: reduce transport_invalid endings on the 7-case suite without net placed loss.",
       "source": "reports/replay-analysis/terminal-failures.md (re-run over current-policy episodes)"
+    },
+    {
+      "id": "transport-deaths-are-fallback-poison",
+      "topic": "search",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "The transport_invalid death channel (45% of current-policy endings) is NOT corridor blocking: all 8 audited fatal actions fail the agent's OWN static_geometry check on the reconstructed state, because they are the unsafe_protocol_fallback -- a fixed-coordinate action (pool item 0 at [0.0, 0.0, 0.25], orientation 0) emitted when the anytime search returns no acceptable candidate. In congested late states that coordinate is occupied/invalid, so the fallback is a poison pill that ends the episode, while thousands of transport-valid candidates exist elsewhere (late-snapshots-not-starved). Consistent with Codex's route_lost=0: routes are geometrically open; the agent gives up and self-destructs. Fix direction: replace the fixed-coordinate fallback with a rescue scan (coarse stride over release anchors across pool item classes, accept the first self-valid candidate), plus stride coverage in the main scan so the no-candidate branch fires less.",
+      "source": "agent.py unsafe_protocol_fallback (fixed_coordinate); audit of 8 transport-death fatal actions vs Geometry.rejection_reason on rebuilt states"
     }
   ]
 }
