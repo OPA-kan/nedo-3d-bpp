@@ -12,7 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         source_case: ["000"]
-        arm: [base, bounded128]
+        # `default` replaced `bounded128` once ADR-002 shipped: the two are
+        # now the same settings, but only `default` proves the *submission*
+        # path produces them. `base` pins the legacy values explicitly --
+        # after adoption an arm that just unsets the variables would be a
+        # second copy of the treatment.
+        arm: [base, default]
         repeat: [0, 1, 2]
     steps:
       - uses: actions/checkout@v4

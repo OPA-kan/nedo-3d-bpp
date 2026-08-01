@@ -27,14 +27,31 @@ def configure_task_a_arm(
     offline_seconds: float,
     macro_seconds: float,
 ) -> None:
+    """
+    Arms are explicit, never "whatever the environment happened to hold".
+
+    Since the bounded rollout was adopted (ADR-002) the shipped defaults
+    *are* bounded128, so `base` can no longer mean "unset the variables" --
+    that would silently make the control arm equal the treatment arm and
+    every future comparison would read as a null result. `base` therefore
+    pins the legacy values it has always meant.
+
+    - `default`: unset everything; measures exactly what a submission does.
+    - `base`: legacy unbounded per-item scan, legacy macro stage.
+    - `bounded<N>`: N deterministic anchor attempts per item, capped macros.
+    """
     for name in (
         "OFFLINE_SEARCH_BUDGET_SECONDS",
         "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM",
         "OFFLINE_PAIR_MACRO_BUDGET_SECONDS",
     ):
         env.pop(name, None)
+    if arm == "default":
+        return
     env["OFFLINE_SEARCH_BUDGET_SECONDS"] = str(float(offline_seconds))
     if arm == "base":
+        env["OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM"] = "0"
+        env["OFFLINE_PAIR_MACRO_BUDGET_SECONDS"] = "0.0"
         return
     if not arm.startswith("bounded"):
         raise ValueError(f"unknown Task A arm: {arm}")

@@ -1,10 +1,18 @@
+import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.build_task_a_config import build_task_a_config
 from scripts.run_task_a_rollout import configure_task_a_arm, summarize
+
+AGENT_PATH = Path(__file__).parents[1] / "agent" / "agent.py"
+SPEC = importlib.util.spec_from_file_location("task_a_agent", AGENT_PATH)
+agent = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = agent
+SPEC.loader.exec_module(agent)
 
 
 class TaskARolloutTests(unittest.TestCase):
@@ -42,7 +50,8 @@ class TaskARolloutTests(unittest.TestCase):
             base, "base", offline_seconds=30.0, macro_seconds=0.5
         )
         self.assertEqual(base["OFFLINE_SEARCH_BUDGET_SECONDS"], "30.0")
-        self.assertNotIn("OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM", base)
+        self.assertEqual(base["OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM"], "0")
+        self.assertEqual(base["OFFLINE_PAIR_MACRO_BUDGET_SECONDS"], "0.0")
 
         bounded = {}
         configure_task_a_arm(
@@ -57,6 +66,49 @@ class TaskARolloutTests(unittest.TestCase):
         self.assertEqual(
             bounded["OFFLINE_PAIR_MACRO_BUDGET_SECONDS"], "0.5"
         )
+
+    def test_base_arm_does_not_inherit_the_adopted_default(self):
+        """
+        The regression this guards: once bounded128 became the shipped
+        default, an arm that merely unsets the variables measures the
+        treatment, not the control. A leaked value must not survive either.
+        """
+        base = dict(
+            OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM="256",
+            OFFLINE_PAIR_MACRO_BUDGET_SECONDS="9.0",
+        )
+        configure_task_a_arm(
+            base, "base", offline_seconds=150.0, macro_seconds=0.5
+        )
+
+        self.assertEqual(base["OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM"], "0")
+        self.assertEqual(base["OFFLINE_PAIR_MACRO_BUDGET_SECONDS"], "0.0")
+        self.assertNotEqual(
+            base["OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM"],
+            str(agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM),
+            "the shipped default has reverted to the legacy scan, so the "
+            "base arm no longer contrasts with anything -- retire the arm "
+            "or re-point it before running another comparison",
+        )
+
+    def test_default_arm_measures_the_shipped_submission(self):
+        env = dict(
+            OFFLINE_SEARCH_BUDGET_SECONDS="30.0",
+            OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM="0",
+            OFFLINE_PAIR_MACRO_BUDGET_SECONDS="0.0",
+        )
+        configure_task_a_arm(
+            env, "default", offline_seconds=30.0, macro_seconds=0.5
+        )
+
+        self.assertEqual(env, {})
+
+    def test_unknown_arm_is_rejected(self):
+        for arm in ("bounded0", "bounded-8", "shipped"):
+            with self.subTest(arm=arm), self.assertRaises(ValueError):
+                configure_task_a_arm(
+                    {}, arm, offline_seconds=30.0, macro_seconds=0.5
+                )
 
     def test_summary_reads_isolated_rows(self):
         with tempfile.TemporaryDirectory() as directory:

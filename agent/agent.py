@@ -133,11 +133,25 @@ OFFLINE_SEARCH_BUDGET_SECONDS = float(
 OFFLINE_MAX_EVALUATIONS = int(
     os.environ.get("OFFLINE_MAX_EVALUATIONS", "1000")
 )
+# Offline order search only (Agent.optimize / DryRunEvaluator), which the
+# official harness calls when the case sets agent.optimize -- Task A. The
+# online policy never reads these, so Task B and Task C are unaffected.
+#
+# Adopted 2026-08-02 from Actions run 30717998654 (ADR-002). Without a
+# per-item bound one unplaceable item's scan made a single dry run cost
+# ~35 s, so the search evaluated 3.0 of its allowed 1000 complete orders
+# -- the seed plus two neighbours -- inside the 150 s budget. Bounding
+# each item at 128 deterministic anchor attempts and capping pair-macro
+# construction at 0.5 s cut a dry run to ~2.7 s, raising it to 51.3
+# evaluated orders and physical placed 20 -> 25 / fill 29.298 -> 34.949.
+# OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=0 restores the legacy global-deadline
+# scan; OFFLINE_PAIR_MACRO_BUDGET_SECONDS=0.0 restores the legacy
+# remaining-budget macro stage.
 OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM = max(
-    0, int(os.environ.get("OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM", "0"))
+    0, int(os.environ.get("OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM", "128"))
 )
 OFFLINE_PAIR_MACRO_BUDGET_SECONDS = float(
-    os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.0")
+    os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.5")
 )
 OFFLINE_RANDOM_SEED = 20260723
 OFFLINE_FILL_WEIGHT = float(
