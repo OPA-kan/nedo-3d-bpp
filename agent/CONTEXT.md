@@ -52,6 +52,13 @@
 - `ANCHOR_GENERATOR_MODE=cartesian` で旧直積列挙へ戻せる。offline oracleは
   常に旧Cartesianを明示指定し、anchor recallとbest-score regretの基準を
   新generatorから独立に保つ。
+- anchor generatorは`stride`/`stride_offset`でdedup後のanchor列を系統抽出できる。
+  Cartesianだけでなく既定の`support_plane`とrelease planeも対応し、
+  `iter_attempts` → `iter_prioritized_candidates` → `bounded_rollout_decision`
+  → `visible_pool_rollout_value`まで貫通する。skipはyieldせずround枠も消費しない
+  ので、**同じattempt予算のまま**grid全体へ到達幅を広げる測定ができる。
+  既定は全層`stride=1`（挙動不変）。rollout側の既定は
+  `VISIBLE_POOL_ROLLOUT_STRIDE`（既定1）で、evaluation recordに使用strideを残す。
 - `candidate_diagnostics.support_plane_searches` は姿勢・コンテナごとに
   連結前後のanchor数、面数、成分数、閾値、面優先順の根拠値を保存する。
 

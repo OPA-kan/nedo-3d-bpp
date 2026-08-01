@@ -264,11 +264,29 @@ already in `Q_live`; rollout risk contains future transitions only. The proxy
 rollout is not the current Q_live policy, so no textbook policy-improvement
 guarantee applies.
 
+**That 1.2% late figure has now been diagnosed and it is mostly an
+instrument fault.** `docs/ROLLOUT_SATURATION.md` and
+`reports/rollout-saturation/local-20260801`: on the 48 committed replay
+snapshots (37 at step >= 10), only 4/37 late states have nothing for the
+rollout to find. The shipped setting reaches a future placement on 8/37; the
+same per-step attempt cap with `stride 8` reaches one on 28/37. The failure
+is the anchor **scan order**, not the budget - `budget-512` spends about
+8.4x the attempts and reaches only 12/37, and 17 late snapshots are reached
+by stride and not by budget (1 the other way). Read non-degeneracy and
+future-placement separately: the budget arms score 36/37 non-degenerate
+purely on release-risk tie-breaks with no reach. This is a diagnosis of the
+measurement only. `VISIBLE_POOL_ROLLOUT_MODE` stays `off` and
+`VISIBLE_POOL_ROLLOUT_STRIDE` defaults to 1; the enforce rejection stands.
+The next evidence is the b000-k15 first divergence re-run at stride 4, since
+that loss was deterministic and the value it enforced on was measured
+through the hole.
+
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
 `reports/slide-patches/`, Gated Iota enters at S2), live stride
-sampling port for further recall.
+sampling port for further recall (the generator side of this is now
+implemented and reaches `support_plane`, not only the Cartesian mode).
 
 ## Important invariants
 
