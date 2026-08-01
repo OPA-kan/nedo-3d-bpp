@@ -226,18 +226,25 @@ Fresh geometry-only replay of the saved `b000-k20` step-9 observation:
 
 The 17/21 variation comes from the existing deadline-driven generator feeding
 slightly different probe populations, not from a variable future validation
-budget. This is not yet an episode-level improvement claim and it does not
-reproduce the historical item-28 action. The next gate is the five-config
-Actions workflow (`future-option-ablation.yml`): base vs feature on
-`b000-k15/k20/k40` and `b001-k20/k30`. Keep the default OFF until its compact
-placed/fill history is reviewed.
+budget. This does not reproduce the historical item-28 action.
+
+Five-config Actions run `30684302181` completed all 10 episodes and persisted
+`reports/future-option/history/30684302181/summary.{md,json}`. The feature
+raised mean placed `16.4 -> 19.0` (82 -> 95 total) but reduced mean fill
+`21.479 -> 18.806`. Per-case placed/fill deltas were: b000-k15 `0/-8.523`,
+b000-k20 `+11/+3.731`, b000-k40 `0/-2.650`, b001-k20 `+3/+3.901`, b001-k30
+`-1/-9.824`. This is one run per arm, so it is screening evidence. The default
+remains OFF: feasible-item count has real signal, but alone it can preserve
+many small-item options while destroying volume value.
 
 ## Next engineering task
 
-Review the five-config future-option aggregate. If it is non-regressive, run
-repeat episodes before adoption. If it is noisy or negative, first stabilize
-the deadline-edge probe population; do not tune a beta weight or alter the
-release-risk model to rescue it.
+Repeat the five-config screen before changing the value definition. If the
+placed-up/fill-down split persists, add an explicit residual volume/utility
+descriptor inside the lexicographic tuple (still no additive beta) and compare
+it as a new arm. Separately stabilize the deadline-edge probe population if
+the 17/21 choice variance remains material. Do not alter the release-risk model
+to rescue this experiment.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),

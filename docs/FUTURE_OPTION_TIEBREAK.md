@@ -82,3 +82,21 @@ historical item-28 action nor establishes a better PyBullet trajectory.
 The workflow stores compact paired placed/fill summaries in
 `reports/future-option/history/<run_id>/`. Do not enable the feature by default
 unless that episode-level guard gives an explained non-regression result.
+
+Run `30684302181` completed all ten episodes successfully. Its single-run
+screening result was mixed:
+
+| case | placed delta | fill delta |
+|---|---:|---:|
+| b000-k15 | 0 | -8.523 |
+| b000-k20 | +11 | +3.731 |
+| b000-k40 | 0 | -2.650 |
+| b001-k20 | +3 | +3.901 |
+| b001-k30 | -1 | -9.824 |
+
+Across the five cases, mean placed increased `16.4 -> 19.0`, while mean fill
+fell `21.479 -> 18.806`. The feature is therefore not adopted. The result
+supports the item-option signal but exposes its missing volume/utility axis:
+preserving many feasible item identities can prefer futures containing more
+small items. Repeat runs are required before changing the value tuple; do not
+hide this trade-off by immediately fitting an additive beta.
