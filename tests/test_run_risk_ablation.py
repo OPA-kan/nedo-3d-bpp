@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.run_risk_ablation import summarize
+from scripts.run_risk_ablation import configure_arm_environment, summarize
 
 
 def episode_row(arm, case_id, placed, fill, returncode=0):
@@ -48,6 +48,50 @@ class SummarizeTests(unittest.TestCase):
         rows = [episode_row("mech-lam2", "b000-k20", 19, 24.0)]
         summary = summarize(rows)
         self.assertEqual(summary["paired_vs_off"], {})
+
+    def test_future_option_is_paired_against_shipped_base(self):
+        rows = [
+            episode_row("base", "b000-k20", 18, 22.0),
+            episode_row("future-option", "b000-k20", 20, 25.0),
+        ]
+
+        summary = summarize(rows)
+
+        diff = summary["paired_vs_base"]["future-option"]["b000-k20"]
+        self.assertEqual(diff["placed_diff"], 2.0)
+        self.assertEqual(diff["fill_diff"], 3.0)
+
+
+class ConfigureArmEnvironmentTests(unittest.TestCase):
+    def test_future_option_keeps_shipped_risk_and_enables_only_tiebreak(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "RELEASE_RISK_P_MODEL": "old",
+            "RELEASE_RISK_RERANK_LAMBDA": "9",
+            "RELEASE_RISK_SLIDE_LAMBDA": "9",
+            "RELEASE_RISK_SHADOW_RERANK": "1",
+        }
+
+        configure_arm_environment(
+            env, "future-option", risk_lambda=1.0
+        )
+
+        self.assertEqual(env["FUTURE_OPTION_TIEBREAK"], "1")
+        for key in (
+            "RELEASE_RISK_LIVE_RERANK",
+            "RELEASE_RISK_P_MODEL",
+            "RELEASE_RISK_RERANK_LAMBDA",
+            "RELEASE_RISK_SLIDE_LAMBDA",
+            "RELEASE_RISK_SHADOW_RERANK",
+        ):
+            self.assertNotIn(key, env)
+
+    def test_other_arms_cannot_inherit_future_option_flag(self):
+        env = {"FUTURE_OPTION_TIEBREAK": "1"}
+
+        configure_arm_environment(env, "base", risk_lambda=1.0)
+
+        self.assertNotIn("FUTURE_OPTION_TIEBREAK", env)
 
 
 if __name__ == "__main__":

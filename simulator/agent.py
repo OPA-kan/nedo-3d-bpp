@@ -81,12 +81,15 @@ RELEASE_RISK_LIVE_RERANK = os.environ.get(
     "RELEASE_RISK_LIVE_RERANK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Slide hazard weight in the risk-adjusted score:
-# Q - lambda_rot*P_rot - lambda_slide*P_slide. The LIVE default stays 0
-# (rotation-only) until the slide line completes its protocol steps;
+# Q - lambda_rot*P_rot - lambda_slide*P_slide. Default 0.5 since
+# 2026-08-01: under the cached (rich) search the slide term won the
+# 7-case aggregate (placed 137 -> 140, fill 149 -> 172); the earlier
+# not-adopted verdict was an artifact of the starved search. Set to 0
+# to recover the rotation-only policy;
 # RELEASE_RISK_SLIDE_SHADOW_LAMBDA > 0 makes the shadow rerank compare
-# the live policy against rot+slide without touching the real action.
+# the live policy against a different slide weight.
 RELEASE_RISK_SLIDE_LAMBDA = float(
-    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.0")
+    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.5")
 )
 RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
     os.environ.get("RELEASE_RISK_SLIDE_SHADOW_LAMBDA", "0.0")
@@ -125,6 +128,23 @@ LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
+# --- Experimental future-option tie-break (off by default) ---
+FUTURE_OPTION_TIEBREAK_ENABLED = (
+    os.environ.get("FUTURE_OPTION_TIEBREAK", "0").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+FUTURE_OPTION_ITEM_TOP_K = int(
+    os.environ.get("FUTURE_OPTION_ITEM_TOP_K", "10")
+)
+FUTURE_OPTION_Q_BAND = float(
+    os.environ.get("FUTURE_OPTION_Q_BAND", "0.15")
+)
+FUTURE_OPTION_VALIDATION_BUDGET = int(
+    os.environ.get("FUTURE_OPTION_VALIDATION_BUDGET", "32")
+)
+FUTURE_OPTION_PROBES_PER_SIGNATURE = int(
+    os.environ.get("FUTURE_OPTION_PROBES_PER_SIGNATURE", "4")
+)
 # --- DPOR (dynamic partial-order reduction) for pair-block ordering ---
 DPOR_MAX_ALTERNATE_ATTEMPTS = int(
     os.environ.get("DPOR_MAX_ALTERNATE_ATTEMPTS", "16")
@@ -544,6 +564,29 @@ class LookaheadEvaluation:
 
 
 @dataclass(frozen=True)
+class FutureOptionValue:
+    feasible_items: int
+    feasible_item_orientations: int
+    distinct_support_regions: int
+    valid_candidates: int
+    evaluated_candidates: int
+
+    def rank_key(self):
+        return (
+            int(self.feasible_items),
+            int(self.feasible_item_orientations),
+            int(self.distinct_support_regions),
+            int(self.valid_candidates),
+        )
+
+
+@dataclass(frozen=True)
+class FutureOptionEvaluation:
+    decision: PlacementDecision
+    value: FutureOptionValue
+
+
+@dataclass(frozen=True)
 class PlacementTrace:
     item_index: int
     container_idx: int
@@ -848,6 +891,58 @@ def support_component_overlap_area(candidate, component):
             )
         )
     return rectangle_union_area(rectangles)
+
+
+def candidate_support_region_signature(
+    candidate,
+    container,
+    components=None,
+):
+    """Stable geometric identity of the predicted support component.
+
+    The value deliberately contains no object ids or candidate coordinates.
+    Mirrored/nearby anchors on the same connected support component therefore
+    count as one future option.  Release commands use the same settled proxy
+    as ``apply_placement_decision``; this remains a static prediction, not a
+    PyBullet settle result.
+    """
+    predicted = settled_proxy_candidate(candidate, container)
+    if components is None:
+        components = order_support_plane_components(
+            support_plane_components(support_surfaces(container))
+        )
+    matches = []
+    for component in components:
+        if (
+            abs(float(predicted.minimum[2]) - float(component.top))
+            > CONTACT_TOLERANCE
+        ):
+            continue
+        overlap = support_component_overlap_area(predicted, component)
+        if overlap > EPS:
+            matches.append((overlap, component))
+    if not matches:
+        return (
+            "unresolved",
+            round(float(predicted.minimum[2]), 4),
+        )
+    _overlap, component = max(
+        matches,
+        key=lambda entry: (
+            float(entry[0]),
+            float(entry[1].area),
+            -float(entry[1].top),
+        ),
+    )
+    return (
+        "support",
+        round(float(component.top), 4),
+        round(float(component.minimum_xy[0]), 4),
+        round(float(component.maximum_xy[0]), 4),
+        round(float(component.minimum_xy[1]), 4),
+        round(float(component.maximum_xy[1]), 4),
+        bool(component.contains_floor),
+    )
 
 
 def penetrates_with_lateral_clearance(candidate, obstacle, clearance):
@@ -3741,6 +3836,166 @@ class PlacementCore:
             )
         ]
 
+    @staticmethod
+    def item_diverse_candidates(
+        observation,
+        indexed_items,
+        item_k,
+        validation_budget,
+        deadline=None,
+        diagnostics=None,
+        risk_lambda=None,
+    ):
+        """Return one best decision per item plus a balanced probe universe.
+
+        This is an experimental alternative to global candidate Top-K.  It
+        uses the unchanged candidate stream and score, preserves the settled
+        over release contract, and only changes the bounded set retained for
+        future-option evaluation.
+        """
+        containers = observation.get("container_list", [])
+        if not containers or item_k <= 0:
+            return [], []
+        has_priority_container = any(
+            bool(container.get("is_prioritized", False))
+            for container in containers
+        )
+        item_order = {
+            int(item_idx): rank
+            for rank, (item_idx, _item) in enumerate(indexed_items)
+        }
+        best_by_kind = {"settled": {}, "release": {}}
+        probes_by_kind = {"settled": {}, "release": {}}
+        components_by_container = {
+            container_idx: order_support_plane_components(
+                support_plane_components(support_surfaces(container))
+            )
+            for container_idx, container in enumerate(containers)
+        }
+
+        for (
+            item_idx,
+            item,
+            container_idx,
+            orientation,
+            candidate,
+        ) in iter_prioritized_candidates(
+            observation,
+            indexed_items,
+            deadline=deadline,
+            diagnostics=diagnostics,
+        ):
+            container = containers[container_idx]
+            score = Ranker.score(
+                candidate,
+                item,
+                container,
+                has_priority_container,
+            )
+            score, _risk_probability = risk_adjusted_score(
+                score,
+                candidate,
+                item,
+                container,
+                orientation,
+                risk_lambda,
+            )
+            decision = PlacementDecision(
+                action={
+                    "item_idx": int(item_idx),
+                    "container_idx": int(container_idx),
+                    "place_pos": np.asarray(
+                        simulator_action_center(candidate, container),
+                        dtype=np.float32,
+                    ),
+                    "orientation": int(orientation),
+                },
+                candidate=candidate,
+                score=float(score),
+            )
+            kind = (
+                "release"
+                if candidate.name == "release_candidate"
+                else "settled"
+            )
+            previous = best_by_kind[kind].get(int(item_idx))
+            if previous is None or score > previous.score:
+                best_by_kind[kind][int(item_idx)] = decision
+                if diagnostics is not None:
+                    diagnostics["search"]["incumbent_updates"] += 1
+
+            region = candidate_support_region_signature(
+                candidate,
+                container,
+                components_by_container[container_idx],
+            )
+            signature = (
+                int(item_idx),
+                int(orientation),
+                int(container_idx),
+                region,
+            )
+            entries = probes_by_kind[kind].setdefault(signature, [])
+            entries.append(decision)
+            entries.sort(
+                key=lambda entry: (
+                    -float(entry.score),
+                    tuple(float(value) for value in entry.candidate.center),
+                )
+            )
+            del entries[max(1, FUTURE_OPTION_PROBES_PER_SIGNATURE) :]
+
+        active_kind = "settled" if best_by_kind["settled"] else "release"
+        shortlist = sorted(
+            best_by_kind[active_kind].values(),
+            key=lambda entry: (
+                -float(entry.score),
+                item_order.get(int(entry.action["item_idx"]), float("inf")),
+                int(entry.action["item_idx"]),
+            ),
+        )[: max(0, int(item_k))]
+
+        groups = {}
+        for signature, entries in probes_by_kind[active_kind].items():
+            item_idx, orientation, _container_idx, _region = signature
+            groups.setdefault((int(item_idx), int(orientation)), []).extend(
+                entries
+            )
+        for entries in groups.values():
+            entries.sort(
+                key=lambda entry: (
+                    -float(entry.score),
+                    int(entry.action["container_idx"]),
+                    tuple(float(value) for value in entry.candidate.center),
+                )
+            )
+        ordered_groups = sorted(
+            groups,
+            key=lambda key: (
+                item_order.get(key[0], float("inf")),
+                key[1],
+                key[0],
+            ),
+        )
+        probes = []
+        depth = 0
+        # Keep one extra budget so removing the hypothetical placed item's
+        # probes does not reduce another candidate's validation work.
+        budget = max(0, int(validation_budget)) * 2
+        while len(probes) < budget:
+            added = False
+            for key in ordered_groups:
+                entries = groups[key]
+                if depth < len(entries):
+                    probes.append(entries[depth])
+                    added = True
+                    if len(probes) >= budget:
+                        break
+            if not added:
+                break
+            depth += 1
+        return shortlist, probes
+
 
 def normalized_lookahead_mode(mode):
     normalized = str(mode).strip().lower()
@@ -3808,6 +4063,106 @@ def evaluate_visible_pool_feasibility(
         feasible_items=feasible_items,
         evaluated_items=evaluated_items,
         best_score=best_score,
+    )
+
+
+def evaluate_future_option_value(
+    observation,
+    pool_list,
+    placed_decision,
+    probe_decisions,
+    validation_budget,
+):
+    """Evaluate a fixed shared probe set after one virtual placement.
+
+    Only the currently visible pool minus the placed item is observable.
+    No new arrival, anchor generation, wall-clock cutoff, or PyBullet settle
+    enters this value.
+    """
+    sim_containers = copy.deepcopy(observation.get("container_list", []))
+    placed_pool_index = int(placed_decision.action["item_idx"])
+    if not (0 <= placed_pool_index < len(pool_list)):
+        return FutureOptionValue(0, 0, 0, 0, 0)
+    apply_placement_decision(
+        pool_list[placed_pool_index], placed_decision, sim_containers
+    )
+    components_by_container = {
+        container_idx: order_support_plane_components(
+            support_plane_components(support_surfaces(container))
+        )
+        for container_idx, container in enumerate(sim_containers)
+    }
+
+    feasible_items = set()
+    feasible_item_orientations = set()
+    support_regions = set()
+    valid_candidates = 0
+    evaluated_candidates = 0
+    budget = max(0, int(validation_budget))
+    for probe in probe_decisions:
+        probe_pool_index = int(probe.action["item_idx"])
+        if probe_pool_index == placed_pool_index:
+            continue
+        if evaluated_candidates >= budget:
+            break
+        evaluated_candidates += 1
+        container_idx = int(probe.action["container_idx"])
+        if not (
+            0 <= probe_pool_index < len(pool_list)
+            and 0 <= container_idx < len(sim_containers)
+        ):
+            continue
+        container = sim_containers[container_idx]
+        if not Geometry.valid(probe.candidate, container):
+            continue
+        item_index = int(
+            pool_list[probe_pool_index].get(
+                "index", probe_pool_index
+            )
+        )
+        orientation = int(probe.action["orientation"])
+        feasible_items.add(item_index)
+        feasible_item_orientations.add((item_index, orientation))
+        support_regions.add(
+            (
+                container_idx,
+                candidate_support_region_signature(
+                    probe.candidate,
+                    container,
+                    components_by_container[container_idx],
+                ),
+            )
+        )
+        valid_candidates += 1
+    return FutureOptionValue(
+        feasible_items=len(feasible_items),
+        feasible_item_orientations=len(feasible_item_orientations),
+        distinct_support_regions=len(support_regions),
+        valid_candidates=valid_candidates,
+        evaluated_candidates=evaluated_candidates,
+    )
+
+
+def select_future_option_evaluation(evaluations, q_band):
+    """Lexicographically select only inside the incumbent's Q_live band."""
+    evaluations = list(evaluations)
+    if not evaluations:
+        return None
+    best_immediate = max(
+        float(evaluation.decision.score) for evaluation in evaluations
+    )
+    cohort = [
+        evaluation
+        for evaluation in evaluations
+        if best_immediate - float(evaluation.decision.score)
+        <= float(q_band) + EPS
+    ]
+    return max(
+        cohort,
+        key=lambda evaluation: (
+            evaluation.value.rank_key(),
+            float(evaluation.decision.score),
+        ),
     )
 
 
@@ -4631,6 +4986,155 @@ class Agent:
         self.last_offline_cache_hits = evaluator.cache_hits
         return [int(item["index"]) for item in best_items]
 
+    def _future_option_choice(
+        self,
+        observation,
+        pool_list,
+        ordered_items,
+        deadline,
+        risk_lambda=None,
+        diagnostics=...,
+    ):
+        """Experimental item-diverse, fixed-work residual-option tie-break."""
+        if diagnostics is ...:
+            diagnostics = self.last_candidate_diagnostics
+        self.last_top_candidate_item_indices = []
+        self.last_future_probe_item_indices = []
+        self.last_top_candidate_count = 0
+        self.last_lookahead_evaluation = None
+        if not ordered_items:
+            return None
+
+        lookahead_deadline = deadline - LOOKAHEAD_TIME_RESERVE_SECONDS
+        search_deadline = (
+            lookahead_deadline
+            if lookahead_deadline > time.perf_counter()
+            else deadline
+        )
+        shortlist, probes = PlacementCore.item_diverse_candidates(
+            observation,
+            ordered_items,
+            item_k=FUTURE_OPTION_ITEM_TOP_K,
+            validation_budget=FUTURE_OPTION_VALIDATION_BUDGET,
+            deadline=search_deadline,
+            diagnostics=diagnostics,
+            risk_lambda=risk_lambda,
+        )
+        self.last_top_candidate_count = len(shortlist)
+        for decision in shortlist:
+            pool_index = int(decision.action["item_idx"])
+            if 0 <= pool_index < len(pool_list):
+                self.last_top_candidate_item_indices.append(
+                    int(pool_list[pool_index].get("index", pool_index))
+                )
+        seen_probe_items = set()
+        for probe in probes:
+            pool_index = int(probe.action["item_idx"])
+            if not (0 <= pool_index < len(pool_list)):
+                continue
+            item_index = int(
+                pool_list[pool_index].get("index", pool_index)
+            )
+            if item_index not in seen_probe_items:
+                seen_probe_items.add(item_index)
+                self.last_future_probe_item_indices.append(item_index)
+
+        record = {
+            "enabled": True,
+            "item_top_k": int(FUTURE_OPTION_ITEM_TOP_K),
+            "q_band": float(FUTURE_OPTION_Q_BAND),
+            "validation_budget": int(FUTURE_OPTION_VALIDATION_BUDGET),
+            "probe_population": len(probes),
+            "shortlist_items": list(self.last_top_candidate_item_indices),
+            "evaluations": [],
+            "aborted_for_deadline": False,
+            "future_evaluation_seconds": 0.0,
+        }
+        if diagnostics is not None:
+            diagnostics["future_option_tiebreak"] = record
+        if not shortlist:
+            return None
+
+        q_best = shortlist[0]
+        cohort = [
+            decision
+            for decision in shortlist
+            if float(q_best.score) - float(decision.score)
+            <= float(FUTURE_OPTION_Q_BAND) + EPS
+        ]
+        evaluations = []
+        for decision in cohort:
+            if time.perf_counter() >= deadline - 0.2:
+                record["aborted_for_deadline"] = True
+                break
+            evaluation_started = time.perf_counter()
+            value = evaluate_future_option_value(
+                observation,
+                pool_list,
+                decision,
+                probes,
+                validation_budget=FUTURE_OPTION_VALIDATION_BUDGET,
+            )
+            evaluation_seconds = time.perf_counter() - evaluation_started
+            record["future_evaluation_seconds"] += evaluation_seconds
+            if time.perf_counter() >= deadline - 0.2:
+                record["aborted_for_deadline"] = True
+                break
+            evaluation = FutureOptionEvaluation(decision, value)
+            evaluations.append(evaluation)
+            pool_index = int(decision.action["item_idx"])
+            record["evaluations"].append(
+                {
+                    "pool_index": pool_index,
+                    "item_index": (
+                        int(pool_list[pool_index].get("index", pool_index))
+                        if 0 <= pool_index < len(pool_list)
+                        else None
+                    ),
+                    "orientation": int(decision.action["orientation"]),
+                    "kind": decision.candidate.name or "candidate",
+                    "q_live": float(decision.score),
+                    "q_gap": float(q_best.score) - float(decision.score),
+                    "feasible_items": int(value.feasible_items),
+                    "feasible_item_orientations": int(
+                        value.feasible_item_orientations
+                    ),
+                    "distinct_support_regions": int(
+                        value.distinct_support_regions
+                    ),
+                    "valid_candidates": int(value.valid_candidates),
+                    "evaluated_candidates": int(
+                        value.evaluated_candidates
+                    ),
+                    "evaluation_seconds": float(evaluation_seconds),
+                }
+            )
+
+        selected = q_best
+        selected_value = FutureOptionValue(0, 0, 0, 0, 0)
+        if len(evaluations) == len(cohort):
+            selected_evaluation = select_future_option_evaluation(
+                evaluations,
+                q_band=FUTURE_OPTION_Q_BAND,
+            )
+            if selected_evaluation is not None:
+                selected = selected_evaluation.decision
+                selected_value = selected_evaluation.value
+        else:
+            record["aborted_for_deadline"] = True
+
+        record["cohort_count"] = len(cohort)
+        record["changed_from_q_best"] = selected is not q_best
+        record["selected_pool_index"] = int(selected.action["item_idx"])
+        record["selected_q_live"] = float(selected.score)
+        self.last_lookahead_evaluation = LookaheadEvaluation(
+            decision=selected,
+            feasible_next_items=int(selected_value.feasible_items),
+            total_next_items=max(0, len(ordered_items) - 1),
+            best_next_score=0.0,
+        )
+        return selected
+
     def _closed_loop_choice(
         self,
         observation,
@@ -4935,13 +5439,22 @@ class Agent:
                 "lambda": float(live_lambda),
                 "model": active_release_risk_model_version(),
             }
-        decision = self._closed_loop_choice(
-            observation,
-            pool_list,
-            ordered_items,
-            deadline,
-            risk_lambda=live_lambda,
-        )
+        if FUTURE_OPTION_TIEBREAK_ENABLED:
+            decision = self._future_option_choice(
+                observation,
+                pool_list,
+                ordered_items,
+                deadline,
+                risk_lambda=live_lambda,
+            )
+        else:
+            decision = self._closed_loop_choice(
+                observation,
+                pool_list,
+                ordered_items,
+                deadline,
+                risk_lambda=live_lambda,
+            )
         if decision is None:
             decision = PlacementCore.choose(
                 observation,

@@ -1,0 +1,153 @@
+name: Future-option regression guard
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: future-option-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case_id }}-${{ matrix.arm }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+            arm: base
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+            arm: future-option
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+            arm: base
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+            arm: future-option
+          - case_id: b000-k40
+            source_case: "000"
+            look_ahead: 40
+            arm: base
+          - case_id: b000-k40
+            source_case: "000"
+            look_ahead: 40
+            arm: future-option
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+            arm: base
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+            arm: future-option
+          - case_id: b001-k30
+            source_case: "001"
+            look_ahead: 30
+            arm: base
+          - case_id: b001-k30
+            source_case: "001"
+            look_ahead: 30
+            arm: future-option
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.source_case }}"
+          --task-id "${{ matrix.case_id }}"
+          --look-ahead "${{ matrix.look_ahead }}"
+          --policy-timeout 8
+          --output "reports/future-option-guard/${{ matrix.case_id }}.json"
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/future-option-guard/${{ matrix.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat 0
+          --output-dir
+          "reports/future-option-guard/${{ matrix.case_id }}-${{ matrix.arm }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: future-option-guard-${{ matrix.case_id }}-${{ matrix.arm }}
+          path: reports/future-option-guard/${{ matrix.case_id }}-${{ matrix.arm }}/
+
+  aggregate:
+    name: five-config-aggregate
+    needs: episode
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: future-option-guard-*
+          path: reports/future-option-guard-results
+      - name: Aggregate paired development runs
+        run: |
+          mkdir -p reports/future-option-guard
+          find reports/future-option-guard-results -name rows.jsonl -print0 \
+            | sort -z \
+            | xargs -0 cat \
+            > reports/future-option-guard/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/future-option-guard
+          cat reports/future-option-guard/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: future-option-five-config-aggregate
+          path: |
+            reports/future-option-guard/summary.md
+            reports/future-option-guard/summary.json
+            reports/future-option-guard/rows.jsonl
+      - name: Persist compact result on the experiment branch
+        env:
+          HISTORY_DIR: reports/future-option/history/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HISTORY_DIR"
+          cp reports/future-option-guard/summary.md "$HISTORY_DIR/summary.md"
+          cp reports/future-option-guard/summary.json "$HISTORY_DIR/summary.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$HISTORY_DIR/summary.md" "$HISTORY_DIR/summary.json"
+          git commit \
+            -m "Record future-option guard ${{ github.run_id }} [skip ci]"
+
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Failed to push aggregate after $attempt attempts" >&2
+              exit 1
+            fi
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+          done

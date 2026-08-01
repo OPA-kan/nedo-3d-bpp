@@ -200,14 +200,44 @@ unknown. A fresh 6.5 s rerun is recorded separately and cannot replace the
 historical deadline schedule; selected actions themselves are forced-in as
 primary reachability evidence.
 
+## Future-option tie-break experiment (2026-08-01)
+
+Branch `experiment/future-option-tiebreak` implements the first default-off
+graded residual-option selector. It does not add a learned value or change the
+live ranker. The contract is:
+
+    item-diverse immediate representatives
+    -> Q_live gap <= 0.15
+    -> fixed 32-probe future-option tuple
+    -> lexicographic tie-break
+
+The tuple is `(feasible items, feasible item-orientations, distinct support
+regions, valid sampled probes)`. The placed item is removed and no unseen
+future arrival is introduced. Full details are in
+`docs/FUTURE_OPTION_TIEBREAK.md`.
+
+Fresh geometry-only replay of the saved `b000-k20` step-9 observation:
+
+- feature OFF: item 5 in 3/3 runs, 5.005--5.013 s;
+- feature ON: item 17 or 21 in 3/3 runs, 5.813--5.906 s;
+- fixed future stage: 0.803--0.894 s;
+- item 17, which global top-K had starved, entered the item-diverse shortlist
+  in every ON run.
+
+The 17/21 variation comes from the existing deadline-driven generator feeding
+slightly different probe populations, not from a variable future validation
+budget. This is not yet an episode-level improvement claim and it does not
+reproduce the historical item-28 action. The next gate is the five-config
+Actions workflow (`future-option-ablation.yml`): base vs feature on
+`b000-k15/k20/k40` and `b001-k20/k30`. Keep the default OFF until its compact
+placed/fill history is reviewed.
+
 ## Next engineering task
 
-Capture a complete candidate audit for both sides from the same saved snapshot
-and deterministic deadline/work budget, then run paired PyBullet replay for
-the two selected actions. This separates search-set change from score change
-and replaces the packed-AABB survival proxy with the actual settle-conditioned
-next state. Only after that attribution should a graded residual-value term be
-added in shadow mode.
+Review the five-config future-option aggregate. If it is non-regressive, run
+repeat episodes before adoption. If it is noisy or negative, first stabilize
+the deadline-edge probe population; do not tune a beta weight or alter the
+release-risk model to rescue it.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),

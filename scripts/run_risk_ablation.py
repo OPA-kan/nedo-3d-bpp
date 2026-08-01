@@ -139,6 +139,40 @@ def case_summary(
     return cases
 
 
+def configure_arm_environment(
+    env: dict[str, str],
+    arm: str,
+    *,
+    risk_lambda: float,
+    slide_lambda: float = 0.0,
+) -> None:
+    """Apply one ablation arm without leaking flags between invocations."""
+    env.pop("FUTURE_OPTION_TIEBREAK", None)
+    if arm == "off":
+        # Pre-risk baseline: force the risk term off (the shipped
+        # default is risk-on since the final_holdout switch).
+        env["RELEASE_RISK_LIVE_RERANK"] = "0"
+    elif arm in {"base", "future-option"}:
+        # Shipped risk defaults. The future-option arm changes only the
+        # residual-option tie-break, keeping the current live ranker intact.
+        env.pop("RELEASE_RISK_LIVE_RERANK", None)
+        env.pop("RELEASE_RISK_P_MODEL", None)
+        env.pop("RELEASE_RISK_RERANK_LAMBDA", None)
+        env.pop("RELEASE_RISK_SLIDE_LAMBDA", None)
+        if arm == "future-option":
+            env["FUTURE_OPTION_TIEBREAK"] = "1"
+    else:
+        env["RELEASE_RISK_LIVE_RERANK"] = "1"
+        env["RELEASE_RISK_P_MODEL"] = "mech"
+        env["RELEASE_RISK_RERANK_LAMBDA"] = str(risk_lambda)
+    if slide_lambda > 0.0:
+        env["RELEASE_RISK_SLIDE_LAMBDA"] = str(slide_lambda)
+    # Ablation runs never do shadow reranking: it is suppressed under
+    # live rerank anyway, and the off arm should match the submission
+    # default exactly.
+    env.pop("RELEASE_RISK_SHADOW_RERANK", None)
+
+
 def run_episode(
     config_path: pathlib.Path,
     arm: str,
@@ -166,24 +200,12 @@ def run_episode(
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SIMULATOR)
-    if arm == "off":
-        # Pre-risk baseline: force the risk term off (the shipped
-        # default is risk-on since the final_holdout switch).
-        env["RELEASE_RISK_LIVE_RERANK"] = "0"
-    elif arm == "base":
-        # Shipped defaults (risk-on, rot-only): no overrides.
-        env.pop("RELEASE_RISK_LIVE_RERANK", None)
-        env.pop("RELEASE_RISK_SLIDE_LAMBDA", None)
-    else:
-        env["RELEASE_RISK_LIVE_RERANK"] = "1"
-        env["RELEASE_RISK_P_MODEL"] = "mech"
-        env["RELEASE_RISK_RERANK_LAMBDA"] = str(risk_lambda)
-    if slide_lambda > 0.0:
-        env["RELEASE_RISK_SLIDE_LAMBDA"] = str(slide_lambda)
-    # Ablation runs never do shadow reranking: it is suppressed under
-    # live rerank anyway, and the off arm should match the submission
-    # default exactly.
-    env.pop("RELEASE_RISK_SHADOW_RERANK", None)
+    configure_arm_environment(
+        env,
+        arm,
+        risk_lambda=risk_lambda,
+        slide_lambda=slide_lambda,
+    )
 
     result = run(
         [
@@ -296,32 +318,48 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         cases.setdefault(case_id, {})[arm] = {
             metric: stats(vals) for metric, vals in buckets.items()
         }
-    paired = {}
-    for case_id, arm_stats in cases.items():
-        off = arm_stats.get("off")
-        for arm, arm_stat in arm_stats.items():
-            if arm == "off" or not off or off["placed"]["n"] == 0:
-                continue
-            if arm_stat["placed"]["n"] == 0:
-                continue
-            paired.setdefault(arm, {})[case_id] = {
-                "placed_diff": round(
-                    arm_stat["placed"]["mean"] - off["placed"]["mean"], 3
-                ),
-                "fill_diff": round(
-                    arm_stat["fill"]["mean"] - off["fill"]["mean"], 3
-                ),
-            }
-    return {"arms": arms, "cases": cases, "paired_vs_off": paired}
+    def paired_differences(reference_arm: str) -> dict[str, Any]:
+        paired = {}
+        for case_id, arm_stats in cases.items():
+            reference = arm_stats.get(reference_arm)
+            for arm, arm_stat in arm_stats.items():
+                if (
+                    arm == reference_arm
+                    or not reference
+                    or reference["placed"]["n"] == 0
+                ):
+                    continue
+                if arm_stat["placed"]["n"] == 0:
+                    continue
+                paired.setdefault(arm, {})[case_id] = {
+                    "placed_diff": round(
+                        arm_stat["placed"]["mean"]
+                        - reference["placed"]["mean"],
+                        3,
+                    ),
+                    "fill_diff": round(
+                        arm_stat["fill"]["mean"]
+                        - reference["fill"]["mean"],
+                        3,
+                    ),
+                }
+        return paired
+
+    return {
+        "arms": arms,
+        "cases": cases,
+        "paired_vs_off": paired_differences("off"),
+        "paired_vs_base": paired_differences("base"),
+    }
 
 
 def render_markdown(summary: dict[str, Any], rows: int) -> str:
     lines = [
-        "# Online risk ablation (development configurations only)",
+        "# Online policy ablation (development configurations only)",
         "",
-        f"- episode rows: {rows}; arms compare the submission-default "
-        "baseline (off) with live mechanics rerank "
-        "(RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech).",
+        f"- episode rows: {rows}; every arm is environment-isolated. "
+        "`base` means shipped defaults, `off` means the pre-risk baseline, "
+        "and named arms enable only their declared experiment.",
         "",
         "- fill_score / num_placed_items are the only official "
         "components the bundled simulator computes; cog / stability / "
@@ -358,6 +396,20 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {arm} | {case_id} | {diff['placed_diff']} "
                 f"| {diff['fill_diff']} |"
             )
+    if summary.get("paired_vs_base"):
+        lines += [
+            "",
+            "## Paired per-case difference vs shipped base",
+            "",
+            "| arm | case | placed diff | fill diff |",
+            "|---|---|---:|---:|",
+        ]
+        for arm, cases in sorted(summary["paired_vs_base"].items()):
+            for case_id, diff in sorted(cases.items()):
+                lines.append(
+                    f"| {arm} | {case_id} | {diff['placed_diff']} "
+                    f"| {diff['fill_diff']} |"
+                )
     lines.append("")
     return "\n".join(lines) + "\n"
 

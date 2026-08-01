@@ -344,6 +344,14 @@
       "status": "active",
       "claim": "At the first b000-k20 base-r0/base-r7 action divergence (step 9), an unlimited policy-item oracle reconstructed 3,800 candidates and uniquely matched both selected release actions. The rich-policy selection (item 28) beats the old selection (item 17) by 0.101566 in the live score: Q_old advantage 0.020057, lower P_rot contributes +0.107773, and higher P_slide contributes -0.026263. Its live all/item/within-item ranks are 13/1/13 versus 75/9/6. But the packed-AABB static next-state survival proxy is 1,140 candidates for item 28 versus 2,712 for item 17, a 58% loss, so immediate risk-adjusted ranking and graded residual feasibility point in opposite directions. This is evidence of a concrete mis-ranking candidate, not proof of physical counterfactual superiority: the proxy neither regenerates anchors nor runs PyBullet settle. The old search source is a 25-row stratified sample, so whether item 28 was new-search-only remains unknown; a complete paired historical candidate audit is still required to separate search-set change from score change.",
       "source": "reports/ranker-divergence/b000-k20-step009-full/report.md; scripts/analyze_ranker_divergence.py"
+    },
+    {
+      "id": "future-option-step9-geometry-replay",
+      "topic": "preview",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "On three fresh geometry-only replays of the same saved b000-k20 step-9 observation, the current feature-off policy selected item 5 in 3/3 runs while the default-off future-option tie-break changed the choice in 3/3 runs to item 17 or 21. The item-diverse shortlist admitted item 17 in every feature-on run, resolving the observed global-top-K admission failure. Total feature-on policy time was 5.813-5.906 s and the fixed 32-probe future stage itself took 0.803-0.894 s. The 17/21 variation shows that the preceding deadline-driven probe population is not fully deterministic. This is not a PyBullet trajectory result, does not reproduce the historical item-28 action, and is not sufficient for adoption.",
+      "source": "reports/future-option/b000-k20-step009/report.json; docs/FUTURE_OPTION_TIEBREAK.md"
     }
   ]
 }
