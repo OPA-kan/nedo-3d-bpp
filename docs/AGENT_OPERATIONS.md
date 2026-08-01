@@ -26,9 +26,26 @@ python3 scripts/context.py evidence --all             # superseded/historical込
   `protocol` / `residual-capacity` / `historical`
 - 各エントリは `status`(active / superseded / historical)を持つ。
   **superseded と historical は現在の根拠に使わない。**
-- 古い結論を再測定で置き換えたら: 旧エントリを `status: superseded` +
-  `superseded_by` にし、新エントリを追加する。**値の書き換えは禁止**
-  (履歴が消える)。整合性は `tests/test_context.py` が強制する。
+- 古い結論を再測定で**置き換えた**ら: 旧エントリを `status: superseded` +
+  `superseded_by` にし、新エントリを追加する。
+- 再測定が置き換えではなく**再現**だったら: `replicates: <id>` を持つ新
+  エントリを足し、**両方 active のままにする**。確認済みの結果を
+  superseded にすると「元が誤りだった」と読めるうえ、superseded は既定
+  ビューから隠れるので、確認そのものが埋もれる。
+- **値の書き換えは禁止**(履歴が消える)。初回コミット前の修正は自由だが、
+  コミット後は新エントリを足す以外の手段を取らない。
+- 並び順はどの利用側にも意味を持たないが、CLIの表示順そのものである。
+  **間に挿し込まず末尾に足す。**
+- 台帳どうしのマージは加法的に行う(idで和集合を取る)。同じidで内容が違う
+  場合は supersession では解けない(supersession は異なる2つのidを要求
+  する)。status が進んでいる側を採るか、主張が本当に別物なら片方をリネーム
+  する。
+
+`tests/test_context.py` が強制するのは**構造だけ**である。id の一意性、
+`status` の値域、`claim`/`source` が空でないこと、`superseded_by` と
+`replicates` の参照先が実在すること、replication が active であること。
+**値が書き換えられていないことは検出できない**(比較基準が無い)。この規則は
+レビューで守るものであって、テストが守ってくれるものではない。
 
 ## 2. コードの参照(モジュールを開く前に)
 

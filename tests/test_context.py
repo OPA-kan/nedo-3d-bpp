@@ -183,6 +183,30 @@ class EvidenceLedgerTests(unittest.TestCase):
             if entry["status"] == "superseded":
                 self.assertIn(entry.get("superseded_by"), ids)
 
+    def test_replications_resolve_and_stay_active(self) -> None:
+        """
+        A replication is current knowledge, so it must not be filed as a
+        supersession -- status=superseded is hidden from the default view,
+        which would bury the confirmation it exists to record. The target
+        must stay visible too, otherwise the link dangles in the CLI.
+        """
+        from scripts.context import load_evidence
+
+        entries = load_evidence()
+        by_id = {entry["id"]: entry for entry in entries}
+        replications = [e for e in entries if e.get("replicates")]
+        self.assertTrue(replications, "expected at least one replication")
+
+        for entry in replications:
+            with self.subTest(entry=entry["id"]):
+                self.assertIn(entry["replicates"], by_id)
+                self.assertNotEqual(entry["replicates"], entry["id"])
+                self.assertEqual(entry["status"], "active")
+                self.assertNotIn("superseded_by", entry)
+                self.assertEqual(
+                    by_id[entry["replicates"]]["status"], "active"
+                )
+
     def test_render_hides_inactive_by_default(self) -> None:
         from scripts.context import render_evidence
 
@@ -210,6 +234,35 @@ class EvidenceLedgerTests(unittest.TestCase):
         self.assertNotIn("[b]", default_view)
         full_view = render_evidence(entries, topic="t", include_inactive=True)
         self.assertIn("[b]", full_view)
+
+    def test_render_shows_the_replication_link(self) -> None:
+        from scripts.context import render_evidence
+
+        entries = [
+            {
+                "id": "a",
+                "topic": "t",
+                "date": "2026-08-01",
+                "status": "active",
+                "claim": "measured once",
+                "source": "run 1",
+            },
+            {
+                "id": "a-again",
+                "topic": "t",
+                "date": "2026-08-02",
+                "status": "active",
+                "replicates": "a",
+                "claim": "measured again, same result",
+                "source": "run 2",
+            },
+        ]
+
+        view = render_evidence(entries, topic="t")
+
+        self.assertIn("[a]", view)
+        self.assertIn("[a-again]", view)
+        self.assertIn("replicates: a", view)
 
 
 if __name__ == "__main__":
