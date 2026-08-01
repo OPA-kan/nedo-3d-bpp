@@ -59,6 +59,11 @@
   Item/pose equivalence classes, coarse corridor/action classes, volume, and
   greedy static-conflict capacity are shadow telemetry only and must not change
   the selected action until multi-snapshot discrimination is demonstrated.
+- Route-survival telemetry is also shadow-only. A separate corridor-stratified
+  accepted-probe sample is classified after each hypothetical placement as
+  `survived`, `space_lost`, or corridor-only `route_lost`. The first five-state
+  screen found 0 route-only losses among 350 accepted probes; target exact
+  `transport_invalid` predecessor states before considering any live use.
 
 ## 現在の状態
 

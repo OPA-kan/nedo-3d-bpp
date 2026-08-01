@@ -142,6 +142,12 @@ FUTURE_OPTION_Q_BAND = float(
 FUTURE_OPTION_VALIDATION_BUDGET = int(
     os.environ.get("FUTURE_OPTION_VALIDATION_BUDGET", "32")
 )
+FUTURE_OPTION_ROUTE_VALIDATION_BUDGET = int(
+    os.environ.get("FUTURE_OPTION_ROUTE_VALIDATION_BUDGET", "16")
+)
+FUTURE_OPTION_ROUTE_SHADOW_ENABLED = os.environ.get(
+    "FUTURE_OPTION_ROUTE_SHADOW", "0"
+) == "1"
 FUTURE_OPTION_PROBES_PER_SIGNATURE = int(
     os.environ.get("FUTURE_OPTION_PROBES_PER_SIGNATURE", "4")
 )
@@ -580,6 +586,25 @@ class FutureOptionValue:
     max_feasible_item_volume: float = 0.0
     greedy_packable_count: int = 0
     greedy_packable_volume: float = 0.0
+    # Shadow-only route survival.  The denominator is the same probe set in
+    # the observed state; losses are split before the live rank is touched.
+    route_baseline_candidates: int = 0
+    route_survived_candidates: int = 0
+    route_lost_candidates: int = 0
+    space_lost_candidates: int = 0
+    route_baseline_items: int = 0
+    route_survived_items: int = 0
+    route_baseline_item_orientations: int = 0
+    route_survived_item_orientations: int = 0
+    route_baseline_corridor_classes: int = 0
+    route_survived_corridor_classes: int = 0
+    route_lost_corridor_classes: int = 0
+    route_survival_share: float = 0.0
+    route_item_survival_share: float = 0.0
+    route_volume_survival_share: float = 0.0
+    route_blocked_item_volume_sum: float = 0.0
+    route_affected_transport_candidates: int = 0
+    route_unaffected_transport_candidates: int = 0
 
     def rank_key(self):
         return (
@@ -594,6 +619,27 @@ class FutureOptionValue:
 class FutureOptionEvaluation:
     decision: PlacementDecision
     value: FutureOptionValue
+
+
+@dataclass(frozen=True)
+class RouteSurvivalValue:
+    baseline_candidates: int = 0
+    survived_candidates: int = 0
+    route_lost_candidates: int = 0
+    space_lost_candidates: int = 0
+    baseline_items: int = 0
+    survived_items: int = 0
+    baseline_item_orientations: int = 0
+    survived_item_orientations: int = 0
+    baseline_corridor_classes: int = 0
+    survived_corridor_classes: int = 0
+    route_lost_corridor_classes: int = 0
+    survival_share: float = 0.0
+    item_survival_share: float = 0.0
+    volume_survival_share: float = 0.0
+    blocked_item_volume_sum: float = 0.0
+    affected_transport_candidates: int = 0
+    unaffected_transport_candidates: int = 0
 
 
 @dataclass(frozen=True)
@@ -1037,6 +1083,40 @@ def future_corridor_class_signature(candidate, container):
     )
 
 
+def route_corridor_class_signature(candidate, container):
+    """Allocation-light equivalent used only by route-shadow sampling."""
+    thickness = float(container.get("thickness", 0.0))
+    half_length = max(EPS, float(container["length"]) / 2.0 - thickness)
+    half_width = max(EPS, float(container["width"]) / 2.0 - thickness)
+    height = max(EPS, float(container["height"]))
+    action_center = simulator_action_center(candidate, container)
+    half_x = float(candidate.size[0]) / 2.0
+    start_min_x = (
+        -float(container["length"]) / 2.0
+        + thickness
+        + float(container.get("cut_x", 0.0))
+        + half_x
+        + SIMULATOR_START_MARGIN
+    )
+    start_max_x = (
+        float(container["length"]) / 2.0
+        - thickness
+        - half_x
+        - SIMULATOR_START_MARGIN
+    )
+    target_x = float(candidate.center[0])
+    start_x = min(max(target_x, start_min_x), start_max_x)
+    delta_x = target_x - start_x
+    x_direction = 0 if abs(delta_x) <= EPS else (1 if delta_x > 0 else -1)
+    return (
+        "corridor",
+        _future_axis_band(candidate.center[0], half_length),
+        _future_axis_band(candidate.center[1], half_width),
+        min(2, max(0, int(float(action_center[2]) / height * 3.0))),
+        x_direction,
+    )
+
+
 def greedy_future_probe_capacity(options):
     """Deterministic static conflict-independent-set proxy.
 
@@ -1303,6 +1383,18 @@ def transport_samples(candidate, container, step: float = TRANSPORT_SAMPLE_STEP)
     return samples
 
 
+def placement_blocks_transport(candidate, container, placed_candidate):
+    """Whether only the new placement intersects a probe transport path."""
+    return any(
+        within_euclidean_clearance(
+            sample,
+            placed_candidate,
+            SETTLED_ITEM_CLEARANCE,
+        )
+        for sample in transport_samples(candidate, container)
+    )
+
+
 def simulator_action_center(candidate, container):
     action_center = np.asarray(candidate.center, dtype=np.float64).copy()
     if candidate.name == "release_candidate":
@@ -1508,23 +1600,44 @@ class Geometry:
         return True
 
     @classmethod
-    def rejection_reason(cls, candidate, container):
+    def structural_rejection_reason(
+        cls,
+        candidate,
+        container,
+        *,
+        require_support=True,
+    ):
+        """Reject final-state geometry without inspecting the transport path."""
         if not cls.inside_container(candidate, container):
             return "containment"
         if not cls.clears_static_geometry(candidate, container):
             return "static_geometry"
-        if not cls.has_stable_support(candidate, container):
+        if require_support and not cls.has_stable_support(candidate, container):
             return "support"
+        return None
+
+    @classmethod
+    def rejection_reason(cls, candidate, container):
+        reason = cls.structural_rejection_reason(
+            candidate,
+            container,
+            require_support=True,
+        )
+        if reason is not None:
+            return reason
         if not cls.transport_path_clear(candidate, container):
             return "corridor"
         return None
 
     @classmethod
     def release_rejection_reason(cls, candidate, container):
-        if not cls.inside_container(candidate, container):
-            return "containment"
-        if not cls.clears_static_geometry(candidate, container):
-            return "static_geometry"
+        reason = cls.structural_rejection_reason(
+            candidate,
+            container,
+            require_support=False,
+        )
+        if reason is not None:
+            return reason
         if not cls.transport_path_clear(candidate, container):
             return "corridor"
         return None
@@ -3999,6 +4112,7 @@ class PlacementCore:
         }
         best_by_kind = {"settled": {}, "release": {}}
         probes_by_kind = {"settled": {}, "release": {}}
+        route_probes_by_kind = {"settled": {}, "release": {}}
         components_by_container = {
             container_idx: order_support_plane_components(
                 support_plane_components(support_surfaces(container))
@@ -4078,6 +4192,26 @@ class PlacementCore:
             )
             del entries[max(1, FUTURE_OPTION_PROBES_PER_SIGNATURE) :]
 
+            if FUTURE_OPTION_ROUTE_SHADOW_ENABLED:
+                corridor = route_corridor_class_signature(
+                    candidate,
+                    container,
+                )
+                route_signature = (
+                    int(container_idx),
+                    corridor,
+                    int(item_idx),
+                    int(orientation),
+                )
+                route_previous = route_probes_by_kind[kind].get(
+                    route_signature
+                )
+                if (
+                    route_previous is None
+                    or float(decision.score) > float(route_previous.score)
+                ):
+                    route_probes_by_kind[kind][route_signature] = decision
+
         active_kind = "settled" if best_by_kind["settled"] else "release"
         shortlist = sorted(
             best_by_kind[active_kind].values(),
@@ -4127,7 +4261,50 @@ class PlacementCore:
             if not added:
                 break
             depth += 1
-        return shortlist, probes
+        if not FUTURE_OPTION_ROUTE_SHADOW_ENABLED:
+            return shortlist, probes, []
+
+        route_groups = {}
+        for signature, route_decision in route_probes_by_kind[
+            active_kind
+        ].items():
+            container_idx, corridor, _item_idx, _orientation = signature
+            route_groups.setdefault((container_idx, corridor), []).append(
+                route_decision
+            )
+        for entries in route_groups.values():
+            entries.sort(
+                key=lambda entry: (
+                    item_order.get(
+                        int(entry.action["item_idx"]), float("inf")
+                    ),
+                    int(entry.action["orientation"]),
+                    -float(entry.score),
+                    tuple(float(value) for value in entry.candidate.center),
+                )
+            )
+        ordered_route_groups = sorted(
+            route_groups,
+            key=lambda key: (int(key[0]), repr(key[1])),
+        )
+        route_probes = []
+        route_depth = 0
+        route_budget = max(
+            0, int(FUTURE_OPTION_ROUTE_VALIDATION_BUDGET)
+        ) * 2
+        while len(route_probes) < route_budget:
+            added = False
+            for key in ordered_route_groups:
+                entries = route_groups[key]
+                if route_depth < len(entries):
+                    route_probes.append(entries[route_depth])
+                    added = True
+                    if len(route_probes) >= route_budget:
+                        break
+            if not added:
+                break
+            route_depth += 1
+        return shortlist, probes, route_probes
 
 
 def normalized_lookahead_mode(mode):
@@ -4199,24 +4376,176 @@ def evaluate_visible_pool_feasibility(
     )
 
 
+def evaluate_route_survival_value(
+    baseline_containers,
+    sim_containers,
+    pool_list,
+    placed_pool_index,
+    probe_decisions,
+    validation_budget,
+    placed_trace=None,
+):
+    """Partition accepted before-state probes after a hypothetical placement.
+
+    PlacementCore already validated every probe in the observed state.  The
+    after-state check deliberately separates final-state geometry loss from a
+    corridor-only loss.  This is shadow telemetry, not a live rank term.
+    """
+    route_baseline_items = set()
+    route_survived_items = set()
+    route_lost_items = set()
+    route_baseline_item_orientations = set()
+    route_survived_item_orientations = set()
+    route_baseline_corridor_classes = set()
+    route_survived_corridor_classes = set()
+    route_lost_corridor_classes = set()
+    route_baseline_item_volumes = {}
+    route_baseline_candidates = 0
+    route_survived_candidates = 0
+    route_lost_candidates = 0
+    space_lost_candidates = 0
+    evaluated_candidates = 0
+    affected_transport_candidates = 0
+    unaffected_transport_candidates = 0
+    budget = max(0, int(validation_budget))
+    for probe in probe_decisions:
+        probe_pool_index = int(probe.action["item_idx"])
+        if probe_pool_index == placed_pool_index:
+            continue
+        if evaluated_candidates >= budget:
+            break
+        evaluated_candidates += 1
+        container_idx = int(probe.action["container_idx"])
+        if not (
+            0 <= probe_pool_index < len(pool_list)
+            and 0 <= container_idx < len(sim_containers)
+        ):
+            continue
+        baseline_container = baseline_containers[container_idx]
+        container = sim_containers[container_idx]
+        # PlacementCore emitted these probes only after validating them in
+        # the observed state.  Re-running that transport check here doubles
+        # the hot-loop cost and does not add information; the accepted shared
+        # probe universe is the explicit before-state denominator.
+        item = pool_list[probe_pool_index]
+        item_index = int(item.get("index", probe_pool_index))
+        orientation = int(probe.action["orientation"])
+        volume = (
+            float(item["length"])
+            * float(item["width"])
+            * float(item["height"])
+        )
+        corridor_class = route_corridor_class_signature(
+            probe.candidate, baseline_container
+        )
+        corridor_key = (container_idx, corridor_class)
+        route_baseline_candidates += 1
+        route_baseline_items.add(item_index)
+        route_baseline_item_orientations.add((item_index, orientation))
+        route_baseline_corridor_classes.add(corridor_key)
+        route_baseline_item_volumes[item_index] = volume
+
+        structural_reason = Geometry.structural_rejection_reason(
+            probe.candidate,
+            container,
+            require_support=(probe.candidate.name != "release_candidate"),
+        )
+        if structural_reason is not None:
+            space_lost_candidates += 1
+            continue
+        if placed_trace is None:
+            route_blocked = not Geometry.transport_path_clear(
+                probe.candidate,
+                container,
+            )
+        elif int(placed_trace.container_idx) != container_idx:
+            route_blocked = False
+        else:
+            # Baseline probes were transport-valid and only this settled AABB
+            # is new. Testing it directly is the exact state difference and
+            # avoids rescanning unchanged packed obstacles.
+            route_blocked = placement_blocks_transport(
+                probe.candidate,
+                container,
+                placed_trace.candidate,
+            )
+        if route_blocked:
+            affected_transport_candidates += 1
+            route_lost_candidates += 1
+            route_lost_items.add(item_index)
+            route_lost_corridor_classes.add(corridor_key)
+            continue
+
+        unaffected_transport_candidates += 1
+        route_survived_candidates += 1
+        route_survived_items.add(item_index)
+        route_survived_item_orientations.add((item_index, orientation))
+        route_survived_corridor_classes.add(corridor_key)
+    baseline_volume = sum(route_baseline_item_volumes.values())
+    survived_volume = sum(
+        route_baseline_item_volumes[item_index]
+        for item_index in route_survived_items
+    )
+    blocked_items = route_lost_items - route_survived_items
+    blocked_volume = sum(
+        route_baseline_item_volumes[item_index]
+        for item_index in blocked_items
+    )
+    return RouteSurvivalValue(
+        baseline_candidates=route_baseline_candidates,
+        survived_candidates=route_survived_candidates,
+        route_lost_candidates=route_lost_candidates,
+        space_lost_candidates=space_lost_candidates,
+        baseline_items=len(route_baseline_items),
+        survived_items=len(route_survived_items),
+        baseline_item_orientations=len(route_baseline_item_orientations),
+        survived_item_orientations=len(route_survived_item_orientations),
+        baseline_corridor_classes=len(route_baseline_corridor_classes),
+        survived_corridor_classes=len(route_survived_corridor_classes),
+        route_lost_corridor_classes=len(route_lost_corridor_classes),
+        survival_share=(
+            float(route_survived_candidates) / route_baseline_candidates
+            if route_baseline_candidates
+            else 0.0
+        ),
+        item_survival_share=(
+            float(len(route_survived_items)) / len(route_baseline_items)
+            if route_baseline_items
+            else 0.0
+        ),
+        volume_survival_share=(
+            float(survived_volume) / baseline_volume
+            if baseline_volume > EPS
+            else 0.0
+        ),
+        blocked_item_volume_sum=float(blocked_volume),
+        affected_transport_candidates=affected_transport_candidates,
+        unaffected_transport_candidates=unaffected_transport_candidates,
+    )
+
+
 def evaluate_future_option_value(
     observation,
     pool_list,
     placed_decision,
     probe_decisions,
     validation_budget,
+    route_probe_decisions=None,
+    route_validation_budget=None,
 ):
-    """Evaluate a fixed shared probe set after one virtual placement.
+    """Evaluate fixed shared probe sets after one virtual placement.
 
     Only the currently visible pool minus the placed item is observable.
     No new arrival, anchor generation, wall-clock cutoff, or PyBullet settle
-    enters this value.
+    enters this value.  Route probes are separate so spatial coverage can be
+    measured without changing the live future-option rank population.
     """
-    sim_containers = copy.deepcopy(observation.get("container_list", []))
+    baseline_containers = observation.get("container_list", [])
+    sim_containers = copy.deepcopy(baseline_containers)
     placed_pool_index = int(placed_decision.action["item_idx"])
     if not (0 <= placed_pool_index < len(pool_list)):
         return FutureOptionValue(0, 0, 0, 0, 0)
-    apply_placement_decision(
+    placed_trace = apply_placement_decision(
         pool_list[placed_pool_index], placed_decision, sim_containers
     )
     components_by_container = {
@@ -4225,6 +4554,22 @@ def evaluate_future_option_value(
         )
         for container_idx, container in enumerate(sim_containers)
     }
+    if route_probe_decisions is None:
+        route_probe_decisions = probe_decisions
+    if route_validation_budget is None:
+        route_validation_budget = validation_budget
+    if route_probe_decisions and int(route_validation_budget) > 0:
+        route_value = evaluate_route_survival_value(
+            baseline_containers,
+            sim_containers,
+            pool_list,
+            placed_pool_index,
+            route_probe_decisions,
+            route_validation_budget,
+            placed_trace=placed_trace,
+        )
+    else:
+        route_value = RouteSurvivalValue()
 
     feasible_items = set()
     feasible_item_orientations = set()
@@ -4257,6 +4602,15 @@ def evaluate_future_option_value(
         item = pool_list[probe_pool_index]
         item_index = int(item.get("index", probe_pool_index))
         orientation = int(probe.action["orientation"])
+        volume = (
+            float(item["length"])
+            * float(item["width"])
+            * float(item["height"])
+        )
+        corridor_class = future_corridor_class_signature(
+            probe.candidate, container
+        )
+        corridor_key = (container_idx, corridor_class)
         item_class = future_item_class_signature(item, sim_containers)
         pose_class = future_pose_class_signature(
             item, orientation, sim_containers
@@ -4266,14 +4620,6 @@ def evaluate_future_option_value(
             container,
             components_by_container[container_idx],
         )
-        corridor_class = future_corridor_class_signature(
-            probe.candidate, container
-        )
-        volume = (
-            float(item["length"])
-            * float(item["width"])
-            * float(item["height"])
-        )
         predicted = settled_proxy_candidate(probe.candidate, container)
         support = Geometry.support_ratio(predicted, container)
         feasible_items.add(item_index)
@@ -4282,13 +4628,13 @@ def evaluate_future_option_value(
         support_regions.add(support_key)
         item_classes.add(item_class)
         pose_classes.add(pose_class)
-        corridor_classes.add((container_idx, corridor_class))
+        corridor_classes.add(corridor_key)
         action_classes.add(
             (
                 item_class,
                 pose_class,
                 support_key,
-                (container_idx, corridor_class),
+                corridor_key,
             )
         )
         item_class_volumes[item_class] = volume
@@ -4319,6 +4665,39 @@ def evaluate_future_option_value(
         max_feasible_item_volume=max(item_class_volumes.values(), default=0.0),
         greedy_packable_count=greedy_count,
         greedy_packable_volume=greedy_volume,
+        route_baseline_candidates=route_value.baseline_candidates,
+        route_survived_candidates=route_value.survived_candidates,
+        route_lost_candidates=route_value.route_lost_candidates,
+        space_lost_candidates=route_value.space_lost_candidates,
+        route_baseline_items=route_value.baseline_items,
+        route_survived_items=route_value.survived_items,
+        route_baseline_item_orientations=(
+            route_value.baseline_item_orientations
+        ),
+        route_survived_item_orientations=(
+            route_value.survived_item_orientations
+        ),
+        route_baseline_corridor_classes=(
+            route_value.baseline_corridor_classes
+        ),
+        route_survived_corridor_classes=(
+            route_value.survived_corridor_classes
+        ),
+        route_lost_corridor_classes=(
+            route_value.route_lost_corridor_classes
+        ),
+        route_survival_share=route_value.survival_share,
+        route_item_survival_share=route_value.item_survival_share,
+        route_volume_survival_share=route_value.volume_survival_share,
+        route_blocked_item_volume_sum=(
+            route_value.blocked_item_volume_sum
+        ),
+        route_affected_transport_candidates=(
+            route_value.affected_transport_candidates
+        ),
+        route_unaffected_transport_candidates=(
+            route_value.unaffected_transport_candidates
+        ),
     )
 
 
@@ -5190,14 +5569,16 @@ class Agent:
             if lookahead_deadline > time.perf_counter()
             else deadline
         )
-        shortlist, probes = PlacementCore.item_diverse_candidates(
-            observation,
-            ordered_items,
-            item_k=FUTURE_OPTION_ITEM_TOP_K,
-            validation_budget=FUTURE_OPTION_VALIDATION_BUDGET,
-            deadline=search_deadline,
-            diagnostics=diagnostics,
-            risk_lambda=risk_lambda,
+        shortlist, probes, route_probes = (
+            PlacementCore.item_diverse_candidates(
+                observation,
+                ordered_items,
+                item_k=FUTURE_OPTION_ITEM_TOP_K,
+                validation_budget=FUTURE_OPTION_VALIDATION_BUDGET,
+                deadline=search_deadline,
+                diagnostics=diagnostics,
+                risk_lambda=risk_lambda,
+            )
         )
         self.last_top_candidate_count = len(shortlist)
         for decision in shortlist:
@@ -5223,7 +5604,16 @@ class Agent:
             "item_top_k": int(FUTURE_OPTION_ITEM_TOP_K),
             "q_band": float(FUTURE_OPTION_Q_BAND),
             "validation_budget": int(FUTURE_OPTION_VALIDATION_BUDGET),
+            "route_validation_budget": int(
+                FUTURE_OPTION_ROUTE_VALIDATION_BUDGET
+                if FUTURE_OPTION_ROUTE_SHADOW_ENABLED
+                else 0
+            ),
+            "route_shadow_enabled": bool(
+                FUTURE_OPTION_ROUTE_SHADOW_ENABLED
+            ),
             "probe_population": len(probes),
+            "route_probe_population": len(route_probes),
             "shortlist_items": list(self.last_top_candidate_item_indices),
             "evaluations": [],
             "aborted_for_deadline": False,
@@ -5253,6 +5643,16 @@ class Agent:
                 decision,
                 probes,
                 validation_budget=FUTURE_OPTION_VALIDATION_BUDGET,
+                route_probe_decisions=(
+                    route_probes
+                    if FUTURE_OPTION_ROUTE_SHADOW_ENABLED
+                    else []
+                ),
+                route_validation_budget=(
+                    FUTURE_OPTION_ROUTE_VALIDATION_BUDGET
+                    if FUTURE_OPTION_ROUTE_SHADOW_ENABLED
+                    else 0
+                ),
             )
             evaluation_seconds = time.perf_counter() - evaluation_started
             record["future_evaluation_seconds"] += evaluation_seconds
@@ -5308,6 +5708,57 @@ class Agent:
                     ),
                     "greedy_packable_volume": float(
                         value.greedy_packable_volume
+                    ),
+                    "route_baseline_candidates": int(
+                        value.route_baseline_candidates
+                    ),
+                    "route_survived_candidates": int(
+                        value.route_survived_candidates
+                    ),
+                    "route_lost_candidates": int(
+                        value.route_lost_candidates
+                    ),
+                    "space_lost_candidates": int(
+                        value.space_lost_candidates
+                    ),
+                    "route_baseline_items": int(
+                        value.route_baseline_items
+                    ),
+                    "route_survived_items": int(
+                        value.route_survived_items
+                    ),
+                    "route_baseline_item_orientations": int(
+                        value.route_baseline_item_orientations
+                    ),
+                    "route_survived_item_orientations": int(
+                        value.route_survived_item_orientations
+                    ),
+                    "route_baseline_corridor_classes": int(
+                        value.route_baseline_corridor_classes
+                    ),
+                    "route_survived_corridor_classes": int(
+                        value.route_survived_corridor_classes
+                    ),
+                    "route_lost_corridor_classes": int(
+                        value.route_lost_corridor_classes
+                    ),
+                    "route_survival_share": float(
+                        value.route_survival_share
+                    ),
+                    "route_item_survival_share": float(
+                        value.route_item_survival_share
+                    ),
+                    "route_volume_survival_share": float(
+                        value.route_volume_survival_share
+                    ),
+                    "route_blocked_item_volume_sum": float(
+                        value.route_blocked_item_volume_sum
+                    ),
+                    "route_affected_transport_candidates": int(
+                        value.route_affected_transport_candidates
+                    ),
+                    "route_unaffected_transport_candidates": int(
+                        value.route_unaffected_transport_candidates
                     ),
                     "evaluation_seconds": float(evaluation_seconds),
                 }

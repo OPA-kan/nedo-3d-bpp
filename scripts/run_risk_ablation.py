@@ -148,6 +148,7 @@ def configure_arm_environment(
 ) -> None:
     """Apply one ablation arm without leaking flags between invocations."""
     env.pop("FUTURE_OPTION_TIEBREAK", None)
+    env.pop("FUTURE_OPTION_ROUTE_SHADOW", None)
     if arm == "off":
         # Pre-risk baseline: force the risk term off (the shipped
         # default is risk-on since the final_holdout switch).

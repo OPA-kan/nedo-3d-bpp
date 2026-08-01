@@ -257,16 +257,20 @@ the durable result. Compact output is in
 
 ## Next engineering task
 
-Do not add the new descriptors to the rank yet. First make the shadow probe
-population spatially stratified (or evaluate a broader saved-snapshot set) so
-the quotient/capacity fields do not trivially saturate. Then repeat the
-five-config screen with a separately named arm only if the shadow evidence
-shows discrimination. Separately stabilize the deadline-edge probe population
-if the 17/21 choice variance remains material. Do not alter the release-risk
-model to rescue this experiment.
+Do not add the new descriptors to the rank. Corridor-stratified route-survival
+telemetry is now implemented without changing the live probe population or
+rank key. Its committed five-state screen evaluated 27 hypothetical placements
+and 350 accepted probes: 169 survived, 181 were structurally lost, and 0 were lost
+only to the transport corridor. A focused actual-geometry test confirms that
+the `route_lost` channel detects a sweep-only blocker. This is useful negative
+evidence, not an adoption result. The next route experiment should restore
+exact pre-action states followed by `transport_invalid`; do not broaden the
+saturated capacity proxy or alter the release-risk model to rescue it. See
+`docs/ROUTE_SURVIVAL.md` and
+`reports/future-option/route-survival-summary.{md,json}`.
 
-Other open fronts, in order: transport_invalid deaths (37% pre-cache;
-re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
+Other open fronts, in order: transport_invalid deaths (reported post-cache
+share about 45%; preserve the seven-case placed-count non-regression gate),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
 `reports/slide-patches/`, Gated Iota enters at S2), live stride
 sampling port for further recall.

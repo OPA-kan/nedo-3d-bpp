@@ -143,6 +143,25 @@ classes, 6 corridor classes, and greedy capacity `(2, 0.1934 m^3)`; only their
 action-class/raw valid counts differed (`19/40` versus `18/37`). This is useful
 negative evidence: the present score-biased probe population is too
 concentrated for the volume/conflict descriptors to resolve this snapshot.
-The fields remain telemetry-only. The next experiment should stratify the
-shadow probe population spatially or measure more snapshots before any field
-is admitted to live selection.
+The fields remain telemetry-only.
+
+## Route-survival shadow measurement
+
+The next experiment used a separate corridor-stratified probe population and
+partitioned probes lost after each hypothetical placement into structural
+`space_lost` and corridor-only `route_lost`. This leaves the existing live
+probe population and `rank_key()` unchanged.
+
+Across five saved states, 27 hypothetical immediate placements, and 350 probes
+accepted in their current states, 169 probes survived, 181 became structurally
+invalid, and **zero** became invalid only because of the transport corridor.
+A focused actual-geometry test does produce `route_lost` when a blocker is
+placed only in a target probe's transport sweep, so the zero is an observed
+negative result rather than an unreachable counter.
+
+This small, bounded, geometry-only screen does not prove that corridor survival
+is globally irrelevant. It does mean the field must remain shadow-only. The
+next discriminating experiment should target exact pre-action states followed
+by `transport_invalid`, rather than further refining saturated capacity
+descriptors. See `docs/ROUTE_SURVIVAL.md` and
+`reports/future-option/route-survival-summary.{md,json}`.

@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-01T17:42:49+09:00`
-- Git SHA: `3b06959ca6bcdba3989c2ed94a3f64805af1a8ee`
+- Timestamp: `2026-08-01T19:55:22+09:00`
+- Git SHA: `e9d5e39fffec8359e0cc50c7044bfdeadb907d8c`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `8.469 s`
+- Runtime: `6.534 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -48,7 +48,7 @@ test_push_conflicts_fetch_rebase_and_retry (test_task_b_workflow.TaskBAggregateP
 test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.TaskBAggregatePersistenceTests.test_reusable_workflow_caller_grants_write_permission) ... ok
 
 ----------------------------------------------------------------------
-Ran 288 tests in 7.843s
+Ran 296 tests in 6.000s
 
 OK (skipped=3)
 ```

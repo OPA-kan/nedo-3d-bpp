@@ -87,11 +87,15 @@ class ConfigureArmEnvironmentTests(unittest.TestCase):
             self.assertNotIn(key, env)
 
     def test_other_arms_cannot_inherit_future_option_flag(self):
-        env = {"FUTURE_OPTION_TIEBREAK": "1"}
+        env = {
+            "FUTURE_OPTION_TIEBREAK": "1",
+            "FUTURE_OPTION_ROUTE_SHADOW": "1",
+        }
 
         configure_arm_environment(env, "base", risk_lambda=1.0)
 
         self.assertNotIn("FUTURE_OPTION_TIEBREAK", env)
+        self.assertNotIn("FUTURE_OPTION_ROUTE_SHADOW", env)
 
 
 if __name__ == "__main__":

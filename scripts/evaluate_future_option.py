@@ -64,6 +64,7 @@ def run_policy_once(
     repeat: int,
 ) -> dict[str, Any]:
     agent_module.FUTURE_OPTION_TIEBREAK_ENABLED = bool(enabled)
+    agent_module.FUTURE_OPTION_ROUTE_SHADOW_ENABLED = bool(enabled)
     agent_module._PACKED_AABBS_CACHE.clear()
     solver = agent_module.Agent("")
     solver.get_init_states(copy.deepcopy(observation))
@@ -125,6 +126,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Q-live band: {report['configuration']['q_band']}",
         f"- validation budget per hypothetical: "
         f"{report['configuration']['validation_budget']}",
+        f"- route validation budget per hypothetical: "
+        f"{report['configuration']['route_validation_budget']}",
         "",
         "## Summary",
         "",
@@ -163,7 +166,10 @@ def render_markdown(report: dict[str, Any]) -> str:
             "The JSON preserves every evaluated item's `Q_live`, Q gap, the "
             "four live future-option components, and the shadow quotient / "
             "static-conflict capacity descriptors. Only the four live "
-            "components participate in selection. `valid_candidates` is a "
+            "components participate in selection. Route telemetry uses a "
+            "separate corridor-stratified probe population and partitions "
+            "after-state loss into `route_lost` and `space_lost`. "
+            "`valid_candidates` is a "
             "count inside the sampled probe budget, not a full anchor "
             "population count.",
         ]
@@ -213,6 +219,10 @@ def main() -> int:
             "validation_budget": int(
                 agent_module.FUTURE_OPTION_VALIDATION_BUDGET
             ),
+            "route_validation_budget": int(
+                agent_module.FUTURE_OPTION_ROUTE_VALIDATION_BUDGET
+            ),
+            "route_shadow_enabled": True,
             "probes_per_signature": int(
                 agent_module.FUTURE_OPTION_PROBES_PER_SIGNATURE
             ),
