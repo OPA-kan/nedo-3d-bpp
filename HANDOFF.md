@@ -270,6 +270,30 @@ S1/S2 of the slide ladder (patches + encoder plumbing ready in
 `reports/slide-patches/`, Gated Iota enters at S2), live stride
 sampling port for further recall.
 
+## Latest experiment: Task A bounded complete-order rollout (positive)
+
+Branch `experiment/task-a-rollout-transfer` transfers the graded-lookahead
+idea to Task A at the correct abstraction boundary. Task A already rolls out
+complete item orders offline, so it does not reuse the rejected Task B
+three-step tie-break. Instead, `OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM` bounds each
+dry-run item deterministically and `OFFLINE_PAIR_MACRO_BUDGET_SECONDS` prevents
+macro generation from consuming the remaining optimization deadline. Both
+default to legacy-compatible values, so the shipped policy is unchanged.
+
+Official-budget Linux/PyBullet run 30717998654 used the real bundled Task A
+case, 150 seconds internal / 180 seconds external, and three repetitions. The
+`bounded128` arm increased complete-order evaluations from 3.0 to 51.3 and
+improved physical placed from 20/20/20 to 25/25/25; mean fill moved 29.298 to
+34.949. Mean final CoM z improved about 0.753 to 0.735 m and neither arm had a
+5--30 degree near miss. The bounded order was identical in all repetitions.
+The offline proxy underpredicted it (23 versus 25 physical), so use it as a
+relative order objective, not a calibrated score. Both arms still terminated
+with included=true but valid/placed-safe=false; fallback remains separate.
+
+Verdict: strong Task-A-only adoption candidate, not yet enabled by default or
+merged. See `docs/TASK_A_ROLLOUT_TRANSFER.md` and
+`reports/task-a-rollout/history/30717998654/analysis.md`.
+
 ## Important invariants
 
 - Candidate placement uses container-local coordinates; packed observations

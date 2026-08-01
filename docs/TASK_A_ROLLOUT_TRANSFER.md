@@ -60,3 +60,36 @@ Task-A conversion of source 001 improved mean placed 14.33 to 17.0 and fill
 therefore freezes `bounded128`, uses only the real bundled Task A source 000,
 and restores the official 150-second internal / 180-second external
 optimization budgets with three repeats.
+
+## Official-budget result
+
+Actions run `30717998654` confirmed the transfer on the bundled Task A case.
+All three repetitions agreed on the physical outcome:
+
+| arm | placed | fill proxy | complete-order evaluations | offline proxy placed | optimization seconds |
+|---|---:|---:|---:|---:|---:|
+| base | 20.0 | 29.298 | 3.0 | 21.0 | 112.1 |
+| bounded128 | **25.0** | **34.949** | **51.3** | **23.0** | 147.3 |
+
+Thus bounded complete-order rollout added five physical placements (+25%)
+and 5.651 fill points (+19.3%) while staying inside both the 150-second
+internal and 180-second external optimization budgets. The optimized order
+was deterministic across the three bounded repetitions. Mean final CoM
+height also moved from about 0.753 m to 0.735 m, and neither arm recorded a
+5--30 degree near miss or a rotation above 30 degrees.
+
+The absolute dry-run proxy remains imperfect: it predicted 23 placements for
+the order that physically placed 25. This does not invalidate its use for
+relative order selection, but it does rule out treating the proxy as a
+calibrated physical score. Both arms eventually returned an action that was
+included but not valid/placed-safe, so terminal candidate/fallback behaviour
+remains a separate limitation.
+
+## Verdict
+
+Task A transfer is positive, but the transferable object is not Task B's
+online three-step tie-break. It is a Task-A-specific increase in deterministic
+complete-order rollouts under the offline budget. `bounded128` is an adoption
+candidate for Task A only. The environment defaults remain legacy-compatible
+(`OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=0`) until an explicit adoption/merge
+decision; Task B and Task C behaviour is unchanged.
