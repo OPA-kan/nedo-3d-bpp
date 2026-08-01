@@ -49,6 +49,13 @@ python3 scripts/context.py show operations   # 日々の作業ループ規則（
 複数ジョブは `scripts/run_queue.py` の計画ファイルで一括実行する。
 詳細は `docs/AGENT_OPERATIONS.md`。
 
+**現在の live 方策(2026-07-31 の final_holdout 評価で切り替え済み):**
+`agent.py` の出荷デフォルトは risk-on — 実 action は
+`Q - 1.0 * P_rot`(力学モデル `mech-dev-v1-20260731`)で選択される。
+`RELEASE_RISK_LIVE_RERANK=0` で切り替え前の挙動に戻る。滑り項
+(`RELEASE_RISK_SLIDE_LAMBDA`)は既定 0 で shadow 検証中。経緯と制約は
+`docs/RELEASE_RISK_PROTOCOL.md` §8。**「baseline」は risk-on 方策を指す。**
+
 `HANDOFF.md`の次の3節は必ず読む。
 
 - `Established by evidence` — 各項目にrun IDかコード行が紐付いた測定結果
