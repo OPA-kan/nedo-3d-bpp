@@ -153,7 +153,7 @@ LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
-VISIBLE_POOL_ROLLOUT_MODES = frozenset({"off", "shadow"})
+VISIBLE_POOL_ROLLOUT_MODES = frozenset({"off", "shadow", "enforce"})
 VISIBLE_POOL_ROLLOUT_MODE = os.environ.get(
     "VISIBLE_POOL_ROLLOUT_MODE", "off"
 ).strip().lower()
@@ -4740,7 +4740,7 @@ def dataclass_to_dict(value):
     }
 
 
-def visible_pool_rollout_shadow_record(
+def visible_pool_rollout_evaluation(
     observation,
     indexed_items,
     candidates,
@@ -4751,7 +4751,7 @@ def visible_pool_rollout_shadow_record(
     q_band=VISIBLE_POOL_ROLLOUT_Q_BAND,
     risk_lambda=None,
 ):
-    """Evaluate live Top-K without changing the action returned by policy."""
+    """Evaluate a class-diverse live Top-K and return record + proposal."""
     global _CONTAINER_Z_INTERVAL_CACHE_BYPASS
     started = time.perf_counter()
     pool_list = observation.get("pool_list", [])
@@ -4792,7 +4792,7 @@ def visible_pool_rollout_shadow_record(
         else:
             unique.append(selected_decision)
 
-    records = []
+    evaluated = []
     previous_cache_bypass = _CONTAINER_Z_INTERVAL_CACHE_BYPASS
     _CONTAINER_Z_INTERVAL_CACHE_BYPASS = True
     try:
@@ -4805,32 +4805,52 @@ def visible_pool_rollout_shadow_record(
                 attempts_per_step=attempts_per_step,
                 risk_lambda=risk_lambda,
             )
-            records.append(
-                _rollout_action_record(decision, pool_list, value)
+            evaluated.append(
+                (
+                    decision,
+                    _rollout_action_record(decision, pool_list, value),
+                )
             )
     finally:
         _CONTAINER_Z_INTERVAL_CACHE_BYPASS = previous_cache_bypass
 
     selected_score = float(selected_decision.score)
-    eligible = [
-        record
-        for record in records
-        if record["q_live"] >= selected_score - float(q_band)
-    ]
-    proposed = max(
-        eligible,
-        key=lambda record: (
-            tuple(record["rollout_key"]), record["q_live"]
+    for _decision, record in evaluated:
+        record["q_delta_from_selected"] = float(
+            record["q_live"] - selected_score
+        )
+        record["q_loss_from_selected"] = float(
+            selected_score - record["q_live"]
+        )
+        record["within_q_band"] = bool(
+            record["q_live"] >= selected_score - float(q_band)
+        )
+    eligible = [pair for pair in evaluated if pair[1]["within_q_band"]]
+    unrestricted = max(
+        evaluated,
+        key=lambda pair: (
+            tuple(pair[1]["rollout_key"]), pair[1]["q_live"]
         ),
         default=None,
     )
+    proposed_pair = max(
+        eligible,
+        key=lambda pair: (
+            tuple(pair[1]["rollout_key"]), pair[1]["q_live"]
+        ),
+        default=None,
+    )
+    proposed_decision = None if proposed_pair is None else proposed_pair[0]
+    proposed = None if proposed_pair is None else proposed_pair[1]
+    unrestricted_record = None if unrestricted is None else unrestricted[1]
     selected_pool_index = int(selected_decision.action["item_idx"])
-    return {
-        "mode": "shadow",
+    record = {
+        "mode": str(VISIBLE_POOL_ROLLOUT_MODE),
         "depth": int(depth),
         "attempts_per_step": int(attempts_per_step),
         "q_band": float(q_band),
-        "candidate_count": len(records),
+        "risk_scope": "future_transitions_only",
+        "candidate_count": len(evaluated),
         "eligible_count": len(eligible),
         "selected_pool_index": selected_pool_index,
         "proposed_pool_index": (
@@ -4840,9 +4860,44 @@ def visible_pool_rollout_shadow_record(
             proposed is not None
             and int(proposed["pool_index"]) != selected_pool_index
         ),
+        "would_change_action": bool(
+            proposed_decision is not None
+            and proposed_decision is not selected_decision
+        ),
+        "unrestricted_proposed_pool_index": (
+            None
+            if unrestricted_record is None
+            else int(unrestricted_record["pool_index"])
+        ),
+        "unrestricted_proposed_q_delta": (
+            None
+            if unrestricted_record is None
+            else float(unrestricted_record["q_delta_from_selected"])
+        ),
+        "unrestricted_proposed_q_loss": (
+            None
+            if unrestricted_record is None
+            else float(unrestricted_record["q_loss_from_selected"])
+        ),
+        "unrestricted_proposal_within_q_band": bool(
+            unrestricted_record is not None
+            and unrestricted_record["within_q_band"]
+        ),
+        "unrestricted_would_change_item": bool(
+            unrestricted_record is not None
+            and int(unrestricted_record["pool_index"])
+            != selected_pool_index
+        ),
         "elapsed_seconds": float(time.perf_counter() - started),
-        "candidates": records,
+        "candidates": [record for _decision, record in evaluated],
     }
+    return record, proposed_decision
+
+
+def visible_pool_rollout_shadow_record(*args, **kwargs):
+    """Compatibility seam for telemetry-only callers and unit tests."""
+    record, _proposed = visible_pool_rollout_evaluation(*args, **kwargs)
+    return record
 
 
 def replay_placement_trace(ordered_items, container_templates, deadline=None):
@@ -5935,7 +5990,7 @@ class Agent:
                 CROSS_STEP_INCUMBENT_PER_ITEM
             )
         rollout_collector = None
-        if VISIBLE_POOL_ROLLOUT_MODE == "shadow":
+        if VISIBLE_POOL_ROLLOUT_MODE in {"shadow", "enforce"}:
             rollout_collector = VisiblePoolRolloutCollector()
 
         live_lambda = (
@@ -5991,6 +6046,37 @@ class Agent:
             )
             if decision is not None:
                 action_source = "rescue_scan"
+        rollout_record = None
+        if (
+            decision is not None
+            and rollout_collector is not None
+            and action_source != "rescue_scan"
+        ):
+            rollout_record, rollout_proposal = (
+                visible_pool_rollout_evaluation(
+                    observation,
+                    ordered_items,
+                    rollout_collector.snapshot(
+                        VISIBLE_POOL_ROLLOUT_TOP_K
+                    ),
+                    decision,
+                    risk_lambda=live_lambda,
+                )
+            )
+            rollout_record["enforced"] = bool(
+                VISIBLE_POOL_ROLLOUT_MODE == "enforce"
+                and rollout_proposal is not None
+                and rollout_proposal is not decision
+            )
+            if rollout_record["enforced"]:
+                rollout_record["original_pool_index"] = int(
+                    decision.action["item_idx"]
+                )
+                decision = rollout_proposal
+                action_source = "rollout_enforce"
+            self.last_candidate_diagnostics[
+                "visible_pool_rollout"
+            ] = rollout_record
         if cross_step_collector is not None:
             selected_item_index_for_buffer = None
             if decision is not None:
@@ -6087,21 +6173,6 @@ class Agent:
             if shadow_record is not None:
                 self.last_candidate_diagnostics["shadow_rerank"] = (
                     shadow_record
-                )
-            if (
-                VISIBLE_POOL_ROLLOUT_MODE == "shadow"
-                and action_source != "rescue_scan"
-            ):
-                self.last_candidate_diagnostics[
-                    "visible_pool_rollout"
-                ] = visible_pool_rollout_shadow_record(
-                    observation,
-                    ordered_items,
-                    rollout_collector.snapshot(
-                        VISIBLE_POOL_ROLLOUT_TOP_K
-                    ),
-                    decision,
-                    risk_lambda=live_lambda,
                 )
             finalize_release_flow_diagnostics(
                 self.last_candidate_diagnostics

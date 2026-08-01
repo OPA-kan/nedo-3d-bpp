@@ -1,4 +1,4 @@
-name: Visible-pool rollout shadow ablation
+name: Visible-pool rollout enforce ablation
 
 on:
   workflow_call:
@@ -13,19 +13,23 @@ concurrency:
 
 jobs:
   episode:
-    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, rollout_shadow]
+        arm: [base, rollout_enforce]
+        repeat: [0, 1, 2]
         case:
+          - {case_id: b000-k10, source_case: "000", look_ahead: 10}
           - {case_id: b000-k15, source_case: "000", look_ahead: 15}
           - {case_id: b000-k20, source_case: "000", look_ahead: 20}
           - {case_id: b000-k40, source_case: "000", look_ahead: 40}
+          - {case_id: b001-k10, source_case: "001", look_ahead: 10}
           - {case_id: b001-k20, source_case: "001", look_ahead: 20}
           - {case_id: b001-k30, source_case: "001", look_ahead: 30}
+          - {case_id: b001-k40, source_case: "001", look_ahead: 40}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -49,14 +53,16 @@ jobs:
           --config
           "reports/visible-pool-rollout/${{ matrix.case.case_id }}.json"
           --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.repeat }}"
+          --open-final-holdout
           --output-dir
-          "reports/visible-pool-rollout/${{ matrix.case.case_id }}-${{ matrix.arm }}"
+          "reports/visible-pool-rollout/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rollout-${{ matrix.case.case_id }}-${{ matrix.arm }}
+          name: rollout-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
           path: >-
-            reports/visible-pool-rollout/${{ matrix.case.case_id }}-${{ matrix.arm }}/
+            reports/visible-pool-rollout/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}/
 
   aggregate:
     needs: episode

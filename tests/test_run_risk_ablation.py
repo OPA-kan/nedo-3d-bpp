@@ -96,6 +96,27 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(trace["would_prevent_fallback_count"], 1)
         self.assertEqual(trace["validation_ms_per_observed_step"], 2.0)
 
+    def test_development_and_full_suite_totals_are_separate(self):
+        rows = [
+            episode_row("base", "b000-k15", 10, 11.0),
+            episode_row("base", "b000-k15", 12, 13.0),
+            episode_row("base", "b000-k10", 20, 21.0),
+        ]
+
+        summary = summarize(rows)
+
+        self.assertEqual(
+            summary["development_totals"]["base"],
+            {"placed": 11.0, "fill": 12.0, "cases": 1},
+        )
+        self.assertEqual(
+            summary["suite_totals"]["base"],
+            {"placed": 31.0, "fill": 33.0, "cases": 2},
+        )
+        self.assertEqual(
+            summary["registered_development_baseline"]["placed"], 88.0
+        )
+
 
 class ArmEnvironmentTests(unittest.TestCase):
     def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):
@@ -146,6 +167,14 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
         self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "shadow")
         self.assertNotIn("VISIBLE_POOL_ROLLOUT_ATTEMPTS", env)
+
+    def test_rollout_enforce_is_the_shipped_baseline_plus_selection(self):
+        env = {"RELEASE_RISK_LIVE_RERANK": "0"}
+
+        configure_arm_environment(env, "rollout_enforce", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "enforce")
 
 
 class PolicyTraceSummaryTests(unittest.TestCase):
@@ -211,6 +240,17 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "rollout_eligible_count": 0,
                 "rollout_non_degenerate_count": 0,
                 "rollout_would_change_count": 0,
+                "rollout_unrestricted_change_count": 0,
+                "rollout_unrestricted_within_band_count": 0,
+                "rollout_enforced_count": 0,
+                "rollout_q_loss_bins": {
+                    "nonpositive": 0,
+                    "0_to_0.05": 0,
+                    "0.05_to_0.10": 0,
+                    "0.10_to_0.15": 0,
+                    "over_0.15": 0,
+                },
+                "rollout_by_step": {},
                 "rollout_seconds_total": 0.0,
                 "rollout_seconds_max": 0.0,
             },
@@ -219,11 +259,16 @@ class PolicyTraceSummaryTests(unittest.TestCase):
     def test_rollout_shadow_summary_counts_discrimination_and_cost(self):
         record = {
             "event": "decision",
+            "step": 9,
             "candidate_diagnostics": {
                 "visible_pool_rollout": {
                     "candidate_count": 3,
                     "eligible_count": 2,
                     "would_change_item": True,
+                    "unrestricted_would_change_item": True,
+                    "unrestricted_proposal_within_q_band": True,
+                    "unrestricted_proposed_q_loss": 0.12,
+                    "enforced": True,
                     "elapsed_seconds": 0.15,
                     "candidates": [
                         {"rollout_key": [2, 0.1, 0.0, 0.0]},
@@ -242,6 +287,15 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["rollout_candidate_count"], 3)
         self.assertEqual(summary["rollout_non_degenerate_count"], 1)
         self.assertEqual(summary["rollout_would_change_count"], 1)
+        self.assertEqual(summary["rollout_unrestricted_change_count"], 1)
+        self.assertEqual(
+            summary["rollout_unrestricted_within_band_count"], 1
+        )
+        self.assertEqual(summary["rollout_enforced_count"], 1)
+        self.assertEqual(
+            summary["rollout_q_loss_bins"]["0.10_to_0.15"], 1
+        )
+        self.assertEqual(summary["rollout_by_step"]["9"]["observed"], 1)
         self.assertAlmostEqual(summary["rollout_seconds_total"], 0.15)
 
 

@@ -32,6 +32,13 @@ SIMULATOR = ROOT / "simulator"
 AGENT = ROOT / "agent" / "agent.py"
 DEFAULT_OUTPUT_DIR = ROOT / "reports" / "risk-ablation"
 FINAL_HOLDOUT_CASES = frozenset({"b001-k40", "b001-k10"})
+DEVELOPMENT_CASES = frozenset(
+    {"b000-k15", "b000-k20", "b000-k40", "b001-k20", "b001-k30"}
+)
+REGISTERED_DEVELOPMENT_BASELINE = {
+    "placed": 88.0,
+    "fill": 114.6,
+}
 
 
 def configure_arm_environment(
@@ -67,6 +74,7 @@ def configure_arm_environment(
         "rescue",
         "cross_step_shadow",
         "rollout_shadow",
+        "rollout_enforce",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -74,6 +82,8 @@ def configure_arm_environment(
             env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"
         elif arm == "rollout_shadow":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
+        elif arm == "rollout_enforce":
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
@@ -206,6 +216,17 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "rollout_eligible_count": 0,
         "rollout_non_degenerate_count": 0,
         "rollout_would_change_count": 0,
+        "rollout_unrestricted_change_count": 0,
+        "rollout_unrestricted_within_band_count": 0,
+        "rollout_enforced_count": 0,
+        "rollout_q_loss_bins": {
+            "nonpositive": 0,
+            "0_to_0.05": 0,
+            "0.05_to_0.10": 0,
+            "0.10_to_0.15": 0,
+            "over_0.15": 0,
+        },
+        "rollout_by_step": {},
         "rollout_seconds_total": 0.0,
         "rollout_seconds_max": 0.0,
     }
@@ -286,6 +307,33 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 if rollout.get("would_change_item") is True:
                     summary["rollout_would_change_count"] += 1
+                unrestricted_change = bool(
+                    rollout.get("unrestricted_would_change_item") is True
+                )
+                if unrestricted_change:
+                    summary["rollout_unrestricted_change_count"] += 1
+                    if rollout.get(
+                        "unrestricted_proposal_within_q_band"
+                    ) is True:
+                        summary[
+                            "rollout_unrestricted_within_band_count"
+                        ] += 1
+                    q_loss = float(
+                        rollout.get("unrestricted_proposed_q_loss", 0.0)
+                    )
+                    if q_loss <= 0.0:
+                        q_bin = "nonpositive"
+                    elif q_loss <= 0.05:
+                        q_bin = "0_to_0.05"
+                    elif q_loss <= 0.10:
+                        q_bin = "0.05_to_0.10"
+                    elif q_loss <= 0.15:
+                        q_bin = "0.10_to_0.15"
+                    else:
+                        q_bin = "over_0.15"
+                    summary["rollout_q_loss_bins"][q_bin] += 1
+                if rollout.get("enforced") is True:
+                    summary["rollout_enforced_count"] += 1
                 keys = {
                     tuple(candidate.get("rollout_key", []))
                     for candidate in rollout.get("candidates", [])
@@ -297,6 +345,30 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 summary["rollout_seconds_total"] += elapsed
                 summary["rollout_seconds_max"] = max(
                     summary["rollout_seconds_max"], elapsed
+                )
+                step_key = str(int(record.get("step", -1)))
+                step_bucket = summary["rollout_by_step"].setdefault(
+                    step_key,
+                    {
+                        "observed": 0,
+                        "non_degenerate": 0,
+                        "would_change": 0,
+                        "unrestricted_change": 0,
+                        "seconds_total": 0.0,
+                        "seconds_max": 0.0,
+                    },
+                )
+                step_bucket["observed"] += 1
+                step_bucket["non_degenerate"] += int(len(keys) > 1)
+                step_bucket["would_change"] += int(
+                    rollout.get("would_change_item") is True
+                )
+                step_bucket["unrestricted_change"] += int(
+                    unrestricted_change
+                )
+                step_bucket["seconds_total"] += elapsed
+                step_bucket["seconds_max"] = max(
+                    step_bucket["seconds_max"], elapsed
                 )
     return summary
 
@@ -412,6 +484,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "rollout_eligible_count": 0,
                     "rollout_non_degenerate_count": 0,
                     "rollout_would_change_count": 0,
+                    "rollout_unrestricted_change_count": 0,
+                    "rollout_unrestricted_within_band_count": 0,
+                    "rollout_enforced_count": 0,
+                    "rollout_q_loss_bins": {},
+                    "rollout_by_step": {},
                     "rollout_seconds_total": 0.0,
                     "rollout_seconds_max": 0.0,
                 },
@@ -452,8 +529,44 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "rollout_eligible_count",
                 "rollout_non_degenerate_count",
                 "rollout_would_change_count",
+                "rollout_unrestricted_change_count",
+                "rollout_unrestricted_within_band_count",
+                "rollout_enforced_count",
             ):
                 trace_bucket[name] += int(trace.get(name, 0))
+            for q_bin, count in trace.get(
+                "rollout_q_loss_bins", {}
+            ).items():
+                trace_bucket["rollout_q_loss_bins"][q_bin] = (
+                    trace_bucket["rollout_q_loss_bins"].get(q_bin, 0)
+                    + int(count)
+                )
+            for step, values in trace.get("rollout_by_step", {}).items():
+                step_bucket = trace_bucket["rollout_by_step"].setdefault(
+                    str(step),
+                    {
+                        "observed": 0,
+                        "non_degenerate": 0,
+                        "would_change": 0,
+                        "unrestricted_change": 0,
+                        "seconds_total": 0.0,
+                        "seconds_max": 0.0,
+                    },
+                )
+                for name in (
+                    "observed",
+                    "non_degenerate",
+                    "would_change",
+                    "unrestricted_change",
+                ):
+                    step_bucket[name] += int(values.get(name, 0))
+                step_bucket["seconds_total"] += float(
+                    values.get("seconds_total", 0.0)
+                )
+                step_bucket["seconds_max"] = max(
+                    step_bucket["seconds_max"],
+                    float(values.get("seconds_max", 0.0)),
+                )
             trace_bucket["rollout_seconds_total"] += float(
                 trace.get("rollout_seconds_total", 0.0)
             )
@@ -605,6 +718,48 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "rollout_would_change_count": int(
                 bucket["rollout_would_change_count"]
             ),
+            "rollout_unrestricted_change_count": int(
+                bucket["rollout_unrestricted_change_count"]
+            ),
+            "rollout_unrestricted_within_band_count": int(
+                bucket["rollout_unrestricted_within_band_count"]
+            ),
+            "rollout_unrestricted_within_band_rate": (
+                round(
+                    bucket["rollout_unrestricted_within_band_count"]
+                    / bucket["rollout_unrestricted_change_count"],
+                    6,
+                )
+                if bucket["rollout_unrestricted_change_count"]
+                else None
+            ),
+            "rollout_enforced_count": int(
+                bucket["rollout_enforced_count"]
+            ),
+            "rollout_q_loss_bins": dict(
+                sorted(bucket["rollout_q_loss_bins"].items())
+            ),
+            "rollout_by_step": {
+                step: {
+                    **values,
+                    "seconds_total": round(values["seconds_total"], 6),
+                    "seconds_max": round(values["seconds_max"], 6),
+                    "non_degenerate_rate": round(
+                        values["non_degenerate"] / values["observed"], 6
+                    ),
+                    "ms_per_step": round(
+                        1000.0
+                        * values["seconds_total"]
+                        / values["observed"],
+                        3,
+                    ),
+                }
+                for step, values in sorted(
+                    bucket["rollout_by_step"].items(),
+                    key=lambda pair: int(pair[0]),
+                )
+                if values["observed"]
+            },
             "rollout_seconds_total": round(
                 bucket["rollout_seconds_total"], 6
             ),
@@ -622,9 +777,31 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 else None
             ),
         }
+    def case_mean_totals(selected_cases):
+        totals = {}
+        for case_id, arm_stats in cases.items():
+            if case_id not in selected_cases:
+                continue
+            for arm, metrics in arm_stats.items():
+                bucket = totals.setdefault(
+                    arm, {"placed": 0.0, "fill": 0.0, "cases": 0}
+                )
+                bucket["placed"] += float(metrics["placed"]["mean"])
+                bucket["fill"] += float(metrics["fill"]["mean"])
+                bucket["cases"] += 1
+        for bucket in totals.values():
+            bucket["placed"] = round(bucket["placed"], 3)
+            bucket["fill"] = round(bucket["fill"], 3)
+        return totals
+
     return {
         "arms": arms,
         "cases": cases,
+        "development_totals": case_mean_totals(DEVELOPMENT_CASES),
+        "suite_totals": case_mean_totals(set(cases)),
+        "registered_development_baseline": dict(
+            REGISTERED_DEVELOPMENT_BASELINE
+        ),
         "baseline_arm": baseline_arm,
         "paired_vs_baseline": paired,
         "paired_vs_off": paired if baseline_arm == "off" else {},
@@ -634,7 +811,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def render_markdown(summary: dict[str, Any], rows: int) -> str:
     lines = [
-        "# Online risk ablation (development configurations only)",
+        "# Online policy ablation",
         "",
         f"- episode rows: {rows}; paired differences use "
         f"`{summary.get('baseline_arm', 'off')}` as the baseline arm.",
@@ -661,6 +838,33 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['near_miss'].get('mean', '-')} "
             f"| {stats['surface_tv'].get('mean', '-')} |"
         )
+    lines += [
+        "",
+        "## Mean totals and registered development guard",
+        "",
+        "| arm | development cases | dev placed total | dev fill total "
+        "| suite cases | suite placed total | suite fill total |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    development_totals = summary.get("development_totals", {})
+    suite_totals = summary.get("suite_totals", {})
+    for arm in sorted(set(development_totals) | set(suite_totals)):
+        dev = development_totals.get(arm, {})
+        suite = suite_totals.get(arm, {})
+        lines.append(
+            f"| {arm} | {dev.get('cases', 0)} "
+            f"| {dev.get('placed', '-')} | {dev.get('fill', '-')} "
+            f"| {suite.get('cases', 0)} | {suite.get('placed', '-')} "
+            f"| {suite.get('fill', '-')} |"
+        )
+    registered = summary.get("registered_development_baseline", {})
+    lines += [
+        "",
+        "Registered current-default development baseline: "
+        f"placed `{registered.get('placed')}`, fill `{registered.get('fill')}`. "
+        "This is a historical guard; the simultaneously executed base arm "
+        "is the causal comparator for this run.",
+    ]
     policy_trace = summary.get("policy_trace_by_arm", {})
     if policy_trace:
         lines += [
@@ -688,8 +892,9 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             "## Visible-pool rollout telemetry",
             "",
             "| arm | steps | candidates | eligible | non-degenerate "
-            "| would change item | ms/step | max seconds |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|",
+            "| would change item | unrestricted change | within band "
+            "| enforced | ms/step | max seconds |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for arm, trace in sorted(policy_trace.items()):
             lines.append(
@@ -698,9 +903,31 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['rollout_eligible_count']} "
                 f"| {trace['rollout_non_degenerate_count']} "
                 f"| {trace['rollout_would_change_count']} "
+                f"| {trace['rollout_unrestricted_change_count']} "
+                f"| {trace['rollout_unrestricted_within_band_rate']} "
+                f"| {trace['rollout_enforced_count']} "
                 f"| {trace['rollout_ms_per_observed_step']} "
                 f"| {trace['rollout_seconds_max']} |"
             )
+        lines += [
+            "",
+            "### Rollout telemetry by step index",
+            "",
+            "| arm | step | observed | non-degenerate | rate "
+            "| would change | unrestricted change | ms/step | max seconds |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            for step, values in trace["rollout_by_step"].items():
+                lines.append(
+                    f"| {arm} | {step} | {values['observed']} "
+                    f"| {values['non_degenerate']} "
+                    f"| {values['non_degenerate_rate']} "
+                    f"| {values['would_change']} "
+                    f"| {values['unrestricted_change']} "
+                    f"| {values['ms_per_step']} "
+                    f"| {values['seconds_max']} |"
+                )
     lines += [
         "",
         "## Paired per-case difference vs "

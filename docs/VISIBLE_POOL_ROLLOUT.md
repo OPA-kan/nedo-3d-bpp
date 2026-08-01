@@ -15,6 +15,11 @@ For each immediate candidate under comparison:
 5. report the lexicographic value
    `(placed_count, added_volume, -sum(P_rot), -sum(P_slide))`.
 
+The risk sums cover future rollout transitions only. The immediate candidate's
+rotation/slide penalties are already included in `Q_live` and are not added to
+the rollout value again; this prevents double counting at the band/value
+boundary.
+
 The rollout proxy policy deliberately does not use `Q_live` as its primary
 key. It prefers settled candidates, then support quality and low height;
 `Q_live` is only the final deterministic tie-break. This prevents the new
@@ -48,8 +53,10 @@ Set `VISIBLE_POOL_ROLLOUT_MODE=shadow`. The live search is unchanged, but an
 observer retains its best accepted candidate for every stable item. Before
 the bounded Top-K is evaluated, candidates are diversified by the item class
 `(sorted dimensions, mass, is_soft, is_prioritized)` so duplicate baggage
-instances cannot fill the entire comparison set. The default is `off` and
-there is deliberately no `enforce` mode yet.
+instances cannot fill the entire comparison set. The default is `off`.
+`enforce` uses the rollout lexicographic key only among candidates whose
+`Q_live >= Q_selected - 0.15`; it is an ablation mode, not the shipped
+default.
 
 Live shadow bypasses (and therefore does not warm) the global analytic
 container-Z interval cache. This prevents telemetry from making later
@@ -69,3 +76,9 @@ The arm aggregate was slightly above base, but the independently executed
 base was unstable across consecutive screening runs, so no score effect is
 claimed. This establishes discrimination and feasible cost only; enforcement
 needs a separate repeated ablation.
+
+The enforce adoption experiment uses the explicitly requested eight
+configurations (development 5 + b000-k10 validation + the two already-opened
+former holdouts), three repeats per arm. The workflow reports the unrestricted
+rollout proposal's Q-loss distribution and the fraction that survives the
+0.15 band, plus non-degeneracy and runtime by exact step index.

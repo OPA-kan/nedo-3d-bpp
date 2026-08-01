@@ -85,7 +85,9 @@
   多様化したTop-Kだけに固定attempt数の静的rolloutを行う。値は
   `(future settled配置数, 追加体積, -累積回転risk, -累積slide risk)`。
   初手releaseはsettled proxy利用を明記し、rollout途中のreleaseは適用せず
-  `release_transition_uncertain`で打ち切る。既定`off`、`enforce`未実装。
+  `release_transition_uncertain`で打ち切る。既定`off`。`enforce`は
+  `Q_live >= Q_selected - 0.15`の候補間だけrollout辞書式値で選び替える
+  ablation modeであり、採用済み既定ではない。
   詳細は`docs/VISIBLE_POOL_ROLLOUT.md`。
 - `ITEM_COVERAGE_MODE=class_aware`では、normal/soft/priorityの各present classから
   最低1荷物をitem cap内へ確保し、各included itemの先頭探索unitを残りposeより先に

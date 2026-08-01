@@ -3376,7 +3376,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
                 agent, "VISIBLE_POOL_ROLLOUT_MODE", "off"
             ),
             mock.patch.object(
-                agent, "visible_pool_rollout_shadow_record"
+                agent, "visible_pool_rollout_evaluation"
             ) as rollout_shadow,
             mock.patch.object(
                 agent.Agent,
@@ -3440,8 +3440,8 @@ class CrossStepIncumbentTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent,
-                "visible_pool_rollout_shadow_record",
-                return_value=shadow,
+                "visible_pool_rollout_evaluation",
+                return_value=(shadow, decision),
             ) as rollout_shadow,
         ):
             solver = agent.Agent("")
@@ -3454,6 +3454,211 @@ class CrossStepIncumbentTests(unittest.TestCase):
             shadow,
         )
         rollout_shadow.assert_called_once()
+
+    def test_rollout_enforce_returns_in_band_proposal(self):
+        pool = [sample_item(0), sample_item(1)]
+        observation = {
+            "pool_list": pool,
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+
+        def decision(pool_index, score):
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": np.array(
+                        [0.1 + pool_index * 0.2, 0.0, 0.1],
+                        dtype=np.float32,
+                    ),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.1 + pool_index * 0.2, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=score,
+            )
+
+        selected = decision(0, 1.0)
+        alternative = decision(1, 0.9)
+        values = {
+            0: agent.VisiblePoolRolloutValue(
+                0, 0.0, 0.0, 0.0, 4, 1, False, False,
+                "no_candidate", (),
+            ),
+            1: agent.VisiblePoolRolloutValue(
+                1, 0.1, 0.0, 0.0, 4, 1, False, False,
+                "depth_reached", (),
+            ),
+        }
+        with mock.patch.object(
+            agent,
+            "visible_pool_rollout_value",
+            side_effect=lambda _observation, _items, value, **_kwargs: (
+                values[int(value.action["item_idx"])]
+            ),
+        ):
+            record, proposed = agent.visible_pool_rollout_evaluation(
+                observation,
+                list(enumerate(pool)),
+                [selected, alternative],
+                selected,
+                q_band=0.15,
+            )
+
+        self.assertIs(proposed, alternative)
+        self.assertTrue(record["would_change_item"])
+        self.assertTrue(record["unrestricted_proposal_within_q_band"])
+        self.assertAlmostEqual(record["unrestricted_proposed_q_loss"], 0.1)
+
+    def test_rollout_enforce_keeps_selected_when_proposal_is_out_of_band(self):
+        pool = [sample_item(0), sample_item(1)]
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+
+        def decision(pool_index, score):
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": np.zeros(3, dtype=np.float32),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (pool_index * 0.2, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=score,
+            )
+
+        selected = decision(0, 1.0)
+        alternative = decision(1, 0.7)
+        values = {
+            0: agent.VisiblePoolRolloutValue(
+                0, 0.0, 0.0, 0.0, 1, 1, False, False,
+                "no_candidate", (),
+            ),
+            1: agent.VisiblePoolRolloutValue(
+                2, 0.2, 0.0, 0.0, 1, 1, False, False,
+                "depth_reached", (),
+            ),
+        }
+        with mock.patch.object(
+            agent,
+            "visible_pool_rollout_value",
+            side_effect=lambda _observation, _items, value, **_kwargs: (
+                values[int(value.action["item_idx"])]
+            ),
+        ):
+            record, proposed = agent.visible_pool_rollout_evaluation(
+                {"pool_list": pool, "container_list": [container]},
+                list(enumerate(pool)),
+                [selected, alternative],
+                selected,
+                q_band=0.15,
+            )
+
+        self.assertIs(proposed, selected)
+        self.assertTrue(record["unrestricted_would_change_item"])
+        self.assertFalse(record["unrestricted_proposal_within_q_band"])
+
+    def test_initial_release_risk_is_not_double_counted_in_rollout_value(self):
+        item = sample_item(0)
+        initial = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.3),
+                (0.2, 0.2, 0.2),
+                "release_candidate",
+            ),
+            score=-0.9,
+        )
+        with mock.patch.object(agent, "apply_placement_decision"):
+            value = agent.visible_pool_rollout_value(
+                {
+                    "pool_list": [item],
+                    "container_list": [sample_container()],
+                },
+                [(0, item)],
+                initial,
+                depth=1,
+            )
+
+        self.assertTrue(value.initial_release_proxy)
+        self.assertEqual(value.cumulative_rotation_risk, 0.0)
+        self.assertEqual(value.cumulative_slide_risk, 0.0)
+
+    def test_policy_enforce_returns_rollout_proposal(self):
+        pool = [sample_item(0), sample_item(1)]
+        observation = {
+            "pool_list": pool,
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+
+        def decision(pool_index, score):
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": np.array(
+                        [0.1 + 0.2 * pool_index, 0.0, 0.1],
+                        dtype=np.float32,
+                    ),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.1 + 0.2 * pool_index, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=score,
+            )
+
+        selected = decision(0, 1.0)
+        proposed = decision(1, 0.9)
+        record = {"mode": "enforce", "would_change_item": True}
+        with (
+            mock.patch.object(
+                agent, "VISIBLE_POOL_ROLLOUT_MODE", "enforce"
+            ),
+            mock.patch.object(
+                agent.Agent,
+                "_closed_loop_choice",
+                return_value=selected,
+            ),
+            mock.patch.object(
+                agent,
+                "visible_pool_rollout_evaluation",
+                return_value=(record, proposed),
+            ),
+        ):
+            solver = agent.Agent("")
+            action = solver.policy(observation)
+
+        self.assertEqual(action["item_idx"], 1)
+        self.assertEqual(solver.last_action_source, "rollout_enforce")
+        self.assertTrue(
+            solver.last_candidate_diagnostics["visible_pool_rollout"][
+                "enforced"
+            ]
+        )
 
     def test_rollout_collector_keeps_best_candidate_per_item(self):
         collector = agent.VisiblePoolRolloutCollector()
