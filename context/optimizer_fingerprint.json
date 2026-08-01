@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "contract": "Semantic identity of the Task A offline optimizer, defined as the whole dependency graph DryRunEvaluator reaches, not as Agent.optimize. If behaviour_sha256 changes, E_theta changed and every Task A measurement predates it -- re-run the Task A sweep and stamp the affected ledger entries with the new core_ref, even when no offline file was edited.",
+  "probe": {
+    "attempt_budget": 96,
+    "deadline": "infinite (fingerprint must not depend on machine speed)"
+  },
+  "component_sha256": "272bae192eb19e113419856bf654cf9a9568c6dfd354df6d4f6e95201c2bf747",
+  "behaviour_sha256": "a92092c2272df53636fe3b84ac75a9ca7cd6eaefe42c44c7718bb1bdff292b70",
+  "live_ranking_sha256": "8daf59ab194a2a4489f428b370ddeebc8e4112c70c762b16bea373e464ac4160",
+  "probe_selection_identical": true,
+  "adr001_section2_ranking_shared": "VIOLATED: policy() ranks with risk_lambda=1.0 but DryRunEvaluator calls the core with none, so the offline evaluator simulates the pre-risk greedy policy while the shipped executor is risk-on. Undocumented simulation gap, not a recorded decision -- see docs/MEASUREMENT_AUDIT.md F8",
+  "components": {
+    "ANCHOR_GENERATOR_MODE": "support_plane",
+    "SHALLOW_ANCHOR_ATTEMPTS": null,
+    "DEEP_ANCHOR_ATTEMPTS": null,
+    "BOUNDARY_MARGIN": null,
+    "TRANSPORT_CLEARANCE": 0.016,
+    "MIN_SUPPORT_RATIO": 0.55,
+    "FLOOR_ACTION_LIFT": null,
+    "EPS": 1e-06,
+    "RELEASE_RISK_GATE_MODE": "off",
+    "RELEASE_RISK_LIVE_RERANK": true,
+    "RELEASE_RISK_P_MODEL": "mech",
+    "RELEASE_RISK_RERANK_LAMBDA": 1.0,
+    "RELEASE_RISK_SLIDE_LAMBDA": 0.5,
+    "RESCUE_SCAN_ENABLED": false,
+    "RESCUE_SCAN_ATTEMPT_BUDGET": 512,
+    "CROSS_STEP_INCUMBENT_MODE": "off",
+    "VISIBLE_POOL_ROLLOUT_MODE": "off",
+    "ITEM_COVERAGE_MODE": "class_aware",
+    "LOOKAHEAD_SELECTION_MODE": "weighted",
+    "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM": 128,
+    "OFFLINE_PAIR_MACRO_BUDGET_SECONDS": 0.5,
+    "OFFLINE_SEARCH_BUDGET_SECONDS": 150.0,
+    "OFFLINE_MAX_EVALUATIONS": 1000,
+    "OFFLINE_RANDOM_SEED": 20260723,
+    "OFFLINE_FILL_WEIGHT": 0.65,
+    "OFFLINE_STABILITY_WEIGHT": 0.35
+  },
+  "behaviour": {
+    "choose": {
+      "item_idx": 1,
+      "container_idx": 0,
+      "place_pos": [
+        0.0,
+        0.469,
+        0.24
+      ],
+      "orientation": 0,
+      "score": 2.69215,
+      "kind": null,
+      "candidate_center": [
+        0.0,
+        0.469,
+        0.24
+      ]
+    },
+    "rescue_choose": {
+      "item_idx": 1,
+      "container_idx": 0,
+      "place_pos": [
+        0.0,
+        0.469,
+        0.24
+      ],
+      "orientation": 0,
+      "score": 2.69215,
+      "kind": null,
+      "candidate_center": [
+        0.0,
+        0.469,
+        0.24
+      ]
+    },
+    "per_item_rescue": [
+      {
+        "item_idx": 0,
+        "container_idx": 0,
+        "place_pos": [
+          0.0,
+          0.469,
+          0.16
+        ],
+        "orientation": 0,
+        "score": 2.56735,
+        "kind": null,
+        "candidate_center": [
+          0.0,
+          0.469,
+          0.16
+        ]
+      },
+      {
+        "item_idx": 0,
+        "container_idx": 0,
+        "place_pos": [
+          0.0,
+          0.469,
+          0.24
+        ],
+        "orientation": 0,
+        "score": 2.69215,
+        "kind": null,
+        "candidate_center": [
+          0.0,
+          0.469,
+          0.24
+        ]
+      },
+      {
+        "item_idx": 0,
+        "container_idx": 0,
+        "place_pos": [
+          0.0,
+          0.519,
+          0.14
+        ],
+        "orientation": 0,
+        "score": 2.37965,
+        "kind": null,
+        "candidate_center": [
+          0.0,
+          0.519,
+          0.14
+        ]
+      },
+      {
+        "item_idx": 0,
+        "container_idx": 0,
+        "place_pos": [
+          0.0,
+          -0.529,
+          0.14
+        ],
+        "orientation": 0,
+        "score": 2.37495,
+        "kind": null,
+        "candidate_center": [
+          0.0,
+          -0.529,
+          0.14
+        ]
+      },
+      {
+        "item_idx": 0,
+        "container_idx": 0,
+        "place_pos": [
+          0.0,
+          0.544,
+          0.14
+        ],
+        "orientation": 0,
+        "score": 2.2444,
+        "kind": null,
+        "candidate_center": [
+          0.0,
+          0.544,
+          0.14
+        ]
+      }
+    ],
+    "dry_run": {
+      "placed_count": 5,
+      "failed_index": null,
+      "placed_volume": 0.1944,
+      "fill_ratio": 0.047073,
+      "stability_proxy": 0.975,
+      "center_of_mass_z": 0.245882,
+      "normalized_center_of_mass_z": 0.152722,
+      "mean_support_ratio": 1.0,
+      "min_support_ratio": 1.0,
+      "min_support_margin": 1.0,
+      "mean_support_count": 1.0
+    },
+    "dry_run_rank_key": [
+      5,
+      0.1944,
+      0.047073,
+      0.975,
+      -0.152722
+    ],
+    "constructive_order": [
+      0,
+      2,
+      4,
+      1,
+      3
+    ]
+  },
+  "live_ranking": {
+    "live_lambda": 1.0,
+    "slide_lambda": 0.5,
+    "risk_model": "mech",
+    "choose_risk_adjusted": {
+      "item_idx": 1,
+      "container_idx": 0,
+      "place_pos": [
+        0.0,
+        0.469,
+        0.24
+      ],
+      "orientation": 0,
+      "score": 2.69215,
+      "kind": null,
+      "candidate_center": [
+        0.0,
+        0.469,
+        0.24
+      ]
+    },
+    "rescue_risk_adjusted": {
+      "item_idx": 1,
+      "container_idx": 0,
+      "place_pos": [
+        0.0,
+        0.469,
+        0.24
+      ],
+      "orientation": 0,
+      "score": 2.69215,
+      "kind": null,
+      "candidate_center": [
+        0.0,
+        0.469,
+        0.24
+      ]
+    }
+  }
+}

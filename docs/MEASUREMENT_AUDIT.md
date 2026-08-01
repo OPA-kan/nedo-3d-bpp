@@ -231,7 +231,75 @@ cannot be evaluated independently」は、**オフライン計測にも適用さ
 
 対策は F2 の提案に `core_ref` を含めること(下記)。
 
+### F8. オフライン評価器はリスクrerankを通っていない(ADR-001 §2違反)
+
+F7 を fingerprint 化する過程で見つかった。**共有されていないものがある。**
+
+- `Agent.policy` は
+  `live_lambda = RELEASE_RISK_RERANK_LAMBDA if RELEASE_RISK_LIVE_RERANK else None`
+  を `risk_lambda` として選択スタックへ渡す。
+- `DryRunEvaluator.evaluate` は `PlacementCore.rescue_choose` /
+  `choose` を **`risk_lambda` なしで呼ぶ**。`apply_release_risk` は
+  `risk_lambda is None` で素通しなので、release候補のスコアは無調整。
+
+実証: `RELEASE_RISK_RERANK_LAMBDA` を 1.0 / 50.0 / rerank無効 の3通りにしても、
+同一入力に対するdry-run結果は**ビット一致**する。
+
+したがって現状は、
+
+- 出荷される実行器: risk-on (`Q - 1.0*P_rot - 0.5*P_slide`)
+- オフライン評価器が模擬する方策: **pre-risk greedy**
+
+ADR-001 §2 は共有対象に「候補生成、幾何制約、支持判定、**ランキング処理**」を
+明示的に含めている。**ランキングは共有されていない。** これは記録された設計
+判断ではなく、未文書の simulation gap である。
+
+影響:
+
+1. `task-a-offline-proxy-is-relative-only` に機構的な説明がつく。proxy 23 に
+   対し物理 25〜26 という差は、単なる誤較正ではなく**別方策を模擬している
+   ことによる系統バイアス**を含む。
+2. bounded128 は「pre-risk greedy 実行器向けに最適化した順序」を選び、それを
+   risk-on 実行器が走らせている。それでも +5 配置改善したのは、頑健だった
+   ということであって、設計どおりではない。
+3. 逆に言えば、**リスクモデルの変更は E_theta を動かしていない**。F7 で挙げた
+   12件のうち `8669efc` / `00ddc64` / `70a72a4` / `2cb450c` の4件は、
+   オフライン評価器を変えていない。F7 の一覧はその点で過大だった。
+
+どちらに倒すかは設計判断であり、本監査は決めない。ただし**どちらでも
+再測定が要る**: 揃えれば `E_theta` が変わって Task A の全数値が古くなり、
+揃えないなら「揃えない」を ADR に書いて gap を明示する必要がある。
+`context/optimizer_fingerprint.json` の `adr001_section2_ranking_shared` が
+現状を `VIOLATED` として保持し、`tests/test_optimizer_fingerprint.py` が
+無断の変更を落とす。
+
 ## 提案
+
+### 0. optimizer fingerprint (実装済み)
+
+`scripts/fingerprint_optimizer.py` が、`DryRunEvaluator` が到達する依存グラフ
+全体に同一性を与える。2層構造:
+
+- `component_sha256`: theta を宣言している定数群。
+- `behaviour_sha256`: 固定した微小状態集合で**実際に何をするか** —— 列挙結果、
+  `choose` / `rescue_choose` の決定、完全なdry-run結果、構築的初期順序。
+- `live_ranking_sha256`: オンライン選択器を**別ハッシュ**で持つ。F8 の乖離を
+  隠さず可視化するため。片方だけ動いたら、その変更はオフラインに届いていない。
+
+全probeは `deadline=無限` かつ試行予算固定で走る。F6 の教訓どおり、fingerprint
+がマシン速度に依存したら無意味だからである。
+
+検証済みの性質:
+
+| 変更 | component | behaviour |
+|---|---|---|
+| `Ranker` の重み `2.0*support` → `2.5*support` | 不変 | **変化** |
+| `depth_score` 係数 0.35 → 0.30 | 不変 | **変化** |
+| `MIN_SUPPORT_RATIO` 0.55 → 0.50 | **変化** | 不変(probeが閾値に触れず) |
+| `13381bd`(出荷既定のみ変更) vs `58c4408` | **変化** | 不変 |
+
+最後の行が肝で、**出荷設定の変更とコア意味論の変更が区別できている**。
+`behaviour` が動いたら Task A の全測定が古い。
 
 ### 1. 台帳に計測メタを加法的に足す
 
