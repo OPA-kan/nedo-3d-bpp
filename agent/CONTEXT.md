@@ -59,6 +59,17 @@
   ので、**同じattempt予算のまま**grid全体へ到達幅を広げる測定ができる。
   既定は全層`stride=1`（挙動不変）。rollout側の既定は
   `VISIBLE_POOL_ROLLOUT_STRIDE`（既定1）で、evaluation recordに使用strideを残す。
+- **`interleave`は`stride`と別物であり、混同してはならない。** `stride`は
+  anchorを*間引く*。`interleave`は*並べ替える*（置換）だけで1本も落とさない。
+  使い分けはcapの種類で決まる: rolloutのfuture探索はattempt数capで枯渇し得ない
+  ので間引きが純増。live探索はdeadline capで**枯渇し得る**ため、間引くと
+  現行が見つけている候補を失う。したがってlive経路には`interleave`を使う。
+  `support_plane_anchor_positions`は`y降順→|x|昇順`で出すので自然なprefixは
+  「奥側の1帯・中心線寄り」になり、これが観測されたlive coverage holeの形である。
+  `interleave=N`にすると打ち切られた探索でも支持面全体を粗く走査する。
+  適用先は`PlacementCore.choose`と`top_candidates`のみ。`LIVE_SEARCH_INTERLEAVE`
+  既定1（出荷順）。cartesian generatorは直積streamで置換を表現できないため、
+  `interleave>1`では黙って出荷順を走らせず`ValueError`にする。
 - `candidate_diagnostics.support_plane_searches` は姿勢・コンテナごとに
   連結前後のanchor数、面数、成分数、閾値、面優先順の根拠値を保存する。
 
