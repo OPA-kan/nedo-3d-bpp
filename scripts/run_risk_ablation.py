@@ -146,6 +146,7 @@ def run_episode(
     repeat: int,
     output_dir: pathlib.Path,
     open_final_holdout: bool = False,
+    slide_lambda: float = 0.0,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     case_ids = list(config)
@@ -166,11 +167,19 @@ def run_episode(
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SIMULATOR)
     if arm == "off":
+        # Pre-risk baseline: force the risk term off (the shipped
+        # default is risk-on since the final_holdout switch).
+        env["RELEASE_RISK_LIVE_RERANK"] = "0"
+    elif arm == "base":
+        # Shipped defaults (risk-on, rot-only): no overrides.
         env.pop("RELEASE_RISK_LIVE_RERANK", None)
+        env.pop("RELEASE_RISK_SLIDE_LAMBDA", None)
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
         env["RELEASE_RISK_RERANK_LAMBDA"] = str(risk_lambda)
+    if slide_lambda > 0.0:
+        env["RELEASE_RISK_SLIDE_LAMBDA"] = str(slide_lambda)
     # Ablation runs never do shadow reranking: it is suppressed under
     # live rerank anyway, and the off arm should match the submission
     # default exactly.
@@ -199,7 +208,8 @@ def run_episode(
     row = {
         "label": label,
         "arm": arm,
-        "risk_lambda": risk_lambda if arm != "off" else None,
+        "risk_lambda": risk_lambda if arm not in ("off", "base") else None,
+        "slide_lambda": slide_lambda if slide_lambda > 0.0 else None,
         "repeat": repeat,
         "config": config_path.name,
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
@@ -357,6 +367,12 @@ def main() -> int:
     parser.add_argument("--config", type=pathlib.Path)
     parser.add_argument("--arm", default="off")
     parser.add_argument("--risk-lambda", type=float, default=2.0)
+    parser.add_argument(
+        "--slide-lambda",
+        type=float,
+        default=0.0,
+        help="RELEASE_RISK_SLIDE_LAMBDA for this episode (0 = off).",
+    )
     parser.add_argument("--repeat", type=int, default=0)
     parser.add_argument(
         "--output-dir", type=pathlib.Path, default=DEFAULT_OUTPUT_DIR
@@ -400,6 +416,7 @@ def main() -> int:
         args.repeat,
         args.output_dir,
         open_final_holdout=args.open_final_holdout,
+        slide_lambda=args.slide_lambda,
     )
     print(json.dumps({k: row[k] for k in ("label", "cases")}, indent=1))
     return 0 if row["process_returncode"] == 0 else 1
