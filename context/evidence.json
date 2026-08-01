@@ -360,6 +360,14 @@
       "status": "active",
       "claim": "The transport_invalid death channel (45% of current-policy endings) is NOT corridor blocking: all 8 audited fatal actions fail the agent's OWN static_geometry check on the reconstructed state, because they are the unsafe_protocol_fallback -- a fixed-coordinate action (pool item 0 at [0.0, 0.0, 0.25], orientation 0) emitted when the anytime search returns no acceptable candidate. In congested late states that coordinate is occupied/invalid, so the fallback is a poison pill that ends the episode, while thousands of transport-valid candidates exist elsewhere (late-snapshots-not-starved). Consistent with Codex's route_lost=0: routes are geometrically open; the agent gives up and self-destructs. Fix direction: replace the fixed-coordinate fallback with a rescue scan (coarse stride over release anchors across pool item classes, accept the first self-valid candidate), plus stride coverage in the main scan so the no-candidate branch fires less.",
       "source": "agent.py unsafe_protocol_fallback (fixed_coordinate); audit of 8 transport-death fatal actions vs Geometry.rejection_reason on rebuilt states"
+    },
+    {
+      "id": "soft-settle-stratification",
+      "topic": "risk",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "Soft items vs hard on 1567 labelled release rows: settle displacement medians are similar (d_xy 0.010 vs 0.014 m), but soft ends unsafe more often (0.340 vs 0.274, +24% relative), tilts slightly more at median (4.6 vs 3.1 deg), and spreads wider -- settle-AABB / commanded-dims ratio 1.342 vs 1.246. Read: the rigid proxy's main measurable error for soft is AABB spread (~+10pp inflation) plus residual risk at equal geometry (consistent with the slide model's +2.5 is_soft coefficient being a conditional effect). A parametric soft proxy (inflate AABB by the measured factor; keep is_soft in risk features) looks sufficient for Monte-Carlo transition v1 -- no learned deformation model needed yet.",
+      "source": "inline stratification over replay rows by _item.is_soft"
     }
   ]
 }
