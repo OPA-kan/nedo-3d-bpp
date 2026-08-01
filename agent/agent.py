@@ -644,9 +644,28 @@ def shelf_aabbs(container):
     return shelves
 
 
+# Rebuilding every packed AABB from dicts dominated the transport check
+# (measured: 8163 rebuild calls / 2.7 s inside one 5 s policy call --
+# 78% of the search budget), starving the candidate scan to ~190
+# attempts against populations in the tens of thousands. The packed
+# list is immutable during a search, so cache per list identity;
+# lookahead simulations deep-copy the container (new list object) and
+# placements append (length change), both of which invalidate.
+_PACKED_AABBS_CACHE: dict[int, tuple] = {}
+
+
 def packed_aabbs_local(container):
+    packed_list = container.get("packed_items", [])
+    key = id(packed_list)
+    hit = _PACKED_AABBS_CACHE.get(key)
+    if (
+        hit is not None
+        and hit[0] is packed_list
+        and hit[1] == len(packed_list)
+    ):
+        return hit[2]
     boxes = []
-    for packed in container.get("packed_items", []):
+    for packed in packed_list:
         try:
             center = world_to_local(packed_position_world(packed), container)
             dims = packed_dimensions(packed)
@@ -659,6 +678,9 @@ def packed_aabbs_local(container):
                 bool(packed.get("is_prioritized", False)),
             )
         )
+    if len(_PACKED_AABBS_CACHE) > 256:
+        _PACKED_AABBS_CACHE.clear()
+    _PACKED_AABBS_CACHE[key] = (packed_list, len(packed_list), boxes)
     return boxes
 
 

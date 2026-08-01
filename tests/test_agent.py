@@ -2490,6 +2490,53 @@ class MechanicsRiskModelTests(unittest.TestCase):
         static.assert_not_called()
 
 
+class PackedAabbCacheTests(unittest.TestCase):
+    def _container_with_boxes(self, count):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            {
+                "index": i,
+                "length": 0.2,
+                "width": 0.2,
+                "height": 0.2,
+                "orientation": 0,
+                "is_soft": False,
+                "is_prioritized": False,
+                "pos": [0.25 * i, 0.0, 0.14],
+                "orn": [0.0, 0.0, 0.0, 1.0],
+            }
+            for i in range(count)
+        ]
+        return container
+
+    def test_repeat_calls_reuse_cached_boxes(self):
+        container = self._container_with_boxes(2)
+        first = agent.packed_aabbs_local(container)
+        second = agent.packed_aabbs_local(container)
+        self.assertIs(first, second)
+        self.assertEqual(len(first), 2)
+
+    def test_append_invalidates_cache(self):
+        container = self._container_with_boxes(2)
+        first = agent.packed_aabbs_local(container)
+        container["packed_items"].append(
+            dict(container["packed_items"][0], index=9, pos=[0.6, 0.3, 0.14])
+        )
+        second = agent.packed_aabbs_local(container)
+        self.assertIsNot(first, second)
+        self.assertEqual(len(second), 3)
+
+    def test_new_list_object_invalidates_cache(self):
+        container = self._container_with_boxes(1)
+        first = agent.packed_aabbs_local(container)
+        container["packed_items"] = list(container["packed_items"])
+        second = agent.packed_aabbs_local(container)
+        self.assertIsNot(first, second)
+        self.assertEqual(len(second), 1)
+
+
 class SlideRiskModelTests(unittest.TestCase):
     def test_geometric_parity_with_offline_implementation(self):
         import scripts.evaluate_slide_equivariant as ese
