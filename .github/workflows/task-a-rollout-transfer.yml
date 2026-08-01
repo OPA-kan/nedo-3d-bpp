@@ -7,11 +7,11 @@ jobs:
   episode:
     name: a${{ matrix.source_case }}-${{ matrix.arm }}-r${{ matrix.repeat }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        source_case: ["000", "001"]
+        source_case: ["000"]
         arm: [base, bounded128]
         repeat: [0, 1, 2]
     steps:
@@ -29,7 +29,7 @@ jobs:
           python scripts/build_task_a_config.py
           --source simulator/configs/sample_config.json
           --source-case "${{ matrix.source_case }}"
-          --optimization-timeout 40
+          --optimization-timeout 180
           --policy-timeout 8
           --output "reports/task-a-rollout/config-${{ matrix.source_case }}.json"
       - name: Run Task A episode
@@ -39,7 +39,7 @@ jobs:
           --source-case "${{ matrix.source_case }}"
           --arm "${{ matrix.arm }}"
           --repeat "${{ matrix.repeat }}"
-          --offline-seconds 30
+          --offline-seconds 150
           --macro-seconds 0.5
           --output-dir reports/task-a-rollout
       - uses: actions/upload-artifact@v4

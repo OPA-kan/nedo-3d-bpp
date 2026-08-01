@@ -51,3 +51,12 @@ evaluated three orders per source and improved the offline proxy from 19 to 21
 and from 12 to 18 respectively. The second physical screen therefore compares
 `base` with `bounded128`; the simultaneous base arm remains necessary even
 though Task A is more deterministic than Task B.
+
+Run `30717848749` was positive at 30 seconds. Source 000 improved from 20 to
+23 physical placements and fill 29.171 to 33.124 in every repeat, while the
+number of evaluated complete orders increased from 1 to 13.7. The synthetic
+Task-A conversion of source 001 improved mean placed 14.33 to 17.0 and fill
+23.164 to 24.340, though its base retained timing variance. The adoption run
+therefore freezes `bounded128`, uses only the real bundled Task A source 000,
+and restores the official 150-second internal / 180-second external
+optimization budgets with three repeats.
