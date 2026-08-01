@@ -59,6 +59,7 @@ def configure_arm_environment(
         "VISIBLE_POOL_ROLLOUT_TOP_K",
         "VISIBLE_POOL_ROLLOUT_DEPTH",
         "VISIBLE_POOL_ROLLOUT_ATTEMPTS",
+        "VISIBLE_POOL_ROLLOUT_STRIDE",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
@@ -75,6 +76,8 @@ def configure_arm_environment(
         "cross_step_shadow",
         "rollout_shadow",
         "rollout_enforce",
+        "rollout_enforce_stride4",
+        "rollout_shadow_stride4",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -84,6 +87,15 @@ def configure_arm_environment(
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
         elif arm == "rollout_enforce":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
+        elif arm == "rollout_shadow_stride4":
+            # Same telemetry as rollout_shadow, but the rollout's future
+            # search spreads its unchanged per-step attempt budget over the
+            # anchor grid instead of its prefix.
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
+            env["VISIBLE_POOL_ROLLOUT_STRIDE"] = "4"
+        elif arm == "rollout_enforce_stride4":
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
+            env["VISIBLE_POOL_ROLLOUT_STRIDE"] = "4"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"

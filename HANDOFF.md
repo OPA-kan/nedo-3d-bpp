@@ -56,6 +56,33 @@ change remain artifact-only unless imported deliberately.
 `reports/lookahead/latest-summary.json` is named "latest" but stopped at
 2026-07-28 — do not read it as current.
 
+## Merging a forked evidence ledger
+
+Two lines of work now extend `context/evidence.json` concurrently, so the
+ledger forks routinely and the entry count differs per branch (this is
+normal, not corruption). Merge it by these rules, which follow from the
+ledger's own contract (`entries[].status`, `superseded_by`):
+
+1. **Additive.** A merge only ever adds entries. Never drop an entry because
+   the other branch does not have it.
+2. **Never rewrite a value.** If a later measurement changes a number, the
+   old entry stays, gets `status: superseded` and `superseded_by: <new id>`,
+   and the new entry is appended. An entry is a record of what was measured
+   at a time, not a mutable field.
+3. **An id collision is a supersession, not a conflict.** If both sides added
+   the same id with different content, do not pick a winner and do not merge
+   the text. Rename by measurement (`<id>-v2`, or a date/run suffix), chain
+   them with `superseded_by`, and keep both.
+4. **Order is not meaning.** `entries` is an append log; a merge that
+   reorders it changes nothing semantically. Do not resolve a git conflict by
+   interleaving — concatenate, then dedupe by exact id+content.
+5. Verify after every merge with
+   `python3 scripts/context.py evidence --all`, and check that no id appears
+   twice with `status: active`.
+
+The same applies to `HANDOFF.md`: it is current state, so a merge keeps both
+branches' sections and reconciles only the "Next engineering task" ordering.
+
 ## Established by evidence
 
 Treat these as measured, not as opinion. Each is reproducible from the cited
@@ -280,6 +307,38 @@ measurement only. `VISIBLE_POOL_ROLLOUT_MODE` stays `off` and
 The next evidence is the b000-k15 first divergence re-run at stride 4, since
 that loss was deterministic and the value it enforced on was measured
 through the hole.
+
+### The larger implication is for the live search, not the rollout
+
+The rollout is the smaller consumer of this fix. **The live candidate search
+runs through the same `support_plane` generator with the same stride-free
+deterministic scan order**, so the same hole is present there, one layer up
+and with far more leverage:
+
+- the post-cache coverage hole (accepted anchors clustered in
+  `x in [-0.34, 0.83]`) is the live-search symptom of exactly this scan
+  order;
+- `transport-deaths-are-fallback-poison` in the ledger already traced 45% of
+  episode endings to the fixed-coordinate `unsafe_protocol_fallback`, which
+  fires when the search returns **no** candidate - a no-candidate branch that
+  a wider scan makes rarer.
+
+Both were previously blocked on stride not existing on the shipped generator.
+It exists now. **Live-path stride is the formal next line after the b000-k15
+re-run**, and its expected value is an order of magnitude above the rollout
+diagnostic. It needs its own env gate, its own regression guard
+(`run_risk_ablation.py --arm base` against `reports/benchmarks/baseline.json`),
+and its own repeated ablation - the coverage/selection-quality interaction in
+`aabb-cache-guard-mixed` is the standing warning that raising recall can
+select worse trajectories under a defective utility. Do not fold it into the
+rollout work.
+
+Open design option, not yet measured: rotate `stride_offset` per rollout step
+(or per search round) so successive passes cover complementary phases of the
+grid at the same total budget. The phase arms measured so far
+(`stride-4+1..+3`) differ by at most one snapshot, which suggests phases are
+close to interchangeable and rotation would buy effective coverage cheaply -
+but that is an inference from the spread, not a measurement.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),

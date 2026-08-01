@@ -257,6 +257,19 @@ def measure_snapshot(
             "attempts_used_total": sum(attempts),
             "terminal_reasons": terminal,
             "would_change_item": bool(record["would_change_item"]),
+            # The enforce decision itself, so a run can answer "does fixing
+            # the instrument change the verdict?" and not only "does the
+            # instrument discriminate?". These mirror the live enforce
+            # condition: a strict rollout improvement inside the Q band.
+            "proposal_improves_rollout": bool(
+                record["proposal_improves_rollout"]
+            ),
+            "would_enforce": bool(
+                record["proposal_improves_rollout"]
+                and record["would_change_action"]
+            ),
+            "selected_pool_index": record["selected_pool_index"],
+            "proposed_pool_index": record["proposed_pool_index"],
             "elapsed_ms": round(elapsed * 1000.0, 3),
         }
     return result
@@ -335,6 +348,9 @@ def summarize(
             band["arms"][name] = {
                 "stride": arm["stride"],
                 "stride_offset": arm["stride_offset"],
+                "would_enforce": sum(
+                    1 for v in values if v.get("would_enforce")
+                ),
                 "attempts_per_step": arm["attempts_per_step"],
                 "non_degenerate": non_degenerate,
                 "non_degenerate_rate": _rate(non_degenerate, len(values)),
