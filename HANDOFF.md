@@ -1,6 +1,6 @@
 # Handoff for the next model
 
-Updated: 2026-07-30 JST
+Updated: 2026-08-01 JST
 
 ## Start here
 
@@ -118,13 +118,11 @@ artifact or from the code line given.
 
 ## Not established
 
-- **Gate-wide precision/recall.** The `selected_*` confusion matrix is
-  conditioned on the ranking having selected the candidate; the selected set
-  is the top of the ranking, not a sample. More benchmark replicates will not
-  fix this. Only the stratified replay dataset can estimate gate-wide
-  behaviour.
-- Whether a real state-value `V_hat(sigma(s'))` helps. Evidence 3 rules out
-  the three saturated keys as implemented, nothing more.
+- Whether a real graded state-value `V_hat(sigma(s'))` helps. The binary
+  1-ply feasibility stays saturated even under the rich search
+  (lookahead-modes-degenerate-rich-search), so the question is now
+  sharper: the future term must be graded; no graded estimator has been
+  tried yet.
 - Whether any hard gate can work. What was rejected is **enforce with the
   current static features and thresholds**, not hard rejection as a form. If
   the replay dataset identifies a dangerous region with a very low false
@@ -155,28 +153,56 @@ replay dataset. See `docs/REPLAY_DATASET.md`. One row per sampled candidate,
 joining `(s, a, Phi, Q, selected)` with `(x_plus, delta_theta, d_xy, d_z, Y)`,
 carrying its stratum and inclusion probability.
 
-## Next engineering task: the algorithm
+## Current live policy and scores (2026-08-01)
 
-There are **three** open problems, not one. They are ordered by what is
-already validated, not by how interesting they are.
+The 2026-07-30 sections above describe the pre-risk era. The shipped
+defaults in `agent/agent.py` are now:
 
-1. **Item coverage — keep and extend.** Pool-adaptive / class-aware coverage
-   is the one change with a confirmed effect (evidence 5). Do not regress it
-   and do not treat search breadth as settled.
-2. **Release dynamics — identify next.** Use the stratified replay dataset to
-   fit `Phi(s,a) -> (delta_theta, d_xy, d_z, Y)`. Until candidate physical
-   safety is predictable, changing the ranker only moves *which* unsafe
-   candidate gets chosen.
-3. **Ranking / value among safe candidates — last.** Once a safe candidate set
-   can be produced, re-evaluate the immediate ranker and the preview value
-   together. The known defects to design against are evidence 1 (a volume term
-   that is dead within an item and a size bias across items) and evidence 2
-   (a future term that re-applies the same immediate score, hence the same
-   positional bias, to the next step).
+    Q_old - 1.0 * P_rot(mech-dev-v1) - 0.5 * P_slide(slide-dev-v1)
+    + packed-AABB cache (6.4x candidate throughput)
 
-The ranker problem is real and located, but it is not the thing to open
-first: step 3 is only meaningful once step 2 gives it a safe candidate set to
-rank.
+- Rotation model: mechanics features (MATHEMATICAL_MODEL 5.2.1), frozen
+  after the one-shot final_holdout evaluation (rotated AUC 0.903
+  [0.761, 0.980]). final_holdout is OPENED and no longer an unseen split.
+- Slide model: S0 equivariant local-frame logistic (validation AUC
+  0.884); lambda 0.5 adopted 2026-08-01 on the 7-case aggregate after
+  the rich search reversed the starved-search rejection.
+- Regression guard: `reports/benchmarks/baseline.json` (current-default
+  episodes; dev 5 configs placed 88 / fill 114.6). Any algorithm change
+  reruns `run_risk_ablation.py --arm base` and must not degrade it
+  unexplained.
+- History and constraints: `docs/RELEASE_RISK_PROTOCOL.md` section 8;
+  measured facts in `context/evidence.json` (the source of truth; the
+  prose above is older than several supersessions).
+
+## Next engineering task: Ranker mis-ranking decomposition
+
+The Q_old utility is now the blocker (evidence: aabb-cache-guard-mixed,
+lookahead-modes-degenerate-rich-search, b000-k20-regression-is-slide-death).
+Before redesigning it, produce the diagnostic report:
+
+1. Take the first trajectory-divergence step between cache ON/OFF or
+   old/new policy runs. A located instance: b000-k20 step 9 —
+   base-r0 (26 placed, item 17 at [0.66, 0.29, 0.48]) vs base-r7
+   (14 placed, item 28 at [0.59, -0.16, 0.54]); episode artifacts in
+   `reports/risk-ablation/runs/`, state snapshots in
+   `reports/replay-dataset/`.
+2. For every candidate at that step, tabulate the score decomposition:
+   `12V, 2R, D(0.35y), -0.12|x|, -0.18zm, B_route, P_rot, P_slide`.
+3. Report: within-item rank, across-item rank, candidates that only the
+   rich search reaches, the margin to the selected candidate, and the
+   next-step valid-candidate count after each hypothetical placement.
+4. Known defects to design against once the table exists: the volume
+   term is dead within an item (evidence 1), the lookahead re-applies
+   the same immediate score (evidence 2), and the 1-ply binary
+   feasibility signal is saturated (lookahead-modes-degenerate-rich-search)
+   — the missing future term must be graded, not binary.
+
+Other open fronts, in order: transport_invalid deaths (37% pre-cache;
+re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
+S1/S2 of the slide ladder (patches + encoder plumbing ready in
+`reports/slide-patches/`, Gated Iota enters at S2), live stride
+sampling port for further recall.
 
 ## Important invariants
 
