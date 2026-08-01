@@ -295,6 +295,14 @@
       "status": "active",
       "claim": "First slide online ablation (5 dev configs, base vs slide lambda 0.5 / 1.0 on top of rot-only lambda=1): slide lambda trades placed for slide-death reduction -- lambda=1.0 cut low-angle unsafe endings 4 -> 1 but cost 4.4 placed per episode (18.4 -> 14.0); lambda=0.5 gained fill (+2.0) at -1.8 placed with slide deaths unchanged. Under the official cutoff gate (placed count gates all non-fill scores) this trade is rejected: RELEASE_RISK_SLIDE_LAMBDA stays 0 in the live default. Slide shadow produced zero changed single selections (4 steps) -- the slide term acts through cumulative trajectory divergence, not single-step swaps. The frozen slide model (slide-dev-v1-20260731) remains available; revisit after S1 improves the estimator or with smaller lambda once the transport channel is fixed.",
       "source": "reports/risk-ablation/rows.jsonl (slide ablation arms); slide-shadow datasets 20260801_003952-*"
+    },
+    {
+      "id": "late-snapshots-not-starved",
+      "topic": "search",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "Candidate supply is NOT the endgame constraint: at all 27 late replay snapshots (steps 11-16, dev+val), the HT-estimated population of official-transport-valid candidates is in the thousands (minimum ~1038, typically 10k-36k), physically placeable-safe candidates are also in the thousands (never zero), and the minimum frozen-mech P_rot among valid sampled candidates is 0.003-0.101. Per the terminal-failure trichotomy: transport_invalid deaths (21) mean the anytime search failed to find/execute any of thousands of valid candidates within budget (recall failure, plausibly the 8 s timeout -> forced random action), and topple deaths mean risky candidates were chosen while near-zero-risk options existed (selection/recall, not perception, and not candidate starvation). Caveat: measured on replay snapshots near-terminal, not the exact dying states of the ablation episodes.",
+      "source": "inline probe over 33-snapshot replay data (population counts + is_valid/is_placed_safe HT weights + frozen mech P_rot); consistent with anchor-recall-one-snapshot (0.167)"
     }
   ]
 }
