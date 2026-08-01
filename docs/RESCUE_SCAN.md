@@ -53,6 +53,10 @@ The 0.2-second second ablation is preserved under
 `reports/rescue-scan/ci-30698434932`: base/rescue totals were 80/74 placed and
 98.00/88.02 fill. It recovered b001-k20 by two placements but lost two on
 b000-k20 and six on b000-k40. This also rejects the current rescue policy.
-The next diagnostic run records rescue-trigger, rescue-action, and remaining
-protocol-fallback counts so reserve-induced trajectory changes can be
-separated from the rescued action's physical outcome.
+The trace-enabled third run is preserved under
+`reports/rescue-scan/ci-30698558132`: base/rescue totals were 82/78 placed and
+100.32/94.25 fill. b001-k20 and b001-k30 each triggered rescue once, but
+neither returned a rescue action and both retained one protocol fallback.
+b000-k20 lost two placements with zero rescue triggers, proving that its loss
+came from the reserved time rather than a rescued action. The current
+terminal-reserve design is therefore rejected and remains default OFF.

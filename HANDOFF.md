@@ -175,6 +175,28 @@ defaults in `agent/agent.py` are now:
   measured facts in `context/evidence.json` (the source of truth; the
   prose above is older than several supersessions).
 
+## Latest experiment: deadline-reserved rescue scan (rejected)
+
+Branch `experiment/rescue-scan` implements a default-OFF rescue ablation and
+preserves all three Linux runs under `reports/rescue-scan/`. Static replay was
+promising (37/37 late snapshots recovered), but the physical runs rejected
+the architecture:
+
+- 0.9 s reserve: base/rescue 83/75 placed, 100.32/86.98 fill.
+- 0.2 s reserve: base/rescue 80/74 placed, 98.00/88.02 fill.
+- trace run: base/rescue 82/78 placed, 100.32/94.25 fill.
+
+The trace run is decisive: b001-k20 and b001-k30 each entered rescue once,
+but returned zero rescue actions and still emitted one fixed protocol
+fallback. b000-k20 regressed by two placements even though rescue never
+triggered, isolating the loss to time removed from the primary search. Do not
+enable this feature or tune its reserve further.
+
+The next search experiment should change the primary anytime first pass:
+visit one release unit as well as one settled unit for every included item,
+so the normal incumbent is established before the deadline. Keep this
+separate from Ranker/risk changes and compare fallback count plus placed/fill.
+
 ## Next engineering task: Ranker mis-ranking decomposition
 
 The Q_old utility is now the blocker (evidence: aabb-cache-guard-mixed,

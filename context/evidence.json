@@ -360,6 +360,14 @@
       "status": "active",
       "claim": "The transport_invalid death channel (45% of current-policy endings) is NOT corridor blocking: all 8 audited fatal actions fail the agent's OWN static_geometry check on the reconstructed state, because they are the unsafe_protocol_fallback -- a fixed-coordinate action (pool item 0 at [0.0, 0.0, 0.25], orientation 0) emitted when the anytime search returns no acceptable candidate. In congested late states that coordinate is occupied/invalid, so the fallback is a poison pill that ends the episode, while thousands of transport-valid candidates exist elsewhere (late-snapshots-not-starved). Consistent with Codex's route_lost=0: routes are geometrically open; the agent gives up and self-destructs. Fix direction: replace the fixed-coordinate fallback with a rescue scan (coarse stride over release anchors across pool item classes, accept the first self-valid candidate), plus stride coverage in the main scan so the no-candidate branch fires less.",
       "source": "agent.py unsafe_protocol_fallback (fixed_coordinate); audit of 8 transport-death fatal actions vs Geometry.rejection_reason on rebuilt states"
+    },
+    {
+      "id": "deadline-reserved-rescue-rejected",
+      "topic": "search",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "A terminal deadline-reserved rescue scan is rejected in its current form. The breadth-first class/item release scan recovered a statically validated candidate on 37/37 checked-in late snapshots (17/17 case-001), but physical ablations regressed overall: the 0.9 s reserve produced base/rescue totals 83/75 placed and 100.32/86.98 fill; the 0.2 s reserve produced 80/74 and 98.00/88.02. A third trace-enabled run produced 82/78 and 100.32/94.25. In that diagnostic run b001-k20 and b001-k30 each triggered rescue once, but rescue_action_count stayed 0 and the unsafe protocol fallback still fired once; b000-k20 regressed by two placements despite rescue_trigger_count=0. Therefore the late rescue neither replaced the poison fallback nor justified stealing time from the primary search. Keep it default OFF. The next falsifiable design is to include one release unit per item in the primary first pass so a validated incumbent exists before the deadline, without a terminal reserve.",
+      "source": "reports/rescue-scan/ci-30698074510; reports/rescue-scan/ci-30698434932; reports/rescue-scan/ci-30698558132; Actions runs 30698074510, 30698434932, 30698558132"
     }
   ]
 }
