@@ -1,0 +1,720 @@
+{
+  "schema_version": 1,
+  "dataset_id": "20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7",
+  "status": "complete",
+  "timestamp": "2026-08-01T00:39:52+00:00",
+  "selection_mode": "weighted",
+  "coverage_mode": "class_aware",
+  "risk_gate_mode": "shadow",
+  "split": "development",
+  "per_stratum": 8,
+  "seed": 20260831,
+  "oracle_limit": null,
+  "preview_limit": 0,
+  "provenance": {
+    "git_sha": "064c46702d4d58b9643a5266fd0da9f6a96b26ad",
+    "git_dirty": true,
+    "config_path": "/tmp/claude-0/-home-user-nedo-3d-bpp/8742c2e5-7bc0-58d7-867e-465323942d8a/scratchpad/task-b-configs/b000-k15.json",
+    "config_sha256": "64963f724d8ea0df99da5d2ef237ebec3cfab3c41a37e6107d6abc1db08d92aa",
+    "agent_sha256": "6e76e7c1e84300a971331eb1b44dbc99581c0081d3505a171c66dba026f828fa",
+    "python": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
+    "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+    "case_id": "b000-k15",
+    "target_steps": [
+      10,
+      13
+    ]
+  },
+  "label_contract": {
+    "transport": "official_check_transport_path",
+    "settle": "official_place_item",
+    "note": "Rows are an unequal-probability sample. Re-weight by sampling.sampling_weight before reading any rate as a population rate."
+  },
+  "case": {
+    "case_id": "b000-k15",
+    "target_steps": [
+      10,
+      13
+    ],
+    "reached_steps": [
+      10,
+      13
+    ],
+    "unreached_steps": [],
+    "failed_steps": [],
+    "episode_steps_executed": 14,
+    "episode_terminated": false,
+    "episode_truncated": false,
+    "final_status": {
+      "is_included": true,
+      "is_valid": true,
+      "is_placed_safe": true
+    },
+    "trajectory": "competition_equivalent",
+    "steps": [
+      {
+        "schema_version": 1,
+        "dataset_id": "20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7",
+        "snapshot_id": "20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7:b000-k15:step-010",
+        "case_id": "b000-k15",
+        "step": 10,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-010-state.json",
+        "dataset_path": "step-010-candidates.jsonl",
+        "population": {
+          "settled": 3347,
+          "release": 6952,
+          "total": 10299,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            11,
+            7,
+            1,
+            3,
+            5,
+            9,
+            10,
+            12,
+            13,
+            4
+          ],
+          "item_indices": [
+            21,
+            16,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22,
+            23,
+            10
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260831,
+          "sampled": 67,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=tail",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "tail"
+              },
+              "population": 3012,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0026560424966799467
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top1",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 1,
+              "sampled": 1,
+              "inclusion_probability": null
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10pct",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10pct"
+              },
+              "population": 325,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.024615384615384615
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "tail"
+              },
+              "population": 2727,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0029336266960029336
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10"
+              },
+              "population": 2,
+              "forced": 0,
+              "sampled": 2,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10pct"
+              },
+              "population": 396,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.020202020202020204
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 3529,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.002266931141966563
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 7,
+              "forced": 0,
+              "sampled": 7,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 290,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.027586206896551724
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 3.120600001693674e-05
+        },
+        "replay_seconds": 9.096494451000012,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 251784,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 34.76908803800006,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 18457,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 9.866944063999995,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 2981,
+            "support_plane": 1035
+          },
+          "union_count": 3347,
+          "overlap_count": 669,
+          "cartesian_only_count": 2312,
+          "support_plane_only_count": 366,
+          "elapsed_seconds": 44.69651937999993
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 82709,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 55.99226578499997
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 134,
+          "accepted_release_count": 460,
+          "accepted_total_count": 594,
+          "search": {
+            "units_total": 120,
+            "units_started": 39,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 32
+          }
+        },
+        "action": {
+          "item_idx": 4,
+          "container_idx": 0,
+          "place_pos": [
+            0.6498663425445557,
+            0.4690000116825104,
+            0.695981502532959
+          ],
+          "orientation": 0
+        },
+        "shadow_rerank": {
+          "enabled": true,
+          "lambda": 1.0,
+          "slide_lambda": 1.0,
+          "model": "mech-dev-v1-20260731",
+          "slide_model": "slide-dev-v1-20260731",
+          "baseline": {
+            "kind": "candidate",
+            "pool_index": 4,
+            "item_index": 10,
+            "container_index": 0,
+            "orientation": 0,
+            "score": 1.7175526944636992,
+            "center": [
+              0.6498663382430263,
+              0.4689999999999999,
+              0.6959814895466233
+            ],
+            "size": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "action_command": {
+              "item_idx": 4,
+              "container_idx": 0,
+              "place_pos": [
+                0.6498663425445557,
+                0.4690000116825104,
+                0.695981502532959
+              ],
+              "orientation": 0
+            }
+          },
+          "applies": false,
+          "risk_selection": {
+            "kind": "candidate",
+            "pool_index": 4,
+            "item_index": 10,
+            "container_index": 0,
+            "orientation": 0,
+            "score": 1.7175526944636992,
+            "center": [
+              0.6498663382430263,
+              0.4689999999999999,
+              0.6959814895466233
+            ],
+            "size": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "action_command": {
+              "item_idx": 4,
+              "container_idx": 0,
+              "place_pos": [
+                0.6498663425445557,
+                0.4690000116825104,
+                0.695981502532959
+              ],
+              "orientation": 0
+            }
+          },
+          "changed": false
+        },
+        "shadow_rerank_matched": true,
+        "shadow_pair": {
+          "changed": false,
+          "baseline_candidate_id": "10|4|0|0|(0.649866, 0.469, 0.695981)|(0.55, 0.4, 0.24)",
+          "shadow_candidate_id": "10|4|0|0|(0.649866, 0.469, 0.695981)|(0.55, 0.4, 0.24)"
+        }
+      },
+      {
+        "schema_version": 1,
+        "dataset_id": "20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7",
+        "snapshot_id": "20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7:b000-k15:step-013",
+        "case_id": "b000-k15",
+        "step": 13,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-013-state.json",
+        "dataset_path": "step-013-candidates.jsonl",
+        "population": {
+          "settled": 1906,
+          "release": 7959,
+          "total": 9865,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            9,
+            6,
+            1,
+            3,
+            4,
+            7,
+            8,
+            10,
+            11,
+            14
+          ],
+          "item_indices": [
+            21,
+            16,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22,
+            23,
+            27
+          ]
+        },
+        "sampling": {
+          "design": "stratified without replacement, unequal probability",
+          "per_stratum": 8,
+          "seed": 20260831,
+          "sampled": 66,
+          "selected_matched": true,
+          "strata": [
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=tail",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "tail"
+              },
+              "population": 1715,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.004664723032069971
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top1",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=candidate|gate=not_applicable|score_band=top10pct",
+              "stratum": {
+                "kind": "candidate",
+                "gate": "not_applicable",
+                "score_band": "top10pct"
+              },
+              "population": 181,
+              "forced": 1,
+              "sampled": 8,
+              "inclusion_probability": 0.03888888888888889
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "tail"
+              },
+              "population": 1843,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.004340748779164406
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=pass|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "pass",
+                "score_band": "top10pct"
+              },
+              "population": 198,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.04040404040404041
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 5320,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.0015037593984962407
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": 1.0
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.8888888888888888
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 588,
+              "forced": 0,
+              "sampled": 8,
+              "inclusion_probability": 0.013605442176870748
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 6.18259999782822e-05
+        },
+        "replay_seconds": 15.904957072999991,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 677448,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 66.98157170900004,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 28849,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 7.530255291000003,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 1831,
+            "support_plane": 243
+          },
+          "union_count": 1906,
+          "overlap_count": 168,
+          "cartesian_only_count": 1663,
+          "support_plane_only_count": 75,
+          "elapsed_seconds": 74.57534816500004
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 143848,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 81.20288416300002
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 45,
+          "accepted_release_count": 309,
+          "accepted_total_count": 354,
+          "search": {
+            "units_total": 120,
+            "units_started": 57,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 31
+          }
+        },
+        "action": {
+          "item_idx": 14,
+          "container_idx": 0,
+          "place_pos": [
+            0.6483395099639893,
+            0.4690000116825104,
+            1.3405994176864624
+          ],
+          "orientation": 0
+        },
+        "shadow_rerank": {
+          "enabled": true,
+          "lambda": 1.0,
+          "slide_lambda": 1.0,
+          "model": "mech-dev-v1-20260731",
+          "slide_model": "slide-dev-v1-20260731",
+          "baseline": {
+            "kind": "candidate",
+            "pool_index": 14,
+            "item_index": 27,
+            "container_index": 0,
+            "orientation": 0,
+            "score": 0.7894861092352834,
+            "center": [
+              0.6483395047682963,
+              0.4689999999999999,
+              1.3405994098559173
+            ],
+            "size": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "action_command": {
+              "item_idx": 14,
+              "container_idx": 0,
+              "place_pos": [
+                0.6483395099639893,
+                0.4690000116825104,
+                1.3405994176864624
+              ],
+              "orientation": 0
+            }
+          },
+          "applies": false,
+          "risk_selection": {
+            "kind": "candidate",
+            "pool_index": 14,
+            "item_index": 27,
+            "container_index": 0,
+            "orientation": 0,
+            "score": 0.7894861092352834,
+            "center": [
+              0.6483395047682963,
+              0.4689999999999999,
+              1.3405994098559173
+            ],
+            "size": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "action_command": {
+              "item_idx": 14,
+              "container_idx": 0,
+              "place_pos": [
+                0.6483395099639893,
+                0.4690000116825104,
+                1.3405994176864624
+              ],
+              "orientation": 0
+            }
+          },
+          "changed": false
+        },
+        "shadow_rerank_matched": true,
+        "shadow_pair": {
+          "changed": false,
+          "baseline_candidate_id": "27|14|0|0|(0.64834, 0.469, 1.340599)|(0.55, 0.4, 0.24)",
+          "shadow_candidate_id": "27|14|0|0|(0.64834, 0.469, 1.340599)|(0.55, 0.4, 0.24)"
+        }
+      }
+    ]
+  },
+  "problems": []
+}

@@ -60,10 +60,11 @@ RELEASE_RISK_RERANK_LAMBDA = float(
 )
 # Which P(rotation) model the risk-adjusted score uses: the static-Phi
 # logistic ("static") or the mechanical topple-feature logistic ("mech",
-# MATHEMATICAL_MODEL 5.2.1).
+# MATHEMATICAL_MODEL 5.2.1). "mech" is the submission default since the
+# 2026-07-31 final_holdout evaluation.
 RELEASE_RISK_P_MODELS = frozenset({"static", "mech"})
 RELEASE_RISK_P_MODEL = os.environ.get(
-    "RELEASE_RISK_P_MODEL", "static"
+    "RELEASE_RISK_P_MODEL", "mech"
 ).strip().lower()
 if RELEASE_RISK_P_MODEL not in RELEASE_RISK_P_MODELS:
     raise ValueError(
@@ -71,12 +72,25 @@ if RELEASE_RISK_P_MODEL not in RELEASE_RISK_P_MODELS:
         f"expected one of {sorted(RELEASE_RISK_P_MODELS)}"
     )
 # Live rerank: apply the risk-adjusted release ranking to the REAL action.
-# Experiment gate for the online ablation on development configurations;
-# the submission default stays off until the final_holdout evaluation
-# (docs/RELEASE_RISK_PROTOCOL.md section 4).
+# ON by default since the one-shot final_holdout evaluation passed
+# (2026-07-31: offline frozen-model AUC 0.903 [0.761, 0.980]; online
+# lambda=1 improved placed on both unseen cases). Set to 0 to recover the
+# pre-risk baseline; docs/RELEASE_RISK_PROTOCOL.md section 8 records the
+# switch.
 RELEASE_RISK_LIVE_RERANK = os.environ.get(
-    "RELEASE_RISK_LIVE_RERANK", "0"
+    "RELEASE_RISK_LIVE_RERANK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
+# Slide hazard weight in the risk-adjusted score:
+# Q - lambda_rot*P_rot - lambda_slide*P_slide. The LIVE default stays 0
+# (rotation-only) until the slide line completes its protocol steps;
+# RELEASE_RISK_SLIDE_SHADOW_LAMBDA > 0 makes the shadow rerank compare
+# the live policy against rot+slide without touching the real action.
+RELEASE_RISK_SLIDE_LAMBDA = float(
+    os.environ.get("RELEASE_RISK_SLIDE_LAMBDA", "0.0")
+)
+RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
+    os.environ.get("RELEASE_RISK_SLIDE_SHADOW_LAMBDA", "0.0")
+)
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -1744,6 +1758,161 @@ def release_rotation_risk_probability_mech(x, y, z_command, dims, container):
     return 1.0 / (1.0 + math.exp(-z))
 
 
+def _support_centroid_2d(patches):
+    """Area-weighted centroid of predicted contact patches."""
+    total = sx = sy = 0.0
+    for patch in patches:
+        xs = [c[0] for c in patch["corners"]]
+        ys = [c[1] for c in patch["corners"]]
+        area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+        if area <= 0.0:
+            continue
+        total += area
+        sx += area * (min(xs) + max(xs)) / 2.0
+        sy += area * (min(ys) + max(ys)) / 2.0
+    if total <= 0.0:
+        return None
+    return sx / total, sy / total
+
+
+def _ray_hull_margin_2d(hull, point, direction):
+    """Distance from point to hull boundary along +direction (0 if none)."""
+    if len(hull) < 3:
+        return 0.0
+    px, py = point
+    ux, uy = direction
+    best = None
+    for index, start in enumerate(hull):
+        end = hull[(index + 1) % len(hull)]
+        ex, ey = end[0] - start[0], end[1] - start[1]
+        denominator = ux * ey - uy * ex
+        if abs(denominator) < 1e-12:
+            continue
+        t = ((start[0] - px) * ey - (start[1] - py) * ex) / denominator
+        s = ((start[0] - px) * uy - (start[1] - py) * ux) / denominator
+        if t >= 0.0 and -1e-9 <= s <= 1.0 + 1e-9:
+            if best is None or t < best:
+                best = t
+    return float(best) if best is not None else 0.0
+
+
+def release_slide_features(candidate, item, container, orientation):
+    """
+    Equivariant local-frame slide features (S0 set). Live port of
+    scripts/evaluate_slide_equivariant.py::frame_row; a parity unit
+    test keeps the geometric parts from drifting.
+    """
+    x = float(candidate.center[0])
+    y = float(candidate.center[1])
+    z_command = float(candidate.center[2])
+    dims = tuple(float(v) for v in candidate.size)
+    z_rest = float(release_rest_height(x, y, dims, container))
+    patches = _release_contact_patches(container, x, y, dims, z_rest)
+    centroid = _support_centroid_2d(patches)
+    if centroid is None:
+        offset = 0.0
+        ux, uy = 1.0, 0.0
+        hull = []
+    else:
+        ex, ey = x - centroid[0], y - centroid[1]
+        offset = math.hypot(ex, ey)
+        if offset < 1e-9:
+            ux, uy = 1.0, 0.0
+        else:
+            ux, uy = ex / offset, ey / offset
+        corner_tops = {}
+        for patch in patches:
+            for corner in patch["corners"]:
+                previous = corner_tops.get(corner)
+                if previous is None or patch["top"] > previous:
+                    corner_tops[corner] = patch["top"]
+        hull = _convex_hull_2d(list(corner_tops))
+
+    mech = release_mechanics_features(x, y, z_command, dims, container)
+    static = release_risk_features(candidate, item, container, orientation)
+    mass = float(item.get("mass", 1.0)) if isinstance(item, dict) else 1.0
+    friction = (
+        float(item.get("lateralFriction", 0.5))
+        if isinstance(item, dict)
+        else 0.5
+    )
+    is_soft = (
+        1.0 if isinstance(item, dict) and item.get("is_soft") else 0.0
+    )
+    volume = max(1e-9, dims[0] * dims[1] * dims[2])
+    return {
+        "com_offset": offset,
+        "downhill_margin": _ray_hull_margin_2d(hull, (x, y), (ux, uy)),
+        "uphill_margin": _ray_hull_margin_2d(hull, (x, y), (-ux, -uy)),
+        "d_min": float(mech["d_min"]),
+        "B_min": float(mech["B_min"]),
+        "log1p_eta_max": float(mech["log1p_eta_max"]),
+        "drop_meters": float(mech["drop_meters"]),
+        "support_ratio": float(static.support_ratio),
+        "mass": mass,
+        "lateral_friction": friction,
+        "density": mass / volume,
+        "is_soft": is_soft,
+    }
+
+
+# Large-slide (|d_xy| > 0.30 m) logistic on the S0 equivariant features,
+# fit on the development split only (1106 rows, 166 positives, in-sample
+# AUC 0.817, validation AUC 0.884). Frozen for the slide shadow line;
+# the live action stays rotation-only until the slide protocol steps
+# (shadow pairs -> validation -> ablation) complete.
+RELEASE_RISK_SLIDE_LOGISTIC_V1 = {
+    "version": "slide-dev-v1-20260731",
+    "target": "large_slide_over_030",
+    "features": (
+        "com_offset",
+        "downhill_margin",
+        "uphill_margin",
+        "d_min",
+        "B_min",
+        "log1p_eta_max",
+        "drop_meters",
+        "support_ratio",
+        "mass",
+        "lateral_friction",
+        "density",
+        "is_soft",
+    ),
+    # drop_meters is constant (0.052) on the development rows -- the
+    # official release height is fixed -- so its scale collapses to the
+    # fit's 1.0 placeholder and its weight is exactly 0.
+    "mean": (
+        0.09432, 0.107568, 0.218246, 0.037038, 0.032355, 4.394738,
+        0.052, 0.3358, 10.84991, 0.487703, 173.17924, 0.23689,
+    ),
+    "scale": (
+        0.088616, 0.104093, 0.094631, 0.140667, 0.03931, 4.553431,
+        1.0, 0.374496, 2.761313, 0.16118, 27.947355, 0.425174,
+    ),
+    # Intercept first, then one weight per standardized feature.
+    "weights": (
+        -2.707567, -1.14305, -0.65272, 0.607355, -0.320216, -1.964321,
+        0.412931, 0.0, 0.113542, 0.025405, -3.026743, 0.16793, 2.499778,
+    ),
+}
+
+
+def release_large_slide_probability(candidate, item, container, orientation):
+    """P(|d_xy| > 0.30 | equivariant frame features), dev-fit logistic."""
+    features = release_slide_features(candidate, item, container, orientation)
+    model = RELEASE_RISK_SLIDE_LOGISTIC_V1
+    z = model["weights"][0]
+    for name, mean, scale, weight in zip(
+        model["features"],
+        model["mean"],
+        model["scale"],
+        model["weights"][1:],
+    ):
+        z += weight * (features[name] - mean) / scale
+    z = max(-30.0, min(30.0, z))
+    return 1.0 / (1.0 + math.exp(-z))
+
+
 def active_release_risk_model_version():
     if RELEASE_RISK_P_MODEL == "mech":
         return RELEASE_RISK_MECH_LOGISTIC_V1["version"]
@@ -1798,10 +1967,14 @@ def risk_adjusted_score(
             candidate, item, container, orientation
         )
         probability = release_rotation_risk_probability(features)
-    return (
-        float(score) - float(risk_lambda) * float(probability),
-        float(probability),
-    )
+    adjusted = float(score) - float(risk_lambda) * float(probability)
+    if RELEASE_RISK_SLIDE_LAMBDA > 0.0:
+        adjusted -= RELEASE_RISK_SLIDE_LAMBDA * float(
+            release_large_slide_probability(
+                candidate, item, container, orientation
+            )
+        )
+    return adjusted, float(probability)
 
 
 def _record_release_risk_diagnostic(
@@ -4635,16 +4808,28 @@ class Agent:
         """
         if not RELEASE_RISK_SHADOW_RERANK or decision is None:
             return None
-        if RELEASE_RISK_LIVE_RERANK:
+        slide_shadow = RELEASE_RISK_SLIDE_SHADOW_LAMBDA > 0.0
+        if RELEASE_RISK_LIVE_RERANK and not slide_shadow:
             # The real action already used the risk-adjusted ranking; a
-            # shadow pass with the same lambda would compare it with
-            # itself.
+            # shadow pass with the same lambdas would compare it with
+            # itself. With a slide shadow lambda the shadow differs
+            # (rot+slide vs the live rot-only), so it still runs.
             return None
         baseline = self._decision_summary(decision, pool_list, containers)
         record = {
             "enabled": True,
             "lambda": float(RELEASE_RISK_RERANK_LAMBDA),
+            "slide_lambda": (
+                float(RELEASE_RISK_SLIDE_SHADOW_LAMBDA)
+                if slide_shadow
+                else None
+            ),
             "model": active_release_risk_model_version(),
+            "slide_model": (
+                RELEASE_RISK_SLIDE_LOGISTIC_V1["version"]
+                if slide_shadow
+                else None
+            ),
             "baseline": baseline,
         }
         if decision.candidate.name != "release_candidate":
@@ -4660,6 +4845,10 @@ class Agent:
             self.last_top_candidate_count,
         )
         shadow_deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
+        global RELEASE_RISK_SLIDE_LAMBDA
+        saved_slide_lambda = RELEASE_RISK_SLIDE_LAMBDA
+        if slide_shadow:
+            RELEASE_RISK_SLIDE_LAMBDA = RELEASE_RISK_SLIDE_SHADOW_LAMBDA
         try:
             shadow_decision = self._closed_loop_choice(
                 observation,
@@ -4678,6 +4867,7 @@ class Agent:
                     risk_lambda=RELEASE_RISK_RERANK_LAMBDA,
                 )
         finally:
+            RELEASE_RISK_SLIDE_LAMBDA = saved_slide_lambda
             (
                 self.last_top_candidate_item_indices,
                 self.last_future_probe_item_indices,
