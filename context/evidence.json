@@ -279,6 +279,14 @@
       "status": "active",
       "claim": "The d_xy channel yields to the equivariant local-frame formulation (S0, no learned representation): LOSO Spearman |d_xy| 0.282 -> 0.567, signed longitudinal 0.641, large-slide AUC 0.718 -> 0.787, and worst-side extrapolation 0.037 -> 0.399 (better on 6 of 7 sides; only the easy k10 side favours the invariant baseline). Mirror-symmetry prediction confirmed label-side: mean |transverse| 0.039 m vs |longitudinal| 0.085 m. Direction is carried by the zero-parameter downhill prior (0.856); the model's contribution is magnitude and extrapolation stability. Features: com_offset, downhill/uphill margins to the support hull, mechanics scalars, friction/mass/density/is_soft. S1 (learned local-geometry encoder + invariance loss) and S2 (SketchGeo vs Gated Iota on worst-group metrics) remain open as the next rungs.",
       "source": "reports/replay-analysis/slide-equivariant.md"
+    },
+    {
+      "id": "terminal-failure-channels",
+      "topic": "risk",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "Post-mortem of 57 episode-ending placements (all ablation episodes; container rebuilt from observed settle AABBs, frozen mech P_rot on the commanded pose): death channels are topple 28, transport_invalid 21, slide 8. Within topples the rotation model mostly saw it coming -- KNOWN (P_rot>=0.5) 6, AMBIGUOUS (0.2-0.5) 17, MISSED (<0.2) only 5 -- so the topple-channel remainder is starvation / insufficient endgame penalty (a state-dependent lambda argument), not perception. The largest untapped lever is the transport_invalid channel (37% of deaths, untouchable by any release-risk lambda): episodes die on transport validation before physics, pointing back at candidate generation / anchor recall in endgame states.",
+      "source": "reports/replay-analysis/terminal-failures.md; scripts/analyze_terminal_failures.py"
     }
   ]
 }
