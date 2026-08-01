@@ -570,6 +570,16 @@ class FutureOptionValue:
     distinct_support_regions: int
     valid_candidates: int
     evaluated_candidates: int
+    # Shadow-only quotient/capacity descriptors.  They deliberately do not
+    # enter rank_key until their relationship to placed/fill is measured.
+    feasible_item_classes: int = 0
+    feasible_pose_classes: int = 0
+    distinct_corridor_classes: int = 0
+    distinct_action_classes: int = 0
+    distinct_item_class_volume_sum: float = 0.0
+    max_feasible_item_volume: float = 0.0
+    greedy_packable_count: int = 0
+    greedy_packable_volume: float = 0.0
 
     def rank_key(self):
         return (
@@ -943,6 +953,129 @@ def candidate_support_region_signature(
         round(float(component.maximum_xy[1]), 4),
         bool(component.contains_floor),
     )
+
+
+_FUTURE_ITEM_PHYSICS_KEYS = (
+    "lateralFriction",
+    "rollingFriction",
+    "spinningFriction",
+    "restitution",
+)
+
+
+def _future_signature_number(value):
+    if value is None:
+        return None
+    return round(float(value), 4)
+
+
+def future_item_class_signature(item, containers):
+    """State-conditioned physical-equivalence class, excluding item id.
+
+    Dimension permutations collapse because all six axis-aligned poses are
+    available.  Mass, rule flags, contact parameters, and container
+    eligibility remain in the signature so geometrically equal but
+    competition- or physics-distinct items never collapse.
+    """
+    dimensions = tuple(
+        sorted(
+            round(float(item[key]), 4)
+            for key in ("length", "width", "height")
+        )
+    )
+    physics = tuple(
+        _future_signature_number(item.get(key))
+        for key in _FUTURE_ITEM_PHYSICS_KEYS
+    )
+    eligible = tuple(eligible_container_indices(item, containers))
+    return (
+        "item_class",
+        dimensions,
+        round(float(item.get("mass", 1.0)), 4),
+        bool(item.get("is_soft", False)),
+        bool(item.get("is_prioritized", False)),
+        physics,
+        eligible,
+    )
+
+
+def future_pose_class_signature(item, orientation, containers):
+    """Item class plus rotated dimensions; equivalent poses collapse."""
+    rotated = get_rotated_dimensions(
+        item["length"], item["width"], item["height"], orientation
+    )
+    return (
+        future_item_class_signature(item, containers),
+        tuple(round(float(value), 4) for value in rotated),
+    )
+
+
+def _future_axis_band(value, half_extent, bins=3):
+    half_extent = max(EPS, float(half_extent))
+    normalized = max(-1.0, min(1.0, float(value) / half_extent))
+    return min(int(bins) - 1, int((normalized + 1.0) * 0.5 * bins))
+
+
+def future_corridor_class_signature(candidate, container):
+    """Coarse route-zone signature, not an exact symmetry-group orbit."""
+    thickness = float(container.get("thickness", 0.0))
+    half_length = max(EPS, float(container["length"]) / 2.0 - thickness)
+    half_width = max(EPS, float(container["width"]) / 2.0 - thickness)
+    height = max(EPS, float(container["height"]))
+    action_center = simulator_action_center(candidate, container)
+    sweeps = transport_sweeps(candidate, container)
+    x_leg = sweeps[1]
+    start_x = 2.0 * float(x_leg.center[0]) - float(candidate.center[0])
+    delta_x = float(candidate.center[0]) - start_x
+    x_direction = 0 if abs(delta_x) <= EPS else (1 if delta_x > 0 else -1)
+    return (
+        "corridor",
+        _future_axis_band(candidate.center[0], half_length),
+        _future_axis_band(candidate.center[1], half_width),
+        min(2, max(0, int(float(action_center[2]) / height * 3.0))),
+        x_direction,
+    )
+
+
+def greedy_future_probe_capacity(options):
+    """Deterministic static conflict-independent-set proxy.
+
+    Each option is ``(container, item_id, volume, support, settled_AABB)``.
+    A visible item can be consumed once; physically identical item ids retain
+    their real multiplicity.  Pairwise non-interference is not a sequential
+    PyBullet executability proof, so the result remains shadow telemetry.
+    """
+    ordered = sorted(
+        options,
+        key=lambda option: (
+            -float(option[2]),
+            -float(option[3]),
+            int(option[1]),
+            int(option[0]),
+            tuple(float(value) for value in option[4].center),
+        ),
+    )
+    chosen = []
+    used_items = set()
+    total_volume = 0.0
+    for container_idx, item_index, volume, _support, candidate in ordered:
+        if int(item_index) in used_items:
+            continue
+        conflicts = any(
+            int(container_idx) == int(taken_container)
+            and penetrates_with_lateral_clearance(
+                candidate,
+                taken_candidate,
+                SETTLED_ITEM_CLEARANCE,
+            )
+            for taken_container, taken_candidate in chosen
+        )
+        if conflicts:
+            continue
+        chosen.append((int(container_idx), candidate))
+        used_items.add(int(item_index))
+        total_volume += float(volume)
+    return len(chosen), float(total_volume)
 
 
 def penetrates_with_lateral_clearance(candidate, obstacle, clearance):
@@ -4096,6 +4229,12 @@ def evaluate_future_option_value(
     feasible_items = set()
     feasible_item_orientations = set()
     support_regions = set()
+    item_classes = set()
+    pose_classes = set()
+    corridor_classes = set()
+    action_classes = set()
+    item_class_volumes = {}
+    capacity_options = []
     valid_candidates = 0
     evaluated_candidates = 0
     budget = max(0, int(validation_budget))
@@ -4115,31 +4254,71 @@ def evaluate_future_option_value(
         container = sim_containers[container_idx]
         if not Geometry.valid(probe.candidate, container):
             continue
-        item_index = int(
-            pool_list[probe_pool_index].get(
-                "index", probe_pool_index
-            )
-        )
+        item = pool_list[probe_pool_index]
+        item_index = int(item.get("index", probe_pool_index))
         orientation = int(probe.action["orientation"])
+        item_class = future_item_class_signature(item, sim_containers)
+        pose_class = future_pose_class_signature(
+            item, orientation, sim_containers
+        )
+        support_region = candidate_support_region_signature(
+            probe.candidate,
+            container,
+            components_by_container[container_idx],
+        )
+        corridor_class = future_corridor_class_signature(
+            probe.candidate, container
+        )
+        volume = (
+            float(item["length"])
+            * float(item["width"])
+            * float(item["height"])
+        )
+        predicted = settled_proxy_candidate(probe.candidate, container)
+        support = Geometry.support_ratio(predicted, container)
         feasible_items.add(item_index)
         feasible_item_orientations.add((item_index, orientation))
-        support_regions.add(
+        support_key = (container_idx, support_region)
+        support_regions.add(support_key)
+        item_classes.add(item_class)
+        pose_classes.add(pose_class)
+        corridor_classes.add((container_idx, corridor_class))
+        action_classes.add(
+            (
+                item_class,
+                pose_class,
+                support_key,
+                (container_idx, corridor_class),
+            )
+        )
+        item_class_volumes[item_class] = volume
+        capacity_options.append(
             (
                 container_idx,
-                candidate_support_region_signature(
-                    probe.candidate,
-                    container,
-                    components_by_container[container_idx],
-                ),
+                item_index,
+                volume,
+                support,
+                predicted,
             )
         )
         valid_candidates += 1
+    greedy_count, greedy_volume = greedy_future_probe_capacity(
+        capacity_options
+    )
     return FutureOptionValue(
         feasible_items=len(feasible_items),
         feasible_item_orientations=len(feasible_item_orientations),
         distinct_support_regions=len(support_regions),
         valid_candidates=valid_candidates,
         evaluated_candidates=evaluated_candidates,
+        feasible_item_classes=len(item_classes),
+        feasible_pose_classes=len(pose_classes),
+        distinct_corridor_classes=len(corridor_classes),
+        distinct_action_classes=len(action_classes),
+        distinct_item_class_volume_sum=sum(item_class_volumes.values()),
+        max_feasible_item_volume=max(item_class_volumes.values(), default=0.0),
+        greedy_packable_count=greedy_count,
+        greedy_packable_volume=greedy_volume,
     )
 
 
@@ -5105,6 +5284,30 @@ class Agent:
                     "valid_candidates": int(value.valid_candidates),
                     "evaluated_candidates": int(
                         value.evaluated_candidates
+                    ),
+                    "feasible_item_classes": int(
+                        value.feasible_item_classes
+                    ),
+                    "feasible_pose_classes": int(
+                        value.feasible_pose_classes
+                    ),
+                    "distinct_corridor_classes": int(
+                        value.distinct_corridor_classes
+                    ),
+                    "distinct_action_classes": int(
+                        value.distinct_action_classes
+                    ),
+                    "distinct_item_class_volume_sum": float(
+                        value.distinct_item_class_volume_sum
+                    ),
+                    "max_feasible_item_volume": float(
+                        value.max_feasible_item_volume
+                    ),
+                    "greedy_packable_count": int(
+                        value.greedy_packable_count
+                    ),
+                    "greedy_packable_volume": float(
+                        value.greedy_packable_volume
                     ),
                     "evaluation_seconds": float(evaluation_seconds),
                 }

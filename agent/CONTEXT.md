@@ -54,6 +54,11 @@
   新generatorから独立に保つ。
 - `candidate_diagnostics.support_plane_searches` は姿勢・コンテナごとに
   連結前後のanchor数、面数、成分数、閾値、面優先順の根拠値を保存する。
+- `FUTURE_OPTION_TIEBREAK=1` is experimental and default-off. Its live rank
+  remains `(feasible items, item-orientations, support regions, valid probes)`.
+  Item/pose equivalence classes, coarse corridor/action classes, volume, and
+  greedy static-conflict capacity are shadow telemetry only and must not change
+  the selected action until multi-snapshot discrimination is demonstrated.
 
 ## 現在の状態
 

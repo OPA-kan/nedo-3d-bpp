@@ -378,3 +378,30 @@ baseline以上に説明しない。** 測定器は較正済みなので、これ
 設計する場合、ラベルは placed-to-go ではなく、settle後状態の
 descriptor差そのもの+後続可行性の直接測定にすべきである。
 μ統合はしない。優先順位は引き続き λR_phys 系(rotation risk)にある。
+
+### 9.9 行動別商記述子と静的競合容量（shadow実装、2026-08-01）
+
+段階Bの最小実装として、候補 (a) の仮置き後に得る固定probe集合を、
+item identityそのものではなく物理属性・姿勢・支持領域・粗い搬入zoneの
+signatureで商集合化する。ここで計算するのは厳密な群作用のorbitではない。
+特にcorridor signatureは粗い空間分割であり、対称性を保存する変換群を
+完全に構成したものではない。
+
+同時に、probeの予測settled AABBをnode、既存のside-clearance付き干渉をedge
+とする競合graph上で、決定的greedy independent setを計算する。item classは
+同値類数ではidentityを潰すが、競合容量では異なる実荷物のmultiplicityを残す。
+得る ​(Pi_\#,\Pi_{\mathrm{vol}}) は静的同時配置のproxyであり、逐次搬入、
+接触力学、PyBullet settleの実行可能性を保証しない。
+
+初版は全量をshadow telemetryとし、既存のlive rank
+
+\[
+(N_{\mathrm{item}},N_{\mathrm{item,pose}},N_{\mathrm{support}},N_{\mathrm{probe}})
+\]
+
+を変更しない。保存step-9状態ではbudget 32で全商・容量記述子が候補間で
+飽和した。budget 64ではcorridor/action classの差は現れたが、比較された
+item 17/21の ​((\Pi_\#,\Pi_{\mathrm{vol}})=(2,0.1934)) は同一だった。
+したがって現時点ではranking signalとして未同定である。次はprobe母集団の
+空間層化または複数snapshotでの識別力測定を先に行い、その後にのみlive
+tie-breakへの昇格を検討する。

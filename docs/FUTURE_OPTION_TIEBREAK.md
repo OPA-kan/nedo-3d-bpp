@@ -50,6 +50,25 @@ best immediate `Q_live` representative instead of comparing a partial cohort.
 Q gaps, all four value components, per-hypothetical runtime, total future
 runtime, selection change, and deadline abort status.
 
+### Quotient and capacity shadow descriptors
+
+The same fixed probe pass also records experimental descriptors that do **not**
+participate in `rank_key()`:
+
+- feasible item classes, with identity removed but dimensions, mass, handling
+  class, contact physics, and eligible containers retained;
+- feasible pose classes, which additionally retain oriented dimensions;
+- coarse corridor classes and action classes;
+- unique item-class volume sum and maximum feasible item volume;
+- a deterministic greedy static-conflict independent-set count and volume.
+
+The corridor partition is a coarse route-zone signature, not an exact group
+orbit. The greedy independent set uses predicted settled AABBs and existing
+lateral-clearance rules. It is a simultaneous static capacity proxy, not a
+claim of sequential PyBullet executability. Identical physical item classes
+collapse for the quotient counts, while distinct item identities retain their
+actual multiplicity in the conflict-capacity calculation.
+
 ## Saved-snapshot measurement
 
 Run:
@@ -100,3 +119,22 @@ supports the item-option signal but exposes its missing volume/utility axis:
 preserving many feasible item identities can prefer futures containing more
 small items. Repeat runs are required before changing the value tuple; do not
 hide this trade-off by immediately fitting an additive beta.
+
+## Quotient/capacity shadow measurement
+
+The saved step-9 observation was replayed again after adding the shadow-only
+descriptors. With the default 32-probe budget, every evaluated cohort member
+had the same descriptor values: 3 item classes, 7 pose classes, 2 corridor
+classes, 7 action classes, `0.2665 m^3` unique-class volume, `0.1134 m^3`
+maximum item volume, and greedy capacity `(1, 0.1134 m^3)`. The descriptors
+therefore supplied no discrimination at the live budget.
+
+At a diagnostic budget of 64, the future stage took 1.086 seconds and exposed
+more spatial structure. Item 17 and item 21 both had 2 item classes, 9 pose
+classes, 6 corridor classes, and greedy capacity `(2, 0.1934 m^3)`; only their
+action-class/raw valid counts differed (`19/40` versus `18/37`). This is useful
+negative evidence: the present score-biased probe population is too
+concentrated for the volume/conflict descriptors to resolve this snapshot.
+The fields remain telemetry-only. The next experiment should stratify the
+shadow probe population spatially or measure more snapshots before any field
+is admitted to live selection.

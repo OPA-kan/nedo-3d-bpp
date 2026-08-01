@@ -160,9 +160,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "The JSON preserves every evaluated item's `Q_live`, Q gap, and "
-            "the four fixed-work future-option components. `valid_candidates` "
-            "is a count inside the sampled probe budget, not a full anchor "
+            "The JSON preserves every evaluated item's `Q_live`, Q gap, the "
+            "four live future-option components, and the shadow quotient / "
+            "static-conflict capacity descriptors. Only the four live "
+            "components participate in selection. `valid_candidates` is a "
+            "count inside the sampled probe budget, not a full anchor "
             "population count.",
         ]
     )

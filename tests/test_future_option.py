@@ -96,6 +96,61 @@ class ItemDiverseSearchTests(unittest.TestCase):
 
 
 class FutureOptionValueTests(unittest.TestCase):
+    def test_item_and_pose_classes_collapse_only_physical_equivalents(self):
+        containers = [container()]
+        first = item(10)
+        second = item(11)
+        different_mass = {**item(12), "mass": 2.0}
+
+        self.assertEqual(
+            agent.future_item_class_signature(first, containers),
+            agent.future_item_class_signature(second, containers),
+        )
+        self.assertNotEqual(
+            agent.future_item_class_signature(first, containers),
+            agent.future_item_class_signature(different_mass, containers),
+        )
+        self.assertEqual(
+            agent.future_pose_class_signature(first, 0, containers),
+            agent.future_pose_class_signature(second, 1, containers),
+        )
+
+    def test_static_conflict_capacity_respects_item_identity_and_overlap(self):
+        options = [
+            (0, 10, 0.008, 1.0, agent.AABB((0.0, 0.0, 0.1), (0.2,) * 3)),
+            # Same item, separate anchor: cannot consume the item twice.
+            (0, 10, 0.008, 1.0, agent.AABB((0.8, 0.0, 0.1), (0.2,) * 3)),
+            # Different item but overlaps the first option.
+            (0, 11, 0.027, 1.0, agent.AABB((0.0, 0.0, 0.15), (0.3,) * 3)),
+            # Different item and disjoint: can coexist with item 11.
+            (0, 12, 0.001, 1.0, agent.AABB((0.8, 0.0, 0.05), (0.1,) * 3)),
+        ]
+
+        count, volume = agent.greedy_future_probe_capacity(options)
+
+        self.assertEqual(count, 2)
+        self.assertAlmostEqual(volume, 0.035)
+
+    def test_shadow_descriptors_do_not_change_the_live_rank_key(self):
+        baseline = agent.FutureOptionValue(2, 3, 1, 5, 8)
+        rich_shadow = agent.FutureOptionValue(
+            2,
+            3,
+            1,
+            5,
+            8,
+            feasible_item_classes=9,
+            feasible_pose_classes=10,
+            distinct_corridor_classes=11,
+            distinct_action_classes=12,
+            distinct_item_class_volume_sum=13.0,
+            max_feasible_item_volume=14.0,
+            greedy_packable_count=15,
+            greedy_packable_volume=16.0,
+        )
+
+        self.assertEqual(baseline.rank_key(), rich_shadow.rank_key())
+
     def test_nearby_floor_candidates_share_one_support_region(self):
         target = container()
         first = decision(1.0, 0, x=-0.3).candidate
@@ -143,6 +198,13 @@ class FutureOptionValueTests(unittest.TestCase):
         self.assertEqual(value.feasible_item_orientations, 3)
         self.assertEqual(value.distinct_support_regions, 2)
         self.assertEqual(value.valid_candidates, 3)
+        self.assertEqual(value.feasible_item_classes, 1)
+        self.assertEqual(value.feasible_pose_classes, 1)
+        self.assertGreater(value.distinct_corridor_classes, 0)
+        self.assertGreater(value.distinct_action_classes, 0)
+        self.assertAlmostEqual(value.max_feasible_item_volume, 0.008)
+        self.assertGreaterEqual(value.greedy_packable_count, 1)
+        self.assertGreater(value.greedy_packable_volume, 0.0)
 
     def test_placed_item_is_not_leaked_into_the_future_pool(self):
         pool = [item(0), item(1)]

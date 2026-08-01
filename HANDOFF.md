@@ -237,14 +237,25 @@ b000-k20 `+11/+3.731`, b000-k40 `0/-2.650`, b001-k20 `+3/+3.901`, b001-k30
 remains OFF: feasible-item count has real signal, but alone it can preserve
 many small-item options while destroying volume value.
 
+The next shadow-only instrumentation is now implemented on the same branch.
+It records item/pose equivalence classes, coarse corridor/action classes,
+unique-class volume, maximum feasible volume, and deterministic greedy
+static-conflict capacity. None of these fields changes `rank_key()`. On the
+saved step-9 state, all fields saturated across the live 32-probe cohort. A
+64-probe diagnostic exposed more spatial classes but item 17 and item 21 still
+had identical greedy capacity `(2, 0.1934 m^3)`. See
+`reports/future-option/b000-k20-step009-quotient-shadow*/` and
+`docs/FUTURE_OPTION_TIEBREAK.md`.
+
 ## Next engineering task
 
-Repeat the five-config screen before changing the value definition. If the
-placed-up/fill-down split persists, add an explicit residual volume/utility
-descriptor inside the lexicographic tuple (still no additive beta) and compare
-it as a new arm. Separately stabilize the deadline-edge probe population if
-the 17/21 choice variance remains material. Do not alter the release-risk model
-to rescue this experiment.
+Do not add the new descriptors to the rank yet. First make the shadow probe
+population spatially stratified (or evaluate a broader saved-snapshot set) so
+the quotient/capacity fields do not trivially saturate. Then repeat the
+five-config screen with a separately named arm only if the shadow evidence
+shows discrimination. Separately stabilize the deadline-edge probe population
+if the 17/21 choice variance remains material. Do not alter the release-risk
+model to rescue this experiment.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
