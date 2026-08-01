@@ -175,28 +175,39 @@ defaults in `agent/agent.py` are now:
   measured facts in `context/evidence.json` (the source of truth; the
   prose above is older than several supersessions).
 
-## Next engineering task: Ranker mis-ranking decomposition
+## Ranker mis-ranking decomposition (implemented 2026-08-01)
 
-The Q_old utility is now the blocker (evidence: aabb-cache-guard-mixed,
-lookahead-modes-degenerate-rich-search, b000-k20-regression-is-slide-death).
-Before redesigning it, produce the diagnostic report:
+`scripts/analyze_ranker_divergence.py` now finds the first action divergence,
+reconstructs either a JSONL sample or the unlimited policy-item oracle, and
+emits every requested score term, old/live candidate and item ranks, selected
+margins, three-valued search-only evidence, and a static next-state candidate
+survival proxy. Usage and limitations are in `docs/RANKER_DIVERGENCE.md`.
 
-1. Take the first trajectory-divergence step between cache ON/OFF or
-   old/new policy runs. A located instance: b000-k20 step 9 —
-   base-r0 (26 placed, item 17 at [0.66, 0.29, 0.48]) vs base-r7
-   (14 placed, item 28 at [0.59, -0.16, 0.54]); episode artifacts in
-   `reports/risk-ablation/runs/`, state snapshots in
-   `reports/replay-dataset/`.
-2. For every candidate at that step, tabulate the score decomposition:
-   `12V, 2R, D(0.35y), -0.12|x|, -0.18zm, B_route, P_rot, P_slide`.
-3. Report: within-item rank, across-item rank, candidates that only the
-   rich search reaches, the margin to the selected candidate, and the
-   next-step valid-candidate count after each hypothetical placement.
-4. Known defects to design against once the table exists: the volume
-   term is dead within an item (evidence 1), the lookahead re-applies
-   the same immediate score (evidence 2), and the 1-ply binary
-   feasibility signal is saturated (lookahead-modes-degenerate-rich-search)
-   — the missing future term must be graded, not binary.
+The first full report is
+`reports/ranker-divergence/b000-k20-step009-full/report.md` (3,800 candidates):
+
+- old selection item 17: Q_old -0.1614, Q_live -0.4481, live ranks 75/9/6,
+  next-state survival proxy 2,712;
+- rich selection item 28: Q_old -0.1414, Q_live -0.3465, live ranks 13/1/13,
+  next-state survival proxy 1,140;
+- the rich action wins immediate Q_live by 0.1016 but loses 58% of the static
+  residual candidate population. This is a concrete mis-ranking candidate,
+  not yet a physical counterfactual result.
+
+The report deliberately does not claim item 28 was new-search-only. The old
+source contains only 25 stratified rows, so absence outside that sample is
+unknown. A fresh 6.5 s rerun is recorded separately and cannot replace the
+historical deadline schedule; selected actions themselves are forced-in as
+primary reachability evidence.
+
+## Next engineering task
+
+Capture a complete candidate audit for both sides from the same saved snapshot
+and deterministic deadline/work budget, then run paired PyBullet replay for
+the two selected actions. This separates search-set change from score change
+and replaces the packed-AABB survival proxy with the actual settle-conditioned
+next state. Only after that attribution should a graded residual-value term be
+added in shadow mode.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
