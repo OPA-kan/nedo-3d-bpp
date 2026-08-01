@@ -392,6 +392,38 @@
       "status": "active",
       "claim": "The first graded visible-pool rollout remains a useful discriminator but is rejected as a live ordering in its current form. In the final 8-configuration x 3-repeat same-run ablation (strictly require V_rollout(proposal) > V_rollout(selected), Q_live loss <= 0.15), enforce changed 54/406 decisions and regressed the 8-case mean totals from placed 137.667 / fill 167.881 to 131.000 / 151.656 (-6.667 / -16.225); the 5 development totals moved 84.000 / 104.239 to 79.333 / 95.233. Effects were heterogeneous: b000-k20 gained +0.666 placed and b000-k40 +2.667, but b000-k15 lost 6.000 in every repeat. Non-degeneracy is early-heavy: 138/240 observations (57.5%) at steps 0-9 versus 2/166 (1.2%) after step 9; mean cost 111.1 ms/step, max 617.6 ms. An earlier implementation also exposed and then fixed two invalid enforcement paths (global non-degeneracy and Q_live tie changes); the strict-improvement run still lost, so the negative verdict is about the rollout value/order itself, not only those bugs. Keep VISIBLE_POOL_ROLLOUT_MODE=off. This does not supersede the positive step-9 signal; it scopes it as a diagnostic/candidate feature rather than an adopted policy. Next evidence should be the deterministic b000-k15 first-divergence counterfactual, not blind band tuning.",
       "source": "reports/visible-pool-rollout/history/30716558143/summary.json; Actions run 30716558143; diagnostic precursor runs 30715760647 and 30716230811; docs/VISIBLE_POOL_ROLLOUT.md"
+    },
+    {
+      "id": "task-a-offline-budget-starved-by-unbounded-scan",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "The Task A offline order search was barely running. ADR-001 section 5 assumed a slow placement core would simply reduce the evaluation count, but time control was a global deadline only, with no per-item bound: an unplaceable item's candidate scan made a single complete-order dry run cost about 35 s. Measured on the bundled Task A case 000 (41 items) at the official 150 s internal budget, the legacy default evaluated 3.0 of its allowed 1000 complete orders in 3/3 repeats -- the constructive seed plus two neighbours -- and stopped with about 36 s unused because the ADR-001 moving-average guard will not start an evaluation costing more than the remaining time. Neither neighbour improved placed count or first-failure index, so the shipped order beat the seed only on lower-priority lexicographic keys. A 5 s local probe isolated two serial sinks in sequence: bounding items at 64 attempts finished the seed evaluation in 1.82 s, after which pair-macro generation consumed the remaining 3.18 s. Both stages had to be bounded before order search could open up. This closes ADR-001 Remaining Work 5 with a negative answer for the legacy configuration. Scope: the search was starved, not inert -- do not restate this as 'local search was disabled'.",
+      "source": "reports/task-a-rollout/history/30717998654/summary.json; reports/task-a-rollout/history/30717998654/analysis.md; docs/TASK_A_ROLLOUT_TRANSFER.md; docs/adr/ADR-002-bounded-offline-dry-run.md"
+    },
+    {
+      "id": "task-a-bounded64-rejected",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "A 64-attempt per-item budget is rejected: more orders, worse orders. Actions run 30717533328 (30 s budget, 3 repeats) confirmed the structural transfer -- evaluated complete orders went from 1 to 58 for source 000 and 1 to 102 for source 001 -- but the evaluator then severely under-estimated the executable prefix. Physical placed moved 20.0 to 19.33 on source 000 and 13.0 to 14.33 on source 001, with lower fill in both. The lesson is that orders-evaluated is not the objective: the product of order count and per-order evaluation depth has to stay inside the budget, and 64 buys breadth by making each evaluation too shallow to rank orders correctly. Do not read this as a rejection of bounding itself; 128 was adopted on the same mechanism.",
+      "source": "reports/task-a-rollout/history/30717533328/summary.json; Actions run 30717533328; docs/TASK_A_ROLLOUT_TRANSFER.md"
+    },
+    {
+      "id": "task-a-bounded128-adopted",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "bounded128 is the adopted Task A shipped default (ADR-002): OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=128 and OFFLINE_PAIR_MACRO_BUDGET_SECONDS=0.5. Adoption run 30717998654, bundled case 000, official 150 s internal / 180 s external budgets, 3 repeats per arm: placed 20/20/20 to 25/25/25 (+25%), fill 29.298 to 34.949 (+19.3%), evaluated complete orders 3.0 to 51.3, centre-of-mass height 0.753 to 0.735 m, near-misses 0 in both arms, policy time held at about 6.51 s, optimization 112.1 s to 147.3 s (inside 150 s internal, 180 s external). The adopted arm is deterministic: fill min equals max across all three repeats, so the same order and the same physical outcome every time, while the base arm's fill varied 27.541 to 30.176 on a constant placed count. Scope is Task A only: both constants are read solely by DryRunEvaluator and Agent.optimize, and the official harness calls optimize only when the case sets agent.optimize -- pinned by test_offline_budget_never_reaches_the_online_policy. Measured on one case at two attempt budgets (64 rejected, 128 adopted); 256 and above and an item-count-adaptive budget are unmeasured, and the 2.7 s of remaining internal headroom means any placement-core slowdown costs evaluations here first. Both arms still end with is_valid and is_placed_safe false (base at step 21, adopted at step 26 of 41 items), so this is not a passing episode in either arm -- the adoption moves the terminal invalid action five placements later, it does not remove it. Verified before the default flip by re-running both arms locally on 4 vCPU: the `default` arm, which sets no OFFLINE_* variable, reproduced the CI bounded128 fill 34.94904885879026 exactly and base reproduced the CI base minimum 27.540718986088258, so the shipped path and the forced path agree.",
+      "source": "reports/task-a-rollout/history/30717998654/summary.json; reports/task-a-rollout/history/30717998654/analysis.md; Actions run 30717998654; docs/adr/ADR-002-bounded-offline-dry-run.md; screening runs 30717533328 and 30717848749"
+    },
+    {
+      "id": "task-a-offline-proxy-is-relative-only",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "The offline dry-run proxy is a relative order selector, not a calibrated predictor of physical placements, and the sign of its error is not stable. In adoption run 30717998654 the base arm's proxy predicted 21 against 20 physical placements (over by 1) while the adopted arm predicted 23 against 25 (under by 2). It ranked the arms correctly, which is the only property the search needs, since every order is compared against other orders under one fixed evaluator. Never quote a proxy value as a predicted score, a target, or a result; report physical placed and fill.",
+      "source": "reports/task-a-rollout/history/30717998654/summary.json; reports/task-a-rollout/history/30717998654/analysis.md"
     }
   ]
 }
