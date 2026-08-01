@@ -60,6 +60,7 @@ def configure_arm_environment(
         "VISIBLE_POOL_ROLLOUT_DEPTH",
         "VISIBLE_POOL_ROLLOUT_ATTEMPTS",
         "VISIBLE_POOL_ROLLOUT_STRIDE",
+        "LIVE_SEARCH_INTERLEAVE",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
@@ -78,6 +79,8 @@ def configure_arm_environment(
         "rollout_enforce",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
+        "live_interleave4",
+        "live_interleave8",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -96,6 +99,13 @@ def configure_arm_environment(
         elif arm == "rollout_enforce_stride4":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
             env["VISIBLE_POOL_ROLLOUT_STRIDE"] = "4"
+        elif arm == "live_interleave4":
+            # The live candidate search only; the rollout stays off. This is
+            # a scan-ORDER change, not a search-breadth change: a unit that
+            # exhausts still sees the identical anchor set.
+            env["LIVE_SEARCH_INTERLEAVE"] = "4"
+        elif arm == "live_interleave8":
+            env["LIVE_SEARCH_INTERLEAVE"] = "8"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"

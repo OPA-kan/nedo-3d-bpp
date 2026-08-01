@@ -202,6 +202,31 @@ class ArmEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(enforce_stride4, enforce)
 
+    def test_live_interleave_touches_only_the_live_search(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "live_interleave4", 2.0, 0.0)
+
+        self.assertEqual(env["LIVE_SEARCH_INTERLEAVE"], "4")
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_MODE", env)
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_STRIDE", env)
+
+    def test_live_interleave_arms_differ_from_base_only_by_the_order(self):
+        base: dict[str, str] = {}
+        interleaved: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(interleaved, "live_interleave8", 2.0, 0.0)
+
+        self.assertEqual(interleaved.pop("LIVE_SEARCH_INTERLEAVE"), "8")
+        self.assertEqual(interleaved, base)
+
+    def test_an_arm_does_not_inherit_an_outer_live_interleave(self):
+        env = {"LIVE_SEARCH_INTERLEAVE": "16"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("LIVE_SEARCH_INTERLEAVE", env)
+
     def test_rollout_shadow_stride4_stays_telemetry_only(self):
         env: dict[str, str] = {}
 

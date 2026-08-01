@@ -2370,6 +2370,126 @@ class SupportPlaneStrideSamplingTests(unittest.TestCase):
         self.assertTrue(set(strided) <= set(full))
 
 
+class InterleavedScanOrderTests(unittest.TestCase):
+    """
+    Interleave is a permutation; stride is a subsample. Confusing the two
+    would silently drop anchors from a search that has time to reach them.
+    """
+
+    def test_interleave_one_is_the_shipped_order(self):
+        positions = list(range(10))
+
+        self.assertEqual(
+            agent.interleaved_scan_order(positions, 1), positions
+        )
+
+    def test_interleave_keeps_every_anchor_exactly_once(self):
+        positions = list(range(37))
+
+        for interleave in (2, 3, 4, 8):
+            reordered = agent.interleaved_scan_order(positions, interleave)
+            self.assertEqual(
+                sorted(reordered),
+                positions,
+                f"interleave {interleave} did not permute",
+            )
+
+    def test_the_prefix_spans_the_whole_list(self):
+        positions = list(range(64))
+
+        prefix = agent.interleaved_scan_order(positions, 8)[:8]
+
+        self.assertEqual(prefix, [0, 8, 16, 24, 32, 40, 48, 56])
+
+    def test_a_list_no_longer_than_the_interleave_is_untouched(self):
+        positions = list(range(3))
+
+        self.assertEqual(
+            agent.interleaved_scan_order(positions, 8), positions
+        )
+
+
+class LiveInterleaveTests(unittest.TestCase):
+    def _observation(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        item = sample_item(0, length=0.3, width=0.25, height=0.2)
+        return {"pool_list": [item], "container_list": [container]}, item
+
+    def _accepted(self, observation, item, interleave):
+        return [
+            tuple(round(v, 6) for v in candidate.center)
+            for candidate in agent.CandidateGenerator.iter_attempts(
+                observation,
+                item,
+                0,
+                0,
+                limit=10_000,
+                attempt_kind="settled",
+                interleave=interleave,
+            )
+            if candidate is not None
+        ]
+
+    def test_an_exhausted_search_sees_the_same_candidate_set(self):
+        """The live search often exhausts a unit; nothing may be lost."""
+        observation, item = self._observation()
+
+        shipped = self._accepted(observation, item, 1)
+        interleaved = self._accepted(observation, item, 4)
+
+        self.assertTrue(shipped)
+        self.assertEqual(sorted(interleaved), sorted(shipped))
+
+    def test_a_truncated_search_reaches_different_anchors(self):
+        observation, item = self._observation()
+
+        shipped = self._accepted(observation, item, 1)[:3]
+        interleaved = self._accepted(observation, item, 4)[:3]
+
+        self.assertNotEqual(interleaved, shipped)
+
+    def test_cartesian_mode_refuses_an_interleave_it_cannot_honour(self):
+        observation, item = self._observation()
+
+        with self.assertRaises(ValueError) as caught:
+            list(
+                agent.CandidateGenerator.iter_attempts(
+                    observation,
+                    item,
+                    0,
+                    0,
+                    generator_mode="cartesian",
+                    interleave=4,
+                )
+            )
+
+        self.assertIn("support_plane", str(caught.exception))
+
+    def test_cartesian_mode_still_runs_at_the_default_interleave(self):
+        observation, item = self._observation()
+
+        accepted = [
+            candidate
+            for candidate in agent.CandidateGenerator.iter_attempts(
+                observation,
+                item,
+                0,
+                0,
+                limit=50,
+                attempt_kind="settled",
+                generator_mode="cartesian",
+            )
+            if candidate is not None
+        ]
+
+        self.assertTrue(accepted)
+
+    def test_the_shipped_default_is_the_shipped_order(self):
+        self.assertEqual(agent.LIVE_SEARCH_INTERLEAVE, 1)
+
+
 class RolloutStrideThreadingTests(unittest.TestCase):
     """The stride has to survive both layers above the generator."""
 
