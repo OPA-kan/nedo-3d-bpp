@@ -195,7 +195,67 @@ Not established:
 * Any physical claim. A branch that "places" an item places it through the
   static proxy, with no PyBullet settle.
 
-The next evidence worth having is the b000-k15 first-divergence
-counterfactual re-run with `VISIBLE_POOL_ROLLOUT_STRIDE=4`, since the enforce
-loss there was deterministic and repeatable, and this result says the value
-it was enforcing on was measured through a hole.
+## The b000-k15 re-run (physical, done)
+
+`reports/rollout-saturation/b000-k15-stride4/`. Local Linux with PyBullet
+3.2.7, three repeats per arm, on the one configuration whose enforce loss was
+deterministic.
+
+| arm | placed per repeat | mean placed | mean fill | vs base |
+| --- | --- | ---: | ---: | ---: |
+| `base` | 17, 17, 17 | 17.000 | 23.119 | - |
+| `rollout_enforce` | 11, 11, 11 | 11.000 | 13.228 | -6.000 / -9.891 |
+| `rollout_enforce_stride4` | 20, 20, 21 | 20.333 | 26.018 | **+3.333 / +2.899** |
+
+`rollout_enforce` reproduces the reported -6.000 exactly and is bit-identical
+across repeats, so the comparison is against a genuinely deterministic
+baseline.
+
+**The mechanism is not the one the hypothesis assumed.** Both enforce arms
+take the *same* first divergence - step 3, item 12 -> item 3. The stride did
+not steer away from a bad first action. What differs is everything after it:
+
+| | `rollout_enforce` | `rollout_enforce_stride4` |
+| --- | ---: | ---: |
+| enforcements in the episode | 1 (step 3) | 4 (steps 3, 5, 8, 13) |
+| non-degenerate decisions | 7/12 | 14/20 |
+| non-degenerate at step >= 10 | **0/2** | **5/10** |
+| ms per decision, mean / max | 77.1 / 184.7 | 176.0 / 278.8 |
+
+At stride 1 the rollout goes blind after the divergence it caused and never
+speaks again; the trajectory dies at step 11. At stride 4 it keeps
+discriminating and the three later enforcements recover the episode and then
+some. So the -6 was not a wrong first action - it was a first action taken
+and then abandoned by an instrument that could no longer see.
+
+The live `step >= 10` non-degeneracy going 0/2 -> 5/10 also confirms the
+offline finding *in the running policy*, not only on saved snapshots.
+
+Two honest caveats. `rollout_enforce_stride4` ends on
+`unsafe_protocol_fallback`, which is why its `is_valid` is false: it survived
+nine more steps and then hit the known fixed-coordinate fallback defect
+(`transport-deaths-are-fallback-poison`), a different termination channel
+from the settle topple that ends the other two arms. And cost rises to
+176.0 ms mean per decision - though the 278.8 ms maximum is *below* the
+617.6 ms the enforce ablation already tolerated.
+
+**An earlier offline reading of this question was wrong and is corrected
+here.** Running the saturation instrument over the saved b000-k15 snapshots
+suggested the enforce decision was stride-invariant. It was: at those states.
+But those snapshots come from the *base* trajectory, and once enforce
+diverges at step 3 the states it actually visits are not in the snapshot set
+at all. An offline snapshot sweep can answer "does the decision at this state
+change", never "does the episode change". For a question about outcomes, the
+physical run is the only authority.
+
+### What this changes and what it does not
+
+This is one configuration on one machine. It establishes what the b000-k15
+loss *was*; it does not establish that enforce should ship. The enforce
+rejection was made on eight configurations, and only the repeated
+eight-configuration ablation at stride 4, plus the
+`reports/benchmarks/baseline.json` regression guard, can revisit it.
+`VISIBLE_POOL_ROLLOUT_MODE` stays `off` and `VISIBLE_POOL_ROLLOUT_STRIDE`
+stays 1 until that runs. The `rollout_enforce_stride4` and
+`rollout_shadow_stride4` arms exist in `run_risk_ablation.py` for exactly
+that run.

@@ -304,9 +304,36 @@ future-placement separately: the budget arms score 36/37 non-degenerate
 purely on release-risk tie-breaks with no reach. This is a diagnosis of the
 measurement only. `VISIBLE_POOL_ROLLOUT_MODE` stays `off` and
 `VISIBLE_POOL_ROLLOUT_STRIDE` defaults to 1; the enforce rejection stands.
-The next evidence is the b000-k15 first divergence re-run at stride 4, since
-that loss was deterministic and the value it enforced on was measured
-through the hole.
+**The b000-k15 re-run is done, physically, and it reverses that case.**
+`reports/rollout-saturation/b000-k15-stride4/` (local PyBullet, 3 repeats per
+arm): base 17.000 placed / 23.119 fill, `rollout_enforce` 11.000 / 13.228
+(bit-identical across repeats, reproducing the reported -6.000 exactly), and
+`rollout_enforce_stride4` 20.333 / 26.018 — **+3.333 placed over base**.
+
+The mechanism is not the assumed one. Both enforce arms take the *same* first
+divergence at step 3. At stride 1 the rollout then goes blind (one
+enforcement in the whole episode, `step >= 10` non-degeneracy 0/2) and the
+trajectory dies at step 11; at stride 4 it keeps discriminating (5/10) and
+enforces again at steps 5, 8 and 13. **The -6 was a first action taken and
+then abandoned by an instrument that could no longer see**, not a wrong first
+action. Cost 77.1/184.7 -> 176.0/278.8 ms mean/max, still under the 617.6 ms
+maximum the enforce ablation already tolerated.
+
+This is **one configuration**. The enforce rejection was made on eight, so it
+is not revisited yet. The decision point that would revisit it is a repeated
+eight-configuration ablation with the `rollout_enforce_stride4` arm (already
+wired into `run_risk_ablation.py`) plus the
+`reports/benchmarks/baseline.json` regression guard. Until that runs,
+`VISIBLE_POOL_ROLLOUT_MODE` stays `off` and `VISIBLE_POOL_ROLLOUT_STRIDE`
+stays 1.
+
+Method note now in the ledger as
+`offline-snapshot-sweeps-cannot-answer-outcome-questions`: the offline sweep
+over saved b000-k15 snapshots said the enforce decision was stride-invariant,
+and it was — *at those states*. Saved snapshots come from the base
+trajectory, so once an arm diverges the states it visits are not in the set.
+Offline sweeps diagnose an instrument; only a physical run decides an
+outcome.
 
 ### The larger implication is for the live search, not the rollout
 

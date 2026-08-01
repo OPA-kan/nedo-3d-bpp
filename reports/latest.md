@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-01T21:06:38+00:00`
-- Git SHA: `ab423670dd28fb9617f5c6aba65b62da936d8f74`
+- Timestamp: `2026-08-01T21:47:06+00:00`
+- Git SHA: `c6e148d6af8f6f2b2d85f2435721e1748664439e`
 - Python: `3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]`
 - Platform: `Linux-6.18.5-x86_64-with-glibc2.39`
 - Processor: `x86_64`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `5.161 s`
+- Runtime: `6.779 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,8 +21,8 @@
 <details><summary>unit tests (tail; full log: reports/raw/unit-tests.log)</summary>
 
 ```text
-test_rollout_enforce_is_the_shipped_baseline_plus_selection (test_run_risk_ablation.ArmEnvironmentTests.test_rollout_enforce_is_the_shipped_baseline_plus_selection) ... ok
-test_rollout_shadow_is_the_shipped_baseline_plus_telemetry (test_run_risk_ablation.ArmEnvironmentTests.test_rollout_shadow_is_the_shipped_baseline_plus_telemetry) ... ok
+test_rollout_shadow_stride4_stays_telemetry_only (test_run_risk_ablation.ArmEnvironmentTests.test_rollout_shadow_stride4_stays_telemetry_only) ... ok
+test_stride4_arms_differ_from_their_base_only_by_the_stride (test_run_risk_ablation.ArmEnvironmentTests.test_stride4_arms_differ_from_their_base_only_by_the_stride) ... ok
 test_counts_rescue_and_protocol_fallback_separately (test_run_risk_ablation.PolicyTraceSummaryTests.test_counts_rescue_and_protocol_fallback_separately) ... ok
 test_rollout_shadow_summary_counts_discrimination_and_cost (test_run_risk_ablation.PolicyTraceSummaryTests.test_rollout_shadow_summary_counts_discrimination_and_cost) ... ok
 test_cross_step_telemetry_is_preserved_in_compact_summary (test_run_risk_ablation.SummarizeTests.test_cross_step_telemetry_is_preserved_in_compact_summary) ... ok
@@ -48,8 +48,8 @@ test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.Task
 test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
 
 ----------------------------------------------------------------------
-Ran 310 tests in 4.864s
+Ran 313 tests in 6.434s
 
-OK (skipped=3)
+OK
 ```
 </details>
