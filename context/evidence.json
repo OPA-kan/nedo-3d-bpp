@@ -287,6 +287,14 @@
       "status": "active",
       "claim": "Post-mortem of 57 episode-ending placements (all ablation episodes; container rebuilt from observed settle AABBs, frozen mech P_rot on the commanded pose): death channels are topple 28, transport_invalid 21, slide 8. Within topples the rotation model mostly saw it coming -- KNOWN (P_rot>=0.5) 6, AMBIGUOUS (0.2-0.5) 17, MISSED (<0.2) only 5 -- so the topple-channel remainder is starvation / insufficient endgame penalty (a state-dependent lambda argument), not perception. The largest untapped lever is the transport_invalid channel (37% of deaths, untouchable by any release-risk lambda): episodes die on transport validation before physics, pointing back at candidate generation / anchor recall in endgame states.",
       "source": "reports/replay-analysis/terminal-failures.md; scripts/analyze_terminal_failures.py"
+    },
+    {
+      "id": "slide-lambda-not-adopted-v1",
+      "topic": "risk",
+      "date": "2026-08-01",
+      "status": "active",
+      "claim": "First slide online ablation (5 dev configs, base vs slide lambda 0.5 / 1.0 on top of rot-only lambda=1): slide lambda trades placed for slide-death reduction -- lambda=1.0 cut low-angle unsafe endings 4 -> 1 but cost 4.4 placed per episode (18.4 -> 14.0); lambda=0.5 gained fill (+2.0) at -1.8 placed with slide deaths unchanged. Under the official cutoff gate (placed count gates all non-fill scores) this trade is rejected: RELEASE_RISK_SLIDE_LAMBDA stays 0 in the live default. Slide shadow produced zero changed single selections (4 steps) -- the slide term acts through cumulative trajectory divergence, not single-step swaps. The frozen slide model (slide-dev-v1-20260731) remains available; revisit after S1 improves the estimator or with smaller lambda once the transport channel is fixed.",
+      "source": "reports/risk-ablation/rows.jsonl (slide ablation arms); slide-shadow datasets 20260801_003952-*"
     }
   ]
 }
