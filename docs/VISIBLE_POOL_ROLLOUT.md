@@ -56,9 +56,10 @@ the bounded Top-K is evaluated, candidates are diversified by the item class
 instances cannot fill the entire comparison set. The default is `off`.
 `enforce` uses the rollout lexicographic key only among candidates whose
 `Q_live >= Q_selected - 0.15`; it is an ablation mode, not the shipped
-default. It also requires at least two distinct rollout-value keys. When all
-candidates have the same future value, the current policy is preserved rather
-than allowing a `Q_live` tie-break to create a signal-free trajectory change.
+default. It requires the proposed candidate's rollout key to be strictly
+greater than the selected candidate's key. Global non-degeneracy is not
+enough: when those two keys tie, the current policy is preserved rather than
+allowing a `Q_live` tie-break to create a signal-free trajectory change.
 
 Live shadow bypasses (and therefore does not warm) the global analytic
 container-Z interval cache. This prevents telemetry from making later

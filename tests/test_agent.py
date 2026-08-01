@@ -3514,6 +3514,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
 
         self.assertIs(proposed, alternative)
         self.assertTrue(record["would_change_item"])
+        self.assertTrue(record["proposal_improves_rollout"])
         self.assertTrue(record["unrestricted_proposal_within_q_band"])
         self.assertAlmostEqual(record["unrestricted_proposed_q_loss"], 0.1)
 
@@ -3567,6 +3568,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
             )
 
         self.assertIs(proposed, selected)
+        self.assertFalse(record["proposal_improves_rollout"])
         self.assertTrue(record["unrestricted_would_change_item"])
         self.assertFalse(record["unrestricted_proposal_within_q_band"])
 
@@ -3633,12 +3635,13 @@ class CrossStepIncumbentTests(unittest.TestCase):
 
         selected = decision(0, 1.0)
         proposed = decision(1, 0.9)
-        for non_degenerate, expected_item in ((True, 1), (False, 0)):
-            with self.subTest(non_degenerate=non_degenerate):
+        for improves_rollout, expected_item in ((True, 1), (False, 0)):
+            with self.subTest(improves_rollout=improves_rollout):
                 record = {
                     "mode": "enforce",
                     "would_change_item": True,
-                    "non_degenerate": non_degenerate,
+                    "non_degenerate": True,
+                    "proposal_improves_rollout": improves_rollout,
                 }
                 with (
                     mock.patch.object(
@@ -3663,7 +3666,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
                     solver.last_action_source,
                     (
                         "rollout_enforce"
-                        if non_degenerate
+                        if improves_rollout
                         else "placement_core"
                     ),
                 )
@@ -3671,7 +3674,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
                     solver.last_candidate_diagnostics[
                         "visible_pool_rollout"
                     ]["enforced"],
-                    non_degenerate,
+                    improves_rollout,
                 )
 
     def test_rollout_collector_keeps_best_candidate_per_item(self):
