@@ -25,6 +25,11 @@ class FutureOptionWorkflowTests(unittest.TestCase):
         self.assertEqual(self.text.count("arm: base"), 5)
         self.assertEqual(self.text.count("arm: future-option"), 5)
 
+    def test_new_branch_can_trigger_before_workflow_reaches_default_branch(self):
+        self.assertIn("push:", self.text)
+        self.assertIn("- experiment/future-option-tiebreak", self.text)
+        self.assertIn("[skip ci]", self.text)
+
     def test_compact_aggregate_is_committed_but_raw_runs_are_artifacts(self):
         self.assertIn("reports/future-option/history/${{ github.run_id }}", self.text)
         self.assertIn("actions/upload-artifact@v4", self.text)
