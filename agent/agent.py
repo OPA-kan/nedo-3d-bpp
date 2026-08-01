@@ -268,8 +268,7 @@ def world_to_local(world_pos, container):
     )
 
 
-@lru_cache(maxsize=65536)
-def _cached_container_z_interval(
+def _compute_container_z_interval(
     x,
     y,
     dims,
@@ -308,6 +307,23 @@ def _cached_container_z_interval(
     return (float(lower), float(upper))
 
 
+@lru_cache(maxsize=65536)
+def _cached_container_z_interval(
+    x,
+    y,
+    dims,
+    offset_x,
+    points,
+    normals,
+):
+    return _compute_container_z_interval(
+        x, y, dims, offset_x, points, normals
+    )
+
+
+_CONTAINER_Z_INTERVAL_CACHE_BYPASS = False
+
+
 def container_z_interval(x, y, dims, container):
     """Exact AABB z interval allowed by the static container half-spaces."""
     points = container.get("points")
@@ -320,7 +336,7 @@ def container_z_interval(x, y, dims, container):
     normal_key = tuple(
         tuple(float(value) for value in normal) for normal in normals
     )
-    return _cached_container_z_interval(
+    arguments = (
         float(x),
         float(y),
         tuple(float(value) for value in dims),
@@ -328,6 +344,9 @@ def container_z_interval(x, y, dims, container):
         point_key,
         normal_key,
     )
+    if _CONTAINER_Z_INTERVAL_CACHE_BYPASS:
+        return _compute_container_z_interval(*arguments)
+    return _cached_container_z_interval(*arguments)
 
 
 def packed_position_world(packed):
@@ -4733,6 +4752,7 @@ def visible_pool_rollout_shadow_record(
     risk_lambda=None,
 ):
     """Evaluate live Top-K without changing the action returned by policy."""
+    global _CONTAINER_Z_INTERVAL_CACHE_BYPASS
     started = time.perf_counter()
     pool_list = observation.get("pool_list", [])
     unique = []
@@ -4773,16 +4793,23 @@ def visible_pool_rollout_shadow_record(
             unique.append(selected_decision)
 
     records = []
-    for decision in unique:
-        value = visible_pool_rollout_value(
-            observation,
-            indexed_items,
-            decision,
-            depth=depth,
-            attempts_per_step=attempts_per_step,
-            risk_lambda=risk_lambda,
-        )
-        records.append(_rollout_action_record(decision, pool_list, value))
+    previous_cache_bypass = _CONTAINER_Z_INTERVAL_CACHE_BYPASS
+    _CONTAINER_Z_INTERVAL_CACHE_BYPASS = True
+    try:
+        for decision in unique:
+            value = visible_pool_rollout_value(
+                observation,
+                indexed_items,
+                decision,
+                depth=depth,
+                attempts_per_step=attempts_per_step,
+                risk_lambda=risk_lambda,
+            )
+            records.append(
+                _rollout_action_record(decision, pool_list, value)
+            )
+    finally:
+        _CONTAINER_Z_INTERVAL_CACHE_BYPASS = previous_cache_bypass
 
     selected_score = float(selected_decision.score)
     eligible = [

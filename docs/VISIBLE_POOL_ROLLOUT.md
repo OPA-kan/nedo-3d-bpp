@@ -51,6 +51,11 @@ the bounded Top-K is evaluated, candidates are diversified by the item class
 instances cannot fill the entire comparison set. The default is `off` and
 there is deliberately no `enforce` mode yet.
 
+Live shadow bypasses (and therefore does not warm) the global analytic
+container-Z interval cache. This prevents telemetry from making later
+deadline-limited searches deeper merely by pre-populating production cache
+entries.
+
 On the saved b000-k20 step-9 state, the non-diverse immediate Top-3 consisted
 of three identical 0.65 x 0.45 x 0.25 items and all rollout values were equal.
 Class diversification exposed items 5, 17 and 28 and graded them 2, 1 and 0

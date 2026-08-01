@@ -3492,6 +3492,51 @@ class CrossStepIncumbentTests(unittest.TestCase):
         diverse = collector.snapshot(limit=2)
         self.assertEqual([value.score for value in diverse], [3.0, 2.0])
 
+    def test_rollout_shadow_does_not_warm_container_interval_cache(self):
+        item = sample_item(0)
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.1),
+                (0.2, 0.2, 0.2),
+                "candidate",
+            ),
+            score=0.0,
+        )
+        value = agent.VisiblePoolRolloutValue(
+            0, 0.0, 0.0, 0.0, 0, 0, False, False, "depth_reached", ()
+        )
+
+        def rollout(*_args, **_kwargs):
+            agent.container_z_interval(0.0, 0.0, (0.2, 0.2, 0.2), container)
+            return value
+
+        with (
+            mock.patch.object(
+                agent, "visible_pool_rollout_value", side_effect=rollout
+            ),
+            mock.patch.object(
+                agent, "_cached_container_z_interval"
+            ) as cached,
+        ):
+            agent.visible_pool_rollout_shadow_record(
+                {"pool_list": [item], "container_list": [container]},
+                [(0, item)],
+                [decision],
+                decision,
+            )
+
+        cached.assert_not_called()
+        self.assertFalse(agent._CONTAINER_Z_INTERVAL_CACHE_BYPASS)
+
     def test_prioritized_candidates_respects_attempt_budget(self):
         item = sample_item(7)
         candidate = agent.AABB(
