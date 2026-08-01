@@ -4,7 +4,7 @@ The rescue scan is an ablation for the observed
 `unsafe_protocol_fallback` failure channel. It is disabled by default with
 `RESCUE_SCAN_ENABLED=0`.
 
-When enabled, the online policy reserves the final 0.9 seconds of its
+When enabled, the online policy reserves the final 0.2 seconds of its
 6.5-second internal budget. The normal closed-loop search and Ranker run
 unchanged before that reserve. Rescue runs only if both normal selection
 paths returned no validated candidate.
@@ -25,16 +25,26 @@ safe fallback.
 ## Controls
 
 - `RESCUE_SCAN_ENABLED` (default `0`)
-- `RESCUE_SCAN_RESERVE_SECONDS` (default `0.9`)
+- `RESCUE_SCAN_RESERVE_SECONDS` (default `0.2`)
 - `RESCUE_SCAN_ATTEMPT_BUDGET` (default `512`)
 - `RESCUE_SCAN_ATTEMPTS_PER_UNIT` (default `32`)
 
 ## Preliminary static replay
 
-On the 37 checked-in replay snapshots at step 10 or later, the rescue scan
-returned a statically validated candidate in 37/37 states, including 17/17
-case-001 states. This checks candidate recovery only; it does not prove that
+On the 37 checked-in replay snapshots at step 10 or later, a 0.1-second
+reserve already returned a statically validated candidate in 37/37 states,
+including 17/17 case-001 states. The 0.2-second default keeps a small timing
+guard while returning 0.7 seconds to the primary search compared with the
+rejected 0.9-second first ablation. This checks candidate recovery only; it
+does not prove that
 the selected release survives PyBullet settle. The dedicated
 `rescue-scan-ablation.yml` workflow compares the shipped baseline and rescue
 over the five development regression configurations. Final-holdout cases are
 not opened.
+
+The rejected 0.9-second ablation is preserved under
+`reports/rescue-scan/ci-30698074510`: base/rescue totals were 83/75 placed and
+100.32/86.98 fill. It improved b000-k20 by two placements and b001-k30 by one,
+but lost nine placements on b001-k20. The reserve ladder then recovered a
+candidate in all 37 snapshots with only 0.1 seconds, motivating the 0.2-second
+second ablation rather than tuning the Ranker or risk terms.

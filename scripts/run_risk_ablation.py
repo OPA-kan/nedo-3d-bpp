@@ -311,32 +311,47 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         cases.setdefault(case_id, {})[arm] = {
             metric: stats(vals) for metric, vals in buckets.items()
         }
+    available_arms = set(per_arm)
+    baseline_arm = "off" if "off" in available_arms else "base"
     paired = {}
     for case_id, arm_stats in cases.items():
-        off = arm_stats.get("off")
+        baseline = arm_stats.get(baseline_arm)
         for arm, arm_stat in arm_stats.items():
-            if arm == "off" or not off or off["placed"]["n"] == 0:
+            if (
+                arm == baseline_arm
+                or not baseline
+                or baseline["placed"]["n"] == 0
+            ):
                 continue
             if arm_stat["placed"]["n"] == 0:
                 continue
             paired.setdefault(arm, {})[case_id] = {
                 "placed_diff": round(
-                    arm_stat["placed"]["mean"] - off["placed"]["mean"], 3
+                    arm_stat["placed"]["mean"]
+                    - baseline["placed"]["mean"],
+                    3,
                 ),
                 "fill_diff": round(
-                    arm_stat["fill"]["mean"] - off["fill"]["mean"], 3
+                    arm_stat["fill"]["mean"]
+                    - baseline["fill"]["mean"],
+                    3,
                 ),
             }
-    return {"arms": arms, "cases": cases, "paired_vs_off": paired}
+    return {
+        "arms": arms,
+        "cases": cases,
+        "baseline_arm": baseline_arm,
+        "paired_vs_baseline": paired,
+        "paired_vs_off": paired if baseline_arm == "off" else {},
+    }
 
 
 def render_markdown(summary: dict[str, Any], rows: int) -> str:
     lines = [
         "# Online risk ablation (development configurations only)",
         "",
-        f"- episode rows: {rows}; arms compare the submission-default "
-        "baseline (off) with live mechanics rerank "
-        "(RELEASE_RISK_LIVE_RERANK=1, RELEASE_RISK_P_MODEL=mech).",
+        f"- episode rows: {rows}; paired differences use "
+        f"`{summary.get('baseline_arm', 'off')}` as the baseline arm.",
         "",
         "- fill_score / num_placed_items are the only official "
         "components the bundled simulator computes; cog / stability / "
@@ -362,18 +377,18 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
         )
     lines += [
         "",
-        "## Paired per-case difference vs off",
+        "## Paired per-case difference vs "
+        f"{summary.get('baseline_arm', 'off')}",
         "",
         "| arm | case | placed diff | fill diff |",
         "|---|---|---:|---:|",
     ]
-    for arm, cases in sorted(summary["paired_vs_off"].items()):
+    for arm, cases in sorted(summary["paired_vs_baseline"].items()):
         for case_id, diff in sorted(cases.items()):
             lines.append(
                 f"| {arm} | {case_id} | {diff['placed_diff']} "
                 f"| {diff['fill_diff']} |"
             )
-    lines.append("")
     return "\n".join(lines) + "\n"
 
 

@@ -102,7 +102,7 @@ RESCUE_SCAN_ENABLED = os.environ.get(
     "RESCUE_SCAN_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
 RESCUE_SCAN_RESERVE_SECONDS = float(
-    os.environ.get("RESCUE_SCAN_RESERVE_SECONDS", "0.9")
+    os.environ.get("RESCUE_SCAN_RESERVE_SECONDS", "0.2")
 )
 RESCUE_SCAN_ATTEMPT_BUDGET = int(
     os.environ.get("RESCUE_SCAN_ATTEMPT_BUDGET", "512")

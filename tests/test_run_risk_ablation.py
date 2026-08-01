@@ -49,6 +49,21 @@ class SummarizeTests(unittest.TestCase):
         summary = summarize(rows)
         self.assertEqual(summary["paired_vs_off"], {})
 
+    def test_rescue_is_paired_against_shipped_base(self):
+        rows = [
+            episode_row("base", "b000-k20", 14, 16.0),
+            episode_row("rescue", "b000-k20", 16, 18.5),
+        ]
+
+        summary = summarize(rows)
+
+        self.assertEqual(summary["baseline_arm"], "base")
+        self.assertEqual(summary["paired_vs_off"], {})
+        self.assertEqual(
+            summary["paired_vs_baseline"]["rescue"]["b000-k20"],
+            {"placed_diff": 2.0, "fill_diff": 2.5},
+        )
+
 
 class ArmEnvironmentTests(unittest.TestCase):
     def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):
