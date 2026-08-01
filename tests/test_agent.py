@@ -2913,6 +2913,82 @@ class OfflineOptimizationTests(unittest.TestCase):
         self.assertGreater(result.fill_ratio, 0.0)
         self.assertGreaterEqual(result.mean_support_ratio, agent.MIN_SUPPORT_RATIO)
 
+    def test_bounded_dry_run_uses_deterministic_attempt_budget(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        items = [sample_item(0), sample_item(1)]
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": 0,
+                    "container_idx": 0,
+                    "place_pos": np.zeros(3, dtype=np.float32),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.0, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=1.0,
+            ),
+            None,
+        ]
+        evaluator = agent.DryRunEvaluator(
+            [container], attempts_per_item=37
+        )
+        with (
+            mock.patch.object(
+                agent.PlacementCore,
+                "rescue_choose",
+                side_effect=decisions,
+            ) as bounded_choose,
+            mock.patch.object(
+                agent.PlacementCore,
+                "choose",
+            ) as unbounded_choose,
+        ):
+            result = evaluator.evaluate(items)
+
+        self.assertEqual(result.placed_count, 1)
+        self.assertEqual(result.failed_index, 1)
+        self.assertEqual(bounded_choose.call_count, 2)
+        self.assertEqual(
+            [
+                call.kwargs["attempt_budget"]
+                for call in bounded_choose.call_args_list
+            ],
+            [37, 37],
+        )
+        unbounded_choose.assert_not_called()
+
+    def test_optimize_emits_offline_diagnostics(self):
+        solver = agent.Agent("")
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        solver.get_init_states(
+            {"optimize": True, "container_list": [container]}
+        )
+        solver._offline_search_budget_seconds = 0.0
+        items = [sample_item(0), sample_item(1)]
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "trace.jsonl"
+            solver._policy_trace_path = str(trace_path)
+            order = solver.optimize(items)
+            records = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertEqual(records[-1]["event"], "offline_optimization")
+        self.assertEqual(records[-1]["optimized_order"], order)
+        self.assertIn("best_result", records[-1])
+
     def test_optimize_is_deterministic_and_returns_a_permutation(self):
         solver = agent.Agent("")
         container = sample_container(

@@ -1,0 +1,79 @@
+name: Task A rollout transfer
+
+on:
+  workflow_call:
+
+jobs:
+  episode:
+    name: a${{ matrix.source_case }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        source_case: ["000", "001"]
+        arm: [base, bounded64]
+        repeat: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build Task A config
+        run: >-
+          python scripts/build_task_a_config.py
+          --source simulator/configs/sample_config.json
+          --source-case "${{ matrix.source_case }}"
+          --optimization-timeout 40
+          --policy-timeout 8
+          --output "reports/task-a-rollout/config-${{ matrix.source_case }}.json"
+      - name: Run Task A episode
+        run: >-
+          python scripts/run_task_a_rollout.py
+          --config "reports/task-a-rollout/config-${{ matrix.source_case }}.json"
+          --source-case "${{ matrix.source_case }}"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.repeat }}"
+          --offline-seconds 30
+          --macro-seconds 0.5
+          --output-dir reports/task-a-rollout
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task-a-${{ matrix.source_case }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+          path: reports/task-a-rollout/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: task-a-*
+          path: reports/task-a-rollout/artifacts
+          merge-multiple: true
+      - name: Aggregate compact result
+        run: >-
+          python scripts/run_task_a_rollout.py
+          --summarize-root reports/task-a-rollout/artifacts
+          --summary-output
+          "reports/task-a-rollout/history/${{ github.run_id }}/summary"
+      - name: Commit compact result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "reports/task-a-rollout/history/${{ github.run_id }}/summary.md"
+          git add "reports/task-a-rollout/history/${{ github.run_id }}/summary.json"
+          git commit -m "Record Task A rollout transfer ${{ github.run_id }} [skip task-a]"
+          git push
