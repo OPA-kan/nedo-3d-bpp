@@ -120,6 +120,14 @@ preserving many feasible item identities can prefer futures containing more
 small items. Repeat runs are required before changing the value tuple; do not
 hide this trade-off by immediately fitting an additive beta.
 
+A second five-config run (`30692389788`) reproduced the aggregate direction:
+mean placed increased `14.2 -> 16.4`, while mean fill fell
+`18.042 -> 16.734`. Per-case effects were much less stable (`0/-8.523`,
+`+1/-1.209`, `+10/+10.722`, `+3/+3.901`, `-3/-11.426` for placed/fill),
+confirming substantial episode/runner variance. The repeated placed-up,
+fill-down aggregate split strengthens the missing-volume diagnosis but is not
+an adoption result.
+
 ## Quotient/capacity shadow measurement
 
 The saved step-9 observation was replayed again after adding the shadow-only

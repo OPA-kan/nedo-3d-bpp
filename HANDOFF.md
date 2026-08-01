@@ -247,6 +247,14 @@ had identical greedy capacity `(2, 0.1934 m^3)`. See
 `reports/future-option/b000-k20-step009-quotient-shadow*/` and
 `docs/FUTURE_OPTION_TIEBREAK.md`.
 
+Linux guard run `30692389788` passed all ten physical episodes after the
+instrumentation change. Its independent five-config screen again showed the
+same aggregate trade-off: placed `14.2 -> 16.4`, fill `18.042 -> 16.734`.
+Individual case deltas moved substantially relative to the first screen, so
+case-level claims remain unstable; the repeated count-up/fill-down direction is
+the durable result. Compact output is in
+`reports/future-option/history/30692389788/summary.{md,json}`.
+
 ## Next engineering task
 
 Do not add the new descriptors to the rank yet. First make the shadow probe
