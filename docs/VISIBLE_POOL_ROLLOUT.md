@@ -61,3 +61,11 @@ of three identical 0.65 x 0.45 x 0.25 items and all rollout values were equal.
 Class diversification exposed items 5, 17 and 28 and graded them 2, 1 and 0
 future settled placements respectively. The one-decision shadow added about
 0.15 seconds locally and returned the same item-5 action.
+
+Linux screening run 30708961145 measured 79 shadow decisions across five
+development configurations: 39 were non-degenerate, 17 proposed another
+item, average shadow cost was 102.8 ms/step and the maximum was 398.3 ms.
+The arm aggregate was slightly above base, but the independently executed
+base was unstable across consecutive screening runs, so no score effect is
+claimed. This establishes discrimination and feasible cost only; enforcement
+needs a separate repeated ablation.

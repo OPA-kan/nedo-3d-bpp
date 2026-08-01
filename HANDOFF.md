@@ -236,16 +236,24 @@ one additional settled placement (item 28, 0.08 m3), while item 28 kept zero.
 The ordering was unchanged at attempt budgets 64/128/256/512. The current
 policy's live class-diverse shadow on the same snapshot cost about 0.15 s,
 did not alter the returned item-5 action, and graded items 5/17/28 as 2/1/0
-future settled placements. See `docs/VISIBLE_POOL_ROLLOUT.md` and
-`reports/visible-pool-rollout/`.
+future settled placements.
+
+Linux screening run 30708961145 (after preventing shadow from warming the
+production Z-interval cache) observed 79 decisions. The value was
+non-degenerate on 39 (49.4%), proposed a different item on 17 (21.5%), and
+cost 102.8 ms/step average / 398.3 ms max. Shadow remained telemetry-only.
+Its aggregate was placed +0.4 / fill +0.674 versus the separately executed
+base, but the base mean itself moved 16.2 -> 14.6 between the two screening
+runs; do not read the single-run arm difference as an algorithm effect. See
+`docs/VISIBLE_POOL_ROLLOUT.md`, `reports/visible-pool-rollout/`, and Actions
+run 30708961145.
 
 This is signal, not adoption evidence: the immediate candidate is a release
 and is represented by the settled proxy; later release transitions terminate
 the rollout, and no PyBullet counterfactual or full-episode enforce run has
-been performed. Next run a default-off vs shadow Linux guard on the 5
-development configs. If added wall time stays below the online limit and the
-shadow value remains non-degenerate, add a separate `enforce` ablation using
-the frozen Q band; do not change the default on this branch.
+been performed. The next step is a separate `enforce` ablation using the
+frozen Q band, preferably with paired/repeated execution because the single
+runner trajectories are noisy. Do not change the default on this branch.
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
