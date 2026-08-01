@@ -256,9 +256,10 @@ ADR-001 §2 は共有対象に「候補生成、幾何制約、支持判定、**
 
 影響:
 
-1. `task-a-offline-proxy-is-relative-only` に機構的な説明がつく。proxy 23 に
-   対し物理 25〜26 という差は、単なる誤較正ではなく**別方策を模擬している
-   ことによる系統バイアス**を含む。
+1. `task-a-offline-proxy-is-relative-only` の差について、**候補原因が一つ
+   特定された**。risk-off proposal と risk-on execution の方策差である。
+   ただし proxy 23 対 物理 25〜26 という差の**符号も大きさも説明できていない**
+   ので、「系統バイアスが判明した」と書くのは過大である(初稿の誤り)。
 2. bounded128 は「pre-risk greedy 実行器向けに最適化した順序」を選び、それを
    risk-on 実行器が走らせている。それでも +5 配置改善したのは、頑健だった
    ということであって、設計どおりではない。
@@ -266,16 +267,22 @@ ADR-001 §2 は共有対象に「候補生成、幾何制約、支持判定、**
    12件のうち `8669efc` / `00ddc64` / `70a72a4` / `2cb450c` の4件は、
    オフライン評価器を変えていない。F7 の一覧はその点で過大だった。
 
-どちらに倒すかは設計判断であり、本監査は決めない。ただし**どちらでも
-再測定が要る**: 揃えれば `E_theta` が変わって Task A の全数値が古くなり、
-揃えないなら「揃えない」を ADR に書いて gap を明示する必要がある。
+**決着済み(ADR-003)。** 「揃えない」に倒した。課題Aの実構造は
+「risk-off dry-run で順序候補を探索 → risk-on 実agent + 公式物理で最終検証」
+という二段階であり、`DryRunEvaluator` は本番の忠実な模擬ではなく**安価で
+決定論的な proposal oracle** である。本番rankerとの一致より、相対的な絞り込み
+能力・マシン非依存性・最終物理検証で良い順序を拾えることが重要。したがって
+`E_proposal != E_execution` は許容し、問題になるのは proposal oracle が良い
+候補を取りこぼしているかどうかだけ。ADR-001 §2 は ADR-003 により
+「可行性契約は共有、ranking と列挙予算は非共有可」へ限定された。
+risk-on dry-run は棄却ではなく**将来の比較arm**として残す。
 `context/optimizer_fingerprint.json` の `adr001_section2_ranking_shared` が
 現状を `VIOLATED` として保持し、`tests/test_optimizer_fingerprint.py` が
 無断の変更を落とす。
 
 ## 提案
 
-### 0. optimizer fingerprint (実装済み)
+### 0. behavioural regression fingerprint (実装済み)
 
 `scripts/fingerprint_optimizer.py` が、`DryRunEvaluator` が到達する依存グラフ
 全体に同一性を与える。2層構造:
@@ -300,6 +307,20 @@ ADR-001 §2 は共有対象に「候補生成、幾何制約、支持判定、**
 
 最後の行が肝で、**出荷設定の変更とコア意味論の変更が区別できている**。
 `behaviour` が動いたら Task A の全測定が古い。
+
+**限界を明示する。これは optimizer の数学的同一性ではない。**
+
+- **probe 依存。** probe が触れない意味論変化は見逃す。既に2例ある —— probe の
+  勝者が settled 候補なので risk ranking の乖離を露出できず、`MIN_SUPPORT_RATIO`
+  0.55→0.50 も probe の配置が閾値から遠いため `behaviour` を動かさない。
+- **API世代を跨げない。** `PlacementCore.rescue_choose` 以前のコア(`a893922`
+  より前)は probe 自体が動かない。履歴全体の指紋は取れない。
+- **等値であって距離ではない。** ハッシュ相違は「違う」しか言わず、
+  「どれだけ違うか」「悪化か改善か」は言わない。
+
+したがって呼称は semantic fingerprint ではなく
+**behavioural regression fingerprint over declared probes** とする。
+「不変」は常に**probe被覆の範囲内で不変**の意味である。
 
 ### 1. 台帳に計測メタを加法的に足す
 

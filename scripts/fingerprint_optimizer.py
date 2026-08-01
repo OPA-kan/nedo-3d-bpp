@@ -1,5 +1,6 @@
 """
-Fingerprint the *semantics* of the Task A offline optimizer.
+Behavioural regression fingerprint over declared probes, for the Task A
+offline optimizer.
 
 `Agent.optimize` has been touched by 2 of the 33 commits that changed
 `agent/agent.py`, yet the optimizer it defines has changed roughly a dozen
@@ -29,6 +30,27 @@ the fingerprint is a property of the code, never of the machine it ran on.
 That matters: the deadline-driven arm of the dry run is measurably
 machine-speed dependent (see docs/MEASUREMENT_AUDIT.md F6), and a
 fingerprint that inherited that would be useless.
+
+LIMITS -- this is not the mathematical identity of the optimizer.
+
+- **Probe-bounded.** A semantic change the probes do not exercise is
+  invisible. Two real examples already: the probe's winner is a settled
+  candidate, so it does not expose the offline/online risk-ranking gap
+  (ADR-003); and MIN_SUPPORT_RATIO 0.55 -> 0.50 leaves `behaviour`
+  untouched because the probe placements sit well above both thresholds.
+  Widening the probe set strictly increases what it can catch.
+- **API-generation bound.** Cores predating `PlacementCore.rescue_choose`
+  (before a893922) cannot be probed at all, so this cannot fingerprint the
+  whole history -- only cores sharing today's call surface.
+- **Equality, not distance.** A changed hash says "different", never "how
+  different" or "worse".
+
+Read the two hashes together:
+
+    component changed, behaviour same -> a default or an unfired condition
+    component same, behaviour changed -> internal semantics moved
+    both changed                      -> configuration and behaviour both
+    neither changed                   -> unchanged *within probe coverage*
 """
 from __future__ import annotations
 
@@ -300,12 +322,17 @@ def fingerprint(agent) -> dict[str, Any]:
     return {
         "version": 1,
         "contract": (
-            "Semantic identity of the Task A offline optimizer, defined as "
-            "the whole dependency graph DryRunEvaluator reaches, not as "
-            "Agent.optimize. If behaviour_sha256 changes, E_theta changed "
-            "and every Task A measurement predates it -- re-run the Task A "
-            "sweep and stamp the affected ledger entries with the new "
-            "core_ref, even when no offline file was edited."
+            "Behavioural regression fingerprint over declared probes for "
+            "the Task A offline optimizer, scoped to the dependency graph "
+            "DryRunEvaluator reaches rather than to Agent.optimize. If "
+            "behaviour_sha256 changes, E_theta changed and every Task A "
+            "measurement predates it -- re-run the Task A sweep and stamp "
+            "the affected ledger entries with the new core_ref, even when "
+            "no offline file was edited. It is NOT the optimizer's "
+            "mathematical identity: changes the probes do not exercise are "
+            "invisible, cores predating PlacementCore.rescue_choose cannot "
+            "be probed, and a changed hash reports difference, not "
+            "distance. Unchanged means unchanged WITHIN PROBE COVERAGE."
         ),
         "probe": {
             "attempt_budget": PROBE_ATTEMPT_BUDGET,
