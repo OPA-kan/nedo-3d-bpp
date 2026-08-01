@@ -10,7 +10,7 @@
     "rule": "When a new measurement REPLACES an entry, set status=superseded plus superseded_by on the old entry and add the new one. When a new measurement REPRODUCES an entry instead of replacing it, add a new entry carrying replicates=<id> and leave both active -- marking a confirmed result superseded reads as 'the original was wrong', and status=superseded is hidden from the default view, which would bury the confirmation. Never silently edit values: an entry may be corrected freely before it is first committed, and after that only by adding another entry. Entry order carries no meaning to any consumer, but it is the CLI display order, so append rather than interleave. Merging two ledgers is additive: take the union by id. Identical ids with different content are NOT a supersession case (supersession needs two distinct ids) -- resolve by keeping the side whose status is further along, or by renaming one id if the claims genuinely differ.",
     "reference_fields": {
       "superseded_by": "id of the entry that replaced this one; required when status=superseded",
-      "replicates": "id of the entry this one independently reproduces; both entries stay active, because a replication is current knowledge, not a correction"
+      "replicates": "id of the entry this one independently reproduces; a replication is recorded as its own active entry rather than as a supersession of its target. It is an ordinary entry afterwards -- a later measurement may supersede it, but it must never be superseded BY its own target"
     }
   },
   "entries": [
@@ -433,10 +433,19 @@
       "id": "task-a-bounded128-replicated",
       "topic": "search",
       "date": "2026-08-02",
-      "status": "active",
+      "status": "superseded",
       "replicates": "task-a-bounded128-adopted",
       "claim": "The Task A adoption reproduced after the default flip, measuring the submission path rather than an environment override. Actions run 30719944050 re-ran the same matrix with a `default` arm that sets no OFFLINE_* variable at all, in place of the forced bounded128 arm: placed 25/25/25, fill mean/min/max all 34.949049; base unchanged at 20/20/20 with its entire fill distribution reproducing run 30717998654 exactly (mean 29.297655, min 27.540719, max 30.176123). Only search-effort counters moved -- evaluated orders 51.3 -> 49.3 adopted and 3.0 -> 3.3 base, optimization 147.3 -> 146.7 s -- and none of them moved an outcome. One base repeat reached 4 evaluated orders and still placed 20, which is additional evidence that the legacy arm is starved rather than unlucky. The adopted result now rests on three independent executions with bit-identical fill: forced arm on CI, shipped default on a local 4-vCPU box, shipped default on CI. Consequence for experiment design on this case: run-to-run variance is not a confounder, unlike the visible-pool screening where the base arm itself moved 16.2 -> 14.6 between runs. This replicates the adoption; it does not extend it to a second case, a different attempt budget, or the terminal-failure channel.",
-      "source": "reports/task-a-rollout/history/30719944050/summary.json; Actions run 30719944050; reports/task-a-rollout/history/30717998654/analysis.md"
+      "source": "reports/task-a-rollout/history/30719944050/summary.json; Actions run 30719944050; reports/task-a-rollout/history/30717998654/analysis.md",
+      "superseded_by": "task-a-episode-outcome-is-machine-speed-dependent"
+    },
+    {
+      "id": "task-a-episode-outcome-is-machine-speed-dependent",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "Task A determinism holds for the OFFLINE ORDER ONLY; the episode outcome is machine-speed dependent, so the earlier 'run-to-run variance is not a confounder' inference is withdrawn. Actions run 30721071243 re-ran the adopted arm a third time and returned placed 25.333 [25, 26] with fill mean 35.614555 -- the same arm and code that produced a constant 25 / 34.949049 in runs 30717998654 and 30719944050. Local sweeps on case 000 pin the mechanism: at OFFLINE_MAX_EVALUATIONS of 50, 55, 60 and unlimited the search selects an IDENTICAL 41-element order every time, yet physical placed is 26 when a seed dry run costs 1.26-1.35 s and 25 when it costs 1.93 s on a slower box. policy_seconds saturates at 6.515-6.522 in every run, so the online policy is anytime: a faster machine buys more candidates per step and can place one more item from the same order. Consequences: (1) the offline order search is genuinely deterministic and machine-independent, and that part of the adoption stands; (2) the adopted arm's physical result is a range, 25-26 placed and 34.949-36.946 fill, not a constant; (3) an evaluation-count cap has NO demonstrated effect -- 26 occurs with no cap at all, so the earlier 'capping at 50 gains one placement' read was a confound between cap and box speed. The base arm remained 20/20/20 with fill mean 29.297655 in all three CI runs, so the adoption's direction is unaffected; only its precision is.",
+      "source": "reports/task-a-rollout/history/30721071243/summary.json; Actions runs 30721071243, 30719944050, 30717998654; local OFFLINE_MAX_EVALUATIONS sweep 50/55/60/none on case 000; docs/MEASUREMENT_AUDIT.md F6"
     }
   ]
 }

@@ -194,6 +194,43 @@ explained or the change rejected」。しかし baseline は**1config 1試行の
 この節の教訓は F3/F5 と同じもので、**Task B 固有の問題ではなかった**という点
 が重要である。同一マシンA/Bの規律は Task A のエピソード測定にも要る。
 
+### F7. 共通コアの下で、オフライン計測は黙って陳腐化する
+
+`agent/agent.py` を触ったコミットは33件あるが、`Agent.optimize` 本体を変えた
+のは `7b2b485`(初期) と `58c4408` の2件だけである。**それでもオフライン
+オプティマイザの挙動は12回前後変わっている。**
+
+ADR-001 §2 が「オンライン `policy()` とオフラインドライランは、同じ候補生成、
+幾何制約、支持判定、ランキング処理を呼び出す」と定めており、
+`DryRunEvaluator.evaluate()` は実際に `PlacementCore.choose` /
+`rescue_choose` を呼ぶ。したがって**共通コアを変えた全コミットが、オフライン
+探索の意味を変えている**:
+
+`149559b` release候補 / `68395b3` anytime化 / `0d2e59b` shallow release probe /
+`b32e2f8` settled優先 / `5c70943` support-plane anchor / `28e6150` support-plane
+release / `227cad2` AABBキャッシュ6.4倍 / `8669efc`・`00ddc64` 回転リスク
+rerank / `70a72a4`・`2cb450c` 滑りモデル。
+
+この設計は正しい(オンラインとオフラインの乖離を防ぐのが ADR-001 の狙い)。
+問題は**記録側がそれを追跡していない**ことにある。
+
+- 台帳の `status` は「新しい測定が置き換えた」しか表現できない。**土台が動いた
+  ことによる陳腐化を検出する手段が無い。** ある主張は、誰も再測定していなくても、
+  下のコアが変わった瞬間に古くなりうる。
+- 具体例: 本監査の元になった `task-a-offline-budget-starved-by-unbounded-scan`
+  は「1ドライラン約35秒」を根拠にするが、これは**現在のコアでの値**である。
+  AABBキャッシュ前のコアでは候補スループットが1/6.4なので、同じ主張は別の
+  数字になる。ADR-001 Remaining Work 5 を「否定で閉じた」と書いたが、正しくは
+  **現在のコアについて閉じた**である。
+- 同じ理由で、キャッシュ前の Task A 数値と現在の数値は直接比較できない。
+
+`slide-lambda-05-adopted` が記録した教訓「search, selection, and risk components
+cannot be evaluated independently」は、**オフライン計測にも適用される**。あの
+教訓はオンラインの採用判定について書かれているが、共通コア設計のため範囲は
+より広い。
+
+対策は F2 の提案に `core_ref` を含めること(下記)。
+
 ## 提案
 
 ### 1. 台帳に計測メタを加法的に足す
@@ -207,9 +244,15 @@ explained or the change rejected」。しかし baseline は**1config 1試行の
   "repeats": 1,
   "unit": "episode",
   "machine": "github-ubuntu-24.04-4vcpu",
+  "core_ref": "227cad2",
   "reproduced": false
 }
 ```
+
+`core_ref` は F7 への対策で、その測定が**どの共通配置コアの上で**取られたかを
+指す(`agent/agent.py` を最後に変えたコミット)。これが無いと、下が動いた
+だけで古くなった主張を機械的に洗い出せない。`status` は人が置き換えを宣言
+したときしか動かないが、`core_ref` は自動で照合できる。
 
 ### 2. `baseline.json` を作り直す
 
