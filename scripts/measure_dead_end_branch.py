@@ -177,6 +177,56 @@ def board_features(
     }
 
 
+def continue_with_oracle_best(
+    agent_module, env, raw_observation, step, horizon
+) -> dict[str, Any]:
+    """
+    Play on from here with the oracle's best safe candidate each step.
+
+    The one-step label is not enough to find the last recoverable action. At
+    c001-k1 step 18 the next item is placeable under every choice, yet the
+    wall still arrives at step 20 -- a one-step lookahead cannot see it. This
+    plays forward under ideal search and ideal picks, so the only thing that
+    can stop it is the wall itself.
+    """
+    placed = 0
+    reached = step
+    outcome = "horizon_reached"
+    while reached < step + horizon:
+        observation = policy_observation(env, raw_observation)
+        records = oracle_candidates(agent_module, observation)
+        validated, _checked = probe_records(env, records, 1)
+        safe = [
+            record
+            for record in validated
+            if record["physical"]["is_physically_valid"]
+        ]
+        if not safe:
+            outcome = "true_dead_end"
+            break
+        raw_observation, _r, terminated, truncated, info = env.step(
+            rescue_action(safe[0])
+        )
+        status = (info or {}).get("status", {})
+        if all(
+            bool(status.get(flag))
+            for flag in ("is_included", "is_valid", "is_placed_safe")
+        ):
+            placed += 1
+        else:
+            outcome = "oracle_execution_disagreement"
+            break
+        reached += 1
+        if terminated or truncated:
+            outcome = "episode_ended"
+            break
+    return {
+        "continued_placed": placed,
+        "reached_step": reached,
+        "continuation_outcome": outcome,
+    }
+
+
 def replay_to_step(agent_module, task_config, target_step):
     if str(SIMULATOR) not in sys.path:
         sys.path.insert(0, str(SIMULATOR))
@@ -225,6 +275,110 @@ def replay_to_step(agent_module, task_config, target_step):
     return env, solver, policy_observation(env, raw_observation), rescues
 
 
+def run_horizon(
+    agent_module,
+    task_config,
+    *,
+    case_id,
+    branch_step,
+    top_k,
+    horizon,
+    started,
+) -> dict[str, Any]:
+    """
+    Backward search for the last recoverable action.
+
+    Each candidate needs its own replay, because an executed step cannot be
+    undone, so this is expensive by construction: K replays to the branch
+    point plus K continuations. Reported so the cost of going one step further
+    back is visible rather than discovered.
+    """
+    branches = []
+    safe_count = None
+    for rank in range(top_k):
+        env, _solver, observation, _rescues = replay_to_step(
+            agent_module, task_config, branch_step
+        )
+        try:
+            item = observation["pool_list"][0]
+            records = oracle_candidates(agent_module, observation)
+            validated, _checked = probe_records(env, records, rank + 1)
+            safe = [
+                r
+                for r in validated
+                if r["physical"]["is_physically_valid"]
+            ]
+            if len(safe) <= rank:
+                safe_count = len(safe)
+                break
+            candidate = safe[rank]
+            raw_observation, _r, terminated, truncated, info = env.step(
+                rescue_action(candidate)
+            )
+            status = (info or {}).get("status", {})
+            executed = all(
+                bool(status.get(flag))
+                for flag in ("is_included", "is_valid", "is_placed_safe")
+            )
+            entry = {
+                "rank_by_score": rank,
+                "score": float(candidate["score"]),
+                "kind": candidate.get("kind"),
+                "orientation": int(candidate["orientation"]),
+                "executed_ok": executed,
+            }
+            if executed and not (terminated or truncated):
+                entry.update(
+                    continue_with_oracle_best(
+                        agent_module,
+                        env,
+                        raw_observation,
+                        branch_step + 1,
+                        horizon,
+                    )
+                )
+            else:
+                entry.update(
+                    {
+                        "continued_placed": 0,
+                        "reached_step": branch_step + 1,
+                        "continuation_outcome": (
+                            "executed_ok"
+                            if executed
+                            else "execution_failed"
+                        ),
+                    }
+                )
+            entry["total_placed_from_branch"] = (
+                int(executed) + int(entry["continued_placed"])
+            )
+            branches.append(entry)
+            print(
+                f"  rank {rank}: reached step {entry['reached_step']} "
+                f"(+{entry['total_placed_from_branch']} placed) "
+                f"{entry['continuation_outcome']}",
+                flush=True,
+            )
+        finally:
+            try:
+                env.close()
+            except Exception:
+                pass
+    reach = {b["total_placed_from_branch"] for b in branches}
+    return {
+        "case_id": case_id,
+        "branch_step": branch_step,
+        "mode": "horizon",
+        "horizon": horizon,
+        "physically_safe_expanded": len(branches),
+        "physically_safe_total": safe_count,
+        "distinct_outcomes": len(reach),
+        "choice_matters": len(reach) > 1,
+        "seconds": round(time.perf_counter() - started, 1),
+        "branches": branches,
+    }
+
+
 def run(
     agent_module,
     task_config: dict[str, Any],
@@ -232,6 +386,7 @@ def run(
     case_id: str,
     branch_step: int,
     top_k: int,
+    horizon: int = 0,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     item_list = task_config["item_stream"]["item_list"]
@@ -239,6 +394,16 @@ def run(
         raise SystemExit("branch step has no successor item in the stream")
     next_item = item_list[branch_step + 1]
 
+    if horizon > 0:
+        return run_horizon(
+            agent_module,
+            task_config,
+            case_id=case_id,
+            branch_step=branch_step,
+            top_k=top_k,
+            horizon=horizon,
+            started=started,
+        )
     env, _solver, observation, replay_rescues = replay_to_step(
         agent_module, task_config, branch_step
     )
@@ -362,6 +527,17 @@ def main() -> int:
     parser.add_argument("--case", required=True)
     parser.add_argument("--branch-step", type=int, required=True)
     parser.add_argument("--top-k", type=int, default=8)
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=0,
+        help=(
+            "Play on with oracle-best picks for this many steps after "
+            "the branch, instead of scoring the board statically. Use "
+            "this to find the last step where the CHOICE still changes "
+            "the outcome; the static mode assumes you already know it."
+        ),
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -375,13 +551,27 @@ def main() -> int:
         case_id=args.case,
         branch_step=args.branch_step,
         top_k=args.top_k,
+        horizon=args.horizon,
     )
-    result["pairwise"] = pairwise(result["branches"])
+    if result.get("mode") != "horizon":
+        result["pairwise"] = pairwise(result["branches"])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(json_safe(result), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    if result.get("mode") == "horizon":
+        args.output.write_text(
+            json.dumps(json_safe(result), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(
+            f"branch step {result['branch_step']}: "
+            f"choice_matters={result['choice_matters']} "
+            f"distinct={result['distinct_outcomes']}"
+        )
+        print(args.output)
+        return 0
     report = result["pairwise"]
     print(
         f"survivors={report['survivors']} killers={report['killers']} "
