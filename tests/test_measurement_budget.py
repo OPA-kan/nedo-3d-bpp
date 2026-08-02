@@ -63,6 +63,55 @@ class BudgetLedgerTests(unittest.TestCase):
         self.assertEqual(budget.load()["lines"]["alpha"]["episodes"], 9)
 
 
+class RetractionTests(unittest.TestCase):
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        patcher = mock.patch.object(
+            budget, "LEDGER", pathlib.Path(self._dir.name) / "budget.json"
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def register(self, line="alpha", episodes=20):
+        budget.record(line, episodes, quiet=True)
+        data = budget.load()
+        data["lines"][line]["shipping_candidates"].append(
+            {"change": "selection mode default", "evidence": "block 1"}
+        )
+        budget.save(data)
+
+    def retract(self, line="alpha"):
+        data = budget.load()
+        entry = data["lines"][line]
+        candidate = entry["shipping_candidates"].pop(-1)
+        candidate["retraction_reason"] = "did not replicate"
+        entry.setdefault("retracted_candidates", []).append(candidate)
+        budget.save(data)
+
+    def test_retracting_the_only_candidate_restores_the_warning(self):
+        """
+        A candidate whose measurement did not survive replication is not a
+        change the line produced. Leaving it counted would silence the
+        budget for good on work that shipped nothing.
+        """
+        self.register()
+        self.assertFalse(budget.line_status(budget.load(), "alpha")["over_budget"])
+
+        self.retract()
+
+        self.assertTrue(budget.line_status(budget.load(), "alpha")["over_budget"])
+
+    def test_a_retracted_candidate_stays_on_the_record(self):
+        self.register()
+
+        self.retract()
+
+        retracted = budget.load()["lines"]["alpha"]["retracted_candidates"]
+        self.assertEqual(len(retracted), 1)
+        self.assertIn("did not replicate", retracted[0]["retraction_reason"])
+
+
 class RunnerHookTests(unittest.TestCase):
     def setUp(self):
         self._dir = tempfile.TemporaryDirectory()

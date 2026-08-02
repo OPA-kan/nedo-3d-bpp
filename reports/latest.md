@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-02T07:41:29+00:00`
-- Git SHA: `48807b034be2381330f19e8c37f6931585eba0ab`
+- Timestamp: `2026-08-02T08:54:33+00:00`
+- Git SHA: `8ae002f3744c121ec953c9f17630a4e9e1df55b4`
 - Python: `3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]`
 - Platform: `Linux-6.18.5-x86_64-with-glibc2.39`
 - Processor: `x86_64`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `5.869 s`
+- Runtime: `5.809 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -48,7 +48,7 @@ test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.Task
 test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
 
 ----------------------------------------------------------------------
-Ran 374 tests in 5.545s
+Ran 405 tests in 5.471s
 
 OK
 ```

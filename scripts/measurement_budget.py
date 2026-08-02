@@ -93,6 +93,10 @@ def line_status(data: dict[str, Any], name: str) -> dict[str, Any]:
         return {"line": name, "known": False}
     threshold = int(data.get("threshold_episodes", DEFAULT_THRESHOLD))
     episodes = int(entry.get("episodes", 0))
+    # Retracted candidates stay on the record but stop clearing the
+    # warning. A candidate whose measurement did not survive replication
+    # is not a change this line produced, and leaving it counted would
+    # silence the budget for good on work that shipped nothing.
     candidates = entry.get("shipping_candidates", [])
     return {
         "line": name,
@@ -177,6 +181,20 @@ def main() -> int:
         "--evidence", required=True, help="the paired measurement behind it"
     )
 
+    p_retract = sub.add_parser(
+        "retract",
+        help="a registered candidate did not survive; move it to the record",
+    )
+    p_retract.add_argument("--line", required=True)
+    p_retract.add_argument(
+        "--index", type=int, default=-1,
+        help="which shipping candidate to retract (default: the last)",
+    )
+    p_retract.add_argument(
+        "--reason", required=True,
+        help="what the follow-up measurement showed",
+    )
+
     p_check = sub.add_parser("check", help="report every line")
     p_check.add_argument(
         "--fail-on-warning", action="store_true",
@@ -227,6 +245,21 @@ def main() -> int:
         )
         save(data)
         print(f"registered candidate on '{args.line}'")
+        return 0
+
+    if args.command == "retract":
+        entry = data["lines"].get(args.line)
+        if entry is None or not entry.get("shipping_candidates"):
+            raise SystemExit(f"no candidate to retract on '{args.line}'")
+        candidate = entry["shipping_candidates"].pop(args.index)
+        candidate["retracted"] = dt.date.today().isoformat()
+        candidate["retraction_reason"] = args.reason
+        entry.setdefault("retracted_candidates", []).append(candidate)
+        save(data)
+        status = line_status(data, args.line)
+        print(f"retracted on '{args.line}': {candidate['change']}")
+        if status["over_budget"]:
+            warn(status, stream=sys.stdout)
         return 0
 
     over = []

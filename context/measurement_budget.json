@@ -23,17 +23,20 @@
     },
     "board-receptivity": {
       "opened": "2026-08-02",
-      "episodes": 27,
-      "shipping_candidates": [
+      "episodes": 36,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02",
+      "note": "Tetris terms A/R/H as a top-K selection rule; opened 2026-08-02 after the official score log",
+      "retracted_candidates": [
         {
           "date": "2026-08-02",
           "change": "LOOKAHEAD_SELECTION_MODE default weighted -> board (agent/agent.py), keeping LOOKAHEAD_TOP_K at the shipped 3",
           "evidence": "Paired against a simultaneously-run base arm on the five development configs: +6/+3/+4/-5/+4 placed, 4W/1L, suite total 84 -> 96. Sign test p=0.375 at n=5, so promising and not established; a second paired block is running. The b001-k20 loss is real and unexplained.",
-          "episodes_at_registration": 27
+          "episodes_at_registration": 27,
+          "retracted": "2026-08-02",
+          "retraction_reason": "Did not replicate. A second paired block (base r1 / board_k3 r2, same five configs) gives +4 where block 1 gave +12, and b000-k15's +6 reverses to -1 because the board arm itself swings 23 -> 16 on that config. Pooled 10 pairs: 6W/3L/1T, sign test p=0.508. Per config the effect IS reproducible and mixed: +4/+5 on b000-k40 and +4/+4 on b001-k30, against -5/-4 on b001-k20. Net about +4 on a base of 85, inside the suite noise band."
         }
-      ],
-      "last_recorded": "2026-08-02",
-      "note": "Tetris terms A/R/H as a top-K selection rule; opened 2026-08-02 after the official score log"
+      ]
     }
   }
 }
