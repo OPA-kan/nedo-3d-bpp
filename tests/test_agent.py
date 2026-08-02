@@ -2490,6 +2490,62 @@ class LiveInterleaveTests(unittest.TestCase):
         self.assertEqual(agent.LIVE_SEARCH_INTERLEAVE, 1)
 
 
+class FixedWorkModeTests(unittest.TestCase):
+    """
+    The online search is bounded by the wall clock, which makes the policy a
+    function of machine load as well as of the state. Fixed-work mode is a
+    measurement control, not a shipping change: it must be off by default and
+    must not alter the shipped call shape when off.
+    """
+
+    def test_shipped_default_is_wall_clock(self):
+        self.assertEqual(agent.ONLINE_FIXED_WORK_ATTEMPTS, 0)
+
+    def test_the_guard_deadline_cannot_fire_within_an_episode(self):
+        """
+        Fixed work keeps every deadline arithmetic site intact and simply
+        pushes the clock out of reach, so the attempt budget is the only
+        stopping rule.
+        """
+        self.assertGreater(
+            agent.FIXED_WORK_DEADLINE_GUARD_SECONDS,
+            agent.POLICY_BUDGET_SECONDS * 1000,
+        )
+
+    def test_choose_stops_on_the_attempt_budget(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        items = [sample_item(i) for i in range(3)]
+        observation = {"pool_list": items, "container_list": [container]}
+        diagnostics = {}
+
+        agent.PlacementCore.choose(
+            observation,
+            list(enumerate(items)),
+            diagnostics=diagnostics,
+            attempt_budget=32,
+        )
+
+        self.assertLessEqual(
+            diagnostics["search"].get("attempts_consumed", 0), 32
+        )
+
+    def test_an_unset_budget_leaves_the_search_unbounded_by_work(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        items = [sample_item(0)]
+        observation = {"pool_list": items, "container_list": [container]}
+        diagnostics = {}
+
+        agent.PlacementCore.choose(
+            observation, list(enumerate(items)), diagnostics=diagnostics
+        )
+
+        self.assertNotIn("attempts_consumed", diagnostics["search"])
+
+
 class RolloutStrideThreadingTests(unittest.TestCase):
     """The stride has to survive both layers above the generator."""
 
