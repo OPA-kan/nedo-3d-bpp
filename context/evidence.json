@@ -463,6 +463,15 @@
       "claim": "Any dynamic future-class weighting of the form sum_c p(c | h_t) V_c is blocked by data rather than by theory in this repository: simulator/configs/sample_config.json contains exactly two item streams (case 000: 41 items over 10 distinct classes; case 001: 42 items over 9). p(c | h_t) cannot be estimated from two sequences without an exchangeability assumption, and anything learned would be fitting two samples. Task B/C configurations are derived from these same two streams by varying look-ahead, so they do not add independent arrival information.",
       "values": "2 source streams; case 000 41 items / 10 classes, case 001 42 items / 9 classes",
       "source": "simulator/configs/sample_config.json; scripts/build_task_b_config.py"
+    },
+    {
+      "id": "stage-b-kappa-differential-does-not-predict-survival",
+      "topic": "ranker",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "The within-state per-action kappa differential does NOT predict which sibling survives its settle. On 42 development states with 4 Q-band siblings each (252 pairs, final_holdout skipped), sign agreement between delta kappa and the official is_placed_safe is exactly 0.500 under every weighting: raw 3/6, and 6/12 for each of sum, max and product. This was the test the option-value line was pointing at, run against real validator labels rather than a proxy, and it is null. Combined with stage-a-calibrated-negative (capacity does not explain placed-to-go because episodes end by topple) and risk-weighted-kappa-state-value-negative (weighting by modelled survival made the state descriptor worse), the conclusion is that OPTION SPACE AND PHYSICAL SURVIVAL ARE SEPARATE AXES: no rearrangement of an option count -- absolute, risk-weighted, or per-action differential -- has reached the survival axis. The rollout_placed and rollout_volume agreement of 1.000 (5/5 raw, 7/7 weighted) is NOT validation: both the rollout and kappa are computed from the same realised successor and both count what still fits, so it is an internal consistency check between two capacity measures, not a test against an outcome. Structural byproduct worth its own weight: 240 of 252 sibling pairs (95.2%) had IDENTICAL physical survival and 245 (97.2%) identical rollout placed and volume, with sibling outcomes 154 survivals to 14 failures -- inside a 0.15 Q-band the short-horizon outcome is almost always the same whichever sibling is chosen, which bounds what any within-band reranking can achieve at this horizon regardless of the ranking quantity. Scope: 6 to 12 decided pairs, so this rules out a large effect and not a small one; siblings come from a stratified sample rather than the full population.",
+      "values": "sign agreement vs is_placed_safe: raw 3/6 = 0.500, sum 6/12 = 0.500, max 6/12 = 0.500, product 6/12 = 0.500; 240/252 pairs (95.2%) outcome-tied",
+      "source": "reports/replay-analysis/kappa-siblings-stage-b/report.json and summary.md; scripts/measure_kappa_siblings.py"
     }
   ]
 }
