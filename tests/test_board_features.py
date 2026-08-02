@@ -247,6 +247,47 @@ class AcceptanceTests(unittest.TestCase):
         self.assertLessEqual(features.alternativity, 3 * A.BOARD_SITE_CAP)
 
 
+class ReleaseCandidateTests(unittest.TestCase):
+    """
+    Release candidates are commanded above their resting height and fall.
+    Reading the board at the commanded height evaluates a state that never
+    exists, and it is the only candidate kind left once the settled heap
+    empties -- exactly the situation at the end of an episode.
+    """
+
+    def setUp(self):
+        self.target = container(length=1.0, width=1.0, height=1.0)
+        self.shapes = [(0.2, 0.2, 0.2)]
+
+    def test_a_release_candidate_is_read_where_it_will_rest(self):
+        commanded = A.AABB(
+            center=(0.0, 0.0, 0.6), size=(0.2, 0.2, 0.2),
+            name="release_candidate",
+        )
+        rested = A.AABB(
+            center=(0.0, 0.0, 0.1), size=(0.2, 0.2, 0.2),
+            name="packed_item",
+        )
+
+        floating = A.board_features_after(self.target, commanded, self.shapes)
+        landed = A.board_features_after(self.target, rested, self.shapes)
+
+        self.assertAlmostEqual(
+            floating.sealed_volume, landed.sealed_volume, places=9
+        )
+        self.assertEqual(floating.rank_key(), landed.rank_key())
+
+    def test_a_settled_candidate_is_read_where_it_was_placed(self):
+        """The proxy must not move a candidate that is not a release."""
+        bridging = A.AABB(
+            center=(0.0, 0.0, 0.6), size=(0.2, 0.2, 0.2), name="candidate"
+        )
+
+        features = A.board_features_after(self.target, bridging, self.shapes)
+
+        self.assertGreater(features.sealed_volume, 0.0)
+
+
 class RankKeyTests(unittest.TestCase):
     def test_breadth_outranks_tidiness(self):
         broad = A.BoardFeatures(3, 4, 2, 0.5, 9.0)
