@@ -64,6 +64,10 @@ def configure_arm_environment(
         "LIVE_SEARCH_INTERLEAVE",
         "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
+        "LOOKAHEAD_SELECTION_MODE",
+        "LOOKAHEAD_TOP_K",
+        "BOARD_CELL_SIZE",
+        "BOARD_PROBE_SHAPES",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
         "RELEASE_RISK_RERANK_LAMBDA",
@@ -85,6 +89,10 @@ def configure_arm_environment(
         "live_interleave8",
         "item_cap16",
         "item_cap20",
+        "board_k3",
+        "board_k8",
+        "board_k16",
+        "topk8",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -116,6 +124,17 @@ def configure_arm_environment(
             env["MAX_POOL_ITEMS_EVALUATED"] = "16"
         elif arm == "item_cap20":
             env["MAX_POOL_ITEMS_EVALUATED"] = "20"
+        elif arm.startswith("board_k"):
+            # The ranker proposes, the board disposes: keep the same top-K
+            # search and reorder it by acceptance breadth, alternativity and
+            # sealed void instead of by the discounted lookahead sum.
+            env["LOOKAHEAD_SELECTION_MODE"] = "board"
+            env["LOOKAHEAD_TOP_K"] = arm.removeprefix("board_k")
+        elif arm == "topk8":
+            # Control for board_k8. Widening the top-K alone also changes
+            # the decision, so a board_k8 win over base confounds the board
+            # features with the wider candidate set.
+            env["LOOKAHEAD_TOP_K"] = "8"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
