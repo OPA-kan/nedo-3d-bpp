@@ -406,6 +406,76 @@ already in `Q_live`; rollout risk contains future transitions only. The proxy
 rollout is not the current Q_live policy, so no textbook policy-improvement
 guarantee applies.
 
+
+## Latest experiment: Task A bounded offline rollout (ADOPTED)
+
+The one adoption on this list — everything above it was rejected or kept as
+telemetry. Branch `experiment/task-a-rollout-transfer`, contract
+`docs/adr/ADR-002-bounded-offline-dry-run.md`, design and full run history
+`docs/TASK_A_ROLLOUT_TRANSFER.md`.
+
+The transfer that worked was **not** porting Task B's online three-step
+rollout into Task A. Task A already evaluates complete orders with
+`DryRunEvaluator` under the same lexicographic objective, so it does not need
+another score. What it needed was for that search to actually run.
+
+It was barely running. ADR-001 §5 assumed a slow placement core would just
+reduce the evaluation count, but time control was a global deadline with no
+per-item bound, so an unplaceable item's scan made one dry run cost ~35 s. At
+the official 150 s budget the shipped agent evaluated **3.0 of its allowed
+1000 complete orders** — the seed plus two neighbours, neither of which
+improved placed count or first-failure index.
+
+Bounding each item at 128 deterministic anchor attempts and capping pair-macro
+construction at 0.5 s, adoption run `30717998654` (bundled case 000, official
+budgets, 3 repeats per arm):
+
+| arm | placed | fill | evaluated orders | optimization s |
+|---|---:|---:|---:|---:|
+| base (legacy) | 20 / 20 / 20 | 29.298 | 3.0 | 112.1 |
+| adopted | 25 / 25 / 25 | 34.949 | 51.3 | 147.3 |
+
+CoM height 0.753 → 0.735 m, near-misses 0 in both arms, policy time held at
+about 6.51 s. The adopted arm's fill is min = max over three repeats, so the
+order and the physics reproduced exactly; base's fill varied 27.541–30.176 on
+a constant placed count. Compact result and per-repeat analysis:
+`reports/task-a-rollout/history/30717998654/{summary,analysis}.md`.
+
+Confirmed post-flip by run `30719944050`, which re-ran the matrix with the
+`default` arm (no `OFFLINE_*` variable set, i.e. the submission path) instead
+of `bounded128`. Every outcome column matched, including the base arm's full
+fill distribution; only search-effort counters moved. Three independent
+executions now agree bit-for-bit on fill, so treat run-to-run variance as a
+non-issue here — unlike the visible-pool screening, where the base arm itself
+moved 16.2 → 14.6 between runs.
+
+Two things this did **not** establish, both easy to overstate:
+
+- The offline proxy is a **relative order selector**, not a score. It
+  predicted 23 where physical execution reached 25, and its error changes
+  sign between arms. Do not report or target proxy values.
+- The **fallback problem is untouched.** Both arms end with `is_valid` and
+  `is_placed_safe` false, so neither is a passing episode. The adopted arm
+  just reaches placement 25 before it dies instead of 20.
+
+Also unmeasured: any second case (source 001 was a synthetic conversion and
+was dropped from the adoption matrix), budgets at 256+, and an
+item-count-adaptive budget. Only 2.7 s of the internal budget is left over,
+so re-measure this table after any placement-core slowdown — the Task B
+benchmark will not catch it.
+
+Because the shipped default is now the treatment, the `base` arm in
+`scripts/run_task_a_rollout.py` pins the legacy values explicitly rather than
+unsetting the variables. An arm that merely unsets them would measure the
+treatment and report a null result. The runner's new `default` arm unsets
+everything and therefore measures exactly what a submission does.
+
+## Latest experiment: stride / item-cap line (parallel branch)
+
+Merged from `claude/stride-endgame-saturation-test-gqssix`. This line
+ran concurrently with the Task A work above and neither knew about the
+other; the sections are kept side by side per the ledger merge rules.
+
 **That 1.2% late figure has now been diagnosed and it is mostly an
 instrument fault.** `docs/ROLLOUT_SATURATION.md` and
 `reports/rollout-saturation/local-20260801`: on the 48 committed replay
@@ -530,6 +600,7 @@ Because the shipped default is now the treatment, the `base` arm in
 unsetting the variables. An arm that merely unsets them would measure the
 treatment and report a null result. The runner's new `default` arm unsets
 everything and therefore measures exactly what a submission does.
+
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),

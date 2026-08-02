@@ -236,6 +236,18 @@ def case_summary(
             # Undisclosed protocol, so a monotone comparator between arms and
             # never the official number.
             "shake_response": score.get("shake_response") or {},
+            # Raw centre of gravity. cog_score has no published procedure,
+            # so com_contract ships with the numbers; see diagnostics.py.
+            "center_of_gravity": {
+                key: final_step.get(key)
+                for key in (
+                    "com_z",
+                    "com_z_above_floor",
+                    "com_height_ratio",
+                    "com_contract",
+                )
+                if key in final_step
+            },
             # Stability proxies (per the diagnostics decomposition: no
             # pseudo-total score, each proxy kept separate).
             "max_settle_angle_deg": max(angles) if angles else None,

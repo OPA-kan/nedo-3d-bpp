@@ -7,6 +7,7 @@ from .containers import Container
 from .items import Item
 from .diagnostics import (
     calculate_attribute_placement,
+    calculate_center_of_gravity,
     calculate_settled_metrics,
     shake_response_metrics,
 )
@@ -141,6 +142,9 @@ class Evaluator:
         # as violation counts rather than a score -- see
         # calculate_attribute_placement for what that does and does not buy.
         metrics.update(calculate_attribute_placement(snapshots))
+        # cog_score has no published procedure, only a direction, so the
+        # raw centre travels with its handling contract in com_contract.
+        metrics.update(calculate_center_of_gravity(snapshots))
         return metrics
 
 

@@ -32,6 +32,10 @@ python3 scripts/context.py evidence --all             # superseded/historical込
   エントリを足し、**両方 active のままにする**。確認済みの結果を
   superseded にすると「元が誤りだった」と読めるうえ、superseded は既定
   ビューから隠れるので、確認そのものが埋もれる。
+  これは**記録の仕方**の規則であって、追試が不滅という意味ではない。
+  追試もその後は普通のエントリで、さらに新しい測定に置き換えられうる
+  (実例: `task-a-bounded128-replicated`)。禁じられているのは
+  **自分が再現した相手に superseded されること**だけである。
 - **値の書き換えは禁止**(履歴が消える)。初回コミット前の修正は自由だが、
   コミット後は新エントリを足す以外の手段を取らない。
 - 並び順はどの利用側にも意味を持たないが、CLIの表示順そのものである。
@@ -46,6 +50,37 @@ python3 scripts/context.py evidence --all             # superseded/historical込
 `replicates` の参照先が実在すること、replication が active であること。
 **値が書き換えられていないことは検出できない**(比較基準が無い)。この規則は
 レビューで守るものであって、テストが守ってくれるものではない。
+
+## 1.5 問いからの逆引き(実験を設計する前に)
+
+```bash
+python3 scripts/coverage_report.py                      # 軸ごとの被覆と警報
+python3 scripts/coverage_report.py --question <id>      # 1つの問いを逆引き
+```
+
+順方向(既存ログ → 測れる量 → 次の仮説)で考えない。candidate単位のデータ
+しか無ければ、世界全体がcandidate問題に見える。**逆向きに引く**:
+
+    仮説 → 変動させる軸 → 必要な観測単位 → 既存計器で測れるか
+
+- `context/axes.json`: 軸の定義、**振れるノブ**、blind spots。
+  **ノブの集合が仮説の集合を定義する。** ノブ0の軸は「重要でない」のではなく
+  「実験不能」であり、永遠に空のままになる。環境変数で上書きできない定数は
+  ノブではない。blind_spots に理由を書く。
+- `context/measurements.json`: 各計器の `conditioned_on` と
+  **`cannot_answer`**。後者が本体である。ファイル名は常に実態より広い問いに
+  答えているように読める(`measure_anchor_recall` は「配置のoracle」ではなく
+  「**capが通した10個の荷物の**配置のoracle」)。
+- `context/questions.json`: open questionと `closure_criteria`。
+  **状態はclaimに付ける。実装はclaimを閉じない。**
+  「class-awareを実装したから済み」は答えではない。
+
+計器が無い問いには「不足」と答えること。隣接する計器で誤魔化さない。
+`--question` はその形で返す。
+
+反復を設計するときは**その反復が何の分散を標本しているか**を書く。同一config
+を3回回してビット一致なら、それは精密な3標本ではなく
+`n_order = 1, n_runtime = 3` であり、runtime noiseが0なら情報量は実質1である。
 
 ## 2. コードの参照(モジュールを開く前に)
 

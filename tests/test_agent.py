@@ -2493,24 +2493,31 @@ class LiveInterleaveTests(unittest.TestCase):
 class FixedWorkModeTests(unittest.TestCase):
     """
     The online search is bounded by the wall clock, which makes the policy a
-    function of machine load as well as of the state. Fixed-work mode is a
+    function of machine load as well as of the state. The work bound is a
     measurement control, not a shipping change: it must be off by default and
     must not alter the shipped call shape when off.
+
+    Two implementations of this idea were developed in parallel on separate
+    branches. POLICY_ATTEMPT_BUDGET won because it also records the work the
+    SHIPPED deadline path consumes, which is what a budget has to be
+    calibrated from; ONLINE_FIXED_WORK_ATTEMPTS was removed rather than left
+    beside it as a second name for the same control.
     """
 
     def test_shipped_default_is_wall_clock(self):
-        self.assertEqual(agent.ONLINE_FIXED_WORK_ATTEMPTS, 0)
+        self.assertEqual(agent.POLICY_ATTEMPT_BUDGET, 0)
 
-    def test_the_guard_deadline_cannot_fire_within_an_episode(self):
+    def test_an_explicit_budget_beats_the_constant(self):
         """
-        Fixed work keeps every deadline arithmetic site intact and simply
-        pushes the clock out of reach, so the attempt budget is the only
-        stopping rule.
+        The constant bounds the online path without threading; the parameter
+        lets an offline probe ask for a specific amount of work on a captured
+        state. Explicit has to win, or the probe silently measures something
+        else.
         """
-        self.assertGreater(
-            agent.FIXED_WORK_DEADLINE_GUARD_SECONDS,
-            agent.POLICY_BUDGET_SECONDS * 1000,
-        )
+        self.assertEqual(agent.effective_attempt_budget(4096), 4096)
+
+    def test_no_budget_and_no_constant_means_no_bound(self):
+        self.assertIsNone(agent.effective_attempt_budget(None))
 
     def test_choose_stops_on_the_attempt_budget(self):
         container = sample_container(
@@ -2543,7 +2550,16 @@ class FixedWorkModeTests(unittest.TestCase):
             observation, list(enumerate(items)), diagnostics=diagnostics
         )
 
-        self.assertNotIn("attempts_consumed", diagnostics["search"])
+        # Recorded unconditionally by design: the SHIPPED deadline path is
+        # the one whose irreproducibility is the problem, so it has to
+        # report the work it consumed or the budget cannot be calibrated
+        # from it. What "unbounded" means here is that nothing stopped the
+        # scan early, not that nothing was counted.
+        self.assertIn("attempts_consumed", diagnostics["search"])
+        self.assertEqual(
+            diagnostics["search"]["units_started"],
+            diagnostics["search"]["units_completed"],
+        )
 
 
 class RolloutStrideThreadingTests(unittest.TestCase):
