@@ -176,6 +176,157 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
         self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "enforce")
 
+    def test_an_unstrided_arm_does_not_inherit_an_outer_stride(self):
+        """
+        The stride is an experiment control like every other rollout knob:
+        an arm that does not set it must not silently run at whatever the
+        caller's shell had. This is the failure mode that made ablation
+        round 1 measure a stale configuration on both arms.
+        """
+        env = {"VISIBLE_POOL_ROLLOUT_STRIDE": "8"}
+
+        configure_arm_environment(env, "rollout_enforce", 2.0, 0.0)
+
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_STRIDE", env)
+
+    def test_stride4_arms_differ_from_their_base_only_by_the_stride(self):
+        enforce: dict[str, str] = {}
+        enforce_stride4: dict[str, str] = {}
+        configure_arm_environment(enforce, "rollout_enforce", 2.0, 0.0)
+        configure_arm_environment(
+            enforce_stride4, "rollout_enforce_stride4", 2.0, 0.0
+        )
+
+        self.assertEqual(
+            enforce_stride4.pop("VISIBLE_POOL_ROLLOUT_STRIDE"), "4"
+        )
+        self.assertEqual(enforce_stride4, enforce)
+
+    def test_live_interleave_touches_only_the_live_search(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "live_interleave4", 2.0, 0.0)
+
+        self.assertEqual(env["LIVE_SEARCH_INTERLEAVE"], "4")
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_MODE", env)
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_STRIDE", env)
+
+    def test_live_interleave_arms_differ_from_base_only_by_the_order(self):
+        base: dict[str, str] = {}
+        interleaved: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(interleaved, "live_interleave8", 2.0, 0.0)
+
+        self.assertEqual(interleaved.pop("LIVE_SEARCH_INTERLEAVE"), "8")
+        self.assertEqual(interleaved, base)
+
+    def test_an_arm_does_not_inherit_an_outer_live_interleave(self):
+        env = {"LIVE_SEARCH_INTERLEAVE": "16"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("LIVE_SEARCH_INTERLEAVE", env)
+
+    def test_board_arms_differ_from_base_only_by_the_selection_rule_and_k(self):
+        base: dict[str, str] = {}
+        board: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(board, "board_k8", 2.0, 0.0)
+
+        self.assertEqual(board.pop("LOOKAHEAD_SELECTION_MODE"), "board")
+        self.assertEqual(board.pop("LOOKAHEAD_TOP_K"), "8")
+        self.assertEqual(board, base)
+
+    def test_the_topk_control_changes_k_without_the_board_rule(self):
+        """
+        topk8 exists so a board_k8 win is not read as the board features
+        when it is really the wider candidate set.
+        """
+        base: dict[str, str] = {}
+        control: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(control, "topk8", 2.0, 0.0)
+
+        self.assertEqual(control.pop("LOOKAHEAD_TOP_K"), "8")
+        self.assertNotIn("LOOKAHEAD_SELECTION_MODE", control)
+        self.assertEqual(control, base)
+
+    def test_board_k3_holds_k_at_the_shipped_value(self):
+        """The clean contrast against base: the selection rule alone."""
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "board_k3", 2.0, 0.0)
+
+        self.assertEqual(env["LOOKAHEAD_TOP_K"], "3")
+        self.assertEqual(env["LOOKAHEAD_SELECTION_MODE"], "board")
+
+    def test_an_arm_does_not_inherit_an_outer_selection_mode(self):
+        env = {"LOOKAHEAD_SELECTION_MODE": "board", "LOOKAHEAD_TOP_K": "32"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("LOOKAHEAD_SELECTION_MODE", env)
+        self.assertNotIn("LOOKAHEAD_TOP_K", env)
+
+    def test_first_pass_arms_differ_from_base_only_by_the_first_pass_depth(self):
+        base: dict[str, str] = {}
+        deeper: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(deeper, "first_pass256", 2.0, 0.0)
+
+        self.assertEqual(deeper.pop("ANCHOR_FIRST_PASS_ATTEMPTS"), "256")
+        self.assertEqual(deeper, base)
+
+    def test_the_midpoint_arm_exists_because_the_cliff_is_only_bracketed(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "first_pass128", 2.0, 0.0)
+
+        self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "128")
+
+    def test_the_old_default_stays_reachable_as_an_arm(self):
+        """
+        The default moved 64 -> 256. Without this arm the shipped-before
+        behaviour would be unmeasurable, and a regression against it could
+        not be checked.
+        """
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "first_pass64", 2.0, 0.0)
+
+        self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "64")
+
+    def test_an_arm_does_not_inherit_an_outer_first_pass_depth(self):
+        env = {"ANCHOR_FIRST_PASS_ATTEMPTS": "1024"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("ANCHOR_FIRST_PASS_ATTEMPTS", env)
+
+    def test_item_cap_arms_touch_only_the_item_dimension(self):
+        base: dict[str, str] = {}
+        capped: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(capped, "item_cap16", 2.0, 0.0)
+
+        self.assertEqual(capped.pop("MAX_POOL_ITEMS_EVALUATED"), "16")
+        self.assertEqual(capped, base)
+
+    def test_an_arm_does_not_inherit_an_outer_item_cap(self):
+        env = {"MAX_POOL_ITEMS_EVALUATED": "40"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
+
+    def test_rollout_shadow_stride4_stays_telemetry_only(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "rollout_shadow_stride4", 2.0, 0.0)
+
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "shadow")
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_STRIDE"], "4")
+
 
     def test_anchor_fallback_is_the_shipped_baseline_plus_the_flag(self):
         env = {

@@ -5,7 +5,11 @@ import os
 from pybullet_utils.bullet_client import BulletClient
 from .containers import Container
 from .items import Item
-from .diagnostics import calculate_settled_metrics
+from .diagnostics import (
+    calculate_attribute_placement,
+    calculate_settled_metrics,
+    shake_response_metrics,
+)
 
 
 class Evaluator:
@@ -111,6 +115,8 @@ class Evaluator:
                         "pos": [float(value) for value in pos],
                         "aabb_min": [float(value) for value in aabb_min],
                         "aabb_max": [float(value) for value in aabb_max],
+                        "is_soft": bool(item.is_soft),
+                        "is_prioritized": bool(item.is_prioritized),
                     }
                 )
             snapshots.append(
@@ -124,8 +130,110 @@ class Evaluator:
                     "buffer": float(container.buffer),
                     "cut_x": float(container.cut_x),
                     "require_shelf": bool(container.require_shelf),
+                    "is_prioritized": bool(container.is_prioritized),
                     "volume": float(container.volume),
                     "packed_items": packed_items,
                 }
             )
-        return calculate_settled_metrics(snapshots, grid_size=grid_size)
+        metrics = calculate_settled_metrics(snapshots, grid_size=grid_size)
+        # placement_score and soft_item_score are computed only on the
+        # evaluation platform. These are the published rules behind them,
+        # as violation counts rather than a score -- see
+        # calculate_attribute_placement for what that does and does not buy.
+        metrics.update(calculate_attribute_placement(snapshots))
+        return metrics
+
+
+    # --- Local stability proxy: the shake the rules describe ---
+    #
+    # docs/COMPETITION_RULES.md:70 says stability_score comes from closing
+    # the lid and VARYING GRAVITY, scored on displacement from the initial
+    # position, force on each item, and kinetic energy. The magnitudes,
+    # durations and thresholds are undisclosed, so this is a proxy, not the
+    # official number -- see shake_response_metrics for the contract.
+    #
+    # The schedule is fixed and deterministic on purpose: a stability
+    # measurement that varies run to run cannot separate two arms, and this
+    # project has already lost two experiments to wall-clock nondeterminism.
+    #
+    # Known deviation, stated rather than hidden: no lid is added. Building
+    # one would need the container's opening geometry and would change what
+    # the test measures if it were placed wrongly. Without it an item near
+    # the top can leave through the opening; that is counted as lost, and
+    # lost items are charged as both a shift and a topple rather than
+    # dropped from the averages.
+    SHAKE_TILT_FRACTION = 0.3
+    SHAKE_STEPS_PER_PHASE = 60
+    SHAKE_SETTLE_STEPS = 120
+    SHAKE_BASE_GRAVITY = 9.8
+
+    def _live_poses(self, containers: list[Container]) -> list[dict]:
+        poses = []
+        for container in containers:
+            for item in container.packed_items:
+                if item.pybullet_id is None:
+                    continue
+                pos, orn = item.get_pose(self.client)
+                if pos is None:
+                    continue
+                poses.append(
+                    {
+                        "index": int(item.index),
+                        "mass": float(item.mass),
+                        "pybullet_id": item.pybullet_id,
+                        "pos": [float(value) for value in pos],
+                        "orn": [float(value) for value in orn],
+                    }
+                )
+        return poses
+
+    def _kinetic_energy(self, poses: list[dict]) -> float:
+        total = 0.0
+        for entry in poses:
+            linear, angular = self.client.getBaseVelocity(
+                entry["pybullet_id"]
+            )
+            speed_squared = sum(float(v) ** 2 for v in linear)
+            spin_squared = sum(float(v) ** 2 for v in angular)
+            total += 0.5 * entry["mass"] * (speed_squared + spin_squared)
+        return total
+
+    def shake_test(self, containers: list[Container]) -> dict:
+        """Vary gravity over the settled state and report what moved.
+
+        The simulation state is saved and restored, so this leaves the
+        episode exactly as it found it and is safe to call at any point.
+        """
+        before = self._live_poses(containers)
+        if not before:
+            return shake_response_metrics([], [], 0.0)
+
+        g = self.SHAKE_BASE_GRAVITY
+        lateral = self.SHAKE_TILT_FRACTION * g
+        schedule = [
+            (lateral, 0.0, -g),
+            (-lateral, 0.0, -g),
+            (0.0, lateral, -g),
+            (0.0, -lateral, -g),
+        ]
+
+        state_id = self.client.saveState()
+        peak_energy = 0.0
+        try:
+            for gravity in schedule:
+                self.client.setGravity(*gravity)
+                for _ in range(self.SHAKE_STEPS_PER_PHASE):
+                    self.client.stepSimulation()
+                    peak_energy = max(
+                        peak_energy, self._kinetic_energy(before)
+                    )
+            self.client.setGravity(0.0, 0.0, -g)
+            for _ in range(self.SHAKE_SETTLE_STEPS):
+                self.client.stepSimulation()
+            after = self._live_poses(containers)
+        finally:
+            self.client.setGravity(0.0, 0.0, -g)
+            self.client.restoreState(stateId=state_id)
+            self.client.removeState(state_id)
+
+        return shake_response_metrics(before, after, peak_energy)

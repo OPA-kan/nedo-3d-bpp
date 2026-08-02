@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Make the episodes-spent to shipping-changes ratio visible while a line of work is still running.",
+    "shipping_candidate": "A named concrete change to agent/agent.py that alters DEFAULT behaviour, with a paired measurement behind it. A new script, a default-off knob, a ledger entry, an instrument repair or a negative result does not count.",
+    "on_warning": "Not an instruction to stop. State explicitly why the line still deserves episodes; a hard negative can be worth a hundred.",
+    "counter": "Episodes are recorded by the runners; candidates are added by hand. A line that keeps measuring degrades its own ratio unattended."
+  },
+  "threshold_episodes": 10,
+  "lines": {
+    "board-value-instrumentation": {
+      "opened": "2026-08-02",
+      "episodes": 104,
+      "shipping_candidates": [],
+      "note": "stride, interleave, item cap, saturation, safe capacity, kappa siblings, option damage, stream variants, branch labels, diff harness, fixed-work knob",
+      "last_recorded": "2026-08-02"
+    },
+    "fallback-axis": {
+      "opened": "2026-08-02",
+      "episodes": 0,
+      "shipping_candidates": [],
+      "note": "transport_invalid is 45% of endings and the fixed-coordinate fallback has no knob"
+    },
+    "board-receptivity": {
+      "opened": "2026-08-02",
+      "episodes": 36,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02",
+      "note": "Tetris terms A/R/H as a top-K selection rule; opened 2026-08-02 after the official score log",
+      "retracted_candidates": [
+        {
+          "date": "2026-08-02",
+          "change": "LOOKAHEAD_SELECTION_MODE default weighted -> board (agent/agent.py), keeping LOOKAHEAD_TOP_K at the shipped 3",
+          "evidence": "Paired against a simultaneously-run base arm on the five development configs: +6/+3/+4/-5/+4 placed, 4W/1L, suite total 84 -> 96. Sign test p=0.375 at n=5, so promising and not established; a second paired block is running. The b001-k20 loss is real and unexplained.",
+          "episodes_at_registration": 27,
+          "retracted": "2026-08-02",
+          "retraction_reason": "Did not replicate. A second paired block (base r1 / board_k3 r2, same five configs) gives +4 where block 1 gave +12, and b000-k15's +6 reverses to -1 because the board arm itself swings 23 -> 16 on that config. Pooled 10 pairs: 6W/3L/1T, sign test p=0.508. Per config the effect IS reproducible and mixed: +4/+5 on b000-k40 and +4/+4 on b001-k30, against -5/-4 on b001-k20. Net about +4 on a base of 85, inside the suite noise band."
+        }
+      ]
+    },
+    "first-pass-depth": {
+      "opened": "2026-08-02",
+      "episodes": 32,
+      "shipping_candidates": [
+        {
+          "date": "2026-08-02",
+          "change": "agent/agent.py ANCHOR_FIRST_PASS_ATTEMPTS default 64 -> 256 (SHIPPED)",
+          "evidence": "Two paired blocks, 30 episodes, five development configs: placed 9W/0L/1T vs base, sign test p=0.0039, suite totals 143 -> 179. Four of five configs return identical values in both blocks. Attempts per step and policy time unchanged, so the work is redistributed rather than increased. reports/first-pass-depth, docs/FIRST_PASS_DEPTH.md.",
+          "episodes_at_registration": 30
+        }
+      ],
+      "last_recorded": "2026-08-02"
+    },
+    "attribute-placement": {
+      "opened": "2026-08-02",
+      "episodes": 1,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02"
+    },
+    "stability-proxy": {
+      "opened": "2026-08-02",
+      "episodes": 2,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02"
+    },
+    "merge-taskA-recheck": {
+      "opened": "2026-08-02",
+      "episodes": 2,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02"
+    },
+    "stability-tradeoff": {
+      "opened": "2026-08-02",
+      "episodes": 4,
+      "shipping_candidates": [],
+      "last_recorded": "2026-08-02"
+    }
+  }
+}

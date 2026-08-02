@@ -1,6 +1,6 @@
 # Handoff for the next model
 
-Updated: 2026-08-02 JST
+Updated: 2026-08-02 JST (branch `claude/stride-endgame-saturation-test-gqssix` closed)
 
 ## Start here
 
@@ -31,6 +31,116 @@ the file.
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.
 
+## Branch close-out: `claude/stride-endgame-saturation-test-gqssix`
+
+Read this before anything else on this branch. One default changed, one
+instrument is new, and two lines were closed as negatives.
+
+### The one shipped change
+
+`ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 (`agent/agent.py`). Two paired
+blocks, 30 episodes, five development configs: placed 9W/0L/1T against a
+simultaneously-run base, sign test p = 0.0039, suite total 143 -> 179.
+Four of the five configs return identical values in both blocks.
+
+The fact that carries it: attempts per step is 7649 / 6793 / 7864 across
+64 / 128 / 256 and max policy time is unchanged at ~6.53 s. This is the
+same work distributed differently, not more work. Task A (offline
+enabled) was checked separately and is neutral: placed 20 and fill
+30.176 at both depths, offline time 109 -> 119 s inside a 150 s internal
+budget and 61 s under the official 180 s limit.
+
+The predicted cost is real: mean items-with-a-candidate in the opening
+half falls 9.64 -> 8.28. placed rose on every configuration anyway.
+
+Fallback deaths ROSE (3 -> 6 -> 4 per ten episodes). That is not a
+regression. base dies at `placement_core` with `is_placed_safe` false,
+toppling at step 12-18, and never reaches an endgame; 256 survives to
+17-21 and then runs out of moves. The cause of death moved from early
+topple to late exhaustion.
+
+Reverting is one line. `first_pass64` is kept as an arm so the previous
+default stays measurable, and `tests/test_board_features.py` pins 256.
+
+**`reports/benchmarks/baseline.json` (dev placed 88 / fill 114.6) is now
+stale as a guard**: it predates this change and the base arm re-measured
+in the same session gave 69 and 74. Re-baseline before using it.
+
+### The new instrument: placement / soft, locally
+
+See `docs/ATTRIBUTE_PLACEMENT.md`. Four of the six official score
+components have never had a local signal; two of them now do, as
+violation counts rather than a score, because the violations-to-0-100
+mapping is unpublished.
+
+Read the caveats there before using it. The load-bearing one: **neither
+development source has a priority container**, so `priority_misrouted`
+is structurally always 0 on this suite and the routing rule cannot be
+validated locally at all.
+
+Its first run already contradicted an assumption: 1 of 4 priority items
+ends up covered by a non-priority item on b000-k40, even though
+`support_surfaces()` forbids placing anything on a priority item. The
+over-constraint discards the same-attribute stacking the rules allow and
+still permits the violation. Unverified mechanism: `support_surfaces()`
+governs settled anchor generation only, so a release candidate can land
+on one. **This is the highest-value thread left open.**
+
+### Closed as negatives
+
+- **Board receptivity** (A acceptance breadth / R alternativity / H
+  repairability, `LOOKAHEAD_SELECTION_MODE=board`). Reproducibly MIXED:
+  +4/+5 and +4/+4 wins, a -5/-4 loss, two configs unstable. Pooled
+  6W/3L/1T, p = 0.508. Default stays `weighted`; the code stays,
+  default-off, with 25 tests. `docs/BOARD_RECEPTIVITY.md`.
+- **Soft/priority stacking relaxation as a fallback fix.** The agent IS
+  stricter than the rules, but relaxing to the official rule unlocked
+  ZERO placements at 3 of 3 terminal states, one of which had seven soft
+  items available to unlock. Not the cause of the fallback. Whether it
+  costs fill across a whole episode is still untested.
+
+### The new instrument: stability, locally
+
+`Evaluator.shake_test()`, called once from `env.evaluate()` at episode
+end inside `saveState`/`restoreState`, so it cannot perturb anything.
+Three ingredients are officially fixed (`COMPETITION_RULES.md:70-73`
+and `COMPETITION_QA.md:17`): the lid closes, gravity varies, and the
+score is displacement / force / kinetic energy with friction feeding it.
+The magnitudes and thresholds are not, so the schedule is invented and
+the output is a comparator, never the official number.
+
+Stated deviation: **no lid**. An item can leave through the opening; a
+lost item is charged as both a shift and a topple, because dropping it
+from the averages would let the worst outcome improve the metric.
+
+**This immediately put a question mark over today's shipped change.**
+On b000-k40, n = 1: the new default reaches placed 16 with 9 of 16
+items shifting >5 cm and `priority_clean_ratio` 0.75, against
+`first_pass64` at placed 11, 5 of 11 shifted, ratio 1.00. placed gates
+four components, so +5 placed is worth a lot -- but it may be damaging
+two of the four it gates. That trade was invisible until now.
+
+**The next experiment is already fully equipped**: run `first_pass64`
+against the default over the five development configs, two blocks, and
+read `shake_*` and `*_clean_ratio` alongside placed. Nothing new needs
+building.
+
+### Where the remaining blindness is
+
+Of the six official components: fill and num_placed are computed by the
+bundled simulator; placement and soft now have local violation counts;
+stability has the shake proxy. **cog is the only one with nothing** --
+it is computable from mass and position but its normalisation is
+unknown, and `center_of_mass_z` in `step_metrics` is the closest thing
+that exists.
+
+### The score structure that should drive priorities
+
+`docs/OFFICIAL_SCORE_LOG.md`. placed is the GATE for cog / stability /
+placement / soft, so a placed gain is worth more than its own component.
+Do not try to recover the component weights from a single official log:
+83 weight vectors on a 0.05 grid reproduce 17.58143 to within 0.05.
+
 ## User's goal
 
 A competitive CPU-first agent for the NEDO airport-baggage constrained 3D
@@ -55,6 +165,33 @@ outputs stay in the Actions artifact. Historical runs from before this policy
 change remain artifact-only unless imported deliberately.
 `reports/lookahead/latest-summary.json` is named "latest" but stopped at
 2026-07-28 — do not read it as current.
+
+## Merging a forked evidence ledger
+
+Two lines of work now extend `context/evidence.json` concurrently, so the
+ledger forks routinely and the entry count differs per branch (this is
+normal, not corruption). Merge it by these rules, which follow from the
+ledger's own contract (`entries[].status`, `superseded_by`):
+
+1. **Additive.** A merge only ever adds entries. Never drop an entry because
+   the other branch does not have it.
+2. **Never rewrite a value.** If a later measurement changes a number, the
+   old entry stays, gets `status: superseded` and `superseded_by: <new id>`,
+   and the new entry is appended. An entry is a record of what was measured
+   at a time, not a mutable field.
+3. **An id collision is a supersession, not a conflict.** If both sides added
+   the same id with different content, do not pick a winner and do not merge
+   the text. Rename by measurement (`<id>-v2`, or a date/run suffix), chain
+   them with `superseded_by`, and keep both.
+4. **Order is not meaning.** `entries` is an append log; a merge that
+   reorders it changes nothing semantically. Do not resolve a git conflict by
+   interleaving — concatenate, then dedupe by exact id+content.
+5. Verify after every merge with
+   `python3 scripts/context.py evidence --all`, and check that no id appears
+   twice with `status: active`.
+
+The same applies to `HANDOFF.md`: it is current state, so a merge keeps both
+branches' sections and reconciles only the "Next engineering task" ordering.
 
 ## Established by evidence
 
@@ -269,6 +406,68 @@ already in `Q_live`; rollout risk contains future transitions only. The proxy
 rollout is not the current Q_live policy, so no textbook policy-improvement
 guarantee applies.
 
+**That 1.2% late figure has now been diagnosed and it is mostly an
+instrument fault.** `docs/ROLLOUT_SATURATION.md` and
+`reports/rollout-saturation/local-20260801`: on the 48 committed replay
+snapshots (37 at step >= 10), only 4/37 late states have nothing for the
+rollout to find. The shipped setting reaches a future placement on 8/37; the
+same per-step attempt cap with `stride 8` reaches one on 28/37. The failure
+is the anchor **scan order**, not the budget - `budget-512` spends about
+8.4x the attempts and reaches only 12/37, and 17 late snapshots are reached
+by stride and not by budget (1 the other way). Read non-degeneracy and
+future-placement separately: the budget arms score 36/37 non-degenerate
+purely on release-risk tie-breaks with no reach. This is a diagnosis of the
+measurement only. `VISIBLE_POOL_ROLLOUT_MODE` stays `off` and
+`VISIBLE_POOL_ROLLOUT_STRIDE` defaults to 1; the enforce rejection stands.
+**The b000-k15 re-run is done, physically, and it reverses that case.**
+`reports/rollout-saturation/b000-k15-stride4/` (local PyBullet, 3 repeats per
+arm): base 17.000 placed / 23.119 fill, `rollout_enforce` 11.000 / 13.228
+(bit-identical across repeats, reproducing the reported -6.000 exactly), and
+`rollout_enforce_stride4` 20.333 / 26.018 — **+3.333 placed over base**.
+
+The mechanism is not the assumed one. Both enforce arms take the *same* first
+divergence at step 3. At stride 1 the rollout then goes blind (one
+enforcement in the whole episode, `step >= 10` non-degeneracy 0/2) and the
+trajectory dies at step 11; at stride 4 it keeps discriminating (5/10) and
+enforces again at steps 5, 8 and 13. **The -6 was a first action taken and
+then abandoned by an instrument that could no longer see**, not a wrong first
+action. Cost 77.1/184.7 -> 176.0/278.8 ms mean/max, still under the 617.6 ms
+maximum the enforce ablation already tolerated.
+
+This is **one configuration**. The enforce rejection was made on eight, so it
+is not revisited yet. The decision point that would revisit it is a repeated
+eight-configuration ablation with the `rollout_enforce_stride4` arm (already
+wired into `run_risk_ablation.py`) plus the
+`reports/benchmarks/baseline.json` regression guard. Until that runs,
+`VISIBLE_POOL_ROLLOUT_MODE` stays `off` and `VISIBLE_POOL_ROLLOUT_STRIDE`
+stays 1.
+
+Method note now in the ledger as
+`offline-snapshot-sweeps-cannot-answer-outcome-questions`: the offline sweep
+over saved b000-k15 snapshots said the enforce decision was stride-invariant,
+and it was — *at those states*. Saved snapshots come from the base
+trajectory, so once an arm diverges the states it visits are not in the set.
+Offline sweeps diagnose an instrument; only a physical run decides an
+outcome.
+
+### The larger implication is for the live search, not the rollout
+
+The rollout is the smaller consumer of this fix. **The live candidate search
+runs through the same `support_plane` generator with the same stride-free
+deterministic scan order**, so the same hole is present there, one layer up
+and with far more leverage:
+
+- the post-cache coverage hole (accepted anchors clustered in
+  `x in [-0.34, 0.83]`) is the live-search symptom of exactly this scan
+  order;
+- `transport-deaths-are-fallback-poison` in the ledger already traced 45% of
+  episode endings to the fixed-coordinate `unsafe_protocol_fallback`, which
+  fires when the search returns **no** candidate - a no-candidate branch that
+  a wider scan makes rarer.
+
+Both were previously blocked on stride not existing on the shipped generator.
+**That line has now been built and screened, and it is rejected as a
+default** — see the next section.
 ## Latest experiment: Task A bounded offline rollout (ADOPTED)
 
 The one adoption on this list — everything above it was rejected or kept as
@@ -335,8 +534,131 @@ everything and therefore measures exactly what a submission does.
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
-`reports/slide-patches/`, Gated Iota enters at S2), live stride
-sampling port for further recall.
+`reports/slide-patches/`, Gated Iota enters at S2).
+
+## Where this work actually is (read before proposing a board-value idea)
+
+The decision pipeline is
+
+    visible items -> examined items -> candidate placements -> ranking -> a -> s'
+
+A board-value theory — "did this placement leave a container that accepts
+unknown future baggage?" — lives in the **last** arrow. Everything measured
+so far lives in the first two. `MAX_POOL_ITEMS_EVALUATED = 10` against a
+40-item visible pool is a first-arrow fact, and the anchor/stride/interleave
+work is a second-arrow fact.
+
+So the item-cap result says nothing about board value. It measured
+`delta placed`, not `delta future receptivity`. A placement that raises the
+short-horizon count while wrecking the board scores **positive** on that
+metric. Likewise the kappa line measured `|A(s)|` and its risk-weighted
+total, which is too coarse to be a board value; its negatives close "option
+count as a board value", not "board value".
+
+**The entrance is a paired comparison from the same state and the same
+candidate set, varying only the board-shaping term.** Today's measurements
+give that experiment a quantified spec, and it is demanding:
+
+| requirement | measured constraint | source |
+| --- | --- | --- |
+| signal density | only **4.8%** of Q-band sibling pairs differ in short-horizon outcome (12 of 252) | Stage B |
+| episode noise | placed sd **2.3–2.7**, range 7–9, per source | stream-variance |
+| evaluator cost | the rollout board term cost 77–176 ms/decision, and the search is already deadline-limited on **83–87%** of steps | b000-k15 run, stream-variance |
+
+Three consequences a design has to respect:
+
+1. Holding the candidate set fixed is **not sufficient**. A board term that
+   costs time changes how much search happens afterwards, which reintroduces
+   the confound it was meant to remove. Either evaluate the term offline on
+   a frozen candidate set, or charge both arms the same effective budget.
+2. At 4.8% signal density, an immediate-horizon sibling test needs roughly
+   20 pairs per decided pair. Short horizons are the wrong place to look.
+3. Episode-level differences under about 2 placed are not resolvable without
+   the paired permutation design.
+
+**The harness for the entrance already exists.**
+`scripts/measure_kappa_siblings.py` is exactly the shape: one state, siblings
+drawn from one candidate set, a state functional evaluated per sibling, sign
+agreement scored against outcome components kept separate. Swapping the
+functional is the change. What is missing is not machinery — it is
+(a) a board functional worth testing, and (b) a **long-horizon paired
+label**, because placed-to-go is confounded by step and occupancy, immediate
+survival is unrelated to option counts, and 95% of siblings tie in the short
+run.
+
+The affordable version of (b): run an episode to completion from each
+sibling successor. PyBullet runs locally at roughly 4 minutes per episode, so
+8 states x 3 siblings is about 1.5 hours and yields genuinely paired
+long-horizon deltas. That, not another state descriptor, is the next thing
+that would put this work inside the board-value question rather than in
+front of it.
+
+## Latest experiment: live scan interleave (rejected as a default)
+
+`docs/LIVE_SCAN_INTERLEAVE.md`,
+`reports/live-interleave/local-20260801-screening/`.
+
+The live candidate search runs through the same `support_plane` generator as
+the rollout, so the diagnosed scan-order hole is present there too. It needs a
+**different** instrument, and this distinction is the durable part of the
+work: the rollout's future search is capped by an attempt count it can never
+exhaust, so a `stride` that *drops* anchors is free reach; the live search is
+capped by a deadline it often *does* exhaust, so dropping anchors there would
+lose candidates the current search finds. `LIVE_SEARCH_INTERLEAVE` therefore
+**permutes** the anchor order instead of subsampling it — at exhaustion the
+candidate set is identical, and only what a truncated search reaches first
+changes.
+
+Local screening, one repeat per cell, `base` vs `live_interleave4` on the
+five development configurations:
+
+| case | base placed | il4 placed | delta placed | delta fill |
+| --- | ---: | ---: | ---: | ---: |
+| b000-k15 | 17 | 14 | -3 | -10.464 |
+| b000-k20 | 16 | 12 | -4 | -4.483 |
+| **b000-k40** | 14 | 19 | **+5** | **+6.078** |
+| b001-k20 | 18 | 17 | -1 | -1.281 |
+| b001-k30 | 18 | 18 | 0 | -2.597 |
+| total | 83 | 80 | **-3** | **-12.747** |
+
+`LIVE_SEARCH_INTERLEAVE` stays 1.
+
+**The per-config split is the finding, not the total.** The single winner is
+`b000-k40` — the configuration `aabb-cache-guard-mixed` already calls
+search-starved, and the same one that gained +10 from the packed-AABB cache
+while b000-k20 lost 12. Two independent coverage interventions, one enlarging
+the candidate set and one only reordering it, now produce the same
+per-configuration signature. Search diagnostics exclude reduced recall as the
+cause: both arms are deadline-limited on most steps, the unit completion
+ratio does not fall, and no episode ended in a no-candidate branch the base
+arm avoided. What changed is which candidate a truncated search settles on,
+and so which trajectory is taken.
+
+**This is the second measurement saying selection quality is blocking for
+coverage work**, not the reverse. Coverage interventions are now
+twice-observed to redistribute placements rather than add them while the
+utility stays defective (`Ranker` volume dead vote, `q + gamma*q` lookahead).
+
+Scope and cautions:
+
+- One repeat per cell; the two smallest deltas are on the
+  timing-nondeterministic b001 cases.
+- Local `base` totals (83 / 104.742) are **below** the registered development
+  baseline (88 / 114.6). The search is deadline-limited, so absolute totals
+  are machine-dependent — only base-vs-arm inside one run is comparable. That
+  caveat binds hardest on exactly this kind of change, whose whole effect is
+  about what a deadline truncates. Do not read the local base number as a
+  regression.
+- This rejects the interleave as an unconditional default. It does not
+  retract the scan-order hole, which stays measured and real.
+
+Two designs remain open and are untested: interleaving only when the search
+is actually starving (a conditional, not a tuning of this knob), and rotating
+`stride_offset` per rollout step or search round so successive passes cover
+complementary phases at the same total budget. The measured phase arms
+(`stride-4+1..+3`) differ by at most one snapshot, which suggests phases are
+near-interchangeable and rotation would be cheap — but that is an inference
+from spread, not a measurement.
 
 ## Important invariants
 
