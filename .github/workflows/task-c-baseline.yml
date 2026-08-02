@@ -1,0 +1,104 @@
+name: Task C baseline
+
+# Task C needs no simulator change. It is a case configuration --
+# agent.optimize false with item_stream.look_ahead 1 -- built from the
+# committed sample config by the same builder every other experiment uses.
+# This workflow exists so the pool-1 cases are reproducible on the official
+# Linux verification environment instead of only on a developer box.
+
+on:
+  workflow_call:
+    inputs:
+      repeats:
+        description: Repeats per case
+        type: number
+        default: 2
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: Repeats per case
+        type: number
+        default: 2
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-c-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-r${{ matrix.repeat }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        repeat: [0, 1]
+        case:
+          - case_id: c000-k1
+            source_case: "000"
+          - case_id: c001-k1
+            source_case: "001"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build Task C config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead 1
+          --policy-timeout 8
+          --output "reports/task-c/${{ matrix.case.case_id }}.json"
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/task-c/${{ matrix.case.case_id }}.json"
+          --arm base
+          --repeat "${{ matrix.repeat }}"
+          --output-dir
+          "reports/task-c/${{ matrix.case.case_id }}-r${{ matrix.repeat }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: >-
+            task-c-${{ matrix.case.case_id }}-r${{ matrix.repeat }}
+          path: >-
+            reports/task-c/${{ matrix.case.case_id }}-r${{ matrix.repeat }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: task-c-*
+          path: reports/task-c/downloads
+      - name: Combine and summarize
+        run: |
+          mkdir -p reports/task-c/aggregate
+          find reports/task-c/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/task-c/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/task-c/aggregate
+          cat reports/task-c/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-c-baseline-aggregate
+          path: reports/task-c/aggregate/
