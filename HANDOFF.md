@@ -33,58 +33,89 @@ source-level detail is needed. New here: the `replay-dataset` profile.
 
 ## Where Task A and Task B go next
 
-The two tasks now have cleanly separated bottlenecks, and that separation
-is itself a measured result rather than an assumption.
+**This section was audited on 2026-08-02 and three of its claims were
+wrong. Corrected below; the ledger entry
+`task-a-offline-objective-misdiagnosed` records what was claimed and what
+verification showed.**
 
 ### Task B is search-allocation limited
 
 `ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 gave +25% placed at unchanged
-total attempts per step. The mechanism was that the scan never reached
-the depth at which a unit's candidates start existing, so this was
-redistribution, not more work.
+total attempts per step: redistribution, not more work.
 
-**Unexamined consequence of that adoption, and the first thing to look
-at.** `ANCHOR_DEEP_PASS_ATTEMPTS` is also 256, so the first and deep
-passes are now the SAME depth and the two-phase round structure has
-collapsed into one uniform pass. Whatever the deep pass was for, it no
-longer does anything distinct. Either the deep pass should go up, or the
-structure should be admitted to be gone.
+**The first thing to look at.** `ANCHOR_DEEP_PASS_ATTEMPTS` is also 256.
+`attempts_per_unit` starts at the first-pass constant (`agent.py:4129`)
+and is replaced by the deep constant on later rounds (`agent.py:4260`),
+so with both at 256 every round is now uniform and the two-phase
+structure is gone. Either raise the deep pass or admit the structure has
+collapsed.
 
-The death mode moved rather than disappearing: at 64 episodes ended by
-toppling at `placement_core` around step 12-18; at 256 they survive to
-17-21 and end at `unsafe_protocol_fallback`. The fallback probe found
-legal moves still available at 2 of 3 terminal states, so the endgame is
-the next allocation question -- most likely state-dependent depth
-(remaining units, remaining items) rather than another global constant.
+The endgame is still where the remaining loss is -- the fallback probe
+found legal moves available at 2 of 3 terminal states -- and
+state-dependent depth is the likely shape. But do NOT justify that with
+a change in cause of death. Counted over all 30 episodes of
+`reports/first-pass-depth`, EVERY arm ends `is_placed_safe False` 10 out
+of 10; only the terminal fallback rate moves, and non-monotonically
+(base 3/10, 128 6/10, 256 4/10). In the later
+`reports/stability-tradeoff` rows the fallback difference disappears
+entirely. An earlier version of this section claimed a topple-to-
+exhaustion shift from a 5-episode block; it does not survive both
+blocks.
 
-### Task A is ordering limited, not search limited
+### Task A is ordering limited, and the objective is not what it looks like
 
-The first-pass change is NEUTRAL on Task A (placed 25 either way): once
-the offline pass has ordered the stream, each step's best candidate is
-findable inside 64 attempts. So Task A gains have to come from the ORDER.
+The first-pass change is neutral on Task A placed (25 either way), so
+Task A gains come from the ORDER. That much holds.
 
-Two levers, both untouched:
+**But the order is not selected by a weighted objective.**
+`OFFLINE_FILL_WEIGHT` / `OFFLINE_STABILITY_WEIGHT` feed only
+`DryRunResult.weighted_score()` (`agent.py:941`), which has NO callers.
+Selection is `result.rank_key() > best_result.rank_key()`
+(`agent.py:6350`), a five-element LEXICOGRAPHIC tuple
+`(placed_count, placed_volume, fill_ratio, stability_proxy,
+-normalized_center_of_mass_z)`. Sweeping the two weights leaves
+`behaviour_sha256` bit-identical while `component_sha256` moves -- the
+same probe ADR-003 used for the risk-lambda gap.
 
-1. **The offline objective is a 2-of-6 projection.**
-   `OFFLINE_FILL_WEIGHT` 0.65 / `OFFLINE_STABILITY_WEIGHT` 0.35 is what
-   picks the order that determines everything downstream, and it prices
-   only fill and a stability proxy. placement, soft, cog and the shake
-   now all have local signals. Extending the offline objective to them is
-   the largest available Task A change and nothing blocks it.
-2. **Time is left on the table.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150
-   and the measured offline run is 148.9 s, so the INTERNAL budget binds,
-   not the official 180 s limit -- roughly 30 s unused. Now that the
-   offline search is work-bounded and reproducible across machine speeds
-   (ADR-002), more budget buys deterministically more orders. Measure how
-   placed scales with orders evaluated before raising it blindly.
+It is narrower still: `fill_ratio` is `placed_volume / total_capacity`
+with a case-fixed denominator, so it is a monotone transform of
+`placed_volume` and structurally redundant in the tuple. The effective
+key is `(placed_count, placed_volume)`, and stability and cog are
+consulted only between orders that place the SAME items.
 
-### What blocks pushing either further
+So the diagnosis is not "too few components are priced". It is
+**`placed_count` dominates lexicographically**, and the work is
+replacing `rank_key`, not tuning weights. `context/knobs.json` marks
+those two constants `"semantic": true`, which is wrong, and
+`weighted_score` should be deleted rather than left to imply the
+objective has a form it does not have.
 
-`priority_clean_ratio` is 0.575 at the shipped default against 0.803 at
-the old one (6W/3L/1T, p = 0.508 -- a direction, not a result). A deeper
-search may be buying placed by burying priority baggage. placement_score
-was 4.45 officially, so this is not a small axis. Resolve it before
-taking depth further on either task.
+**Raising the offline budget is already measured and flat.**
+`task-a-episode-outcome-is-machine-speed-dependent` (active): at
+`OFFLINE_MAX_EVALUATIONS` of 50, 55, 60 and unlimited the search selects
+an IDENTICAL 41-element order. The search converges around 50
+evaluations on case 000, and the 25-vs-26 placed difference was machine
+speed, not the cap. Convergence is itself evidence that the objective,
+not the budget, is binding. (13381bd moved orders evaluated 3.0 -> 51.3
+by adopting the bounded dry run; an earlier version of this section had
+that direction backwards.)
+
+**ADR-003 is not empty ground.** It defines the offline evaluator as a
+cheap deterministic *proposal oracle* rather than a faithful simulator,
+and explicitly decides the ranking policy need not be shared. Revise it
+before changing `rank_key`.
+
+### What blocks pushing depth further
+
+`priority_clean_ratio` 0.575 at the shipped default against 0.803 at the
+old one (6W/3L/1T, p = 0.508 -- a direction, not a result), on the
+component the official log scored 4.45.
+
+The stability worry is CLOSED, not carried: 256 shifts 0.202 of items
+against 0.310 at 64, with 0 topples against 0.27 per episode. Do not
+re-raise it. On Task A the shake proxy is mildly worse at 256 (15/25
+shifted against 13/25, peak energy 13.50 against 10.99, n = 1), so
+"neutral on Task A" is true of placed and not of everything.
 
 ## Current submission artefact
 
