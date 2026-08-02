@@ -16,17 +16,16 @@
       "existing_instruments": [
         "scripts/run_risk_ablation.py"
       ],
-      "missing_instrument": "For 'does a bigger cap help': none, it has been measured. For 'which excluded item was lost': still nothing -- an item that never entered the search has nothing computed about it, and the cap sweep prices the aggregate, not the individual exclusion.",
+      "missing_instrument": "For the fixed cap: none, it is measured. For 'which excluded item was lost' and for an adaptive rule: still nothing -- an item that never entered the search has nothing computed about it, so shadow evaluation of skipped items remains unbuilt.",
       "why_unobserved": "Only the per-item half is unobserved now. Whether a bigger cap helps has been measured; which specific excluded item was lost still cannot be recovered from any log, because an item that never entered the search has nothing computed about it.",
-      "status": "partially answered",
+      "status": "answered: not established",
       "priority": "high",
       "rationale": "At pool 40 the agent evaluates 25% of visible items. Merely REALLOCATING the same 10 slots (class-aware coverage) moved placed 10.67 -> 17.00 and priority C1 0% -> 81.2%, which is the largest single effect in the ledger. The cap itself has never been varied because it is a source constant with no override -- the absence of a knob, not a judgement, is why this was never tested. [2026-08-02 UPDATED after merging the stride branch: this question was filed as fully open because the registry was built against a checkout that predated the env-isation. The cap had already been made a knob (d69bc36) and swept.]",
       "closure_criteria": [
-        "replicated on a second multiset (current result is 8 permutations of ONE)",
-        "cap 20 measured on the same paired design",
-        "policy time verified inside the 8 s limit at the adopted cap"
+        "DONE for the fixed-cap form: two sources measured, effect source-dependent",
+        "OPEN if pursued as a conditional/adaptive cap: needs a difficulty signal measurable online, then a paired test of the rule rather than the constant"
       ],
-      "answer_so_far": "Yes for cap 16. item-cap-16-wins-on-every-permutation: paired +3.125 placed over 8 permuted streams, 8 wins / 0 losses, sign-test p = 0.0039. Mechanism is reach, not rescue (mean steps 13.75 -> 16.88); the fallback ending count is unchanged, so the cap does not fix the poison fallback."
+      "answer_so_far": "NO, not as an unconditional intervention. Paired permutation on TWO sources: 000 gave +3.125 placed (8/0/0, two-sided p = 0.0078) but 001 gave -0.125 (3 wins / 4 losses / 1 tie, p = 1.0). Pooled +1.500, 11/4/1, p = 0.1185 -- not established. MAX_POOL_ITEMS_EVALUATED stays 10. Untested candidate mechanism: the cap binds only where the pool is hard to place from (base placed 12.750 on 000 versus 16.625 on 001), which would make it a conditional intervention rather than a default."
     },
     {
       "id": "graded-state-value-helps",
@@ -111,11 +110,13 @@
       "intervention": "expose the score weights as knobs and sweep them",
       "observation_unit": "state x candidate, then episode",
       "required_variation": "episode arms with repeats above the config variance",
-      "existing_instruments": [],
-      "missing_instrument": "the weights are source literals; there is no knob and therefore no experiment",
+      "existing_instruments": [
+        "scripts/build_branch_labels.py"
+      ],
+      "missing_instrument": "The weights are still source literals with no knob, so the FORM cannot be swept. What now exists is a long-horizon paired label to score a form against: build_branch_labels.py measured within-step concordance between immediate Q and final placed at 0.267 against a chance level of 0.500, on 15 decided pairs from one episode -- suggestive, not established.",
       "status": "open",
       "priority": "medium",
-      "rationale": "The volume term is known to be a dead vote within an item, and the risk work added a correction on top of the existing form without ever testing the form. Same structural pattern as the item cap: no knob, so no hypothesis.",
+      "rationale": "The volume term is known to be a dead vote within an item, and the risk work added a correction on top of the existing form without ever testing the form. Same structural pattern as the item cap: no knob, so no hypothesis. [2026-08-02: first long-horizon evidence that the ordering may be actively wrong rather than merely unexamined, which raises the value of exposing the weights.]",
       "closure_criteria": [
         "weights switchable",
         "at least one sweep measured at episode level"
@@ -143,10 +144,10 @@
   ],
   "provenance": {
     "verified_against_merge_of": {
-      "ours": "88f6500a4073e1ae60d718ccf74d355f8965ece1",
-      "theirs": "a8e04f1446e724c8e3cfeed10da075ef72db5041",
+      "ours": "039a43d04b3368ca54c4f3553d5ea9174ed73d21",
+      "theirs": "1f48be7deea3fbfccf21b314728e07534ca6d0a8",
       "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
     },
-    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap: this file claimed MAX_POOL_ITEMS_EVALUATED had no override while the other side had already env-ised it and measured a paired +3.125 placed over 8 permutations."
+    "note": "Re-verify and re-stamp after every merge."
   }
 }

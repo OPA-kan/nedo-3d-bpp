@@ -177,14 +177,72 @@
       "supports": [
         "offline-is-a-risk-off-proposal-oracle"
       ]
+    },
+    "scripts/build_branch_labels.py": {
+      "analysis_unit": "state x sibling action, labelled by the FINAL episode outcome",
+      "varied_axis": [
+        "candidate_rank",
+        "state_shaping"
+      ],
+      "conditioned_on": [
+        "the sibling set reconstructed from the same candidate set at that state, so it inherits the item cap and the anchor generator",
+        "the shipped policy running free after the forced action -- the label is Y under THIS policy, not under an optimal continuation",
+        "one episode per invocation; branch points come from that single trajectory",
+        "prefix reproducibility, which is checked per state rather than assumed because the search is deadline-limited"
+      ],
+      "outcome": [
+        "final placed",
+        "final fill",
+        "within-step concordance with immediate Q"
+      ],
+      "cannot_answer": [
+        "whether a better action existed outside the sampled siblings -- it labels the candidates it was given, not the reachable set",
+        "anything with a sample size worth acting on from one episode: 15 decided pairs is inside the measured noise floor for small differences",
+        "which board feature explains the outcome; it produces the label a board functional could be scored against, it does not fit one",
+        "counterfactuals under a different continuation policy"
+      ],
+      "supports": [
+        "immediate-Q-anti-correlates-with-branch-outcome"
+      ],
+      "note": "The first instrument on this repository that produces a long-horizon paired label. Every earlier board-value label was short-horizon and is known unusable: placed-to-go is confounded by step and volume, immediate settle survival is unrelated to option counts, and 95.2% of Q-band sibling pairs tie on any short-horizon outcome."
+    },
+    "scripts/run_stream_paired.py": {
+      "analysis_unit": "episode, paired within arrival stream",
+      "varied_axis": [
+        "item",
+        "anchor",
+        "rollout",
+        "fallback"
+      ],
+      "conditioned_on": [
+        "one source multiset per invocation; permutations vary arrival order ONLY, holding content, class mix, total volume and difficulty fixed",
+        "sequential execution, because the search is deadline-limited",
+        "the two arms compared; it does not sweep"
+      ],
+      "outcome": [
+        "paired delta placed/fill",
+        "sign test",
+        "noise floor of the base arm",
+        "search pressure"
+      ],
+      "cannot_answer": [
+        "generalisation across item mixes from a single source -- that needs a second source, and the first time it was run on one the effect did not transfer (item-cap-effect-is-source-dependent)",
+        "the optimum value of a knob: it compares two arms, so a knee needs several invocations",
+        "why an arm wins; it reports outcomes, not divergence points",
+        "anything about runtime variance: permutation estimates omega, not xi"
+      ],
+      "supports": [
+        "item-cap-effect-is-source-dependent",
+        "development-suite-noise-floor-permutation"
+      ]
     }
   },
   "provenance": {
     "verified_against_merge_of": {
-      "ours": "88f6500a4073e1ae60d718ccf74d355f8965ece1",
-      "theirs": "a8e04f1446e724c8e3cfeed10da075ef72db5041",
+      "ours": "039a43d04b3368ca54c4f3553d5ea9174ed73d21",
+      "theirs": "1f48be7deea3fbfccf21b314728e07534ca6d0a8",
       "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
     },
-    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap: this file claimed MAX_POOL_ITEMS_EVALUATED had no override while the other side had already env-ised it and measured a paired +3.125 placed over 8 permutations."
+    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap."
   }
 }

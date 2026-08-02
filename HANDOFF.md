@@ -433,6 +433,63 @@ re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
 `reports/slide-patches/`, Gated Iota enters at S2).
 
+## Where this work actually is (read before proposing a board-value idea)
+
+The decision pipeline is
+
+    visible items -> examined items -> candidate placements -> ranking -> a -> s'
+
+A board-value theory — "did this placement leave a container that accepts
+unknown future baggage?" — lives in the **last** arrow. Everything measured
+so far lives in the first two. `MAX_POOL_ITEMS_EVALUATED = 10` against a
+40-item visible pool is a first-arrow fact, and the anchor/stride/interleave
+work is a second-arrow fact.
+
+So the item-cap result says nothing about board value. It measured
+`delta placed`, not `delta future receptivity`. A placement that raises the
+short-horizon count while wrecking the board scores **positive** on that
+metric. Likewise the kappa line measured `|A(s)|` and its risk-weighted
+total, which is too coarse to be a board value; its negatives close "option
+count as a board value", not "board value".
+
+**The entrance is a paired comparison from the same state and the same
+candidate set, varying only the board-shaping term.** Today's measurements
+give that experiment a quantified spec, and it is demanding:
+
+| requirement | measured constraint | source |
+| --- | --- | --- |
+| signal density | only **4.8%** of Q-band sibling pairs differ in short-horizon outcome (12 of 252) | Stage B |
+| episode noise | placed sd **2.3–2.7**, range 7–9, per source | stream-variance |
+| evaluator cost | the rollout board term cost 77–176 ms/decision, and the search is already deadline-limited on **83–87%** of steps | b000-k15 run, stream-variance |
+
+Three consequences a design has to respect:
+
+1. Holding the candidate set fixed is **not sufficient**. A board term that
+   costs time changes how much search happens afterwards, which reintroduces
+   the confound it was meant to remove. Either evaluate the term offline on
+   a frozen candidate set, or charge both arms the same effective budget.
+2. At 4.8% signal density, an immediate-horizon sibling test needs roughly
+   20 pairs per decided pair. Short horizons are the wrong place to look.
+3. Episode-level differences under about 2 placed are not resolvable without
+   the paired permutation design.
+
+**The harness for the entrance already exists.**
+`scripts/measure_kappa_siblings.py` is exactly the shape: one state, siblings
+drawn from one candidate set, a state functional evaluated per sibling, sign
+agreement scored against outcome components kept separate. Swapping the
+functional is the change. What is missing is not machinery — it is
+(a) a board functional worth testing, and (b) a **long-horizon paired
+label**, because placed-to-go is confounded by step and occupancy, immediate
+survival is unrelated to option counts, and 95% of siblings tie in the short
+run.
+
+The affordable version of (b): run an episode to completion from each
+sibling successor. PyBullet runs locally at roughly 4 minutes per episode, so
+8 states x 3 siblings is about 1.5 hours and yields genuinely paired
+long-horizon deltas. That, not another state descriptor, is the next thing
+that would put this work inside the board-value question rather than in
+front of it.
+
 ## Latest experiment: live scan interleave (rejected as a default)
 
 `docs/LIVE_SCAN_INTERLEAVE.md`,

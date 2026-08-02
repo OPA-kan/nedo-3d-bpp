@@ -77,26 +77,55 @@ class RegistryIntegrityTests(unittest.TestCase):
                 self.assertTrue(question["intervention"])
                 self.assertTrue(question["required_variation"])
 
-    def test_a_question_with_no_instrument_answers_insufficient(self) -> None:
+    def test_reverse_lookup_can_report_insufficient(self) -> None:
         """
-        The reverse lookup must be able to say 'nothing here can answer
-        this'. Silently returning a neighbouring instrument is the
-        over-generalisation the registry exists to stop.
+        The machinery must be able to say 'nothing here can answer this'.
+
+        Tested against a synthetic registry rather than whichever question
+        happens to lack an instrument today: the previous version asserted
+        on a real id, and went red the moment that question acquired one --
+        an instance assertion pretending to be an invariant, which is the
+        same mistake that pinned "the cap is not a knob".
         """
-        unanswerable = [
+        data = {
+            "questions": {"questions": [{
+                "id": "synthetic-unanswerable",
+                "question": "Is there an instrument for this?",
+                "axis": "item",
+                "status": "open",
+                "priority": "high",
+                "observation_unit": "state x item",
+                "existing_instruments": [],
+                "missing_instrument": "a paired sweep nobody has built",
+                "intervention": "build it",
+                "required_variation": "two multisets",
+                "rationale": "synthetic",
+                "closure_criteria": ["build the instrument"],
+            }]},
+            "measurements": {"instruments": {}},
+        }
+
+        rendered = coverage_report.answer(data, "synthetic-unanswerable")
+
+        self.assertIn("INSUFFICIENT", rendered)
+        self.assertIn("Required instrument", rendered)
+        self.assertIn("a paired sweep nobody has built", rendered)
+
+    def test_open_questions_with_instruments_show_their_limits(self) -> None:
+        """
+        The other half: when an instrument does exist, the reverse lookup
+        must surface what it cannot answer, or it hands back a false
+        positive.
+        """
+        answered = [
             q for q in self.data["questions"]["questions"]
-            if q["status"] == "open" and not q.get("existing_instruments")
+            if q.get("existing_instruments")
         ]
-        self.assertTrue(
-            unanswerable,
-            "no open question currently lacks an instrument; if that is "
-            "genuinely true, delete this test rather than weakening it",
-        )
-        for question in unanswerable:
+        self.assertTrue(answered)
+        for question in answered:
             with self.subTest(question=question["id"]):
                 rendered = coverage_report.answer(self.data, question["id"])
-                self.assertIn("INSUFFICIENT", rendered)
-                self.assertIn("Required instrument", rendered)
+                self.assertIn("cannot answer:", rendered)
 
     def test_zero_knob_axis_raises_a_structural_alarm(self) -> None:
         rows = coverage_report.coverage_rows(self.data)
