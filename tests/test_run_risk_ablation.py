@@ -268,6 +268,29 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("LOOKAHEAD_SELECTION_MODE", env)
         self.assertNotIn("LOOKAHEAD_TOP_K", env)
 
+    def test_first_pass_arms_differ_from_base_only_by_the_first_pass_depth(self):
+        base: dict[str, str] = {}
+        deeper: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(deeper, "first_pass256", 2.0, 0.0)
+
+        self.assertEqual(deeper.pop("ANCHOR_FIRST_PASS_ATTEMPTS"), "256")
+        self.assertEqual(deeper, base)
+
+    def test_the_midpoint_arm_exists_because_the_cliff_is_only_bracketed(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "first_pass128", 2.0, 0.0)
+
+        self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "128")
+
+    def test_an_arm_does_not_inherit_an_outer_first_pass_depth(self):
+        env = {"ANCHOR_FIRST_PASS_ATTEMPTS": "1024"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("ANCHOR_FIRST_PASS_ATTEMPTS", env)
+
     def test_item_cap_arms_touch_only_the_item_dimension(self):
         base: dict[str, str] = {}
         capped: dict[str, str] = {}

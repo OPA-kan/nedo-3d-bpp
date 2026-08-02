@@ -65,6 +65,7 @@ def configure_arm_environment(
         "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "LOOKAHEAD_SELECTION_MODE",
+        "ANCHOR_FIRST_PASS_ATTEMPTS",
         "LOOKAHEAD_TOP_K",
         "BOARD_CELL_SIZE",
         "BOARD_PROBE_SHAPES",
@@ -93,6 +94,8 @@ def configure_arm_environment(
         "board_k8",
         "board_k16",
         "topk8",
+        "first_pass128",
+        "first_pass256",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -130,6 +133,12 @@ def configure_arm_environment(
             # sealed void instead of by the discounted lookahead sum.
             env["LOOKAHEAD_SELECTION_MODE"] = "board"
             env["LOOKAHEAD_TOP_K"] = arm.removeprefix("board_k")
+        elif arm.startswith("first_pass"):
+            # Depth per unit on the first breadth-first pass. The probe in
+            # reports/same-class-stacking puts the cliff between 64 and 256
+            # attempts per item; 128 is there because a cliff located
+            # between two points is not a located cliff.
+            env["ANCHOR_FIRST_PASS_ATTEMPTS"] = arm.removeprefix("first_pass")
         elif arm == "topk8":
             # Control for board_k8. Widening the top-K alone also changes
             # the decision, so a board_k8 win over base confounds the board

@@ -4047,8 +4047,19 @@ def iter_prioritized_candidates(
                 "rounds_started": 0,
                 "deadline_reached": False,
                 "incumbent_updates": 0,
+                # Depth-vs-breadth telemetry. attempts_used is the whole
+                # scan's cost; attempts_to_first_candidate is how deep the
+                # scan had to go before anything at all was placeable, and
+                # is None when nothing ever was. Together they say whether
+                # a first-pass cap is starving units or wasting them.
+                "attempts_used": 0,
+                "attempts_to_first_candidate": None,
             },
         )
+        # A diagnostics dict can outlive one scan, so the new fields are
+        # defaulted rather than assumed present.
+        search_stats.setdefault("attempts_used", 0)
+        search_stats.setdefault("attempts_to_first_candidate", None)
         if record_item_lifecycle:
             search_stats.setdefault("item_indices_started", [])
             search_stats.setdefault("item_indices_with_candidates", [])
@@ -4127,11 +4138,17 @@ def iter_prioritized_candidates(
                         search_stats["units_completed"] += 1
                     break
                 attempts_used += 1
-                if (
-                    search_stats is not None
-                    and attempt_budget is not None
-                ):
-                    search_stats["attempts_consumed"] = attempts_used
+                if search_stats is not None:
+                    search_stats["attempts_used"] = attempts_used
+                    if attempt_budget is not None:
+                        search_stats["attempts_consumed"] = attempts_used
+                    if (
+                        candidate is not None
+                        and search_stats["attempts_to_first_candidate"] is None
+                    ):
+                        search_stats["attempts_to_first_candidate"] = (
+                            attempts_used
+                        )
                 if candidate is not None:
                     if record_item_lifecycle:
                         item_index = int(item.get("index", item_idx))
