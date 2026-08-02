@@ -162,6 +162,8 @@ def render_evidence(
             lines.append(f"  source: {entry['source']}")
         if entry.get("superseded_by"):
             lines.append(f"  superseded_by: {entry['superseded_by']}")
+        if entry.get("replicates"):
+            lines.append(f"  replicates: {entry['replicates']}")
         lines.append("")
     if not lines:
         scope = f"topic '{topic}'" if topic else "ledger"

@@ -155,6 +155,26 @@ OFFLINE_SEARCH_BUDGET_SECONDS = float(
 OFFLINE_MAX_EVALUATIONS = int(
     os.environ.get("OFFLINE_MAX_EVALUATIONS", "1000")
 )
+# Offline order search only (Agent.optimize / DryRunEvaluator), which the
+# official harness calls when the case sets agent.optimize -- Task A. The
+# online policy never reads these, so Task B and Task C are unaffected.
+#
+# Adopted 2026-08-02 from Actions run 30717998654 (ADR-002). Without a
+# per-item bound one unplaceable item's scan made a single dry run cost
+# ~35 s, so the search evaluated 3.0 of its allowed 1000 complete orders
+# -- the seed plus two neighbours -- inside the 150 s budget. Bounding
+# each item at 128 deterministic anchor attempts and capping pair-macro
+# construction at 0.5 s cut a dry run to ~2.7 s, raising it to 51.3
+# evaluated orders and physical placed 20 -> 25 / fill 29.298 -> 34.949.
+# OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=0 restores the legacy global-deadline
+# scan; OFFLINE_PAIR_MACRO_BUDGET_SECONDS=0.0 restores the legacy
+# remaining-budget macro stage.
+OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM = max(
+    0, int(os.environ.get("OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM", "128"))
+)
+OFFLINE_PAIR_MACRO_BUDGET_SECONDS = float(
+    os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.5")
+)
 OFFLINE_RANDOM_SEED = 20260723
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
@@ -5808,7 +5828,11 @@ def apply_block_template_neighbor(items, template, target_position):
 class DryRunEvaluator:
     """Evaluate an offline order by replaying the online placement core."""
 
-    def __init__(self, container_templates):
+    def __init__(
+        self,
+        container_templates,
+        attempts_per_item=OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+    ):
         self.container_templates = [
             normalize_container(container) for container in container_templates
         ]
@@ -5816,6 +5840,7 @@ class DryRunEvaluator:
         self.cache_hits = 0
         self.evaluations = 0
         self.last_trace = []
+        self.attempts_per_item = max(0, int(attempts_per_item))
 
     def evaluate(self, ordered_items, deadline=None):
         key = tuple(int(item["index"]) for item in ordered_items)
@@ -5852,11 +5877,23 @@ class DryRunEvaluator:
                 "pool_list": [item],
                 "container_list": containers,
             }
-            decision = PlacementCore.choose(
-                observation,
-                [(0, item)],
-                deadline=deadline,
-            )
+            if self.attempts_per_item > 0:
+                decision = PlacementCore.rescue_choose(
+                    observation,
+                    [(0, item)],
+                    deadline=(
+                        deadline
+                        if deadline is not None
+                        else float("inf")
+                    ),
+                    attempt_budget=self.attempts_per_item,
+                )
+            else:
+                decision = PlacementCore.choose(
+                    observation,
+                    [(0, item)],
+                    deadline=deadline,
+                )
             if decision is None:
                 failed_index = int(item["index"])
                 timed_out = (
@@ -5948,6 +5985,7 @@ class Agent:
         self._offline_search_budget_seconds = OFFLINE_SEARCH_BUDGET_SECONDS
         self._offline_max_evaluations = OFFLINE_MAX_EVALUATIONS
         self.last_offline_result = None
+        self.last_offline_initial_result = None
         self.last_offline_evaluations = 0
         self.last_offline_cache_hits = 0
         self.last_pair_macro_candidates = 0
@@ -6165,23 +6203,38 @@ class Agent:
         if len(initial) < 2 or not self._container_templates:
             return initial_indices
 
-        evaluator = DryRunEvaluator(self._container_templates)
+        evaluator = DryRunEvaluator(
+            self._container_templates,
+            attempts_per_item=OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+        )
         started = time.perf_counter()
         deadline = started + max(0.0, self._offline_search_budget_seconds)
         best_items = list(initial)
         best_result = evaluator.evaluate(best_items, deadline=deadline)
+        self.last_offline_initial_result = best_result
         self.last_offline_result = best_result
-        pair_macros = block_templates_from_trace(
-            initial,
-            evaluator.last_trace,
-            container_templates=self._container_templates,
-            deadline=deadline,
-        )
+        if OFFLINE_PAIR_MACRO_BUDGET_SECONDS < 0.0:
+            pair_macros = []
+        else:
+            pair_macro_deadline = deadline
+            if OFFLINE_PAIR_MACRO_BUDGET_SECONDS > 0.0:
+                pair_macro_deadline = min(
+                    deadline,
+                    time.perf_counter()
+                    + OFFLINE_PAIR_MACRO_BUDGET_SECONDS,
+                )
+            pair_macros = block_templates_from_trace(
+                initial,
+                evaluator.last_trace,
+                container_templates=self._container_templates,
+                deadline=pair_macro_deadline,
+            )
         self.last_pair_macro_candidates = len(pair_macros)
         self.last_pair_macro_adoptions = 0
 
         if self._offline_search_budget_seconds <= 0.0:
             self.last_offline_evaluations = evaluator.evaluations
+            self._append_offline_optimization_trace(initial_indices)
             return initial_indices
 
         seed = OFFLINE_RANDOM_SEED
@@ -6276,7 +6329,42 @@ class Agent:
         self.last_offline_result = best_result
         self.last_offline_evaluations = evaluator.evaluations
         self.last_offline_cache_hits = evaluator.cache_hits
-        return [int(item["index"]) for item in best_items]
+        optimized_indices = [int(item["index"]) for item in best_items]
+        self._append_offline_optimization_trace(optimized_indices)
+        return optimized_indices
+
+    def _append_offline_optimization_trace(self, optimized_indices):
+        def result_payload(result):
+            if result is None:
+                return None
+            return dataclass_to_dict(result)
+
+        self._append_policy_trace(
+            {
+                "event": "offline_optimization",
+                "dry_run_attempts_per_item": int(
+                    OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM
+                ),
+                "pair_macro_budget_seconds": float(
+                    OFFLINE_PAIR_MACRO_BUDGET_SECONDS
+                ),
+                "evaluations": int(self.last_offline_evaluations),
+                "cache_hits": int(self.last_offline_cache_hits),
+                "pair_macro_candidates": int(
+                    self.last_pair_macro_candidates
+                ),
+                "pair_macro_adoptions": int(
+                    self.last_pair_macro_adoptions
+                ),
+                "initial_result": result_payload(
+                    self.last_offline_initial_result
+                ),
+                "best_result": result_payload(self.last_offline_result),
+                "optimized_order": [
+                    int(index) for index in optimized_indices
+                ],
+            }
+        )
 
     def _board_choice(self, top, observation, ordered_items):
         """Pick among the ranker's top-K by the board each one leaves.

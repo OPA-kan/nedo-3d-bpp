@@ -73,6 +73,23 @@
 - `candidate_diagnostics.support_plane_searches` は姿勢・コンテナごとに
   連結前後のanchor数、面数、成分数、閾値、面優先順の根拠値を保存する。
 
+### オフライン順序探索（Task Aのみ）
+
+- `Agent.optimize` と `DryRunEvaluator` だけがオフライン予算定数を読む。
+  公式ハーネスは `agent.optimize` が真のときしか `optimize` を呼ばないため、
+  Task B/Cはこの節の影響を受けない。範囲は
+  `test_offline_budget_never_reaches_the_online_policy` で固定してある。
+- 既定は `OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=128`,
+  `OFFLINE_PAIR_MACRO_BUDGET_SECONDS=0.5`（ADR-002, run 30717998654で採用）。
+  1荷物あたりの走査と2荷物マクロ生成の**両方**を有限にしないと、配置不能な
+  1荷物が150秒予算を食い尽くし、順序探索そのものが始まらない。
+- `OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM=0` と
+  `OFFLINE_PAIR_MACRO_BUDGET_SECONDS=0.0` が旧挙動を復元する。
+- ドライランのproxyは順序どうしの**相対選択器**であり、配置数の予測値では
+  ない。採用runではproxy 23に対し物理25で、armによって誤差の符号が変わる。
+- 採用値は内部予算150秒のうち147.3秒を使う。配置コアを遅くする変更は、
+  Task Bベンチマークではなくここに最初に現れる。
+
 ## 現在の状態
 
 - 回帰テストは `python scripts/run_checks.py` で一括実行する。

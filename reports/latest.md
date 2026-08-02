@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-02T14:46:29+00:00`
-- Git SHA: `eebd35d43204f26a3119e1365822474fa5c50269`
+- Timestamp: `2026-08-01T22:20:17+00:00`
+- Git SHA: `ff9b25ef393ca34914118513d41ad4b5a6531971`
 - Python: `3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]`
 - Platform: `Linux-6.18.5-x86_64-with-glibc2.39`
 - Processor: `x86_64`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `8.411 s`
+- Runtime: `5.586 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,16 +21,16 @@
 <details><summary>unit tests (tail; full log: reports/raw/unit-tests.log)</summary>
 
 ```text
-test_the_quaternion_sign_does_not_invent_a_rotation (test_shake_response.RotationTests.test_the_quaternion_sign_does_not_invent_a_rotation)
-q and -q are the same orientation. Without the absolute value this ... ok
-test_an_unknown_mode_is_refused (test_stream_variants.ModeTests.test_an_unknown_mode_is_refused) ... ok
-test_index_is_reassigned_positionally (test_stream_variants.PermuteTests.test_index_is_reassigned_positionally) ... ok
-test_non_dimensional_attributes_travel_with_the_item (test_stream_variants.PermuteTests.test_non_dimensional_attributes_travel_with_the_item) ... ok
-test_the_multiset_is_preserved_exactly (test_stream_variants.PermuteTests.test_the_multiset_is_preserved_exactly) ... ok
-test_the_same_seed_reproduces_the_same_stream (test_stream_variants.PermuteTests.test_the_same_seed_reproduces_the_same_stream) ... ok
-test_the_source_list_is_not_mutated (test_stream_variants.PermuteTests.test_the_source_list_is_not_mutated) ... ok
-test_length_is_preserved_but_content_may_drift (test_stream_variants.ResampleTests.test_length_is_preserved_but_content_may_drift) ... ok
-test_only_whole_source_items_appear (test_stream_variants.ResampleTests.test_only_whole_source_items_appear) ... ok
+test_arm_environment_preserves_legacy_and_enables_bounded (test_task_a_rollout.TaskARolloutTests.test_arm_environment_preserves_legacy_and_enables_bounded) ... ok
+test_base_arm_does_not_inherit_the_adopted_default (test_task_a_rollout.TaskARolloutTests.test_base_arm_does_not_inherit_the_adopted_default)
+The regression this guards: once bounded128 became the shipped ... ok
+test_builder_forces_task_a_contract_without_mutating_source (test_task_a_rollout.TaskARolloutTests.test_builder_forces_task_a_contract_without_mutating_source) ... ok
+test_default_arm_measures_the_shipped_submission (test_task_a_rollout.TaskARolloutTests.test_default_arm_measures_the_shipped_submission) ... ok
+test_summary_reads_isolated_rows (test_task_a_rollout.TaskARolloutTests.test_summary_reads_isolated_rows) ... ok
+test_unknown_arm_is_rejected (test_task_a_rollout.TaskARolloutTests.test_unknown_arm_is_rejected) ... ok
+test_matrix_contrasts_the_shipped_path_against_legacy (test_task_a_rollout_workflow.TaskARolloutWorkflowTests.test_matrix_contrasts_the_shipped_path_against_legacy)
+Post-ADR-002 the treatment arm is the shipped default, so the ... ok
+test_workflow_freezes_adoption_matrix_and_budgets (test_task_a_rollout_workflow.TaskARolloutWorkflowTests.test_workflow_freezes_adoption_matrix_and_budgets) ... ok
 test_builds_online_pool_case_without_mutating_source (test_task_b_config.TaskBConfigTests.test_builds_online_pool_case_without_mutating_source) ... ok
 test_rejects_pool_larger_than_item_stream (test_task_b_config.TaskBConfigTests.test_rejects_pool_larger_than_item_stream) ... ok
 test_supports_largest_planned_pool (test_task_b_config.TaskBConfigTests.test_supports_largest_planned_pool) ... ok
@@ -48,7 +48,7 @@ test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.Task
 test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
 
 ----------------------------------------------------------------------
-Ran 435 tests in 8.012s
+Ran 311 tests in 5.093s
 
 OK
 ```

@@ -150,3 +150,14 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/visible-pool-rollout-ablation.yml
+
+  task-a-rollout-transfer:
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/experiment/task-a-rollout-transfer' ||
+       github.ref ==
+       'refs/heads/claude/task-a-rollout-bounded128-dneq4n') &&
+      !contains(github.event.head_commit.message, '[skip task-a]')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/task-a-rollout-transfer.yml

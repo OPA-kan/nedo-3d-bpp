@@ -3248,21 +3248,220 @@ class OfflineOptimizationTests(unittest.TestCase):
         self.assertGreater(more_items.rank_key(), prettier_but_failed_earlier.rank_key())
 
     def test_dry_run_places_simple_sequence_with_common_core(self):
+        # Both branches of the attempt budget must place through the common
+        # core. 0 is the legacy global-deadline scan kept as the escape
+        # hatch; the shipped default is the adopted bounded budget. Naming
+        # them here keeps the legacy path covered now that it is no longer
+        # what an unconfigured evaluator does.
+        for attempts in (0, agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM):
+            with self.subTest(attempts_per_item=attempts):
+                container = sample_container(
+                    require_shelf=False,
+                    center_x=0.0,
+                    cut_x=0.0,
+                )
+                container["volume"] = 4.0
+                evaluator = agent.DryRunEvaluator(
+                    [container], attempts_per_item=attempts
+                )
+                items = [sample_item(0), sample_item(1)]
+
+                result = evaluator.evaluate(items)
+
+                self.assertEqual(result.placed_count, 2)
+                self.assertIsNone(result.failed_index)
+                self.assertGreater(result.fill_ratio, 0.0)
+                self.assertGreaterEqual(
+                    result.mean_support_ratio, agent.MIN_SUPPORT_RATIO
+                )
+
+    def test_offline_defaults_ship_the_adopted_bounded_rollout(self):
+        """
+        ADR-002 adoption, from Actions run 30717998654. These are shipped
+        submission defaults, not experiment settings, so pin them: a silent
+        revert to the legacy 0/0.0 costs five physical placements on the
+        bundled Task A case and is invisible in every unit test otherwise.
+        """
+        self.assertEqual(agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM, 128)
+        self.assertEqual(agent.OFFLINE_PAIR_MACRO_BUDGET_SECONDS, 0.5)
+
+    def test_unconfigured_dry_run_uses_the_shipped_attempt_budget(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        evaluator = agent.DryRunEvaluator([container])
+
+        self.assertEqual(
+            evaluator.attempts_per_item,
+            agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+        )
+
+        with (
+            mock.patch.object(
+                agent.PlacementCore, "rescue_choose", return_value=None
+            ) as bounded_choose,
+            mock.patch.object(agent.PlacementCore, "choose") as unbounded,
+        ):
+            evaluator.evaluate([sample_item(0)])
+
+        unbounded.assert_not_called()
+        self.assertEqual(
+            bounded_choose.call_args.kwargs["attempt_budget"],
+            agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+        )
+
+    def test_zero_attempts_restores_the_legacy_unbounded_scan(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        evaluator = agent.DryRunEvaluator(
+            [container], attempts_per_item=0
+        )
+
+        with (
+            mock.patch.object(
+                agent.PlacementCore, "choose", return_value=None
+            ) as unbounded,
+            mock.patch.object(
+                agent.PlacementCore, "rescue_choose"
+            ) as bounded_choose,
+        ):
+            evaluator.evaluate([sample_item(0)])
+
+        bounded_choose.assert_not_called()
+        unbounded.assert_called_once()
+
+    def test_bounded_dry_run_uses_deterministic_attempt_budget(self):
         container = sample_container(
             require_shelf=False,
             center_x=0.0,
             cut_x=0.0,
         )
-        container["volume"] = 4.0
-        evaluator = agent.DryRunEvaluator([container])
+        items = [sample_item(0), sample_item(1)]
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": 0,
+                    "container_idx": 0,
+                    "place_pos": np.zeros(3, dtype=np.float32),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.0, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=1.0,
+            ),
+            None,
+        ]
+        evaluator = agent.DryRunEvaluator(
+            [container], attempts_per_item=37
+        )
+        with (
+            mock.patch.object(
+                agent.PlacementCore,
+                "rescue_choose",
+                side_effect=decisions,
+            ) as bounded_choose,
+            mock.patch.object(
+                agent.PlacementCore,
+                "choose",
+            ) as unbounded_choose,
+        ):
+            result = evaluator.evaluate(items)
+
+        self.assertEqual(result.placed_count, 1)
+        self.assertEqual(result.failed_index, 1)
+        self.assertEqual(bounded_choose.call_count, 2)
+        self.assertEqual(
+            [
+                call.kwargs["attempt_budget"]
+                for call in bounded_choose.call_args_list
+            ],
+            [37, 37],
+        )
+        unbounded_choose.assert_not_called()
+
+    def test_offline_budget_never_reaches_the_online_policy(self):
+        """
+        The adoption is Task-A-only. That claim rests entirely on the
+        offline budget being read nowhere but the dry-run evaluator, so
+        assert it rather than restating it: a Task B/C observation
+        (optimize false, the harness never calls optimize) must produce an
+        action without constructing an evaluator at all.
+        """
+        solver = agent.Agent("")
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        solver.get_init_states(
+            {"optimize": False, "container_list": [container]}
+        )
+        observation = {
+            "pool_list": [sample_item(0), sample_item(1)],
+            "container_list": [container],
+        }
+
+        with mock.patch.object(
+            agent, "DryRunEvaluator", side_effect=AssertionError
+        ) as evaluator:
+            action = solver.policy(observation)
+
+        evaluator.assert_not_called()
+        self.assertIsNotNone(action)
+
+    def test_optimize_reports_the_shipped_budget_it_actually_used(self):
+        solver = agent.Agent("")
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        solver.get_init_states(
+            {"optimize": True, "container_list": [container]}
+        )
+        solver._offline_search_budget_seconds = 0.0
         items = [sample_item(0), sample_item(1)]
 
-        result = evaluator.evaluate(items)
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "trace.jsonl"
+            solver._policy_trace_path = str(trace_path)
+            solver.optimize(items)
+            record = json.loads(
+                trace_path.read_text(encoding="utf-8").splitlines()[-1]
+            )
 
-        self.assertEqual(result.placed_count, 2)
-        self.assertIsNone(result.failed_index)
-        self.assertGreater(result.fill_ratio, 0.0)
-        self.assertGreaterEqual(result.mean_support_ratio, agent.MIN_SUPPORT_RATIO)
+        self.assertEqual(
+            record["dry_run_attempts_per_item"],
+            agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+        )
+        self.assertEqual(
+            record["pair_macro_budget_seconds"],
+            agent.OFFLINE_PAIR_MACRO_BUDGET_SECONDS,
+        )
+
+    def test_optimize_emits_offline_diagnostics(self):
+        solver = agent.Agent("")
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        solver.get_init_states(
+            {"optimize": True, "container_list": [container]}
+        )
+        solver._offline_search_budget_seconds = 0.0
+        items = [sample_item(0), sample_item(1)]
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace_path = pathlib.Path(directory) / "trace.jsonl"
+            solver._policy_trace_path = str(trace_path)
+            order = solver.optimize(items)
+            records = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertEqual(records[-1]["event"], "offline_optimization")
+        self.assertEqual(records[-1]["optimized_order"], order)
+        self.assertIn("best_result", records[-1])
 
     def test_optimize_is_deterministic_and_returns_a_permutation(self):
         solver = agent.Agent("")
