@@ -96,6 +96,28 @@ placed を採った。加えて probe の曲線が 256 で平らになるので�
 死因が「早期の転倒」から「終盤の手詰まり」へ移った。当初の判定基準は
 「fallback 死が減る」だったが、そもそも base はそこまで生きていなかった。
 
+## Task A(オフライン有効)への波及 — 確認済み
+
+`optimize()` は `DryRunEvaluator` → `replay_placement_trace` →
+`PlacementCore.choose` と辿るので、**この定数はオフライン探索にも効く**。
+development 5 config は全て `optimize: false` で測ったので、そこは
+測定範囲外だった。投稿前に別途確認した(`reports/first-pass-depth-taskA`):
+
+| arm | placed | fill | optimization | policy |
+| --- | ---: | ---: | ---: | ---: |
+| `first_pass64` | 20 | 30.176 | 109.27 s | 6.518 s |
+| `first_pass256` | 20 | 30.176 | 118.70 s | 6.515 s |
+
+**結果は完全に同一**(placed も fill も小数 3 桁まで)。オフラインの
+事前並べ替えが効いている Task A では、各手の最良候補が 64 試行以内に
+見つかるため深さが効かない。
+
+時間は **109 → 119 s** と 9.4 s 増えたが、`OFFLINE_SEARCH_BUDGET_SECONDS`
+150 s の内側であり、公式上限 180 s に対して **61 s の余裕**がある。
+オンライン側は 6.52 s(上限 8 s、README 推奨の「1 秒以上の余裕」を満たす)。
+
+つまり **Task A では中立、Task B(オンラインのみ)で +25%** という形になる。
+
 ## 残るリスク
 
 * development 5 config は source 2 本(000 / 001)から生成したもので、
