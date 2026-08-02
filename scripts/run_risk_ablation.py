@@ -61,6 +61,7 @@ def configure_arm_environment(
         "VISIBLE_POOL_ROLLOUT_ATTEMPTS",
         "VISIBLE_POOL_ROLLOUT_STRIDE",
         "LIVE_SEARCH_INTERLEAVE",
+        "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
@@ -81,6 +82,8 @@ def configure_arm_environment(
         "rollout_shadow_stride4",
         "live_interleave4",
         "live_interleave8",
+        "item_cap16",
+        "item_cap20",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -106,6 +109,12 @@ def configure_arm_environment(
             env["LIVE_SEARCH_INTERLEAVE"] = "4"
         elif arm == "live_interleave8":
             env["LIVE_SEARCH_INTERLEAVE"] = "8"
+        elif arm == "item_cap16":
+            # Item-dimension breadth. The anchor dimension has twice failed
+            # a breadth intervention; this is the axis where one worked.
+            env["MAX_POOL_ITEMS_EVALUATED"] = "16"
+        elif arm == "item_cap20":
+            env["MAX_POOL_ITEMS_EVALUATED"] = "20"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"

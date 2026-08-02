@@ -227,6 +227,22 @@ class ArmEnvironmentTests(unittest.TestCase):
 
         self.assertNotIn("LIVE_SEARCH_INTERLEAVE", env)
 
+    def test_item_cap_arms_touch_only_the_item_dimension(self):
+        base: dict[str, str] = {}
+        capped: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(capped, "item_cap16", 2.0, 0.0)
+
+        self.assertEqual(capped.pop("MAX_POOL_ITEMS_EVALUATED"), "16")
+        self.assertEqual(capped, base)
+
+    def test_an_arm_does_not_inherit_an_outer_item_cap(self):
+        env = {"MAX_POOL_ITEMS_EVALUATED": "40"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
+
     def test_rollout_shadow_stride4_stays_telemetry_only(self):
         env: dict[str, str] = {}
 

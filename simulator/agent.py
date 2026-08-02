@@ -97,7 +97,14 @@ RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
-MAX_POOL_ITEMS_EVALUATED = 10
+# How many visible items the search may consider per step. At the shipped 10
+# a 40-item visible pool is searched 10 items deep, and the single largest
+# measured gain on this project came from changing which 10 those are
+# (class-aware coverage, placed 10.67 -> 17.00). The item dimension is the
+# one axis where a breadth intervention has ever paid, so it is a knob.
+MAX_POOL_ITEMS_EVALUATED = max(
+    1, int(os.environ.get("MAX_POOL_ITEMS_EVALUATED", "10"))
+)
 RESCUE_SCAN_ENABLED = os.environ.get(
     "RESCUE_SCAN_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
