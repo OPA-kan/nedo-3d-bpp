@@ -183,12 +183,19 @@ class EvidenceLedgerTests(unittest.TestCase):
             if entry["status"] == "superseded":
                 self.assertIn(entry.get("superseded_by"), ids)
 
-    def test_replications_resolve_and_stay_active(self) -> None:
+    def test_replications_resolve_and_are_not_filed_as_supersessions(
+        self,
+    ) -> None:
         """
-        A replication is current knowledge, so it must not be filed as a
-        supersession -- status=superseded is hidden from the default view,
-        which would bury the confirmation it exists to record. The target
-        must stay visible too, otherwise the link dangles in the CLI.
+        The rule is about how a confirmation is *recorded*, not about it
+        being immortal. Recording a replication as a supersession would
+        read as "the original was wrong" and hide it from the default
+        view. But a replication is an ordinary entry afterwards: a later
+        measurement can supersede it, which is exactly what happened to
+        task-a-bounded128-replicated when the third CI run showed the
+        episode outcome is machine-speed dependent. So the active case is
+        constrained; the superseded case falls back to the normal
+        supersession rules checked above.
         """
         from scripts.context import load_evidence
 
@@ -201,11 +208,17 @@ class EvidenceLedgerTests(unittest.TestCase):
             with self.subTest(entry=entry["id"]):
                 self.assertIn(entry["replicates"], by_id)
                 self.assertNotEqual(entry["replicates"], entry["id"])
-                self.assertEqual(entry["status"], "active")
-                self.assertNotIn("superseded_by", entry)
-                self.assertEqual(
-                    by_id[entry["replicates"]]["status"], "active"
-                )
+                if entry["status"] == "active":
+                    self.assertNotIn("superseded_by", entry)
+                    self.assertEqual(
+                        by_id[entry["replicates"]]["status"], "active"
+                    )
+                else:
+                    # Superseded later is fine; superseded *by its own
+                    # target* would mean it was filed as a supersession.
+                    self.assertNotEqual(
+                        entry.get("superseded_by"), entry["replicates"]
+                    )
 
     def test_render_hides_inactive_by_default(self) -> None:
         from scripts.context import render_evidence

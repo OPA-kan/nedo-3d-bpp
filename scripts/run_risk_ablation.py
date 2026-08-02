@@ -146,13 +146,13 @@ def configure_arm_environment(
             # reports/same-class-stacking puts the cliff between 64 and 256
             # attempts per item; 128 is there because a cliff located
             # between two points is not a located cliff. The 16 and 32 rungs
-            # were added for Task C, where the trade runs the other way: the
-            # fatal endgame states are starved of UNIT coverage, not of depth
-            # within a unit, and units visited at the c001-k1 step-19 terminal
-            # fell from 4 of 12 to 2 of 12 when the default moved 64 -> 256.
-            # first_pass64 is
-            # kept after the default moved to 256 so the old shipped
-            # behaviour stays measurable rather than becoming unreachable.
+            # were added for a Task C hypothesis that the sweep then refuted:
+            # depth is inert on c001-k1 (identical placed, fill and death at
+            # every rung, because that space holds no solution at any budget)
+            # and non-monotonic on c000-k1. Kept so the refutation stays
+            # reproducible. first_pass64 is kept after the default moved to
+            # 256 so the old shipped behaviour stays measurable rather than
+            # becoming unreachable.
             env["ANCHOR_FIRST_PASS_ATTEMPTS"] = arm.removeprefix("first_pass")
         elif arm == "topk8":
             # Control for board_k8. Widening the top-K alone also changes
@@ -248,6 +248,18 @@ def case_summary(
             # Undisclosed protocol, so a monotone comparator between arms and
             # never the official number.
             "shake_response": score.get("shake_response") or {},
+            # Raw centre of gravity. cog_score has no published procedure,
+            # so com_contract ships with the numbers; see diagnostics.py.
+            "center_of_gravity": {
+                key: final_step.get(key)
+                for key in (
+                    "com_z",
+                    "com_z_above_floor",
+                    "com_height_ratio",
+                    "com_contract",
+                )
+                if key in final_step
+            },
             # Stability proxies (per the diagnostics decomposition: no
             # pseudo-total score, each proxy kept separate).
             "max_settle_angle_deg": max(angles) if angles else None,

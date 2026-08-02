@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Reverse-lookup registry of instruments. The point is not 'what does this script measure' -- the filename usually implies that, and usually implies too much. The point is `conditioned_on` and `cannot_answer`: what the instrument silently holds fixed, and which questions it is therefore structurally unable to answer no matter how many times it is run.",
+    "rule": "cannot_answer is mandatory and must name questions somebody could plausibly believe this instrument settles. An empty cannot_answer means the entry has not been thought through. Conditioning that is invisible in the output is the failure mode this registry exists to prevent: measure_anchor_recall applies the item cap before enumerating, so it reads as an oracle over placements when it is an oracle over placements *of the ten items the cap admitted*."
+  },
+  "instruments": {
+    "scripts/measure_anchor_recall.py": {
+      "analysis_unit": "state x candidate",
+      "varied_axis": [
+        "anchor"
+      ],
+      "conditioned_on": [
+        "MAX_POOL_ITEMS_EVALUATED: the cap is applied before enumeration",
+        "the legacy Cartesian generator, forced deliberately so recall is measured against a fixed reference",
+        "a single snapshot per invocation"
+      ],
+      "outcome": [
+        "anchor recall",
+        "best_score_regret"
+      ],
+      "cannot_answer": [
+        "whether an item outside the cap had better placements",
+        "whether the cap should be larger",
+        "anything about which item should have been chosen",
+        "whether recall matters: recall 0.167 with best_score_regret 0.0 was measured on one snapshot"
+      ],
+      "supports": [
+        "anchor-recall-one-snapshot"
+      ]
+    },
+    "scripts/build_replay_dataset.py": {
+      "analysis_unit": "state x candidate",
+      "varied_axis": [
+        "candidate_rank",
+        "physics"
+      ],
+      "conditioned_on": [
+        "the selected item at each step",
+        "the generated candidate set, hence the item cap and the anchor generator",
+        "stratum inclusion probabilities (rows are an unequal-probability sample; use sampling_weight)"
+      ],
+      "outcome": [
+        "physical labels (rotation, d_xy, d_z, placed-safe, valid, included)"
+      ],
+      "cannot_answer": [
+        "the opportunity cost of items never entered into the search -- they produce no rows",
+        "the effect of the item cap",
+        "gate precision/recall over the whole candidate population; selected_* cells are conditioned on selection"
+      ],
+      "supports": [
+        "mechanics-features-dominate-static-33snap",
+        "risk-rule-family-comparison-33snap",
+        "slide-direction-downhill",
+        "dxy-equivariant-s0"
+      ]
+    },
+    "scripts/run_risk_ablation.py": {
+      "analysis_unit": "episode",
+      "varied_axis": [
+        "candidate_rank",
+        "fallback",
+        "rollout"
+      ],
+      "conditioned_on": [
+        "one trajectory per (config, arm, repeat) unless repeats are requested",
+        "wall-clock: the online policy is anytime and saturates its budget"
+      ],
+      "outcome": [
+        "placed_count",
+        "fill_score",
+        "is_included/is_valid/is_placed_safe"
+      ],
+      "cannot_answer": [
+        "any effect smaller than its own run-to-run variance, which is config-specific and reaches 5 placed on b000-k40 with an identical binary (MEASUREMENT_AUDIT F3)",
+        "why an arm differs -- it reports outcomes, not divergence points",
+        "anything about Task A: these configs set optimize=false"
+      ],
+      "supports": [
+        "risk-gate-ablation-off-baseline",
+        "online-ablation-round2-positive",
+        "slide-lambda-05-adopted",
+        "aabb-cache-guard-mixed"
+      ]
+    },
+    "scripts/run_task_a_rollout.py": {
+      "analysis_unit": "episode",
+      "varied_axis": [
+        "order"
+      ],
+      "conditioned_on": [
+        "one bundled source case (000)",
+        "the shipped PlacementCore, which the dry run replays -- so E_theta moves whenever the core moves",
+        "machine speed on the online half of the episode, though not on the offline order selection"
+      ],
+      "outcome": [
+        "placed_count",
+        "fill_score",
+        "offline evaluations",
+        "offline proxy placed"
+      ],
+      "cannot_answer": [
+        "whether the result transfers to another case",
+        "whether the proxy is calibrated -- it is a relative selector only",
+        "whether the terminal invalid action would be fixed; both arms still end on one"
+      ],
+      "supports": [
+        "task-a-bounded128-adopted",
+        "task-a-bounded128-replicated",
+        "task-a-episode-outcome-is-machine-speed-dependent"
+      ]
+    },
+    "scripts/measure_residual_capacity.py": {
+      "analysis_unit": "state",
+      "varied_axis": [
+        "state_shaping"
+      ],
+      "conditioned_on": [
+        "stride systematic sampling (release series exact at stride<=16; settled series sparse)",
+        "the enumerated candidate set, hence the item cap"
+      ],
+      "outcome": [
+        "V_cap descriptors",
+        "placed-to-go prediction error"
+      ],
+      "cannot_answer": [
+        "whether a graded state value would help if it were used to act -- this is observational, there is no knob on this axis",
+        "anything about states the policy never reaches"
+      ],
+      "supports": [
+        "capacity-instrument-calibration",
+        "stage-a-calibrated-negative"
+      ]
+    },
+    "scripts/analyze_terminal_failures.py": {
+      "analysis_unit": "episode-ending placement",
+      "varied_axis": [
+        "fallback",
+        "physics"
+      ],
+      "conditioned_on": [
+        "episodes that ended; survivors contribute nothing",
+        "states reconstructed from observed settle AABBs, not the live state"
+      ],
+      "outcome": [
+        "death channel (topple / transport_invalid / slide)"
+      ],
+      "cannot_answer": [
+        "the rate at which a channel is survived -- the denominator is deaths, not attempts",
+        "whether a different action would have survived; it is a post-mortem, not a counterfactual"
+      ],
+      "supports": [
+        "terminal-failure-channels",
+        "transport-now-leading-death-channel"
+      ]
+    },
+    "scripts/fingerprint_optimizer.py": {
+      "analysis_unit": "code revision",
+      "varied_axis": [
+        "order",
+        "candidate_rank"
+      ],
+      "conditioned_on": [
+        "the declared probe set: a fixed 5-item pool and one empty container",
+        "infinite deadline and a fixed attempt budget, deliberately, so it never reads machine speed"
+      ],
+      "outcome": [
+        "component_sha256",
+        "behaviour_sha256",
+        "live_ranking_sha256"
+      ],
+      "cannot_answer": [
+        "semantic changes the probes do not exercise -- it already misses the offline/online risk gap, because the probe's winner is a settled candidate, and MIN_SUPPORT_RATIO 0.55->0.50, because the probe sits far from the threshold",
+        "anything about cores predating PlacementCore.rescue_choose",
+        "how large a change is, or whether it is an improvement: it reports difference, not distance"
+      ],
+      "supports": [
+        "offline-is-a-risk-off-proposal-oracle"
+      ]
+    },
+    "scripts/build_branch_labels.py": {
+      "analysis_unit": "state x sibling action, labelled by the FINAL episode outcome",
+      "varied_axis": [
+        "candidate_rank",
+        "state_shaping"
+      ],
+      "conditioned_on": [
+        "the sibling set reconstructed from the same candidate set at that state, so it inherits the item cap and the anchor generator",
+        "the shipped policy running free after the forced action -- the label is Y under THIS policy, not under an optimal continuation",
+        "one episode per invocation; branch points come from that single trajectory",
+        "prefix reproducibility, which is checked per state rather than assumed because the search is deadline-limited"
+      ],
+      "outcome": [
+        "final placed",
+        "final fill",
+        "within-step concordance with immediate Q"
+      ],
+      "cannot_answer": [
+        "whether a better action existed outside the sampled siblings -- it labels the candidates it was given, not the reachable set",
+        "anything with a sample size worth acting on from one episode: 15 decided pairs is inside the measured noise floor for small differences",
+        "which board feature explains the outcome; it produces the label a board functional could be scored against, it does not fit one",
+        "counterfactuals under a different continuation policy"
+      ],
+      "supports": [
+        "immediate-Q-anti-correlates-with-branch-outcome"
+      ],
+      "note": "The first instrument on this repository that produces a long-horizon paired label. Every earlier board-value label was short-horizon and is known unusable: placed-to-go is confounded by step and volume, immediate settle survival is unrelated to option counts, and 95.2% of Q-band sibling pairs tie on any short-horizon outcome."
+    },
+    "scripts/run_stream_paired.py": {
+      "analysis_unit": "episode, paired within arrival stream",
+      "varied_axis": [
+        "item",
+        "anchor",
+        "rollout",
+        "fallback"
+      ],
+      "conditioned_on": [
+        "one source multiset per invocation; permutations vary arrival order ONLY, holding content, class mix, total volume and difficulty fixed",
+        "sequential execution, because the search is deadline-limited",
+        "the two arms compared; it does not sweep"
+      ],
+      "outcome": [
+        "paired delta placed/fill",
+        "sign test",
+        "noise floor of the base arm",
+        "search pressure"
+      ],
+      "cannot_answer": [
+        "generalisation across item mixes from a single source -- that needs a second source, and the first time it was run on one the effect did not transfer (item-cap-effect-is-source-dependent)",
+        "the optimum value of a knob: it compares two arms, so a knee needs several invocations",
+        "why an arm wins; it reports outcomes, not divergence points",
+        "anything about runtime variance: permutation estimates omega, not xi"
+      ],
+      "supports": [
+        "item-cap-effect-is-source-dependent",
+        "development-suite-noise-floor-permutation"
+      ]
+    }
+  },
+  "provenance": {
+    "verified_against_merge_of": {
+      "ours": "039a43d04b3368ca54c4f3553d5ea9174ed73d21",
+      "theirs": "1f48be7deea3fbfccf21b314728e07534ca6d0a8",
+      "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
+    },
+    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap."
+  }
+}
