@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Canonical registry of every environment knob agent/agent.py reads. One source, so the fingerprint's component list, the axis registry and the documentation cannot drift apart -- they did: the fingerprint tracked 26 of 47 knobs and four of those names did not exist, so a merge that added three knobs passed it unchanged.",
+    "rule": "semantic=true means the knob can change what the agent does, so it belongs in the optimizer fingerprint. semantic=false is diagnostics/telemetry only. A knob absent from this file fails tests/test_knob_registry.py -- adding an env read to agent.py requires registering it here and deciding its axis.",
+    "projection_warning": "A fingerprint sees only P(Theta), the registered projection. P(Theta)=P(Theta') does not imply Theta=Theta'. This registry is what keeps the projection total over env knobs; it does NOT cover source literals such as the Ranker weights, which remain unregistered because they are not settable."
+  },
+  "knobs": {
+    "ANCHOR_DEEP_PASS_ATTEMPTS": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "ANCHOR_FIRST_PASS_ATTEMPTS": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "ANCHOR_GENERATOR_MODE": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "CROSS_STEP_INCUMBENT_MODE": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "CROSS_STEP_INCUMBENT_PER_ITEM": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "DPOR_MAX_ALTERNATE_ATTEMPTS": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "ITEM_COVERAGE_MODE": {
+      "axis": "item",
+      "semantic": true
+    },
+    "LIVE_SEARCH_INTERLEAVE": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "LOOKAHEAD_DISCOUNT": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "LOOKAHEAD_INNER_ITEMS": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "LOOKAHEAD_SELECTION_MODE": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "LOOKAHEAD_TIME_RESERVE_SECONDS": {
+      "axis": "timing",
+      "semantic": true
+    },
+    "LOOKAHEAD_TOP_K": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "MAX_POOL_ITEMS_EVALUATED": {
+      "axis": "item",
+      "semantic": true
+    },
+    "NEDO_CANDIDATE_AUDIT": {
+      "axis": "diagnostic",
+      "semantic": false
+    },
+    "NEDO_POLICY_TRACE_PATH": {
+      "axis": "diagnostic",
+      "semantic": false
+    },
+    "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_FILL_WEIGHT": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_MAX_EVALUATIONS": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_PAIR_MACRO_BUDGET_SECONDS": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_SEARCH_BUDGET_SECONDS": {
+      "axis": "timing",
+      "semantic": true
+    },
+    "OFFLINE_STABILITY_WEIGHT": {
+      "axis": "order",
+      "semantic": true
+    },
+    "RELEASE_RISK_DIAGNOSTIC_SAMPLE_LIMIT": {
+      "axis": "diagnostic",
+      "semantic": false
+    },
+    "RELEASE_RISK_GATE_MODE": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_LIVE_RERANK": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_MAX_DROP_NORMALIZED": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_MAX_OVERHANG_RATIO": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_MAX_SUPPORT_IMBALANCE": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_MIN_COM_MARGIN": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_MIN_SUPPORT_RATIO": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_P_MODEL": {
+      "axis": "physics",
+      "semantic": true
+    },
+    "RELEASE_RISK_RERANK_LAMBDA": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_SHADOW_RERANK": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_SLIDE_LAMBDA": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RELEASE_RISK_SLIDE_SHADOW_LAMBDA": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "RESCUE_SCAN_ATTEMPTS_PER_UNIT": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "RESCUE_SCAN_ATTEMPT_BUDGET": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "RESCUE_SCAN_ENABLED": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "RESCUE_SCAN_RESERVE_SECONDS": {
+      "axis": "fallback",
+      "semantic": true
+    },
+    "SUPPORT_PLANE_ADJACENCY": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "SUPPORT_PLANE_ROUND_ATTEMPTS": {
+      "axis": "anchor",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_ATTEMPTS": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_DEPTH": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_MODE": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_Q_BAND": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_STRIDE": {
+      "axis": "rollout",
+      "semantic": true
+    },
+    "VISIBLE_POOL_ROLLOUT_TOP_K": {
+      "axis": "rollout",
+      "semantic": true
+    }
+  }
+}

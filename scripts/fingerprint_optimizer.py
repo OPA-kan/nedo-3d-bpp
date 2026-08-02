@@ -81,47 +81,45 @@ def load_agent(path: pathlib.Path = AGENT_PATH):
     return module
 
 
+KNOBS_PATH = ROOT / "context" / "knobs.json"
+
+# Not environment knobs, so context/knobs.json cannot carry them, but they
+# still parameterise theta. Keep the list short and explicit: anything
+# settable belongs in knobs.json instead.
+UNSETTABLE_COMPONENTS = (
+    "MIN_SUPPORT_RATIO",
+    "TRANSPORT_CLEARANCE",
+    "EPS",
+    "OFFLINE_RANDOM_SEED",
+)
+
+
+def component_names(path: pathlib.Path = KNOBS_PATH) -> list[str]:
+    """
+    Read the semantic knobs from the canonical registry rather than from a
+    list maintained here.
+
+    The hand-written list this replaces covered 26 of the 47 environment
+    knobs agent.py actually reads, and four of its names did not exist at
+    all. A merge that introduced three new knobs therefore left
+    component_sha256 unchanged -- the fingerprint was measuring the
+    registered projection P(theta), not theta, and nothing flagged the
+    difference. tests/test_knob_registry.py now fails when agent.py reads a
+    knob this registry does not list.
+    """
+    with path.open(encoding="utf-8") as handle:
+        registry = json.load(handle)
+    names = [
+        name for name, spec in registry["knobs"].items()
+        if spec.get("semantic")
+    ]
+    return sorted(set(names) | set(UNSETTABLE_COMPONENTS))
+
+
 def component_versions(agent) -> dict[str, Any]:
     """The declared knobs of theta. Absent names are recorded as null."""
-    names = (
-        # candidate generation / enumeration order
-        "ANCHOR_GENERATOR_MODE",
-        "LIVE_SEARCH_INTERLEAVE",
-        "VISIBLE_POOL_ROLLOUT_STRIDE",
-        # item-dimension coverage
-        "MAX_POOL_ITEMS_EVALUATED",
-        "SHALLOW_ANCHOR_ATTEMPTS",
-        "DEEP_ANCHOR_ATTEMPTS",
-        # feasibility / geometry
-        "BOUNDARY_MARGIN",
-        "TRANSPORT_CLEARANCE",
-        "MIN_SUPPORT_RATIO",
-        "FLOOR_ACTION_LIFT",
-        "EPS",
-        # ranking / risk
-        "RELEASE_RISK_GATE_MODE",
-        "RELEASE_RISK_LIVE_RERANK",
-        "RELEASE_RISK_P_MODEL",
-        "RELEASE_RISK_RERANK_LAMBDA",
-        "RELEASE_RISK_SLIDE_LAMBDA",
-        # selection / rescue
-        "RESCUE_SCAN_ENABLED",
-        "RESCUE_SCAN_ATTEMPT_BUDGET",
-        "CROSS_STEP_INCUMBENT_MODE",
-        "VISIBLE_POOL_ROLLOUT_MODE",
-        "ITEM_COVERAGE_MODE",
-        "LOOKAHEAD_SELECTION_MODE",
-        # offline search budget
-        "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM",
-        "OFFLINE_PAIR_MACRO_BUDGET_SECONDS",
-        "OFFLINE_SEARCH_BUDGET_SECONDS",
-        "OFFLINE_MAX_EVALUATIONS",
-        "OFFLINE_RANDOM_SEED",
-        "OFFLINE_FILL_WEIGHT",
-        "OFFLINE_STABILITY_WEIGHT",
-    )
     out: dict[str, Any] = {}
-    for name in names:
+    for name in component_names():
         value = getattr(agent, name, None)
         out[name] = value if isinstance(
             value, (int, float, str, bool, type(None))
