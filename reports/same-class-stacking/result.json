@@ -1,0 +1,175 @@
+{
+  "attempt_budget": 4096,
+  "official_rule": "simulator/README.md:379 -- a soft or priority item may be covered by an item sharing that attribute without penalty; the two attributes are independent.",
+  "shipped_rule": "agent/agent.py support_surfaces() admits a packed item only when it is neither soft nor prioritized.",
+  "summary": {
+    "episodes": 3,
+    "fallback_states_probed": 3,
+    "states_with_a_restricted_surface": 3,
+    "states_unlocked_by_the_official_rule": 0,
+    "states_where_the_baseline_itself_found_something": 2,
+    "verdict": "over-constraint is not the cause at these states"
+  },
+  "cases": [
+    {
+      "case_id": "b000-k40",
+      "steps": 19,
+      "fallback_states": [
+        {
+          "visible_items": 23,
+          "packed_census": {
+            "soft": 1,
+            "prioritized": 3,
+            "both": 1,
+            "plain": 13
+          },
+          "baseline_hits": [
+            {
+              "pool_index": 1,
+              "item_index": 2,
+              "kind": "candidate"
+            },
+            {
+              "pool_index": 2,
+              "item_index": 7,
+              "kind": "candidate"
+            },
+            {
+              "pool_index": 4,
+              "item_index": 15,
+              "kind": "release_candidate"
+            },
+            {
+              "pool_index": 9,
+              "item_index": 25,
+              "kind": "release_candidate"
+            },
+            {
+              "pool_index": 10,
+              "item_index": 26,
+              "kind": "release_candidate"
+            },
+            {
+              "pool_index": 19,
+              "item_index": 37,
+              "kind": "release_candidate"
+            }
+          ],
+          "relaxed_only_hits": [],
+          "headline_seconds_for_the_whole_pool": 19.842,
+          "budget_curve": [
+            {
+              "attempts_per_item": 16,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.165
+            },
+            {
+              "attempts_per_item": 64,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.268
+            },
+            {
+              "attempts_per_item": 256,
+              "items_with_a_placement": 6,
+              "seconds_for_the_whole_pool": 1.935
+            },
+            {
+              "attempts_per_item": 1024,
+              "items_with_a_placement": 6,
+              "seconds_for_the_whole_pool": 6.082
+            }
+          ],
+          "step": 18
+        }
+      ]
+    },
+    {
+      "case_id": "b001-k20",
+      "steps": 19,
+      "fallback_states": [
+        {
+          "visible_items": 20,
+          "packed_census": {
+            "soft": 7,
+            "prioritized": 1,
+            "both": 1,
+            "plain": 9
+          },
+          "baseline_hits": [],
+          "relaxed_only_hits": [],
+          "headline_seconds_for_the_whole_pool": 13.389,
+          "budget_curve": [
+            {
+              "attempts_per_item": 16,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.113
+            },
+            {
+              "attempts_per_item": 64,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.283
+            },
+            {
+              "attempts_per_item": 256,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 1.367
+            },
+            {
+              "attempts_per_item": 1024,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 4.234
+            }
+          ],
+          "step": 18
+        }
+      ]
+    },
+    {
+      "case_id": "b001-k30",
+      "steps": 18,
+      "fallback_states": [
+        {
+          "visible_items": 25,
+          "packed_census": {
+            "soft": 7,
+            "prioritized": 1,
+            "both": 1,
+            "plain": 8
+          },
+          "baseline_hits": [
+            {
+              "pool_index": 22,
+              "item_index": 39,
+              "kind": "release_candidate"
+            }
+          ],
+          "relaxed_only_hits": [],
+          "headline_seconds_for_the_whole_pool": 15.885,
+          "budget_curve": [
+            {
+              "attempts_per_item": 16,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.112
+            },
+            {
+              "attempts_per_item": 64,
+              "items_with_a_placement": 0,
+              "seconds_for_the_whole_pool": 0.272
+            },
+            {
+              "attempts_per_item": 256,
+              "items_with_a_placement": 1,
+              "seconds_for_the_whole_pool": 1.43
+            },
+            {
+              "attempts_per_item": 1024,
+              "items_with_a_placement": 1,
+              "seconds_for_the_whole_pool": 4.65
+            }
+          ],
+          "step": 17
+        }
+      ]
+    }
+  ]
+}
