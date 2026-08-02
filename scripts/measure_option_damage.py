@@ -381,37 +381,35 @@ def main() -> int:
             ),
         }
 
-    soft = [t for t in transitions if t["placed_is_soft"]]
-    rigid = [t for t in transitions if not t["placed_is_soft"]]
-    summary["soft_versus_rigid"] = {
-        "soft_transitions": len(soft),
-        "rigid_transitions": len(rigid),
-        "mean_delta_by_type": {
-            name: {
-                "soft": (
-                    round(
-                        statistics.fmean(
-                            t["delta"][name]["kappa"] for t in soft
-                        ),
-                        4,
-                    )
-                    if soft
-                    else None
+    # Cross-effect matrix. The DIAGONAL is confounded: placing an item of
+    # type X removes it from the remaining pool of X, so kappa_X falls
+    # mechanically whenever it is multiplicity-capped. Only the off-diagonal
+    # compares operators. Rows are keyed by `placed_type`, never by the raw
+    # `is_soft` flag - a prioritised soft item is a priority placement, and
+    # bucketing it as soft imports the priority diagonal into the soft row.
+    matrix: dict[str, Any] = {}
+    for placed in TYPES:
+        subset = [t for t in transitions if t["placed_type"] == placed]
+        row: dict[str, Any] = {"transitions": len(subset), "measured": {}}
+        for measured in TYPES:
+            values = [
+                t["delta"][measured]["kappa"]
+                for t in subset
+                if t["before"][measured]["classes"] > 0
+            ]
+            row["measured"][measured] = {
+                "n": len(values),
+                "mean_delta": (
+                    round(statistics.fmean(values), 4) if values else None
                 ),
-                "rigid": (
-                    round(
-                        statistics.fmean(
-                            t["delta"][name]["kappa"] for t in rigid
-                        ),
-                        4,
-                    )
-                    if rigid
-                    else None
-                ),
+                "increases": sum(1 for v in values if v > 0),
+                "decreases": sum(1 for v in values if v < 0),
+                "unchanged": sum(1 for v in values if v == 0),
+                "diagonal": placed == measured,
+                "confounded_by_pool_depletion": placed == measured,
             }
-            for name in TYPES
-        },
-    }
+        matrix[placed] = row
+    summary["cross_effect_matrix"] = matrix
 
     report = {
         "schema_version": SCHEMA_VERSION,

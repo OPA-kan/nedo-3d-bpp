@@ -436,6 +436,33 @@
       "claim": "Redefining a residual option from geometrically placeable to placeable-and-likely-to-survive does NOT rescue the acceptance-capacity state value. On 42 development snapshots (3 final_holdout datasets skipped; 17 with an uncensored physical failure), weighting each independent option by modelled survival makes the relation to the physical-failure label worse under every combination rule: Spearman vs T_physical 0.503 (raw) -> 0.251 (union-bound sum), 0.251 (max), 0.214 (independence product); AUC vs Y_3 0.627 -> 0.524 / 0.567 / 0.536. All three rules agree, so this is robust and not an artefact of the combination choice. The motivating diagnosis was also wrong, which strengthens the negative: the constant-class fraction is 0.0 for raw as well as weighted and raw takes 12 distinct totals, so this counting never saturated -- the constant 0.113 in stage-a-calibrated-negative was release_cap_volume, a different quantity. Weighting ADDS resolution (12 -> 37 distinct totals) and LOSES signal. Mechanism: release options are 48.4% of independent options and the models are not degenerate (P_rot mean 0.245 sd 0.135; P_slide mean 0.152 sd 0.144 over 184 class-observations), but the net effect is near a uniform shrink (kappa_product/kappa_raw 0.810 mean, sd 0.110), contributing variation unaligned with the outcome. The structural reason is that an episode fails from the action the policy actually takes, not from the average safety of the option pool, so per-option risk cannot aggregate into a state descriptor for a failure caused by one selected action. Raw kappa's 0.503 must NOT be read as predictive power: Spearman(kappa_raw, step) = -0.367 and Spearman(step, T_physical) = -0.342, so both decline with step and the correlation appears without either informing the other -- the third measurement of the same confound. Conclusion is about form, not weights: the within-state per-action differential is the only shape these confounds do not reach.",
       "values": "Spearman vs T_physical / AUC vs Y_3: raw 0.5032 / 0.6274, sum 0.2514 / 0.5240, max 0.2514 / 0.5673, product 0.2142 / 0.5361; 42 snapshots, 17 uncensored, Y_1/Y_2/Y_3 positives 8/14/16",
       "source": "reports/replay-analysis/safe-capacity-stage-a/report.json and summary.md; scripts/measure_safe_capacity.py"
+    },
+    {
+      "id": "typed-option-irreversibility-is-per-type",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "Unconditional irreversibility (s not in K => T_a(s) not in K) is FALSE for the rigid option type and holds for priority only in a degenerate way. Over 126 real placements on 42 development states (successors at the official x_plus pose, final_holdout skipped): placing a SOFT item RAISES the rigid independent-option count by +0.261 on average, up in 10 of 23 transitions -- a repeated counterexample, mechanistically soft items settling into gaps and leaving flat top surfaces. Rigid placements also raise their own type in 35/126 (27.8%). By contrast kappa_priority does not move AT ALL under non-priority placements: 0.000 mean with 0 increases and 0 decreases over 57 transitions (19 soft, 38 rigid); only priority placements change it, by the mechanical -1.000 of pool depletion. So the split K = K_irreversible intersect K_recoverable is supported with a MEASURED assignment: rigid is recoverable, soft is eroded by everything (1 increase in 126), priority is invariant. The consequence for a priority hard veto is not the expected one: the risk is not that the set is recoverable and the veto unsound, it is that kappa_priority is constant along ordinary packing, so a veto keyed on it could be sound and never fire. Scope: integer option count at stride 16, cap 32 accepted anchors per class-orientation-kind, so sub-granular movement is invisible; 108 of 126 transitions survived settle and failures are retained.",
+      "values": "cross-effect mean delta kappa, rows placed / cols measured (diagonal confounded by pool depletion): priority -> (-1.000, -0.500, -1.542) n=24; soft -> (0.000, (-1.174), +0.261) n=23; rigid -> (0.000, -0.076, (+0.025)) n=79",
+      "source": "reports/replay-analysis/option-damage/report.json and summary.md; scripts/measure_option_damage.py"
+    },
+    {
+      "id": "placements-disturb-packed-items",
+      "topic": "simulator",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "Free space is NOT monotone under placement in this simulator, so any viability argument that assumes 'a placement only adds obstacles and never moves existing ones' needs that premise measured rather than assumed. Tracking already-packed items across a single further placement over 6 consecutive-step snapshot pairs (69 item-observations): 5 (7.2%) moved more than 1 mm, with median displacement 0.028 mm, mean 1.296 mm and MAXIMUM 40.9 mm. The maximum is 2.5x the 16 mm internal boundary guard and transport clearance, so an existing obstacle can leave a fixed corridor or reserved region, which means g(T_a(s)) <= g(s) can be violated for a fixed geometric resource. The distribution is heavy-tailed: most items do not move and a few move a lot. A hard permanent veto therefore needs a margin delta covering the disturbance envelope rather than plain monotonicity. Scope: 6 pairs, 69 observations -- the direction is clear but the envelope value is a first estimate, and denser labelling is cheap now that PyBullet runs locally.",
+      "values": "69 already-packed items across one further placement: 5 moved >1 mm (7.2%); displacement median 0.028 mm, mean 1.296 mm, max 40.861 mm vs 16 mm guard",
+      "source": "reports/replay-dataset consecutive step-*-state.json pairs; measured 2026-08-02"
+    },
+    {
+      "id": "arrival-distribution-not-estimable-from-two-streams",
+      "topic": "method",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "Any dynamic future-class weighting of the form sum_c p(c | h_t) V_c is blocked by data rather than by theory in this repository: simulator/configs/sample_config.json contains exactly two item streams (case 000: 41 items over 10 distinct classes; case 001: 42 items over 9). p(c | h_t) cannot be estimated from two sequences without an exchangeability assumption, and anything learned would be fitting two samples. Task B/C configurations are derived from these same two streams by varying look-ahead, so they do not add independent arrival information.",
+      "values": "2 source streams; case 000 41 items / 10 classes, case 001 42 items / 9 classes",
+      "source": "simulator/configs/sample_config.json; scripts/build_task_b_config.py"
     }
   ]
 }
