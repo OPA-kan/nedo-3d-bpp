@@ -70,20 +70,22 @@ def action_record(action: dict[str, Any], observation: dict[str, Any]):
 
 
 def probe_records(
-    env, records: list[dict[str, Any]], stop_when_safe: bool
+    env, records: list[dict[str, Any]], stop_after_safe: int = 0
 ) -> tuple[list[dict[str, Any]], int]:
     """
     Physically validate records in order, restoring the world each time.
 
-    ``stop_when_safe`` returns at the first physically safe record. Callers
-    that only need "is there one" pay for one settle instead of hundreds; the
-    exhaustive walk happens exactly when the answer is no, which is the case
-    that has to be complete anyway.
+    ``stop_after_safe`` returns once that many physically safe records have
+    been found; 0 validates everything. A caller that only needs "is there
+    one" passes 1 and pays for one settle instead of hundreds, and a caller
+    that needs the best K passes K. The exhaustive walk happens exactly when
+    the answer is no, which is the case that has to be complete anyway.
     """
     oracle = LivePhysicsOracle(env)
     base_state = env.client.saveState()
     validated: list[dict[str, Any]] = []
     checked = 0
+    safe_found = 0
     try:
         for record in records:
             env.client.restoreState(stateId=base_state)
@@ -108,8 +110,10 @@ def probe_records(
             enriched = dict(record)
             enriched["physical"] = physical
             validated.append(enriched)
-            if stop_when_safe and physical.get("is_physically_valid"):
-                break
+            if physical.get("is_physically_valid"):
+                safe_found += 1
+                if stop_after_safe and safe_found >= stop_after_safe:
+                    break
     finally:
         env.client.restoreState(stateId=base_state)
         env.client.removeState(base_state)
@@ -189,7 +193,7 @@ def run_chain(
             needs_oracle = source == "unsafe_protocol_fallback"
             if not needs_oracle:
                 probed, _checked = probe_records(
-                    env, [action_record(action, observation)], True
+                    env, [action_record(action, observation)], 1
                 )
                 own_ok = bool(
                     probed and probed[0]["physical"]["is_physically_valid"]
@@ -217,7 +221,7 @@ def run_chain(
                     break
                 oracle_started = time.perf_counter()
                 records = oracle_candidates(agent_module, observation)
-                validated, checked = probe_records(env, records, True)
+                validated, checked = probe_records(env, records, 1)
                 safe = [
                     record
                     for record in validated
