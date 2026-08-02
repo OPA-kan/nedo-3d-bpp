@@ -478,6 +478,22 @@
       "status": "active",
       "claim": "First physical ablation of the anchor-space fallback (ANCHOR_FALLBACK_ENABLED, default off), 5 repeats per cell at --parallel 3. On c001-k1, the generator-blindness case, the effect is clean and mechanistically confirmed end to end: base is deterministic at placed 18 / fill 23.5599 in five of five, while the fallback arm places 19, 19, 20, 20, 20 (mean 19.60, fill 25.3662) with no overlap between the distributions. The fallback fires in all five repeats at exactly step 18 -- the state the exhaustive oracle analysed -- and nowhere else, with its first accepted candidate at 0.385 s, matching the 0.38 s measured on the saved snapshot before any physics ran. Two repeats returned a release candidate (placed 19) and three reached the settled units and returned a settled one (placed 20), which is the release-first ordering trade appearing in data rather than in argument. On c000-k1, the truly-infeasible case, the fallback never fired and never attempted: its guard requires the primary search to have completed every unit, and that fatal step is deadline-limited at units_completed 9 of 12, so the arms are the same code path and the 21.00 versus 20.00 mean is variance, not an effect. NOT ESTABLISHED and explicitly not claimed: adoption. The Task B development guard could not be read at this parallelism (base deviates from the committed baseline by up to 10 placements), there is only one Task C case of the blindness class, and the fallback delays the fixed-coordinate death by one step rather than removing it -- c001-k1 still ends on it. Unexplained observation: fill_score is 25.3662 across all five fallback repeats despite placed differing 19 versus 20; a placement earning no fill credit is consistent with wall-flush-fill-exclusion but was not checked.",
       "source": "reports/task-c/anchor-fallback/summary.md; reports/task-c/anchor-fallback/rows.json; agent.py iter_stride_fallback_candidates"
+    },
+    {
+      "id": "task-b-guard-not-reproducible-off-ci",
+      "topic": "protocol",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "The Task B development regression guard cannot be measured on a developer box, and the first explanation for that was wrong. Running the five development configurations serially on local 4 vCPU still fails to reproduce reports/benchmarks/baseline.json: totals placed 73 against the committed 88, with b000-k40 at placed 11 / fill 14.059 against a committed 21 / 29.220. Contention is ruled out because b000-k40 returns 11 / 14.059 IDENTICALLY at --parallel 3 and at --parallel 1 -- deterministic local behaviour, not noise. The cause is the deadline: the search is driven by POLICY_BUDGET_SECONDS 6.5, so CPU speed decides how much anchor space fits inside the budget and therefore which trajectory an episode takes, and b000-k40 is the most search-heavy configuration in the suite. Consequence for protocol: any change whose adoption depends on the Task B guard must run it on the Ubuntu runner the guard was measured on; a local base arm is not a valid comparison point against the committed numbers. Same-machine arm-versus-arm comparisons remain valid, because both arms then share the environment -- they just cannot be read against the guard.",
+      "source": "reports/task-c/anchor-fallback/summary.md; reports/benchmarks/baseline.json; .github/workflows/anchor-fallback-ablation.yml"
+    },
+    {
+      "id": "anchor-fallback-task-b-local-arm-comparison",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "Same-machine, serial, one replicate per cell comparison of the anchor fallback on the five Task B development configurations: placed total 73 -> 77, fill 91.908 -> 95.512. Per configuration b000-k15 +1 placed, b000-k20 +1, b001-k20 +2, b000-k40 unchanged, and b001-k30 unchanged on placed but -6.714 fill (22.722 -> 16.008). So the direction is positive on placed with no placed regression, and mixed on fill with one clear loss. This is NOT adoption evidence: n=1 per cell, b001 configurations carry documented timing nondeterminism, and the local base arm does not reproduce the committed guard (task-b-guard-not-reproducible-off-ci), so these are different trajectories from the ones the guard describes. The fill loss on b001-k30 is the specific thing a CI run has to resolve before this feature is proposed for adoption.",
+      "source": "reports/task-c/anchor-fallback/summary.md"
     }
   ]
 }

@@ -1,0 +1,126 @@
+name: Anchor-space fallback ablation
+
+# The regression guard for this change cannot be measured on a developer box.
+# The search is deadline-driven, so CPU speed changes how much of the anchor
+# space fits inside the 6.5 s budget and therefore changes the trajectory: a
+# local serial run reproduces b000-k40 at placed 11 against the committed
+# guard's 21, deterministically, at every parallelism tried. Only the Ubuntu
+# runner the guard was measured on can answer whether this feature regresses
+# Task B.
+
+on:
+  workflow_call:
+    inputs:
+      replicates:
+        description: Replicates per (case, arm)
+        type: number
+        default: 3
+  workflow_dispatch:
+    inputs:
+      replicates:
+        description: Replicates per (case, arm)
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anchor-fallback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, anchor_fallback]
+        replicate: [0, 1, 2]
+        case:
+          # Task C: where the feature is expected to act.
+          - case_id: c000-k1
+            source_case: "000"
+            look_ahead: 1
+          - case_id: c001-k1
+            source_case: "001"
+            look_ahead: 1
+          # Task B development suite: the regression guard.
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+          - case_id: b000-k40
+            source_case: "000"
+            look_ahead: 40
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+          - case_id: b001-k30
+            source_case: "001"
+            look_ahead: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output "reports/anchor-fallback/${{ matrix.case.case_id }}.json"
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/anchor-fallback/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.replicate }}"
+          --output-dir
+          "reports/anchor-fallback/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: >-
+            anchor-fallback-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+          path: >-
+            reports/anchor-fallback/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: anchor-fallback-*
+          path: reports/anchor-fallback/downloads
+      - name: Combine and summarize
+        run: |
+          mkdir -p reports/anchor-fallback/aggregate
+          find reports/anchor-fallback/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/anchor-fallback/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/anchor-fallback/aggregate
+          cat reports/anchor-fallback/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anchor-fallback-aggregate
+          path: reports/anchor-fallback/aggregate/

@@ -63,14 +63,38 @@ under both loads.
 Practical consequence: single-repeat differences on c000-k1 carry no
 information, and any Task C comparison has to fix its parallelism across arms.
 
-## The Task B regression guard is void at this parallelism
+## The Task B regression guard cannot be measured on this box
 
-The development suite was run once per arm at `--parallel 3` and the base arm
-does not reproduce the committed guard: b000-k40 placed 11 against a baseline
-of 21, b001-k20 12 against 18, b001-k30 12 against 17. Under that much
-contention the arm comparison measures the scheduler, so the +9 placed the
-raw numbers show for the fallback is not reported as a result. The guard is
-being re-run serially.
+First read was that `--parallel 3` contention broke it. Re-running the whole
+suite serially says otherwise:
+
+| case | guard (CI) | base (local, serial) | fallback | diff |
+|---|---|---|---|---|
+| b000-k15 | 17 / 23.119 | 16 / 21.996 | 17 / 23.119 | +1 / +1.123 |
+| b000-k20 | 15 / 16.347 | 16 / 18.593 | 17 / 21.097 | +1 / +2.504 |
+| b000-k40 | 21 / 29.220 | 11 / 14.059 | 11 / 14.059 | 0 / 0 |
+| b001-k20 | 18 / 22.818 | 14 / 14.537 | 16 / 21.228 | +2 / +6.691 |
+| b001-k30 | 17 / 23.166 | 16 / 22.722 | 16 / 16.008 | 0 / **-6.714** |
+| total | 88 / 114.670 | 73 / 91.908 | 77 / 95.512 | +4 / +3.603 |
+
+The base arm still does not reproduce the committed guard, and b000-k40 is the
+proof that contention was the wrong explanation: it returns placed 11 /
+fill 14.059 **identically** at `--parallel 3` and serially, against a
+committed 21 / 29.220. That is deterministic local behaviour, not noise.
+
+The cause is the deadline. The whole search is driven by a 6.5 s budget, so
+CPU speed decides how much anchor space fits inside it and therefore which
+trajectory the episode takes. b000-k40 is the most search-heavy configuration
+in the suite and diverges most. The guard was measured on the Ubuntu runner
+and only that environment can answer whether this feature regresses Task B;
+`.github/workflows/anchor-fallback-ablation.yml` runs it there.
+
+What the local suite does support, because both arms ran on the same machine
+under the same conditions, is a like-for-like arm comparison at n=1 per cell:
+the fallback improved three configurations, tied two on placed, and lost
+6.714 fill on b001-k30 at equal placed. Direction is positive on placed and
+mixed on fill. At one replicate per cell, on trajectories that are not the
+guard's, this is not evidence for adoption.
 
 ## Status
 
