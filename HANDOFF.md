@@ -31,6 +31,19 @@ the file.
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.
 
+## Current submission artefact
+
+`dist/submission.zip`, sha256 `179de845a131ba498625a39876c55a9cd8996fc272da356f6805ae017b669574`,
+built from trunk `77046b5`. Rebuild with
+`python3 scripts/build_submission.py`; it packs `agent/agent.py` alone.
+
+Two earlier artefacts from this branch are SUPERSEDED and must not be
+submitted: `c9d0751e...` predates the trunk merge and is missing the Task
+A bounded offline dry run (placed 20 instead of 25), and `83a41bbc...`
+predates the POLICY_ATTEMPT_BUDGET unification. A commit message on this
+branch records a third hash `4ba1a5e6...` which was written before the
+build and is simply wrong; no such artefact exists.
+
 ## Branch close-out: `claude/stride-endgame-saturation-test-gqssix`
 
 Read this before anything else on this branch. One default changed, one
