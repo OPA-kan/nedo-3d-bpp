@@ -1550,6 +1550,76 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(records[0]["action_center"], [0.1, 0.2, 0.14])
         self.assertIn("elapsed_seconds", records[0])
 
+    def test_candidate_audit_records_per_unit_progress(self):
+        # Accepted-candidate lists cannot separate a unit the search never
+        # reached from one it visited without spending enough attempts, and
+        # those two diagnoses call for opposite fixes: reorder the units, or
+        # keep an anytime incumbent. The per-unit rows carry that split.
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(7, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        settled = agent.AABB(
+            (0.1, 0.2, 0.14),
+            (0.2, 0.2, 0.2),
+            "candidate",
+        )
+
+        def attempts(*_args, **kwargs):
+            if kwargs["attempt_kind"] == "settled":
+                yield settled
+
+        diagnostics = {}
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(agent, "CANDIDATE_AUDIT_ENABLED", True),
+        ):
+            list(
+                agent.iter_prioritized_candidates(
+                    observation,
+                    [(0, item)],
+                    diagnostics=diagnostics,
+                )
+            )
+
+        units = diagnostics["candidate_audit"][0]["units"]
+        self.assertEqual(
+            len(units), diagnostics["search"]["units_total"]
+        )
+        self.assertEqual(
+            [entry["unit_rank"] for entry in units],
+            list(range(len(units))),
+        )
+        for entry in units:
+            self.assertIn(entry["attempt_kind"], {"settled", "release"})
+            self.assertEqual(entry["item_index"], 7)
+        started = [entry for entry in units if entry["started"]]
+        self.assertTrue(started)
+        self.assertTrue(
+            all(
+                entry["first_seen_seconds"] is not None
+                for entry in started
+            )
+        )
+        # Every unit here runs to exhaustion, so accepted counts must agree
+        # with the accepted list rather than being tracked independently.
+        self.assertTrue(all(entry["exhausted"] for entry in started))
+        self.assertEqual(
+            sum(entry["accepted"] for entry in units),
+            len(diagnostics["candidate_audit"][0]["accepted_settled"])
+            + len(diagnostics["candidate_audit"][0]["accepted_release"]),
+        )
+
     def test_candidate_audit_is_absent_by_default(self):
         container = sample_container(
             require_shelf=False,

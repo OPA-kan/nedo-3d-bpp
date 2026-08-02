@@ -3857,15 +3857,42 @@ def iter_prioritized_candidates(
             "search_index": len(searches),
             "accepted_settled": [],
             "accepted_release": [],
+            # Per-unit progress at the moment the search stops. The accepted
+            # lists alone cannot tell an unvisited unit from a visited one
+            # whose candidates lie deeper than the attempts spent, and those
+            # two call for opposite fixes (reorder units versus keep an
+            # anytime incumbent). Audit-only; the shipped policy never
+            # enables this.
+            "units": [],
         }
         searches.append(audit)
     states = [
         {
             "unit": unit,
             "iterator": None,
+            "unit_rank": unit_rank,
         }
-        for unit in units
+        for unit_rank, unit in enumerate(units)
     ]
+    unit_audit = None
+    if audit is not None:
+        unit_audit = [
+            {
+                "unit_rank": unit_rank,
+                "pool_index": int(unit[4]),
+                "item_index": int(unit[5].get("index", unit[4])),
+                "container_index": int(unit[6]),
+                "orientation": int(unit[7]),
+                "attempt_kind": unit[8],
+                "started": False,
+                "exhausted": False,
+                "attempts": 0,
+                "accepted": 0,
+                "first_seen_seconds": None,
+            }
+            for unit_rank, unit in enumerate(units)
+        ]
+        audit["units"] = unit_audit
     search_stats = None
     record_item_lifecycle = bool(
         diagnostics is not None
@@ -3926,6 +3953,12 @@ def iter_prioritized_candidates(
                 )
                 if search_stats is not None:
                     search_stats["units_started"] += 1
+                if unit_audit is not None:
+                    entry = unit_audit[state["unit_rank"]]
+                    entry["started"] = True
+                    entry["first_seen_seconds"] = (
+                        time.perf_counter() - search_started
+                    )
                 if record_item_lifecycle:
                     item_index = int(item.get("index", item_idx))
                     if (
@@ -3956,8 +3989,12 @@ def iter_prioritized_candidates(
                     exhausted = True
                     if search_stats is not None:
                         search_stats["units_completed"] += 1
+                    if unit_audit is not None:
+                        unit_audit[state["unit_rank"]]["exhausted"] = True
                     break
                 attempts_used += 1
+                if unit_audit is not None:
+                    unit_audit[state["unit_rank"]]["attempts"] += 1
                 if (
                     search_stats is not None
                     and attempt_budget is not None
@@ -3976,6 +4013,7 @@ def iter_prioritized_candidates(
                                 "item_indices_with_candidates"
                             ].append(item_index)
                     if audit is not None:
+                        unit_audit[state["unit_rank"]]["accepted"] += 1
                         audit_key = (
                             "accepted_release"
                             if candidate.name == "release_candidate"
