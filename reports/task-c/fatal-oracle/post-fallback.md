@@ -1,4 +1,14 @@
-# Post-fallback fatal state: a coverage gap, not a dead end
+# Post-fallback fatal state: not a dead end
+
+> **Correction (same day).** This file originally called the state a
+> *coverage* gap on the strength of `units_completed` 4 of 12. That counter
+> is units EXHAUSTED, not units visited; `units_started` was 24, meaning every
+> unit was visited by both search calls. The state is a depth-within-unit
+> failure, not a coverage failure, and the conclusion drawn below against
+> `LIVE_SEARCH_INTERLEAVE` is wrong -- it is the indicated tool. See
+> `reports/task-c/anchor-fallback/depth-sweep.md` and evidence
+> `task-c-endgame-is-anchor-order-not-unit-coverage`. Everything about the
+> oracle counts themselves stands.
 
 Date: 2026-08-02. `measure_anchor_recall.py` with `ANCHOR_FALLBACK_ENABLED=1`,
 c001-k1, steps 18 and 19, exhaustive both generators, live settle validation.
