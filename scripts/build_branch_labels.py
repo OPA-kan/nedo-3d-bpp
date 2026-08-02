@@ -62,6 +62,7 @@ from scripts.measure_anchor_recall import (  # noqa: E402
     policy_indexed_items,
     policy_observation,
 )
+from scripts.measurement_budget import record_from_env  # noqa: E402
 
 SCHEMA_VERSION = 1
 
@@ -160,6 +161,7 @@ def run_episode(agent, task, *, force=None, capture_steps=()):
     """
     from src.ground_handling.env import GroundHandlingEnv
 
+    record_from_env(1)
     env = GroundHandlingEnv(config=task, verbose=False, render_mode=None)
     solver = agent.Agent("")
     captured: dict[int, Any] = {}

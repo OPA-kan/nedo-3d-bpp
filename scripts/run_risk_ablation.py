@@ -26,6 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.measurement_budget import record_from_env  # noqa: E402
 from scripts.run_checks import load_json, run  # noqa: E402
 
 SIMULATOR = ROOT / "simulator"
@@ -439,6 +440,7 @@ def run_episode(
     trace_path = run_dir / "policy-trace.jsonl"
     env["NEDO_POLICY_TRACE_PATH"] = str(trace_path.resolve())
 
+    record_from_env(1)
     result = run(
         [
             sys.executable,
