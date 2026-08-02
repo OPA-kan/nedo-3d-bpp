@@ -97,6 +97,31 @@ RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
+# Measurement-mode work budget for the ONLINE primary search. 0 keeps the
+# shipped behaviour (wall-clock only).
+#
+# The shipped policy stops on a deadline, so the candidate set it reaches --
+# and therefore the action it picks -- is a function of machine speed at
+# that instant. One different candidate at step 4 sends the episode down a
+# different trajectory, which is why re-running the same forced branch from
+# the same parent state does not reproduce (sigma-branch-is-the-size-of-the-
+# effects) and why an identical binary returns 13/17/18 placed on b000-k40.
+# ADR-002 removed exactly this dependence from the OFFLINE evaluator by
+# bounding work instead of time, and the offline order became bit-identical
+# across a slow and a fast machine; the online half never got the same
+# treatment.
+#
+# Setting this makes the primary search stop after a fixed number of
+# attempts, so the same state yields the same action regardless of speed.
+# It does NOT remove arrival-order sensitivity -- Var_omega is a property
+# of the problem, not of the instrument, and must survive.
+#
+# This defines a MEASUREMENT policy, not the shipped one: pi_B for finding
+# structure, pi_tau (deadline) for competition performance. Never report a
+# fixed-work number as shipped performance.
+POLICY_ATTEMPT_BUDGET = max(
+    0, int(os.environ.get("POLICY_ATTEMPT_BUDGET", "0"))
+)
 # How many visible items the search may consider per step. At the shipped 10
 # a 40-item visible pool is searched 10 items deep, and the single largest
 # measured gain on this project came from changing which 10 those are
@@ -4113,10 +4138,12 @@ def iter_prioritized_candidates(
                         search_stats["units_completed"] += 1
                     break
                 attempts_used += 1
-                if (
-                    search_stats is not None
-                    and attempt_budget is not None
-                ):
+                if search_stats is not None:
+                    # Recorded unconditionally. It used to be written only
+                    # when a budget was set, which meant the SHIPPED
+                    # deadline path -- the one whose irreproducibility is
+                    # the problem -- reported no work quantity at all, so
+                    # the budget could not be calibrated from it.
                     search_stats["attempts_consumed"] = attempts_used
                 if candidate is not None:
                     if record_item_lifecycle:
@@ -4201,6 +4228,7 @@ class PlacementCore:
             deadline=deadline,
             diagnostics=diagnostics,
             interleave=LIVE_SEARCH_INTERLEAVE,
+            attempt_budget=POLICY_ATTEMPT_BUDGET or None,
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -4479,6 +4507,7 @@ class PlacementCore:
             deadline=deadline,
             diagnostics=diagnostics,
             interleave=LIVE_SEARCH_INTERLEAVE,
+            attempt_budget=POLICY_ATTEMPT_BUDGET or None,
         ):
             container = containers[container_idx]
             score = Ranker.score(
