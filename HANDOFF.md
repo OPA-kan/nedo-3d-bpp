@@ -50,12 +50,32 @@ collapsed into one uniform pass. Whatever the deep pass was for, it no
 longer does anything distinct. Either the deep pass should go up, or the
 structure should be admitted to be gone.
 
-The death mode moved rather than disappearing: at 64 episodes ended by
-toppling at `placement_core` around step 12-18; at 256 they survive to
-17-21 and end at `unsafe_protocol_fallback`. The fallback probe found
-legal moves still available at 2 of 3 terminal states, so the endgame is
-the next allocation question -- most likely state-dependent depth
-(remaining units, remaining items) rather than another global constant.
+The death mode moved LATER, but it did not change kind, and an earlier
+version of this section overstated it. Recount from
+`reports/first-pass-depth/rows.jsonl` (30 episodes, 10 per arm): **every
+episode of every arm ends with `is_placed_safe` false, 10/10 in all
+three**. What actually moves is when, and how often the fallback fires:
+
+| arm | steps | episodes with a protocol fallback |
+|---|---|---|
+| base (64) | 12-18 | 3/10 |
+| first_pass128 | 17-21 | 6/10 |
+| first_pass256 | 17-21 | 4/10 |
+
+So 17-21 is not specific to 256 -- 128 reaches the same range -- and the
+fallback count is not monotone in depth. It is also not stable across
+runs: in the later `reports/stability-tradeoff/rows.jsonl` the shipped
+default and `first_pass64` are 3/10 EACH, so the fallback gap vanishes
+entirely on the second measurement.
+
+What survives: the terminal step moved later by roughly five placements,
+and the fallback probe found legal moves still available at 2 of 3
+terminal states. The endgame is still the next allocation question, most
+likely state-dependent depth (remaining units, remaining items) rather
+than another global constant. But treat "64 topples early, 256 runs out
+of moves late" as a narrative that the committed rows do not support:
+both arms end unsafe, and any endgame work should re-derive its own
+terminal-reason breakdown rather than inherit this one.
 
 ### Task A is ordering limited, not search limited
 
@@ -63,20 +83,73 @@ The first-pass change is NEUTRAL on Task A (placed 25 either way): once
 the offline pass has ordered the stream, each step's best candidate is
 findable inside 64 attempts. So Task A gains have to come from the ORDER.
 
-Two levers, both untouched:
+One lever, and one that is already closed. An earlier version of this
+section had both wrong; the corrections are the useful part.
 
-1. **The offline objective is a 2-of-6 projection.**
-   `OFFLINE_FILL_WEIGHT` 0.65 / `OFFLINE_STABILITY_WEIGHT` 0.35 is what
-   picks the order that determines everything downstream, and it prices
-   only fill and a stability proxy. placement, soft, cog and the shake
-   now all have local signals. Extending the offline objective to them is
-   the largest available Task A change and nothing blocks it.
-2. **Time is left on the table.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150
-   and the measured offline run is 148.9 s, so the INTERNAL budget binds,
-   not the official 180 s limit -- roughly 30 s unused. Now that the
-   offline search is work-bounded and reproducible across machine speeds
-   (ADR-002), more budget buys deterministically more orders. Measure how
-   placed scales with orders evaluated before raising it blindly.
+1. **The offline objective is a lexicographic key dominated by
+   `placed_count` -- and the two weight knobs are dead code.**
+
+   `OFFLINE_FILL_WEIGHT` 0.65 / `OFFLINE_STABILITY_WEIGHT` 0.35 feed only
+   `DryRunResult.weighted_score` (`agent/agent.py:941`), and **that
+   method has no call sites anywhere in the repository**. What actually
+   selects the order is the accept test in `Agent.optimize`
+   (`agent/agent.py:6350`):
+
+   ```python
+   if result.rank_key() > best_result.rank_key():
+   ```
+
+   and `rank_key` (`agent/agent.py:932`) is a lexicographic tuple:
+
+   ```
+   (placed_count, placed_volume, fill_ratio, stability_proxy,
+    -normalized_center_of_mass_z)
+   ```
+
+   Verified by ablation with the repo's own probe, the method ADR-003
+   used for the risk-lambda gap: at 0.65/0.35, 0.0/1.0 and 99.0/-99.0 the
+   `component_sha256` moves (the constants are declared) while
+   `behaviour_sha256` is bit-identical at
+   `a92092c2272df53636fe3b84ac75a9ca7cd6eaefe42c44c7718bb1bdff292b70`.
+   `context/knobs.json` marked both `semantic: true`; they are now
+   `semantic: false` with an INERT note.
+
+   The real shape is TIGHTER than the "2-of-6 projection" this section
+   used to claim, in a way that matters.
+   `fill_ratio = min(1.0, placed_volume / total_capacity)`
+   (`agent/agent.py:5986`) and `total_capacity` is fixed per case, so
+   fill_ratio is a monotone transform of placed_volume and is
+   structurally redundant inside the tuple. The effective key is
+   `(placed_count, placed_volume)`; `stability_proxy` and the cog term
+   are reachable only between orders that place the exact same item
+   multiset.
+
+   `placed_count` leading is defensible -- placed is the official gate
+   for cog / stability / placement / soft. The defect is BELOW it: the
+   sub-placed tiebreak is volume and nothing else, so the four components
+   that now have local signals cannot influence the order at all. That is
+   the largest available Task A change, and it is a replacement of
+   `rank_key`, not a tuning of weights.
+
+   **It is not unblocked.** ADR-003 (Accepted) decides that the offline
+   evaluator is a cheap risk-off *proposal oracle* and that ranking
+   policy need NOT be shared with the shipped executor. Broadening the
+   offline objective toward the official components runs into that
+   decision; it needs amending, not ignoring.
+
+2. **Raising the time budget is CLOSED as a negative -- do not re-open
+   it.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150, the measured run is
+   148.89 s, and that is 31 s under the official 180 s limit, so there
+   does appear to be headroom. It buys nothing.
+   `task-a-episode-outcome-is-machine-speed-dependent` measured it: at
+   `OFFLINE_MAX_EVALUATIONS` of 50, 55, 60 **and unlimited**, the search
+   selects an IDENTICAL 41-element order every time. More budget buys
+   more evaluated orders and the same answer. The same entry withdraws
+   the "capping at 50 gains one placement" read as a confound between the
+   cap and box speed.
+
+   Note which way this cuts: a converged search is evidence FOR lever 1.
+   What binds Task A is the objective, not the budget.
 
 ### What blocks pushing either further
 
@@ -181,17 +254,21 @@ Stated deviation: **no lid**. An item can leave through the opening; a
 lost item is charged as both a shift and a topple, because dropping it
 from the averages would let the worst outcome improve the metric.
 
-**This immediately put a question mark over today's shipped change.**
-On b000-k40, n = 1: the new default reaches placed 16 with 9 of 16
-items shifting >5 cm and `priority_clean_ratio` 0.75, against
-`first_pass64` at placed 11, 5 of 11 shifted, ratio 1.00. placed gates
-four components, so +5 placed is worth a lot -- but it may be damaging
-two of the four it gates. That trade was invisible until now.
+**This put a question mark over the shipped change, and the follow-up
+run has since RESOLVED it -- read the resolution, not the worry.** The
+n = 1 reading on b000-k40 (new default placed 16, 9 of 16 shifting,
+`priority_clean_ratio` 0.75, against `first_pass64` at placed 11, 5 of
+11 shifted, ratio 1.00) prompted the paired run that
+`first-pass-256-stability-tradeoff-cleared` records, and the stability
+half **reversed**: over ten paired episodes the shifted fraction,
+normalised by item count, is 0.202 at 256 against 0.310 at 64, and
+topples are 0 at 256 against 0.27 per episode at 64. 256 is if anything
+GENTLER on the shake, and the single-episode reading is withdrawn.
 
-**The next experiment is already fully equipped**: run `first_pass64`
-against the default over the five development configs, two blocks, and
-read `shake_*` and `*_clean_ratio` alongside placed. Nothing new needs
-building.
+Only the priority half survived, in direction and not in significance --
+see `What blocks pushing either further` above. Do not carry a general
+"deeper search costs stability" worry forward; it was measured and it
+did not replicate.
 
 ### Where the remaining blindness is
 
