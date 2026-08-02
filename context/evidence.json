@@ -494,6 +494,14 @@
       "status": "active",
       "claim": "Same-machine, serial, one replicate per cell comparison of the anchor fallback on the five Task B development configurations: placed total 73 -> 77, fill 91.908 -> 95.512. Per configuration b000-k15 +1 placed, b000-k20 +1, b001-k20 +2, b000-k40 unchanged, and b001-k30 unchanged on placed but -6.714 fill (22.722 -> 16.008). So the direction is positive on placed with no placed regression, and mixed on fill with one clear loss. This is NOT adoption evidence: n=1 per cell, b001 configurations carry documented timing nondeterminism, and the local base arm does not reproduce the committed guard (task-b-guard-not-reproducible-off-ci), so these are different trajectories from the ones the guard describes. The fill loss on b001-k30 is the specific thing a CI run has to resolve before this feature is proposed for adoption.",
       "source": "reports/task-c/anchor-fallback/summary.md"
+    },
+    {
+      "id": "task-c-post-fallback-terminal-is-a-coverage-gap",
+      "topic": "search",
+      "date": "2026-08-02",
+      "status": "active",
+      "claim": "The state the anchor fallback delivers c001-k1 into is a coverage gap, not a dead end, so Task C candidate generation is NOT finished and the board value is not yet the indicated next step. Exhaustive oracle at c001-k1 step 19 (the new terminal after the fallback rescues step 18), both generators complete, physics complete: 42 settled candidates, ALL 42 physically safe, and crucially 4 of them lie in the shipped support_plane space (cartesian 38 / support_plane 4). The anytime search accepted none (geometric_recall 0.0) with units_completed 4 of 12 and the deadline reached. So unlike step 18, where the primary space provably contained nothing at any budget, here the primary generator CAN reach a safe placement and simply ran out of time -- the depth/budget class, first observed in Task C. The three classified Task C fatal states now split three ways: c000-k1:21 true dead end (0 settled, 0 release, both generators), c001-k1:18 generator blindness (6 settled with 0 from support_plane, 54 release), c001-k1:19 reachable but not reached (42 settled with 4 from support_plane, 0 release). Second finding, a self-correction: the fallback's release-first unit ordering was chosen from step 18's measurement (54 release versus 6 settled) and generalised without evidence; step 19 has 0 release and 42 settled, where release-first would spend the whole remaining budget sweeping an empty space. The ordering has to be state-driven. Scope: the oracle replay followed the release-at-18 trajectory and ended at 19, so the step-20 terminal seen when the fallback returns a settled candidate at 18 is NOT classified; two of the three states come from one case.",
+      "source": "reports/task-c/fatal-oracle/post-fallback.md; reports/task-c/fatal-oracle/summary.md"
     }
   ]
 }
