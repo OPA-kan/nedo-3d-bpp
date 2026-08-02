@@ -31,6 +31,61 @@ the file.
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.
 
+## Where Task A and Task B go next
+
+The two tasks now have cleanly separated bottlenecks, and that separation
+is itself a measured result rather than an assumption.
+
+### Task B is search-allocation limited
+
+`ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 gave +25% placed at unchanged
+total attempts per step. The mechanism was that the scan never reached
+the depth at which a unit's candidates start existing, so this was
+redistribution, not more work.
+
+**Unexamined consequence of that adoption, and the first thing to look
+at.** `ANCHOR_DEEP_PASS_ATTEMPTS` is also 256, so the first and deep
+passes are now the SAME depth and the two-phase round structure has
+collapsed into one uniform pass. Whatever the deep pass was for, it no
+longer does anything distinct. Either the deep pass should go up, or the
+structure should be admitted to be gone.
+
+The death mode moved rather than disappearing: at 64 episodes ended by
+toppling at `placement_core` around step 12-18; at 256 they survive to
+17-21 and end at `unsafe_protocol_fallback`. The fallback probe found
+legal moves still available at 2 of 3 terminal states, so the endgame is
+the next allocation question -- most likely state-dependent depth
+(remaining units, remaining items) rather than another global constant.
+
+### Task A is ordering limited, not search limited
+
+The first-pass change is NEUTRAL on Task A (placed 25 either way): once
+the offline pass has ordered the stream, each step's best candidate is
+findable inside 64 attempts. So Task A gains have to come from the ORDER.
+
+Two levers, both untouched:
+
+1. **The offline objective is a 2-of-6 projection.**
+   `OFFLINE_FILL_WEIGHT` 0.65 / `OFFLINE_STABILITY_WEIGHT` 0.35 is what
+   picks the order that determines everything downstream, and it prices
+   only fill and a stability proxy. placement, soft, cog and the shake
+   now all have local signals. Extending the offline objective to them is
+   the largest available Task A change and nothing blocks it.
+2. **Time is left on the table.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150
+   and the measured offline run is 148.9 s, so the INTERNAL budget binds,
+   not the official 180 s limit -- roughly 30 s unused. Now that the
+   offline search is work-bounded and reproducible across machine speeds
+   (ADR-002), more budget buys deterministically more orders. Measure how
+   placed scales with orders evaluated before raising it blindly.
+
+### What blocks pushing either further
+
+`priority_clean_ratio` is 0.575 at the shipped default against 0.803 at
+the old one (6W/3L/1T, p = 0.508 -- a direction, not a result). A deeper
+search may be buying placed by burying priority baggage. placement_score
+was 4.45 officially, so this is not a small axis. Resolve it before
+taking depth further on either task.
+
 ## Current submission artefact
 
 `dist/submission.zip`, sha256 `179de845a131ba498625a39876c55a9cd8996fc272da356f6805ae017b669574`,
