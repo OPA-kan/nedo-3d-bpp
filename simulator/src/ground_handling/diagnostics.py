@@ -506,3 +506,87 @@ def shake_response_metrics(
         + lost,
         "shake_peak_kinetic_energy": float(peak_kinetic_energy),
     }
+
+
+# --- Centre of gravity: raw, with the caveat attached to the data ---
+#
+# cog_score is computed only on the evaluation platform. Unlike placement,
+# soft and stability, the rules give NO procedure for it -- only a direction
+# (README:378, "荷物全体の重心がどれだけ低い位置（安定した位置）にあるか").
+# There is no violation to count and no test to run: the raw height is all
+# there is, and the mapping to 0-100 could be relative to container height,
+# to the theoretical minimum for that packed volume, or to something else
+# entirely.
+#
+# So this stores the raw quantity and ships the caveat INSIDE the payload
+# rather than only in a document. Anyone -- or any model -- reading this
+# dict downstream gets the handling instructions with the number, at the
+# point of use, instead of having to know that a doc exists.
+#
+# The one assumption: container-local z is taken to equal world z, which
+# holds while containers are offset in x only (Container carries offset_x
+# and no offset_z). If a z offset is ever introduced, com_z_above_floor and
+# com_height_ratio become wrong and com_z stays correct.
+COG_CONTRACT = (
+    "RAW quantity, not a score. The official cog_score normalisation is "
+    "unpublished, so this cannot be compared across containers or configs "
+    "and must never be presented as the official number. Comparable "
+    "between arms on the SAME config only. com_height_ratio uses the "
+    "tallest container's interior height as an arbitrary but fixed "
+    "reference; lower is better in all three fields."
+)
+
+
+def calculate_center_of_gravity(
+    containers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Mass-weighted centre of gravity, raw and floor-relative."""
+    items = [
+        item
+        for container in containers
+        for item in container.get("packed_items", [])
+    ]
+    total_mass = sum(float(item.get("mass", 0.0)) for item in items)
+    if not items or total_mass <= 0.0:
+        return {
+            "com_z": None,
+            "com_z_above_floor": None,
+            "com_height_ratio": None,
+            "com_contract": COG_CONTRACT,
+        }
+
+    com_z = (
+        sum(
+            float(item.get("mass", 0.0))
+            * float(item.get("pos", [0.0, 0.0, 0.0])[2])
+            for item in items
+        )
+        / total_mass
+    )
+
+    floors = [
+        float(container.get("thickness", 0.0))
+        + float(container.get("buffer", 0.0))
+        for container in containers
+    ]
+    interiors = [
+        max(
+            0.0,
+            float(container.get("height", 0.0))
+            - float(container.get("thickness", 0.0))
+            - float(container.get("thickness", 0.0))
+            - float(container.get("buffer", 0.0)),
+        )
+        for container in containers
+    ]
+    floor = min(floors) if floors else 0.0
+    interior = max(interiors) if interiors else 0.0
+    above_floor = com_z - floor
+    return {
+        "com_z": float(com_z),
+        "com_z_above_floor": float(above_floor),
+        "com_height_ratio": (
+            float(above_floor / interior) if interior > 0.0 else None
+        ),
+        "com_contract": COG_CONTRACT,
+    }
