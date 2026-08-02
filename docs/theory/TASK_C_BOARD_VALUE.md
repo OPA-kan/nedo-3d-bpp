@@ -183,6 +183,31 @@ H_{\mathrm{Hall}}(s)=\min_{\varnothing\neq C'\subseteq\mathcal C}
 
 実装は (a) を主、(b) を副とする。
 
+### 5.1 資源には容量が要る（F1実装で判明した修正）
+
+\(N_s(c)\) を「componentの集合」として素朴に定義すると、**Hallが構造的に退化する**。
+床は面積 2.9 m² の**単一** support-plane component だからである。全classが床に
+届くので \(|N_s(C')|=1\)、したがって \(\operatorname{def}(s)=|\mathcal C|-1=6\) が
+盤面によらず常に成立してしまう。これは幾何ではなく数え方が生む定数であり、
+§2.1 で避けたはずの退化と同種のものである。
+
+したがって資源は**容量付き**で扱う。resource \(z\) の容量を
+
+\[
+\operatorname{cap}(z)=\text{（}z\text{ の上に同時に載る互いに独立な配置の貪欲下界）}
+\]
+
+とし、\(\operatorname{def}(s)\) は容量展開した二部グラフ上のマッチングで、
+\(H_{\mathrm{Hall}}(s)\) は
+
+\[
+\min_{C'}\frac{\sum_{z\in N_s(C')}\operatorname{cap}(z)}{|C'|}
+\]
+
+で定義する。容量は \(R_c\) と同じ貪欲下界から導くので、追加の較正は要らない。
+`tests/test_measure_board_value.py::test_capacity_is_what_keeps_one_big_floor_from_degenerating`
+がこの退化を固定している。
+
 ## 6. 損傷 \(D(s,a)\)
 
 配置後の状態を \(T_a(s)\) とする。普通の配置は資源を消費するので絶対量の
