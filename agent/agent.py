@@ -238,8 +238,25 @@ DPOR_MAX_ALTERNATE_ATTEMPTS = int(
 # (item, orientation, container) units.  The first pass prevents one
 # infeasible unit from consuming the whole policy budget; later passes keep
 # improving the best validated incumbent.
+#
+# 64 was too shallow to reach the depth at which a unit's candidates start
+# existing.  Probing the terminal states of episodes that died with zero
+# candidates (reports/same-class-stacking) found placements for 6 of 23
+# visible items at 256 attempts per item and none at all at 64, with 1024
+# and 4096 adding nothing -- so the curve has a knee, and 64 sat below it
+# while the live search reported units 1/120 completed and gave up on a
+# state that still had legal moves.
+#
+# Measured at 64/128/256 over two paired blocks on the five development
+# configs (reports/first-pass-depth): placed 9W/0L/1T for both 128 and
+# 256, sign test p = 0.0039, suite totals 143 -> 172 -> 179, fill
+# 176.8 -> 225.3 -> 218.3.  Total attempts per step and policy time are
+# unchanged, so this redistributes work rather than spending more.
+# The cost is real and shows up where it was predicted: mean items with
+# a candidate in the opening falls 9.64 -> 8.28.  placed rose on every
+# configuration anyway.
 ANCHOR_FIRST_PASS_ATTEMPTS = int(
-    os.environ.get("ANCHOR_FIRST_PASS_ATTEMPTS", "64")
+    os.environ.get("ANCHOR_FIRST_PASS_ATTEMPTS", "256")
 )
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")

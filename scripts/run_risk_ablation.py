@@ -94,6 +94,7 @@ def configure_arm_environment(
         "board_k8",
         "board_k16",
         "topk8",
+        "first_pass64",
         "first_pass128",
         "first_pass256",
     }:
@@ -137,7 +138,9 @@ def configure_arm_environment(
             # Depth per unit on the first breadth-first pass. The probe in
             # reports/same-class-stacking puts the cliff between 64 and 256
             # attempts per item; 128 is there because a cliff located
-            # between two points is not a located cliff.
+            # between two points is not a located cliff. first_pass64 is
+            # kept after the default moved to 256 so the old shipped
+            # behaviour stays measurable rather than becoming unreachable.
             env["ANCHOR_FIRST_PASS_ATTEMPTS"] = arm.removeprefix("first_pass")
         elif arm == "topk8":
             # Control for board_k8. Widening the top-K alone also changes

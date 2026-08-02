@@ -392,6 +392,14 @@ class SelectionTests(unittest.TestCase):
 
 
 class DefaultTests(unittest.TestCase):
+    def test_the_first_pass_depth_is_the_measured_one(self):
+        """
+        Moved 64 -> 256 on two paired blocks (9W/0L/1T, p = 0.0039) at
+        unchanged total attempts per step. Pinned so the value cannot drift
+        back without the measurement being revisited.
+        """
+        self.assertEqual(A.ANCHOR_FIRST_PASS_ATTEMPTS, 256)
+
     def test_the_shipped_selection_mode_is_unchanged(self):
         """
         The board evaluator is measured before it ships. Until then the

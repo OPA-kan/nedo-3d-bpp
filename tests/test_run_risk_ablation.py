@@ -284,6 +284,18 @@ class ArmEnvironmentTests(unittest.TestCase):
 
         self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "128")
 
+    def test_the_old_default_stays_reachable_as_an_arm(self):
+        """
+        The default moved 64 -> 256. Without this arm the shipped-before
+        behaviour would be unmeasurable, and a regression against it could
+        not be checked.
+        """
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "first_pass64", 2.0, 0.0)
+
+        self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "64")
+
     def test_an_arm_does_not_inherit_an_outer_first_pass_depth(self):
         env = {"ANCHOR_FIRST_PASS_ATTEMPTS": "1024"}
 
