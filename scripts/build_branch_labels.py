@@ -41,8 +41,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import pathlib
+import statistics
 import sys
 from typing import Any
 
@@ -108,6 +110,37 @@ def reconstruct_siblings(agent, observation, *, budget, limit):
     return collector.snapshot(max(1, int(limit)))
 
 
+def state_fingerprint(observation):
+    """
+    Canonical digest of the parent state.
+
+    Branch outcomes are only comparable if the state they branch FROM is the
+    same object. Comparing terminal results without checking this would
+    silently mix "this action is better" with "this repeat started somewhere
+    else".
+    """
+    payload = {
+        "containers": [
+            sorted(
+                (
+                    int(item["index"]),
+                    tuple(round(float(v), 6) for v in item.get("pos", ())),
+                    tuple(round(float(v), 6) for v in item.get("orn", ())),
+                )
+                for item in container.get("packed_items", [])
+            )
+            for container in observation.get("container_list", [])
+        ],
+        "pool": [
+            int(item.get("index", -1))
+            for item in observation.get("pool_list", [])
+        ],
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode()
+    ).hexdigest()[:16]
+
+
 def action_signature(action):
     return {
         "item_idx": int(action["item_idx"]),
@@ -130,7 +163,9 @@ def run_episode(agent, task, *, force=None, capture_steps=()):
     env = GroundHandlingEnv(config=task, verbose=False, render_mode=None)
     solver = agent.Agent("")
     captured: dict[int, Any] = {}
+    fingerprints: dict[int, str] = {}
     chosen: dict[int, Any] = {}
+    forced_accepted: dict[int, bool] = {}
     step = 0
     try:
         env.reset_settings()
@@ -142,13 +177,20 @@ def run_episode(agent, task, *, force=None, capture_steps=()):
             observation = policy_observation(env, raw_observation)
             if step in capture_steps:
                 captured[step] = copy.deepcopy(observation)
+            if force and step in force:
+                fingerprints[step] = state_fingerprint(observation)
             action = solver.policy(observation)
             chosen[step] = action_signature(action)
-            if force and step in force:
+            forcing = bool(force and step in force)
+            if forcing:
                 action = force[step]
-            raw_observation, _reward, terminated, truncated, _info = env.step(
+            raw_observation, _reward, terminated, truncated, info = env.step(
                 action
             )
+            if forcing:
+                forced_accepted[step] = bool(
+                    isinstance(info, dict) and info.get("is_included")
+                )
             step += 1
         evaluation = env.evaluate()
     finally:
@@ -156,6 +198,8 @@ def run_episode(agent, task, *, force=None, capture_steps=()):
     return {
         "steps": step,
         "captured": captured,
+        "fingerprints": fingerprints,
+        "forced_accepted": forced_accepted,
         "chosen": chosen,
         "evaluation": {
             key: value
@@ -176,6 +220,10 @@ def main() -> int:
     )
     parser.add_argument("--siblings", type=int, default=3)
     parser.add_argument("--sibling-budget", type=int, default=4096)
+    parser.add_argument(
+        "--repeats", type=int, default=1,
+        help="re-runs of each forced branch; >1 measures sigma_branch",
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -185,20 +233,29 @@ def main() -> int:
     agent = load_agent_module()
     steps = sorted(set(args.step or [6, 8, 10, 12]))
 
-    print("pass 1: unforced reference episode", file=sys.stderr, flush=True)
-    reference = run_episode(agent, task, capture_steps=set(steps))
-    reference_eval = reference["evaluation"]
+    # Two references. The capturing one supplies the parent observations; the
+    # capture-free one is what controls are compared against, because
+    # deep-copying an observation at every branch step can itself perturb a
+    # deadline-limited search, and then the "control" would be measured
+    # against a reference that this harness disturbed.
+    print("reference A (capturing)", file=sys.stderr, flush=True)
+    capturing = run_episode(agent, task, capture_steps=set(steps))
+    print("reference B (capture-free)", file=sys.stderr, flush=True)
+    clean = run_episode(agent, task)
+    harness_perturbs = clean["evaluation"] != capturing["evaluation"]
 
-    results = []
+    states = []
     for step in steps:
-        observation = reference["captured"].get(step)
+        observation = capturing["captured"].get(step)
         if observation is None:
             print(f"  step {step} unreached", file=sys.stderr)
             continue
+        parent = state_fingerprint(observation)
         siblings = reconstruct_siblings(
             agent, observation,
             budget=args.sibling_budget, limit=args.siblings,
         )
+        branches = []
         for index, decision in enumerate(siblings):
             forced = {
                 "item_idx": int(decision.action["item_idx"]),
@@ -208,74 +265,140 @@ def main() -> int:
                 ),
                 "orientation": int(decision.action["orientation"]),
             }
-            branch = run_episode(agent, task, force={step: forced})
-            is_control = (
-                action_signature(forced) == reference["chosen"].get(step)
-            )
-            prefix_matches = all(
-                branch["chosen"].get(k) == reference["chosen"].get(k)
-                for k in range(step)
-            )
-            results.append({
-                "step": step,
+            runs = []
+            for repeat in range(max(1, int(args.repeats))):
+                branch = run_episode(agent, task, force={step: forced})
+                runs.append({
+                    "repeat": repeat,
+                    "steps": branch["steps"],
+                    "evaluation": branch["evaluation"],
+                    "parent_state_matches": (
+                        branch["fingerprints"].get(step) == parent
+                    ),
+                    "forced_action_accepted": branch["forced_accepted"].get(
+                        step
+                    ),
+                    "prefix_reproduced": all(
+                        branch["chosen"].get(k) == capturing["chosen"].get(k)
+                        for k in range(step)
+                    ),
+                })
+                print(
+                    f"  step {step} sib {index} run {repeat}: "
+                    f"steps={branch['steps']} "
+                    f"parent_ok={runs[-1]['parent_state_matches']} "
+                    f"accepted={runs[-1]['forced_action_accepted']}",
+                    file=sys.stderr, flush=True,
+                )
+            placed = [
+                float(r["evaluation"].get("num_placed_items", 0.0))
+                for r in runs
+            ]
+            fills = [
+                float(r["evaluation"].get("fill_score", 0.0)) for r in runs
+            ]
+            branches.append({
                 "sibling_index": index,
-                "is_control": is_control,
-                "prefix_reproduced": prefix_matches,
+                "is_control": (
+                    action_signature(forced) == capturing["chosen"].get(step)
+                ),
                 "action": action_signature(forced),
                 "q": float(decision.score),
                 "kind": str(decision.candidate.name),
-                "candidate_center": [
-                    round(float(v), 6) for v in decision.candidate.center
-                ],
-                "candidate_size": [
-                    round(float(v), 6) for v in decision.candidate.size
-                ],
-                "label": {
-                    "steps": branch["steps"],
-                    "evaluation": branch["evaluation"],
+                "runs": runs,
+                "reproducibility": {
+                    "repeats": len(runs),
+                    "placed_identical": len(set(placed)) == 1,
+                    "fill_identical": len(set(fills)) == 1,
+                    "placed_sd": (
+                        round(statistics.stdev(placed), 6)
+                        if len(placed) > 1 else None
+                    ),
+                    "fill_sd": (
+                        round(statistics.stdev(fills), 6)
+                        if len(fills) > 1 else None
+                    ),
+                    "parent_state_matches_all": all(
+                        r["parent_state_matches"] for r in runs
+                    ),
+                    "prefix_reproduced_all": all(
+                        r["prefix_reproduced"] for r in runs
+                    ),
                 },
             })
-            print(
-                f"  step {step} sibling {index} "
-                f"{'(control)' if is_control else ''} "
-                f"prefix_ok={prefix_matches} steps={branch['steps']}",
-                file=sys.stderr, flush=True,
-            )
+        states.append({
+            "step": step,
+            "parent_fingerprint": parent,
+            "branches": branches,
+        })
 
-    controls = [r for r in results if r["is_control"]]
+    # State-level outcomes. A pair-level sign test would inflate n: three
+    # siblings give three pairs out of three numbers, so at most two are
+    # independent. One observation per branch state instead.
+    state_outcomes = []
+    for state in states:
+        usable = [
+            b for b in state["branches"]
+            if b["reproducibility"]["prefix_reproduced_all"]
+            and b["reproducibility"]["parent_state_matches_all"]
+        ]
+        if len(usable) < 2:
+            continue
+        def mean_placed(branch):
+            return statistics.fmean(
+                float(r["evaluation"].get("num_placed_items", 0.0))
+                for r in branch["runs"]
+            )
+        q_best = max(usable, key=lambda b: b["q"])
+        best = max(usable, key=mean_placed)
+        ranked = sorted(usable, key=mean_placed, reverse=True)
+        state_outcomes.append({
+            "step": state["step"],
+            "usable_branches": len(usable),
+            "q_argmax_rank_by_outcome": ranked.index(q_best) + 1,
+            "terminal_regret_placed_fraction": round(
+                mean_placed(best) - mean_placed(q_best), 6
+            ),
+        })
+
     report = {
         "schema_version": SCHEMA_VERSION,
         "task_id": task_id,
         "config": args.config.as_posix(),
+        "estimand": (
+            "V^pi(T_a(s)): the value of a first action UNDER THE CURRENT "
+            "SHIPPED POLICY, not an intrinsic board value V*. Everything "
+            "downstream of the forced step differs - candidate sets, chosen "
+            "actions, settle outcomes, search time, fallbacks. Only the map "
+            "pi is held fixed, not the behaviour it produces."
+        ),
+        "instrument_validity": {
+            "harness_perturbs_reference": harness_perturbs,
+            "capturing_reference": capturing["evaluation"],
+            "capture_free_reference": clean["evaluation"],
+            "note": (
+                "sigma_branch is the correct error term for a branch "
+                "difference. The permutation sd measures variation across "
+                "arrival orders of whole episodes and is a different "
+                "variance axis; it must not be used to threshold branch "
+                "differences."
+            ),
+        },
         "branch_steps": steps,
         "siblings_per_step": args.siblings,
-        "sibling_budget": args.sibling_budget,
-        "validity": {
-            "prefix_reproduced_all": all(
-                r["prefix_reproduced"] for r in results
-            ),
-            "control_branches": len(controls),
-            "control_matches_reference": [
-                r["label"]["evaluation"] == reference_eval for r in controls
-            ],
-            "note": (
-                "Branch labels are only comparable if every branch shares the "
-                "same history. A false here invalidates the labels for that "
-                "state rather than merely adding noise."
-            ),
-        },
-        "reference": {
-            "steps": reference["steps"],
-            "evaluation": reference_eval,
-        },
-        "branches": results,
+        "repeats": args.repeats,
+        "states": states,
+        "state_level_outcomes": state_outcomes,
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "branch-labels.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False, default=str) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps(report["validity"], indent=2, default=str))
+    print(json.dumps({
+        "instrument_validity": report["instrument_validity"],
+        "state_level_outcomes": state_outcomes,
+    }, indent=2, default=str))
     return 0
 
 
