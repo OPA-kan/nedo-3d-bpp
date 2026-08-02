@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Axis definitions for the reverse-lookup registries. An axis is a dimension along which the agent's behaviour can be varied. Questions, instruments and knobs are all filed against axes so that coverage imbalance is visible: an axis with questions but no instrument, or knobs but no questions, is a research-control failure and not merely a documentation gap.",
+    "rule": "knobs lists what can actually be varied today. A constant with no environment override is NOT a knob -- record it under blind_spots with the reason. The set of knobs defines the set of hypotheses that can be tested, so an empty knobs list is the strongest possible signal that an axis is unexplored by construction rather than by judgement.",
+    "evidence_assignment": "Evidence ids are assigned to axes by hand, not by topic string. The ledger's `topic` field is organisational history (risk/search/ranker/...), not a formal axis, and mapping one onto the other automatically produces a flattering and wrong picture."
+  },
+  "axes": {
+    "item": {
+      "question": "Which items are considered at all",
+      "knobs": [
+        "ITEM_COVERAGE_MODE (legacy | class_aware)"
+      ],
+      "blind_spots": [
+        "MAX_POOL_ITEMS_EVALUATED = 10 is a hard-coded constant in agent/agent.py with no environment override, so the cap itself has never been varied. At pool 40 the agent evaluates 25% of the visible items and nothing records what the other 75% were worth.",
+        "measure_anchor_recall.py applies MAX_POOL_ITEMS_EVALUATED before enumerating, so the anchor-recall oracle is conditioned on the capped set and cannot speak about excluded items.",
+        "The replay dataset is one row per sampled candidate of a selected item, so items never entered into the search produce no rows at all -- their opportunity cost is unobserved, not merely unmeasured."
+      ],
+      "evidence": [
+        "class-aware-coverage-effect"
+      ]
+    },
+    "anchor": {
+      "question": "Where a chosen item is placed",
+      "knobs": [
+        "ANCHOR_GENERATOR_MODE (support_plane | cartesian)"
+      ],
+      "blind_spots": [
+        "Anchor recall is measured on single snapshots; the oracle uses the legacy Cartesian generator deliberately, so recall is relative to that enumeration, not to the physically reachable set."
+      ],
+      "evidence": [
+        "anchor-recall-one-snapshot",
+        "late-snapshots-not-starved",
+        "aabb-cache-guard-mixed"
+      ]
+    },
+    "candidate_rank": {
+      "question": "Which of the enumerated candidates is selected",
+      "knobs": [
+        "RELEASE_RISK_LIVE_RERANK",
+        "RELEASE_RISK_RERANK_LAMBDA",
+        "RELEASE_RISK_SLIDE_LAMBDA",
+        "RELEASE_RISK_GATE_MODE"
+      ],
+      "blind_spots": [
+        "Ranker.score weights are literals in the source, not knobs, so the ranking form itself has never been swept -- only the risk correction added on top of it.",
+        "The selected_* confusion matrices are conditioned on candidates the ranking already selected; they cannot be read as gate precision/recall."
+      ],
+      "evidence": [
+        "ranker-volume-dual-role",
+        "gate-high-recall-low-precision",
+        "support06-low-risk-region",
+        "shadow-rerank-low-live-leverage-33snap",
+        "online-ablation-round2-positive",
+        "risk-freeze-mech-lambda1",
+        "slide-lambda-05-adopted",
+        "final-holdout-passed-default-switch"
+      ]
+    },
+    "rollout": {
+      "question": "How futures are compared before committing",
+      "knobs": [
+        "LOOKAHEAD_SELECTION_MODE",
+        "LOOKAHEAD_TOP_K",
+        "LOOKAHEAD_DISCOUNT",
+        "VISIBLE_POOL_ROLLOUT_MODE"
+      ],
+      "blind_spots": [
+        "No graded state value V(sigma(s')) has been implemented, so every rollout result to date is about proxies for it, never about it."
+      ],
+      "evidence": [
+        "preview-term-same-score",
+        "three-modes-degenerate-run30340049061",
+        "lookahead-modes-degenerate-rich-search",
+        "visible-pool-rollout-step9-signal",
+        "visible-pool-rollout-enforce-rejected-v1"
+      ]
+    },
+    "fallback": {
+      "question": "What happens when no candidate is acceptable",
+      "knobs": [
+        "RESCUE_SCAN_ENABLED",
+        "RESCUE_SCAN_RESERVE_SECONDS",
+        "CROSS_STEP_INCUMBENT_MODE"
+      ],
+      "blind_spots": [
+        "The fixed protocol fallback itself has no knob and no instrument: it is the simulator's behaviour once the agent returns nothing usable, and no experiment has varied it.",
+        "transport_invalid deaths are diagnosed post hoc from reconstructed states, not observed live."
+      ],
+      "evidence": [
+        "deadline-reserved-rescue-rejected",
+        "cross-step-incumbent-top2-rejected-as-fallback",
+        "transport-deaths-are-fallback-poison",
+        "transport-now-leading-death-channel"
+      ]
+    },
+    "order": {
+      "question": "How the arrival or execution order is constructed (Task A)",
+      "knobs": [
+        "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM",
+        "OFFLINE_PAIR_MACRO_BUDGET_SECONDS",
+        "OFFLINE_MAX_EVALUATIONS",
+        "OFFLINE_SEARCH_BUDGET_SECONDS"
+      ],
+      "blind_spots": [
+        "Measured on one bundled case only. Source 001 was a synthetic Task A conversion and was dropped from the adoption matrix.",
+        "The proposal oracle ranks risk-off while execution is risk-on (ADR-003); the size and sign of the resulting proxy error are unexplained."
+      ],
+      "evidence": [
+        "task-a-offline-budget-starved-by-unbounded-scan",
+        "task-a-bounded64-rejected",
+        "task-a-bounded128-adopted",
+        "task-a-bounded128-replicated",
+        "task-a-offline-proxy-is-relative-only",
+        "offline-is-a-risk-off-proposal-oracle"
+      ]
+    },
+    "timing": {
+      "question": "How a fixed deadline is spent",
+      "knobs": [
+        "POLICY_BUDGET_SECONDS",
+        "OFFLINE_SEARCH_BUDGET_SECONDS",
+        "LOOKAHEAD_TIME_RESERVE_SECONDS"
+      ],
+      "blind_spots": [
+        "The online policy is anytime and saturates its budget, so its output depends on machine speed. No experiment holds search effort constant while varying the budget, which is what would separate 'more time' from 'more candidates'."
+      ],
+      "evidence": [
+        "aabb-cache-guard-mixed",
+        "task-a-episode-outcome-is-machine-speed-dependent"
+      ]
+    },
+    "physics": {
+      "question": "What breaks after release",
+      "knobs": [
+        "RELEASE_RISK_P_MODEL",
+        "RELEASE_RISK_MECH_LOGISTIC_V1"
+      ],
+      "blind_spots": [
+        "The shaking test in the official evaluation is not reproduced locally; stability_score is dynamic-response-based and only proxied here."
+      ],
+      "evidence": [
+        "current-failure-release-settle-topple",
+        "official-loss-step-in-angle",
+        "mechanics-features-dominate-static-33snap",
+        "risk-rule-family-comparison-33snap",
+        "slide-direction-downhill",
+        "dxy-equivariant-s0",
+        "terminal-failure-channels",
+        "b000-k20-regression-is-slide-death",
+        "shake-test-stability",
+        "com-centroid-official"
+      ]
+    },
+    "state_shaping": {
+      "question": "How a board good for the future is built",
+      "knobs": [],
+      "blind_spots": [
+        "No knob exists on this axis at all. Every result is an observational negative about descriptors (residual capacity) rather than an intervention.",
+        "HANDOFF's leading open question -- whether a graded state value helps -- lives here, on the axis with zero knobs and zero positive findings."
+      ],
+      "evidence": [
+        "capacity-instrument-calibration",
+        "stage-a-calibrated-negative"
+      ]
+    }
+  }
+}

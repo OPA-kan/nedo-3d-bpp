@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "contract": {
+    "purpose": "Reverse-lookup registry of open questions. Read in the direction question -> axis -> intervention -> observation unit -> is there an instrument, so that 'we have no instrument for this' is an answer the repository can give instead of a gap nobody notices.",
+    "rule": "status belongs to the CLAIM, never to an implementation. Shipping a mitigation does not close a question; only closure_criteria being met does. `class-aware coverage is implemented` is not an answer to `is item breadth a bottleneck`.",
+    "missing_instrument_is_an_answer": "When required_instrument is not in context/measurements.json, the honest response to the question is 'insufficient evidence, and here is the intervention that would produce it' -- not a hedge assembled from instruments that were conditioned on something else."
+  },
+  "questions": [
+    {
+      "id": "item-cap-omits-useful-items",
+      "question": "Does MAX_POOL_ITEMS_EVALUATED = 10 discard items that would have been placed?",
+      "axis": "item",
+      "intervention": "make the cap a knob and sweep it (10 / 16 / 24 / all), paired on identical item streams",
+      "observation_unit": "state x item",
+      "required_variation": "same multiset and arrival order across arms; at least 2 multisets to avoid a single-stream result",
+      "existing_instruments": [],
+      "missing_instrument": "a paired cap sweep, or shadow evaluation of skipped items. No current instrument observes an item that never entered the search: the replay dataset emits rows per candidate of a SELECTED item, and measure_anchor_recall applies the cap before enumerating.",
+      "why_unobserved": "This is unobserved rather than unmeasured. The opportunity cost of an excluded item cannot be recovered from any existing log, because nothing was ever computed about it.",
+      "status": "open",
+      "priority": "high",
+      "rationale": "At pool 40 the agent evaluates 25% of visible items. Merely REALLOCATING the same 10 slots (class-aware coverage) moved placed 10.67 -> 17.00 and priority C1 0% -> 81.2%, which is the largest single effect in the ledger. The cap itself has never been varied because it is a source constant with no override -- the absence of a knob, not a judgement, is why this was never tested.",
+      "closure_criteria": [
+        "cap sweep on >= 2 multisets with paired streams",
+        "a stable operating region identified, or a demonstration that placed is flat in the cap",
+        "policy time still inside the 8 s limit at the chosen cap"
+      ]
+    },
+    {
+      "id": "graded-state-value-helps",
+      "question": "Does a real graded state value V(sigma(s')) improve selection?",
+      "axis": "state_shaping",
+      "intervention": "implement a graded estimator and use it to act; there is currently nothing to turn on",
+      "observation_unit": "state",
+      "required_variation": "episode-level arms across >= 5 configs with repeats sized against the per-config variance in MEASUREMENT_AUDIT F3",
+      "existing_instruments": ["scripts/measure_residual_capacity.py"],
+      "missing_instrument": "measure_residual_capacity is observational; it predicts placed-to-go from descriptors but nothing acts on them. No instrument evaluates a state value used as a policy.",
+      "status": "open",
+      "priority": "high",
+      "rationale": "HANDOFF's leading Not-established item sits on the axis with zero knobs and zero positive findings. Every result so far is a negative about descriptors or a degeneracy of proxies, which is what an axis with no intervention produces.",
+      "closure_criteria": [
+        "a graded estimator exists and is switchable",
+        "an episode-level arm measured with repeats that exceed the config variance"
+      ]
+    },
+    {
+      "id": "task-a-second-case",
+      "question": "Does the bounded128 adoption transfer to a second real Task A case?",
+      "axis": "order",
+      "intervention": "run the adopted arm against base on a second bundled or supplied Task A case",
+      "observation_unit": "episode",
+      "required_variation": ">= 3 repeats per arm; the offline order is deterministic but the physical outcome is a range (25-26 on case 000)",
+      "existing_instruments": ["scripts/run_task_a_rollout.py"],
+      "missing_instrument": "none -- the instrument exists, only the case is missing. Source 001 is a synthetic conversion and was deliberately dropped from the adoption matrix.",
+      "status": "open",
+      "priority": "high",
+      "rationale": "The adoption rests on n=1 case. The AABB cache is the standing precedent that a genuine starvation fix can be strongly positive on one config and strongly negative on another.",
+      "closure_criteria": ["one real non-synthetic Task A case measured with >= 3 repeats per arm"]
+    },
+    {
+      "id": "taskb-guard-can-detect-anything",
+      "question": "What effect size can the Task B regression guard actually resolve?",
+      "axis": "timing",
+      "intervention": "rebuild reports/benchmarks/baseline.json with repeats and a machine fingerprint; make same-machine A/B the procedure instead of comparison to a stored constant",
+      "observation_unit": "episode",
+      "required_variation": ">= 3 repeats per config, >= 5 on configs measured as volatile",
+      "existing_instruments": ["scripts/run_risk_ablation.py"],
+      "missing_instrument": "none structurally; the baseline itself is the defective part (n=1, foreign machine, no fingerprint)",
+      "status": "open",
+      "priority": "high",
+      "rationale": "Measured 2026-08-02: an identical binary on an identical box returns 13, 17, 18 placed on b000-k40. The guard's own contract asks for unexplained drops to be rejected, which it cannot support. Three of five configs were perfectly stable, so this is config-specific, and the two volatile ones are exactly those carrying the aabb-cache-guard-mixed conclusion.",
+      "closure_criteria": [
+        "per-config variance estimated from >= 3 repeats",
+        "the guard states a minimum resolvable effect size",
+        "same-machine A/B documented as the procedure"
+      ]
+    },
+    {
+      "id": "risk-on-proposal-oracle",
+      "question": "Would a risk-on dry run propose better orders than the risk-off one?",
+      "axis": "order",
+      "intervention": "pass risk_lambda into DryRunEvaluator as a comparison arm",
+      "observation_unit": "episode",
+      "required_variation": ">= 3 repeats per arm on >= 2 cases",
+      "existing_instruments": ["scripts/run_task_a_rollout.py"],
+      "missing_instrument": "none -- it needs a new arm, not a new instrument",
+      "status": "open",
+      "priority": "medium",
+      "rationale": "ADR-003 decided to keep the split, on the grounds that the dry run is a proposal oracle and need not match the executor. That is a decision about what to require, not a measurement of which proposes better. Running it moves E_theta and stales every Task A number, so it must be designed as an experiment.",
+      "closure_criteria": ["paired arms on >= 2 cases", "fingerprint re-stamped and Task A numbers re-measured"]
+    },
+    {
+      "id": "ranker-form-never-swept",
+      "question": "Is the Ranker's functional form defensible, or merely unexamined?",
+      "axis": "candidate_rank",
+      "intervention": "expose the score weights as knobs and sweep them",
+      "observation_unit": "state x candidate, then episode",
+      "required_variation": "episode arms with repeats above the config variance",
+      "existing_instruments": [],
+      "missing_instrument": "the weights are source literals; there is no knob and therefore no experiment",
+      "status": "open",
+      "priority": "medium",
+      "rationale": "The volume term is known to be a dead vote within an item, and the risk work added a correction on top of the existing form without ever testing the form. Same structural pattern as the item cap: no knob, so no hypothesis.",
+      "closure_criteria": ["weights switchable", "at least one sweep measured at episode level"]
+    },
+    {
+      "id": "protocol-fallback-never-varied",
+      "question": "What should the agent return when no candidate is acceptable?",
+      "axis": "fallback",
+      "intervention": "none available -- the fixed protocol fallback has no knob",
+      "observation_unit": "episode-ending placement",
+      "required_variation": "unknown until an intervention exists",
+      "existing_instruments": ["scripts/analyze_terminal_failures.py"],
+      "missing_instrument": "analyze_terminal_failures is a post-mortem over deaths; it has no counterfactual and its denominator is deaths, not attempts. Two designed replacements (deadline-reserved rescue, cross-step incumbent) were both rejected, and neither was a variation of the fallback itself.",
+      "status": "open",
+      "priority": "high",
+      "rationale": "transport_invalid is the leading death channel at 45% of endings and the audited fatal actions fail the agent's own static check, i.e. they are the fallback firing, not the search failing.",
+      "closure_criteria": ["a switchable fallback policy exists", "measured against the current one at episode level"]
+    }
+  ]
+}
