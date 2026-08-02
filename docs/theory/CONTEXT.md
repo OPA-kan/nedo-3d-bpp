@@ -52,6 +52,14 @@
   重いbefore/after regretは
   pre-action snapshotを使うoffline計測として定義する。
 - 課題A/B/Cの修正版実装契約とaction後指標は別profile `abc-spec` で扱う。
+- 課題Cの盤面価値は別profile `task-c-value` で扱う。中心は独立代替配置数
+  \(R_c(s)\) とclass間のHall型競合 \(H(s)\) で、全体がProposedである。
+  貪欲独立集合の下界と型別anchor列挙は `measure_residual_capacity.py` に
+  offline計測器としてImplementedだが、class別ベクトル、\(N_s(c)\)、
+  \(D_\infty(s,a)\) は未実装。資源集合 \(\mathcal Z(s)\) をgrid由来ではなく
+  幾何由来（support-plane成分、搬入corridor、静的上限）で定義することが実装契約で
+  ある。課題Cのonline agentは残余荷物リストを受け取らないため、\(\mathcal C\) は
+  真の残余多重集合ではなく型の事前分布として定義する。
 
 完全な定式化が必要な場合だけ `MATHEMATICAL_MODEL.md` を読む。
 

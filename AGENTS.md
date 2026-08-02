@@ -72,6 +72,7 @@ python3 scripts/context.py show operations   # 日々の作業ループ規則（
 | `simulator` | 3 KB | 109 KB | 公式validatorの挙動を疑う |
 | `theory` | 3 KB | 30 KB | 数学モデルの位置づけ |
 | `abc-spec` | 10 KB | 10 KB | A/B/Cの実装契約と診断メトリクス |
+| `task-c-value` | 16 KB | 16 KB | 課題Cの盤面価値（独立代替配置とHall競合） |
 | `preview-value` | 10 KB | 37 KB | lookahead・残余価値 |
 | `replay-dataset` | 8 KB | 68 KB | counterfactual replayの抽出設計とラベル契約 |
 | `competition` | 5 KB | 5 KB | 公式I/O・スコア・制限時間 |

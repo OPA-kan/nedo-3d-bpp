@@ -108,6 +108,19 @@ pool 1では未来荷物が見えないため、共通配置コアによる頑�
 
 この方策を全課題のfallbackにする。
 
+4の「未知未来に対する残余proxy」の理論本体は `TASK_C_BOARD_VALUE.md`
+（context profile `task-c-value`）に分離した。要点は、良い状態とは空き体積が
+大きい状態ではなく、将来荷物型に対する実行可能配置が少数の共有資源に集中せず
+互いに独立な代替経路として残っている状態である、というものである。Proposedであり、
+反証順序（飽和チェック → ラベル張り替え → shadow → Q帯内tie-break）を通るまで
+ranking契約ではない。
+
+課題Cのonline agentは残余荷物リストを受け取らない。`get_init_states` は
+`optimize` / `lookahead_k` / `container_list` のみを渡し、全荷物リストは
+`optimize` が真のとき（＝課題A）だけ `get_info_for_optimization` 経由で渡る。
+残余proxyを実装する際、offline計測器が使う真の残余多重集合をonline特徴へ
+持ち込まないこと。
+
 ## 7. 課題A
 
 offlineでは順序だけでなく内部配置計画を作成し、同一agent instanceに保持する。
