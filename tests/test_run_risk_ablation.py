@@ -296,6 +296,26 @@ class ArmEnvironmentTests(unittest.TestCase):
 
         self.assertEqual(env["ANCHOR_FIRST_PASS_ATTEMPTS"], "64")
 
+    def test_the_ladder_extends_below_the_old_default_for_task_c(self):
+        """
+        Task C's fatal endgame states are starved of UNIT coverage, not of
+        depth inside a unit: units visited at the c001-k1 step-19 terminal
+        fell from 4 of 12 to 2 of 12 when the default moved 64 -> 256. The
+        interesting direction there is shallower than anything the Task B
+        depth block needed, so the ladder has to reach below 64.
+        """
+        for arm, depth in (("first_pass16", "16"), ("first_pass32", "32")):
+            with self.subTest(arm=arm):
+                base: dict[str, str] = {}
+                shallower: dict[str, str] = {}
+                configure_arm_environment(base, "base", 2.0, 0.0)
+                configure_arm_environment(shallower, arm, 2.0, 0.0)
+
+                self.assertEqual(
+                    shallower.pop("ANCHOR_FIRST_PASS_ATTEMPTS"), depth
+                )
+                self.assertEqual(shallower, base)
+
     def test_an_arm_does_not_inherit_an_outer_first_pass_depth(self):
         env = {"ANCHOR_FIRST_PASS_ATTEMPTS": "1024"}
 

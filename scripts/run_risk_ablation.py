@@ -97,6 +97,8 @@ def configure_arm_environment(
         "board_k8",
         "board_k16",
         "topk8",
+        "first_pass16",
+        "first_pass32",
         "first_pass64",
         "first_pass128",
         "first_pass256",
@@ -143,7 +145,12 @@ def configure_arm_environment(
             # Depth per unit on the first breadth-first pass. The probe in
             # reports/same-class-stacking puts the cliff between 64 and 256
             # attempts per item; 128 is there because a cliff located
-            # between two points is not a located cliff. first_pass64 is
+            # between two points is not a located cliff. The 16 and 32 rungs
+            # were added for Task C, where the trade runs the other way: the
+            # fatal endgame states are starved of UNIT coverage, not of depth
+            # within a unit, and units visited at the c001-k1 step-19 terminal
+            # fell from 4 of 12 to 2 of 12 when the default moved 64 -> 256.
+            # first_pass64 is
             # kept after the default moved to 256 so the old shipped
             # behaviour stays measurable rather than becoming unreachable.
             env["ANCHOR_FIRST_PASS_ATTEMPTS"] = arm.removeprefix("first_pass")
