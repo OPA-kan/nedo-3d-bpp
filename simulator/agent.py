@@ -4473,12 +4473,22 @@ def board_features(grid, top, filled, shapes):
 
 
 def board_features_after(container, candidate, shapes):
-    """Board features for the state one candidate placement would leave."""
+    """Board features for the state one candidate placement would leave.
+
+    A release candidate is commanded above its resting height and falls.
+    Stamping it where it was commanded evaluates a board that never
+    exists: it invents a sealed void under a box that is going to land,
+    and it eats headroom that will still be there. The settled proxy is
+    the same one the release risk model already uses, so the board and
+    the risk gate agree about where the item ends up.
+    """
     grid = board_grid(container)
     base_top, base_filled = board_occupancy(container, grid)
     top = base_top.copy()
     filled = base_filled.copy()
-    _board_stamp(grid, top, filled, candidate)
+    _board_stamp(
+        grid, top, filled, settled_proxy_candidate(candidate, container)
+    )
     return board_features(grid, top, filled, shapes)
 
 
