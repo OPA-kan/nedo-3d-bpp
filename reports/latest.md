@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-02T14:34:16+00:00`
-- Git SHA: `ce274344901e14f3803108ef2621851769105f41`
+- Timestamp: `2026-08-02T14:46:29+00:00`
+- Git SHA: `eebd35d43204f26a3119e1365822474fa5c50269`
 - Python: `3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]`
 - Platform: `Linux-6.18.5-x86_64-with-glibc2.39`
 - Processor: `x86_64`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `7.76 s`
+- Runtime: `8.411 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,8 +21,8 @@
 <details><summary>unit tests (tail; full log: reports/raw/unit-tests.log)</summary>
 
 ```text
-Both models are release-specific; a settled weight would be made up. ... ok
-test_the_union_bound_rule_never_goes_negative (test_safe_capacity.SurvivalWeightTests.test_the_union_bound_rule_never_goes_negative) ... ok
+test_the_quaternion_sign_does_not_invent_a_rotation (test_shake_response.RotationTests.test_the_quaternion_sign_does_not_invent_a_rotation)
+q and -q are the same orientation. Without the absolute value this ... ok
 test_an_unknown_mode_is_refused (test_stream_variants.ModeTests.test_an_unknown_mode_is_refused) ... ok
 test_index_is_reassigned_positionally (test_stream_variants.PermuteTests.test_index_is_reassigned_positionally) ... ok
 test_non_dimensional_attributes_travel_with_the_item (test_stream_variants.PermuteTests.test_non_dimensional_attributes_travel_with_the_item) ... ok
@@ -48,7 +48,7 @@ test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.Task
 test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
 
 ----------------------------------------------------------------------
-Ran 425 tests in 7.396s
+Ran 435 tests in 8.012s
 
 OK
 ```

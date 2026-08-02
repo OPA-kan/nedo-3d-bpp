@@ -232,6 +232,10 @@ def case_summary(
             "status": case.get("status"),
             "message": case.get("message"),
             "attribute_placement": attribute_placement,
+            # Local proxy for stability_score, from the end-of-episode shake.
+            # Undisclosed protocol, so a monotone comparator between arms and
+            # never the official number.
+            "shake_response": score.get("shake_response") or {},
             # Stability proxies (per the diagnostics decomposition: no
             # pseudo-total score, each proxy kept separate).
             "max_settle_angle_deg": max(angles) if angles else None,

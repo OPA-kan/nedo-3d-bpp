@@ -99,6 +99,41 @@ on one. **This is the highest-value thread left open.**
   items available to unlock. Not the cause of the fallback. Whether it
   costs fill across a whole episode is still untested.
 
+### The new instrument: stability, locally
+
+`Evaluator.shake_test()`, called once from `env.evaluate()` at episode
+end inside `saveState`/`restoreState`, so it cannot perturb anything.
+Three ingredients are officially fixed (`COMPETITION_RULES.md:70-73`
+and `COMPETITION_QA.md:17`): the lid closes, gravity varies, and the
+score is displacement / force / kinetic energy with friction feeding it.
+The magnitudes and thresholds are not, so the schedule is invented and
+the output is a comparator, never the official number.
+
+Stated deviation: **no lid**. An item can leave through the opening; a
+lost item is charged as both a shift and a topple, because dropping it
+from the averages would let the worst outcome improve the metric.
+
+**This immediately put a question mark over today's shipped change.**
+On b000-k40, n = 1: the new default reaches placed 16 with 9 of 16
+items shifting >5 cm and `priority_clean_ratio` 0.75, against
+`first_pass64` at placed 11, 5 of 11 shifted, ratio 1.00. placed gates
+four components, so +5 placed is worth a lot -- but it may be damaging
+two of the four it gates. That trade was invisible until now.
+
+**The next experiment is already fully equipped**: run `first_pass64`
+against the default over the five development configs, two blocks, and
+read `shake_*` and `*_clean_ratio` alongside placed. Nothing new needs
+building.
+
+### Where the remaining blindness is
+
+Of the six official components: fill and num_placed are computed by the
+bundled simulator; placement and soft now have local violation counts;
+stability has the shake proxy. **cog is the only one with nothing** --
+it is computable from mass and position but its normalisation is
+unknown, and `center_of_mass_z` in `step_metrics` is the closest thing
+that exists.
+
 ### The score structure that should drive priorities
 
 `docs/OFFICIAL_SCORE_LOG.md`. placed is the GATE for cog / stability /

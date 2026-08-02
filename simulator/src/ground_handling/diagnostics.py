@@ -422,3 +422,87 @@ def calculate_attribute_placement(
         ),
         "soft_clean_ratio": clean_ratio(len(soft_items), covered_soft),
     }
+
+
+# --- Shake response: the pure half of a local stability_score proxy ---
+#
+# stability_score is computed only on the evaluation platform. What the
+# rules say it is (docs/COMPETITION_RULES.md:70-73, transcribed):
+#
+#   蓋を閉じて重力を変動させる動的安定性テスト
+#     - 初期位置からのずれ
+#     - 手荷物へ加わる力
+#     - 運動エネルギー
+#
+# and the official QA adds that friction coefficients feed both the
+# placement-time collapse risk and this shake (docs/COMPETITION_QA.md:17).
+#
+# The exact protocol -- how gravity varies, for how long, with what
+# thresholds -- is undisclosed, so this cannot reproduce the official
+# number and is named accordingly. It is a monotone proxy for comparing
+# arms, on the same contract as calculate_attribute_placement.
+#
+# This half is pure so it can be tested without a physics engine. The
+# driving half lives in Evaluator.shake_test().
+#
+# Two of the three official quantities are reported directly: displacement
+# from the pre-shake pose, and peak kinetic energy. The third, force on
+# each item, needs contact-point queries whose cost scales with pair count
+# and whose values depend on the solver iteration the query lands on;
+# kinetic energy is the cheaper observable of the same instability and is
+# itself on the official list.
+SHAKE_TOPPLE_DEGREES = 30.0
+SHAKE_SHIFT_METRES = 0.05
+
+
+def _quaternion_angle_degrees(before: list[float], after: list[float]) -> float:
+    dot = abs(sum(float(a) * float(b) for a, b in zip(before, after)))
+    return math.degrees(2.0 * math.acos(min(1.0, max(-1.0, dot))))
+
+
+def shake_response_metrics(
+    before: list[dict[str, Any]],
+    after: list[dict[str, Any]],
+    peak_kinetic_energy: float,
+) -> dict[str, Any]:
+    """Displacement, rotation and energy across a shake.
+
+    `before`/`after` are lists of {index, pos, orn} keyed by item index;
+    an item missing from `after` has left the simulation and is counted as
+    a topple rather than silently dropped.
+    """
+    after_by_index = {int(item["index"]): item for item in after}
+    shifts: list[float] = []
+    rotations: list[float] = []
+    lost = 0
+    for item in before:
+        landed = after_by_index.get(int(item["index"]))
+        if landed is None:
+            lost += 1
+            continue
+        shifts.append(
+            float(
+                np.linalg.norm(
+                    np.asarray(landed["pos"], dtype=float)
+                    - np.asarray(item["pos"], dtype=float)
+                )
+            )
+        )
+        rotations.append(_quaternion_angle_degrees(item["orn"], landed["orn"]))
+
+    return {
+        "shake_items": len(before),
+        "shake_items_lost": lost,
+        "shake_max_shift": max(shifts) if shifts else 0.0,
+        "shake_mean_shift": float(np.mean(shifts)) if shifts else 0.0,
+        "shake_max_rotation_deg": max(rotations) if rotations else 0.0,
+        "shake_items_shifted": sum(
+            1 for value in shifts if value > SHAKE_SHIFT_METRES
+        )
+        + lost,
+        "shake_items_toppled": sum(
+            1 for value in rotations if value > SHAKE_TOPPLE_DEGREES
+        )
+        + lost,
+        "shake_peak_kinetic_energy": float(peak_kinetic_energy),
+    }
