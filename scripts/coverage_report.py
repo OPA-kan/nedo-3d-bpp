@@ -96,11 +96,19 @@ def alarms(rows: list[dict[str, Any]]) -> list[str]:
                 "'insufficient evidence', not a hedge from a neighbouring "
                 "instrument."
             )
-        if row["evidence_active"] and row["open"] and row["knobs"] <= 1:
+        if row["evidence_active"] and row["open"] and row["knobs"] == 0:
             out.append(
-                f"{axis}: {row['evidence_active']} active finding(s) but "
-                f"{row['open']} still open on {row['knobs']} knob(s) -- a "
-                "positive result that could not be followed up."
+                f"{axis}: {row['evidence_active']} active finding(s) but no "
+                "intervention knob -- the evidence here is observational or "
+                "diagnostic only, and no registered knob can test a policy "
+                "on this axis. Read this as 'cannot be acted on yet', NOT "
+                "as 'a promising result waiting to be shipped'."
+            )
+        elif row["evidence_active"] and row["open"] and row["knobs"] == 1:
+            out.append(
+                f"{axis}: {row['evidence_active']} active finding(s) and "
+                f"{row['open']} open question on a single knob -- narrow "
+                "intervention surface relative to what has been measured."
             )
         if row["questions"] == 0 and row["knobs"] >= 3:
             out.append(
