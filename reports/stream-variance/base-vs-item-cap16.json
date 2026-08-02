@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "design": {
+    "mode": "permute",
+    "source_case": "000",
+    "look_ahead": 20,
+    "variants": 8,
+    "note": "8 permutations of the SAME 41-item multiset. Content, class mix, total volume and difficulty are identical across variants; only arrival order differs. Arms are paired within each stream. Episodes were run sequentially: the search is deadline-limited, so parallel execution would have changed what it could reach."
+  },
+  "noise_floor_base": {
+    "placed": {
+      "mean": 12.75,
+      "sd": 2.315,
+      "min": 11,
+      "max": 18,
+      "range": 7
+    },
+    "fill": {
+      "mean": 13.593,
+      "sd": 3.948,
+      "min": 9.923,
+      "max": 22.47,
+      "range": 12.547
+    },
+    "interpretation": "This is the spread of an unchanged algorithm on an unchanged item multiset. Any effect smaller than it cannot be read from unpaired per-configuration deltas."
+  },
+  "paired_effect_item_cap16": {
+    "placed": {
+      "mean_diff": 3.125,
+      "sd": 2.8,
+      "wins": 8,
+      "losses": 0,
+      "ties": 0,
+      "sign_test_p": 0.00391
+    },
+    "fill": {
+      "mean_diff": 2.502,
+      "sd": 5.359,
+      "wins": 5,
+      "losses": 2
+    }
+  },
+  "search_pressure": {
+    "base": {
+      "decisions": 110,
+      "mean_steps": 13.75,
+      "deadline_reached_rate": 0.827,
+      "episodes_ending_in_fallback": 1
+    },
+    "item_cap16": {
+      "decisions": 135,
+      "mean_steps": 16.88,
+      "deadline_reached_rate": 0.874,
+      "episodes_ending_in_fallback": 1
+    }
+  },
+  "per_stream": [
+    {
+      "stream": "syn000-per00-k20",
+      "base": {
+        "placed": 11,
+        "fill": 10.724,
+        "steps": 12,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 13,
+        "fill": 7.146,
+        "steps": 14,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 2,
+      "delta_fill": -3.579
+    },
+    {
+      "stream": "syn000-per01-k20",
+      "base": {
+        "placed": 14,
+        "fill": 15.497,
+        "steps": 15,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 15,
+        "fill": 16.792,
+        "steps": 16,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 1,
+      "delta_fill": 1.295
+    },
+    {
+      "stream": "syn000-per02-k20",
+      "base": {
+        "placed": 12,
+        "fill": 12.862,
+        "steps": 13,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 13,
+        "fill": 14.664,
+        "steps": 14,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 1,
+      "delta_fill": 1.802
+    },
+    {
+      "stream": "syn000-per03-k20",
+      "base": {
+        "placed": 12,
+        "fill": 12.343,
+        "steps": 13,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 19,
+        "fill": 16.048,
+        "steps": 20,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 7,
+      "delta_fill": 3.705
+    },
+    {
+      "stream": "syn000-per04-k20",
+      "base": {
+        "placed": 12,
+        "fill": 9.923,
+        "steps": 13,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 20,
+        "fill": 24.481,
+        "steps": 21,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 8,
+      "delta_fill": 14.558
+    },
+    {
+      "stream": "syn000-per05-k20",
+      "base": {
+        "placed": 11,
+        "fill": 12.063,
+        "steps": 12,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 13,
+        "fill": 14.795,
+        "steps": 14,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 2,
+      "delta_fill": 2.732
+    },
+    {
+      "stream": "syn000-per06-k20",
+      "base": {
+        "placed": 18,
+        "fill": 22.47,
+        "steps": 19,
+        "is_valid": false,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 19,
+        "fill": 21.975,
+        "steps": 20,
+        "is_valid": false,
+        "is_placed_safe": false
+      },
+      "delta_placed": 1,
+      "delta_fill": -0.495
+    },
+    {
+      "stream": "syn000-per07-k20",
+      "base": {
+        "placed": 12,
+        "fill": 12.862,
+        "steps": 13,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "item_cap16": {
+        "placed": 15,
+        "fill": 12.862,
+        "steps": 16,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "delta_placed": 3,
+      "delta_fill": 0.0
+    }
+  ]
+}

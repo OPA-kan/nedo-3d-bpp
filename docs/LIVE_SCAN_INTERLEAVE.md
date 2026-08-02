@@ -92,7 +92,30 @@ without the per-configuration split.
 The registered development baseline is placed 88 / fill 114.6 across the five
 development configurations (`reports/benchmarks/baseline.json`).
 
-## Result: rejected as a default
+## Correction (2026-08-02): the rejection below is NOT established
+
+`reports/stream-variance/base-vs-item-cap16.json` measured the noise floor
+this screening was read against. The unchanged agent, on 8 permutations of a
+single item multiset - same items, same class mix, same total volume, only
+arrival order varied - produced placed **sd 2.315 with a range of 7** and
+fill **sd 3.948 with a range of 12.5**.
+
+Every per-configuration delta below (+5, -4, -3, -1, 0) lies inside that
+band, and the screening was **unpaired**: each configuration is a different
+item stream, so its delta mixes the intervention with arrival-order variance
+that was never estimated. Repeats do not help - the same configuration
+repeated is bit-identical, so a 3-repeat design samples none of this source.
+
+So the result below does not establish a negative. It is **not established**
+in either direction. `LIVE_SEARCH_INTERLEAVE` stays 1 because nothing
+established a positive either, not because a negative was measured. The
+design that would settle it is the paired permutation sweep now available:
+`build_stream_variants.py --mode permute` with both arms on each stream.
+
+The mechanism discussion below stands on its own - the search diagnostics and
+the b000-k40 pattern match are observations, not inferences from the totals.
+
+## Result as originally reported (read with the correction above)
 
 `reports/live-interleave/local-20260801-screening/`. Local Linux, PyBullet
 3.2.7, one repeat per cell, `base` versus `live_interleave4` on the five
