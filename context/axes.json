@@ -3,27 +3,32 @@
   "contract": {
     "purpose": "Axis definitions for the reverse-lookup registries. An axis is a dimension along which the agent's behaviour can be varied. Questions, instruments and knobs are all filed against axes so that coverage imbalance is visible: an axis with questions but no instrument, or knobs but no questions, is a research-control failure and not merely a documentation gap.",
     "rule": "knobs lists what can actually be varied today. A constant with no environment override is NOT a knob -- record it under blind_spots with the reason. The set of knobs defines the set of hypotheses that can be tested, so an empty knobs list is the strongest possible signal that an axis is unexplored by construction rather than by judgement.",
-    "evidence_assignment": "Evidence ids are assigned to axes by hand, not by topic string. The ledger's `topic` field is organisational history (risk/search/ranker/...), not a formal axis, and mapping one onto the other automatically produces a flattering and wrong picture."
+    "evidence_assignment": "Evidence ids are assigned to axes by hand, not by topic string. The ledger's `topic` field is organisational history (risk/search/ranker/...), not a formal axis, and mapping one onto the other automatically produces a flattering and wrong picture.",
+    "provenance_rule": "Every registry file records the commit it was verified against. Without it a correct reverse-lookup mechanism over a stale checkout produces precise misinformation -- this file asserted that MAX_POOL_ITEMS_EVALUATED had no override while a parallel branch had already env-ised it, run an 8-permutation paired cap sweep and measured +3.125 placed. Re-verify and re-stamp after every merge."
   },
   "axes": {
     "item": {
       "question": "Which items are considered at all",
       "knobs": [
-        "ITEM_COVERAGE_MODE (legacy | class_aware)"
+        "ITEM_COVERAGE_MODE (legacy | class_aware)",
+        "MAX_POOL_ITEMS_EVALUATED (env, default 10) -- env-ised by d69bc36"
       ],
       "blind_spots": [
-        "MAX_POOL_ITEMS_EVALUATED = 10 is a hard-coded constant in agent/agent.py with no environment override, so the cap itself has never been varied. At pool 40 the agent evaluates 25% of the visible items and nothing records what the other 75% were worth.",
-        "measure_anchor_recall.py applies MAX_POOL_ITEMS_EVALUATED before enumerating, so the anchor-recall oracle is conditioned on the capped set and cannot speak about excluded items.",
-        "The replay dataset is one row per sampled candidate of a selected item, so items never entered into the search produce no rows at all -- their opportunity cost is unobserved, not merely unmeasured."
+        "The cap is now a knob and has been swept once (item_cap16 / item_cap20 arms in run_risk_ablation.py). What is still unobserved is the value of a SPECIFIC excluded item: no instrument prices an item that never entered the search, because nothing is computed about it. The cap sweep answers 'does a bigger cap help', not 'which item was lost'.",
+        "measure_anchor_recall.py applies MAX_POOL_ITEMS_EVALUATED before enumerating, so anchor recall remains conditioned on the admitted set.",
+        "The cap sweep is one source case, one look-ahead, 8 permutations of ONE multiset: it controls arrival order, not item mix. No timing regression check has been run at cap 16."
       ],
       "evidence": [
-        "class-aware-coverage-effect"
+        "class-aware-coverage-effect",
+        "item-cap-16-wins-on-every-permutation",
+        "arrival-distribution-not-estimable-from-two-streams"
       ]
     },
     "anchor": {
       "question": "Where a chosen item is placed",
       "knobs": [
-        "ANCHOR_GENERATOR_MODE (support_plane | cartesian)"
+        "ANCHOR_GENERATOR_MODE (support_plane | cartesian)",
+        "LIVE_SEARCH_INTERLEAVE (env, default 1)"
       ],
       "blind_spots": [
         "Anchor recall is measured on single snapshots; the oracle uses the legacy Cartesian generator deliberately, so recall is relative to that enumeration, not to the physically reachable set."
@@ -31,7 +36,9 @@
       "evidence": [
         "anchor-recall-one-snapshot",
         "late-snapshots-not-starved",
-        "aabb-cache-guard-mixed"
+        "aabb-cache-guard-mixed",
+        "live-scan-interleave-rejected-as-default",
+        "rollout-endgame-silence-is-a-scan-order-hole"
       ]
     },
     "candidate_rank": {
@@ -63,7 +70,8 @@
         "LOOKAHEAD_SELECTION_MODE",
         "LOOKAHEAD_TOP_K",
         "LOOKAHEAD_DISCOUNT",
-        "VISIBLE_POOL_ROLLOUT_MODE"
+        "VISIBLE_POOL_ROLLOUT_MODE",
+        "VISIBLE_POOL_ROLLOUT_STRIDE (env, default 1)"
       ],
       "blind_spots": [
         "No graded state value V(sigma(s')) has been implemented, so every rollout result to date is about proxies for it, never about it."
@@ -73,7 +81,9 @@
         "three-modes-degenerate-run30340049061",
         "lookahead-modes-degenerate-rich-search",
         "visible-pool-rollout-step9-signal",
-        "visible-pool-rollout-enforce-rejected-v1"
+        "visible-pool-rollout-enforce-rejected-v1",
+        "b000-k15-enforce-loss-was-a-blind-instrument",
+        "offline-snapshot-sweeps-cannot-answer-outcome-questions"
       ]
     },
     "fallback": {
@@ -127,7 +137,8 @@
       ],
       "evidence": [
         "aabb-cache-guard-mixed",
-        "task-a-episode-outcome-is-machine-speed-dependent"
+        "task-a-episode-outcome-is-machine-speed-dependent",
+        "development-suite-noise-floor-permutation"
       ]
     },
     "physics": {
@@ -149,20 +160,32 @@
         "terminal-failure-channels",
         "b000-k20-regression-is-slide-death",
         "shake-test-stability",
-        "com-centroid-official"
+        "com-centroid-official",
+        "placements-disturb-packed-items"
       ]
     },
     "state_shaping": {
       "question": "How a board good for the future is built",
       "knobs": [],
       "blind_spots": [
-        "No knob exists on this axis at all. Every result is an observational negative about descriptors (residual capacity) rather than an intervention.",
-        "HANDOFF's leading open question -- whether a graded state value helps -- lives here, on the axis with zero knobs and zero positive findings."
+        "Still no knob: kappa and typed-option work measured state descriptors but nothing acts on them, so every result remains observational.",
+        "HANDOFF's leading open question -- whether a graded state value helps -- lives here."
       ],
       "evidence": [
         "capacity-instrument-calibration",
-        "stage-a-calibrated-negative"
+        "stage-a-calibrated-negative",
+        "risk-weighted-kappa-state-value-negative",
+        "stage-b-kappa-differential-does-not-predict-survival",
+        "typed-option-irreversibility-is-per-type"
       ]
     }
+  },
+  "provenance": {
+    "verified_against_merge_of": {
+      "ours": "88f6500a4073e1ae60d718ccf74d355f8965ece1",
+      "theirs": "a8e04f1446e724c8e3cfeed10da075ef72db5041",
+      "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
+    },
+    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap: this file claimed MAX_POOL_ITEMS_EVALUATED had no override while the other side had already env-ised it and measured a paired +3.125 placed over 8 permutations."
   }
 }

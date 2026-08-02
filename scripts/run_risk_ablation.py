@@ -59,6 +59,9 @@ def configure_arm_environment(
         "VISIBLE_POOL_ROLLOUT_TOP_K",
         "VISIBLE_POOL_ROLLOUT_DEPTH",
         "VISIBLE_POOL_ROLLOUT_ATTEMPTS",
+        "VISIBLE_POOL_ROLLOUT_STRIDE",
+        "LIVE_SEARCH_INTERLEAVE",
+        "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
@@ -75,6 +78,12 @@ def configure_arm_environment(
         "cross_step_shadow",
         "rollout_shadow",
         "rollout_enforce",
+        "rollout_enforce_stride4",
+        "rollout_shadow_stride4",
+        "live_interleave4",
+        "live_interleave8",
+        "item_cap16",
+        "item_cap20",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -84,6 +93,28 @@ def configure_arm_environment(
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
         elif arm == "rollout_enforce":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
+        elif arm == "rollout_shadow_stride4":
+            # Same telemetry as rollout_shadow, but the rollout's future
+            # search spreads its unchanged per-step attempt budget over the
+            # anchor grid instead of its prefix.
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
+            env["VISIBLE_POOL_ROLLOUT_STRIDE"] = "4"
+        elif arm == "rollout_enforce_stride4":
+            env["VISIBLE_POOL_ROLLOUT_MODE"] = "enforce"
+            env["VISIBLE_POOL_ROLLOUT_STRIDE"] = "4"
+        elif arm == "live_interleave4":
+            # The live candidate search only; the rollout stays off. This is
+            # a scan-ORDER change, not a search-breadth change: a unit that
+            # exhausts still sees the identical anchor set.
+            env["LIVE_SEARCH_INTERLEAVE"] = "4"
+        elif arm == "live_interleave8":
+            env["LIVE_SEARCH_INTERLEAVE"] = "8"
+        elif arm == "item_cap16":
+            # Item-dimension breadth. The anchor dimension has twice failed
+            # a breadth intervention; this is the axis where one worked.
+            env["MAX_POOL_ITEMS_EVALUATED"] = "16"
+        elif arm == "item_cap20":
+            env["MAX_POOL_ITEMS_EVALUATED"] = "20"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"

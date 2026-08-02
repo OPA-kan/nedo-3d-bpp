@@ -104,3 +104,11 @@ rejected as the live ordering. `VISIBLE_POOL_ROLLOUT_MODE` remains `off`.
 Non-degeneracy was 138/240 (57.5%) at steps 0-9 and 2/166 (1.2%) thereafter;
 the mean cost was 111.1 ms/step and the maximum was 617.6 ms. Diagnose the
 b000-k15 first divergence before changing the band or rollout weights.
+
+The 1.2% late figure is largely an instrument fault, not a full container.
+See `docs/ROLLOUT_SATURATION.md`: the rollout's future search spends its
+per-step attempt budget on the dense infeasible prefix of the anchor scan.
+Spreading the same budget with `VISIBLE_POOL_ROLLOUT_STRIDE` reaches a future
+placement on 28/37 late snapshots against the shipped setting's 8/37, and
+reaches strictly more than raising the budget does. The stride defaults to 1,
+so every number in this document still describes the shipped configuration.

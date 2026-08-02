@@ -1,0 +1,1209 @@
+{
+  "schema_version": 1,
+  "settings": {
+    "depth": 3,
+    "base_attempts": 64,
+    "late_step": 10,
+    "immediate_budget": 4096,
+    "top_k": 3,
+    "generator_mode": "support_plane",
+    "arms": [
+      {
+        "name": "baseline",
+        "family": "baseline",
+        "stride": 1,
+        "stride_offset": 0,
+        "attempts_per_step": 64
+      },
+      {
+        "name": "stride-2",
+        "family": "stride",
+        "stride": 2,
+        "stride_offset": 0,
+        "attempts_per_step": 64
+      },
+      {
+        "name": "stride-4",
+        "family": "stride",
+        "stride": 4,
+        "stride_offset": 0,
+        "attempts_per_step": 64
+      },
+      {
+        "name": "stride-8",
+        "family": "stride",
+        "stride": 8,
+        "stride_offset": 0,
+        "attempts_per_step": 64
+      },
+      {
+        "name": "budget-512",
+        "family": "budget",
+        "stride": 1,
+        "stride_offset": 0,
+        "attempts_per_step": 512
+      }
+    ]
+  },
+  "summary": {
+    "snapshots": 8,
+    "usable": 8,
+    "all": {
+      "snapshots": 8,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 5,
+          "non_degenerate_rate": 0.625,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.625,
+          "recovered_from_baseline_ties": 0,
+          "baseline_tied_snapshots": 3,
+          "mean_elapsed_ms": 105.069
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 6,
+          "non_degenerate_rate": 0.75,
+          "any_future_placement": 6,
+          "any_future_placement_rate": 0.75,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 3,
+          "mean_elapsed_ms": 104.538
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 6,
+          "non_degenerate_rate": 0.75,
+          "any_future_placement": 6,
+          "any_future_placement_rate": 0.75,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 3,
+          "mean_elapsed_ms": 140.834
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "would_enforce": 4,
+          "attempts_per_step": 64,
+          "non_degenerate": 8,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 8,
+          "any_future_placement_rate": 1.0,
+          "recovered_from_baseline_ties": 3,
+          "baseline_tied_snapshots": 3,
+          "mean_elapsed_ms": 250.949
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 512,
+          "non_degenerate": 8,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.625,
+          "recovered_from_baseline_ties": 3,
+          "baseline_tied_snapshots": 3,
+          "mean_elapsed_ms": 2215.012
+        }
+      }
+    },
+    "early_step_lt_10": {
+      "snapshots": 1,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": 0,
+          "non_degenerate_rate": 0.0,
+          "any_future_placement": 0,
+          "any_future_placement_rate": 0.0,
+          "recovered_from_baseline_ties": 0,
+          "baseline_tied_snapshots": 1,
+          "mean_elapsed_ms": 41.89
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "would_enforce": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": 1,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 1,
+          "any_future_placement_rate": 1.0,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 1,
+          "mean_elapsed_ms": 71.781
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "would_enforce": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": 1,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 1,
+          "any_future_placement_rate": 1.0,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 1,
+          "mean_elapsed_ms": 296.091
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "would_enforce": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": 1,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 1,
+          "any_future_placement_rate": 1.0,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 1,
+          "mean_elapsed_ms": 276.535
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": 1,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 0,
+          "any_future_placement_rate": 0.0,
+          "recovered_from_baseline_ties": 1,
+          "baseline_tied_snapshots": 1,
+          "mean_elapsed_ms": 1982.912
+        }
+      }
+    },
+    "late_step_ge_10": {
+      "snapshots": 7,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 5,
+          "non_degenerate_rate": 0.7143,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.7143,
+          "recovered_from_baseline_ties": 0,
+          "baseline_tied_snapshots": 2,
+          "mean_elapsed_ms": 114.095
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 5,
+          "non_degenerate_rate": 0.7143,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.7143,
+          "recovered_from_baseline_ties": 0,
+          "baseline_tied_snapshots": 2,
+          "mean_elapsed_ms": 109.218
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 64,
+          "non_degenerate": 5,
+          "non_degenerate_rate": 0.7143,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.7143,
+          "recovered_from_baseline_ties": 0,
+          "baseline_tied_snapshots": 2,
+          "mean_elapsed_ms": 118.655
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "would_enforce": 4,
+          "attempts_per_step": 64,
+          "non_degenerate": 7,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 7,
+          "any_future_placement_rate": 1.0,
+          "recovered_from_baseline_ties": 2,
+          "baseline_tied_snapshots": 2,
+          "mean_elapsed_ms": 247.293
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "would_enforce": 1,
+          "attempts_per_step": 512,
+          "non_degenerate": 7,
+          "non_degenerate_rate": 1.0,
+          "any_future_placement": 5,
+          "any_future_placement_rate": 0.7143,
+          "recovered_from_baseline_ties": 2,
+          "baseline_tied_snapshots": 2,
+          "mean_elapsed_ms": 2248.17
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_004909-b000-k15-weighted-class_aware-shadow-64963f72-fcb3f260899a/step-008-state.json",
+      "case_id": "b000-k15",
+      "step": 8,
+      "pool_size": 15,
+      "packed_items": 8,
+      "searched_items": 10,
+      "immediate_attempts_observed": 1023,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 41.89
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 71.781
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 296.091
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 276.535
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 1536,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 1982.912
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7/step-010-state.json",
+      "case_id": "b000-k15",
+      "step": 10,
+      "pool_size": 15,
+      "packed_items": 10,
+      "searched_items": 10,
+      "immediate_attempts_observed": 1138,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 119.043
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 111.881
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "no_candidate",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 201.694
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 2,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "depth_reached",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 353.782
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 2560,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 3150.716
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_004909-b000-k15-weighted-class_aware-shadow-64963f72-fcb3f260899a/step-012-state.json",
+      "case_id": "b000-k15",
+      "step": 12,
+      "pool_size": 15,
+      "packed_items": 12,
+      "searched_items": 10,
+      "immediate_attempts_observed": 585,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 320,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 155.513
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 320,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 139.422
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 320,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 155.713
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 448.122
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 2,
+          "any_future_placement": true,
+          "attempts_used_total": 2560,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 3047.936
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_011036-b000-k15-weighted-class_aware-shadow-64963f72-f9a761522e33/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "pool_size": 15,
+      "packed_items": 13,
+      "searched_items": 10,
+      "immediate_attempts_observed": 424,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 128.715
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 127.673
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 112.09
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 214.819
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 2048,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 2177.727
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_115429-b000-k15-weighted-class_aware-shadow-64963f72-07202cc3cd18/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "pool_size": 15,
+      "packed_items": 13,
+      "searched_items": 10,
+      "immediate_attempts_observed": 424,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 115.98
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 111.825
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 106.506
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 208.339
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 2048,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 2226.622
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "pool_size": 15,
+      "packed_items": 13,
+      "searched_items": 10,
+      "immediate_attempts_observed": 424,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 114.549
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 112.809
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 103.314
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": true,
+          "proposal_improves_rollout": true,
+          "would_enforce": true,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 213.915
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 2,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 2048,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 6,
+          "proposed_pool_index": 6,
+          "elapsed_ms": 2072.134
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_011036-b000-k15-weighted-class_aware-shadow-64963f72-f9a761522e33/step-014-state.json",
+      "case_id": "b000-k15",
+      "step": 14,
+      "pool_size": 15,
+      "packed_items": 14,
+      "searched_items": 10,
+      "immediate_attempts_observed": 228,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 94.944
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 92.906
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 84.175
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 148.498
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 1536,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 1439.235
+        }
+      }
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_115429-b000-k15-weighted-class_aware-shadow-64963f72-07202cc3cd18/step-014-state.json",
+      "case_id": "b000-k15",
+      "step": 14,
+      "pool_size": 15,
+      "packed_items": 14,
+      "searched_items": 10,
+      "immediate_attempts_observed": 228,
+      "top_k_size": 3,
+      "arms": {
+        "baseline": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 69.92
+        },
+        "stride-2": {
+          "stride": 2,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 68.011
+        },
+        "stride-4": {
+          "stride": 4,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": false,
+          "candidate_count": 3,
+          "distinct_keys": 1,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 192,
+          "terminal_reasons": [
+            "no_candidate"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 67.093
+        },
+        "stride-8": {
+          "stride": 8,
+          "stride_offset": 0,
+          "attempts_per_step": 64,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 1,
+          "total_placed": 1,
+          "any_future_placement": true,
+          "attempts_used_total": 256,
+          "terminal_reasons": [
+            "no_candidate",
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 143.579
+        },
+        "budget-512": {
+          "stride": 1,
+          "stride_offset": 0,
+          "attempts_per_step": 512,
+          "non_degenerate": true,
+          "candidate_count": 3,
+          "distinct_keys": 3,
+          "max_placed": 0,
+          "total_placed": 0,
+          "any_future_placement": false,
+          "attempts_used_total": 1536,
+          "terminal_reasons": [
+            "release_transition_uncertain"
+          ],
+          "would_change_item": false,
+          "proposal_improves_rollout": false,
+          "would_enforce": false,
+          "selected_pool_index": 1,
+          "proposed_pool_index": 1,
+          "elapsed_ms": 1622.818
+        }
+      }
+    }
+  ]
+}

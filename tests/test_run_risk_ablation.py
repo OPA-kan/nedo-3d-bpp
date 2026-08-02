@@ -176,6 +176,81 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
         self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "enforce")
 
+    def test_an_unstrided_arm_does_not_inherit_an_outer_stride(self):
+        """
+        The stride is an experiment control like every other rollout knob:
+        an arm that does not set it must not silently run at whatever the
+        caller's shell had. This is the failure mode that made ablation
+        round 1 measure a stale configuration on both arms.
+        """
+        env = {"VISIBLE_POOL_ROLLOUT_STRIDE": "8"}
+
+        configure_arm_environment(env, "rollout_enforce", 2.0, 0.0)
+
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_STRIDE", env)
+
+    def test_stride4_arms_differ_from_their_base_only_by_the_stride(self):
+        enforce: dict[str, str] = {}
+        enforce_stride4: dict[str, str] = {}
+        configure_arm_environment(enforce, "rollout_enforce", 2.0, 0.0)
+        configure_arm_environment(
+            enforce_stride4, "rollout_enforce_stride4", 2.0, 0.0
+        )
+
+        self.assertEqual(
+            enforce_stride4.pop("VISIBLE_POOL_ROLLOUT_STRIDE"), "4"
+        )
+        self.assertEqual(enforce_stride4, enforce)
+
+    def test_live_interleave_touches_only_the_live_search(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "live_interleave4", 2.0, 0.0)
+
+        self.assertEqual(env["LIVE_SEARCH_INTERLEAVE"], "4")
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_MODE", env)
+        self.assertNotIn("VISIBLE_POOL_ROLLOUT_STRIDE", env)
+
+    def test_live_interleave_arms_differ_from_base_only_by_the_order(self):
+        base: dict[str, str] = {}
+        interleaved: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(interleaved, "live_interleave8", 2.0, 0.0)
+
+        self.assertEqual(interleaved.pop("LIVE_SEARCH_INTERLEAVE"), "8")
+        self.assertEqual(interleaved, base)
+
+    def test_an_arm_does_not_inherit_an_outer_live_interleave(self):
+        env = {"LIVE_SEARCH_INTERLEAVE": "16"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("LIVE_SEARCH_INTERLEAVE", env)
+
+    def test_item_cap_arms_touch_only_the_item_dimension(self):
+        base: dict[str, str] = {}
+        capped: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(capped, "item_cap16", 2.0, 0.0)
+
+        self.assertEqual(capped.pop("MAX_POOL_ITEMS_EVALUATED"), "16")
+        self.assertEqual(capped, base)
+
+    def test_an_arm_does_not_inherit_an_outer_item_cap(self):
+        env = {"MAX_POOL_ITEMS_EVALUATED": "40"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
+
+    def test_rollout_shadow_stride4_stays_telemetry_only(self):
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "rollout_shadow_stride4", 2.0, 0.0)
+
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "shadow")
+        self.assertEqual(env["VISIBLE_POOL_ROLLOUT_STRIDE"], "4")
+
 
 class PolicyTraceSummaryTests(unittest.TestCase):
     def test_counts_rescue_and_protocol_fallback_separately(self):

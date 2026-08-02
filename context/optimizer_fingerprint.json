@@ -5,13 +5,16 @@
     "attempt_budget": 96,
     "deadline": "infinite (fingerprint must not depend on machine speed)"
   },
-  "component_sha256": "272bae192eb19e113419856bf654cf9a9568c6dfd354df6d4f6e95201c2bf747",
+  "component_sha256": "565316c695e2e05aee2758b347ffabf2776b5548d7696ac832dc675a0fcdf8a1",
   "behaviour_sha256": "a92092c2272df53636fe3b84ac75a9ca7cd6eaefe42c44c7718bb1bdff292b70",
   "live_ranking_sha256": "8daf59ab194a2a4489f428b370ddeebc8e4112c70c762b16bea373e464ac4160",
   "probe_selection_identical": true,
   "adr001_section2_ranking_shared": "VIOLATED: policy() ranks with risk_lambda=1.0 but DryRunEvaluator calls the core with none, so the offline evaluator simulates the pre-risk greedy policy while the shipped executor is risk-on. Undocumented simulation gap, not a recorded decision -- see docs/MEASUREMENT_AUDIT.md F8",
   "components": {
     "ANCHOR_GENERATOR_MODE": "support_plane",
+    "LIVE_SEARCH_INTERLEAVE": 1,
+    "VISIBLE_POOL_ROLLOUT_STRIDE": 1,
+    "MAX_POOL_ITEMS_EVALUATED": 10,
     "SHALLOW_ANCHOR_ATTEMPTS": null,
     "DEEP_ANCHOR_ATTEMPTS": null,
     "BOUNDARY_MARGIN": null,

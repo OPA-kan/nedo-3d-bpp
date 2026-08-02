@@ -97,7 +97,14 @@ RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
-MAX_POOL_ITEMS_EVALUATED = 10
+# How many visible items the search may consider per step. At the shipped 10
+# a 40-item visible pool is searched 10 items deep, and the single largest
+# measured gain on this project came from changing which 10 those are
+# (class-aware coverage, placed 10.67 -> 17.00). The item dimension is the
+# one axis where a breadth intervention has ever paid, so it is a knob.
+MAX_POOL_ITEMS_EVALUATED = max(
+    1, int(os.environ.get("MAX_POOL_ITEMS_EVALUATED", "10"))
+)
 RESCUE_SCAN_ENABLED = os.environ.get(
     "RESCUE_SCAN_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -194,6 +201,20 @@ VISIBLE_POOL_ROLLOUT_ATTEMPTS = max(
 )
 VISIBLE_POOL_ROLLOUT_Q_BAND = max(
     0.0, float(os.environ.get("VISIBLE_POOL_ROLLOUT_Q_BAND", "0.15"))
+)
+# Systematic anchor-grid subsampling inside the rollout's future steps only.
+# 1 reproduces the measured enforce/shadow runs exactly; a larger value
+# trades resolution for reach at the same attempt budget.
+VISIBLE_POOL_ROLLOUT_STRIDE = max(
+    1, int(os.environ.get("VISIBLE_POOL_ROLLOUT_STRIDE", "1"))
+)
+# Live candidate search: reorder the anchor scan into stride-interleaved
+# order so a deadline-truncated search covers the whole support plane
+# coarsely instead of one band densely.  This is a permutation, not a
+# subsample -- a search that runs to exhaustion sees the identical set.
+# 1 is the shipped order.
+LIVE_SEARCH_INTERLEAVE = max(
+    1, int(os.environ.get("LIVE_SEARCH_INTERLEAVE", "1"))
 )
 # --- DPOR (dynamic partial-order reduction) for pair-block ordering ---
 DPOR_MAX_ALTERNATE_ATTEMPTS = int(
@@ -2574,6 +2595,36 @@ def support_plane_anchor_positions(component, dims, container):
     ]
 
 
+def interleaved_scan_order(positions, interleave):
+    """
+    Reorder an anchor list into stride-interleaved order.
+
+    This is a **permutation**, not a subsample: every anchor is still
+    yielded, exactly once, and with ``interleave <= 1`` the order is
+    unchanged.  That distinction is the whole point.  The rollout's future
+    search is capped by an attempt count it can never exhaust, so there a
+    stride that *drops* anchors is a pure win.  The live search is capped by
+    a deadline it often does exhaust, so dropping anchors there would lose
+    candidates the current search finds.  Permuting costs nothing at
+    exhaustion and changes only which anchors a deadline-truncated search
+    reaches first.
+
+    ``support_plane_anchor_positions`` emits ``for y descending, for x by
+    |x|``, so the natural prefix is one deep y band near the centre line -
+    which is the shape of the observed live coverage hole.  Interleaving by
+    N makes the first pass step through every N-th anchor, so a truncated
+    search sees the whole plane coarsely instead of one band densely.
+    """
+    interleave = max(1, int(interleave))
+    if interleave == 1 or len(positions) <= interleave:
+        return list(positions)
+    return [
+        positions[index]
+        for phase in range(interleave)
+        for index in range(phase, len(positions), interleave)
+    ]
+
+
 def support_plane_anchor_count(components, dims, container):
     return len(
         {
@@ -2865,6 +2916,9 @@ class CandidateGenerator:
         deadline=None,
         diagnostics=None,
         item_idx=None,
+        stride=1,
+        stride_offset=0,
+        interleave=1,
     ):
         """
         Generate release targets directly from local support-plane anchors.
@@ -2872,7 +2926,17 @@ class CandidateGenerator:
         Release z is solved analytically for each coupled (x, y) pair.  This
         avoids the Cartesian prefix formed by crossing every observed x edge
         with every observed y edge before reaching a feasible release point.
+
+        ``stride``/``stride_offset`` systematically subsample the deduped
+        anchor sequence exactly as ``iter_cartesian_attempts`` does: only
+        every stride-th anchor (starting at the offset phase) is validated
+        and yielded.  A skipped anchor costs no validation and consumes no
+        round slot, so a fixed attempt budget spreads further into each
+        plane component instead of exhausting on its prefix.  Stride 1 is
+        the unchanged default.
         """
+        stride = max(1, int(stride))
+        stride_offset = int(stride_offset) % stride
         container = observation["container_list"][container_idx]
         if item_idx is None:
             item_idx = item.get("index", -1)
@@ -2898,10 +2962,13 @@ class CandidateGenerator:
         position_groups = [
             (
                 component,
-                support_plane_anchor_positions(
-                    component,
-                    dims,
-                    container,
+                interleaved_scan_order(
+                    support_plane_anchor_positions(
+                        component,
+                        dims,
+                        container,
+                    ),
+                    interleave,
                 ),
             )
             for component in components
@@ -2951,12 +3018,14 @@ class CandidateGenerator:
         ]
         accepted = 0
         seen = set()
+        anchor_index = -1
         attempts_per_plane = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
         while states:
             next_states = []
             for state in states:
                 exhausted = False
-                for _ in range(attempts_per_plane):
+                produced = 0
+                while produced < attempts_per_plane:
                     if (
                         deadline is not None
                         and time.perf_counter() >= deadline
@@ -2972,8 +3041,16 @@ class CandidateGenerator:
                         round(float(y), 4),
                     )
                     if key in seen:
+                        produced += 1
                         continue
                     seen.add(key)
+                    anchor_index += 1
+                    if (
+                        stride > 1
+                        and (anchor_index - stride_offset) % stride != 0
+                    ):
+                        continue
+                    produced += 1
                     interval = container_z_interval(
                         x,
                         y,
@@ -3053,11 +3130,25 @@ class CandidateGenerator:
         diagnostics=None,
         item_idx=None,
         attempt_kind="both",
+        stride=1,
+        stride_offset=0,
+        interleave=1,
     ):
+        """
+        Yield validated attempts anchored on connected support planes.
+
+        ``stride``/``stride_offset`` systematically subsample the deduped
+        anchor sequence with the same semantics as
+        ``iter_cartesian_attempts``.  This is the default generator mode, so
+        it is the path a strided rollout measurement actually exercises.
+        Stride 1 is the unchanged default.
+        """
         if attempt_kind not in {"both", "settled", "release"}:
             raise ValueError(
                 "attempt_kind must be 'both', 'settled', or 'release'"
             )
+        stride = max(1, int(stride))
+        stride_offset = int(stride_offset) % stride
         if attempt_kind == "release":
             yield from CandidateGenerator.iter_release_plane_attempts(
                 observation,
@@ -3068,6 +3159,9 @@ class CandidateGenerator:
                 deadline=deadline,
                 diagnostics=diagnostics,
                 item_idx=item_idx,
+                stride=stride,
+                stride_offset=stride_offset,
+                interleave=interleave,
             )
             return
 
@@ -3092,7 +3186,12 @@ class CandidateGenerator:
         position_groups = [
             (
                 component,
-                support_plane_anchor_positions(component, dims, container),
+                interleaved_scan_order(
+                    support_plane_anchor_positions(
+                        component, dims, container
+                    ),
+                    interleave,
+                ),
             )
             for component in components
         ]
@@ -3148,12 +3247,14 @@ class CandidateGenerator:
         ]
         accepted = 0
         seen = set()
+        anchor_index = -1
         attempts_per_plane = max(1, SUPPORT_PLANE_ROUND_ATTEMPTS)
         while states:
             next_states = []
             for state in states:
                 exhausted = False
-                for _ in range(attempts_per_plane):
+                produced = 0
+                while produced < attempts_per_plane:
                     if (
                         deadline is not None
                         and time.perf_counter() >= deadline
@@ -3166,8 +3267,16 @@ class CandidateGenerator:
                         break
                     key = tuple(round(value, 4) for value in position)
                     if key in seen:
+                        produced += 1
                         continue
                     seen.add(key)
+                    anchor_index += 1
+                    if (
+                        stride > 1
+                        and (anchor_index - stride_offset) % stride != 0
+                    ):
+                        continue
+                    produced += 1
                     interval = container_z_interval(
                         position[0],
                         position[1],
@@ -3217,6 +3326,9 @@ class CandidateGenerator:
             deadline=deadline,
             diagnostics=diagnostics,
             item_idx=item_idx,
+            stride=stride,
+            stride_offset=stride_offset,
+            interleave=interleave,
         )
 
     @staticmethod
@@ -3231,6 +3343,9 @@ class CandidateGenerator:
         item_idx=None,
         attempt_kind="both",
         generator_mode=None,
+        stride=1,
+        stride_offset=0,
+        interleave=1,
     ):
         mode = (
             ANCHOR_GENERATOR_MODE
@@ -3243,12 +3358,31 @@ class CandidateGenerator:
                 f"unknown anchor generator mode '{mode}'; "
                 f"available: {available}"
             )
-        iterator = (
-            CandidateGenerator.iter_cartesian_attempts
-            if mode == "cartesian"
-            else CandidateGenerator.iter_support_plane_attempts
-        )
-        yield from iterator(
+        if mode == "cartesian" and int(interleave) > 1:
+            # The Cartesian generator streams a nested product rather than a
+            # materialised anchor list, so it cannot honour a permutation.
+            # Fail rather than silently run the shipped order under a name
+            # that says otherwise.
+            raise ValueError(
+                "interleave is implemented for the support_plane generator "
+                "only; ANCHOR_GENERATOR_MODE=cartesian cannot honour it"
+            )
+        if mode == "cartesian":
+            yield from CandidateGenerator.iter_cartesian_attempts(
+                observation,
+                item,
+                container_idx,
+                orientation,
+                limit=limit,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                item_idx=item_idx,
+                attempt_kind=attempt_kind,
+                stride=stride,
+                stride_offset=stride_offset,
+            )
+            return
+        yield from CandidateGenerator.iter_support_plane_attempts(
             observation,
             item,
             container_idx,
@@ -3258,6 +3392,9 @@ class CandidateGenerator:
             diagnostics=diagnostics,
             item_idx=item_idx,
             attempt_kind=attempt_kind,
+            stride=stride,
+            stride_offset=stride_offset,
+            interleave=interleave,
         )
 
     @staticmethod
@@ -3831,6 +3968,9 @@ def iter_prioritized_candidates(
     deadline=None,
     diagnostics=None,
     attempt_budget=None,
+    stride=1,
+    stride_offset=0,
+    interleave=1,
 ):
     """
     Time-sliced candidate stream.
@@ -3839,6 +3979,18 @@ def iter_prioritized_candidates(
     pass before any unit is deeply expanded.  Subsequent rounds continue in
     the same priority order, so the caller can retain and improve a safe
     incumbent without starving later items or poses.
+
+    ``stride``/``stride_offset`` are forwarded to the anchor generator.  The
+    budget in ``attempt_budget`` counts yielded attempts, and a strided skip
+    yields nothing, so raising the stride buys anchor-grid coverage at a
+    fixed budget rather than at extra cost.  Stride 1 is the unchanged
+    default.
+
+    ``interleave`` is the deadline-limited counterpart and is *not* the same
+    knob: it permutes the anchor order instead of subsampling it, so a
+    search that exhausts a unit still sees every anchor.  Use ``stride`` when
+    the cap is an attempt count that will never be exhausted, ``interleave``
+    when the cap is a deadline that might be.
     """
     class_aware_first_pass = bool(
         diagnostics is not None
@@ -3923,6 +4075,9 @@ def iter_prioritized_candidates(
                     diagnostics=diagnostics,
                     item_idx=item_idx,
                     attempt_kind=attempt_kind,
+                    stride=stride,
+                    stride_offset=stride_offset,
+                    interleave=interleave,
                 )
                 if search_stats is not None:
                     search_stats["units_started"] += 1
@@ -4045,6 +4200,7 @@ class PlacementCore:
             indexed_items,
             deadline=deadline,
             diagnostics=diagnostics,
+            interleave=LIVE_SEARCH_INTERLEAVE,
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -4322,6 +4478,7 @@ class PlacementCore:
             indexed_items,
             deadline=deadline,
             diagnostics=diagnostics,
+            interleave=LIVE_SEARCH_INTERLEAVE,
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -4535,6 +4692,8 @@ def bounded_rollout_decision(
     indexed_items,
     attempt_budget,
     risk_lambda=None,
+    stride=1,
+    stride_offset=0,
 ):
     """
     Select one proxy-rollout transition under an anchor-attempt budget.
@@ -4543,6 +4702,11 @@ def bounded_rollout_decision(
     then support quality and low height.  Q_live is only the final stable
     tie-break, so the rollout does not recursively reproduce the utility it
     is intended to diagnose.
+
+    ``stride`` spreads the same ``attempt_budget`` across the whole anchor
+    grid instead of its prefix.  Late in an episode the prefix is dense with
+    anchors the packed geometry already rejects, so the budget can be spent
+    without reaching the region where a future placement still fits.
     """
     best = None
     best_key = None
@@ -4559,6 +4723,8 @@ def bounded_rollout_decision(
             indexed_items,
             diagnostics=diagnostics,
             attempt_budget=max(0, int(attempt_budget)),
+            stride=stride,
+            stride_offset=stride_offset,
         )
     ):
         accepted += 1
@@ -4602,6 +4768,8 @@ def visible_pool_rollout_value(
     depth=3,
     attempts_per_step=512,
     risk_lambda=None,
+    stride=1,
+    stride_offset=0,
 ):
     """
     Evaluate a candidate with a bounded visible-pool static rollout.
@@ -4609,6 +4777,11 @@ def visible_pool_rollout_value(
     The commanded initial release is converted through the existing settled
     proxy and explicitly marked.  A later release transition is not applied:
     without PyBullet its next state is uncertain, so the branch terminates.
+
+    ``stride`` applies to the future transitions only.  The immediate
+    candidate is supplied by the caller and is never resampled, so the
+    stride cannot change which action is being evaluated - only how widely
+    its consequences are searched.
     """
     pool_list = observation.get("pool_list", [])
     initial_pool_idx = int(initial_decision.action["item_idx"])
@@ -4649,6 +4822,8 @@ def visible_pool_rollout_value(
             remaining,
             attempts_per_step,
             risk_lambda=risk_lambda,
+            stride=stride,
+            stride_offset=stride_offset,
         )
         attempts_used += int(step_attempts)
         accepted_candidates += int(step_accepted)
@@ -4770,6 +4945,8 @@ def visible_pool_rollout_evaluation(
     attempts_per_step=VISIBLE_POOL_ROLLOUT_ATTEMPTS,
     q_band=VISIBLE_POOL_ROLLOUT_Q_BAND,
     risk_lambda=None,
+    stride=VISIBLE_POOL_ROLLOUT_STRIDE,
+    stride_offset=0,
 ):
     """Evaluate a class-diverse live Top-K and return record + proposal."""
     global _CONTAINER_Z_INTERVAL_CACHE_BYPASS
@@ -4824,6 +5001,8 @@ def visible_pool_rollout_evaluation(
                 depth=depth,
                 attempts_per_step=attempts_per_step,
                 risk_lambda=risk_lambda,
+                stride=stride,
+                stride_offset=stride_offset,
             )
             evaluated.append(
                 (
@@ -4888,6 +5067,7 @@ def visible_pool_rollout_evaluation(
         "mode": str(VISIBLE_POOL_ROLLOUT_MODE),
         "depth": int(depth),
         "attempts_per_step": int(attempts_per_step),
+        "stride": int(stride),
         "q_band": float(q_band),
         "risk_scope": "future_transitions_only",
         "candidate_count": len(evaluated),

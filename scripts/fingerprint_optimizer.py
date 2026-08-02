@@ -86,6 +86,10 @@ def component_versions(agent) -> dict[str, Any]:
     names = (
         # candidate generation / enumeration order
         "ANCHOR_GENERATOR_MODE",
+        "LIVE_SEARCH_INTERLEAVE",
+        "VISIBLE_POOL_ROLLOUT_STRIDE",
+        # item-dimension coverage
+        "MAX_POOL_ITEMS_EVALUATED",
         "SHALLOW_ANCHOR_ATTEMPTS",
         "DEEP_ANCHOR_ATTEMPTS",
         # feasibility / geometry

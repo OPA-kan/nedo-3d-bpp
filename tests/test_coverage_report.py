@@ -83,11 +83,20 @@ class RegistryIntegrityTests(unittest.TestCase):
         this'. Silently returning a neighbouring instrument is the
         over-generalisation the registry exists to stop.
         """
-        rendered = coverage_report.answer(
-            self.data, "item-cap-omits-useful-items"
+        unanswerable = [
+            q for q in self.data["questions"]["questions"]
+            if q["status"] == "open" and not q.get("existing_instruments")
+        ]
+        self.assertTrue(
+            unanswerable,
+            "no open question currently lacks an instrument; if that is "
+            "genuinely true, delete this test rather than weakening it",
         )
-        self.assertIn("INSUFFICIENT", rendered)
-        self.assertIn("Required instrument", rendered)
+        for question in unanswerable:
+            with self.subTest(question=question["id"]):
+                rendered = coverage_report.answer(self.data, question["id"])
+                self.assertIn("INSUFFICIENT", rendered)
+                self.assertIn("Required instrument", rendered)
 
     def test_zero_knob_axis_raises_a_structural_alarm(self) -> None:
         rows = coverage_report.coverage_rows(self.data)
@@ -100,20 +109,42 @@ class RegistryIntegrityTests(unittest.TestCase):
             "varied, so its emptiness is structural rather than a finding",
         )
 
-    def test_item_axis_records_the_cap_as_a_blind_spot(self) -> None:
+    def test_registries_declare_the_commits_they_were_verified_against(
+        self,
+    ) -> None:
         """
-        MAX_POOL_ITEMS_EVALUATED is a source constant with no override, so
-        it is not a knob and must not be counted as one.
+        The failure this guards actually happened: these registries were
+        written against a checkout that predated the env-isation of
+        MAX_POOL_ITEMS_EVALUATED, and confidently reported the cap as an
+        unvariable constant while another branch had already swept it. A
+        reverse-lookup registry is only as current as its checkout, so
+        correct machinery over a stale tree emits precise misinformation
+        rather than an visible gap.
         """
-        item = self.data["axes"]["axes"]["item"]
-        self.assertNotIn(
-            "MAX_POOL_ITEMS_EVALUATED",
-            " ".join(item["knobs"]),
-        )
-        self.assertIn(
-            "MAX_POOL_ITEMS_EVALUATED",
-            " ".join(item["blind_spots"]),
-        )
+        for name in ("axes", "measurements", "questions"):
+            with self.subTest(registry=name):
+                provenance = self.data[name].get("provenance")
+                self.assertTrue(provenance, f"{name} has no provenance block")
+                merge = provenance["verified_against_merge_of"]
+                self.assertTrue(merge["ours"])
+                self.assertTrue(merge["theirs"])
+
+    def test_knobs_are_only_things_that_can_actually_be_varied(self) -> None:
+        """
+        A constant with no override is not a knob. Counting one as a knob
+        makes an unexplorable axis look explored, which is the exact
+        inversion this registry exists to prevent -- so every declared knob
+        must name an environment variable or an enumerated mode.
+        """
+        import re
+
+        for name, axis in self.data["axes"]["axes"].items():
+            for knob in axis["knobs"]:
+                with self.subTest(axis=name, knob=knob):
+                    self.assertTrue(
+                        re.match(r"^[A-Z][A-Z0-9_]+", knob),
+                        f"{knob!r} does not name a settable variable",
+                    )
 
 
 if __name__ == "__main__":

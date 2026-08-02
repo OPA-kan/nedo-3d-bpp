@@ -56,6 +56,33 @@ change remain artifact-only unless imported deliberately.
 `reports/lookahead/latest-summary.json` is named "latest" but stopped at
 2026-07-28 — do not read it as current.
 
+## Merging a forked evidence ledger
+
+Two lines of work now extend `context/evidence.json` concurrently, so the
+ledger forks routinely and the entry count differs per branch (this is
+normal, not corruption). Merge it by these rules, which follow from the
+ledger's own contract (`entries[].status`, `superseded_by`):
+
+1. **Additive.** A merge only ever adds entries. Never drop an entry because
+   the other branch does not have it.
+2. **Never rewrite a value.** If a later measurement changes a number, the
+   old entry stays, gets `status: superseded` and `superseded_by: <new id>`,
+   and the new entry is appended. An entry is a record of what was measured
+   at a time, not a mutable field.
+3. **An id collision is a supersession, not a conflict.** If both sides added
+   the same id with different content, do not pick a winner and do not merge
+   the text. Rename by measurement (`<id>-v2`, or a date/run suffix), chain
+   them with `superseded_by`, and keep both.
+4. **Order is not meaning.** `entries` is an append log; a merge that
+   reorders it changes nothing semantically. Do not resolve a git conflict by
+   interleaving — concatenate, then dedupe by exact id+content.
+5. Verify after every merge with
+   `python3 scripts/context.py evidence --all`, and check that no id appears
+   twice with `status: active`.
+
+The same applies to `HANDOFF.md`: it is current state, so a merge keeps both
+branches' sections and reconciles only the "Next engineering task" ordering.
+
 ## Established by evidence
 
 Treat these as measured, not as opinion. Each is reproducible from the cited
@@ -332,11 +359,146 @@ unsetting the variables. An arm that merely unsets them would measure the
 treatment and report a null result. The runner's new `default` arm unsets
 everything and therefore measures exactly what a submission does.
 
+## Latest experiment: stride / item-cap line (parallel branch)
+
+Merged from `claude/stride-endgame-saturation-test-gqssix`. This line
+ran concurrently with the Task A work above and neither knew about the
+other; the sections are kept side by side per the ledger merge rules.
+
+**That 1.2% late figure has now been diagnosed and it is mostly an
+instrument fault.** `docs/ROLLOUT_SATURATION.md` and
+`reports/rollout-saturation/local-20260801`: on the 48 committed replay
+snapshots (37 at step >= 10), only 4/37 late states have nothing for the
+rollout to find. The shipped setting reaches a future placement on 8/37; the
+same per-step attempt cap with `stride 8` reaches one on 28/37. The failure
+is the anchor **scan order**, not the budget - `budget-512` spends about
+8.4x the attempts and reaches only 12/37, and 17 late snapshots are reached
+by stride and not by budget (1 the other way). Read non-degeneracy and
+future-placement separately: the budget arms score 36/37 non-degenerate
+purely on release-risk tie-breaks with no reach. This is a diagnosis of the
+measurement only. `VISIBLE_POOL_ROLLOUT_MODE` stays `off` and
+`VISIBLE_POOL_ROLLOUT_STRIDE` defaults to 1; the enforce rejection stands.
+**The b000-k15 re-run is done, physically, and it reverses that case.**
+`reports/rollout-saturation/b000-k15-stride4/` (local PyBullet, 3 repeats per
+arm): base 17.000 placed / 23.119 fill, `rollout_enforce` 11.000 / 13.228
+(bit-identical across repeats, reproducing the reported -6.000 exactly), and
+`rollout_enforce_stride4` 20.333 / 26.018 — **+3.333 placed over base**.
+
+The mechanism is not the assumed one. Both enforce arms take the *same* first
+divergence at step 3. At stride 1 the rollout then goes blind (one
+enforcement in the whole episode, `step >= 10` non-degeneracy 0/2) and the
+trajectory dies at step 11; at stride 4 it keeps discriminating (5/10) and
+enforces again at steps 5, 8 and 13. **The -6 was a first action taken and
+then abandoned by an instrument that could no longer see**, not a wrong first
+action. Cost 77.1/184.7 -> 176.0/278.8 ms mean/max, still under the 617.6 ms
+maximum the enforce ablation already tolerated.
+
+This is **one configuration**. The enforce rejection was made on eight, so it
+is not revisited yet. The decision point that would revisit it is a repeated
+eight-configuration ablation with the `rollout_enforce_stride4` arm (already
+wired into `run_risk_ablation.py`) plus the
+`reports/benchmarks/baseline.json` regression guard. Until that runs,
+`VISIBLE_POOL_ROLLOUT_MODE` stays `off` and `VISIBLE_POOL_ROLLOUT_STRIDE`
+stays 1.
+
+Method note now in the ledger as
+`offline-snapshot-sweeps-cannot-answer-outcome-questions`: the offline sweep
+over saved b000-k15 snapshots said the enforce decision was stride-invariant,
+and it was — *at those states*. Saved snapshots come from the base
+trajectory, so once an arm diverges the states it visits are not in the set.
+Offline sweeps diagnose an instrument; only a physical run decides an
+outcome.
+
+### The larger implication is for the live search, not the rollout
+
+The rollout is the smaller consumer of this fix. **The live candidate search
+runs through the same `support_plane` generator with the same stride-free
+deterministic scan order**, so the same hole is present there, one layer up
+and with far more leverage:
+
+- the post-cache coverage hole (accepted anchors clustered in
+  `x in [-0.34, 0.83]`) is the live-search symptom of exactly this scan
+  order;
+- `transport-deaths-are-fallback-poison` in the ledger already traced 45% of
+  episode endings to the fixed-coordinate `unsafe_protocol_fallback`, which
+  fires when the search returns **no** candidate - a no-candidate branch that
+  a wider scan makes rarer.
+
+Both were previously blocked on stride not existing on the shipped generator.
+**That line has now been built and screened, and it is rejected as a
+default** — see the next section.
+
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
 S1/S2 of the slide ladder (patches + encoder plumbing ready in
-`reports/slide-patches/`, Gated Iota enters at S2), live stride
-sampling port for further recall.
+`reports/slide-patches/`, Gated Iota enters at S2).
+
+## Latest experiment: live scan interleave (rejected as a default)
+
+`docs/LIVE_SCAN_INTERLEAVE.md`,
+`reports/live-interleave/local-20260801-screening/`.
+
+The live candidate search runs through the same `support_plane` generator as
+the rollout, so the diagnosed scan-order hole is present there too. It needs a
+**different** instrument, and this distinction is the durable part of the
+work: the rollout's future search is capped by an attempt count it can never
+exhaust, so a `stride` that *drops* anchors is free reach; the live search is
+capped by a deadline it often *does* exhaust, so dropping anchors there would
+lose candidates the current search finds. `LIVE_SEARCH_INTERLEAVE` therefore
+**permutes** the anchor order instead of subsampling it — at exhaustion the
+candidate set is identical, and only what a truncated search reaches first
+changes.
+
+Local screening, one repeat per cell, `base` vs `live_interleave4` on the
+five development configurations:
+
+| case | base placed | il4 placed | delta placed | delta fill |
+| --- | ---: | ---: | ---: | ---: |
+| b000-k15 | 17 | 14 | -3 | -10.464 |
+| b000-k20 | 16 | 12 | -4 | -4.483 |
+| **b000-k40** | 14 | 19 | **+5** | **+6.078** |
+| b001-k20 | 18 | 17 | -1 | -1.281 |
+| b001-k30 | 18 | 18 | 0 | -2.597 |
+| total | 83 | 80 | **-3** | **-12.747** |
+
+`LIVE_SEARCH_INTERLEAVE` stays 1.
+
+**The per-config split is the finding, not the total.** The single winner is
+`b000-k40` — the configuration `aabb-cache-guard-mixed` already calls
+search-starved, and the same one that gained +10 from the packed-AABB cache
+while b000-k20 lost 12. Two independent coverage interventions, one enlarging
+the candidate set and one only reordering it, now produce the same
+per-configuration signature. Search diagnostics exclude reduced recall as the
+cause: both arms are deadline-limited on most steps, the unit completion
+ratio does not fall, and no episode ended in a no-candidate branch the base
+arm avoided. What changed is which candidate a truncated search settles on,
+and so which trajectory is taken.
+
+**This is the second measurement saying selection quality is blocking for
+coverage work**, not the reverse. Coverage interventions are now
+twice-observed to redistribute placements rather than add them while the
+utility stays defective (`Ranker` volume dead vote, `q + gamma*q` lookahead).
+
+Scope and cautions:
+
+- One repeat per cell; the two smallest deltas are on the
+  timing-nondeterministic b001 cases.
+- Local `base` totals (83 / 104.742) are **below** the registered development
+  baseline (88 / 114.6). The search is deadline-limited, so absolute totals
+  are machine-dependent — only base-vs-arm inside one run is comparable. That
+  caveat binds hardest on exactly this kind of change, whose whole effect is
+  about what a deadline truncates. Do not read the local base number as a
+  regression.
+- This rejects the interleave as an unconditional default. It does not
+  retract the scan-order hole, which stays measured and real.
+
+Two designs remain open and are untested: interleaving only when the search
+is actually starving (a conditional, not a tuning of this knob), and rotating
+`stride_offset` per rollout step or search round so successive passes cover
+complementary phases at the same total budget. The measured phase arms
+(`stride-4+1..+3`) differ by at most one snapshot, which suggests phases are
+near-interchangeable and rotation would be cheap — but that is an inference
+from spread, not a measurement.
 
 ## Important invariants
 

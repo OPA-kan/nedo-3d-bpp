@@ -1,0 +1,6273 @@
+{
+  "schema_version": 1,
+  "settings": {
+    "stride": 16,
+    "phase": 0,
+    "accept_cap": 64,
+    "horizons": [
+      1,
+      2,
+      3
+    ],
+    "generator": "cartesian (Stage A instrument, kept for parity)"
+  },
+  "label_contract": {
+    "y_h": "1 if the episode reaches a settle failure within h steps",
+    "t_physical": "steps to settle failure; None when censored",
+    "channels": "physical | fallback | terminal",
+    "note": "sum(w_j) is an expected count of safe options, not an episode survival probability."
+  },
+  "skipped_final_holdout_datasets": [
+    "20260730_170531-b001-k40-weighted-class_aware-shadow-60c01a1e-4236de070210",
+    "20260730_171526-b001-k40-weighted-class_aware-shadow-60c01a1e-7c6b10e81430",
+    "20260731_021451-b001-k10-weighted-class_aware-shadow-4726adb4-920fb8c16111"
+  ],
+  "label_counts": {
+    "snapshots": 42,
+    "by_channel": {
+      "physical": 17,
+      "fallback": 0,
+      "terminal": 25
+    },
+    "y_1_positive": 8,
+    "y_2_positive": 14,
+    "y_3_positive": 16
+  },
+  "analysis": {
+    "weightings": [
+      "raw",
+      "sum",
+      "max",
+      "product"
+    ],
+    "rules": {
+      "raw": {
+        "mean": 19.7857,
+        "stdev": 3.9793,
+        "constant": false,
+        "distinct_values": 12,
+        "n_uncensored": 17,
+        "spearman_vs_t_physical": 0.5032,
+        "auc_vs_y_1": 0.4908,
+        "auc_vs_y_2": 0.5982,
+        "auc_vs_y_3": 0.6274
+      },
+      "sum": {
+        "mean": 15.3843,
+        "stdev": 3.7486,
+        "constant": false,
+        "distinct_values": 37,
+        "n_uncensored": 17,
+        "spearman_vs_t_physical": 0.2514,
+        "auc_vs_y_1": 0.4706,
+        "auc_vs_y_2": 0.5179,
+        "auc_vs_y_3": 0.524
+      },
+      "max": {
+        "mean": 16.8532,
+        "stdev": 3.6214,
+        "constant": false,
+        "distinct_values": 37,
+        "n_uncensored": 17,
+        "spearman_vs_t_physical": 0.2514,
+        "auc_vs_y_1": 0.4669,
+        "auc_vs_y_2": 0.5612,
+        "auc_vs_y_3": 0.5673
+      },
+      "product": {
+        "mean": 15.9283,
+        "stdev": 3.6661,
+        "constant": false,
+        "distinct_values": 37,
+        "n_uncensored": 17,
+        "spearman_vs_t_physical": 0.2142,
+        "auc_vs_y_1": 0.4743,
+        "auc_vs_y_2": 0.5306,
+        "auc_vs_y_3": 0.5361
+      }
+    },
+    "per_class_saturation": {
+      "0.750x0.560x0.270": {
+        "observations": 38,
+        "raw": {
+          "distinct": 4,
+          "constant": false,
+          "stdev": 0.7758
+        },
+        "sum": {
+          "distinct": 22,
+          "constant": false,
+          "stdev": 0.5274
+        },
+        "max": {
+          "distinct": 20,
+          "constant": false,
+          "stdev": 0.5776
+        },
+        "product": {
+          "distinct": 22,
+          "constant": false,
+          "stdev": 0.5304
+        }
+      },
+      "0.500x0.400x0.400": {
+        "observations": 35,
+        "raw": {
+          "distinct": 2,
+          "constant": false,
+          "stdev": 0.4832
+        },
+        "sum": {
+          "distinct": 7,
+          "constant": false,
+          "stdev": 0.6184
+        },
+        "max": {
+          "distinct": 12,
+          "constant": false,
+          "stdev": 0.5288
+        },
+        "product": {
+          "distinct": 12,
+          "constant": false,
+          "stdev": 0.575
+        }
+      },
+      "0.650x0.450x0.250": {
+        "observations": 42,
+        "raw": {
+          "distinct": 7,
+          "constant": false,
+          "stdev": 1.2438
+        },
+        "sum": {
+          "distinct": 37,
+          "constant": false,
+          "stdev": 0.921
+        },
+        "max": {
+          "distinct": 37,
+          "constant": false,
+          "stdev": 1.0133
+        },
+        "product": {
+          "distinct": 37,
+          "constant": false,
+          "stdev": 0.9364
+        }
+      },
+      "0.550x0.400x0.240": {
+        "observations": 42,
+        "raw": {
+          "distinct": 7,
+          "constant": false,
+          "stdev": 1.2454
+        },
+        "sum": {
+          "distinct": 36,
+          "constant": false,
+          "stdev": 1.0048
+        },
+        "max": {
+          "distinct": 37,
+          "constant": false,
+          "stdev": 1.0124
+        },
+        "product": {
+          "distinct": 36,
+          "constant": false,
+          "stdev": 0.9865
+        }
+      },
+      "0.650x0.350x0.230": {
+        "observations": 42,
+        "raw": {
+          "distinct": 6,
+          "constant": false,
+          "stdev": 1.1606
+        },
+        "sum": {
+          "distinct": 35,
+          "constant": false,
+          "stdev": 1.1171
+        },
+        "max": {
+          "distinct": 35,
+          "constant": false,
+          "stdev": 1.1182
+        },
+        "product": {
+          "distinct": 35,
+          "constant": false,
+          "stdev": 1.1137
+        }
+      },
+      "0.600x0.300x0.250": {
+        "observations": 42,
+        "raw": {
+          "distinct": 5,
+          "constant": false,
+          "stdev": 1.439
+        },
+        "sum": {
+          "distinct": 22,
+          "constant": false,
+          "stdev": 1.1072
+        },
+        "max": {
+          "distinct": 21,
+          "constant": false,
+          "stdev": 1.1548
+        },
+        "product": {
+          "distinct": 22,
+          "constant": false,
+          "stdev": 1.1265
+        }
+      },
+      "0.450x0.300x0.200": {
+        "observations": 37,
+        "raw": {
+          "distinct": 2,
+          "constant": false,
+          "stdev": 0.4984
+        },
+        "sum": {
+          "distinct": 9,
+          "constant": false,
+          "stdev": 0.4675
+        },
+        "max": {
+          "distinct": 8,
+          "constant": false,
+          "stdev": 0.4654
+        },
+        "product": {
+          "distinct": 9,
+          "constant": false,
+          "stdev": 0.4662
+        }
+      }
+    },
+    "constant_class_fraction": {
+      "raw": 0.0,
+      "sum": 0.0,
+      "max": 0.0,
+      "product": 0.0
+    }
+  },
+  "rows": [
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_161245-b000-k20-weighted-class_aware-shadow-0fb74669-c5ec4f65c4ca/step-008-state.json",
+      "case_id": "b000-k20",
+      "step": 8,
+      "steps_to_episode_end": 5,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 13.980225,
+          "max": 16.917752,
+          "product": 14.971152
+        },
+        "mean_release_fraction": 0.8929,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 33,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.630584,
+            "kappa_max": 2.251359,
+            "kappa_product": 1.818092,
+            "mean_p_rot": 0.249547,
+            "mean_p_slide": 0.206925
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 18,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.392254,
+            "kappa_max": 0.556254,
+            "kappa_product": 0.465028,
+            "mean_p_rot": 0.163999,
+            "mean_p_slide": 0.443746
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 38,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.233866,
+            "kappa_max": 3.483226,
+            "kappa_product": 2.680835,
+            "mean_p_rot": 0.291953,
+            "mean_p_slide": 0.261274
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 36,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.672698,
+            "kappa_max": 3.218698,
+            "kappa_product": 2.843481,
+            "mean_p_rot": 0.195326,
+            "mean_p_slide": 0.1365
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 42,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.782293,
+            "kappa_max": 3.004954,
+            "kappa_product": 2.858915,
+            "mean_p_rot": 0.331682,
+            "mean_p_slide": 0.074221
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 3,
+            "volume": 0.045,
+            "sampled_options": 42,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.298472,
+            "kappa_max": 2.431911,
+            "kappa_product": 2.334706,
+            "mean_p_rot": 0.189363,
+            "mean_p_slide": 0.04448
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 40,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.970058,
+            "kappa_max": 1.97135,
+            "kappa_product": 1.970095,
+            "mean_p_rot": 0.02865,
+            "mean_p_slide": 0.001292
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_161245-b000-k20-weighted-class_aware-shadow-0fb74669-c5ec4f65c4ca/step-012-state.json",
+      "case_id": "b000-k20",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 21.0,
+          "sum": 12.628449,
+          "max": 15.551673,
+          "product": 13.765073
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 76,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.152633,
+            "kappa_max": 1.851275,
+            "kappa_product": 1.421765,
+            "mean_p_rot": 0.382908,
+            "mean_p_slide": 0.232881
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 85,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.462478,
+            "kappa_max": 3.466585,
+            "kappa_product": 2.89089,
+            "mean_p_rot": 0.306683,
+            "mean_p_slide": 0.200821
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 111,
+            "independent_options": 7,
+            "release_fraction": 1.0,
+            "kappa_raw": 7.0,
+            "kappa_sum": 4.639761,
+            "kappa_max": 5.5958,
+            "kappa_product": 4.959217,
+            "mean_p_rot": 0.197952,
+            "mean_p_slide": 0.139225
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 91,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.561519,
+            "kappa_max": 2.811855,
+            "kappa_product": 2.679245,
+            "mean_p_rot": 0.297036,
+            "mean_p_slide": 0.062584
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 106,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.841992,
+            "kappa_max": 0.854808,
+            "kappa_product": 0.843853,
+            "mean_p_rot": 0.145192,
+            "mean_p_slide": 0.012816
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 113,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.970066,
+            "kappa_max": 0.97135,
+            "kappa_product": 0.970103,
+            "mean_p_rot": 0.02865,
+            "mean_p_slide": 0.001284
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4/step-014-state.json",
+      "case_id": "b000-k20",
+      "step": 14,
+      "steps_to_episode_end": 3,
+      "terminal_channel": "physical",
+      "t_physical": 3,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 5,
+        "totals": {
+          "raw": 18.0,
+          "sum": 11.195423,
+          "max": 13.521795,
+          "product": 11.959601
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 63,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.236115,
+            "kappa_max": 2.586173,
+            "kappa_product": 2.296505,
+            "mean_p_rot": 0.137942,
+            "mean_p_slide": 0.116686
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 90,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.080443,
+            "kappa_max": 3.768639,
+            "kappa_product": 3.293656,
+            "mean_p_rot": 0.245886,
+            "mean_p_slide": 0.138025
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 90,
+            "independent_options": 6,
+            "release_fraction": 1.0,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.118472,
+            "kappa_max": 4.058874,
+            "kappa_product": 3.525052,
+            "mean_p_rot": 0.323521,
+            "mean_p_slide": 0.156734
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 94,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.013502,
+            "kappa_max": 2.304659,
+            "kappa_product": 2.08638,
+            "mean_p_rot": 0.23178,
+            "mean_p_slide": 0.097052
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 97,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.746891,
+            "kappa_max": 0.80345,
+            "kappa_product": 0.758008,
+            "mean_p_rot": 0.19655,
+            "mean_p_slide": 0.056558
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_161846-b000-k20-weighted-class_aware-shadow-0fb74669-616c41f58ac4/step-016-state.json",
+      "case_id": "b000-k20",
+      "step": 16,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 5,
+        "totals": {
+          "raw": 17.0,
+          "sum": 8.44472,
+          "max": 11.693115,
+          "product": 9.790245
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 32,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.566814,
+            "kappa_max": 1.764738,
+            "kappa_product": 1.600499,
+            "mean_p_rot": 0.117631,
+            "mean_p_slide": 0.098962
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 83,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.332744,
+            "kappa_max": 3.552929,
+            "kappa_product": 2.765689,
+            "mean_p_rot": 0.280835,
+            "mean_p_slide": 0.252616
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 134,
+            "independent_options": 8,
+            "release_fraction": 1.0,
+            "kappa_raw": 8.0,
+            "kappa_sum": 2.768898,
+            "kappa_max": 4.57422,
+            "kappa_product": 3.644001,
+            "mean_p_rot": 0.428223,
+            "mean_p_slide": 0.225665
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 1,
+            "volume": 0.052324999999999997,
+            "sampled_options": 89,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.815979,
+            "kappa_max": 0.839132,
+            "kappa_product": 0.819703,
+            "mean_p_rot": 0.160868,
+            "mean_p_slide": 0.023154
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 111,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.960285,
+            "kappa_max": 0.962096,
+            "kappa_product": 0.960353,
+            "mean_p_rot": 0.037904,
+            "mean_p_slide": 0.001811
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_162936-b000-k40-weighted-class_aware-shadow-c1adf14c-80ff7f22fde9/step-008-state.json",
+      "case_id": "b000-k40",
+      "step": 8,
+      "steps_to_episode_end": 4,
+      "terminal_channel": "physical",
+      "t_physical": 4,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 24.0,
+          "sum": 18.230296,
+          "max": 20.070386,
+          "product": 19.032102
+        },
+        "mean_release_fraction": 0.3952,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 40,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 37,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.279277,
+            "kappa_product": 1.087979,
+            "mean_p_rot": 0.720723,
+            "mean_p_slide": 0.684975
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 51,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.404583,
+            "kappa_max": 4.096858,
+            "kappa_product": 3.684715,
+            "mean_p_rot": 0.288934,
+            "mean_p_slide": 0.27907
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 13,
+            "volume": 0.05280000000000001,
+            "sampled_options": 78,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.065599,
+            "kappa_max": 4.695361,
+            "kappa_product": 4.418941,
+            "mean_p_rot": 0.32616,
+            "mean_p_slide": 0.15744
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 63,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.664426,
+            "kappa_max": 3.734774,
+            "kappa_product": 3.68177,
+            "mean_p_rot": 0.132613,
+            "mean_p_slide": 0.035174
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 74,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.095688,
+            "kappa_max": 3.264116,
+            "kappa_product": 3.158697,
+            "mean_p_rot": 0.367942,
+            "mean_p_slide": 0.084214
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 93,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a/step-010-state.json",
+      "case_id": "b000-k40",
+      "step": 10,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 23.0,
+          "sum": 12.527866,
+          "max": 15.584656,
+          "product": 13.768377
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 34,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.487333,
+            "kappa_max": 0.740005,
+            "kappa_product": 0.553026,
+            "mean_p_rot": 0.259995,
+            "mean_p_slide": 0.252672
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 38,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 0.0,
+            "kappa_max": 0.517851,
+            "kappa_product": 0.242986,
+            "mean_p_rot": 0.568562,
+            "mean_p_slide": 0.695106
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 41,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.685866,
+            "kappa_max": 3.547274,
+            "kappa_product": 2.967959,
+            "mean_p_rot": 0.269903,
+            "mean_p_slide": 0.192923
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 12,
+            "volume": 0.05280000000000001,
+            "sampled_options": 73,
+            "independent_options": 6,
+            "release_fraction": 1.0,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.297543,
+            "kappa_max": 4.256638,
+            "kappa_product": 3.736248,
+            "mean_p_rot": 0.288869,
+            "mean_p_slide": 0.16154
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 49,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.800885,
+            "kappa_max": 2.010823,
+            "kappa_product": 1.897389,
+            "mean_p_rot": 0.329726,
+            "mean_p_slide": 0.069979
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 61,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.829502,
+            "kappa_max": 3.001382,
+            "kappa_product": 2.905919,
+            "mean_p_rot": 0.249654,
+            "mean_p_slide": 0.04297
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 85,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.426737,
+            "kappa_max": 1.510683,
+            "kappa_product": 1.46485,
+            "mean_p_rot": 0.244659,
+            "mean_p_slide": 0.041973
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_163302-b000-k40-weighted-class_aware-shadow-c1adf14c-79e9cd048e2a/step-011-state.json",
+      "case_id": "b000-k40",
+      "step": 11,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 17.217444,
+          "max": 18.926081,
+          "product": 17.775347
+        },
+        "mean_release_fraction": 0.3619,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 78,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 79,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.277981,
+            "kappa_product": 1.093584,
+            "mean_p_rot": 0.722019,
+            "mean_p_slide": 0.663344
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 6,
+            "volume": 0.07312500000000001,
+            "sampled_options": 111,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.284178,
+            "kappa_max": 3.967349,
+            "kappa_product": 3.556181,
+            "mean_p_rot": 0.32618,
+            "mean_p_slide": 0.24576
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 12,
+            "volume": 0.05280000000000001,
+            "sampled_options": 153,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.868462,
+            "kappa_max": 4.396887,
+            "kappa_product": 4.004936,
+            "mean_p_rot": 0.195205,
+            "mean_p_slide": 0.181975
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 128,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.748327,
+            "kappa_max": 2.819214,
+            "kappa_product": 2.761142,
+            "mean_p_rot": 0.180786,
+            "mean_p_slide": 0.070888
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 137,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.316477,
+            "kappa_max": 3.46465,
+            "kappa_product": 3.359504,
+            "mean_p_rot": 0.267675,
+            "mean_p_slide": 0.074086
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 169,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_164227-b001-k20-weighted-class_aware-shadow-2e6de0af-24e614269991/step-008-state.json",
+      "case_id": "b001-k20",
+      "step": 8,
+      "steps_to_episode_end": 5,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 23.0,
+          "sum": 19.606291,
+          "max": 20.709802,
+          "product": 20.091168
+        },
+        "mean_release_fraction": 0.2714,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 32,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.572738,
+            "kappa_max": 1.660887,
+            "kappa_product": 1.602631,
+            "mean_p_rot": 0.339113,
+            "mean_p_slide": 0.088149
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 48,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 11,
+            "volume": 0.07312500000000001,
+            "sampled_options": 52,
+            "independent_options": 5,
+            "release_fraction": 0.4,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.19093,
+            "kappa_max": 4.560743,
+            "kappa_product": 4.352142,
+            "mean_p_rot": 0.186063,
+            "mean_p_slide": 0.218472
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 92,
+            "independent_options": 6,
+            "release_fraction": 0.5,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.749503,
+            "kappa_max": 5.130015,
+            "kappa_product": 4.946744,
+            "mean_p_rot": 0.289995,
+            "mean_p_slide": 0.126837
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 58,
+            "independent_options": 6,
+            "release_fraction": 0.5,
+            "kappa_raw": 6.0,
+            "kappa_sum": 5.09312,
+            "kappa_max": 5.358157,
+            "kappa_product": 5.189651,
+            "mean_p_rot": 0.213948,
+            "mean_p_slide": 0.088346
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 78,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 124,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_164227-b001-k20-weighted-class_aware-shadow-2e6de0af-24e614269991/step-012-state.json",
+      "case_id": "b001-k20",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 20.0,
+          "sum": 18.512805,
+          "max": 19.035081,
+          "product": 18.788607
+        },
+        "mean_release_fraction": 0.119,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 52,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.507835,
+            "kappa_max": 1.637728,
+            "kappa_product": 1.554892,
+            "mean_p_rot": 0.362272,
+            "mean_p_slide": 0.129893
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 172,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 265,
+            "independent_options": 3,
+            "release_fraction": 0.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 3.0,
+            "kappa_max": 3.0,
+            "kappa_product": 3.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 350,
+            "independent_options": 6,
+            "release_fraction": 0.3333,
+            "kappa_raw": 6.0,
+            "kappa_sum": 5.00497,
+            "kappa_max": 5.397353,
+            "kappa_product": 5.233715,
+            "mean_p_rot": 0.301323,
+            "mean_p_slide": 0.196191
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 293,
+            "independent_options": 5,
+            "release_fraction": 0.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 5.0,
+            "kappa_max": 5.0,
+            "kappa_product": 5.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 300,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 425,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260730_165446-b001-k20-weighted-class_aware-shadow-2e6de0af-6fef617f0a69/step-014-state.json",
+      "case_id": "b001-k20",
+      "step": 14,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 17.0,
+          "sum": 15.575931,
+          "max": 16.199164,
+          "product": 15.79692
+        },
+        "mean_release_fraction": 0.1405,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 57,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 136,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 8,
+            "volume": 0.07312500000000001,
+            "sampled_options": 137,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.362911,
+            "kappa_max": 2.651764,
+            "kappa_product": 2.4635,
+            "mean_p_rot": 0.288853,
+            "mean_p_slide": 0.348236
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 10,
+            "volume": 0.05280000000000001,
+            "sampled_options": 270,
+            "independent_options": 4,
+            "release_fraction": 0.25,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.306272,
+            "kappa_max": 3.633219,
+            "kappa_product": 3.42619,
+            "mean_p_rot": 0.366781,
+            "mean_p_slide": 0.326948
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 5,
+            "volume": 0.052324999999999997,
+            "sampled_options": 209,
+            "independent_options": 5,
+            "release_fraction": 0.4,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.906748,
+            "kappa_max": 4.914181,
+            "kappa_product": 4.90723,
+            "mean_p_rot": 0.042909,
+            "mean_p_slide": 0.003717
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 267,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 402,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_004909-b000-k15-weighted-class_aware-shadow-64963f72-fcb3f260899a/step-008-state.json",
+      "case_id": "b000-k15",
+      "step": 8,
+      "steps_to_episode_end": 5,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 25.0,
+          "sum": 18.20719,
+          "max": 20.28408,
+          "product": 18.873246
+        },
+        "mean_release_fraction": 0.8571,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 52,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.707625,
+            "kappa_max": 2.059891,
+            "kappa_product": 1.839228,
+            "mean_p_rot": 0.31337,
+            "mean_p_slide": 0.117422
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 24,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.62137,
+            "kappa_max": 0.726134,
+            "kappa_product": 0.650061,
+            "mean_p_rot": 0.104764,
+            "mean_p_slide": 0.273866
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 55,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.438232,
+            "kappa_max": 4.049213,
+            "kappa_product": 3.613338,
+            "mean_p_rot": 0.190157,
+            "mean_p_slide": 0.122196
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 9,
+            "volume": 0.05280000000000001,
+            "sampled_options": 55,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.454957,
+            "kappa_max": 4.063611,
+            "kappa_product": 3.65828,
+            "mean_p_rot": 0.187278,
+            "mean_p_slide": 0.121731
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 5,
+            "volume": 0.052324999999999997,
+            "sampled_options": 51,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.973936,
+            "kappa_max": 4.22444,
+            "kappa_product": 4.039213,
+            "mean_p_rot": 0.155112,
+            "mean_p_slide": 0.050101
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 56,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.01107,
+            "kappa_max": 3.160791,
+            "kappa_product": 3.073126,
+            "mean_p_rot": 0.209802,
+            "mean_p_slide": 0.03743
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 60,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_004909-b000-k15-weighted-class_aware-shadow-64963f72-fcb3f260899a/step-012-state.json",
+      "case_id": "b000-k15",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 19.273761,
+          "max": 20.244317,
+          "product": 19.606344
+        },
+        "mean_release_fraction": 0.4071,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 104,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810299,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.81895,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.076252
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 83,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 105,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.212916,
+            "kappa_max": 3.560159,
+            "kappa_product": 3.323883,
+            "mean_p_rot": 0.136169,
+            "mean_p_slide": 0.126192
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 7,
+            "volume": 0.05280000000000001,
+            "sampled_options": 138,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.36091,
+            "kappa_max": 3.902645,
+            "kappa_product": 3.573712,
+            "mean_p_rot": 0.365785,
+            "mean_p_slide": 0.274555
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 124,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.969332,
+            "kappa_max": 3.970994,
+            "kappa_product": 3.969356,
+            "mean_p_rot": 0.014503,
+            "mean_p_slide": 0.000831
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 129,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.920304,
+            "kappa_max": 3.923968,
+            "kappa_product": 3.920443,
+            "mean_p_rot": 0.038016,
+            "mean_p_slide": 0.001832
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 167,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_005851-b001-k30-weighted-class_aware-shadow-5119fcc9-58e3ccf96ad2/step-008-state.json",
+      "case_id": "b001-k30",
+      "step": 8,
+      "steps_to_episode_end": 5,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 18.0,
+          "sum": 12.935997,
+          "max": 14.425167,
+          "product": 13.573541
+        },
+        "mean_release_fraction": 0.4722,
+        "per_class": [
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 16,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.305005,
+            "kappa_product": 1.200103,
+            "mean_p_rot": 0.343938,
+            "mean_p_slide": 0.694995
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 11,
+            "volume": 0.07312500000000001,
+            "sampled_options": 30,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.982303,
+            "kappa_max": 3.232012,
+            "kappa_product": 3.104166,
+            "mean_p_rot": 0.255996,
+            "mean_p_slide": 0.083236
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 43,
+            "independent_options": 6,
+            "release_fraction": 0.8333,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.957966,
+            "kappa_max": 4.770571,
+            "kappa_product": 4.219111,
+            "mean_p_rot": 0.243776,
+            "mean_p_slide": 0.164631
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 42,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.995728,
+            "kappa_max": 3.117579,
+            "kappa_product": 3.050161,
+            "mean_p_rot": 0.29414,
+            "mean_p_slide": 0.040617
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 43,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 56,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_005851-b001-k30-weighted-class_aware-shadow-5119fcc9-58e3ccf96ad2/step-012-state.json",
+      "case_id": "b001-k30",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 16.0,
+          "sum": 15.118952,
+          "max": 15.313152,
+          "product": 15.210097
+        },
+        "mean_release_fraction": 0.1305,
+        "per_class": [
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 112,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 128,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.920399,
+            "kappa_max": 2.940546,
+            "kappa_product": 2.921597,
+            "mean_p_rot": 0.059454,
+            "mean_p_slide": 0.020147
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 222,
+            "independent_options": 5,
+            "release_fraction": 0.2,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.921281,
+            "kappa_max": 4.938123,
+            "kappa_product": 4.922323,
+            "mean_p_rot": 0.061877,
+            "mean_p_slide": 0.016843
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 149,
+            "independent_options": 4,
+            "release_fraction": 0.25,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.277272,
+            "kappa_max": 3.434483,
+            "kappa_product": 3.366177,
+            "mean_p_rot": 0.565517,
+            "mean_p_slide": 0.157211
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 172,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 270,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_011036-b000-k15-weighted-class_aware-shadow-64963f72-f9a761522e33/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 24.0,
+          "sum": 20.614315,
+          "max": 21.920087,
+          "product": 21.06436
+        },
+        "mean_release_fraction": 0.3952,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 82,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810533,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.819157,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.076018
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 35,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 94,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.409884,
+            "kappa_max": 5.088511,
+            "kappa_product": 4.641068,
+            "mean_p_rot": 0.219437,
+            "mean_p_slide": 0.178092
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 6,
+            "volume": 0.05280000000000001,
+            "sampled_options": 108,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.180109,
+            "kappa_max": 4.555709,
+            "kappa_product": 4.34016,
+            "mean_p_rot": 0.148097,
+            "mean_p_slide": 0.1252
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 96,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.71934,
+            "kappa_max": 3.796202,
+            "kappa_product": 3.733741,
+            "mean_p_rot": 0.101899,
+            "mean_p_slide": 0.038431
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 113,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.494449,
+            "kappa_max": 3.593114,
+            "kappa_product": 3.530234,
+            "mean_p_rot": 0.203443,
+            "mean_p_slide": 0.049332
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 137,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_011036-b000-k15-weighted-class_aware-shadow-64963f72-f9a761522e33/step-014-state.json",
+      "case_id": "b000-k15",
+      "step": 14,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 18.185921,
+          "max": 19.253262,
+          "product": 18.559463
+        },
+        "mean_release_fraction": 0.5071,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 147,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810564,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.819185,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.075987
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 94,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 181,
+            "independent_options": 5,
+            "release_fraction": 0.8,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.825722,
+            "kappa_max": 4.358368,
+            "kappa_product": 3.988122,
+            "mean_p_rot": 0.153636,
+            "mean_p_slide": 0.139934
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 5,
+            "volume": 0.05280000000000001,
+            "sampled_options": 199,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.982322,
+            "kappa_max": 3.2177,
+            "kappa_product": 3.095335,
+            "mean_p_rot": 0.260767,
+            "mean_p_slide": 0.172456
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 186,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.735355,
+            "kappa_max": 3.787861,
+            "kappa_product": 3.744688,
+            "mean_p_rot": 0.070713,
+            "mean_p_slide": 0.017502
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 196,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.831958,
+            "kappa_max": 3.002782,
+            "kappa_product": 2.912133,
+            "mean_p_rot": 0.332406,
+            "mean_p_slide": 0.056941
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 224,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_012436-b001-k30-weighted-class_aware-shadow-5119fcc9-5944289f1f32/step-010-state.json",
+      "case_id": "b001-k30",
+      "step": 10,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 16.0,
+          "sum": 15.106391,
+          "max": 15.514696,
+          "product": 15.205479
+        },
+        "mean_release_fraction": 0.0889,
+        "per_class": [
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 54,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 103,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.564045,
+            "kappa_max": 2.757937,
+            "kappa_product": 2.610979,
+            "mean_p_rot": 0.193892,
+            "mean_p_slide": 0.242063
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 125,
+            "independent_options": 5,
+            "release_fraction": 0.2,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.542346,
+            "kappa_max": 4.756759,
+            "kappa_product": 4.5945,
+            "mean_p_rot": 0.214414,
+            "mean_p_slide": 0.243241
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 119,
+            "independent_options": 4,
+            "release_fraction": 0.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 4.0,
+            "kappa_max": 4.0,
+            "kappa_product": 4.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 124,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 142,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_012436-b001-k30-weighted-class_aware-shadow-5119fcc9-5944289f1f32/step-011-state.json",
+      "case_id": "b001-k30",
+      "step": 11,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 16.0,
+          "sum": 14.604529,
+          "max": 15.049705,
+          "product": 14.819844
+        },
+        "mean_release_fraction": 0.0889,
+        "per_class": [
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 88,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 8,
+            "volume": 0.07312500000000001,
+            "sampled_options": 169,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.062183,
+            "kappa_max": 2.292945,
+            "kappa_product": 2.225344,
+            "mean_p_rot": 0.707055,
+            "mean_p_slide": 0.230762
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 196,
+            "independent_options": 5,
+            "release_fraction": 0.2,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.542346,
+            "kappa_max": 4.75676,
+            "kappa_product": 4.5945,
+            "mean_p_rot": 0.214414,
+            "mean_p_slide": 0.24324
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 188,
+            "independent_options": 4,
+            "release_fraction": 0.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 4.0,
+            "kappa_max": 4.0,
+            "kappa_product": 4.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 195,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 215,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_013609-b000-k20-weighted-class_aware-shadow-0fb74669-86041076d589/step-010-state.json",
+      "case_id": "b000-k20",
+      "step": 10,
+      "steps_to_episode_end": 6,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 21.0,
+          "sum": 13.44208,
+          "max": 16.085297,
+          "product": 14.353727
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 53,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.265426,
+            "kappa_max": 2.0951,
+            "kappa_product": 1.567317,
+            "mean_p_rot": 0.299984,
+            "mean_p_slide": 0.278207
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 64,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.613735,
+            "kappa_max": 3.533997,
+            "kappa_product": 2.96016,
+            "mean_p_rot": 0.291766,
+            "mean_p_slide": 0.185487
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 92,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.597758,
+            "kappa_max": 4.187307,
+            "kappa_product": 3.743146,
+            "mean_p_rot": 0.153843,
+            "mean_p_slide": 0.126606
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 68,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.605135,
+            "kappa_max": 2.828486,
+            "kappa_product": 2.702539,
+            "mean_p_rot": 0.292878,
+            "mean_p_slide": 0.055838
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 2,
+            "volume": 0.045,
+            "sampled_options": 79,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.735916,
+            "kappa_max": 1.761124,
+            "kappa_product": 1.740681,
+            "mean_p_rot": 0.119438,
+            "mean_p_slide": 0.012604
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 93,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.62411,
+            "kappa_max": 1.679283,
+            "kappa_product": 1.639884,
+            "mean_p_rot": 0.160359,
+            "mean_p_slide": 0.027586
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_013609-b000-k20-weighted-class_aware-shadow-0fb74669-86041076d589/step-015-state.json",
+      "case_id": "b000-k20",
+      "step": 15,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 5,
+        "totals": {
+          "raw": 19.0,
+          "sum": 14.18139,
+          "max": 16.040469,
+          "product": 14.881267
+        },
+        "mean_release_fraction": 0.4767,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 55,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.631105,
+            "kappa_max": 1.814438,
+            "kappa_product": 1.665124,
+            "mean_p_rot": 0.185562,
+            "mean_p_slide": 0.183333
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 146,
+            "independent_options": 5,
+            "release_fraction": 0.8,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.808471,
+            "kappa_max": 3.599025,
+            "kappa_product": 3.166203,
+            "mean_p_rot": 0.349083,
+            "mean_p_slide": 0.1988
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 148,
+            "independent_options": 8,
+            "release_fraction": 0.75,
+            "kappa_raw": 8.0,
+            "kappa_sum": 5.993269,
+            "kappa_max": 6.813487,
+            "kappa_product": 6.289278,
+            "mean_p_rot": 0.197752,
+            "mean_p_slide": 0.136703
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 153,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.748545,
+            "kappa_max": 2.813519,
+            "kappa_product": 2.760662,
+            "mean_p_rot": 0.186481,
+            "mean_p_slide": 0.064974
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 136,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_014746-b001-k20-weighted-class_aware-shadow-2e6de0af-837abea4e973/step-010-state.json",
+      "case_id": "b001-k20",
+      "step": 10,
+      "steps_to_episode_end": 6,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 23.0,
+          "sum": 21.095121,
+          "max": 21.844934,
+          "product": 21.27005
+        },
+        "mean_release_fraction": 0.1241,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 64,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 101,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 146,
+            "independent_options": 4,
+            "release_fraction": 0.25,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.563979,
+            "kappa_max": 3.7499,
+            "kappa_product": 3.610478,
+            "mean_p_rot": 0.185922,
+            "mean_p_slide": 0.2501
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 207,
+            "independent_options": 7,
+            "release_fraction": 0.2857,
+            "kappa_raw": 7.0,
+            "kappa_sum": 6.113712,
+            "kappa_max": 6.536109,
+            "kappa_product": 6.211818,
+            "mean_p_rot": 0.225154,
+            "mean_p_slide": 0.21799
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 165,
+            "independent_options": 6,
+            "release_fraction": 0.3333,
+            "kappa_raw": 6.0,
+            "kappa_sum": 5.41743,
+            "kappa_max": 5.558925,
+            "kappa_product": 5.447754,
+            "mean_p_rot": 0.220537,
+            "mean_p_slide": 0.070748
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 192,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 251,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_014746-b001-k20-weighted-class_aware-shadow-2e6de0af-837abea4e973/step-015-state.json",
+      "case_id": "b001-k20",
+      "step": 15,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 4.0,
+          "sum": 3.981086,
+          "max": 3.982158,
+          "product": 3.981106
+        },
+        "mean_release_fraction": 0.25,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 0,
+            "independent_options": 0,
+            "release_fraction": null,
+            "kappa_raw": 0.0,
+            "kappa_sum": 0,
+            "kappa_max": 0,
+            "kappa_product": 0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 2,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 5,
+            "volume": 0.07312500000000001,
+            "sampled_options": 0,
+            "independent_options": 0,
+            "release_fraction": null,
+            "kappa_raw": 0.0,
+            "kappa_sum": 0,
+            "kappa_max": 0,
+            "kappa_product": 0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 4,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 5,
+            "volume": 0.052324999999999997,
+            "sampled_options": 37,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.981086,
+            "kappa_max": 0.982158,
+            "kappa_product": 0.981106,
+            "mean_p_rot": 0.017842,
+            "mean_p_slide": 0.001071
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 0,
+            "independent_options": 0,
+            "release_fraction": null,
+            "kappa_raw": 0.0,
+            "kappa_sum": 0,
+            "kappa_max": 0,
+            "kappa_product": 0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 105,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_020139-b000-k10-weighted-class_aware-shadow-fa6cf9cc-9a44e0dc484a/step-008-state.json",
+      "case_id": "b000-k10",
+      "step": 8,
+      "steps_to_episode_end": 5,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 24.0,
+          "sum": 15.785471,
+          "max": 18.206193,
+          "product": 16.819659
+        },
+        "mean_release_fraction": 0.7583,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 34,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.863799,
+            "kappa_max": 2.233464,
+            "kappa_product": 2.022774,
+            "mean_p_rot": 0.255512,
+            "mean_p_slide": 0.123221
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 28,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 10,
+            "volume": 0.07312500000000001,
+            "sampled_options": 41,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.282787,
+            "kappa_max": 3.992939,
+            "kappa_product": 3.5264,
+            "mean_p_rot": 0.201412,
+            "mean_p_slide": 0.14203
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 10,
+            "volume": 0.05280000000000001,
+            "sampled_options": 59,
+            "independent_options": 6,
+            "release_fraction": 1.0,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.258292,
+            "kappa_max": 4.229184,
+            "kappa_product": 3.69671,
+            "mean_p_rot": 0.295136,
+            "mean_p_slide": 0.161815
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 5,
+            "volume": 0.052324999999999997,
+            "sampled_options": 48,
+            "independent_options": 5,
+            "release_fraction": 0.8,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.891941,
+            "kappa_max": 4.107909,
+            "kappa_product": 3.984756,
+            "mean_p_rot": 0.223023,
+            "mean_p_slide": 0.053992
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 52,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.488652,
+            "kappa_max": 2.642697,
+            "kappa_product": 2.589019,
+            "mean_p_rot": 0.452434,
+            "mean_p_slide": 0.051348
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_020139-b000-k10-weighted-class_aware-shadow-fa6cf9cc-9a44e0dc484a/step-012-state.json",
+      "case_id": "b000-k10",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 21.0,
+          "sum": 19.420486,
+          "max": 20.076779,
+          "product": 19.599466
+        },
+        "mean_release_fraction": 0.1305,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 149,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 100,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 8,
+            "volume": 0.07312500000000001,
+            "sampled_options": 198,
+            "independent_options": 4,
+            "release_fraction": 0.25,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.573757,
+            "kappa_max": 3.773016,
+            "kappa_product": 3.618986,
+            "mean_p_rot": 0.199259,
+            "mean_p_slide": 0.226984
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 10,
+            "volume": 0.05280000000000001,
+            "sampled_options": 204,
+            "independent_options": 6,
+            "release_fraction": 0.3333,
+            "kappa_raw": 6.0,
+            "kappa_sum": 5.111815,
+            "kappa_max": 5.493338,
+            "kappa_product": 5.231251,
+            "mean_p_rot": 0.253331,
+            "mean_p_slide": 0.190762
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 5,
+            "volume": 0.052324999999999997,
+            "sampled_options": 248,
+            "independent_options": 5,
+            "release_fraction": 0.2,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.734914,
+            "kappa_max": 4.810425,
+            "kappa_product": 4.749229,
+            "mean_p_rot": 0.189575,
+            "mean_p_slide": 0.075512
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 3,
+            "volume": 0.045,
+            "sampled_options": 278,
+            "independent_options": 3,
+            "release_fraction": 0.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 3.0,
+            "kappa_max": 3.0,
+            "kappa_product": 3.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_114835-b001-k20-weighted-class_aware-shadow-2e6de0af-f7779675f8a6/step-013-state.json",
+      "case_id": "b001-k20",
+      "step": 13,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 17.0,
+          "sum": 14.225648,
+          "max": 14.939616,
+          "product": 14.639558
+        },
+        "mean_release_fraction": 0.1429,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 35,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 145,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 10,
+            "volume": 0.07312500000000001,
+            "sampled_options": 151,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 7,
+            "volume": 0.05280000000000001,
+            "sampled_options": 268,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.183745,
+            "kappa_max": 3.747245,
+            "kappa_product": 3.519894,
+            "mean_p_rot": 0.417585,
+            "mean_p_slide": 0.187833
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 171,
+            "independent_options": 5,
+            "release_fraction": 0.4,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.041903,
+            "kappa_max": 4.192371,
+            "kappa_product": 4.119664,
+            "mean_p_rot": 0.403814,
+            "mean_p_slide": 0.075234
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 221,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 356,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_115429-b000-k15-weighted-class_aware-shadow-64963f72-07202cc3cd18/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 24.0,
+          "sum": 20.614315,
+          "max": 21.920087,
+          "product": 21.06436
+        },
+        "mean_release_fraction": 0.3952,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 82,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810533,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.819157,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.076018
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 35,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 94,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.409884,
+            "kappa_max": 5.088511,
+            "kappa_product": 4.641068,
+            "mean_p_rot": 0.219437,
+            "mean_p_slide": 0.178092
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 6,
+            "volume": 0.05280000000000001,
+            "sampled_options": 108,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.180109,
+            "kappa_max": 4.555709,
+            "kappa_product": 4.34016,
+            "mean_p_rot": 0.148097,
+            "mean_p_slide": 0.1252
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 96,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.71934,
+            "kappa_max": 3.796202,
+            "kappa_product": 3.733741,
+            "mean_p_rot": 0.101899,
+            "mean_p_slide": 0.038431
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 113,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.494449,
+            "kappa_max": 3.593114,
+            "kappa_product": 3.530234,
+            "mean_p_rot": 0.203443,
+            "mean_p_slide": 0.049332
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 137,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_115429-b000-k15-weighted-class_aware-shadow-64963f72-07202cc3cd18/step-014-state.json",
+      "case_id": "b000-k15",
+      "step": 14,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 18.185921,
+          "max": 19.253262,
+          "product": 18.559463
+        },
+        "mean_release_fraction": 0.5071,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 147,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810564,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.819185,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.075987
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 94,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 181,
+            "independent_options": 5,
+            "release_fraction": 0.8,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.825722,
+            "kappa_max": 4.358368,
+            "kappa_product": 3.988122,
+            "mean_p_rot": 0.153636,
+            "mean_p_slide": 0.139934
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 5,
+            "volume": 0.05280000000000001,
+            "sampled_options": 199,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.982322,
+            "kappa_max": 3.2177,
+            "kappa_product": 3.095335,
+            "mean_p_rot": 0.260767,
+            "mean_p_slide": 0.172456
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 186,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.735355,
+            "kappa_max": 3.787861,
+            "kappa_product": 3.744688,
+            "mean_p_rot": 0.070713,
+            "mean_p_slide": 0.017502
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 196,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.831958,
+            "kappa_max": 3.002782,
+            "kappa_product": 2.912133,
+            "mean_p_rot": 0.332406,
+            "mean_p_slide": 0.056941
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 224,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_120259-b001-k30-weighted-class_aware-shadow-5119fcc9-fedb535ea218/step-013-state.json",
+      "case_id": "b001-k30",
+      "step": 13,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 16.0,
+          "sum": 14.460026,
+          "max": 15.101579,
+          "product": 14.613977
+        },
+        "mean_release_fraction": 0.1571,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 43,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 76,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 113,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.067768,
+            "kappa_max": 3.480921,
+            "kappa_product": 3.175656,
+            "mean_p_rot": 0.259539,
+            "mean_p_slide": 0.206577
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 164,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.392258,
+            "kappa_max": 4.620658,
+            "kappa_product": 4.438321,
+            "mean_p_rot": 0.126447,
+            "mean_p_slide": 0.076134
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 2,
+            "volume": 0.052324999999999997,
+            "sampled_options": 117,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 148,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 223,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_120259-b001-k30-weighted-class_aware-shadow-5119fcc9-fedb535ea218/step-014-state.json",
+      "case_id": "b001-k30",
+      "step": 14,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 15.0,
+          "sum": 14.049076,
+          "max": 14.429481,
+          "product": 14.163698
+        },
+        "mean_release_fraction": 0.1429,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 29,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 59,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 6,
+            "volume": 0.07312500000000001,
+            "sampled_options": 85,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.275439,
+            "kappa_max": 3.589397,
+            "kappa_product": 3.379984,
+            "mean_p_rot": 0.205302,
+            "mean_p_slide": 0.156979
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 128,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.773637,
+            "kappa_max": 3.840084,
+            "kappa_product": 3.783714,
+            "mean_p_rot": 0.079958,
+            "mean_p_slide": 0.033223
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 2,
+            "volume": 0.052324999999999997,
+            "sampled_options": 91,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 119,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 275,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_121307-b000-k40-weighted-class_aware-shadow-c1adf14c-874910945765/step-010-state.json",
+      "case_id": "b000-k40",
+      "step": 10,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 23.0,
+          "sum": 12.527866,
+          "max": 15.584656,
+          "product": 13.768377
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 34,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.487333,
+            "kappa_max": 0.740005,
+            "kappa_product": 0.553026,
+            "mean_p_rot": 0.259995,
+            "mean_p_slide": 0.252672
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 38,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 0.0,
+            "kappa_max": 0.517851,
+            "kappa_product": 0.242986,
+            "mean_p_rot": 0.568562,
+            "mean_p_slide": 0.695106
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 41,
+            "independent_options": 5,
+            "release_fraction": 1.0,
+            "kappa_raw": 5.0,
+            "kappa_sum": 2.685866,
+            "kappa_max": 3.547274,
+            "kappa_product": 2.967959,
+            "mean_p_rot": 0.269903,
+            "mean_p_slide": 0.192923
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 12,
+            "volume": 0.05280000000000001,
+            "sampled_options": 73,
+            "independent_options": 6,
+            "release_fraction": 1.0,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.297543,
+            "kappa_max": 4.256638,
+            "kappa_product": 3.736248,
+            "mean_p_rot": 0.288869,
+            "mean_p_slide": 0.16154
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 49,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.800885,
+            "kappa_max": 2.010823,
+            "kappa_product": 1.897389,
+            "mean_p_rot": 0.329726,
+            "mean_p_slide": 0.069979
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 61,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.829502,
+            "kappa_max": 3.001382,
+            "kappa_product": 2.905919,
+            "mean_p_rot": 0.249654,
+            "mean_p_slide": 0.04297
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 85,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.426737,
+            "kappa_max": 1.510683,
+            "kappa_product": 1.46485,
+            "mean_p_rot": 0.244659,
+            "mean_p_slide": 0.041973
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_121307-b000-k40-weighted-class_aware-shadow-c1adf14c-874910945765/step-011-state.json",
+      "case_id": "b000-k40",
+      "step": 11,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 17.217444,
+          "max": 18.926081,
+          "product": 17.775347
+        },
+        "mean_release_fraction": 0.3619,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 78,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 79,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.277981,
+            "kappa_product": 1.093584,
+            "mean_p_rot": 0.722019,
+            "mean_p_slide": 0.663344
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 6,
+            "volume": 0.07312500000000001,
+            "sampled_options": 111,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.284178,
+            "kappa_max": 3.967349,
+            "kappa_product": 3.556181,
+            "mean_p_rot": 0.32618,
+            "mean_p_slide": 0.24576
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 12,
+            "volume": 0.05280000000000001,
+            "sampled_options": 153,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.868462,
+            "kappa_max": 4.396887,
+            "kappa_product": 4.004936,
+            "mean_p_rot": 0.195205,
+            "mean_p_slide": 0.181975
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 128,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.748327,
+            "kappa_max": 2.819214,
+            "kappa_product": 2.761142,
+            "mean_p_rot": 0.180786,
+            "mean_p_slide": 0.070888
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 137,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.316477,
+            "kappa_max": 3.46465,
+            "kappa_product": 3.359504,
+            "mean_p_rot": 0.267675,
+            "mean_p_slide": 0.074086
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 169,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_122053-b000-k20-weighted-class_aware-shadow-0fb74669-365c2f5dce03/step-011-state.json",
+      "case_id": "b000-k20",
+      "step": 11,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 17.0,
+          "sum": 12.349469,
+          "max": 13.888568,
+          "product": 12.833742
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 61,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.075474,
+            "kappa_max": 2.379381,
+            "kappa_product": 2.177744,
+            "mean_p_rot": 0.206873,
+            "mean_p_slide": 0.101302
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 65,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.318195,
+            "kappa_max": 2.635511,
+            "kappa_product": 2.410418,
+            "mean_p_rot": 0.121496,
+            "mean_p_slide": 0.105772
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 58,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.449515,
+            "kappa_max": 3.064569,
+            "kappa_product": 2.634279,
+            "mean_p_rot": 0.229424,
+            "mean_p_slide": 0.158197
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 68,
+            "independent_options": 4,
+            "release_fraction": 1.0,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.407219,
+            "kappa_max": 3.54267,
+            "kappa_product": 3.449938,
+            "mean_p_rot": 0.114332,
+            "mean_p_slide": 0.033863
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 66,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.960251,
+            "kappa_max": 0.962096,
+            "kappa_product": 0.960321,
+            "mean_p_rot": 0.037904,
+            "mean_p_slide": 0.001845
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 56,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.138815,
+            "kappa_max": 1.304341,
+            "kappa_product": 1.201042,
+            "mean_p_rot": 0.34783,
+            "mean_p_slide": 0.082763
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_122053-b001-k20-weighted-class_aware-shadow-2e6de0af-cb3c1a1a04df/step-012-state.json",
+      "case_id": "b001-k20",
+      "step": 12,
+      "steps_to_episode_end": 2,
+      "terminal_channel": "physical",
+      "t_physical": 2,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 19.0,
+          "sum": 15.602535,
+          "max": 16.739279,
+          "product": 15.947353
+        },
+        "mean_release_fraction": 0.3714,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 36,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.632233,
+            "kappa_max": 1.813147,
+            "kappa_product": 1.665937,
+            "mean_p_rot": 0.093427,
+            "mean_p_slide": 0.090457
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 103,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 11,
+            "volume": 0.07312500000000001,
+            "sampled_options": 143,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.048628,
+            "kappa_max": 3.500782,
+            "kappa_product": 3.161633,
+            "mean_p_rot": 0.249609,
+            "mean_p_slide": 0.226077
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 7,
+            "volume": 0.05280000000000001,
+            "sampled_options": 232,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.337029,
+            "kappa_max": 3.621239,
+            "kappa_product": 3.426738,
+            "mean_p_rot": 0.18938,
+            "mean_p_slide": 0.142105
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 156,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.584645,
+            "kappa_max": 3.804111,
+            "kappa_product": 3.693045,
+            "mean_p_rot": 0.39863,
+            "mean_p_slide": 0.073156
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 214,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 253,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143112-b000-k20-weighted-class_aware-shadow-0fb74669-53f3e88bdd6f/step-009-state.json",
+      "case_id": "b000-k20",
+      "step": 9,
+      "steps_to_episode_end": 6,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 16.0,
+          "sum": 9.642809,
+          "max": 11.564741,
+          "product": 10.349757
+        },
+        "mean_release_fraction": 1.0,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 3,
+            "volume": 0.11340000000000001,
+            "sampled_options": 68,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 0.462754,
+            "kappa_max": 1.000833,
+            "kappa_product": 0.707419,
+            "mean_p_rot": 0.499583,
+            "mean_p_slide": 0.269039
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 34,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.39405,
+            "kappa_max": 0.557564,
+            "kappa_product": 0.466394,
+            "mean_p_rot": 0.163514,
+            "mean_p_slide": 0.442436
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 64,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.863416,
+            "kappa_max": 2.348007,
+            "kappa_product": 1.988487,
+            "mean_p_rot": 0.198554,
+            "mean_p_slide": 0.180307
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 11,
+            "volume": 0.05280000000000001,
+            "sampled_options": 58,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 1.979126,
+            "kappa_max": 2.372452,
+            "kappa_product": 2.097366,
+            "mean_p_rot": 0.209183,
+            "mean_p_slide": 0.131109
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 56,
+            "independent_options": 3,
+            "release_fraction": 1.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.329805,
+            "kappa_max": 2.490721,
+            "kappa_product": 2.375112,
+            "mean_p_rot": 0.16976,
+            "mean_p_slide": 0.053639
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 3,
+            "volume": 0.045,
+            "sampled_options": 54,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.286806,
+            "kappa_max": 1.37135,
+            "kappa_product": 1.335725,
+            "mean_p_rot": 0.314325,
+            "mean_p_slide": 0.042272
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 50,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.326852,
+            "kappa_max": 1.423814,
+            "kappa_product": 1.379254,
+            "mean_p_rot": 0.288093,
+            "mean_p_slide": 0.048481
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143112-b000-k20-weighted-class_aware-shadow-0fb74669-53f3e88bdd6f/step-014-state.json",
+      "case_id": "b000-k20",
+      "step": 14,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 6,
+        "totals": {
+          "raw": 18.0,
+          "sum": 11.760265,
+          "max": 13.807376,
+          "product": 12.553182
+        },
+        "mean_release_fraction": 0.7861,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 39,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.101526,
+            "kappa_max": 1.485474,
+            "kappa_product": 1.202256,
+            "mean_p_rot": 0.248677,
+            "mean_p_slide": 0.20056
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 51,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.276619,
+            "kappa_max": 3.043381,
+            "kappa_product": 2.542074,
+            "mean_p_rot": 0.317929,
+            "mean_p_slide": 0.256531
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 9,
+            "volume": 0.05280000000000001,
+            "sampled_options": 69,
+            "independent_options": 5,
+            "release_fraction": 0.8,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.328944,
+            "kappa_max": 3.935056,
+            "kappa_product": 3.603471,
+            "mean_p_rot": 0.266236,
+            "mean_p_slide": 0.188892
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 2,
+            "volume": 0.052324999999999997,
+            "sampled_options": 54,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 0.800315,
+            "kappa_max": 1.004987,
+            "kappa_product": 0.90332,
+            "mean_p_rot": 0.497507,
+            "mean_p_slide": 0.102336
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 3,
+            "volume": 0.045,
+            "sampled_options": 70,
+            "independent_options": 3,
+            "release_fraction": 0.6667,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.282789,
+            "kappa_max": 2.367128,
+            "kappa_product": 2.331952,
+            "mean_p_rot": 0.316436,
+            "mean_p_slide": 0.042169
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 70,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.970072,
+            "kappa_max": 1.97135,
+            "kappa_product": 1.970109,
+            "mean_p_rot": 0.02865,
+            "mean_p_slide": 0.001277
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143112-b001-k30-weighted-class_aware-shadow-5119fcc9-99a2bd8c4066/step-009-state.json",
+      "case_id": "b001-k30",
+      "step": 9,
+      "steps_to_episode_end": 4,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 17.0,
+          "sum": 13.175046,
+          "max": 14.483627,
+          "product": 13.59212
+        },
+        "mean_release_fraction": 0.5262,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 20,
+            "independent_options": 1,
+            "release_fraction": 1.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 0.55103,
+            "kappa_max": 0.74616,
+            "kappa_product": 0.600562,
+            "mean_p_rot": 0.25384,
+            "mean_p_slide": 0.19513
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 16,
+            "independent_options": 2,
+            "release_fraction": 1.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 0.943245,
+            "kappa_max": 1.249898,
+            "kappa_product": 1.05814,
+            "mean_p_rot": 0.311327,
+            "mean_p_slide": 0.375051
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 10,
+            "volume": 0.07312500000000001,
+            "sampled_options": 34,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.425312,
+            "kappa_max": 3.001901,
+            "kappa_product": 2.642115,
+            "mean_p_rot": 0.329168,
+            "mean_p_slide": 0.195728
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 49,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.473461,
+            "kappa_max": 4.672987,
+            "kappa_product": 4.503557,
+            "mean_p_rot": 0.109004,
+            "mean_p_slide": 0.066509
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 50,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.781998,
+            "kappa_max": 2.812681,
+            "kappa_product": 2.787746,
+            "mean_p_rot": 0.187319,
+            "mean_p_slide": 0.030683
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 46,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 70,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143112-b001-k30-weighted-class_aware-shadow-5119fcc9-99a2bd8c4066/step-012-state.json",
+      "case_id": "b001-k30",
+      "step": 12,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 15.0,
+          "sum": 11.604249,
+          "max": 12.894644,
+          "product": 12.062305
+        },
+        "mean_release_fraction": 0.3571,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 26,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 39,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.236628,
+            "kappa_product": 1.158095,
+            "mean_p_rot": 0.331883,
+            "mean_p_slide": 0.763372
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 8,
+            "volume": 0.07312500000000001,
+            "sampled_options": 68,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.097745,
+            "kappa_max": 3.546306,
+            "kappa_product": 3.21257,
+            "mean_p_rot": 0.151108,
+            "mean_p_slide": 0.149643
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 15,
+            "volume": 0.05280000000000001,
+            "sampled_options": 93,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.724334,
+            "kappa_max": 3.298865,
+            "kappa_product": 2.903729,
+            "mean_p_rot": 0.222736,
+            "mean_p_slide": 0.202486
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 2,
+            "volume": 0.052324999999999997,
+            "sampled_options": 69,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.78217,
+            "kappa_max": 1.812845,
+            "kappa_product": 1.787911,
+            "mean_p_rot": 0.187155,
+            "mean_p_slide": 0.030675
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 87,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 115,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143504-b000-k40-weighted-class_aware-shadow-c1adf14c-21fc04b4ee92/step-009-state.json",
+      "case_id": "b000-k40",
+      "step": 9,
+      "steps_to_episode_end": 3,
+      "terminal_channel": "physical",
+      "t_physical": 3,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 25.0,
+          "sum": 22.113702,
+          "max": 23.19775,
+          "product": 22.505964
+        },
+        "mean_release_fraction": 0.2126,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 42,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 31,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 7,
+            "volume": 0.07312500000000001,
+            "sampled_options": 50,
+            "independent_options": 7,
+            "release_fraction": 0.5714,
+            "kappa_raw": 7.0,
+            "kappa_sum": 5.604407,
+            "kappa_max": 6.228514,
+            "kappa_product": 5.791132,
+            "mean_p_rot": 0.166809,
+            "mean_p_slide": 0.182089
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 13,
+            "volume": 0.05280000000000001,
+            "sampled_options": 66,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.549044,
+            "kappa_max": 5.00714,
+            "kappa_product": 4.754511,
+            "mean_p_rot": 0.248215,
+            "mean_p_slide": 0.114524
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 59,
+            "independent_options": 3,
+            "release_fraction": 0.0,
+            "kappa_raw": 3.0,
+            "kappa_sum": 3.0,
+            "kappa_max": 3.0,
+            "kappa_product": 3.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 55,
+            "independent_options": 4,
+            "release_fraction": 0.25,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.960251,
+            "kappa_max": 3.962096,
+            "kappa_product": 3.960321,
+            "mean_p_rot": 0.037904,
+            "mean_p_slide": 0.001845
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 80,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260731_143504-b000-k40-weighted-class_aware-shadow-c1adf14c-21fc04b4ee92/step-011-state.json",
+      "case_id": "b000-k40",
+      "step": 11,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "physical",
+      "t_physical": 1,
+      "t_physical_censored": false,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 22.0,
+          "sum": 15.154719,
+          "max": 17.270974,
+          "product": 15.972506
+        },
+        "mean_release_fraction": 0.5,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 78,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 67,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.284328,
+            "kappa_product": 1.104569,
+            "mean_p_rot": 0.715672,
+            "mean_p_slide": 0.632224
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 6,
+            "volume": 0.07312500000000001,
+            "sampled_options": 86,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.776922,
+            "kappa_max": 3.268543,
+            "kappa_product": 2.929112,
+            "mean_p_rot": 0.227812,
+            "mean_p_slide": 0.17988
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 12,
+            "volume": 0.05280000000000001,
+            "sampled_options": 124,
+            "independent_options": 6,
+            "release_fraction": 0.8333,
+            "kappa_raw": 6.0,
+            "kappa_sum": 3.32585,
+            "kappa_max": 4.280889,
+            "kappa_product": 3.759888,
+            "mean_p_rot": 0.342981,
+            "mean_p_slide": 0.191849
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 3,
+            "volume": 0.052324999999999997,
+            "sampled_options": 99,
+            "independent_options": 3,
+            "release_fraction": 0.6667,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.486256,
+            "kappa_max": 2.638429,
+            "kappa_product": 2.513767,
+            "mean_p_rot": 0.180786,
+            "mean_p_slide": 0.076086
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 105,
+            "independent_options": 4,
+            "release_fraction": 0.75,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.565691,
+            "kappa_max": 2.798785,
+            "kappa_product": 2.66517,
+            "mean_p_rot": 0.400405,
+            "mean_p_slide": 0.077698
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 144,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 1,
+      "y_2": 1,
+      "y_3": 1
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7/step-010-state.json",
+      "case_id": "b000-k15",
+      "step": 10,
+      "steps_to_episode_end": 4,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 24.0,
+          "sum": 19.480807,
+          "max": 20.737369,
+          "product": 19.945479
+        },
+        "mean_release_fraction": 0.3952,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 86,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810299,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.81895,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.076252
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 71,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 118,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.647348,
+            "kappa_max": 5.252655,
+            "kappa_product": 4.783102,
+            "mean_p_rot": 0.17273,
+            "mean_p_slide": 0.165433
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 9,
+            "volume": 0.05280000000000001,
+            "sampled_options": 107,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.717699,
+            "kappa_max": 4.061308,
+            "kappa_product": 3.911106,
+            "mean_p_rot": 0.312897,
+            "mean_p_slide": 0.114536
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 108,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.018688,
+            "kappa_max": 3.165541,
+            "kappa_product": 3.096627,
+            "mean_p_rot": 0.417229,
+            "mean_p_slide": 0.073426
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 108,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.286773,
+            "kappa_max": 3.371314,
+            "kappa_product": 3.335694,
+            "mean_p_rot": 0.314343,
+            "mean_p_slide": 0.042271
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 127,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260801_003952-b000-k15-weighted-class_aware-shadow-64963f72-13a59e5dfca7/step-013-state.json",
+      "case_id": "b000-k15",
+      "step": 13,
+      "steps_to_episode_end": 1,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 24.0,
+          "sum": 20.614315,
+          "max": 21.920087,
+          "product": 21.06436
+        },
+        "mean_release_fraction": 0.3952,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 2,
+            "volume": 0.11340000000000001,
+            "sampled_options": 82,
+            "independent_options": 2,
+            "release_fraction": 0.5,
+            "kappa_raw": 2.0,
+            "kappa_sum": 1.810533,
+            "kappa_max": 1.886551,
+            "kappa_product": 1.819157,
+            "mean_p_rot": 0.113449,
+            "mean_p_slide": 0.076018
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 1,
+            "volume": 0.08000000000000002,
+            "sampled_options": 35,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 9,
+            "volume": 0.07312500000000001,
+            "sampled_options": 94,
+            "independent_options": 6,
+            "release_fraction": 0.6667,
+            "kappa_raw": 6.0,
+            "kappa_sum": 4.409884,
+            "kappa_max": 5.088511,
+            "kappa_product": 4.641068,
+            "mean_p_rot": 0.219437,
+            "mean_p_slide": 0.178092
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 6,
+            "volume": 0.05280000000000001,
+            "sampled_options": 108,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 4.180109,
+            "kappa_max": 4.555709,
+            "kappa_product": 4.34016,
+            "mean_p_rot": 0.148097,
+            "mean_p_slide": 0.1252
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 4,
+            "volume": 0.052324999999999997,
+            "sampled_options": 96,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.71934,
+            "kappa_max": 3.796202,
+            "kappa_product": 3.733741,
+            "mean_p_rot": 0.101899,
+            "mean_p_slide": 0.038431
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 4,
+            "volume": 0.045,
+            "sampled_options": 113,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 3.494449,
+            "kappa_max": 3.593114,
+            "kappa_product": 3.530234,
+            "mean_p_rot": 0.203443,
+            "mean_p_slide": 0.049332
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 2,
+            "volume": 0.027000000000000003,
+            "sampled_options": 137,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    },
+    {
+      "snapshot": "/home/user/nedo-3d-bpp/reports/replay-dataset/20260801_003952-b001-k20-weighted-class_aware-shadow-2e6de0af-39703871ee73/step-010-state.json",
+      "case_id": "b001-k20",
+      "step": 10,
+      "steps_to_episode_end": 4,
+      "terminal_channel": "terminal",
+      "t_physical": null,
+      "t_physical_censored": true,
+      "capacity": {
+        "class_count": 7,
+        "totals": {
+          "raw": 17.0,
+          "sum": 13.489938,
+          "max": 14.725884,
+          "product": 14.022626
+        },
+        "mean_release_fraction": 0.2048,
+        "per_class": [
+          {
+            "signature": [
+              0.75,
+              0.56,
+              0.27
+            ],
+            "multiplicity": 1,
+            "volume": 0.11340000000000001,
+            "sampled_options": 16,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.5,
+              0.4,
+              0.4
+            ],
+            "multiplicity": 2,
+            "volume": 0.08000000000000002,
+            "sampled_options": 20,
+            "independent_options": 2,
+            "release_fraction": 0.0,
+            "kappa_raw": 2.0,
+            "kappa_sum": 2.0,
+            "kappa_max": 2.0,
+            "kappa_product": 2.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.65,
+              0.45,
+              0.25
+            ],
+            "multiplicity": 11,
+            "volume": 0.07312500000000001,
+            "sampled_options": 43,
+            "independent_options": 3,
+            "release_fraction": 0.3333,
+            "kappa_raw": 3.0,
+            "kappa_sum": 2.524838,
+            "kappa_max": 2.736486,
+            "kappa_product": 2.58061,
+            "mean_p_rot": 0.263514,
+            "mean_p_slide": 0.211648
+          },
+          {
+            "signature": [
+              0.55,
+              0.4,
+              0.24
+            ],
+            "multiplicity": 10,
+            "volume": 0.05280000000000001,
+            "sampled_options": 51,
+            "independent_options": 4,
+            "release_fraction": 0.5,
+            "kappa_raw": 4.0,
+            "kappa_sum": 2.149235,
+            "kappa_max": 2.867822,
+            "kappa_product": 2.534882,
+            "mean_p_rot": 0.566089,
+            "mean_p_slide": 0.381893
+          },
+          {
+            "signature": [
+              0.65,
+              0.35,
+              0.23
+            ],
+            "multiplicity": 6,
+            "volume": 0.052324999999999997,
+            "sampled_options": 53,
+            "independent_options": 5,
+            "release_fraction": 0.6,
+            "kappa_raw": 5.0,
+            "kappa_sum": 3.815865,
+            "kappa_max": 4.121576,
+            "kappa_product": 3.907134,
+            "mean_p_rot": 0.292808,
+            "mean_p_slide": 0.101904
+          },
+          {
+            "signature": [
+              0.6,
+              0.3,
+              0.25
+            ],
+            "multiplicity": 1,
+            "volume": 0.045,
+            "sampled_options": 64,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          },
+          {
+            "signature": [
+              0.45,
+              0.3,
+              0.2
+            ],
+            "multiplicity": 1,
+            "volume": 0.027000000000000003,
+            "sampled_options": 120,
+            "independent_options": 1,
+            "release_fraction": 0.0,
+            "kappa_raw": 1.0,
+            "kappa_sum": 1.0,
+            "kappa_max": 1.0,
+            "kappa_product": 1.0,
+            "mean_p_rot": null,
+            "mean_p_slide": null
+          }
+        ]
+      },
+      "y_1": 0,
+      "y_2": 0,
+      "y_3": 0
+    }
+  ]
+}

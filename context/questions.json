@@ -10,20 +10,23 @@
       "id": "item-cap-omits-useful-items",
       "question": "Does MAX_POOL_ITEMS_EVALUATED = 10 discard items that would have been placed?",
       "axis": "item",
-      "intervention": "make the cap a knob and sweep it (10 / 16 / 24 / all), paired on identical item streams",
+      "intervention": "cap 20 on the same paired permutation design, plus a second multiset; for the per-item question, shadow evaluation of skipped items",
       "observation_unit": "state x item",
       "required_variation": "same multiset and arrival order across arms; at least 2 multisets to avoid a single-stream result",
-      "existing_instruments": [],
-      "missing_instrument": "a paired cap sweep, or shadow evaluation of skipped items. No current instrument observes an item that never entered the search: the replay dataset emits rows per candidate of a SELECTED item, and measure_anchor_recall applies the cap before enumerating.",
-      "why_unobserved": "This is unobserved rather than unmeasured. The opportunity cost of an excluded item cannot be recovered from any existing log, because nothing was ever computed about it.",
-      "status": "open",
+      "existing_instruments": [
+        "scripts/run_risk_ablation.py"
+      ],
+      "missing_instrument": "For 'does a bigger cap help': none, it has been measured. For 'which excluded item was lost': still nothing -- an item that never entered the search has nothing computed about it, and the cap sweep prices the aggregate, not the individual exclusion.",
+      "why_unobserved": "Only the per-item half is unobserved now. Whether a bigger cap helps has been measured; which specific excluded item was lost still cannot be recovered from any log, because an item that never entered the search has nothing computed about it.",
+      "status": "partially answered",
       "priority": "high",
-      "rationale": "At pool 40 the agent evaluates 25% of visible items. Merely REALLOCATING the same 10 slots (class-aware coverage) moved placed 10.67 -> 17.00 and priority C1 0% -> 81.2%, which is the largest single effect in the ledger. The cap itself has never been varied because it is a source constant with no override -- the absence of a knob, not a judgement, is why this was never tested.",
+      "rationale": "At pool 40 the agent evaluates 25% of visible items. Merely REALLOCATING the same 10 slots (class-aware coverage) moved placed 10.67 -> 17.00 and priority C1 0% -> 81.2%, which is the largest single effect in the ledger. The cap itself has never been varied because it is a source constant with no override -- the absence of a knob, not a judgement, is why this was never tested. [2026-08-02 UPDATED after merging the stride branch: this question was filed as fully open because the registry was built against a checkout that predated the env-isation. The cap had already been made a knob (d69bc36) and swept.]",
       "closure_criteria": [
-        "cap sweep on >= 2 multisets with paired streams",
-        "a stable operating region identified, or a demonstration that placed is flat in the cap",
-        "policy time still inside the 8 s limit at the chosen cap"
-      ]
+        "replicated on a second multiset (current result is 8 permutations of ONE)",
+        "cap 20 measured on the same paired design",
+        "policy time verified inside the 8 s limit at the adopted cap"
+      ],
+      "answer_so_far": "Yes for cap 16. item-cap-16-wins-on-every-permutation: paired +3.125 placed over 8 permuted streams, 8 wins / 0 losses, sign-test p = 0.0039. Mechanism is reach, not rescue (mean steps 13.75 -> 16.88); the fallback ending count is unchanged, so the cap does not fix the poison fallback."
     },
     {
       "id": "graded-state-value-helps",
@@ -32,7 +35,9 @@
       "intervention": "implement a graded estimator and use it to act; there is currently nothing to turn on",
       "observation_unit": "state",
       "required_variation": "episode-level arms across >= 5 configs with repeats sized against the per-config variance in MEASUREMENT_AUDIT F3",
-      "existing_instruments": ["scripts/measure_residual_capacity.py"],
+      "existing_instruments": [
+        "scripts/measure_residual_capacity.py"
+      ],
       "missing_instrument": "measure_residual_capacity is observational; it predicts placed-to-go from descriptors but nothing acts on them. No instrument evaluates a state value used as a policy.",
       "status": "open",
       "priority": "high",
@@ -49,12 +54,16 @@
       "intervention": "run the adopted arm against base on a second bundled or supplied Task A case",
       "observation_unit": "episode",
       "required_variation": ">= 3 repeats per arm; the offline order is deterministic but the physical outcome is a range (25-26 on case 000)",
-      "existing_instruments": ["scripts/run_task_a_rollout.py"],
+      "existing_instruments": [
+        "scripts/run_task_a_rollout.py"
+      ],
       "missing_instrument": "none -- the instrument exists, only the case is missing. Source 001 is a synthetic conversion and was deliberately dropped from the adoption matrix.",
       "status": "open",
       "priority": "high",
       "rationale": "The adoption rests on n=1 case. The AABB cache is the standing precedent that a genuine starvation fix can be strongly positive on one config and strongly negative on another.",
-      "closure_criteria": ["one real non-synthetic Task A case measured with >= 3 repeats per arm"]
+      "closure_criteria": [
+        "one real non-synthetic Task A case measured with >= 3 repeats per arm"
+      ]
     },
     {
       "id": "taskb-guard-can-detect-anything",
@@ -63,7 +72,9 @@
       "intervention": "rebuild reports/benchmarks/baseline.json with repeats and a machine fingerprint; make same-machine A/B the procedure instead of comparison to a stored constant",
       "observation_unit": "episode",
       "required_variation": ">= 3 repeats per config, >= 5 on configs measured as volatile",
-      "existing_instruments": ["scripts/run_risk_ablation.py"],
+      "existing_instruments": [
+        "scripts/run_risk_ablation.py"
+      ],
       "missing_instrument": "none structurally; the baseline itself is the defective part (n=1, foreign machine, no fingerprint)",
       "status": "open",
       "priority": "high",
@@ -81,12 +92,17 @@
       "intervention": "pass risk_lambda into DryRunEvaluator as a comparison arm",
       "observation_unit": "episode",
       "required_variation": ">= 3 repeats per arm on >= 2 cases",
-      "existing_instruments": ["scripts/run_task_a_rollout.py"],
+      "existing_instruments": [
+        "scripts/run_task_a_rollout.py"
+      ],
       "missing_instrument": "none -- it needs a new arm, not a new instrument",
       "status": "open",
       "priority": "medium",
       "rationale": "ADR-003 decided to keep the split, on the grounds that the dry run is a proposal oracle and need not match the executor. That is a decision about what to require, not a measurement of which proposes better. Running it moves E_theta and stales every Task A number, so it must be designed as an experiment.",
-      "closure_criteria": ["paired arms on >= 2 cases", "fingerprint re-stamped and Task A numbers re-measured"]
+      "closure_criteria": [
+        "paired arms on >= 2 cases",
+        "fingerprint re-stamped and Task A numbers re-measured"
+      ]
     },
     {
       "id": "ranker-form-never-swept",
@@ -100,7 +116,10 @@
       "status": "open",
       "priority": "medium",
       "rationale": "The volume term is known to be a dead vote within an item, and the risk work added a correction on top of the existing form without ever testing the form. Same structural pattern as the item cap: no knob, so no hypothesis.",
-      "closure_criteria": ["weights switchable", "at least one sweep measured at episode level"]
+      "closure_criteria": [
+        "weights switchable",
+        "at least one sweep measured at episode level"
+      ]
     },
     {
       "id": "protocol-fallback-never-varied",
@@ -109,12 +128,25 @@
       "intervention": "none available -- the fixed protocol fallback has no knob",
       "observation_unit": "episode-ending placement",
       "required_variation": "unknown until an intervention exists",
-      "existing_instruments": ["scripts/analyze_terminal_failures.py"],
+      "existing_instruments": [
+        "scripts/analyze_terminal_failures.py"
+      ],
       "missing_instrument": "analyze_terminal_failures is a post-mortem over deaths; it has no counterfactual and its denominator is deaths, not attempts. Two designed replacements (deadline-reserved rescue, cross-step incumbent) were both rejected, and neither was a variation of the fallback itself.",
       "status": "open",
       "priority": "high",
       "rationale": "transport_invalid is the leading death channel at 45% of endings and the audited fatal actions fail the agent's own static check, i.e. they are the fallback firing, not the search failing.",
-      "closure_criteria": ["a switchable fallback policy exists", "measured against the current one at episode level"]
+      "closure_criteria": [
+        "a switchable fallback policy exists",
+        "measured against the current one at episode level"
+      ]
     }
-  ]
+  ],
+  "provenance": {
+    "verified_against_merge_of": {
+      "ours": "88f6500a4073e1ae60d718ccf74d355f8965ece1",
+      "theirs": "a8e04f1446e724c8e3cfeed10da075ef72db5041",
+      "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
+    },
+    "note": "Re-verify and re-stamp after every merge. A reverse-lookup registry read against a stale checkout is precise misinformation, not a gap: this file claimed MAX_POOL_ITEMS_EVALUATED had no override while the other side had already env-ised it and measured a paired +3.125 placed over 8 permutations."
+  }
 }
