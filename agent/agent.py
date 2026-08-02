@@ -4,6 +4,7 @@ import json
 import math
 import os
 import random
+import sys
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -209,6 +210,35 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+# Anchor-space fallback. The shipped support_plane generator can exhaust its
+# entire anchor space inside the policy budget and accept nothing while the
+# cartesian space at the same state holds physically safe placements
+# (task-c-fatal-oracle-two-classes: c001-k1 step 18, support_plane 0 settled /
+# 0 release after 18,419 attempts in 4.2 s, cartesian 6 settled / 54 release,
+# all 60 safe under live settle). No reordering and no extra time can reach a
+# solution the primary space does not contain, so the fallback changes the
+# space rather than the schedule.
+#
+# It runs only after the primary search has completed every unit without
+# accepting anything, and it replaces the redundant second scan rather than
+# adding time: when the first search returns empty, today's policy repeats the
+# identical scan, which at c001-k1 costs 4.2 s of a 6.5 s budget for nothing.
+#
+# Coarse-to-fine, not dense-truncated. A dense cartesian scan costs 19.6 s for
+# settled at that state and would explore one corner deeply; the stride ladder
+# covers the whole space at every level, so a bounded run still sees all of it.
+# Default OFF -- every previous fallback design in this repository looked good
+# on static replay and lost on physics.
+ANCHOR_FALLBACK_ENABLED = os.environ.get(
+    "ANCHOR_FALLBACK_ENABLED", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+ANCHOR_FALLBACK_STRIDES = tuple(
+    max(1, int(value))
+    for value in os.environ.get(
+        "ANCHOR_FALLBACK_STRIDES", "16,4,1"
+    ).split(",")
+    if value.strip()
+) or (16, 4, 1)
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -3825,12 +3855,122 @@ def revalidate_cross_step_candidates(
     }, valid
 
 
+def iter_stride_fallback_candidates(
+    observation,
+    indexed_items,
+    deadline=None,
+    diagnostics=None,
+):
+    """
+    Coarse-to-fine cartesian rescan of the same units, for the case where the
+    primary anchor space is exhausted and empty.
+
+    Each stride level covers the WHOLE anchor grid, sampling every stride-th
+    deduped position, so a level cut short by the deadline has still looked
+    everywhere at that resolution. This is the opposite of truncating a dense
+    scan, which spends the budget on one corner. Yields accepted candidates in
+    the same shape as the primary stream, so the caller's incumbent logic is
+    unchanged.
+    """
+    # Release units first, against the canonical order. Measured on the
+    # c001-k1 fatal state: the cartesian settled space costs 399,975 attempts
+    # for 6 candidates while the release space costs 31,953 for 54, so the
+    # canonical settled-first order spends the whole remaining budget in the
+    # expensive, sparse half and finds nothing (0 accepted in 2.3 s), while
+    # release-first finds one in 0.38 s.
+    #
+    # This is a real trade, not free: if the release sweep consumes the
+    # budget, the caller may return a release candidate where a settled one
+    # existed, and release placements are the topple channel. It is taken
+    # because the alternative this path replaces is the fixed-coordinate
+    # action that ends the episode outright, and the risk terms still rank
+    # whatever is found.
+    units = sorted(
+        prioritized_search_units(observation, indexed_items),
+        key=lambda unit: (0 if unit[8] == "release" else 1, unit[:4]),
+    )
+    stats = None
+    if diagnostics is not None:
+        stats = diagnostics.setdefault("search", {}).setdefault(
+            "anchor_fallback",
+            {
+                "strides": list(ANCHOR_FALLBACK_STRIDES),
+                "levels_started": 0,
+                "levels_completed": 0,
+                "attempts": 0,
+                "accepted": 0,
+                "deadline_reached": False,
+                "first_accepted_seconds": None,
+            },
+        )
+    started = time.perf_counter()
+    for stride in ANCHOR_FALLBACK_STRIDES:
+        if stats is not None:
+            stats["levels_started"] += 1
+        level_complete = True
+        for unit in units:
+            (
+                _item_rank,
+                _pose_rank,
+                _container_rank,
+                _kind_rank,
+                item_idx,
+                item,
+                container_idx,
+                orientation,
+                attempt_kind,
+            ) = unit
+            for candidate in CandidateGenerator.iter_cartesian_attempts(
+                observation,
+                item,
+                container_idx,
+                orientation,
+                limit=sys.maxsize,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                item_idx=item_idx,
+                attempt_kind=attempt_kind,
+                stride=stride,
+            ):
+                if stats is not None:
+                    stats["attempts"] += 1
+                if candidate is not None:
+                    if stats is not None:
+                        stats["accepted"] += 1
+                        if stats["first_accepted_seconds"] is None:
+                            stats["first_accepted_seconds"] = (
+                                time.perf_counter() - started
+                            )
+                    yield (
+                        item_idx,
+                        item,
+                        container_idx,
+                        orientation,
+                        candidate,
+                    )
+                if (
+                    deadline is not None
+                    and time.perf_counter() >= deadline
+                ):
+                    if stats is not None:
+                        stats["deadline_reached"] = True
+                    return
+            if deadline is not None and time.perf_counter() >= deadline:
+                if stats is not None:
+                    stats["deadline_reached"] = True
+                    level_complete = False
+                return
+        if stats is not None and level_complete:
+            stats["levels_completed"] += 1
+
+
 def iter_prioritized_candidates(
     observation,
     indexed_items,
     deadline=None,
     diagnostics=None,
     attempt_budget=None,
+    anchor_fallback=False,
 ):
     """
     Time-sliced candidate stream.
@@ -3839,7 +3979,20 @@ def iter_prioritized_candidates(
     pass before any unit is deeply expanded.  Subsequent rounds continue in
     the same priority order, so the caller can retain and improve a safe
     incumbent without starving later items or poses.
+
+    ``anchor_fallback`` replaces the primary anchor space with the coarse-to-
+    fine cartesian rescan. The caller sets it only after a primary search has
+    completed every unit and accepted nothing, where repeating the primary
+    scan is known to be pure waste.
     """
+    if anchor_fallback:
+        yield from iter_stride_fallback_candidates(
+            observation,
+            indexed_items,
+            deadline=deadline,
+            diagnostics=diagnostics,
+        )
+        return
     class_aware_first_pass = bool(
         diagnostics is not None
         and diagnostics.get("_class_aware_first_pass", False)
@@ -4058,6 +4211,7 @@ class PlacementCore:
         diagnostics=None,
         risk_lambda=None,
         candidate_observer=None,
+        anchor_fallback=False,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -4083,6 +4237,7 @@ class PlacementCore:
             indexed_items,
             deadline=deadline,
             diagnostics=diagnostics,
+            anchor_fallback=anchor_fallback,
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -6173,11 +6328,28 @@ class Agent:
             primary_deadline,
             **closed_loop_kwargs,
         )
+        action_source = "placement_core"
         if decision is None:
+            # The closed-loop pass has already searched the primary anchor
+            # space. If it completed every unit and accepted nothing, running
+            # the identical scan again cannot find anything and costs most of
+            # the remaining budget -- measured at 4.2 s of 6.5 s on
+            # c001-k1 step 18. Spend that time on a different anchor space
+            # instead, where the oracle showed 60 physically safe placements
+            # the primary space does not contain.
+            search_stats = self.last_candidate_diagnostics.get("search", {})
+            units_total = int(search_stats.get("units_total", 0))
+            primary_exhausted = units_total > 0 and (
+                int(search_stats.get("units_completed", 0)) >= units_total
+            )
+            use_anchor_fallback = bool(
+                ANCHOR_FALLBACK_ENABLED and primary_exhausted
+            )
             choose_kwargs = {
                 "deadline": primary_deadline,
                 "diagnostics": self.last_candidate_diagnostics,
                 "risk_lambda": live_lambda,
+                "anchor_fallback": use_anchor_fallback,
             }
             if candidate_observers:
                 choose_kwargs["candidate_observer"] = observe_candidate
@@ -6186,7 +6358,8 @@ class Agent:
                 ordered_items,
                 **choose_kwargs,
             )
-        action_source = "placement_core"
+            if decision is not None and use_anchor_fallback:
+                action_source = "anchor_fallback"
         if decision is None and RESCUE_SCAN_ENABLED:
             rescue_items = rescue_online_items(pool_list)
             decision = PlacementCore.rescue_choose(

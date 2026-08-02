@@ -1550,6 +1550,114 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(records[0]["action_center"], [0.1, 0.2, 0.14])
         self.assertIn("elapsed_seconds", records[0])
 
+    def test_stride_fallback_covers_the_whole_grid_at_every_level(self):
+        # The point of the ladder is coverage, not depth: a level cut short
+        # must still have looked everywhere at its resolution. A dense scan
+        # truncated by the deadline explores one corner instead, which is
+        # what makes the primary space's blindness fatal.
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(3, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        seen_strides = []
+        seen_kinds = []
+
+        def attempts(*_args, **kwargs):
+            seen_strides.append(kwargs["stride"])
+            seen_kinds.append(kwargs["attempt_kind"])
+            yield agent.AABB(
+                (0.1, 0.2, 0.14), (0.2, 0.2, 0.2), "candidate"
+            )
+
+        with (
+            mock.patch.object(
+                agent.CandidateGenerator,
+                "iter_cartesian_attempts",
+                side_effect=attempts,
+            ),
+            mock.patch.object(
+                agent, "ANCHOR_FALLBACK_STRIDES", (8, 2)
+            ),
+        ):
+            diagnostics = {}
+            produced = list(
+                agent.iter_stride_fallback_candidates(
+                    observation,
+                    [(0, item)],
+                    diagnostics=diagnostics,
+                )
+            )
+
+        self.assertTrue(produced)
+        self.assertEqual(sorted(set(seen_strides)), [2, 8])
+        # Coarsest level first, and every unit visited before refining.
+        self.assertEqual(
+            seen_strides,
+            [8] * (len(seen_strides) // 2) + [2] * (len(seen_strides) // 2),
+        )
+        # Release units precede settled ones within each level: the settled
+        # cartesian space is an order of magnitude more expensive per
+        # candidate, so a settled-first sweep spends the whole fallback
+        # budget without accepting anything.
+        first_level = seen_kinds[: len(seen_kinds) // 2]
+        self.assertEqual(
+            first_level,
+            sorted(first_level, key=lambda kind: kind != "release"),
+        )
+        self.assertEqual(first_level[0], "release")
+        fallback = diagnostics["search"]["anchor_fallback"]
+        self.assertEqual(fallback["levels_started"], 2)
+        self.assertEqual(fallback["levels_completed"], 2)
+        self.assertEqual(fallback["accepted"], len(produced))
+        self.assertIsNotNone(fallback["first_accepted_seconds"])
+
+    def test_stride_fallback_stops_at_the_deadline(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(3, length=0.2, width=0.2, height=0.2)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+
+        def attempts(*_args, **_kwargs):
+            yield None
+
+        with mock.patch.object(
+            agent.CandidateGenerator,
+            "iter_cartesian_attempts",
+            side_effect=attempts,
+        ):
+            diagnostics = {}
+            produced = list(
+                agent.iter_stride_fallback_candidates(
+                    observation,
+                    [(0, item)],
+                    deadline=time.perf_counter() - 1.0,
+                    diagnostics=diagnostics,
+                )
+            )
+
+        self.assertEqual(produced, [])
+        self.assertTrue(
+            diagnostics["search"]["anchor_fallback"]["deadline_reached"]
+        )
+
+    def test_anchor_fallback_is_off_by_default(self):
+        # Every earlier fallback design in this repository looked good on
+        # static replay and lost on physics, so this one ships off until an
+        # ablation says otherwise.
+        self.assertFalse(agent.ANCHOR_FALLBACK_ENABLED)
+
     def test_candidate_audit_records_per_unit_progress(self):
         # Accepted-candidate lists cannot separate a unit the search never
         # reached from one it visited without spending enough attempts, and

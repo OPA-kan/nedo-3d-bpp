@@ -65,6 +65,8 @@ def configure_arm_environment(
         "RELEASE_RISK_RERANK_LAMBDA",
         "RELEASE_RISK_SLIDE_LAMBDA",
         "RELEASE_RISK_SHADOW_RERANK",
+        "ANCHOR_FALLBACK_ENABLED",
+        "ANCHOR_FALLBACK_STRIDES",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -75,8 +77,11 @@ def configure_arm_environment(
         "cross_step_shadow",
         "rollout_shadow",
         "rollout_enforce",
+        "anchor_fallback",
     }:
-        if arm == "rescue":
+        if arm == "anchor_fallback":
+            env["ANCHOR_FALLBACK_ENABLED"] = "1"
+        elif arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":
             env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"

@@ -177,6 +177,28 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["VISIBLE_POOL_ROLLOUT_MODE"], "enforce")
 
 
+    def test_anchor_fallback_is_the_shipped_baseline_plus_the_flag(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "ANCHOR_FALLBACK_STRIDES": "1",
+        }
+
+        configure_arm_environment(env, "anchor_fallback", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["ANCHOR_FALLBACK_ENABLED"], "1")
+        # An inherited stride ladder would silently make the arms
+        # incomparable across runs.
+        self.assertNotIn("ANCHOR_FALLBACK_STRIDES", env)
+
+    def test_base_clears_the_anchor_fallback_flag(self):
+        env = {"ANCHOR_FALLBACK_ENABLED": "1"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("ANCHOR_FALLBACK_ENABLED", env)
+
+
 class PolicyTraceSummaryTests(unittest.TestCase):
     def test_counts_rescue_and_protocol_fallback_separately(self):
         records = [
