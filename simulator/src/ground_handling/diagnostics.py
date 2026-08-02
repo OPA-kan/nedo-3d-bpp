@@ -301,3 +301,124 @@ def calculate_settled_metrics(
         **surface,
         **depth,
     }
+
+
+# --- Attribute placement: the two official components we can compute ---
+#
+# The official score has six components. This bundled evaluator computes two
+# of them (fill_score, num_placed_items). cog, stability, placement and
+# soft_item exist only on the evaluation platform, so until now the only way
+# to learn anything about them was to submit and read the feedback -- which
+# is how we found out that placement_score was 4.45 and soft_item_score 7.65,
+# the two worst components, on submission22.
+#
+# Two of those four have fully published rules that need no physics.
+# simulator/README.md:379, transcribed:
+#
+#   * a priority item loses points when an item of a DIFFERENT attribute
+#     contacts it from above; priority-on-priority is explicitly free;
+#   * a soft item loses points the same way; soft-on-soft is free;
+#   * a priority item placed in a non-priority container loses points, but
+#     only when a priority container was available;
+#   * priority and soft are evaluated INDEPENDENTLY, so an item that is both
+#     is judged twice, once under each rule.
+#
+# ## What this returns, and what it does not
+#
+# Counts of rule violations, plus a clean-ratio per attribute. The mapping
+# from violations to the 0-100 official number is NOT published, so this
+# CANNOT reproduce the 4.45. It is a monotone proxy: it says which of two
+# arms damaged priority or soft placement more, which is all that is needed
+# to stop flying blind. Do not present a clean_ratio as a score.
+#
+# ## The one modelling choice
+#
+# "Contact from above" is read off settled PyBullet AABBs rather than
+# contact points: B covers A when their footprints overlap and B's underside
+# sits within CONTACT_TOLERANCE of A's top. Contact points would be more
+# faithful but depend on when the simulation was last stepped, and a metric
+# that changes with call timing is worse than one that is slightly wrong in
+# a fixed direction. This proxy can miss a cover separated by a thin gap and
+# can invent one where two items merely touch at a corner, so treat single-
+# count differences as noise.
+CONTACT_TOLERANCE = 0.02
+FOOTPRINT_EPSILON = 1e-6
+
+
+def _footprint_overlap(lower: dict[str, Any], upper: dict[str, Any]) -> float:
+    a_min, a_max = lower["aabb_min"], lower["aabb_max"]
+    b_min, b_max = upper["aabb_min"], upper["aabb_max"]
+    dx = min(a_max[0], b_max[0]) - max(a_min[0], b_min[0])
+    dy = min(a_max[1], b_max[1]) - max(a_min[1], b_min[1])
+    return max(0.0, dx) * max(0.0, dy)
+
+
+def _covers_from_above(lower: dict[str, Any], upper: dict[str, Any]) -> bool:
+    if _footprint_overlap(lower, upper) <= FOOTPRINT_EPSILON:
+        return False
+    gap = float(upper["aabb_min"][2]) - float(lower["aabb_max"][2])
+    return -CONTACT_TOLERANCE <= gap <= CONTACT_TOLERANCE
+
+
+def _attribute_violations(items, attribute: str) -> int:
+    """Items with `attribute` that something lacking it rests on."""
+    violated = 0
+    for lower in items:
+        if not lower.get(attribute):
+            continue
+        for upper in items:
+            if upper is lower or upper.get(attribute):
+                continue
+            if _covers_from_above(lower, upper):
+                violated += 1
+                break
+    return violated
+
+
+def calculate_attribute_placement(
+    containers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Rule violations for placement_score and soft_item_score."""
+    items = [
+        dict(item, _container_is_prioritized=bool(
+            container.get("is_prioritized", False)
+        ))
+        for container in containers
+        for item in container.get("packed_items", [])
+    ]
+    priority_items = [i for i in items if i.get("is_prioritized")]
+    soft_items = [i for i in items if i.get("is_soft")]
+    has_priority_container = any(
+        container.get("is_prioritized") for container in containers
+    )
+    # Routing is only a violation when the right container existed.
+    misrouted = (
+        sum(
+            1
+            for item in priority_items
+            if not item["_container_is_prioritized"]
+        )
+        if has_priority_container
+        else 0
+    )
+    covered_priority = _attribute_violations(items, "is_prioritized")
+    covered_soft = _attribute_violations(items, "is_soft")
+
+    def clean_ratio(total: int, violations: int) -> float | None:
+        # None, not 1.0: a stream with no priority items has no opinion, and
+        # averaging a fabricated 1.0 into an arm total would hide the arms
+        # that do carry them.
+        return None if total == 0 else max(0.0, (total - violations) / total)
+
+    return {
+        "priority_items": len(priority_items),
+        "soft_items": len(soft_items),
+        "has_priority_container": has_priority_container,
+        "priority_covered_by_other": covered_priority,
+        "priority_misrouted": misrouted,
+        "soft_covered_by_other": covered_soft,
+        "priority_clean_ratio": clean_ratio(
+            len(priority_items), min(len(priority_items), covered_priority + misrouted)
+        ),
+        "soft_clean_ratio": clean_ratio(len(soft_items), covered_soft),
+    }

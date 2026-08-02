@@ -209,9 +209,29 @@ def case_summary(
             for step in steps
             if step.get("settle_displacement_norm") is not None
         ]
+        # placement_score and soft_item_score are computed only on the
+        # evaluation platform. These are the published rules behind them,
+        # as violation counts on the final settled state -- a monotone
+        # proxy for comparing arms, never a stand-in for the official
+        # number. See simulator/src/ground_handling/diagnostics.py.
+        attribute_placement = {
+            key: final_step.get(key)
+            for key in (
+                "priority_items",
+                "soft_items",
+                "has_priority_container",
+                "priority_covered_by_other",
+                "priority_misrouted",
+                "soft_covered_by_other",
+                "priority_clean_ratio",
+                "soft_clean_ratio",
+            )
+            if key in final_step
+        }
         cases[case_id] = {
             "status": case.get("status"),
             "message": case.get("message"),
+            "attribute_placement": attribute_placement,
             # Stability proxies (per the diagnostics decomposition: no
             # pseudo-total score, each proxy kept separate).
             "max_settle_angle_deg": max(angles) if angles else None,

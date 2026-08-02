@@ -1,6 +1,6 @@
 # Handoff for the next model
 
-Updated: 2026-08-02 JST
+Updated: 2026-08-02 JST (branch `claude/stride-endgame-saturation-test-gqssix` closed)
 
 ## Start here
 
@@ -30,6 +30,81 @@ the file.
 
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.
+
+## Branch close-out: `claude/stride-endgame-saturation-test-gqssix`
+
+Read this before anything else on this branch. One default changed, one
+instrument is new, and two lines were closed as negatives.
+
+### The one shipped change
+
+`ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 (`agent/agent.py`). Two paired
+blocks, 30 episodes, five development configs: placed 9W/0L/1T against a
+simultaneously-run base, sign test p = 0.0039, suite total 143 -> 179.
+Four of the five configs return identical values in both blocks.
+
+The fact that carries it: attempts per step is 7649 / 6793 / 7864 across
+64 / 128 / 256 and max policy time is unchanged at ~6.53 s. This is the
+same work distributed differently, not more work. Task A (offline
+enabled) was checked separately and is neutral: placed 20 and fill
+30.176 at both depths, offline time 109 -> 119 s inside a 150 s internal
+budget and 61 s under the official 180 s limit.
+
+The predicted cost is real: mean items-with-a-candidate in the opening
+half falls 9.64 -> 8.28. placed rose on every configuration anyway.
+
+Fallback deaths ROSE (3 -> 6 -> 4 per ten episodes). That is not a
+regression. base dies at `placement_core` with `is_placed_safe` false,
+toppling at step 12-18, and never reaches an endgame; 256 survives to
+17-21 and then runs out of moves. The cause of death moved from early
+topple to late exhaustion.
+
+Reverting is one line. `first_pass64` is kept as an arm so the previous
+default stays measurable, and `tests/test_board_features.py` pins 256.
+
+**`reports/benchmarks/baseline.json` (dev placed 88 / fill 114.6) is now
+stale as a guard**: it predates this change and the base arm re-measured
+in the same session gave 69 and 74. Re-baseline before using it.
+
+### The new instrument: placement / soft, locally
+
+See `docs/ATTRIBUTE_PLACEMENT.md`. Four of the six official score
+components have never had a local signal; two of them now do, as
+violation counts rather than a score, because the violations-to-0-100
+mapping is unpublished.
+
+Read the caveats there before using it. The load-bearing one: **neither
+development source has a priority container**, so `priority_misrouted`
+is structurally always 0 on this suite and the routing rule cannot be
+validated locally at all.
+
+Its first run already contradicted an assumption: 1 of 4 priority items
+ends up covered by a non-priority item on b000-k40, even though
+`support_surfaces()` forbids placing anything on a priority item. The
+over-constraint discards the same-attribute stacking the rules allow and
+still permits the violation. Unverified mechanism: `support_surfaces()`
+governs settled anchor generation only, so a release candidate can land
+on one. **This is the highest-value thread left open.**
+
+### Closed as negatives
+
+- **Board receptivity** (A acceptance breadth / R alternativity / H
+  repairability, `LOOKAHEAD_SELECTION_MODE=board`). Reproducibly MIXED:
+  +4/+5 and +4/+4 wins, a -5/-4 loss, two configs unstable. Pooled
+  6W/3L/1T, p = 0.508. Default stays `weighted`; the code stays,
+  default-off, with 25 tests. `docs/BOARD_RECEPTIVITY.md`.
+- **Soft/priority stacking relaxation as a fallback fix.** The agent IS
+  stricter than the rules, but relaxing to the official rule unlocked
+  ZERO placements at 3 of 3 terminal states, one of which had seven soft
+  items available to unlock. Not the cause of the fallback. Whether it
+  costs fill across a whole episode is still untested.
+
+### The score structure that should drive priorities
+
+`docs/OFFICIAL_SCORE_LOG.md`. placed is the GATE for cog / stability /
+placement / soft, so a placed gain is worth more than its own component.
+Do not try to recover the component weights from a single official log:
+83 weight vectors on a 0.05 grid reproduce 17.58143 to within 0.05.
 
 ## User's goal
 

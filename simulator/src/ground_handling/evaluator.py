@@ -5,7 +5,10 @@ import os
 from pybullet_utils.bullet_client import BulletClient
 from .containers import Container
 from .items import Item
-from .diagnostics import calculate_settled_metrics
+from .diagnostics import (
+    calculate_attribute_placement,
+    calculate_settled_metrics,
+)
 
 
 class Evaluator:
@@ -111,6 +114,8 @@ class Evaluator:
                         "pos": [float(value) for value in pos],
                         "aabb_min": [float(value) for value in aabb_min],
                         "aabb_max": [float(value) for value in aabb_max],
+                        "is_soft": bool(item.is_soft),
+                        "is_prioritized": bool(item.is_prioritized),
                     }
                 )
             snapshots.append(
@@ -124,8 +129,15 @@ class Evaluator:
                     "buffer": float(container.buffer),
                     "cut_x": float(container.cut_x),
                     "require_shelf": bool(container.require_shelf),
+                    "is_prioritized": bool(container.is_prioritized),
                     "volume": float(container.volume),
                     "packed_items": packed_items,
                 }
             )
-        return calculate_settled_metrics(snapshots, grid_size=grid_size)
+        metrics = calculate_settled_metrics(snapshots, grid_size=grid_size)
+        # placement_score and soft_item_score are computed only on the
+        # evaluation platform. These are the published rules behind them,
+        # as violation counts rather than a score -- see
+        # calculate_attribute_placement for what that does and does not buy.
+        metrics.update(calculate_attribute_placement(snapshots))
+        return metrics
