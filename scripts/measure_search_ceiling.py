@@ -199,7 +199,12 @@ def run_chain(
                     entry["reason"] = "chosen_action_fails_physics"
                     needs_oracle = rescue_policy == "all"
                     if not needs_oracle:
+                        # The 'search' policy deliberately does not rescue a
+                        # bad pick, so the chain ends here. Say so: leaving
+                        # the initial outcome in place would label a chain cut
+                        # short by policy as a completed episode.
                         entry["chain_ends"] = True
+                        outcome = "chosen_action_fails_physics"
             else:
                 entry["reason"] = "search_returned_no_candidate"
 
