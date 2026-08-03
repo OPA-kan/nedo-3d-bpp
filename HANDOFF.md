@@ -154,10 +154,10 @@ evaluated whether it was any good or not. That is a diffusion with
 best-so-far recording, not a local search, and it is why `rank_key`
 cannot steer: the objective picks what to keep, never where to look.
 
-Conforming to the spec was predicted to help. It does not. Equal work
-(60 evaluations per cell, deadline pushed to 900 s so the cap binds
-rather than the clock), case a000, three seeds, constructive seed placed
-16 everywhere:
+Conforming to the spec was predicted to help. It does not. 60 loop
+iterations per cell, deadline pushed to 900 s so the cap binds rather
+than the clock, case a000, three seeds, constructive seed placed 16
+everywhere:
 
 | acceptance | s20260723 | s1 | s7 | mean placed | mean fill_ratio |
 |---|---:|---:|---:|---:|---:|
@@ -195,6 +195,38 @@ group blocks `constructive_order` lays down are immovable). A local
 search losing to a diffusion is also a symptom of a poor neighbourhood.
 Nothing here says randomised search is right; it says the acceptance
 rule is not what binds.
+
+**Audit of the harness that produced the table above.** Read this before
+citing the numbers.
+
+- **It is not exactly equal work.** The cap bounds loop ITERATIONS, and
+  `DryRunEvaluator.evaluate` is memoised on the order tuple. Counted at
+  seed 20260723: walk 60 distinct orders / 0 cache hits, ils 60 / 0,
+  hillclimb **56 / 4**. Returning to `best_items` regenerates orders
+  already seen, so hillclimb ran a 6.7% work deficit. That weakens
+  walk-vs-hillclimb and leaves walk-vs-ils untouched. It probably does
+  not explain a 2-placed gap -- the 4 missing evaluations sit at a tail
+  where hillclimb had already stalled 10 iterations past its last gain
+  -- but the design is not as clean as first reported.
+- **Not the shipped path.** The probe calls `Agent.optimize` directly,
+  bypassing `TimedAgentRunner` and `optimization_timeout`, and at a 900 s
+  deadline the ADR-001 moving-average guard never fires. **These placed
+  values are not shippable results**, only a comparison between arms.
+- **Box is faster than CI**: 79 evaluations in 150 s here against 51.3 in
+  the CI adoption run, so iteration counts do not transfer.
+- **numpy is unpinned** (`requirements.txt`: `>=1.26,<3`); 2.5.1 was used
+  here. PyBullet is pinned at 3.2.7, so physics is fixed, but the
+  geometry math is not version-controlled.
+- The first walk-vs-hillclimb A/B, run under a 150 s clock, gave the arms
+  79 and 86 evaluations. **Do not cite those two numbers** -- that
+  comparison was unequal work with instrumentation overhead inside a time
+  budget. Its 23-vs-21 outcome did reproduce under the iteration cap.
+
+Checks that came back clean: pair-macro generation makes zero
+`evaluate()` calls, so the first logged evaluation really is the
+constructive seed and the reconstructed accept trajectory is sound; and
+the ablation `base` arm scrubs every experiment knob and sets none, so
+the reproducibility run below was on shipped defaults, risk-on.
 
 2. **Raising the time budget is CLOSED as a negative -- do not re-open
    it.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150, the measured run is
