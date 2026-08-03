@@ -290,6 +290,15 @@ ANCHOR_COMPONENT_ORDER = os.environ.get(
 BOARD_LANDABLE_ONLY = os.environ.get(
     "BOARD_LANDABLE_ONLY", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
+# Require a landing site to be REACHABLE from the opening, not merely
+# flat with local headroom. This is the second structural cause behind
+# 123 sites at a state with zero candidates: the site count never applies
+# anything from the transport contract, so a low flat pocket sealed behind
+# a tall stack reads as a perfect site. See board_reach_headroom. Separate
+# knob from BOARD_LANDABLE_ONLY so the two causes stay measurable apart.
+BOARD_REACHABLE_ONLY = os.environ.get(
+    "BOARD_REACHABLE_ONLY", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 # Where the next order to evaluate comes from.
 #   neighbour - the shipped behaviour: transpose inside a group, or move a
 #               pair macro, starting from wherever the walk currently is.
@@ -4990,7 +4999,36 @@ def board_probe_shapes(items, limit=None):
     return [(dx, dy, dz) for (dx, dy), dz in ordered[:limit]]
 
 
-def _board_site_count(grid, top, headroom, shape, landable=None):
+def board_reach_headroom(grid, top):
+    """
+    Headroom available while CARRYING an item in from the opening, per cell.
+
+    `headroom = ceiling - top` is the room at the destination. It says
+    nothing about getting there. Transport enters at the low-y opening and
+    sweeps in +y (`transport_sweeps`: entry_y = -width/2, then the x leg),
+    so an item bound for (x, y) must clear everything already standing at
+    that x between the opening and y. It can pass OVER an obstacle -- the
+    item is carried above its resting height and dropped -- but only if the
+    ceiling leaves room.
+
+    So the reachable headroom is the ceiling minus the RUNNING MAXIMUM of
+    the surface along the approach, which is one cumulative maximum over
+    the y axis. Being a running maximum it is always <= the local headroom,
+    so requiring it can only remove sites, never invent them.
+
+    This is a NECESSARY condition, not the transport contract. It ignores
+    the x leg, item width in x, the cut, and shelves as separate obstacles;
+    `Geometry.transport_path_clear` remains the exact test. Its purpose is
+    to delete sites that are provably unreachable -- a low flat pocket
+    behind a tall stack reads as a perfect landing site to a plain height
+    map, which is the shape of the 123-sites-at-a-dead-end failure.
+    """
+    return grid.ceiling - np.maximum.accumulate(top, axis=1)
+
+
+def _board_site_count(
+    grid, top, headroom, shape, landable=None, reach=None
+):
     """
     Landing sites for one footprint: flat enough, with headroom, and on a
     surface the agent will actually place on.
@@ -5018,6 +5056,11 @@ def _board_site_count(grid, top, headroom, shape, landable=None):
     room = windows_room.min(axis=axes) >= dz - EPS
     whole = windows_usable.all(axis=axes)
     ok = flat & room & whole
+    if reach is not None:
+        windows_reach = np.lib.stride_tricks.sliding_window_view(
+            reach, (wx, wy)
+        )
+        ok &= windows_reach.min(axis=axes) >= dz - EPS
     if landable is not None:
         windows_landable = np.lib.stride_tricks.sliding_window_view(
             landable, (wx, wy)
@@ -5026,14 +5069,14 @@ def _board_site_count(grid, top, headroom, shape, landable=None):
     return int(np.count_nonzero(ok))
 
 
-def board_features(grid, top, filled, shapes, landable=None):
+def board_features(grid, top, filled, shapes, landable=None, reach=None):
     """A, R and H for one board state."""
     headroom = grid.ceiling - top
     accepted = 0
     alternativity = 0
     for shape in shapes:
         sites = _board_site_count(
-            grid, top, headroom, shape, landable=landable
+            grid, top, headroom, shape, landable=landable, reach=reach
         )
         if sites > 0:
             accepted += 1
@@ -5089,6 +5132,11 @@ def board_features_after(container, candidate, shapes, item=None):
         filled,
         shapes,
         landable=landable if BOARD_LANDABLE_ONLY else None,
+        reach=(
+            board_reach_headroom(grid, top)
+            if BOARD_REACHABLE_ONLY
+            else None
+        ),
     )
 
 

@@ -508,3 +508,111 @@ class LandabilityTests(unittest.TestCase):
             with_flag,
             "the soft top must have been counted before and not after",
         )
+
+
+class ReachabilityTests(unittest.TestCase):
+    """
+    Instrument check for BOARD_REACHABLE_ONLY, run before use.
+
+    The site count applies nothing from the transport contract, so a low
+    flat pocket sealed behind a tall stack reads as a perfect landing site.
+    That is the shape of the 123-sites-at-a-dead-end failure. Transport
+    enters at the low-y opening and sweeps in +y, so reachable headroom is
+    the ceiling minus the running maximum of the surface along y.
+    """
+
+    def wall(self, y_centre, height, dx=1.0):
+        return {
+            "index": 0,
+            "length": dx,
+            "width": 0.1,
+            "height": height,
+            "mass": 5.0,
+            "is_soft": False,
+            "is_prioritized": False,
+            "pos": [0.0, y_centre, height / 2.0],
+            "orientation": 0,
+        }
+
+    def board(self, packed_items, height=1.0):
+        target = container(length=1.0, width=1.0, height=height)
+        target["packed_items"] = packed_items
+        grid = A.board_grid(target)
+        top, filled, _landable = A.board_occupancy(target, grid)
+        return grid, top, filled
+
+    def test_reach_headroom_never_exceeds_local_headroom(self):
+        grid, top, _filled = self.board([self.wall(-0.2, 0.5)])
+        reach = A.board_reach_headroom(grid, top)
+        local = grid.ceiling - top
+
+        self.assertTrue(
+            (reach <= local + 1e-9).all(),
+            "a running maximum can only lower the available headroom",
+        )
+
+    def test_an_empty_board_loses_nothing(self):
+        grid, top, _filled = self.board([])
+        reach = A.board_reach_headroom(grid, top)
+
+        self.assertTrue(np.allclose(reach, grid.ceiling - top))
+
+    def test_a_tall_wall_seals_the_pocket_behind_it(self):
+        """
+        The case the fix exists for. The floor behind the wall is flat and
+        has full local headroom, so the plain count accepts it; carrying
+        an item over the wall does not fit, so it is unreachable.
+        """
+        # Hard against the opening, so every remaining cell is BEHIND it.
+        # A wall further in would leave legitimately reachable sites in
+        # front of it, which the filter must not touch.
+        grid, top, _filled = self.board([self.wall(-0.45, 0.9)], height=1.0)
+        headroom = grid.ceiling - top
+        reach = A.board_reach_headroom(grid, top)
+        shape = (0.2, 0.2, 0.3)
+
+        without = A._board_site_count(grid, top, headroom, shape)
+        with_reach = A._board_site_count(
+            grid, top, headroom, shape, reach=reach
+        )
+
+        self.assertGreater(
+            without, 0, "the plain count should accept the sealed pocket"
+        )
+        self.assertEqual(
+            with_reach,
+            0,
+            "no site behind a wall that leaves no carrying headroom",
+        )
+
+    def test_the_filter_spares_sites_in_front_of_the_wall(self):
+        """
+        A wall part way in seals what is behind it and nothing else.
+        """
+        grid, top, _filled = self.board([self.wall(-0.2, 0.9)], height=1.0)
+        headroom = grid.ceiling - top
+        reach = A.board_reach_headroom(grid, top)
+        shape = (0.2, 0.2, 0.3)
+
+        without = A._board_site_count(grid, top, headroom, shape)
+        with_reach = A._board_site_count(
+            grid, top, headroom, shape, reach=reach
+        )
+
+        self.assertGreater(without, with_reach, "sites behind must go")
+        self.assertGreater(with_reach, 0, "sites in front must survive")
+
+    def test_a_low_wall_leaves_the_pocket_reachable(self):
+        """The filter must not delete sites that can be carried over."""
+        grid, top, _filled = self.board([self.wall(-0.2, 0.2)], height=1.0)
+        headroom = grid.ceiling - top
+        reach = A.board_reach_headroom(grid, top)
+        shape = (0.2, 0.2, 0.3)
+
+        with_reach = A._board_site_count(
+            grid, top, headroom, shape, reach=reach
+        )
+
+        self.assertGreater(
+            with_reach, 0, "0.3 fits over a 0.2 wall under a 1.0 ceiling"
+        )
