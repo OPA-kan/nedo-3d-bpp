@@ -295,6 +295,13 @@ class GroundHandlingEnv(gym.Env):
     def evaluate(self):
         evaluation_report = self.evaluator.evaluate(self.container_manager.containers, self.num_total_items)
         evaluation_report["step_metrics"] = list(self.step_metrics)
+        # Local proxy for stability_score, which the bundled evaluator does
+        # not compute. Runs once, at the end, and saves/restores the physics
+        # state so it cannot perturb anything. Kept out of the official
+        # report dict so it can never be mistaken for a score component.
+        evaluation_report["shake_response"] = self.evaluator.shake_test(
+            self.container_manager.containers
+        )
 
         return evaluation_report
 

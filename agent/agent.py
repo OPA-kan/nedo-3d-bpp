@@ -7,6 +7,7 @@ import random
 import time
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any
 
 import numpy as np
 
@@ -122,6 +123,21 @@ POLICY_BUDGET_SECONDS = 6.5
 POLICY_ATTEMPT_BUDGET = max(
     0, int(os.environ.get("POLICY_ATTEMPT_BUDGET", "0"))
 )
+
+
+def effective_attempt_budget(attempt_budget):
+    """An explicit budget wins; otherwise the measurement constant.
+
+    The constant exists so the online path can be work-bounded without
+    every call site threading it. The parameter exists so an offline
+    probe can ask for a specific amount of work on a captured state.
+    Neither should silently override the other, so explicit beats
+    implicit and 0 still means off.
+    """
+    if attempt_budget is not None:
+        return attempt_budget
+    return POLICY_ATTEMPT_BUDGET or None
+
 # How many visible items the search may consider per step. At the shipped 10
 # a 40-item visible pool is searched 10 items deep, and the single largest
 # measured gain on this project came from changing which 10 those are
@@ -199,12 +215,31 @@ LOOKAHEAD_SELECTION_MODE = os.environ.get(
     "LOOKAHEAD_SELECTION_MODE", "weighted"
 ).strip().lower()
 LOOKAHEAD_SELECTION_MODES = frozenset(
-    {"weighted", "depth2", "pool_resilience"}
+    {"weighted", "depth2", "pool_resilience", "board"}
 )
 LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
+# --- Board receptivity (the Tetris terms) ---
+# Cell size of the 2.5D height map the board features are read off.  0.05 m
+# against a container on the order of 2 m x 1.5 m gives roughly 40 x 30
+# columns, which is coarse enough to scan many times per step and fine
+# enough to separate a flat surface from a stepped one.
+BOARD_CELL_SIZE = max(0.01, float(os.environ.get("BOARD_CELL_SIZE", "0.05")))
+# How far the columns under a footprint may vary and still count as a
+# landing site.  The physics tolerates a small step; a large one is a
+# topple.
+BOARD_FLATNESS_TOLERANCE = max(
+    0.0, float(os.environ.get("BOARD_FLATNESS_TOLERANCE", "0.02"))
+)
+# Alternativity saturates: the difference between one site and two is the
+# difference between hostage and free, the difference between forty and
+# forty-one is nothing.
+BOARD_SITE_CAP = max(1, int(os.environ.get("BOARD_SITE_CAP", "16")))
+# Distinct footprints probed per step, largest first.  Large footprints
+# lose their sites first, so they carry most of the signal.
+BOARD_PROBE_SHAPES = max(1, int(os.environ.get("BOARD_PROBE_SHAPES", "8")))
 VISIBLE_POOL_ROLLOUT_MODES = frozenset({"off", "shadow", "enforce"})
 VISIBLE_POOL_ROLLOUT_MODE = os.environ.get(
     "VISIBLE_POOL_ROLLOUT_MODE", "off"
@@ -249,8 +284,25 @@ DPOR_MAX_ALTERNATE_ATTEMPTS = int(
 # (item, orientation, container) units.  The first pass prevents one
 # infeasible unit from consuming the whole policy budget; later passes keep
 # improving the best validated incumbent.
+#
+# 64 was too shallow to reach the depth at which a unit's candidates start
+# existing.  Probing the terminal states of episodes that died with zero
+# candidates (reports/same-class-stacking) found placements for 6 of 23
+# visible items at 256 attempts per item and none at all at 64, with 1024
+# and 4096 adding nothing -- so the curve has a knee, and 64 sat below it
+# while the live search reported units 1/120 completed and gave up on a
+# state that still had legal moves.
+#
+# Measured at 64/128/256 over two paired blocks on the five development
+# configs (reports/first-pass-depth): placed 9W/0L/1T for both 128 and
+# 256, sign test p = 0.0039, suite totals 143 -> 172 -> 179, fill
+# 176.8 -> 225.3 -> 218.3.  Total attempts per step and policy time are
+# unchanged, so this redistributes work rather than spending more.
+# The cost is real and shows up where it was predicted: mean items with
+# a candidate in the opening falls 9.64 -> 8.28.  placed rose on every
+# configuration anyway.
 ANCHOR_FIRST_PASS_ATTEMPTS = int(
-    os.environ.get("ANCHOR_FIRST_PASS_ATTEMPTS", "64")
+    os.environ.get("ANCHOR_FIRST_PASS_ATTEMPTS", "256")
 )
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
@@ -4058,8 +4110,17 @@ def iter_prioritized_candidates(
                 "rounds_started": 0,
                 "deadline_reached": False,
                 "incumbent_updates": 0,
+                # Depth-vs-breadth telemetry. attempts_used is the whole
+                # scan's cost; attempts_to_first_candidate is how deep the
+                # scan had to go before anything at all was placeable, and
+                # is None when nothing ever was. Together they say whether
+                # a first-pass cap is starving units or wasting them.
+                "attempts_to_first_candidate": None,
             },
         )
+        # A diagnostics dict can outlive one scan, so the new fields are
+        # defaulted rather than assumed present.
+        search_stats.setdefault("attempts_to_first_candidate", None)
         if record_item_lifecycle:
             search_stats.setdefault("item_indices_started", [])
             search_stats.setdefault("item_indices_with_candidates", [])
@@ -4145,6 +4206,14 @@ def iter_prioritized_candidates(
                     # the problem -- reported no work quantity at all, so
                     # the budget could not be calibrated from it.
                     search_stats["attempts_consumed"] = attempts_used
+                    if (
+                        candidate is not None
+                        and search_stats["attempts_to_first_candidate"]
+                        is None
+                    ):
+                        search_stats["attempts_to_first_candidate"] = (
+                            attempts_used
+                        )
                 if candidate is not None:
                     if record_item_lifecycle:
                         item_index = int(item.get("index", item_idx))
@@ -4191,6 +4260,335 @@ def iter_prioritized_candidates(
         attempts_per_unit = max(1, ANCHOR_DEEP_PASS_ATTEMPTS)
 
 
+# --- Board receptivity -----------------------------------------------------
+#
+# The ranker scores a placement by what it gains: volume, support, depth,
+# priority routing, minus a release-risk penalty.  Nothing in it prices
+# what the placement costs the *board*.  Two placements that gain the same
+# volume can leave surfaces that differ by everything.
+#
+# A strong Tetris player does not merely avoid holes.  They keep a board
+# that accepts whatever arrives next and that can still be repaired when it
+# does not.  Three quantities carry that, and all three are readable off a
+# height map -- which is what a Tetris board is:
+#
+#   A  acceptance breadth  how many of the shapes still in play have at
+#                          least one landing site left.  A board that has
+#                          stopped accepting a shape has lost it whether or
+#                          not that shape has arrived yet.
+#   R  alternativity       how many distinct sites each shape has.  One
+#                          site is not the same as two: with one site the
+#                          board is hostage to arrival order, because any
+#                          intervening placement can take it.
+#   H  repairability       the void sealed under the surface, which no
+#                          later placement can reclaim, and the roughness
+#                          that makes large footprints unplaceable.  A is
+#                          about now; H is about whether a bad now can be
+#                          undone.
+#
+# Two approximations, both deliberate and both conservative:
+#
+# * A height map is 2.5D, so the space under a shelf cannot be represented.
+#   Shelf columns are charged as solid from the floor up, which means items
+#   placed beneath a shelf are invisible to these features rather than
+#   counted as damage.
+# * Columns are sampled at their centres, so a ledge narrower than a cell
+#   does not exist.  Under-counting sites is safer than inventing them.
+#
+# These features rank; they do not gate.  Every candidate they see has
+# already passed inclusion, transport-path and support validation.
+
+
+@dataclass(frozen=True)
+class BoardGrid:
+    cell_x: float
+    cell_y: float
+    xs: Any
+    ys: Any
+    floor: Any
+    ceiling: Any
+    usable: Any
+
+    @property
+    def cell_area(self):
+        return self.cell_x * self.cell_y
+
+
+@dataclass(frozen=True)
+class BoardFeatures:
+    accepted_shapes: int
+    total_shapes: int
+    alternativity: int
+    sealed_volume: float
+    roughness: float
+
+    def rank_key(self):
+        """A first, then R, then H. Breadth lost is not bought back by
+        tidiness; a tidy board that accepts nothing is finished."""
+        return (
+            self.accepted_shapes,
+            self.alternativity,
+            -self.sealed_volume,
+            -self.roughness,
+        )
+
+    def as_dict(self):
+        return {
+            "accepted_shapes": int(self.accepted_shapes),
+            "total_shapes": int(self.total_shapes),
+            "alternativity": int(self.alternativity),
+            "sealed_volume": float(self.sealed_volume),
+            "roughness": float(self.roughness),
+        }
+
+
+_BOARD_GRID_CACHE: dict[tuple, BoardGrid] = {}
+_BOARD_OCCUPANCY_CACHE: dict[int, tuple] = {}
+
+
+def _board_grid_key(container):
+    return (
+        round(float(container["length"]), 6),
+        round(float(container["width"]), 6),
+        round(float(container["height"]), 6),
+        round(float(container["thickness"]), 6),
+        round(float(container.get("buffer", 0.0)), 6),
+        round(float(container.get("cut_x", 0.0)), 6),
+        round(float(container.get("cut_y", 0.0)), 6),
+        round(float(container_offset_x(container)), 6),
+        bool(container_requires_shelf(container)),
+        round(BOARD_CELL_SIZE, 6),
+    )
+
+
+def board_grid(container):
+    """Column centres with the z interval the container allows at each."""
+    key = _board_grid_key(container)
+    hit = _BOARD_GRID_CACHE.get(key)
+    if hit is not None:
+        return hit
+
+    length = float(container["length"])
+    width = float(container["width"])
+    height = float(container["height"])
+    thickness = float(container["thickness"])
+    buffer = float(container.get("buffer", 0.0))
+
+    x_span = max(length - 2.0 * thickness, BOARD_CELL_SIZE)
+    y_span = max(width - 2.0 * thickness, BOARD_CELL_SIZE)
+    nx = max(1, int(round(x_span / BOARD_CELL_SIZE)))
+    ny = max(1, int(round(y_span / BOARD_CELL_SIZE)))
+    cell_x = x_span / nx
+    cell_y = y_span / ny
+    x0 = -length / 2.0 + thickness
+    y0 = -width / 2.0 + thickness
+    xs = np.array(
+        [x0 + (index + 0.5) * cell_x for index in range(nx)], dtype=np.float64
+    )
+    ys = np.array(
+        [y0 + (index + 0.5) * cell_y for index in range(ny)], dtype=np.float64
+    )
+
+    # Fallback when the container carries no half-space description: the
+    # nominal interior box.  Used by unit tests and by any observation that
+    # omits points/n_vecs.
+    fallback_floor = thickness + buffer
+    fallback_ceiling = height - thickness
+
+    floor = np.zeros((nx, ny), dtype=np.float64)
+    ceiling = np.zeros((nx, ny), dtype=np.float64)
+    usable = np.zeros((nx, ny), dtype=bool)
+    for i in range(nx):
+        for j in range(ny):
+            interval = container_z_interval(
+                float(xs[i]), float(ys[j]), (0.0, 0.0, 0.0), container
+            )
+            if interval is None:
+                continue
+            lower, upper = interval
+            if not math.isfinite(lower) or not math.isfinite(upper):
+                lower, upper = fallback_floor, fallback_ceiling
+            if upper <= lower:
+                continue
+            floor[i, j] = lower
+            ceiling[i, j] = upper
+            usable[i, j] = True
+
+    grid = BoardGrid(cell_x, cell_y, xs, ys, floor, ceiling, usable)
+    if len(_BOARD_GRID_CACHE) > 32:
+        _BOARD_GRID_CACHE.clear()
+    _BOARD_GRID_CACHE[key] = grid
+    return grid
+
+
+def _board_stamp(grid, top, filled, box, from_floor=False):
+    """Raise the surface over one box and charge its column volume."""
+    minimum = box.minimum
+    maximum = box.maximum
+    i0 = int(np.searchsorted(grid.xs, minimum[0], side="left"))
+    i1 = int(np.searchsorted(grid.xs, maximum[0], side="right"))
+    j0 = int(np.searchsorted(grid.ys, minimum[1], side="left"))
+    j1 = int(np.searchsorted(grid.ys, maximum[1], side="right"))
+    if i1 <= i0 or j1 <= j0:
+        return
+    window = (slice(i0, i1), slice(j0, j1))
+    z_top = float(maximum[2])
+    z_bottom = float(minimum[2])
+    np.maximum(top[window], z_top, out=top[window])
+    if from_floor:
+        filled[window] += np.maximum(z_top - grid.floor[window], 0.0)
+    else:
+        filled[window] += max(z_top - z_bottom, 0.0)
+
+
+def board_occupancy(container, grid=None):
+    """Surface height and filled column volume for the settled board."""
+    grid = grid if grid is not None else board_grid(container)
+    packed_list = container.get("packed_items", [])
+    key = id(packed_list)
+    hit = _BOARD_OCCUPANCY_CACHE.get(key)
+    if (
+        hit is not None
+        and hit[0] is packed_list
+        and hit[1] == len(packed_list)
+        and hit[2] is grid
+    ):
+        return hit[3], hit[4]
+
+    top = grid.floor.copy()
+    filled = np.zeros_like(top)
+    # A shelf is charged solid from the floor up. See the module note: this
+    # hides the space beneath rather than reporting it as damage.
+    for shelf in shelf_aabbs(container):
+        _board_stamp(grid, top, filled, shelf, from_floor=True)
+    for box, _is_soft, _is_prioritized in packed_aabbs_local(container):
+        _board_stamp(grid, top, filled, box)
+
+    if len(_BOARD_OCCUPANCY_CACHE) > 256:
+        _BOARD_OCCUPANCY_CACHE.clear()
+    _BOARD_OCCUPANCY_CACHE[key] = (packed_list, len(packed_list), grid, top, filled)
+    return top, filled
+
+
+def board_probe_shapes(items, limit=None):
+    """Distinct footprints still in play, largest first.
+
+    Every orientation of every visible item contributes a footprint; the
+    required headroom for a footprint is the smallest height among the
+    orientations that produce it, because that is the easiest way for the
+    board to accept that shape.
+    """
+    limit = BOARD_PROBE_SHAPES if limit is None else limit
+    shapes: dict[tuple, float] = {}
+    for item in items:
+        try:
+            length = float(item["length"])
+            width = float(item["width"])
+            height = float(item["height"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        for orientation in unique_orientations(item):
+            dx, dy, dz = get_rotated_dimensions(
+                length, width, height, orientation
+            )
+            key = (round(float(dx), 4), round(float(dy), 4))
+            previous = shapes.get(key)
+            if previous is None or float(dz) < previous:
+                shapes[key] = float(dz)
+    ordered = sorted(
+        shapes.items(), key=lambda entry: -(entry[0][0] * entry[0][1])
+    )
+    return [(dx, dy, dz) for (dx, dy), dz in ordered[:limit]]
+
+
+def _board_site_count(grid, top, headroom, shape):
+    """Landing sites for one footprint: flat enough, with headroom."""
+    dx, dy, dz = shape
+    wx = min(max(1, int(math.ceil(dx / grid.cell_x - EPS))), top.shape[0])
+    wy = min(max(1, int(math.ceil(dy / grid.cell_y - EPS))), top.shape[1])
+    if top.shape[0] < wx or top.shape[1] < wy:
+        return 0
+    windows_top = np.lib.stride_tricks.sliding_window_view(top, (wx, wy))
+    windows_room = np.lib.stride_tricks.sliding_window_view(
+        headroom, (wx, wy)
+    )
+    windows_usable = np.lib.stride_tricks.sliding_window_view(
+        grid.usable, (wx, wy)
+    )
+    axes = (-2, -1)
+    flat = (
+        windows_top.max(axis=axes) - windows_top.min(axis=axes)
+        <= BOARD_FLATNESS_TOLERANCE + EPS
+    )
+    room = windows_room.min(axis=axes) >= dz - EPS
+    whole = windows_usable.all(axis=axes)
+    return int(np.count_nonzero(flat & room & whole))
+
+
+def board_features(grid, top, filled, shapes):
+    """A, R and H for one board state."""
+    headroom = grid.ceiling - top
+    accepted = 0
+    alternativity = 0
+    for shape in shapes:
+        sites = _board_site_count(grid, top, headroom, shape)
+        if sites > 0:
+            accepted += 1
+        alternativity += min(sites, BOARD_SITE_CAP)
+
+    void = np.where(grid.usable, top - grid.floor - filled, 0.0)
+    sealed_volume = float(np.maximum(void, 0.0).sum() * grid.cell_area)
+
+    surface = np.where(grid.usable, top, np.nan)
+    roughness = 0.0
+    for axis in (0, 1):
+        step = np.abs(np.diff(surface, axis=axis))
+        roughness += float(np.nansum(step))
+
+    return BoardFeatures(
+        accepted_shapes=accepted,
+        total_shapes=len(shapes),
+        alternativity=alternativity,
+        sealed_volume=sealed_volume,
+        roughness=roughness,
+    )
+
+
+def board_features_after(container, candidate, shapes):
+    """Board features for the state one candidate placement would leave.
+
+    A release candidate is commanded above its resting height and falls.
+    Stamping it where it was commanded evaluates a board that never
+    exists: it invents a sealed void under a box that is going to land,
+    and it eats headroom that will still be there. The settled proxy is
+    the same one the release risk model already uses, so the board and
+    the risk gate agree about where the item ends up.
+    """
+    grid = board_grid(container)
+    base_top, base_filled = board_occupancy(container, grid)
+    top = base_top.copy()
+    filled = base_filled.copy()
+    _board_stamp(
+        grid, top, filled, settled_proxy_candidate(candidate, container)
+    )
+    return board_features(grid, top, filled, shapes)
+
+
+def board_rank_key(decision, containers, shapes):
+    """Rank one immediate candidate by the board it would leave behind.
+
+    The incumbent score breaks ties last, so within a set of candidates the
+    board cannot distinguish, behaviour is the shipped behaviour.
+    """
+    container_index = int(decision.action["container_idx"])
+    if not (0 <= container_index < len(containers)):
+        return None
+    features = board_features_after(
+        containers[container_index], decision.candidate, shapes
+    )
+    return features, features.rank_key() + (float(decision.score),)
+
+
 class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
@@ -4202,6 +4600,7 @@ class PlacementCore:
         diagnostics=None,
         risk_lambda=None,
         candidate_observer=None,
+        attempt_budget=None,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -4228,7 +4627,7 @@ class PlacementCore:
             deadline=deadline,
             diagnostics=diagnostics,
             interleave=LIVE_SEARCH_INTERLEAVE,
-            attempt_budget=POLICY_ATTEMPT_BUDGET or None,
+            attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -4476,6 +4875,7 @@ class PlacementCore:
         diagnostics=None,
         risk_lambda=None,
         candidate_observer=None,
+        attempt_budget=None,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -4507,7 +4907,7 @@ class PlacementCore:
             deadline=deadline,
             diagnostics=diagnostics,
             interleave=LIVE_SEARCH_INTERLEAVE,
-            attempt_budget=POLICY_ATTEMPT_BUDGET or None,
+            attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
             score = Ranker.score(
@@ -5621,6 +6021,7 @@ class Agent:
         self.last_lookahead_evaluation = None
         self.last_top_candidate_count = 0
         self.last_top_candidates = []
+        self.last_board_features = None
         self.last_candidate_diagnostics = {}
         self.last_action_source = None
         self.last_candidate_kind = None
@@ -5993,6 +6394,34 @@ class Agent:
             }
         )
 
+    def _board_choice(self, top, observation, ordered_items):
+        """Pick among the ranker's top-K by the board each one leaves.
+
+        The ranker proposes and the board disposes: every candidate here
+        already passed validation and risk gating, so this only reorders a
+        set the shipped agent was already willing to place. K = 1 is the
+        shipped decision exactly.
+        """
+        containers = observation.get("container_list", [])
+        shapes = board_probe_shapes(item for _index, item in ordered_items)
+        self.last_board_features = None
+        if not shapes or not containers:
+            return top[0]
+        best_decision = top[0]
+        best_key = None
+        best_features = None
+        for decision in top:
+            ranked = board_rank_key(decision, containers, shapes)
+            if ranked is None:
+                continue
+            features, key = ranked
+            if best_key is None or key > best_key:
+                best_key = key
+                best_decision = decision
+                best_features = features
+        self.last_board_features = best_features
+        return best_decision
+
     def _closed_loop_choice(
         self,
         observation,
@@ -6002,6 +6431,7 @@ class Agent:
         risk_lambda=None,
         diagnostics=...,
         candidate_observer=None,
+        attempt_budget=None,
     ):
         """
         Closed-loop 1-ply lookahead. Keep the top-K immediate candidates
@@ -6043,6 +6473,8 @@ class Agent:
             "diagnostics": diagnostics,
             "risk_lambda": risk_lambda,
         }
+        if attempt_budget:
+            top_candidate_kwargs["attempt_budget"] = attempt_budget
         if candidate_observer is not None:
             top_candidate_kwargs["candidate_observer"] = candidate_observer
         top = PlacementCore.top_candidates(
@@ -6078,6 +6510,16 @@ class Agent:
                 best_next_score=0.0,
             )
             return top[0]
+
+        if selection_mode == "board":
+            decision = self._board_choice(top, observation, ordered_items)
+            self.last_lookahead_evaluation = LookaheadEvaluation(
+                decision=decision,
+                feasible_next_items=0,
+                total_next_items=0,
+                best_next_score=0.0,
+            )
+            return decision
 
         inner_pool = ordered_items[:LOOKAHEAD_INNER_ITEMS]
         self.last_future_probe_item_indices = [
@@ -6280,6 +6722,12 @@ class Agent:
         return record
 
     def policy(self, observation: dict):
+        # The work bound lives in POLICY_ATTEMPT_BUDGET and is applied inside
+        # PlacementCore, so nothing is threaded from here and the deadline
+        # arithmetic is the shipped arithmetic. A budget larger than the
+        # deadline affords is simply deadline-bound again, which is why that
+        # constant is calibrated from the recorded attempts_consumed rather
+        # than guessed.
         deadline = time.perf_counter() + POLICY_BUDGET_SECONDS
         primary_deadline = deadline
         if RESCUE_SCAN_ENABLED:

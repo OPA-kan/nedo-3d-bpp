@@ -26,6 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.measurement_budget import record_from_env  # noqa: E402
 from scripts.run_checks import load_json, run  # noqa: E402
 
 SIMULATOR = ROOT / "simulator"
@@ -63,6 +64,11 @@ def configure_arm_environment(
         "LIVE_SEARCH_INTERLEAVE",
         "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
+        "LOOKAHEAD_SELECTION_MODE",
+        "ANCHOR_FIRST_PASS_ATTEMPTS",
+        "LOOKAHEAD_TOP_K",
+        "BOARD_CELL_SIZE",
+        "BOARD_PROBE_SHAPES",
         "RELEASE_RISK_LIVE_RERANK",
         "RELEASE_RISK_P_MODEL",
         "RELEASE_RISK_RERANK_LAMBDA",
@@ -84,6 +90,13 @@ def configure_arm_environment(
         "live_interleave8",
         "item_cap16",
         "item_cap20",
+        "board_k3",
+        "board_k8",
+        "board_k16",
+        "topk8",
+        "first_pass64",
+        "first_pass128",
+        "first_pass256",
     }:
         if arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
@@ -115,6 +128,25 @@ def configure_arm_environment(
             env["MAX_POOL_ITEMS_EVALUATED"] = "16"
         elif arm == "item_cap20":
             env["MAX_POOL_ITEMS_EVALUATED"] = "20"
+        elif arm.startswith("board_k"):
+            # The ranker proposes, the board disposes: keep the same top-K
+            # search and reorder it by acceptance breadth, alternativity and
+            # sealed void instead of by the discounted lookahead sum.
+            env["LOOKAHEAD_SELECTION_MODE"] = "board"
+            env["LOOKAHEAD_TOP_K"] = arm.removeprefix("board_k")
+        elif arm.startswith("first_pass"):
+            # Depth per unit on the first breadth-first pass. The probe in
+            # reports/same-class-stacking puts the cliff between 64 and 256
+            # attempts per item; 128 is there because a cliff located
+            # between two points is not a located cliff. first_pass64 is
+            # kept after the default moved to 256 so the old shipped
+            # behaviour stays measurable rather than becoming unreachable.
+            env["ANCHOR_FIRST_PASS_ATTEMPTS"] = arm.removeprefix("first_pass")
+        elif arm == "topk8":
+            # Control for board_k8. Widening the top-K alone also changes
+            # the decision, so a board_k8 win over base confounds the board
+            # features with the wider candidate set.
+            env["LOOKAHEAD_TOP_K"] = "8"
     else:
         env["RELEASE_RISK_LIVE_RERANK"] = "1"
         env["RELEASE_RISK_P_MODEL"] = "mech"
@@ -177,9 +209,45 @@ def case_summary(
             for step in steps
             if step.get("settle_displacement_norm") is not None
         ]
+        # placement_score and soft_item_score are computed only on the
+        # evaluation platform. These are the published rules behind them,
+        # as violation counts on the final settled state -- a monotone
+        # proxy for comparing arms, never a stand-in for the official
+        # number. See simulator/src/ground_handling/diagnostics.py.
+        attribute_placement = {
+            key: final_step.get(key)
+            for key in (
+                "priority_items",
+                "soft_items",
+                "has_priority_container",
+                "priority_covered_by_other",
+                "priority_misrouted",
+                "soft_covered_by_other",
+                "priority_clean_ratio",
+                "soft_clean_ratio",
+            )
+            if key in final_step
+        }
         cases[case_id] = {
             "status": case.get("status"),
             "message": case.get("message"),
+            "attribute_placement": attribute_placement,
+            # Local proxy for stability_score, from the end-of-episode shake.
+            # Undisclosed protocol, so a monotone comparator between arms and
+            # never the official number.
+            "shake_response": score.get("shake_response") or {},
+            # Raw centre of gravity. cog_score has no published procedure,
+            # so com_contract ships with the numbers; see diagnostics.py.
+            "center_of_gravity": {
+                key: final_step.get(key)
+                for key in (
+                    "com_z",
+                    "com_z_above_floor",
+                    "com_height_ratio",
+                    "com_contract",
+                )
+                if key in final_step
+            },
             # Stability proxies (per the diagnostics decomposition: no
             # pseudo-total score, each proxy kept separate).
             "max_settle_angle_deg": max(angles) if angles else None,
@@ -439,6 +507,7 @@ def run_episode(
     trace_path = run_dir / "policy-trace.jsonl"
     env["NEDO_POLICY_TRACE_PATH"] = str(trace_path.resolve())
 
+    record_from_env(1)
     result = run(
         [
             sys.executable,

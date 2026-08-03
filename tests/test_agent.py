@@ -2490,6 +2490,78 @@ class LiveInterleaveTests(unittest.TestCase):
         self.assertEqual(agent.LIVE_SEARCH_INTERLEAVE, 1)
 
 
+class FixedWorkModeTests(unittest.TestCase):
+    """
+    The online search is bounded by the wall clock, which makes the policy a
+    function of machine load as well as of the state. The work bound is a
+    measurement control, not a shipping change: it must be off by default and
+    must not alter the shipped call shape when off.
+
+    Two implementations of this idea were developed in parallel on separate
+    branches. POLICY_ATTEMPT_BUDGET won because it also records the work the
+    SHIPPED deadline path consumes, which is what a budget has to be
+    calibrated from; ONLINE_FIXED_WORK_ATTEMPTS was removed rather than left
+    beside it as a second name for the same control.
+    """
+
+    def test_shipped_default_is_wall_clock(self):
+        self.assertEqual(agent.POLICY_ATTEMPT_BUDGET, 0)
+
+    def test_an_explicit_budget_beats_the_constant(self):
+        """
+        The constant bounds the online path without threading; the parameter
+        lets an offline probe ask for a specific amount of work on a captured
+        state. Explicit has to win, or the probe silently measures something
+        else.
+        """
+        self.assertEqual(agent.effective_attempt_budget(4096), 4096)
+
+    def test_no_budget_and_no_constant_means_no_bound(self):
+        self.assertIsNone(agent.effective_attempt_budget(None))
+
+    def test_choose_stops_on_the_attempt_budget(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        items = [sample_item(i) for i in range(3)]
+        observation = {"pool_list": items, "container_list": [container]}
+        diagnostics = {}
+
+        agent.PlacementCore.choose(
+            observation,
+            list(enumerate(items)),
+            diagnostics=diagnostics,
+            attempt_budget=32,
+        )
+
+        self.assertLessEqual(
+            diagnostics["search"].get("attempts_consumed", 0), 32
+        )
+
+    def test_an_unset_budget_leaves_the_search_unbounded_by_work(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        items = [sample_item(0)]
+        observation = {"pool_list": items, "container_list": [container]}
+        diagnostics = {}
+
+        agent.PlacementCore.choose(
+            observation, list(enumerate(items)), diagnostics=diagnostics
+        )
+
+        # Recorded unconditionally by design: the SHIPPED deadline path is
+        # the one whose irreproducibility is the problem, so it has to
+        # report the work it consumed or the budget cannot be calibrated
+        # from it. What "unbounded" means here is that nothing stopped the
+        # scan early, not that nothing was counted.
+        self.assertIn("attempts_consumed", diagnostics["search"])
+        self.assertEqual(
+            diagnostics["search"]["units_started"],
+            diagnostics["search"]["units_completed"],
+        )
+
+
 class RolloutStrideThreadingTests(unittest.TestCase):
     """The stride has to survive both layers above the generator."""
 

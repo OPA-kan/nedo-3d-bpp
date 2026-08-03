@@ -1,6 +1,6 @@
 # Handoff for the next model
 
-Updated: 2026-08-02 JST
+Updated: 2026-08-02 JST (branch `claude/stride-endgame-saturation-test-gqssix` closed)
 
 ## Start here
 
@@ -30,6 +30,226 @@ the file.
 
 Do not load the whole repository. Select a profile and add `--full` only when
 source-level detail is needed. New here: the `replay-dataset` profile.
+
+## Where Task A and Task B go next
+
+**This section was audited on 2026-08-02 and three of its claims were
+wrong. Corrected below; the ledger entry
+`task-a-offline-objective-misdiagnosed` records what was claimed and what
+verification showed.**
+
+### Task B is search-allocation limited
+
+`ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 gave +25% placed at unchanged
+total attempts per step: redistribution, not more work.
+
+**The first thing to look at.** `ANCHOR_DEEP_PASS_ATTEMPTS` is also 256.
+`attempts_per_unit` starts at the first-pass constant (`agent.py:4129`)
+and is replaced by the deep constant on later rounds (`agent.py:4260`),
+so with both at 256 every round is now uniform and the two-phase
+structure is gone. Either raise the deep pass or admit the structure has
+collapsed.
+
+The endgame is still where the remaining loss is -- the fallback probe
+found legal moves available at 2 of 3 terminal states -- and
+state-dependent depth is the likely shape. But do NOT justify that with
+a change in cause of death. Counted over all 30 episodes of
+`reports/first-pass-depth`, EVERY arm ends `is_placed_safe False` 10 out
+of 10; only the terminal fallback rate moves, and non-monotonically
+(base 3/10, 128 6/10, 256 4/10). In the later
+`reports/stability-tradeoff` rows the fallback difference disappears
+entirely. An earlier version of this section claimed a topple-to-
+exhaustion shift from a 5-episode block; it does not survive both
+blocks.
+
+### Task A is ordering limited, and the objective is not what it looks like
+
+The first-pass change is neutral on Task A placed (25 either way), so
+Task A gains come from the ORDER. That much holds.
+
+**But the order is not selected by a weighted objective.**
+`OFFLINE_FILL_WEIGHT` / `OFFLINE_STABILITY_WEIGHT` feed only
+`DryRunResult.weighted_score()` (`agent.py:941`), which has NO callers.
+Selection is `result.rank_key() > best_result.rank_key()`
+(`agent.py:6350`), a five-element LEXICOGRAPHIC tuple
+`(placed_count, placed_volume, fill_ratio, stability_proxy,
+-normalized_center_of_mass_z)`. Sweeping the two weights leaves
+`behaviour_sha256` bit-identical while `component_sha256` moves -- the
+same probe ADR-003 used for the risk-lambda gap.
+
+It is narrower still: `fill_ratio` is `placed_volume / total_capacity`
+with a case-fixed denominator, so it is a monotone transform of
+`placed_volume` and structurally redundant in the tuple. The effective
+key is `(placed_count, placed_volume)`, and stability and cog are
+consulted only between orders that place the SAME items.
+
+So the diagnosis is not "too few components are priced". It is
+**`placed_count` dominates lexicographically**, and the work is
+replacing `rank_key`, not tuning weights. `context/knobs.json` marks
+those two constants `"semantic": true`, which is wrong, and
+`weighted_score` should be deleted rather than left to imply the
+objective has a form it does not have.
+
+**Raising the offline budget is already measured and flat.**
+`task-a-episode-outcome-is-machine-speed-dependent` (active): at
+`OFFLINE_MAX_EVALUATIONS` of 50, 55, 60 and unlimited the search selects
+an IDENTICAL 41-element order. The search converges around 50
+evaluations on case 000, and the 25-vs-26 placed difference was machine
+speed, not the cap. Convergence is itself evidence that the objective,
+not the budget, is binding. (13381bd moved orders evaluated 3.0 -> 51.3
+by adopting the bounded dry run; an earlier version of this section had
+that direction backwards.)
+
+**ADR-003 is not empty ground.** It defines the offline evaluator as a
+cheap deterministic *proposal oracle* rather than a faithful simulator,
+and explicitly decides the ranking policy need not be shared. Revise it
+before changing `rank_key`.
+
+### The priority concern is NOT a blocker (official, 2026-08-03)
+
+An earlier version of this section held back further depth work because
+`priority_clean_ratio` read 0.575 at the shipped default against 0.803
+at the old one (6W/3L/1T, p = 0.508). submission3334 settles it the
+other way: **placement_score 4.45 -> 10.85, +143.8%**, the largest
+relative gain of any component. The submission differs from
+submission22 by more than the depth change, so nothing is credited to a
+single commit -- but the combination did not damage priority placement,
+and this must not gate work in the form it was written.
+
+What it leaves open is the PROXY. `priority_clean_ratio` pointed one way
+and the official component went the other. The proxy has never been
+validated against an official number and this is the first evidence
+bearing on it; treat its direction as unverified until a submission
+pair moves it and placement_score together.
+
+The stability worry is CLOSED, not carried: 256 shifts 0.202 of items
+against 0.310 at 64, with 0 topples against 0.27 per episode. Do not
+re-raise it. On Task A the shake proxy is mildly worse at 256 (15/25
+shifted against 13/25, peak energy 13.50 against 10.99, n = 1), so
+"neutral on Task A" is true of placed and not of everything.
+
+## Current submission artefact
+
+`dist/submission.zip`, sha256 `179de845a131ba498625a39876c55a9cd8996fc272da356f6805ae017b669574`,
+built from trunk `77046b5`. Rebuild with
+`python3 scripts/build_submission.py`; it packs `agent/agent.py` alone.
+
+Two earlier artefacts from this branch are SUPERSEDED and must not be
+submitted: `c9d0751e...` predates the trunk merge and is missing the Task
+A bounded offline dry run (placed 20 instead of 25), and `83a41bbc...`
+predates the POLICY_ATTEMPT_BUDGET unification. A commit message on this
+branch records a third hash `4ba1a5e6...` which was written before the
+build and is simply wrong; no such artefact exists.
+
+## Branch close-out: `claude/stride-endgame-saturation-test-gqssix`
+
+Read this before anything else on this branch. One default changed, one
+instrument is new, and two lines were closed as negatives.
+
+### The one shipped change
+
+`ANCHOR_FIRST_PASS_ATTEMPTS` 64 -> 256 (`agent/agent.py`). Two paired
+blocks, 30 episodes, five development configs: placed 9W/0L/1T against a
+simultaneously-run base, sign test p = 0.0039, suite total 143 -> 179.
+Four of the five configs return identical values in both blocks.
+
+The fact that carries it: attempts per step is 7649 / 6793 / 7864 across
+64 / 128 / 256 and max policy time is unchanged at ~6.53 s. This is the
+same work distributed differently, not more work. Task A (offline
+enabled) was checked separately and is neutral: placed 20 and fill
+30.176 at both depths, offline time 109 -> 119 s inside a 150 s internal
+budget and 61 s under the official 180 s limit.
+
+The predicted cost is real: mean items-with-a-candidate in the opening
+half falls 9.64 -> 8.28. placed rose on every configuration anyway.
+
+Fallback deaths ROSE (3 -> 6 -> 4 per ten episodes). That is not a
+regression. base dies at `placement_core` with `is_placed_safe` false,
+toppling at step 12-18, and never reaches an endgame; 256 survives to
+17-21 and then runs out of moves. The cause of death moved from early
+topple to late exhaustion.
+
+Reverting is one line. `first_pass64` is kept as an arm so the previous
+default stays measurable, and `tests/test_board_features.py` pins 256.
+
+**`reports/benchmarks/baseline.json` (dev placed 88 / fill 114.6) is now
+stale as a guard**: it predates this change and the base arm re-measured
+in the same session gave 69 and 74. Re-baseline before using it.
+
+### The new instrument: placement / soft, locally
+
+See `docs/ATTRIBUTE_PLACEMENT.md`. Four of the six official score
+components have never had a local signal; two of them now do, as
+violation counts rather than a score, because the violations-to-0-100
+mapping is unpublished.
+
+Read the caveats there before using it. The load-bearing one: **neither
+development source has a priority container**, so `priority_misrouted`
+is structurally always 0 on this suite and the routing rule cannot be
+validated locally at all.
+
+Its first run already contradicted an assumption: 1 of 4 priority items
+ends up covered by a non-priority item on b000-k40, even though
+`support_surfaces()` forbids placing anything on a priority item. The
+over-constraint discards the same-attribute stacking the rules allow and
+still permits the violation. Unverified mechanism: `support_surfaces()`
+governs settled anchor generation only, so a release candidate can land
+on one. **This is the highest-value thread left open.**
+
+### Closed as negatives
+
+- **Board receptivity** (A acceptance breadth / R alternativity / H
+  repairability, `LOOKAHEAD_SELECTION_MODE=board`). Reproducibly MIXED:
+  +4/+5 and +4/+4 wins, a -5/-4 loss, two configs unstable. Pooled
+  6W/3L/1T, p = 0.508. Default stays `weighted`; the code stays,
+  default-off, with 25 tests. `docs/BOARD_RECEPTIVITY.md`.
+- **Soft/priority stacking relaxation as a fallback fix.** The agent IS
+  stricter than the rules, but relaxing to the official rule unlocked
+  ZERO placements at 3 of 3 terminal states, one of which had seven soft
+  items available to unlock. Not the cause of the fallback. Whether it
+  costs fill across a whole episode is still untested.
+
+### The new instrument: stability, locally
+
+`Evaluator.shake_test()`, called once from `env.evaluate()` at episode
+end inside `saveState`/`restoreState`, so it cannot perturb anything.
+Three ingredients are officially fixed (`COMPETITION_RULES.md:70-73`
+and `COMPETITION_QA.md:17`): the lid closes, gravity varies, and the
+score is displacement / force / kinetic energy with friction feeding it.
+The magnitudes and thresholds are not, so the schedule is invented and
+the output is a comparator, never the official number.
+
+Stated deviation: **no lid**. An item can leave through the opening; a
+lost item is charged as both a shift and a topple, because dropping it
+from the averages would let the worst outcome improve the metric.
+
+**This immediately put a question mark over today's shipped change.**
+On b000-k40, n = 1: the new default reaches placed 16 with 9 of 16
+items shifting >5 cm and `priority_clean_ratio` 0.75, against
+`first_pass64` at placed 11, 5 of 11 shifted, ratio 1.00. placed gates
+four components, so +5 placed is worth a lot -- but it may be damaging
+two of the four it gates. That trade was invisible until now.
+
+**The next experiment is already fully equipped**: run `first_pass64`
+against the default over the five development configs, two blocks, and
+read `shake_*` and `*_clean_ratio` alongside placed. Nothing new needs
+building.
+
+### Where the remaining blindness is
+
+Of the six official components: fill and num_placed are computed by the
+bundled simulator; placement and soft now have local violation counts;
+stability has the shake proxy. **cog is the only one with nothing** --
+it is computable from mass and position but its normalisation is
+unknown, and `center_of_mass_z` in `step_metrics` is the closest thing
+that exists.
+
+### The score structure that should drive priorities
+
+`docs/OFFICIAL_SCORE_LOG.md`. placed is the GATE for cog / stability /
+placement / soft, so a placed gain is worth more than its own component.
+Do not try to recover the component weights from a single official log:
+83 weight vectors on a 0.05 grid reproduce 17.58143 to within 0.05.
 
 ## User's goal
 
@@ -296,6 +516,7 @@ already in `Q_live`; rollout risk contains future transitions only. The proxy
 rollout is not the current Q_live policy, so no textbook policy-improvement
 guarantee applies.
 
+
 ## Latest experiment: Task A bounded offline rollout (ADOPTED)
 
 The one adoption on this list — everything above it was rejected or kept as
@@ -427,6 +648,69 @@ and with far more leverage:
 Both were previously blocked on stride not existing on the shipped generator.
 **That line has now been built and screened, and it is rejected as a
 default** — see the next section.
+## Latest experiment: Task A bounded offline rollout (ADOPTED)
+
+The one adoption on this list — everything above it was rejected or kept as
+telemetry. Branch `experiment/task-a-rollout-transfer`, contract
+`docs/adr/ADR-002-bounded-offline-dry-run.md`, design and full run history
+`docs/TASK_A_ROLLOUT_TRANSFER.md`.
+
+The transfer that worked was **not** porting Task B's online three-step
+rollout into Task A. Task A already evaluates complete orders with
+`DryRunEvaluator` under the same lexicographic objective, so it does not need
+another score. What it needed was for that search to actually run.
+
+It was barely running. ADR-001 §5 assumed a slow placement core would just
+reduce the evaluation count, but time control was a global deadline with no
+per-item bound, so an unplaceable item's scan made one dry run cost ~35 s. At
+the official 150 s budget the shipped agent evaluated **3.0 of its allowed
+1000 complete orders** — the seed plus two neighbours, neither of which
+improved placed count or first-failure index.
+
+Bounding each item at 128 deterministic anchor attempts and capping pair-macro
+construction at 0.5 s, adoption run `30717998654` (bundled case 000, official
+budgets, 3 repeats per arm):
+
+| arm | placed | fill | evaluated orders | optimization s |
+|---|---:|---:|---:|---:|
+| base (legacy) | 20 / 20 / 20 | 29.298 | 3.0 | 112.1 |
+| adopted | 25 / 25 / 25 | 34.949 | 51.3 | 147.3 |
+
+CoM height 0.753 → 0.735 m, near-misses 0 in both arms, policy time held at
+about 6.51 s. The adopted arm's fill is min = max over three repeats, so the
+order and the physics reproduced exactly; base's fill varied 27.541–30.176 on
+a constant placed count. Compact result and per-repeat analysis:
+`reports/task-a-rollout/history/30717998654/{summary,analysis}.md`.
+
+Confirmed post-flip by run `30719944050`, which re-ran the matrix with the
+`default` arm (no `OFFLINE_*` variable set, i.e. the submission path) instead
+of `bounded128`. Every outcome column matched, including the base arm's full
+fill distribution; only search-effort counters moved. Three independent
+executions now agree bit-for-bit on fill, so treat run-to-run variance as a
+non-issue here — unlike the visible-pool screening, where the base arm itself
+moved 16.2 → 14.6 between runs.
+
+Two things this did **not** establish, both easy to overstate:
+
+- The offline proxy is a **relative order selector**, not a score. It
+  predicted 23 where physical execution reached 25, and its error changes
+  sign between arms. Do not report or target proxy values.
+- The **fallback problem is untouched.** Both arms end with `is_valid` and
+  `is_placed_safe` false, so neither is a passing episode. The adopted arm
+  just reaches placement 25 before it dies instead of 20.
+
+Also unmeasured: any second case (source 001 was a synthetic conversion and
+was dropped from the adoption matrix), budgets at 256+, and an
+item-count-adaptive budget. Only 2.7 s of the internal budget is left over,
+so re-measure this table after any placement-core slowdown — the Task B
+benchmark will not catch it.
+
+Because the shipped default is now the treatment, the `base` arm in
+`scripts/run_task_a_rollout.py` pins the legacy values explicitly rather than
+unsetting the variables. An arm that merely unsets them would measure the
+treatment and report a null result. The runner's new `default` arm unsets
+everything and therefore measures exactly what a submission does.
+
 
 Other open fronts, in order: transport_invalid deaths (37% pre-cache;
 re-run `scripts/analyze_terminal_failures.py` post-cache to requantify),
