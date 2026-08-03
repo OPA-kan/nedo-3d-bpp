@@ -128,6 +128,52 @@ re-raise it. On Task A the shake proxy is mildly worse at 256 (15/25
 shifted against 13/25, peak energy 13.50 against 10.99, n = 1), so
 "neutral on Task A" is true of placed and not of everything.
 
+## Container configurations: three of four axes were never executed
+
+`COMPETITION_RULES` section 2 says every task is posed with combinations of
+**one or two containers, shelf or no shelf, empty or pre-loaded, dedicated
+priority container or not**, and the official QA forbids per-task
+submissions -- one agent self-detects the setup, so these branches WILL be
+taken in evaluation.
+
+`sample_config.json` covers **one** axis. Both cases are single-container,
+empty, no dedicated container; only the shelf differs. The entire
+development suite (b000-k15/k20/k40, b001-k20/k30) derives from those two
+cases by changing look-ahead, so it inherits the blind spot.
+
+```bash
+python3 scripts/build_scenario_matrix.py --output-dir reports/scenario-matrix
+python3 -m unittest tests.test_scenario_matrix       # fast, no physics
+```
+
+Building the probe immediately found a hard crash: a two-container config
+built by copying the bundled `camera` block raises `IndexError` in
+`env.reset()` (`env.py:318`), because `camera.num_containers` sizes the
+shared depth-map array (`env.py:80-88`) and the bundled value is 1.
+Config-side, not a simulator bug -- and unavoidable for anyone who has
+never built a two-container scene.
+
+With that corrected, **two containers and dedicated routing both work in
+physics for the first time**: dual-dedicated-priority reaches placed 0.732
+(30 of 41), `is_valid` true, container usage 22/9 across indices 0 and 1,
+`priority_misrouted` 0.
+
+Do NOT read 0.732 as an improvement. Two containers give roughly twice the
+volume for the same 41-item mix, so it is not comparable to the
+single-container suite or to the official 0.505. Two things it does show:
+the multi-container path is live, and `priority_clean_ratio` ends at 0.333,
+so priority items are correctly ROUTED and still get covered.
+
+Still unmeasured: the **80-item two-container** scale the rules describe
+for Task A. The matrix reuses the 41-item mix, which is a different
+difficulty.
+
+The tests are contract-level and were audited; `context/measurements.json`
+records what they cannot answer. The short version: every assertion is on
+**step 1 of an episode**, there is no physics, and the priority test hands
+over a pool with a single priority item, which is the easiest possible
+routing case.
+
 ## Current submission artefact
 
 `dist/submission.zip`, sha256 `179de845a131ba498625a39876c55a9cd8996fc272da356f6805ae017b669574`,
