@@ -112,10 +112,39 @@ side only. A symmetric box formula cannot represent an asymmetric container,
 and every one of the sixteen missed placements sat at y = -0.600 -- inside
 true containment, outside the generator envelope.
 
-**Scope.** One case, one orientation, one axis, one state. Two attempts to
-check whether the gap generalises both failed on instrument bugs of my own:
-the first normalised a raw config container, which carries no half-space
-representation, so `inside_container` returned True unconditionally and every
-band looked a metre wide; the second used a probe height that put the origin
-outside the container. Whether this is a general envelope defect or specific
-to this geometry is **not established**.
+## The container is not a box, in two ways
+
+Reading the live half-space representation settles the scope question that two
+of my measurement attempts had failed on. Both Task C containers have **seven
+planes: six axis-aligned and one slanted**.
+
+```
+c000-k1  n=(-0.673, 0, -0.740)  p=(-0.960, 0, +0.418)   chamfer
+         y planes at -0.725 and +0.685      (width 1.45)
+c001-k1  n=(-0.681, 0, -0.732)  p=(-0.950, 0, +0.422)   chamfer
+         y planes at -0.760 and +0.710      (width 1.52)
+```
+
+**The y planes are asymmetric.** The true range is
+`[-W/2, +W/2 - thickness]`, while the generator subtracts thickness from both
+sides. So the low-y side is over-conservative by exactly one thickness,
+independently of the item, because the `dy/2` and clearance terms are the same
+on both sides. c001's thickness is 0.05 and the measured gap was 0.0500. This
+is now derived from the geometry of both cases, not observed on one state.
+
+**The chamfer is a slope.** The x lower bound is a function of z, at gradient
+-0.740/0.673 = -1.10 m per metre of height. Both the envelope bound and the
+single cut anchor
+
+    xs.add(-length/2 + thickness + cut_x + dx/2 + TRANSPORT_CLEARANCE)
+
+are **z-independent**: they model the chamfer as a vertical wall at the far
+edge of the cut. The generator therefore samples the chamfer region at two
+extreme x values only -- the cut edge, which is the right bound near the
+floor, and wall-flush, which is right above the chamfer -- and never at the
+intermediate x that intermediate heights allow. The chamfer runs the full
+height of the container, so this wedge is larger than the 5 cm band.
+
+**Not measured yet:** how many valid placements the wedge costs, and whether
+correcting either bound pays for itself inside the 6.5 s budget. Both are
+shipped-default search geometry, so a change needs the Task B guard on CI.
