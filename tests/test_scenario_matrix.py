@@ -21,6 +21,13 @@ builder = importlib.util.module_from_spec(BUILDER_SPEC)
 sys.modules[BUILDER_SPEC.name] = builder
 BUILDER_SPEC.loader.exec_module(builder)
 
+RUNNER_SPEC = importlib.util.spec_from_file_location(
+    "run_scenario_matrix", ROOT / "scripts" / "run_scenario_matrix.py"
+)
+runner = importlib.util.module_from_spec(RUNNER_SPEC)
+sys.modules[RUNNER_SPEC.name] = runner
+RUNNER_SPEC.loader.exec_module(runner)
+
 SOURCE = json.loads(
     (ROOT / "simulator" / "configs" / "sample_config.json")
     .read_text(encoding="utf-8")
@@ -230,6 +237,83 @@ class ScenarioMatrixContractTests(unittest.TestCase):
             tuple(templates[0]["center"]), tuple(templates[1]["center"]),
             "the agent collapsed both containers onto one offset",
         )
+
+
+class DeathChannelReadingTests(unittest.TestCase):
+    """
+    Pins the reading of `place_states`, which was misread once already.
+
+    app.py rebinds `place_states` inside the episode loop, so the result
+    file carries the LAST step's status, not a summary of the episode. And
+    env.py terminates on the first failure. Together that makes
+    `is_valid: true` on an episode that placed 30 of 41 mean the opposite
+    of healthy: the transport check passed and the item then failed to
+    settle. HANDOFF reported that row as "`is_valid` true" as if it were a
+    clean signal.
+    """
+
+    def test_each_status_triple_maps_to_its_own_channel(self) -> None:
+        cases = {
+            "inclusion": (False, False, False),
+            "transport": (True, False, False),
+            "settle": (True, True, False),
+            "stream_exhausted": (True, True, True),
+        }
+        for expected, (included, valid, safe) in cases.items():
+            with self.subTest(channel=expected):
+                self.assertEqual(
+                    runner.death_channel({
+                        "is_included": included,
+                        "is_valid": valid,
+                        "is_placed_safe": safe,
+                    }),
+                    expected,
+                )
+
+    def test_is_valid_true_is_not_a_health_signal(self) -> None:
+        """The specific misreading, pinned as its own case."""
+        self.assertEqual(
+            runner.death_channel(
+                {"is_included": True, "is_valid": True,
+                 "is_placed_safe": False}
+            ),
+            "settle",
+        )
+
+    def test_missing_status_is_unknown_not_success(self) -> None:
+        self.assertEqual(runner.death_channel(None), "unknown")
+        self.assertEqual(runner.death_channel({}), "unknown")
+
+    def test_preloaded_items_are_removed_from_the_agents_credit(self) -> None:
+        """
+        num_placed_items counts pre-loaded items in BOTH numerator and
+        denominator (env.py:121 sums stream total and already-packed items;
+        evaluator.py:84 divides packed by it). A pre-loaded row therefore
+        reads higher than the agent earned, so summarize_case reports
+        agent_placed/agent_of next to it.
+        """
+        shape = {
+            "containers": 1, "shelves": 0, "dedicated": 0,
+            "preloaded": 3, "stream_items": 38, "total_items": 41,
+        }
+        row = runner.summarize_case(
+            {
+                "evaluation": {
+                    "num_placed_items": 21 / 41,
+                    "fill_score": 24.8,
+                    "step_metrics": [{}] * 19,
+                },
+                "place_states": {
+                    "is_included": True, "is_valid": False,
+                    "is_placed_safe": False,
+                },
+            },
+            shape,
+        )
+        self.assertEqual(row["packed_items"], 21)
+        self.assertEqual(row["agent_placed"], 18)
+        self.assertEqual(row["agent_of"], 38)
+        self.assertEqual(row["death_channel"], "transport")
 
 
 if __name__ == "__main__":
