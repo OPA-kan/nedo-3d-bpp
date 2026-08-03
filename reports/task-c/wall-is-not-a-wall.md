@@ -132,18 +132,18 @@ independently of the item, because the `dy/2` and clearance terms are the same
 on both sides. c001's thickness is 0.05 and the measured gap was 0.0500. This
 is now derived from the geometry of both cases, not observed on one state.
 
-**The chamfer is a slope.** The x lower bound is a function of z, at gradient
--0.740/0.673 = -1.10 m per metre of height. Both the envelope bound and the
-single cut anchor
+**The chamfer is a slope, and that part is handled.** I claimed here that the
+z-independent bounds exclude a wedge along the chamfer, and that was wrong.
+`_compute_container_z_interval` iterates every half-space including the slanted
+one and returns the exact z interval for a given (x, y), so a wall-flush anchor
+is correctly restricted to heights above the chamfer. What remains in that
+region is ordinary corner-point anchor density, not a distinct defect. I called
+it the bigger problem before checking how z was computed.
 
-    xs.add(-length/2 + thickness + cut_x + dx/2 + TRANSPORT_CLEARANCE)
-
-are **z-independent**: they model the chamfer as a vertical wall at the far
-edge of the cut. The generator therefore samples the chamfer region at two
-extreme x values only -- the cut edge, which is the right bound near the
-floor, and wall-flush, which is right above the chamfer -- and never at the
-intermediate x that intermediate heights allow. The chamfer runs the full
-height of the container, so this wedge is larger than the 5 cm band.
+**Both generators share the y bound.** `rectangular_container_anchor_bounds`,
+used by the support-plane path, repeats the same box formula, so the 5 cm band
+is invisible to both -- which is why an exhaustive run of both returned zero
+where the band held sixteen safe placements.
 
 **Not measured yet:** how many valid placements the wedge costs, and whether
 correcting either bound pays for itself inside the 6.5 s budget. Both are
