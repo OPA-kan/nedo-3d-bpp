@@ -265,6 +265,55 @@
       ],
       "note": "Audited 2026-08-03. Two assertions were weaker than their names: the pre-loaded test only excluded a placement within 1e-6 of a seated item's CENTRE (a 1 cm overlap passed), and test_two_containers_are_both_reachable asserted only that indices were in range, which passes when every action goes to container 0. Both were rewritten; the second was renamed because its docstring promised what it did not check."
     },
+    "scripts/run_scenario_matrix.py": {
+      "analysis_unit": "episode, one per container configuration",
+      "varied_axis": [
+        "item"
+      ],
+      "conditioned_on": [
+        "one episode per configuration -- n=1 per row, and the outcome is machine-speed dependent because the online policy's only stop condition is the wall clock",
+        "--trace is an INTERVENTION, not free instrumentation: NEDO_POLICY_TRACE_PATH switches on _record_item_lifecycle (agent.py:6740, consumed at 4101) inside the candidate loop and writes ~40 kB per decision, all of it inside the 6.5 s deadline, so a traced arm searches less. Traced and untraced runs are different arms and must not be pooled",
+        "the synthetic combinations built by build_scenario_matrix.py, hence the bundled 41-item mix across however many containers"
+      ],
+      "outcome": [
+        "placed ratio and agent_placed/agent_of",
+        "fill_score",
+        "death_channel",
+        "terminal_decision (action source and candidate kind, --trace only)"
+      ],
+      "cannot_answer": [
+        "how well a configuration scores -- synthetic scenes, not comparable to the development suite or to any official number",
+        "which of two configurations is harder: the placed counts move by 2 or more between executions of the identical binary and config, and the death channel itself flips",
+        "which ITEM killed the episode or which item covered a priority one -- terminal_decision names the action's source and acceptance path, not the geometry that failed",
+        "anything about the 80-item two-container scale the rules describe for Task A"
+      ],
+      "supports": [
+        "scenario-matrix-seven-rows-executed",
+        "scenario-matrix-reproducibility-is-machine-load"
+      ],
+      "note": "Exists because tests/test_scenario_matrix.py already named it as its physical counterpart while the matrix had only ever been run by hand -- which also skipped sync_agent_into_simulator, the step whose absence made the first risk ablation compare an arm against itself."
+    },
+    "tests/test_release_support_gap.py": {
+      "analysis_unit": "candidate x acceptance path",
+      "varied_axis": [
+        "candidate_rank"
+      ],
+      "conditioned_on": [
+        "one bundled container with a single seated item; only that item's flag varies",
+        "the shipped risk gate being off, which is what leaves the release path unguarded"
+      ],
+      "outcome": [
+        "release_rejection_reason vs rejection_reason on the same intended stack"
+      ],
+      "cannot_answer": [
+        "how often the release path is taken in play, or with what consequence -- this is a static demonstration, not a rate",
+        "whether this causes any observed priority_covered_by_other; that link needs per-item attribution nothing here produces",
+        "whether adding a support check to the release path would help: the check would reject candidates the agent currently uses, and nothing has measured the trade"
+      ],
+      "supports": [
+        "release-path-has-no-support-check"
+      ]
+    },
     "scripts/build_scenario_matrix.py": {
       "analysis_unit": "scenario configuration",
       "varied_axis": [

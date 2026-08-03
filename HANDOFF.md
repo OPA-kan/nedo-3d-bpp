@@ -128,7 +128,7 @@ re-raise it. On Task A the shake proxy is mildly worse at 256 (15/25
 shifted against 13/25, peak energy 13.50 against 10.99, n = 1), so
 "neutral on Task A" is true of placed and not of everything.
 
-## Container configurations: three of four axes were never executed
+## Container configurations: all four axes now executed, and how each dies
 
 `COMPETITION_RULES` section 2 says every task is posed with combinations of
 **one or two containers, shelf or no shelf, empty or pre-loaded, dedicated
@@ -144,6 +144,10 @@ cases by changing look-ahead, so it inherits the blind spot.
 ```bash
 python3 scripts/build_scenario_matrix.py --output-dir reports/scenario-matrix
 python3 -m unittest tests.test_scenario_matrix       # fast, no physics
+python3 scripts/run_scenario_matrix.py \
+    --matrix-dir reports/scenario-matrix \
+    --output-dir reports/scenario-matrix/runs --trace   # ~25 min, physics
+python3 scripts/run_scenario_matrix.py ... --summarize  # re-read, no re-run
 ```
 
 Building the probe immediately found a hard crash: a two-container config
@@ -153,22 +157,106 @@ shared depth-map array (`env.py:80-88`) and the bundled value is 1.
 Config-side, not a simulator bug -- and unavoidable for anyone who has
 never built a two-container scene.
 
-With that corrected, **two containers and dedicated routing both work in
-physics for the first time**: dual-dedicated-priority reaches placed 0.732
-(30 of 41), `is_valid` true, container usage 22/9 across indices 0 and 1,
-`priority_misrouted` 0.
+With that corrected **all seven configurations run**, and the traced pass
+(`reports/scenario-matrix/runs/summary.json`) is:
 
-Do NOT read 0.732 as an improvement. Two containers give roughly twice the
-volume for the same 41-item mix, so it is not comparable to the
-single-container suite or to the official 0.505. Two things it does show:
-the multi-container path is live, and `priority_clean_ratio` ends at 0.333,
-so priority items are correctly ROUTED and still get covered.
+| scenario | c | shelf | ded | pre | placed | agent | fill | death | killed by |
+|---|--:|--:|--:|--:|---|---|--:|---|---|
+| single-empty-noshelf | 1 | 0 | 0 | 0 | 24/41 | 24/41 | 21.13 | settle | `placement_core` / release |
+| single-empty-shelf | 1 | 1 | 0 | 0 | 14/41 | 14/41 | 16.86 | settle | `placement_core` / release |
+| single-preloaded | 1 | 0 | 0 | 3 | 20/41 | 17/38 | 22.48 | transport | `unsafe_protocol_fallback` |
+| dual-empty | 2 | 0 | 0 | 0 | 41/41 | 41/41 | 22.98 | survived | -- |
+| dual-shelf-mixed | 2 | 1 | 0 | 0 | 39/41 | 39/41 | 22.26 | settle | `placement_core` / release |
+| dual-dedicated-priority | 2 | 0 | 1 | 0 | 41/41 | 41/41 | 20.36 | survived | -- |
+| dual-preloaded-dedicated | 2 | 0 | 1 | 2 | 36/41 | 34/39 | 17.83 | settle | `placement_core` / settled |
+
+### Read the columns before the numbers
+
+**`is_valid` is not a health signal, and an earlier version of this section
+read it as one.** `app.py` rebinds `place_states` inside the episode loop,
+so the result file carries the LAST step's status, not a summary; `env.py`
+terminates on the first failure. On a row that placed 30 of 41,
+`is_valid: true` therefore means the transport check PASSED and the item
+then failed to settle -- the opposite of clean. The `death` column above is
+that triple decoded; `tests/test_scenario_matrix.py` pins the mapping,
+including this specific misreading as its own case.
+
+**`agent` is not `placed`.** `num_placed_items` counts pre-loaded items in
+both numerator and denominator (`env.py:121`, `evaluator.py:84`), so
+single-preloaded's headline 20/41 is 17 of 38 actually placed by the agent.
+
+**One episode per row, and reproducibility is a property of machine load.**
+A second script-produced execution (`runs-untraced/`, no trace) agrees with
+the table on **5 of 7 rows bit-identically** -- same placed, same fill to
+three decimals, same channel. Two differ: `single-empty-noshelf` keeps
+placed 24 but moves fill 21.128 -> 20.317 and channel settle -> transport,
+so the trajectory diverged and coincidentally landed on the same count;
+`dual-dedicated-priority` is 41 against 40.
+
+That is on an otherwise idle machine. An earlier ad-hoc execution of the
+same configs, run while the box was doing other work, gave 22, 16, 21, 41,
+39, **30**, 36 -- four rows different, with 11 placements lost on
+`dual-dedicated-priority`. The mechanism is the registered one: the online
+policy's only stop condition is the wall clock
+(`task-a-episode-outcome-is-machine-speed-dependent`). Idle, this matrix is
+nearly deterministic; contended, an episode can lose a quarter of its
+placements. Do not run it alongside anything, and do not rank
+configurations off it -- it answers "does it run and how does it die".
+
+**`--trace` is an intervention on paper.**
+`NEDO_POLICY_TRACE_PATH` switches on `_record_item_lifecycle`
+(`agent.py:6740`, consumed at `4101`) inside the candidate loop and writes
+~40 kB per decision, all inside the 6.5 s deadline, so a traced arm should
+search less. It was not detectable here -- the traced arm equals or beats
+the untraced one on every row. Still separate arms; do not pool them.
+
+### What the traces establish
+
+All four settle deaths are the agent's OWN placement (`placement_core`),
+not a fallback. The single transport death is the hard-coded
+`[0, 0, 0.25]` of `unsafe_protocol_fallback` (`agent.py:7008-7078`), which
+is exactly the ledger's `transport-deaths-are-fallback-poison`.
+
+Three of the four settle deaths came through the **release** acceptance
+path. That path has no support check: `Geometry.rejection_reason` runs
+containment -> headroom -> static geometry -> **support** -> corridor, and
+`Geometry.release_rejection_reason` runs containment -> static geometry ->
+corridor and stops. Worse, `support_surfaces()` deliberately excludes soft
+and prioritised items while `release_rest_height()` destructures the same
+list as `for box, _is_soft, _is_priority in packed_aabbs_local(container)`
+and discards both flags -- so a release candidate is aimed to land on the
+item whose flag was thrown away, and nothing rejects it.
+`tests/test_release_support_gap.py` demonstrates that on the bundled
+geometry, with a control that pins "support" to the flag rather than the
+height.
+
+Treat "3 of 4 deaths were release candidates" as a LEAD, not a finding:
+release candidates are 110 of 215 decisions across the matrix, so 3 of 4 is
+what a 51% base rate produces about a third of the time.
+
+### Two containers is not a win
+
+dual-empty and dual-dedicated-priority both reach 41/41, but two containers
+give roughly twice the volume for the same 41-item mix, so those rows are
+not comparable to the single-container suite or to the official 0.505. What
+they do show is that the multi-container and dedicated-routing paths are
+live: `priority_misrouted` is 0 and both containers are used.
+
+They also expose a routing question nobody has answered. Nothing reserves
+the dedicated container for priority items -- `eligible_container_indices`
+restricts only priority items, and candidate generation sorts containers by
+**descending** remaining volume, so the emptier one is tried first. In the
+untraced dual-dedicated-priority episode `priority_clean_ratio` ended at
+0.333: 2 of 3 placed priority items had something stacked on them, which
+the rules score directly (section 4). Whether that is the release path
+above or ordinary crowding is unattributed -- `terminal_decision` names the
+action's acceptance path, not which item covered which.
 
 Still unmeasured: the **80-item two-container** scale the rules describe
 for Task A. The matrix reuses the 41-item mix, which is a different
 difficulty.
 
-The tests are contract-level and were audited; `context/measurements.json`
+The unit tests are contract-level and were audited; `context/measurements.json`
 records what they cannot answer. The short version: every assertion is on
 **step 1 of an episode**, there is no physics, and the priority test hands
 over a pool with a single priority item, which is the easiest possible

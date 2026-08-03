@@ -140,6 +140,27 @@
         "a switchable fallback policy exists",
         "measured against the current one at episode level"
       ]
+    },
+    {
+      "id": "release-path-should-check-support",
+      "question": "Should the release acceptance path check support, and should it stop treating soft and prioritised tops as landing surfaces?",
+      "axis": "physics",
+      "intervention": "two separable changes, neither of which has a knob today: call has_stable_support from Geometry.release_rejection_reason, and stop discarding the flags in release_rest_height so a flagged item no longer raises the rest height",
+      "observation_unit": "episode",
+      "required_variation": "both changes default-off behind an env knob, run paired against the current behaviour on the same arrival streams -- the change can only REMOVE candidates, so the interesting outcome is whether placed falls further than the scored violations improve",
+      "existing_instruments": [
+        "tests/test_release_support_gap.py",
+        "scripts/run_scenario_matrix.py",
+        "scripts/run_stream_paired.py"
+      ],
+      "missing_instrument": "nothing attributes a scored violation to the action that caused it. The dedicated scene ends with priority_covered_by_other 2 of 3, and run_scenario_matrix's terminal_decision names the acceptance path of the FINAL action only. Deciding this needs a per-placement record of which item came to rest on which, joined to the candidate kind that produced it -- the replay dataset has the geometry but not the cover relation.",
+      "status": "open",
+      "priority": "medium",
+      "rationale": "The settled path excludes soft and prioritised items from support_surfaces deliberately, because the rules score burying them (COMPETITION_RULES section 4); the release path discards the same flags and has no support step at all. Three of four settle deaths in the scenario matrix came through the release path, which is a lead and not evidence -- release candidates are 110 of 215 decisions, so 3 of 4 is unremarkable at that base rate.",
+      "closure_criteria": [
+        "the cover relation is recorded per placement and joined to candidate kind",
+        "a paired run measures placed against priority_clean_ratio and soft_clean_ratio with the check on and off"
+      ]
     }
   ],
   "provenance": {
