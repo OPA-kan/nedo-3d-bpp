@@ -219,8 +219,21 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    a hard reject it over-starves release -- restrict it to
    dominant-support rests or a score penalty before shipping; board
    remains negative here, consistent with its earlier MIXED verdict.
-   Shipped-mode confirmations of guard2 and relguard were queued
-   sequentially the same night (see `reports/scenario-matrix/`).
+   Shipped-mode confirmations of guard2 and relguard ran sequentially the
+   same night (`reports/scenario-matrix/shipped-confirm-20260803.json`).
+
+5. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
+   cell, deadline-bound, so direction hints only): RELEASE_ATTRIBUTE_GUARD
+   reaches priority_clean 1.0 with zero covers on every dual scene and
+   two of three singles, confirming the mechanism end-to-end in shipped
+   mode; guard2 reproduces dual-dedicated-priority placed 30 (the prior
+   session's best) while the SAME base binary returned 19 on this
+   machine. That 30-vs-19 spread on an identical config is the existing
+   sigma-branch finding, remeasured: single shipped episodes cannot rank
+   arms. Next step for adoption is the paired multi-episode CI protocol
+   on guard2 (placed) and on a softened relguard (dominant-support-only
+   reject or a score penalty instead of a hard reject, since the hard
+   reject pays ~-47 suite placed in pi_B for covers 7 -> 2).
 
 The tests are contract-level and were audited; `context/measurements.json`
 records what they cannot answer. The short version: every assertion is on
