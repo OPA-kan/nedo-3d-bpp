@@ -16,12 +16,22 @@ def main() -> int:
         type=pathlib.Path,
         default=ROOT / "dist" / "submission.zip",
     )
+    parser.add_argument(
+        "--dir-name",
+        default="submit",
+        help=(
+            "Top-level directory inside the archive. The platform requires the"
+            " zip to contain an agent DIRECTORY holding agent.py, not a flat"
+            " agent.py (simulator/README.md '応募用ファイルの作成'). A flat"
+            " archive is rejected at upload."
+        ),
+    )
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.write(AGENT, arcname="agent.py")
+        archive.write(AGENT, arcname=f"{args.dir_name}/agent.py")
 
     print(f"built: {output}")
     return 0
