@@ -35,3 +35,13 @@ Date: 2026-08-03. Branch `claude/l3-l4-allocation-ordering`.
 - arm `l3_risk_route`: release しか無い item は、より空いたコンテナの候補を優先
 - 判定: m2-k15 3 repeats で placed/fill が base を上回るか。
   ローカル比較の限界(deadline 依存)は Task C k=1 と同様に注意
+
+## Ablation 第1ラウンド(2026-08-03): 判定不能、ただし天井が見えた
+
+base [18,40,18] vs l3_prefer_empty [18,18,27]。deadline 依存の分散(18↔40)が
+arm 差を圧倒し、n=3 では判定不能(task-b-guard-not-reproducible-off-ci と同種)。
+tie-break は作動する(11:17 の run あり)。決定的なのは base r1: 殺し手の
+release を生き延びた run は placed 40・配分 23:18 に達した。この scene の
+損失の本体は配分ではなく「エピソードを終わらせる 1 手」であり、次の測定は
+l3_risk_route(release しか無い item を空いた側へ)と、殺し手 step の
+リスク項の実測に移す。CI か直列実行での再測定が前提。
