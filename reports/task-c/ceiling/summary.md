@@ -1,5 +1,15 @@
 # Task C search ceiling: how far is the real wall?
 
+> **RETRACTED (same day).** The wall is not real. On the identical state, a
+> dense 2.5 cm grid finds 16 geometrically valid placements where both anchor
+> generators exhaustively find zero, and all 16 are physically safe. The
+> anchor space is a SAMPLING of the placement space, so every "the oracle
+> found zero" conclusion below is conditional on that parameterisation and the
+> ceiling numbers are not ceilings. See `reports/task-c/wall-is-not-a-wall.md`
+> and evidence `task-c-wall-is-anchor-parameterisation-not-the-board`. The
+> per-case decomposition of search versus picks still stands; what does not is
+> the claim that the chains ended at a real wall.
+
 Date: 2026-08-02. `scripts/measure_search_ceiling.py`, one chain per
 (case, rescue policy), serial. Each chain runs the episode normally, hands it a
 physically safe oracle placement whenever it would end, and stops when the
