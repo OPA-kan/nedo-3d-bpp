@@ -33,7 +33,14 @@ OFFICIAL_TRANSPORT_CLEARANCE = 0.015
 TRANSPORT_CLEARANCE = (
     OFFICIAL_TRANSPORT_CLEARANCE + FLOAT32_CLEARANCE_GUARD
 )
-PHYSICS_LATERAL_GUARD = 0.010
+# Self-imposed lateral margin on top of the official transport clearance.
+# The 2026-08-03 scenario-matrix death-step audit found ~90% of terminal
+# rejections were static_geometry at ~25% fill, so the cost of this guard
+# is measurable and an env override exists to measure it. 0.010 remains
+# the shipped default until an ablation says otherwise.
+PHYSICS_LATERAL_GUARD = float(
+    os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
+)
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
@@ -97,6 +104,15 @@ RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
 )
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
+# Reject release candidates whose static settled proxy rests on a
+# priority (or soft) item the moving item may not cover. The 2026-08-03
+# scenario matrix attributed 6 of 7 priority-cover events to release
+# actions: release_rest_height() treats every packed top as a landing
+# surface and the release path has no support check, so covering a
+# priority item is a legal plan. Default off pending the ablation.
+RELEASE_ATTRIBUTE_GUARD = os.environ.get(
+    "RELEASE_ATTRIBUTE_GUARD", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 POLICY_BUDGET_SECONDS = 6.5
 # Measurement-mode work budget for the ONLINE primary search. 0 keeps the
 # shipped behaviour (wall-clock only).
@@ -1634,14 +1650,45 @@ class Geometry:
             return "corridor"
         return None
 
+    @staticmethod
+    def release_rests_on_protected_item(candidate, container, item=None):
+        """True when the settled proxy rests on a top the item may not cover.
+
+        Same-attribute stacking stays allowed, mirroring the official
+        violation definition (an upper item LACKING the attribute on a
+        lower item having it). With no item context the check is
+        conservative and treats the mover as plain cargo.
+        """
+        item_is_priority = bool((item or {}).get("is_prioritized", False))
+        item_is_soft = bool((item or {}).get("is_soft", False))
+        proxy = settled_proxy_candidate(candidate, container)
+        bottom = float(proxy.minimum[2])
+        for box, is_soft, is_prioritized in packed_aabbs_local(container):
+            if is_prioritized and not item_is_priority:
+                pass
+            elif is_soft and not item_is_soft:
+                pass
+            else:
+                continue
+            if (
+                abs(bottom - float(box.top)) <= CONTACT_TOLERANCE
+                and xy_overlap_area(proxy, box) > EPS
+            ):
+                return True
+        return False
+
     @classmethod
-    def release_rejection_reason(cls, candidate, container):
+    def release_rejection_reason(cls, candidate, container, item=None):
         if not cls.inside_container(candidate, container):
             return "containment"
         if not cls.clears_static_geometry(candidate, container):
             return "static_geometry"
         if not cls.transport_path_clear(candidate, container):
             return "corridor"
+        if RELEASE_ATTRIBUTE_GUARD and cls.release_rests_on_protected_item(
+            candidate, container, item
+        ):
+            return "attribute_rest"
         return None
 
     @classmethod
@@ -1657,6 +1704,7 @@ REJECTION_REASONS = (
     "static_geometry",
     "support",
     "corridor",
+    "attribute_rest",
 )
 
 
@@ -2958,6 +3006,7 @@ class CandidateGenerator:
                     reason = Geometry.release_rejection_reason(
                         candidate,
                         container,
+                        item=item,
                     )
                     _record_candidate_diagnostic(
                         diagnostics,
@@ -3168,6 +3217,7 @@ class CandidateGenerator:
                     reason = Geometry.release_rejection_reason(
                         candidate,
                         container,
+                        item=item,
                     )
                     _record_candidate_diagnostic(
                         diagnostics,
@@ -3933,7 +3983,7 @@ def revalidate_cross_step_candidates(
             candidate = retained.candidate
             if candidate.name == "release_candidate":
                 reason = Geometry.release_rejection_reason(
-                    candidate, container
+                    candidate, container, item=item
                 )
                 if reason is None and not release_candidate_passes_risk_gate(
                     candidate,
