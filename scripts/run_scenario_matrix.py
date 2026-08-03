@@ -130,6 +130,9 @@ def terminal_decision(trace_path: pathlib.Path) -> dict[str, Any] | None:
         kind = decision.get("candidate_kind") or "none"
         kinds[kind] = kinds.get(kind, 0) + 1
     return {
+        # "final", not "fatal": on a stream_exhausted row this describes
+        # the placement that finished the stream, not a cause of death.
+        # Read it together with death_channel.
         "decisions": len(decisions),
         "candidate_kind_counts": kinds,
         "final_action_source": final.get("action_source"),
@@ -285,9 +288,15 @@ def resummarize(
 def format_row(row: dict[str, Any]) -> str:
     terminal = row.get("terminal_decision") or {}
     attribution = ""
-    if terminal:
+    # Only a death has a cause. On a stream_exhausted row the final
+    # decision is the placement that finished the stream, and printing it
+    # under the same label would read as an attribution for a death that
+    # did not happen.
+    if terminal and row.get("death_channel") not in (
+        "stream_exhausted", "did_not_run", None
+    ):
         attribution = (
-            f" | by {terminal.get('final_action_source')}"
+            f" | killed by {terminal.get('final_action_source')}"
             f"/{terminal.get('final_candidate_kind')}"
         )
     return (

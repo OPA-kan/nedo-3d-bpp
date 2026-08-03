@@ -1,0 +1,372 @@
+{
+  "schema_version": 2,
+  "purpose": "Physical execution of the container-configuration matrix. Coverage probe, not a benchmark: reports whether a configuration runs and which channel ends the episode. death_channel is derived from place_states, which app.py overwrites every step and which therefore describes the LAST step only. terminal_decision comes from the policy trace and says whether the agent chose the killing action or fell back, and through which acceptance path.",
+  "matrix_dir": "/home/user/nedo-3d-bpp/reports/scenario-matrix",
+  "rows": [
+    {
+      "scenario": "single-empty-noshelf",
+      "config": "single-empty-noshelf.json",
+      "containers": 1,
+      "shelves": 0,
+      "dedicated": 0,
+      "preloaded": 0,
+      "stream_items": 41,
+      "total_items": 41,
+      "placed_ratio": 0.5854,
+      "packed_items": 24,
+      "agent_placed": 24,
+      "agent_of": 41,
+      "fill_score": 21.128,
+      "steps": 25,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "death_channel": "settle",
+      "status": "success",
+      "priority_items": 3,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 2,
+      "priority_clean_ratio": 0.3333333333333333,
+      "soft_items": 7,
+      "soft_covered_by_other": 1,
+      "soft_clean_ratio": 0.8571428571428571,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/single-empty-noshelf/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 25,
+        "candidate_kind_counts": {
+          "candidate": 11,
+          "release_candidate": 14
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "release_candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 5,
+          "container_idx": 0,
+          "place_pos": [
+            0.09672475606203079,
+            -0.5490000247955322,
+            1.353738784790039
+          ],
+          "orientation": 1
+        }
+      }
+    },
+    {
+      "scenario": "single-empty-shelf",
+      "config": "single-empty-shelf.json",
+      "containers": 1,
+      "shelves": 1,
+      "dedicated": 0,
+      "preloaded": 0,
+      "stream_items": 41,
+      "total_items": 41,
+      "placed_ratio": 0.3415,
+      "packed_items": 14,
+      "agent_placed": 14,
+      "agent_of": 41,
+      "fill_score": 16.855,
+      "steps": 15,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "death_channel": "settle",
+      "status": "success",
+      "priority_items": 1,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 1,
+      "priority_clean_ratio": 0.0,
+      "soft_items": 4,
+      "soft_covered_by_other": 0,
+      "soft_clean_ratio": 1.0,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/single-empty-shelf/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 15,
+        "candidate_kind_counts": {
+          "candidate": 10,
+          "release_candidate": 5
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "release_candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 3,
+          "container_idx": 0,
+          "place_pos": [
+            -0.38913121819496155,
+            -0.29103562235832214,
+            0.5270178914070129
+          ],
+          "orientation": 5
+        }
+      }
+    },
+    {
+      "scenario": "single-preloaded",
+      "config": "single-preloaded.json",
+      "containers": 1,
+      "shelves": 0,
+      "dedicated": 0,
+      "preloaded": 3,
+      "stream_items": 38,
+      "total_items": 41,
+      "placed_ratio": 0.4878,
+      "packed_items": 20,
+      "agent_placed": 17,
+      "agent_of": 38,
+      "fill_score": 22.48,
+      "steps": 18,
+      "place_states": {
+        "is_included": true,
+        "is_valid": false,
+        "is_placed_safe": false
+      },
+      "death_channel": "transport",
+      "status": "success",
+      "priority_items": 3,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 2,
+      "priority_clean_ratio": 0.3333333333333333,
+      "soft_items": 6,
+      "soft_covered_by_other": 0,
+      "soft_clean_ratio": 1.0,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/single-preloaded/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 18,
+        "candidate_kind_counts": {
+          "candidate": 10,
+          "release_candidate": 7,
+          "unsafe_protocol_fallback": 1
+        },
+        "final_action_source": "unsafe_protocol_fallback",
+        "final_candidate_kind": "unsafe_protocol_fallback",
+        "final_internal_outcome": "no_safe_action",
+        "final_no_safe_action": true,
+        "final_action_command": {
+          "item_idx": 0,
+          "container_idx": 0,
+          "place_pos": [
+            0.0,
+            0.0,
+            0.25
+          ],
+          "orientation": 0
+        }
+      }
+    },
+    {
+      "scenario": "dual-empty",
+      "config": "dual-empty.json",
+      "containers": 2,
+      "shelves": 0,
+      "dedicated": 0,
+      "preloaded": 0,
+      "stream_items": 41,
+      "total_items": 41,
+      "placed_ratio": 1.0,
+      "packed_items": 41,
+      "agent_placed": 41,
+      "agent_of": 41,
+      "fill_score": 22.983,
+      "steps": 41,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": true
+      },
+      "death_channel": "stream_exhausted",
+      "status": "success",
+      "priority_items": 4,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 2,
+      "priority_clean_ratio": 0.5,
+      "soft_items": 13,
+      "soft_covered_by_other": 1,
+      "soft_clean_ratio": 0.9230769230769231,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/dual-empty/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 41,
+        "candidate_kind_counts": {
+          "candidate": 18,
+          "release_candidate": 23
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "release_candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 0,
+          "container_idx": 1,
+          "place_pos": [
+            0.0,
+            -0.38504061102867126,
+            1.1376923322677612
+          ],
+          "orientation": 0
+        }
+      }
+    },
+    {
+      "scenario": "dual-shelf-mixed",
+      "config": "dual-shelf-mixed.json",
+      "containers": 2,
+      "shelves": 1,
+      "dedicated": 0,
+      "preloaded": 0,
+      "stream_items": 41,
+      "total_items": 41,
+      "placed_ratio": 0.9512,
+      "packed_items": 39,
+      "agent_placed": 39,
+      "agent_of": 41,
+      "fill_score": 22.259,
+      "steps": 40,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "death_channel": "settle",
+      "status": "success",
+      "priority_items": 3,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 2,
+      "priority_clean_ratio": 0.3333333333333333,
+      "soft_items": 12,
+      "soft_covered_by_other": 3,
+      "soft_clean_ratio": 0.75,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/dual-shelf-mixed/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 40,
+        "candidate_kind_counts": {
+          "candidate": 21,
+          "release_candidate": 19
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "release_candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 0,
+          "container_idx": 1,
+          "place_pos": [
+            0.734000027179718,
+            -0.4189999997615814,
+            1.0864216089248657
+          ],
+          "orientation": 3
+        }
+      }
+    },
+    {
+      "scenario": "dual-dedicated-priority",
+      "config": "dual-dedicated-priority.json",
+      "containers": 2,
+      "shelves": 0,
+      "dedicated": 1,
+      "preloaded": 0,
+      "stream_items": 41,
+      "total_items": 41,
+      "placed_ratio": 1.0,
+      "packed_items": 41,
+      "agent_placed": 41,
+      "agent_of": 41,
+      "fill_score": 20.359,
+      "steps": 41,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": true
+      },
+      "death_channel": "stream_exhausted",
+      "status": "success",
+      "priority_items": 4,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 1,
+      "priority_clean_ratio": 0.75,
+      "soft_items": 13,
+      "soft_covered_by_other": 0,
+      "soft_clean_ratio": 1.0,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/dual-dedicated-priority/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 41,
+        "candidate_kind_counts": {
+          "candidate": 17,
+          "release_candidate": 24
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "release_candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 0,
+          "container_idx": 1,
+          "place_pos": [
+            -0.3629998564720154,
+            0.0,
+            0.517029345035553
+          ],
+          "orientation": 5
+        }
+      }
+    },
+    {
+      "scenario": "dual-preloaded-dedicated",
+      "config": "dual-preloaded-dedicated.json",
+      "containers": 2,
+      "shelves": 0,
+      "dedicated": 1,
+      "preloaded": 2,
+      "stream_items": 39,
+      "total_items": 41,
+      "placed_ratio": 0.878,
+      "packed_items": 36,
+      "agent_placed": 34,
+      "agent_of": 39,
+      "fill_score": 17.827,
+      "steps": 35,
+      "place_states": {
+        "is_included": true,
+        "is_valid": true,
+        "is_placed_safe": false
+      },
+      "death_channel": "settle",
+      "status": "success",
+      "priority_items": 4,
+      "priority_misrouted": 0,
+      "priority_covered_by_other": 1,
+      "priority_clean_ratio": 0.75,
+      "soft_items": 11,
+      "soft_covered_by_other": 0,
+      "soft_clean_ratio": 1.0,
+      "policy_trace": "/home/user/nedo-3d-bpp/reports/scenario-matrix/runs/dual-preloaded-dedicated/policy-trace.jsonl",
+      "terminal_decision": {
+        "decisions": 35,
+        "candidate_kind_counts": {
+          "candidate": 17,
+          "release_candidate": 18
+        },
+        "final_action_source": "placement_core",
+        "final_candidate_kind": "candidate",
+        "final_internal_outcome": null,
+        "final_no_safe_action": false,
+        "final_action_command": {
+          "item_idx": 1,
+          "container_idx": 1,
+          "place_pos": [
+            -0.029016533866524696,
+            0.0,
+            1.0823041200637817
+          ],
+          "orientation": 3
+        }
+      }
+    }
+  ]
+}
