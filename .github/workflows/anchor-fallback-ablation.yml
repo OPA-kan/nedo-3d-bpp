@@ -1,4 +1,4 @@
-name: Anchor-space fallback ablation
+name: Anchor search ablation
 
 # The regression guard for this change cannot be measured on a developer box.
 # The search is deadline-driven, so CPU speed changes how much of the anchor
@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: anchor-fallback-${{ github.ref }}
+  group: anchor-search-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, anchor_fallback]
+        arm: [base, anchor_fallback, true_envelope]
         replicate: [0, 1, 2]
         case:
           # Task C: where the feature is expected to act.
