@@ -35,11 +35,15 @@ TRANSPORT_CLEARANCE = (
 )
 # Self-imposed lateral margin on top of the official transport clearance.
 # The 2026-08-03 scenario-matrix death-step audit found ~90% of terminal
-# rejections were static_geometry at ~25% fill, so the cost of this guard
-# is measurable and an env override exists to measure it. 0.010 remains
-# the shipped default until an ablation says otherwise.
+# rejections were static_geometry at ~25% fill. The same night's pi_B
+# ladder (POLICY_ATTEMPT_BUDGET=4000, 8 scenes) measured the guard's
+# price: suite placed 232 at 10mm, 242 at 2mm, 193 at 0mm -- an interior
+# optimum, so the guard is not free but 10mm overpaid. Default moved
+# 0.010 -> 0.002 on 2026-08-04 (user decision); the paired-CI shipped
+# confirmation is still owed and PHYSICS_LATERAL_GUARD=0.010 restores
+# the old contract in one env var.
 PHYSICS_LATERAL_GUARD = float(
-    os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
+    os.environ.get("PHYSICS_LATERAL_GUARD", "0.002")
 )
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 TRANSPORT_SAMPLE_STEP = 0.03
@@ -105,14 +109,33 @@ RELEASE_RISK_SLIDE_SHADOW_LAMBDA = float(
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 # Reject release candidates whose static settled proxy rests on a
-# priority (or soft) item the moving item may not cover. The 2026-08-03
-# scenario matrix attributed 6 of 7 priority-cover events to release
-# actions: release_rest_height() treats every packed top as a landing
-# surface and the release path has no support check, so covering a
-# priority item is a legal plan. Default off pending the ablation.
-RELEASE_ATTRIBUTE_GUARD = os.environ.get(
+# protected top. The 2026-08-03 scenario matrix attributed 6 of 7
+# priority-cover events to release actions: release_rest_height()
+# treats every packed top as a landing surface and the release path has
+# no support check, so covering a priority item is a legal plan.
+#
+# Modes: "off" (shipped), "all" (priority AND soft tops), "priority"
+# (priority tops only). The pi_B ablation priced "all" at -47 suite
+# placed for covers 7 -> 2 -- but base soft covers were already rare
+# (soft_clean 0.92-1.0) while soft items are 13 of 41, so most of the
+# landing area "all" forfeits protects a violation that barely occurs.
+# "priority" exists to keep the scored benefit at a fraction of the
+# cost; it guards 4 items' tops instead of 17.
+RELEASE_ATTRIBUTE_GUARD_MODES = frozenset({"off", "all", "priority"})
+_release_attribute_guard_raw = os.environ.get(
     "RELEASE_ATTRIBUTE_GUARD", "0"
-).strip().lower() in {"1", "true", "yes", "on"}
+).strip().lower()
+if _release_attribute_guard_raw in {"1", "true", "yes", "on"}:
+    _release_attribute_guard_raw = "all"
+elif _release_attribute_guard_raw in {"0", "false", "no", ""}:
+    _release_attribute_guard_raw = "off"
+if _release_attribute_guard_raw not in RELEASE_ATTRIBUTE_GUARD_MODES:
+    raise ValueError(
+        f"unknown RELEASE_ATTRIBUTE_GUARD "
+        f"{_release_attribute_guard_raw!r}; expected one of "
+        f"{sorted(RELEASE_ATTRIBUTE_GUARD_MODES)} (or a boolean alias)"
+    )
+RELEASE_ATTRIBUTE_GUARD = _release_attribute_guard_raw
 POLICY_BUDGET_SECONDS = 6.5
 # Measurement-mode work budget for the ONLINE primary search. 0 keeps the
 # shipped behaviour (wall-clock only).
@@ -1659,6 +1682,7 @@ class Geometry:
         lower item having it). With no item context the check is
         conservative and treats the mover as plain cargo.
         """
+        guard_soft = RELEASE_ATTRIBUTE_GUARD == "all"
         item_is_priority = bool((item or {}).get("is_prioritized", False))
         item_is_soft = bool((item or {}).get("is_soft", False))
         proxy = settled_proxy_candidate(candidate, container)
@@ -1666,7 +1690,7 @@ class Geometry:
         for box, is_soft, is_prioritized in packed_aabbs_local(container):
             if is_prioritized and not item_is_priority:
                 pass
-            elif is_soft and not item_is_soft:
+            elif guard_soft and is_soft and not item_is_soft:
                 pass
             else:
                 continue
@@ -1685,7 +1709,7 @@ class Geometry:
             return "static_geometry"
         if not cls.transport_path_clear(candidate, container):
             return "corridor"
-        if RELEASE_ATTRIBUTE_GUARD and cls.release_rests_on_protected_item(
+        if RELEASE_ATTRIBUTE_GUARD != "off" and cls.release_rests_on_protected_item(
             candidate, container, item
         ):
             return "attribute_rest"

@@ -222,7 +222,20 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    Shipped-mode confirmations of guard2 and relguard ran sequentially the
    same night (`reports/scenario-matrix/shipped-confirm-20260803.json`).
 
-5. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
+5. ADOPTED 2026-08-04 (user decision): `PHYSICS_LATERAL_GUARD` default
+   0.010 -> 0.002, i.e. the settled lateral contract drops 26 mm -> 18 mm.
+   Basis: the pi_B ladder above (232/223/242/193 across 10/5/2/0 mm).
+   The paired multi-episode CI confirmation in shipped mode is still
+   OWED; `PHYSICS_LATERAL_GUARD=0.010` reverts in one env var. The
+   optimizer fingerprint's behaviour_sha256 is UNCHANGED by this flip
+   (component hash updated), so recorded Task A offline numbers are not
+   invalidated by the fingerprint's own criterion. In the same commit
+   `RELEASE_ATTRIBUTE_GUARD` grew a "priority" mode (guards the 4
+   priority tops only, not the 13 soft tops): base soft covers were
+   already rare (soft_clean 0.92-1.0), so most of the -47 placed the
+   "all" mode paid bought protection soft items barely needed.
+
+6. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
    cell, deadline-bound, so direction hints only): RELEASE_ATTRIBUTE_GUARD
    reaches priority_clean 1.0 with zero covers on every dual scene and
    two of three singles, confirming the mechanism end-to-end in shipped
