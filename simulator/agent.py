@@ -4810,7 +4810,35 @@ _BOARD_OCCUPANCY_CACHE: dict[int, tuple] = {}
 
 
 def _board_grid_key(container):
+    """
+    The grid's identity, including the container SHAPE.
+
+    The key used to be dimensions only. Since the domain is now derived
+    from the container's own half-spaces, two containers with identical
+    dimensions but different (or absent) half-space models produce
+    different grids -- and the dimensions-only key silently served one
+    for the other. That is how the first version of the asymmetry test
+    got a symmetric grid: a plain box container had populated the entry
+    earlier in the run.
+    """
+    points = container.get("points")
+    normals = container.get("n_vecs")
+    shape = (
+        None
+        if points is None or normals is None
+        else (
+            tuple(
+                tuple(round(float(value), 6) for value in point)
+                for point in points
+            ),
+            tuple(
+                tuple(round(float(value), 6) for value in normal)
+                for normal in normals
+            ),
+        )
+    )
     return (
+        shape,
         round(float(container["length"]), 6),
         round(float(container["width"]), 6),
         round(float(container["height"]), 6),
@@ -4837,14 +4865,39 @@ def board_grid(container):
     thickness = float(container["thickness"])
     buffer = float(container.get("buffer", 0.0))
 
-    x_span = max(length - 2.0 * thickness, BOARD_CELL_SIZE)
-    y_span = max(width - 2.0 * thickness, BOARD_CELL_SIZE)
+    # The grid domain used to be the nominal interior box,
+    # [-L/2 + t, +L/2 - t] x [-W/2 + t, +W/2 - t]. That is the same box
+    # formula ANCHOR_TRUE_ENVELOPE replaced: these containers have
+    # ASYMMETRIC y planes at [-W/2, +W/2 - t], so the box form never
+    # sampled a strip of exactly one thickness along the low-y wall --
+    # measured 0.0400 m on the bundled case, 2.8% of the true span, and
+    # container_z_interval reports that strip as interior.
+    #
+    # Do NOT restate this as "the band the envelope fix opened". The
+    # envelope gap was a bound on item CENTRES and the sixteen recovered
+    # placements sat at y = -0.600, which the old grid already sampled.
+    # The grid's gap is a different one: surface in [-W/2, -W/2 + t] that
+    # it never looked at. The two share a cause -- a symmetric box formula
+    # on an asymmetric container -- not an extent.
+    #
+    # Cells are filtered by container_z_interval below, which is exact, so
+    # widening the domain cannot admit a cell outside the container. It
+    # only stops the board from being blind to a strip the search can now
+    # reach.
+    x_low, x_high, y_low, y_high = rectangular_container_anchor_bounds(
+        (0.0, 0.0, 0.0), container
+    )
+    if not (x_low < x_high and y_low < y_high):
+        x_low, x_high = -length / 2.0 + thickness, length / 2.0 - thickness
+        y_low, y_high = -width / 2.0 + thickness, width / 2.0 - thickness
+    x_span = max(x_high - x_low, BOARD_CELL_SIZE)
+    y_span = max(y_high - y_low, BOARD_CELL_SIZE)
     nx = max(1, int(round(x_span / BOARD_CELL_SIZE)))
     ny = max(1, int(round(y_span / BOARD_CELL_SIZE)))
     cell_x = x_span / nx
     cell_y = y_span / ny
-    x0 = -length / 2.0 + thickness
-    y0 = -width / 2.0 + thickness
+    x0 = x_low
+    y0 = y_low
     xs = np.array(
         [x0 + (index + 0.5) * cell_x for index in range(nx)], dtype=np.float64
     )

@@ -616,3 +616,71 @@ class ReachabilityTests(unittest.TestCase):
         self.assertGreater(
             with_reach, 0, "0.3 fits over a 0.2 wall under a 1.0 ceiling"
         )
+
+
+class GridDomainTests(unittest.TestCase):
+    """
+    The grid domain must follow the container, not a symmetric box.
+
+    board_grid used [-L/2 + t, +L/2 - t] x [-W/2 + t, +W/2 - t]. The real
+    containers have asymmetric y planes at [-W/2, +W/2 - t], so that form
+    never sampled a strip of one thickness along the low-y wall, while
+    container_z_interval reports the strip as interior. Same cause as the
+    anchor envelope: a symmetric formula cannot represent an asymmetric
+    container.
+    """
+
+    def asymmetric(self):
+        """A container whose y planes sit at [-W/2, +W/2 - t]."""
+        target = container(length=1.0, width=1.0, height=1.0, thickness=0.1)
+        target["points"] = [
+            (-0.5, 0.0, 0.5), (0.5, 0.0, 0.5),
+            (0.0, -0.5, 0.5), (0.0, 0.4, 0.5),
+            (0.0, 0.0, 0.0), (0.0, 0.0, 1.0),
+        ]
+        target["n_vecs"] = [
+            (-1.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+            (0.0, -1.0, 0.0), (0.0, 1.0, 0.0),
+            (0.0, 0.0, -1.0), (0.0, 0.0, 1.0),
+        ]
+        return target
+
+    def test_the_domain_is_asymmetric_when_the_container_is(self):
+        """
+        The container's y interval is [-0.5, +0.4], so the grid's centre
+        must sit at -0.05, not at 0. The signature of following the
+        container is the offset CENTRE -- the insets from each true wall
+        stay equal, which is why an earlier version of this test asserted
+        unequal gaps and was simply wrong.
+        """
+        grid = A.board_grid(self.asymmetric())
+        centre = (float(grid.ys.min()) + float(grid.ys.max())) / 2.0
+
+        self.assertAlmostEqual(centre, -0.05, places=6)
+        self.assertGreater(
+            -0.4,
+            float(grid.ys.min()),
+            "the box formula would have stopped at -W/2 + t = -0.4",
+        )
+
+    def test_every_sampled_cell_is_inside_the_container(self):
+        """
+        Widening the domain must not admit cells outside: the exact
+        z-interval test is what keeps that true.
+        """
+        target = self.asymmetric()
+        grid = A.board_grid(target)
+        for i, x in enumerate(grid.xs):
+            for j, y in enumerate(grid.ys):
+                if grid.usable[i, j]:
+                    self.assertIsNotNone(
+                        A.container_z_interval(
+                            float(x), float(y), (0.0, 0.0, 0.0), target
+                        ),
+                        f"usable cell ({x:.3f},{y:.3f}) is outside",
+                    )
+
+    def test_a_container_without_half_spaces_keeps_the_box_domain(self):
+        grid = A.board_grid(container(length=1.0, width=1.0, thickness=0.1))
+        self.assertTrue(grid.usable.all())
+        self.assertGreater(len(grid.xs), 0)
