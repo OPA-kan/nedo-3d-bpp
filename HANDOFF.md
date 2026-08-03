@@ -137,6 +137,37 @@ everywhere:
 `walk` wins or ties on every seed, on both axes. n = 3 seeds on one
 case, so this is a direction (sign test p = 0.25), not a result.
 
+**That table is on the OLD anchor envelope and its headline does not
+survive the correction. Read this before using it.** Re-measured with
+`ANCHOR_TRUE_ENVELOPE=1`, same design, same seeds:
+
+| acceptance | s20260723 | s1 | s7 | mean placed | mean fill_ratio |
+|---|---:|---:|---:|---:|---:|
+| `walk` (shipped) | 24 | 20 | 22 | **22.00** | 0.38762 |
+| `hillclimb` (ADR-001 s5) | 21 | 19 | 20 | 20.00 | 0.36295 |
+| `ils` | 23 | **23** | 20 | **22.00** | **0.37249** |
+
+`walk`'s sole advantage is gone: `ils` moves +4 at seed 1, ties `walk`
+on placed and leads it on the fill delta (+0.01087 against +0.00270).
+"`walk` wins on every seed" was a property of a search domain that was
+blind along one wall. `hillclimb` stays last on both substrates.
+
+**The mechanism survives, which was the thing at risk.** The worry was
+that scrambling the order might be dodging the blind band rather than
+finding better orders. On the corrected envelope the two arms that
+travel far -- `walk` drift 41/29/36, `ils` 39/39/30 -- both reach 22.00,
+while `hillclimb` at 19/18/24 reaches 20.00. Distance still tracks
+quality. The constructive seed still evaluates to placed 16 on both
+substrates, so widening the domain does not improve the starting point.
+
+Multi-start was re-measured too and is unchanged: 19.67 against 22.00,
+identical in every cell on placed and fill, at 59 distinct orders
+against 60. Depth is why -- at 15 evaluations per start no start reaches
+the widened region and the single start does. What reproduces across
+both substrates is that the shipped `blend` construction is the WORST
+start in 2 of 3 seeds (17/20/16 against mass 20/18/19), so the open line
+is replacing the single start's construction at FULL budget.
+
 The mechanism is the useful part: **quality tracks distance from the
 seed.** `walk` drifts 29-37 of 41 positions and scores best; `hillclimb`
 drifts 8-21 and scores worst. The directed arms do use their budget
