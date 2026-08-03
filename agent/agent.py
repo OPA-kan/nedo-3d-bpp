@@ -256,6 +256,21 @@ OFFLINE_START_CONSTRUCTION = os.environ.get(
 #              evaluations, which is a confound a multi-start makes much
 #              worse because separate starts converge onto shared ground.
 OFFLINE_BUDGET_MODE = os.environ.get("OFFLINE_BUDGET_MODE", "iterations")
+# Skip neighbours whose ORDER SIGNATURE has already been evaluated.
+#
+# The neighbourhood transposes two positions inside an item_group, and the
+# streams repeat a seven-type catalogue heavily, so a large minority of
+# those transpositions swap two items that are identical in every attribute
+# the core reads. That is a different index tuple and the same physical
+# trajectory, which the index-keyed cache cannot see: measured 15.0% of
+# pairs in case 000 and 23.2% in case 001. Each one costs a full dry run
+# and returns nothing.
+#
+# Default off, because it changes which orders the search visits and must
+# be measured before adoption like any other search change.
+OFFLINE_SKIP_EQUIVALENT_ORDERS = os.environ.get(
+    "OFFLINE_SKIP_EQUIVALENT_ORDERS", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -3865,6 +3880,40 @@ def constructive_order(item_list):
     return [row[-1] for row in scored]
 
 
+def item_equivalence_signature(item):
+    """
+    Everything the placement core can see about an item except its ID.
+
+    The bundled streams are drawn from a SEVEN-TYPE catalogue with heavy
+    repetition -- case 000 is 41 items over 7 geometric types (13/11/5/4/4/
+    2/2) and case 001 is 42 over 7 (15/14/7/2/2/1/1). Counting full
+    signatures rather than geometry alone, 15.0% of all item pairs in case
+    000 and 23.2% in case 001 are interchangeable in every attribute the
+    core reads.
+
+    Transposing two such items produces a DIFFERENT index tuple and an
+    IDENTICAL physical trajectory: measured on case 000, swapping the first
+    two positions of the constructive order gives a bit-identical rank_key
+    while DryRunEvaluator's index-keyed cache records zero hits, so the
+    order search pays a full dry run for no information. `index` is read
+    only for that cache key and for the returned permutation, never by
+    ranking or tie-breaking, which is why the equivalence holds.
+
+    Attributes are taken from the item dict rather than listed here, so a
+    stream carrying a physical field this code does not know about cannot
+    be silently treated as interchangeable.
+    """
+    return tuple(
+        (key, item[key])
+        for key in sorted(item)
+        if key != "index" and isinstance(item[key], (int, float, bool, str))
+    )
+
+
+def order_signature(items):
+    return tuple(item_equivalence_signature(item) for item in items)
+
+
 def named_order(item_list, key_name):
     """
     One construction, sorted on a SINGLE named quantity.
@@ -6199,6 +6248,7 @@ class Agent:
         self.last_offline_result = None
         self.last_offline_initial_result = None
         self.last_offline_seed_result = None
+        self.last_equivalent_orders_skipped = 0
         self.last_offline_start_results = []
         self.last_offline_evaluations = 0
         self.last_offline_cache_hits = 0
@@ -6494,6 +6544,7 @@ class Agent:
         current_items = list(best_items)
         moving_runtime = max(0.001, best_result.runtime_seconds)
         stall = 0
+        seen_signatures = {order_signature(initial)}
 
         evaluations_at_start = evaluator.evaluations
         iteration = -1
@@ -6570,6 +6621,14 @@ class Agent:
                 else:
                     moved = neighbor.pop(first)
                     neighbor.insert(second, moved)
+
+            if OFFLINE_SKIP_EQUIVALENT_ORDERS:
+                signature = order_signature(neighbor)
+                if signature in seen_signatures:
+                    self.last_equivalent_orders_skipped += 1
+                    current_items = list(neighbor)
+                    continue
+                seen_signatures.add(signature)
 
             result = evaluator.evaluate(neighbor, deadline=deadline)
             moving_runtime = (

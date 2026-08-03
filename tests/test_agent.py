@@ -3602,6 +3602,67 @@ class OfflineOptimizationTests(unittest.TestCase):
             seed_result.rank_key(),
         )
 
+    def test_transposing_identical_items_is_a_physical_no_op(self):
+        """
+        The fact the skip rests on. Two items identical in every attribute
+        the core reads produce the same trajectory in either order, so the
+        index-keyed cache misses on a swap that carries no information --
+        measured at 15.0% of item pairs in bundled case 000 and 23.2% in
+        case 001, where 41 and 42 items come from just 7 geometric types.
+
+        If this ever fails, something in the placement core started reading
+        `index`, and OFFLINE_SKIP_EQUIVALENT_ORDERS is no longer sound.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["volume"] = 4.0
+        items = [
+            sample_item(0, length=0.4, width=0.3, height=0.25, mass=7),
+            sample_item(1, length=0.4, width=0.3, height=0.25, mass=7),
+            sample_item(2, length=0.3, width=0.25, height=0.2, mass=5),
+        ]
+        swapped = [items[1], items[0], items[2]]
+
+        self.assertEqual(
+            agent.item_equivalence_signature(items[0]),
+            agent.item_equivalence_signature(items[1]),
+        )
+        self.assertEqual(
+            agent.order_signature(items), agent.order_signature(swapped)
+        )
+
+        evaluator = agent.DryRunEvaluator([container])
+        first = evaluator.evaluate(items)
+        second = evaluator.evaluate(swapped)
+
+        self.assertEqual(first.rank_key(), second.rank_key())
+        self.assertEqual(
+            evaluator.cache_hits,
+            0,
+            "the index-keyed cache is expected to MISS here; that miss is "
+            "the wasted dry run the skip removes",
+        )
+
+    def test_signature_separates_items_differing_in_any_attribute(self):
+        base = sample_item(0, length=0.4, width=0.3, height=0.25, mass=7)
+        for field, value in (
+            ("mass", 8), ("length", 0.41), ("is_soft", True),
+            ("is_prioritized", True),
+        ):
+            with self.subTest(field=field):
+                other = dict(base, index=1, **{field: value})
+                self.assertNotEqual(
+                    agent.item_equivalence_signature(base),
+                    agent.item_equivalence_signature(other),
+                )
+        renamed = dict(base, index=99)
+        self.assertEqual(
+            agent.item_equivalence_signature(base),
+            agent.item_equivalence_signature(renamed),
+            "index is the one field that must NOT separate items",
+        )
+
     def test_named_orders_sort_on_one_quantity_inside_group_blocks(self):
         """
         The multi-start exists to avoid AGENT_OPERATIONS section 5.1: each
