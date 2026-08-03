@@ -477,7 +477,7 @@ def mc_rollout_value(
 
     values = []
     for stream_index in range(streams):
-        rng = random.Random((seed, stream_index))
+        rng = random.Random(f"{seed}-{stream_index}")
         simulated = copy.deepcopy(containers)
         container = simulated[0]
         placed = 0
