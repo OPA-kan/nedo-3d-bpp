@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import collections
 import copy
+import hashlib
 import json
 import pathlib
 import sys
@@ -177,6 +178,34 @@ def board_features(
     }
 
 
+def replay_digest(observation) -> str:
+    """
+    Fingerprint of the replayed board, so replay-to-replay physics
+    divergence is measurable instead of silently absorbed into branch
+    labels. Millimetre rounding: settle noise below that is not what the
+    horizon labels are trying to detect.
+    """
+    rows = []
+    for container in observation.get("container_list", []):
+        for packed in container.get("packed_items", []):
+            pos = None
+            for key in ("pos", "place_pos", "position", "center"):
+                if packed.get(key) is not None:
+                    pos = packed[key]
+                    break
+            rows.append(
+                (
+                    int(packed.get("index", -1)),
+                    tuple(
+                        round(float(v), 3) for v in (pos or (0.0, 0.0, 0.0))
+                    ),
+                )
+            )
+    rows.sort()
+    payload = json.dumps(rows, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()[:16]
+
+
 def continue_with_oracle_best(
     agent_module, env, raw_observation, step, horizon
 ) -> dict[str, Any]:
@@ -293,25 +322,39 @@ def run_horizon(
     point plus K continuations. Reported so the cost of going one step further
     back is visible rather than discovered.
     """
+    # Pin the top-K candidates ONCE, from a reference replay. The first
+    # version re-derived the list inside every per-rank replay; physics
+    # divergence across replays reshuffles enumeration scores and probe
+    # outcomes, so "rank r" named a different placement in every replay and
+    # the branch labels conflated choice with replay noise (the recorded
+    # scores were non-monotone across ranks, which a stable sorted list
+    # cannot produce). Executing pinned coordinates keeps the action
+    # constant; the residual replay-to-replay state noise is made visible
+    # via replay_digest instead of being silently absorbed.
+    env, _solver, observation, _rescues = replay_to_step(
+        agent_module, task_config, branch_step
+    )
+    try:
+        records = oracle_candidates(agent_module, observation)
+        validated, _checked = probe_records(env, records, top_k)
+        pinned = [
+            r
+            for r in validated
+            if r["physical"]["is_physically_valid"]
+        ][:top_k]
+    finally:
+        try:
+            env.close()
+        except Exception:
+            pass
+
     branches = []
-    safe_count = None
-    for rank in range(top_k):
+    safe_count = len(pinned)
+    for rank, candidate in enumerate(pinned):
         env, _solver, observation, _rescues = replay_to_step(
             agent_module, task_config, branch_step
         )
         try:
-            item = observation["pool_list"][0]
-            records = oracle_candidates(agent_module, observation)
-            validated, _checked = probe_records(env, records, rank + 1)
-            safe = [
-                r
-                for r in validated
-                if r["physical"]["is_physically_valid"]
-            ]
-            if len(safe) <= rank:
-                safe_count = len(safe)
-                break
-            candidate = safe[rank]
             raw_observation, _r, terminated, truncated, info = env.step(
                 rescue_action(candidate)
             )
@@ -325,6 +368,9 @@ def run_horizon(
                 "score": float(candidate["score"]),
                 "kind": candidate.get("kind"),
                 "orientation": int(candidate["orientation"]),
+                "center": [float(v) for v in candidate["center"]],
+                "size": [float(v) for v in candidate["size"]],
+                "replay_digest": replay_digest(observation),
                 "executed_ok": executed,
             }
             if executed and not (terminated or truncated):
