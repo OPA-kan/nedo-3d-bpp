@@ -378,6 +378,26 @@ LOOKAHEAD_SELECTION_MODES = frozenset(
 LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
+# Which boundary the SELECTION stage is gated on.
+#
+# "search" is the shipped arithmetic: the candidate search is told to stop
+# at deadline - LOOKAHEAD_TIME_RESERVE_SECONDS, and then the selection
+# stage is skipped when that SAME instant has passed. The search uses its
+# budget, so the test is true by construction -- measured over 89 eligible
+# steps the search returned with median slack -0.006 s, non-positive on 80
+# of them, and the board rule was entered on 9. The reserve is carved out
+# and then forfeited; the policy returns at ~5.0 s of an 8.0 s
+# policy_timeout. See lookahead-selection-stage-is-skipped-on-90-percent-
+# of-steps.
+#
+# "step" gates on the real step deadline instead, which is what the
+# reserve was reserved FOR. It is off by default because it changes the
+# action on the ~90% of steps that currently short-circuit -- a behaviour
+# change of that size is an ablation, not a bug fix.
+LOOKAHEAD_SELECTION_GATE = os.environ.get(
+    "LOOKAHEAD_SELECTION_GATE", "search"
+).strip().lower()
+LOOKAHEAD_SELECTION_GATES = frozenset({"search", "step"})
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
 # --- Board receptivity (the Tetris terms) ---
 # Cell size of the 2.5D height map the board features are read off.  0.05 m
@@ -5602,6 +5622,16 @@ def normalized_lookahead_mode(mode):
     return normalized
 
 
+def normalized_selection_gate(gate):
+    normalized = str(gate).strip().lower()
+    if normalized not in LOOKAHEAD_SELECTION_GATES:
+        available = ", ".join(sorted(LOOKAHEAD_SELECTION_GATES))
+        raise ValueError(
+            f"unknown lookahead selection gate '{gate}'; available: {available}"
+        )
+    return normalized
+
+
 def lookahead_rank_key(
     evaluation,
     mode=LOOKAHEAD_SELECTION_MODE,
@@ -7100,13 +7130,19 @@ class Agent:
             }
         )
 
-    def _board_choice(self, top, observation, ordered_items):
+    def _board_choice(self, top, observation, ordered_items, deadline=None):
         """Pick among the ranker's top-K by the board each one leaves.
 
         The ranker proposes and the board disposes: every candidate here
         already passed validation and risk gating, so this only reorders a
         set the shipped agent was already willing to place. K = 1 is the
         shipped decision exactly.
+
+        ``deadline`` bounds the scan, which matters once the stage is
+        allowed to spend the reserve: one candidate costs about 0.08 s, so
+        a large K under a 1.5 s reserve could otherwise overrun the step.
+        Stopping early keeps the best key found so far, which is still a
+        superset of the K = 1 decision.
         """
         containers = observation.get("container_list", [])
         shapes = board_probe_shapes(item for _index, item in ordered_items)
@@ -7121,6 +7157,8 @@ class Agent:
         best_key = None
         best_features = None
         for decision in top:
+            if deadline is not None and time.perf_counter() >= deadline:
+                break
             ranked = board_rank_key(
                 decision,
                 containers,
@@ -7213,10 +7251,15 @@ class Agent:
         if not top:
             self.last_lookahead_evaluation = None
             return None
+        selection_deadline = (
+            deadline
+            if normalized_selection_gate(LOOKAHEAD_SELECTION_GATE) == "step"
+            else lookahead_deadline
+        )
         if (
             len(top) == 1
             or len(ordered_items) <= 1
-            or time.perf_counter() >= lookahead_deadline
+            or time.perf_counter() >= selection_deadline
         ):
             self.last_lookahead_evaluation = LookaheadEvaluation(
                 decision=top[0],
@@ -7227,7 +7270,9 @@ class Agent:
             return top[0]
 
         if selection_mode == "board":
-            decision = self._board_choice(top, observation, ordered_items)
+            decision = self._board_choice(
+                top, observation, ordered_items, deadline=selection_deadline
+            )
             self.last_lookahead_evaluation = LookaheadEvaluation(
                 decision=decision,
                 feasible_next_items=0,

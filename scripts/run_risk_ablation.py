@@ -65,6 +65,7 @@ def configure_arm_environment(
         "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "LOOKAHEAD_SELECTION_MODE",
+        "LOOKAHEAD_SELECTION_GATE",
         "BOARD_LANDABLE_ONLY",
         "BOARD_REACHABLE_ONLY",
         "ANCHOR_FIRST_PASS_ATTEMPTS",
@@ -99,6 +100,8 @@ def configure_arm_environment(
         "board_k8",
         "board_k16",
         "board_fixed_k3",
+        "gate_step",
+        "board_gate_k3",
         "topk8",
         "first_pass64",
         "first_pass128",
@@ -144,6 +147,25 @@ def configure_arm_environment(
             env["MAX_POOL_ITEMS_EVALUATED"] = "16"
         elif arm == "item_cap20":
             env["MAX_POOL_ITEMS_EVALUATED"] = "20"
+        elif arm == "gate_step":
+            # The shipped weighted lookahead, with the selection stage
+            # gated on the real step deadline instead of on the instant
+            # the candidate search was told to stop at. Nothing else
+            # changes: same search, same mode, same top-K. This is the
+            # arm for lookahead-selection-stage-is-skipped-on-90-percent-
+            # of-steps, whose whole point is that no previous selection
+            # arm actually ran.
+            env["LOOKAHEAD_SELECTION_GATE"] = "step"
+        elif arm == "board_gate_k3":
+            # board receptivity measured for the first time on a majority
+            # of steps. board_k3 and board_fixed_k3 both entered the board
+            # rule on 9 of 89 eligible steps, so neither is a verdict on
+            # the rule.
+            env["LOOKAHEAD_SELECTION_MODE"] = "board"
+            env["LOOKAHEAD_TOP_K"] = "3"
+            env["BOARD_LANDABLE_ONLY"] = "1"
+            env["BOARD_REACHABLE_ONLY"] = "1"
+            env["LOOKAHEAD_SELECTION_GATE"] = "step"
         elif arm.startswith("board_fixed_k"):
             # board mode with the two instrument defects corrected. Kept
             # SEPARATE from board_k so the comparison can tell "board mode"

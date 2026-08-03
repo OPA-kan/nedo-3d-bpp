@@ -1213,6 +1213,137 @@ class GeometryContractTests(unittest.TestCase):
         )
 
 
+class SelectionGateTests(unittest.TestCase):
+    """The selection stage is gated; on which boundary decides whether it runs.
+
+    The shipped arithmetic tells the candidate search to run to
+    ``deadline - LOOKAHEAD_TIME_RESERVE_SECONDS`` and then skips the
+    selection stage once that same instant has passed. A search that uses
+    its budget therefore always skips it -- measured, on 80 of 89 eligible
+    steps. These tests pin both boundaries so the difference cannot be
+    reintroduced silently.
+    """
+
+    @staticmethod
+    def decision(score, item_idx=0):
+        return agent.PlacementDecision(
+            action={
+                "item_idx": item_idx,
+                "container_idx": 0,
+                "place_pos": np.array([0.0, 0.0, 0.1]),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                center=np.array([0.0, 0.0, 0.1]),
+                size=np.array([0.3, 0.25, 0.2]),
+                name="candidate",
+            ),
+            score=score,
+        )
+
+    def _run(self, gate, search_seconds, reserve=0.5, budget=1.0):
+        """One _closed_loop_choice whose search burns `search_seconds`."""
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        pool_list = [
+            {"index": 0, "length": 0.3, "width": 0.25, "height": 0.2},
+            {"index": 1, "length": 0.3, "width": 0.25, "height": 0.2},
+        ]
+        observation = {"pool_list": pool_list, "container_list": [container]}
+        ordered_items = list(enumerate(pool_list))
+        top = [self.decision(2.0, 0), self.decision(1.0, 1)]
+        calls = []
+
+        def top_candidates(*_args, **_kwargs):
+            time.sleep(search_seconds)
+            return list(top)
+
+        def board_choice(_self, candidates, _observation, _items, deadline=None):
+            calls.append(deadline)
+            return candidates[-1]
+
+        with (
+            mock.patch.object(agent, "LOOKAHEAD_SELECTION_GATE", gate),
+            mock.patch.object(agent, "LOOKAHEAD_SELECTION_MODE", "board"),
+            mock.patch.object(
+                agent, "LOOKAHEAD_TIME_RESERVE_SECONDS", reserve
+            ),
+            mock.patch.object(
+                agent.PlacementCore,
+                "top_candidates",
+                staticmethod(top_candidates),
+            ),
+            mock.patch.object(agent.Agent, "_board_choice", board_choice),
+        ):
+            solver = agent.Agent("")
+            chosen = solver._closed_loop_choice(
+                observation,
+                pool_list,
+                ordered_items,
+                time.perf_counter() + budget,
+            )
+        return chosen, top, calls
+
+    def test_search_gate_skips_selection_when_the_search_used_its_budget(self):
+        chosen, top, calls = self._run("search", search_seconds=0.6)
+
+        self.assertEqual(calls, [])
+        self.assertIs(chosen, top[0])
+
+    def test_step_gate_runs_selection_with_the_reserve_still_unspent(self):
+        chosen, top, calls = self._run("step", search_seconds=0.6)
+
+        self.assertEqual(len(calls), 1)
+        self.assertIs(chosen, top[-1])
+
+    def test_both_gates_agree_while_the_search_finishes_early(self):
+        for gate in ("search", "step"):
+            with self.subTest(gate=gate):
+                chosen, top, calls = self._run(gate, search_seconds=0.0)
+                self.assertEqual(len(calls), 1)
+                self.assertIs(chosen, top[-1])
+
+    def test_step_gate_still_stops_at_the_real_step_deadline(self):
+        chosen, top, calls = self._run("step", search_seconds=1.2)
+
+        self.assertEqual(calls, [])
+        self.assertIs(chosen, top[0])
+
+    def test_board_choice_stops_scanning_at_its_deadline(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        observation = {"container_list": [container]}
+        ordered_items = [
+            (0, {"index": 0, "length": 0.3, "width": 0.25, "height": 0.2})
+        ]
+        top = [self.decision(2.0, 0), self.decision(1.0, 0)]
+        seen = []
+
+        def rank_key(decision, *_args, **_kwargs):
+            seen.append(decision)
+            return None
+
+        solver = agent.Agent("")
+        with mock.patch.object(agent, "board_rank_key", rank_key):
+            solver._board_choice(
+                top,
+                observation,
+                ordered_items,
+                deadline=time.perf_counter() - 1.0,
+            )
+
+        self.assertEqual(seen, [])
+
+    def test_unknown_gate_is_refused(self):
+        with self.assertRaises(ValueError):
+            agent.normalized_selection_gate("whenever")
+
+    def test_shipped_default_is_the_previous_boundary(self):
+        self.assertEqual(agent.LOOKAHEAD_SELECTION_GATE, "search")
+
+
 class LookaheadSelectionTests(unittest.TestCase):
     @staticmethod
     def decision(score, item_idx=0):
