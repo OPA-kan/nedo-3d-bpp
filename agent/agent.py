@@ -7198,20 +7198,69 @@ class Agent:
             # such a release, spend the remaining budget on the alternate
             # coarse-to-fine anchor space; take its answer only if it is
             # settled or strictly better.
-            retry = PlacementCore.choose(
-                observation,
-                ordered_items,
-                deadline=primary_deadline,
-                diagnostics=self.last_candidate_diagnostics,
-                risk_lambda=live_lambda,
-                anchor_fallback=True,
+            def rotation_probability(dec, dec_item):
+                _adj, prob = risk_adjusted_score(
+                    float(dec.score),
+                    dec.candidate,
+                    dec_item,
+                    observation["container_list"][
+                        int(dec.action["container_idx"])
+                    ],
+                    int(dec.action["orientation"]),
+                    1.0,
+                )
+                return float(prob) if prob is not None else 0.0
+
+            pool_by_idx = {
+                int(idx): itm for idx, itm in ordered_items
+            }
+            chosen_item = pool_by_idx.get(
+                int(decision.action["item_idx"]),
+                observation["pool_list"][0],
             )
-            if retry is not None and (
-                retry.candidate.name != "release_candidate"
-                or float(retry.score) > float(decision.score)
-            ):
-                decision = retry
-                action_source = "death_band_fallback"
+            if rotation_probability(decision, chosen_item) >= 0.5:
+                # The model itself calls the chosen release likelier to
+                # topple than not. Additive reranking cannot save this
+                # turn -- the measured score valley between the toppling
+                # pose (-1.44) and the physically safe ones (-2.8) exceeds
+                # the whole penalty range -- so the selection becomes
+                # lexicographic for this one turn: any settled or
+                # P_rot < 0.5 candidate, best score among them, beats
+                # every likely-toppler.
+                caught = []
+
+                def catch(item_idx, item, container_idx, orientation, dec):
+                    caught.append((int(item_idx), item, dec))
+
+                retry = PlacementCore.choose(
+                    observation,
+                    ordered_items,
+                    deadline=primary_deadline,
+                    diagnostics=self.last_candidate_diagnostics,
+                    risk_lambda=live_lambda,
+                    anchor_fallback=True,
+                    candidate_observer=catch,
+                )
+                if retry is not None:
+                    caught.append(
+                        (int(retry.action["item_idx"]), None, retry)
+                    )
+                best_safe = None
+                for item_idx, item, dec in caught:
+                    dec_item = item or pool_by_idx.get(item_idx)
+                    if dec_item is None:
+                        continue
+                    if dec.candidate.name == "release_candidate" and (
+                        rotation_probability(dec, dec_item) >= 0.5
+                    ):
+                        continue
+                    if best_safe is None or float(dec.score) > float(
+                        best_safe.score
+                    ):
+                        best_safe = dec
+                if best_safe is not None:
+                    decision = best_safe
+                    action_source = "death_band_fallback"
         if decision is None and RESCUE_SCAN_ENABLED:
             rescue_items = rescue_online_items(pool_list)
             decision = PlacementCore.rescue_choose(
