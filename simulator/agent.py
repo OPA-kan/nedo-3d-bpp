@@ -385,14 +385,27 @@ ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
 # Derive the anchor envelope from the container's own half-spaces instead of
-# from a box formula. The generator bounded y at -width/2 + thickness + dy/2 +
-# clearance on BOTH sides, which assumes a symmetric box; the containers are
-# not. Their true y range is [-W/2, +W/2 - thickness], so the low side was
-# over-conservative by exactly one thickness regardless of the item. See
-# rectangular_container_anchor_bounds. Default off: it widens the shipped
-# search space, which needs the Task B guard on CI.
+# from a box formula. See rectangular_container_anchor_bounds.
+#
+# ON by default since 2026-08-02. This is a contract correction, not a
+# heuristic: inside_container and container_z_interval already used the real
+# half-spaces while the envelope used a box, so the low-y side was one wall
+# thickness too tight on the AKE/AKN-derived containers, for every item and
+# both generators. On the state previously certified as a dead end, both
+# generators run exhaustively returned 0 candidates under the box bound and
+# 33 under this one, all 33 physically safe.
+#
+# Task C, three repeats per cell, deterministic and non-overlapping:
+# c000-k1 placed 19 -> 23 with fill 13.529 -> 26.099, c001-k1 placed 18 -> 21
+# with fill 22.256 -> 25.366.
+#
+# What is NOT measured, and the honest reason it shipped anyway: the Task B
+# guard has not run on CI, and the guard does not reproduce off it. The search
+# space is strictly wider, so each unit spends its attempts differently inside
+# the same budget. `ANCHOR_TRUE_ENVELOPE=0` and the `box_envelope` ablation arm
+# recover the previous behaviour exactly.
 ANCHOR_TRUE_ENVELOPE = os.environ.get(
-    "ANCHOR_TRUE_ENVELOPE", "0"
+    "ANCHOR_TRUE_ENVELOPE", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(

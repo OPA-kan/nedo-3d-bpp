@@ -465,6 +465,21 @@ class TrueEnvelopeArmTests(unittest.TestCase):
         self.assertEqual(arm.pop("ANCHOR_TRUE_ENVELOPE"), "1")
         self.assertEqual(arm, base)
 
+    def test_the_box_envelope_stays_reachable_after_the_flip(self):
+        """
+        The default moved to the true envelope on 2026-08-02 without the
+        Task B guard having run. Without this arm the previously shipped
+        behaviour would be unmeasurable and the guard could not be settled
+        either way.
+        """
+        base: dict[str, str] = {}
+        arm: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(arm, "box_envelope", 2.0, 0.0)
+
+        self.assertEqual(arm.pop("ANCHOR_TRUE_ENVELOPE"), "0")
+        self.assertEqual(arm, base)
+
     def test_base_clears_the_true_envelope_flag(self):
         env = {"ANCHOR_TRUE_ENVELOPE": "1"}
 

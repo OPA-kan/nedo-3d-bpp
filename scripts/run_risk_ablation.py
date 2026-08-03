@@ -86,6 +86,7 @@ def configure_arm_environment(
         "rollout_shadow",
         "rollout_enforce",
         "true_envelope",
+        "box_envelope",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -101,11 +102,15 @@ def configure_arm_environment(
         "first_pass256",
     }:
         if arm == "true_envelope":
-            # Derive the anchor envelope from the container half-spaces
-            # instead of a box formula. Not a heuristic: the two
-            # disagreed about the same container, and the box side was
-            # one thickness too tight along the low-y wall.
+            # Redundant since the default flipped on 2026-08-02, kept so a
+            # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
+        elif arm == "box_envelope":
+            # The pre-2026-08-02 box formula. Kept for the same reason
+            # first_pass64 was kept when that default moved: the previously
+            # shipped behaviour has to stay measurable rather than become
+            # unreachable, and the Task B guard for the flip has not run.
+            env["ANCHOR_TRUE_ENVELOPE"] = "0"
         elif arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":
