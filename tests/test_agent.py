@@ -1613,10 +1613,12 @@ class LookaheadSelectionTests(unittest.TestCase):
 
         self.assertEqual(bounds, box)
 
-    def test_true_envelope_is_off_by_default(self):
-        # It widens the shipped search space, so it waits for the Task B
-        # guard like every other search change here.
-        self.assertFalse(agent.ANCHOR_TRUE_ENVELOPE)
+    def test_true_envelope_is_on_by_default(self):
+        # Shipped 2026-08-02. Pinned because the whole point is that the
+        # envelope and the containment test agree about the container; a
+        # silent revert would put them back out of step without any test
+        # noticing, which is exactly how the band went unseen for so long.
+        self.assertTrue(agent.ANCHOR_TRUE_ENVELOPE)
 
     def test_stride_fallback_covers_the_whole_grid_at_every_level(self):
         # The point of the ladder is coverage, not depth: a level cut short
