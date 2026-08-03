@@ -34,7 +34,12 @@ OFFICIAL_TRANSPORT_CLEARANCE = 0.015
 TRANSPORT_CLEARANCE = (
     OFFICIAL_TRANSPORT_CLEARANCE + FLOAT32_CLEARANCE_GUARD
 )
-PHYSICS_LATERAL_GUARD = 0.010
+# Env-overridable for the joint experiment with the parallel branch's 2 mm
+# flip; the default here stays 0.010 so this branch's measured baselines
+# remain the shipped behaviour until the branches merge.
+PHYSICS_LATERAL_GUARD = float(
+    os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
+)
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
