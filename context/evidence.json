@@ -934,13 +934,25 @@
       "id": "c001-k1-selection-problem-exists-features-are-blind",
       "topic": "residual-capacity",
       "date": "2026-08-03",
-      "status": "active",
+      "status": "superseded",
       "claim": "Horizon labels on the true-envelope c001-k1 trajectory refute 'no board-selection problem': at step 18 all 8 physically safe candidates carry byte-identical discrete features (total_slots 24, conc 0.080, extinct 2) yet their forward-played terminal depths split 20/21/23 -- the best branches (ranks 5,7, orientation 3) place +4 more items versus +1 for the worst, and every continuation still ends true_dead_end, so the depth difference is pure board quality. The live ranker is anti-correlated with the outcome: rank 0 (score 0.238) reaches 21 while the reached-23 branches score -0.44. At step 19 the split narrows to 20 vs 21, so step 18 is the decisive branching point. This supersedes the previous entry's 'the split has nothing to predict', which was asserted without horizon labels and conflated 1-step kills_stream survivorship with terminal depth. Consequences: (1) a selection problem exists on the real search space and is worth ~2-4 placed on this case; (2) candidate-derived discrete counts are confirmed blind to it (zero within-step variance at the branching step), which is the theory's stated reason for moving the observation unit to geometric pockets (TASK_C_BOARD_VALUE.md section 0.1); (3) the non-gradual collapse observation (24 -> 4-6 -> 0 slots) stands, but it describes the feature resolution, not the absence of choice.",
       "caveats": [
         "forward play uses the live deadline-driven policy under measurement CPU load; depths are reproducible only in that environment",
         "one case, top-8 by score, horizon 6"
       ],
-      "source": "reports/task-c/true-envelope/c001-k1-step{18,19}-horizon.json; reports/task-c/true-envelope/branch-rerun.md"
+      "source": "reports/task-c/true-envelope/c001-k1-step{18,19}-horizon.json; reports/task-c/true-envelope/branch-rerun.md",
+      "superseded_by": "horizon-labels-were-replay-contaminated"
+    },
+    {
+      "id": "horizon-labels-were-replay-contaminated",
+      "topic": "residual-capacity",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "The 20/21/23 horizon split behind 'selection problem exists, worth 2-4 placed' was produced by a defective instrument and the claim is UNESTABLISHED. Two defects, both found after the entry was ledgered: (1) run_horizon re-derived the candidate list inside every per-rank replay, so 'rank r' named a different placement in each replay -- visible in the recorded scores being non-monotone across ranks, a pattern a sorted list cannot produce; (2) replay_to_step re-RAN the live deadline-driven policy instead of replaying recorded actions, so replays of the same case land in different board states -- measured directly with a millimetre digest: within one serial run the reference replay and rank 0 shared one digest while ranks 1-7 shared a different one, on which the reference-safe pinned coordinates all failed execution. Both defects are fixed (pin candidates once from a reference replay; capture its action sequence and replay it verbatim; record per-branch digest match). Whether a within-step selection problem exists on c001-k1 is open again until the corrected instrument reports. Process note: this is the second time an unvalidated instrument's output was ledgered as fact; rule added as AGENT_OPERATIONS.md section 5.0.",
+      "source": "reports/task-c/true-envelope/c001-k1-step18-horizon-pinned.json (the defect measurement); scripts/measure_dead_end_branch.py commits d1da0ff, 4df81d6",
+      "caveats": [
+        "the non-contaminated part survives independently: at step 18 the top-8 pinned safe candidates all carry identical discrete features -- feature blindness within a step did not depend on the horizon labels"
+      ]
     }
   ]
 }
