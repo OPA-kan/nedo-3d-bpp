@@ -158,6 +158,13 @@ physics for the first time**: dual-dedicated-priority reaches placed 0.732
 (30 of 41), `is_valid` true, container usage 22/9 across indices 0 and 1,
 `priority_misrouted` 0.
 
+CORRECTION (2026-08-03, next session): do not read the `is_valid` in that
+sentence as episode quality. `place_states` is the LAST step's status only
+(`app.py:87` overwrites it every step), and the episode dies on the first
+failure (`env.py:229-244`), so `is_valid true` merely says the fatal step
+failed in physics rather than in the pre-checks. placed is a survival
+length, not a packing quality.
+
 Do NOT read 0.732 as an improvement. Two containers give roughly twice the
 volume for the same 41-item mix, so it is not comparable to the
 single-container suite or to the official 0.505. Two things it does show:
@@ -167,6 +174,53 @@ so priority items are correctly ROUTED and still get covered.
 Still unmeasured: the **80-item two-container** scale the rules describe
 for Task A. The matrix reuses the 41-item mix, which is a different
 difficulty.
+
+## Full-matrix physical runs, the death mechanism, and two new knobs
+
+Session 2026-08-03 (branch `claude/test-audit-physical-validation-7oj0wu`)
+completed the physical matrix and closed two open threads. Raw summaries:
+`reports/scenario-matrix/shipped-baseline-20260803.json` (shipped mode,
+sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
+(measurement mode pi_B, POLICY_ATTEMPT_BUDGET=4000 -- NOT shipped numbers).
+
+1. **Every dual scenario completes; every single scenario dies at
+   0.39-0.56.** Shipped-mode: dual-empty / dual-shelf-mixed /
+   dual-preloaded-dedicated all place 41/41 (fill only ~22%, slack, not
+   skill). All three singles end with `unsafe_protocol_fallback`
+   (`no_safe_action` true) after ~5-7k attempts whose rejections are ~90%
+   `static_geometry` at ~25% fill: under the agent's own 26 mm lateral
+   contract the board saturates at a quarter full. Both prior terminal
+   remedies (rescue scan, cross-step incumbent) were measured, rejected,
+   and are CONSISTENT with this -- 0.2 s of extra search cannot fix a
+   state with no contract-legal moves.
+
+2. **The HANDOFF open thread "a release candidate can land on a priority
+   item" is confirmed and was the dominant cover mechanism.** Aligning
+   per-step `priority_covered_by_other` increments with the policy trace:
+   6 of 7 cover events across the dual runs were release actions.
+   `release_rest_height()` plans rests on ANY packed top and the release
+   path has no support check. Release is also not a corner case: ~half of
+   all shipped-mode actions are release candidates.
+
+3. Two knobs were added for the resulting ablations (defaults unchanged,
+   fingerprint behaviour-identical): `PHYSICS_LATERAL_GUARD` (was a
+   hard-coded 0.010) and `RELEASE_ATTRIBUTE_GUARD` (release candidates
+   whose settled proxy rests on a priority/soft top the mover may not
+   cover are rejected as `attribute_rest`; same-attribute stacking stays
+   allowed).
+
+4. Measurement-mode ablation (8 arms x 8 scenes, suite placed totals):
+   base 232 / guard5 223 / **guard2 242** / guard0 193 / relguard 185 /
+   guard2-relguard 195 / board 187 / all-three 165. Read: the lateral
+   guard has an interior optimum (2 mm helps duals +4/+7, 0 mm collapses
+   into settle deaths, so the guard is not free but 10 mm overpays);
+   RELEASE_ATTRIBUTE_GUARD does its job (suite priority covers 7 -> 2,
+   clean 1.0 on the dedicated scenes) at a real placed cost (-47), so as
+   a hard reject it over-starves release -- restrict it to
+   dominant-support rests or a score penalty before shipping; board
+   remains negative here, consistent with its earlier MIXED verdict.
+   Shipped-mode confirmations of guard2 and relguard were queued
+   sequentially the same night (see `reports/scenario-matrix/`).
 
 The tests are contract-level and were audited; `context/measurements.json`
 records what they cannot answer. The short version: every assertion is on
