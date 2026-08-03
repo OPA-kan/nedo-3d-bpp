@@ -925,9 +925,22 @@
       "id": "taskc-collapse-is-non-gradual-tie-break-line-dead",
       "topic": "residual-capacity",
       "date": "2026-08-03",
-      "status": "active",
+      "status": "superseded",
       "claim": "On the true-envelope c001-k1 trajectory the board-value collapse is non-gradual (total_slots 24 at step 18, 4-6 at step 19, 0 after step 20) and no measured step has a board-selection problem: within-step candidates are either all survivors (18, 19) or all killers (20), so discordant pairs are 0 everywhere and pairwise accuracy is undefined on the real search space just as it was on the artifact. Step 19 is the first state where features split within a step (total_slots 6 vs 4, concentration 0.333 vs 0.369) but all branches merge into the same uniform death at step 20, so the split has nothing to predict. Phi-as-within-step-tie-break is dead on the real space for this case; Phi(s) remains a state-level descriptor only (F1 flag-ON re-run: R/Hall moved on 16/43 snapshots, correlations stay weak, max |rho| 0.336). The premise that a value function can detect gradual impoverishment early is contradicted by the two-step cliff.",
-      "source": "reports/task-c/true-envelope/branch-rerun.md; reports/replay-analysis/board-value-f1-findings.md"
+      "source": "reports/task-c/true-envelope/branch-rerun.md; reports/replay-analysis/board-value-f1-findings.md",
+      "superseded_by": "c001-k1-selection-problem-exists-features-are-blind"
+    },
+    {
+      "id": "c001-k1-selection-problem-exists-features-are-blind",
+      "topic": "residual-capacity",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "Horizon labels on the true-envelope c001-k1 trajectory refute 'no board-selection problem': at step 18 all 8 physically safe candidates carry byte-identical discrete features (total_slots 24, conc 0.080, extinct 2) yet their forward-played terminal depths split 20/21/23 -- the best branches (ranks 5,7, orientation 3) place +4 more items versus +1 for the worst, and every continuation still ends true_dead_end, so the depth difference is pure board quality. The live ranker is anti-correlated with the outcome: rank 0 (score 0.238) reaches 21 while the reached-23 branches score -0.44. At step 19 the split narrows to 20 vs 21, so step 18 is the decisive branching point. This supersedes the previous entry's 'the split has nothing to predict', which was asserted without horizon labels and conflated 1-step kills_stream survivorship with terminal depth. Consequences: (1) a selection problem exists on the real search space and is worth ~2-4 placed on this case; (2) candidate-derived discrete counts are confirmed blind to it (zero within-step variance at the branching step), which is the theory's stated reason for moving the observation unit to geometric pockets (TASK_C_BOARD_VALUE.md section 0.1); (3) the non-gradual collapse observation (24 -> 4-6 -> 0 slots) stands, but it describes the feature resolution, not the absence of choice.",
+      "caveats": [
+        "forward play uses the live deadline-driven policy under measurement CPU load; depths are reproducible only in that environment",
+        "one case, top-8 by score, horizon 6"
+      ],
+      "source": "reports/task-c/true-envelope/c001-k1-step{18,19}-horizon.json; reports/task-c/true-envelope/branch-rerun.md"
     }
   ]
 }

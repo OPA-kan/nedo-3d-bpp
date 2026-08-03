@@ -53,7 +53,7 @@ uniform death at step 20, so the split carries no decision-relevant signal.
 Pairwise accuracy is undefined (0 discordant pairs) at every step measured,
 on both trajectories.
 
-## Verdict for the board-value program
+## ~~Verdict for the board-value program~~ (superseded same day — see below)
 
 On c001-k1 there is **no board-selection problem at any measured step**:
 candidates within a step are either all-alive or all-dead. The
@@ -65,3 +65,34 @@ but termination: the episode ends by the poison fixed-coordinate fallback
 `[0,0,0.25]` on a board where nothing fits. Whether that unsafe terminal
 action costs score relative to any cleaner refusal is now the live
 question, plus the same certification for c000-k1's new terminal.
+
+## Correction (2026-08-03, horizon labels): the selection problem exists
+
+The verdict above used `kills_stream` — 1-step survivorship — as the label
+and asserted "the split has nothing to predict" without horizon labels.
+That conflation is exactly the error TASK_C_BOARD_VALUE.md §0.1 documents:
+static features identical, horizon outcomes split. Running the horizon
+analysis (top-8, horizon 6, live policy forward-play) on the true-envelope
+trajectory:
+
+| step 18 branch | score | reached | placed from branch |
+|---|---:|---:|---:|
+| rank 0 (live pick) | +0.238 | 21 | +2 |
+| ranks 3, 6 | +0.236 | 20 | +1 |
+| **ranks 5, 7 (orient 3)** | **−0.44** | **23** | **+4** |
+
+All eight step-18 candidates carry byte-identical discrete features
+(total_slots 24, conc 0.080), yet their terminal depths span 20–23: the
+choice at step 18 is worth ±2–3 placed, every continuation still ends
+`true_dead_end`, and the live ranker prefers a worse branch (the reached-23
+branches sit at rank 5 and 7). At step 19 the split narrows to 20 vs 21 —
+step 18 is the decisive branching point. Ledger:
+`c001-k1-selection-problem-exists-features-are-blind` (supersedes
+`taskc-collapse-is-non-gradual-tie-break-line-dead`).
+
+So the corrected verdict is the theory's own §0.1 position, now replicated
+on the real search space: a board-selection problem exists, candidate-derived
+discrete counts are blind to it, and the geometric-pocket observation unit
+(stage 3: corridor r_z, support σ_z) has a live, quantified target.
+Caveats: forward play depends on the deadline-driven policy under
+measurement CPU load; one case; top-8 by score.
