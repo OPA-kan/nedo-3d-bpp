@@ -105,11 +105,22 @@ cheap deterministic *proposal oracle* rather than a faithful simulator,
 and explicitly decides the ranking policy need not be shared. Revise it
 before changing `rank_key`.
 
-### What blocks pushing depth further
+### The priority concern is NOT a blocker (official, 2026-08-03)
 
-`priority_clean_ratio` 0.575 at the shipped default against 0.803 at the
-old one (6W/3L/1T, p = 0.508 -- a direction, not a result), on the
-component the official log scored 4.45.
+An earlier version of this section held back further depth work because
+`priority_clean_ratio` read 0.575 at the shipped default against 0.803
+at the old one (6W/3L/1T, p = 0.508). submission3334 settles it the
+other way: **placement_score 4.45 -> 10.85, +143.8%**, the largest
+relative gain of any component. The submission differs from
+submission22 by more than the depth change, so nothing is credited to a
+single commit -- but the combination did not damage priority placement,
+and this must not gate work in the form it was written.
+
+What it leaves open is the PROXY. `priority_clean_ratio` pointed one way
+and the official component went the other. The proxy has never been
+validated against an official number and this is the first evidence
+bearing on it; treat its direction as unverified until a submission
+pair moves it and placement_score together.
 
 The stability worry is CLOSED, not carried: 256 shifts 0.202 of items
 against 0.310 at 64, with 0 topples against 0.27 per episode. Do not
