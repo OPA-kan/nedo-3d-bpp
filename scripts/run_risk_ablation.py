@@ -77,6 +77,7 @@ def configure_arm_environment(
         "ANCHOR_FALLBACK_ENABLED",
         "ANCHOR_FALLBACK_STRIDES",
         "ANCHOR_TRUE_ENVELOPE",
+        "ANCHOR_TILT_MARGIN_DEG",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -90,6 +91,8 @@ def configure_arm_environment(
         "anchor_fallback",
         "true_envelope",
         "box_envelope",
+        "tilt_margin2",
+        "tilt_margin4",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -112,6 +115,10 @@ def configure_arm_environment(
             # Redundant since the default flipped on 2026-08-02, kept so a
             # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
+        elif arm == "tilt_margin2":
+            env["ANCHOR_TILT_MARGIN_DEG"] = "2"
+        elif arm == "tilt_margin4":
+            env["ANCHOR_TILT_MARGIN_DEG"] = "4"
         elif arm == "box_envelope":
             # The pre-2026-08-02 box formula. Kept for the same reason
             # first_pass64 was kept when that default moved: the previously

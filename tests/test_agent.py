@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import math
 import os
 import pathlib
 import sys
@@ -1619,6 +1620,36 @@ class LookaheadSelectionTests(unittest.TestCase):
         # silent revert would put them back out of step without any test
         # noticing, which is exactly how the band went unseen for so long.
         self.assertTrue(agent.ANCHOR_TRUE_ENVELOPE)
+
+    def test_tilt_margin_retreats_by_sin_theta_times_item_height(self):
+        # The fill evaluator forfeits an item whose settled top corner
+        # crosses a boundary plane, and the lean scales with item height,
+        # so the margin must too: same angle, taller item, bigger retreat.
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container.pop("points", None)
+        container.pop("n_vecs", None)
+        short = (0.45, 0.30, 0.20)
+        tall = (0.25, 0.45, 0.65)
+
+        for dims in (short, tall):
+            with mock.patch.object(agent, "ANCHOR_TILT_MARGIN_DEG", 0.0):
+                base = agent.rectangular_container_anchor_bounds(
+                    dims, container
+                )
+            with mock.patch.object(agent, "ANCHOR_TILT_MARGIN_DEG", 4.0):
+                shrunk = agent.rectangular_container_anchor_bounds(
+                    dims, container
+                )
+            margin = math.sin(math.radians(4.0)) * dims[2]
+            self.assertAlmostEqual(shrunk[0] - base[0], margin, places=9)
+            self.assertAlmostEqual(base[1] - shrunk[1], margin, places=9)
+            self.assertAlmostEqual(shrunk[2] - base[2], margin, places=9)
+            self.assertAlmostEqual(base[3] - shrunk[3], margin, places=9)
+
+    def test_tilt_margin_is_off_by_default(self):
+        self.assertEqual(agent.ANCHOR_TILT_MARGIN_DEG, 0.0)
 
     def test_stride_fallback_covers_the_whole_grid_at_every_level(self):
         # The point of the ladder is coverage, not depth: a level cut short
