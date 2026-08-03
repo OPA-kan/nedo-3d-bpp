@@ -45,3 +45,14 @@ release を生き延びた run は placed 40・配分 23:18 に達した。こ�
 損失の本体は配分ではなく「エピソードを終わらせる 1 手」であり、次の測定は
 l3_risk_route(release しか無い item を空いた側へ)と、殺し手 step の
 リスク項の実測に移す。CI か直列実行での再測定が前提。
+
+## Death-band 辞書式リスクゲート(2026-08-03): 初の陽性
+
+因果鎖(全リンク実測): 死は score −1.5 帯の release の実行 → その手を
+モデル自身が P_rot 0.70 と採点 → 空側コンテナに安全手(P_rot 0.03–0.06)が
+数百個実在するが score −2.8 で負ける → 加算 rerank は谷 1.4 > 罰上限 1.0 で
+逆転不能 → 死番のみ辞書式(settled or P_rot<0.5 → score)。
+直列 ablation: base 27/18/27 → death_band **37**/17/**33**。発火 run は
++6〜+10 placed、配分は 19:19 へ均衡(副作用)。既定オフ。
+採用条件: 複数 scene 検証 + CI guard。ledger
+`death-band-lexicographic-risk-gate-first-positive`。
