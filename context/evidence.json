@@ -1012,6 +1012,14 @@
       "status": "active",
       "claim": "The death-band lexicographic risk gate is the first intervention since the envelope fix to move placed upward. Mechanism, each link measured: episodes end by executing a release the ranker scores <= -1.5 while the agent's own risk model prices it P_rot ~0.70; hundreds of physically safe poses (P_rot 0.03-0.06) exist in the near-empty container but score ~-2.8, and additive reranking cannot flip a 1.4 score valley with a 1.0-max penalty, so for that one turn selection becomes lexicographic (settled or P_rot<0.5 first, best score among them; 0.5 is a probability midpoint, not a coefficient). Serial ablation on m2-k15: base 27/18/27 vs death_band 37/17/33, fill 16.5/12.1/16.5 vs 22.5/11.2/20.5. The two runs where it fired (3 firings each, verified in trace: all swaps to container-0 releases at scores -1.8..-3.4) beat base's best by +6 and +10 placed and balanced allocation to 19:19 and 15:19 as a side effect. The no-fire run (17) died through a different channel before any death-band turn. Caveats: one synthetic scene, 3 repeats, local serial deadline runs; default OFF, adoption needs multi-scene validation and the CI guard; the c001-k1 single-container true-dead-end case is untouched by construction (no candidates exist at its terminal, v1 ablation showed identical 21/21/21).",
       "source": "scratchpad death-band-v2/ (m2-k15, 2 arms x 3 repeats, serial); killer P_rot measurement and c0 safe-pose census in scratchpad killer_prot.py / why_c0_blind.py outputs"
+    },
+    {
+      "id": "death-band-multi-scene-round1-mixed",
+      "topic": "fallback",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "Death-band gate multi-scene round 1 (serial, 2 repeats, all cells deterministic): b000-k15 and c000-k1 are exact no-ops (never fires, outputs identical to base). b001-k20 fires once per episode and trades placed 22->21 for fill 24.59->26.92 (+2.33). The single-container regression story is therefore: no effect where no gamble turn exists, and where one exists the gate converts a placement into fill -- which violates the pre-registered 'placed non-worse' criterion literally, but whether -1 placed / +2.33 fill is a net official loss depends on unpublished weights and the decaying gate multiplier. Adoption undecided; m2-k15 remains the only scene with an unambiguous win (+6..+10 placed).",
+      "source": "scratchpad death-band-scenes/ (3 scenes x 2 arms x 2 repeats)"
     }
   ]
 }

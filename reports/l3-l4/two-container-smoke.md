@@ -56,3 +56,16 @@ l3_risk_route(release しか無い item を空いた側へ)と、殺し手 step 
 +6〜+10 placed、配分は 19:19 へ均衡(副作用)。既定オフ。
 採用条件: 複数 scene 検証 + CI guard。ledger
 `death-band-lexicographic-risk-gate-first-positive`。
+
+## 複数scene検証 第1ラウンド(直列 ×2)
+
+| scene | base placed/fill | death_band placed/fill | 発火 |
+|---|---|---|---|
+| b000-k15 | 17 / 19.31 | 17 / 19.31(同一) | 0 |
+| c000-k1 | 23 / 26.10 | 23 / 26.10(同一) | 0 |
+| b001-k20 | 22 / 24.59 | **21 / 26.92** | 1 |
+
+非発火sceneは完全no-op(回帰なし)。b001-k20 では発火1回で
+placed −1 / fill +2.33 の交換 — 事前基準「placed非悪化」には形式上抵触。
+公式重みが不明のため、この交換の採否は判定保留。追加レプリケートと
+発火stepの解剖を夜間に継続。
