@@ -79,6 +79,7 @@ def configure_arm_environment(
         "ANCHOR_TRUE_ENVELOPE",
         "ANCHOR_TILT_MARGIN_DEG",
         "L3_PREFER_EMPTY_BAND",
+        "L3_RELEASE_ROUTE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -95,6 +96,7 @@ def configure_arm_environment(
         "tilt_margin2",
         "tilt_margin4",
         "l3_prefer_empty",
+        "l3_release_route",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -117,6 +119,8 @@ def configure_arm_environment(
             # Redundant since the default flipped on 2026-08-02, kept so a
             # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
+        elif arm == "l3_release_route":
+            env["L3_RELEASE_ROUTE"] = "1"
         elif arm == "l3_prefer_empty":
             env["L3_PREFER_EMPTY_BAND"] = "0.15"
         elif arm == "tilt_margin2":

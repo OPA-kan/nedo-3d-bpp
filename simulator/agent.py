@@ -379,6 +379,15 @@ ANCHOR_TILT_MARGIN_DEG = float(
 L3_PREFER_EMPTY_BAND = float(
     os.environ.get("L3_PREFER_EMPTY_BAND", "0")
 )
+# Measured on the two-container scene: every episode-ending action was a
+# bottom-tier release into the crowded container while the other stood
+# near-empty, and the release risk gate never evaluated it. When ONLY
+# release candidates exist for the step, route the release to the container
+# with the most estimated remaining volume (lexicographic: emptiness, then
+# score). Settled candidates always win as before. 0 disables.
+L3_RELEASE_ROUTE = os.environ.get(
+    "L3_RELEASE_ROUTE", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 CONSTRUCTIVE_ORDER_MODES = frozenset({"composite", "volume"})
 CONSTRUCTIVE_ORDER_MODE = os.environ.get(
     "CONSTRUCTIVE_ORDER_MODE", "composite"
@@ -4921,6 +4930,7 @@ class PlacementCore:
         best_settled_score = -float("inf")
         best_release = None
         best_release_score = -float("inf")
+        release_by_container = {}
 
         for (
             item_idx,
@@ -5001,13 +5011,29 @@ class PlacementCore:
                     best_release_score = score
                     best_release = decision
                     updated = True
+                if L3_RELEASE_ROUTE:
+                    ridx = int(decision.action["container_idx"])
+                    incumbent = release_by_container.get(ridx)
+                    if incumbent is None or score > incumbent[0]:
+                        release_by_container[ridx] = (score, decision)
             elif beats(score, best_settled_score, best_settled):
                 best_settled_score = score
                 best_settled = decision
                 updated = True
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        return best_settled or best_release
+        if best_settled is not None:
+            return best_settled
+        if L3_RELEASE_ROUTE and len(release_by_container) > 1:
+            emptiest = max(
+                release_by_container,
+                key=lambda cidx: (
+                    estimated_remaining_container_volume(containers[cidx]),
+                    release_by_container[cidx][0],
+                ),
+            )
+            return release_by_container[emptiest][1]
+        return best_release
 
     @staticmethod
     def rescue_choose(
@@ -5055,6 +5081,7 @@ class PlacementCore:
         best_settled_score = -float("inf")
         best_release = None
         best_release_score = -float("inf")
+        release_by_container = {}
 
         deadline_reached = False
         while (
