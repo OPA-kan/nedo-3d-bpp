@@ -25,6 +25,10 @@
    "PHYSICS_LATERAL_GUARD": "0.002",
    "RELEASE_ATTRIBUTE_GUARD": "1",
    "LOOKAHEAD_SELECTION_MODE": "board"
+  },
+  "relpriority": {
+   "PHYSICS_LATERAL_GUARD": "0.002",
+   "RELEASE_ATTRIBUTE_GUARD": "priority"
   }
  },
  "rows": [
@@ -1755,6 +1759,133 @@
    "attribute_rest_rejections": 0,
    "steps": 44,
    "max_policy_seconds": 2.9584014960000786
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "dual-dedicated-priority",
+   "case": "m-dual-dedicated-priority",
+   "placed_ratio": 0.6097560975609756,
+   "fill_score": 13.983113450142948,
+   "placed_count": 25,
+   "priority_clean_ratio": 1.0,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.313189937000061
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "dual-empty",
+   "case": "m-dual-empty",
+   "placed_ratio": 1.0,
+   "fill_score": 24.92278466354677,
+   "placed_count": 41,
+   "priority_clean_ratio": 0.5,
+   "priority_covered": 2,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": true,
+    "is_placed_safe": true
+   },
+   "max_policy_seconds": 6.310605174999978
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "dual-preloaded-dedicated",
+   "case": "m-dual-preloaded-dedicated",
+   "placed_ratio": 0.5853658536585366,
+   "fill_score": 10.090215164752669,
+   "placed_count": 24,
+   "priority_clean_ratio": 1.0,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.3112453700000515
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "dual-shelf-mixed",
+   "case": "m-dual-shelf-mixed",
+   "placed_ratio": 0.6097560975609756,
+   "fill_score": 13.089099480880368,
+   "placed_count": 25,
+   "priority_clean_ratio": 0.6666666666666666,
+   "priority_covered": 1,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": true,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.30897508999999
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "single-empty-noshelf",
+   "case": "m-single-empty-noshelf",
+   "placed_ratio": 0.4878048780487805,
+   "fill_score": 23.290007227395417,
+   "placed_count": 20,
+   "priority_clean_ratio": 0.6666666666666666,
+   "priority_covered": 1,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.313423499999999
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "single-empty-shelf",
+   "case": "m-single-empty-shelf",
+   "placed_ratio": 0.2682926829268293,
+   "fill_score": 11.94728521318117,
+   "placed_count": 11,
+   "priority_clean_ratio": 1.0,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.308042748000048
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "single-preloaded",
+   "case": "m-single-preloaded",
+   "placed_ratio": 0.43902439024390244,
+   "fill_score": 22.589354166333912,
+   "placed_count": 18,
+   "priority_clean_ratio": 1.0,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.3056070869999985
   }
- ]
+ ],
+ "note_20260804": "relpriority measured after the 2mm default flip; comparable 7-scene subset (bundled excluded, still running at write time): base(2mm) placed 197 cov 9, rel-all 150 cov 2, rel-priority 164 cov 4. Priority-only recovers dual-empty fully (41, cov 3->2) but not the shelf scenes: the binding rejections there are priority-top rests themselves, i.e. late-game survival was BUYING placed by covering priority items. A hard reject dies for cleanliness; the next shape is lexicographic preference (avoid covering when a non-covering candidate exists, cover rather than die otherwise), which composes with the death-band gate machinery on claude/l3-l4-allocation-ordering."
 }
