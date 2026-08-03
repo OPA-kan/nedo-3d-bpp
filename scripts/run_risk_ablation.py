@@ -65,6 +65,8 @@ def configure_arm_environment(
         "MAX_POOL_ITEMS_EVALUATED",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "LOOKAHEAD_SELECTION_MODE",
+        "BOARD_LANDABLE_ONLY",
+        "BOARD_REACHABLE_ONLY",
         "ANCHOR_FIRST_PASS_ATTEMPTS",
         "LOOKAHEAD_TOP_K",
         "BOARD_CELL_SIZE",
@@ -96,6 +98,7 @@ def configure_arm_environment(
         "board_k3",
         "board_k8",
         "board_k16",
+        "board_fixed_k3",
         "topk8",
         "first_pass64",
         "first_pass128",
@@ -141,6 +144,19 @@ def configure_arm_environment(
             env["MAX_POOL_ITEMS_EVALUATED"] = "16"
         elif arm == "item_cap20":
             env["MAX_POOL_ITEMS_EVALUATED"] = "20"
+        elif arm.startswith("board_fixed_k"):
+            # board mode with the two instrument defects corrected. Kept
+            # SEPARATE from board_k so the comparison can tell "board mode"
+            # apart from "board mode measured with a working instrument":
+            # board-receptivity-mixed was taken while the site count
+            # ignored the transport contract and while the height map let
+            # items land on soft and priority tops, which
+            # board-receptivity-is-not-a-feasibility-predictor showed
+            # reporting 123 sites at a state with zero candidates.
+            env["LOOKAHEAD_SELECTION_MODE"] = "board"
+            env["LOOKAHEAD_TOP_K"] = arm.removeprefix("board_fixed_k")
+            env["BOARD_LANDABLE_ONLY"] = "1"
+            env["BOARD_REACHABLE_ONLY"] = "1"
         elif arm.startswith("board_k"):
             # The ranker proposes, the board disposes: keep the same top-K
             # search and reorder it by acceptance breadth, alternativity and
