@@ -371,6 +371,14 @@ ANCHOR_TRUE_ENVELOPE = os.environ.get(
 ANCHOR_TILT_MARGIN_DEG = float(
     os.environ.get("ANCHOR_TILT_MARGIN_DEG", "0")
 )
+# Allocation tie-break. Container choice is otherwise an accident of the
+# per-step score maximum, which the two-container smoke measured as a 19:3
+# skew that left one container nearly empty when a failed placement ended
+# the episode. Within this score band, prefer the container with more
+# estimated remaining volume; outside it, score wins as before. 0 disables.
+L3_PREFER_EMPTY_BAND = float(
+    os.environ.get("L3_PREFER_EMPTY_BAND", "0")
+)
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -4957,12 +4965,32 @@ class PlacementCore:
                     decision,
                 )
             updated = False
+
+            def beats(challenger_score, incumbent_score, incumbent):
+                if incumbent is None:
+                    return True
+                if L3_PREFER_EMPTY_BAND <= 0.0:
+                    return challenger_score > incumbent_score
+                if challenger_score > incumbent_score + L3_PREFER_EMPTY_BAND:
+                    return True
+                if challenger_score < incumbent_score - L3_PREFER_EMPTY_BAND:
+                    return False
+                remaining_new = estimated_remaining_container_volume(
+                    containers[int(decision.action["container_idx"])]
+                )
+                remaining_old = estimated_remaining_container_volume(
+                    containers[int(incumbent.action["container_idx"])]
+                )
+                if abs(remaining_new - remaining_old) > EPS:
+                    return remaining_new > remaining_old
+                return challenger_score > incumbent_score
+
             if candidate.name == "release_candidate":
-                if score > best_release_score:
+                if beats(score, best_release_score, best_release):
                     best_release_score = score
                     best_release = decision
                     updated = True
-            elif score > best_settled_score:
+            elif beats(score, best_settled_score, best_settled):
                 best_settled_score = score
                 best_settled = decision
                 updated = True
