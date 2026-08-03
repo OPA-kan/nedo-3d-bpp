@@ -86,3 +86,36 @@ One state, one case. The 16 placements are one pocket. Whether a finer
 generator would pay for itself inside the 6.5 s budget is not addressed here;
 this establishes that the placements exist, not that they are reachable
 cheaply.
+
+## Why both generators missed them
+
+The cartesian generator is a corner-point method, not a grid. Its anchors are
+the Cartesian product of contact positions: wall-flush, centre, the cut edge,
+each support surface's edges offset by half the item, and each packed item's
+faces offset by half the item plus clearance.
+
+Its envelope, however, is a box formula:
+
+    y_low = -width/2 + thickness + dy/2 + INCLUSION_CLEARANCE
+
+Measured against the true containment test on the live step-20 container,
+orientation 4, dy 0.250:
+
+| | low | high |
+|---|---:|---:|
+| generator envelope | -0.5690 | +0.5690 |
+| true containment | **-0.6190** | +0.5690 |
+| short by | **0.0500** | 0.0000 |
+
+0.0500 m is exactly the container thickness, and the discrepancy is on one
+side only. A symmetric box formula cannot represent an asymmetric container,
+and every one of the sixteen missed placements sat at y = -0.600 -- inside
+true containment, outside the generator envelope.
+
+**Scope.** One case, one orientation, one axis, one state. Two attempts to
+check whether the gap generalises both failed on instrument bugs of my own:
+the first normalised a raw config container, which carries no half-space
+representation, so `inside_container` returned True unconditionally and every
+band looked a metre wide; the second used a probe height that put the origin
+outside the container. Whether this is a general envelope defect or specific
+to this geometry is **not established**.
