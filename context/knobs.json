@@ -18,6 +18,22 @@
       "axis": "anchor",
       "semantic": true
     },
+    "BOARD_CELL_SIZE": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "BOARD_FLATNESS_TOLERANCE": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "BOARD_PROBE_SHAPES": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
+    "BOARD_SITE_CAP": {
+      "axis": "candidate_rank",
+      "semantic": true
+    },
     "CROSS_STEP_INCUMBENT_MODE": {
       "axis": "fallback",
       "semantic": true
@@ -79,11 +95,28 @@
       "semantic": false,
       "note": "INERT. Feeds only DryRunResult.weighted_score (agent.py:941), which has no call sites anywhere in the repository. The offline order search accepts a neighbour on DryRunResult.rank_key (agent.py:6350), a lexicographic tuple that does not consult either weight. Verified by ablation: 0.65/0.35, 0.0/1.0 and 99.0/-99.0 all give behaviour_sha256 a92092c2272df53636fe3b84ac75a9ca7cd6eaefe42c44c7718bb1bdff292b70. Do not tune this expecting an effect; change rank_key instead."
     },
+    "OFFLINE_ILS_KICK_STRENGTH": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_ILS_STALL_LIMIT": {
+      "axis": "order",
+      "semantic": true
+    },
     "OFFLINE_MAX_EVALUATIONS": {
       "axis": "order",
       "semantic": true
     },
     "OFFLINE_PAIR_MACRO_BUDGET_SECONDS": {
+      "axis": "order",
+      "semantic": true
+    },
+    "OFFLINE_RANDOM_SEED": {
+      "axis": "order",
+      "semantic": true,
+      "note": "Was a bare source literal until the acceptance-rule work; a search whose seed cannot be varied cannot have its variance measured, which invalidated one sweep."
+    },
+    "OFFLINE_SEARCH_ACCEPTANCE": {
       "axis": "order",
       "semantic": true
     },
@@ -198,22 +231,6 @@
     },
     "VISIBLE_POOL_ROLLOUT_TOP_K": {
       "axis": "rollout",
-      "semantic": true
-    },
-    "BOARD_CELL_SIZE": {
-      "axis": "candidate_rank",
-      "semantic": true
-    },
-    "BOARD_FLATNESS_TOLERANCE": {
-      "axis": "candidate_rank",
-      "semantic": true
-    },
-    "BOARD_PROBE_SHAPES": {
-      "axis": "candidate_rank",
-      "semantic": true
-    },
-    "BOARD_SITE_CAP": {
-      "axis": "candidate_rank",
       "semantic": true
     }
   }

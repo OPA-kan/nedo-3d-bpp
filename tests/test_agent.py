@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import random
 import sys
 import tempfile
 import time
@@ -3532,6 +3533,87 @@ class OfflineOptimizationTests(unittest.TestCase):
             optimized_result.rank_key(),
             seed_result.rank_key(),
         )
+
+    def test_kick_order_permutes_within_groups_only(self):
+        """
+        The ILS kick must not become a second, wider neighbourhood by
+        accident. constructive_order lays the stream out in contiguous
+        item_group blocks and Agent.optimize only ever transposes inside
+        one, so a kick that crossed a block would change TWO variables at
+        once and make an acceptance-rule measurement unreadable.
+        """
+        items = [
+            sample_item(0),
+            sample_item(1),
+            sample_item(2, is_soft=True),
+            sample_item(3, is_soft=True),
+            sample_item(4, is_prioritized=True),
+            sample_item(5, is_prioritized=True),
+        ]
+        rng = random.Random(7)
+        kicked = agent.kick_order(items, rng, 8)
+
+        self.assertEqual(
+            sorted(item["index"] for item in kicked),
+            sorted(item["index"] for item in items),
+        )
+        self.assertEqual(
+            [agent.item_group(item) for item in kicked],
+            [agent.item_group(item) for item in items],
+        )
+
+    def test_kick_order_is_a_noop_without_a_movable_group(self):
+        items = [
+            sample_item(0),
+            sample_item(1, is_soft=True),
+            sample_item(2, is_prioritized=True),
+        ]
+        self.assertEqual(
+            agent.kick_order(items, random.Random(1), 5),
+            items,
+        )
+
+    def test_acceptance_modes_are_all_reachable_and_seeded(self):
+        """
+        Both halves matter. The modes have to actually run, and
+        OFFLINE_RANDOM_SEED has to be settable: it was a bare source
+        literal, so an earlier seed sweep silently produced the same
+        answer every time and measured nothing.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["volume"] = 4.0
+        items = [
+            sample_item(0, length=0.45, width=0.3, height=0.25, mass=8),
+            sample_item(1, length=0.3, width=0.25, height=0.2, mass=5),
+            sample_item(2, length=0.4, width=0.3, height=0.22, mass=7),
+            sample_item(3, length=0.35, width=0.28, height=0.2, mass=6),
+        ]
+        evaluator = agent.DryRunEvaluator([container])
+        seed_result = evaluator.evaluate(agent.constructive_order(items))
+        by_index = {item["index"]: item for item in items}
+
+        for mode in ("walk", "hillclimb", "ils"):
+            with self.subTest(mode=mode):
+                with mock.patch.object(
+                    agent, "OFFLINE_SEARCH_ACCEPTANCE", mode
+                ):
+                    solver = agent.Agent("")
+                    solver.get_init_states(
+                        {"optimize": True, "container_list": [container]}
+                    )
+                    solver._offline_search_budget_seconds = 0.3
+                    solver._offline_max_evaluations = 16
+                    order = solver.optimize(items)
+
+                self.assertEqual(set(order), {0, 1, 2, 3})
+                result = evaluator.evaluate(
+                    [by_index[index] for index in order]
+                )
+                self.assertGreaterEqual(
+                    result.rank_key(), seed_result.rank_key()
+                )
 
     def test_optimize_generates_pair_macro_candidates(self):
         solver = agent.Agent("")

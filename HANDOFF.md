@@ -137,6 +137,65 @@ section had both wrong; the corrections are the useful part.
    offline objective toward the official components runs into that
    decision; it needs amending, not ignoring.
 
+   **And it is not first in line.** `rank_key` is currently inert as a
+   STEERING signal, because the search does not use it to decide where to
+   look next -- see the acceptance-rule section below. Improving the
+   objective while the search ignores it changes the filter, not the
+   search. Fix the search first, or accept that objective work is
+   cosmetic.
+
+### The acceptance rule: a spec violation worth keeping, for now
+
+`Agent.optimize` disagrees with ADR-001 section 5. The spec says
+`採択: 辞書式評価が改善した場合だけ更新`; the code updates `best_items`
+on improvement but then sets `current_items = list(neighbor)`
+unconditionally, so the next neighbour is generated from the last order
+evaluated whether it was any good or not. That is a diffusion with
+best-so-far recording, not a local search, and it is why `rank_key`
+cannot steer: the objective picks what to keep, never where to look.
+
+Conforming to the spec was predicted to help. It does not. Equal work
+(60 evaluations per cell, deadline pushed to 900 s so the cap binds
+rather than the clock), case a000, three seeds, constructive seed placed
+16 everywhere:
+
+| acceptance | s20260723 | s1 | s7 | mean placed | mean fill_ratio |
+|---|---:|---:|---:|---:|---:|
+| `walk` (shipped) | 23 | 20 | 22 | **21.67** | **0.38492** |
+| `hillclimb` (ADR-001 s5) | 21 | 19 | 21 | 20.33 | 0.37070 |
+| `ils` | 23 | 19 | 20 | 20.67 | 0.36163 |
+
+`walk` wins or ties on every seed, on both axes. n = 3 seeds on one
+case, so this is a direction (sign test p = 0.25), not a result.
+
+The mechanism is the useful part: **quality tracks distance from the
+seed.** `walk` drifts 29-37 of 41 positions and scores best; `hillclimb`
+drifts 8-21 and scores worst. The directed arms do use their budget
+better in the narrow sense -- best found at evaluation 43-52, wasting
+7-16 afterwards, against `walk` finding its best at 13-28 and wasting
+31-46 -- but they intensify into a worse basin.
+
+So on this case `constructive_order` starts in a bad region and the
+search's real job is ESCAPE, not intensification. **The next lever is
+the seed or a multi-start, not the acceptance rule.**
+
+Both alternatives stay in the tree, default-off, behind
+`OFFLINE_SEARCH_ACCEPTANCE` (`walk` | `hillclimb` | `ils`), with
+`OFFLINE_ILS_STALL_LIMIT` and `OFFLINE_ILS_KICK_STRENGTH`. The default
+is unchanged and `behaviour_sha256` is unchanged at `a92092c2`.
+
+`OFFLINE_RANDOM_SEED` is now an environment knob. It was a bare source
+literal, which silently invalidated one earlier seed sweep: every cell
+returned the same answer and the sweep measured nothing. A search whose
+seed cannot be varied cannot have its variance measured.
+
+Caveat carried forward: the neighbourhood was held FIXED across all
+three arms (transpositions inside an `item_group` only, so the three
+group blocks `constructive_order` lays down are immovable). A local
+search losing to a diffusion is also a symptom of a poor neighbourhood.
+Nothing here says randomised search is right; it says the acceptance
+rule is not what binds.
+
 2. **Raising the time budget is CLOSED as a negative -- do not re-open
    it.** `OFFLINE_SEARCH_BUDGET_SECONDS` is 150, the measured run is
    148.89 s, and that is 31 s under the official 180 s limit, so there

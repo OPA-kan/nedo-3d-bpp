@@ -201,7 +201,39 @@ OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM = max(
 OFFLINE_PAIR_MACRO_BUDGET_SECONDS = float(
     os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.5")
 )
-OFFLINE_RANDOM_SEED = 20260723
+OFFLINE_RANDOM_SEED = int(
+    os.environ.get("OFFLINE_RANDOM_SEED", "20260723")
+)
+# How Agent.optimize picks the point the NEXT neighbour is generated from.
+# This is the search's only intensification control, and until it was made
+# explicit the code silently disagreed with ADR-001 section 5, which
+# specifies "採択: 辞書式評価が改善した場合だけ更新".
+#
+#   walk       - the historical behaviour: move to every neighbour whether
+#                or not it improved, and merely RECORD the best seen. That
+#                is a diffusion with best-so-far recording, not a local
+#                search, and it makes rank_key inert as a steering signal:
+#                the objective picks what to keep, never where to look.
+#   hillclimb  - ADR-001 section 5 as written: fall back to the incumbent
+#                on any non-improving evaluation.
+#   ils        - iterated local search: walk while progress looks possible,
+#                and after OFFLINE_ILS_STALL_LIMIT non-improving
+#                evaluations restart from the incumbent with a random
+#                perturbation of OFFLINE_ILS_KICK_STRENGTH moves.
+#
+# Measured on the bundled Task A case, one seed: walk reaches placed 23 and
+# hillclimb 21, so the specification-conforming rule is WORSE here. Do not
+# read that as "diffusion is right" -- a local search losing to a random
+# walk is a symptom of a poor neighbourhood, which is a separate axis.
+OFFLINE_SEARCH_ACCEPTANCE = os.environ.get(
+    "OFFLINE_SEARCH_ACCEPTANCE", "walk"
+)
+OFFLINE_ILS_STALL_LIMIT = max(
+    1, int(os.environ.get("OFFLINE_ILS_STALL_LIMIT", "8"))
+)
+OFFLINE_ILS_KICK_STRENGTH = max(
+    1, int(os.environ.get("OFFLINE_ILS_KICK_STRENGTH", "3"))
+)
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -3762,6 +3794,36 @@ def constructive_order(item_list):
     return [row[-1] for row in scored]
 
 
+def kick_order(items, rng, strength):
+    """
+    Perturb an order by `strength` random transpositions for ILS restarts.
+
+    Moves stay INSIDE an item_group, which is the same restriction the
+    neighbourhood in Agent.optimize already obeys. That keeps this an
+    experiment about the acceptance rule alone: the group blocks that
+    constructive_order lays down are immovable either way, so a kick cannot
+    reach an order the ordinary neighbourhood could not. Widening the
+    neighbourhood across groups is a separate axis and is deliberately not
+    bundled in here.
+    """
+    kicked = list(items)
+    group_positions = {}
+    for position, item in enumerate(kicked):
+        group_positions.setdefault(item_group(item), []).append(position)
+    movable = [
+        positions
+        for _group, positions in sorted(group_positions.items())
+        if len(positions) >= 2
+    ]
+    if not movable:
+        return kicked
+    for _ in range(max(1, int(strength))):
+        positions = movable[rng.randrange(len(movable))]
+        first, second = rng.sample(positions, 2)
+        kicked[first], kicked[second] = kicked[second], kicked[first]
+    return kicked
+
+
 def estimated_remaining_container_volume(container):
     remaining = effective_container_volume(container)
     for packed in container.get("packed_items", []):
@@ -6274,6 +6336,7 @@ class Agent:
         rng = random.Random(seed)
         current_items = list(best_items)
         moving_runtime = max(0.001, best_result.runtime_seconds)
+        stall = 0
 
         for iteration in range(max(0, self._offline_max_evaluations - 1)):
             remaining = deadline - time.perf_counter()
@@ -6350,7 +6413,23 @@ class Agent:
             if result.rank_key() > best_result.rank_key():
                 best_result = result
                 best_items = list(neighbor)
-            current_items = list(neighbor)
+                current_items = list(neighbor)
+                stall = 0
+            elif OFFLINE_SEARCH_ACCEPTANCE == "hillclimb":
+                current_items = list(best_items)
+                stall += 1
+            elif OFFLINE_SEARCH_ACCEPTANCE == "ils":
+                stall += 1
+                if stall >= OFFLINE_ILS_STALL_LIMIT:
+                    current_items = kick_order(
+                        best_items, rng, OFFLINE_ILS_KICK_STRENGTH
+                    )
+                    stall = 0
+                else:
+                    current_items = list(neighbor)
+            else:
+                current_items = list(neighbor)
+                stall += 1
             if used_pair_macro:
                 self.last_pair_macro_adoptions += 1
 
