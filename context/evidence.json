@@ -1044,6 +1044,14 @@
       "status": "active",
       "claim": "With the 0.5 s budget floor the death-band gate's timing cost is gone: b000-k20 gate mean recovers 18.0 -> 20.0 (n=4, within base's 18-21 range, base mean 19.7) while m2-k15 keeps the win (31/31 on the mitigated arm; cumulative gate mean 30.6 over 8 runs vs base 22.0, every firing run above base's best). Remaining adoption blockers, none measurable locally: CI replication (blocked until the repository default branch moves off the frozen main so workflow_dispatch can register death-band-ablation.yml), the b001-k20 -1 placed / +2.33 fill trade (depends on unpublished weights), and confirmation that multi-container scenes exist in official evaluation (implied by the priority-container penalty rule; only a submission verifies).",
       "source": "scratchpad death-band re-measurement post-mitigation; reports/l3-l4/morning-summary.md"
+    },
+    {
+      "id": "death-band-shipped-on-by-default",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "DEATH_BAND_FALLBACK flipped to shipped default ON at the user's direction. Grounds: no-op on every scene where no death-band turn occurs (5 of 7, byte-identical outputs), +8.5 placed mean on the two-container scene with every firing run beating base's best, timing cost removed by the 0.5 s budget floor, and the b001-k20 -1 placed / +2.33 fill trade accepted because fill is an always-on component while the placed gate multiplier is measured decaying (14x -> 6.7x). The CI guard has NOT run (workflow_dispatch remains unregistrable until the repository default branch moves off frozen main), so like the envelope flip this ships ahead of its guard and the official submission is the deciding measurement. Submission zip sha256 1255b06cd2bf..., agent.py sha256 4988f258f7c0....",
+      "source": "reports/l3-l4/morning-summary.md and the cumulative death-band rounds; user approval 2026-08-04"
     }
   ]
 }

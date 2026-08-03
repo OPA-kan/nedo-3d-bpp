@@ -100,6 +100,7 @@ def configure_arm_environment(
         "l3_prefer_empty",
         "l3_release_route",
         "death_band",
+        "no_death_band",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -123,7 +124,11 @@ def configure_arm_environment(
             # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
         elif arm == "death_band":
+            # Redundant since the default flipped on 2026-08-04; kept so a
+            # run can pin the value explicitly rather than inherit it.
             env["DEATH_BAND_FALLBACK"] = "1"
+        elif arm == "no_death_band":
+            env["DEATH_BAND_FALLBACK"] = "0"
         elif arm == "l3_release_route":
             env["L3_RELEASE_ROUTE"] = "1"
         elif arm == "l3_prefer_empty":

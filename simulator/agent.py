@@ -327,8 +327,14 @@ ANCHOR_DEEP_PASS_ATTEMPTS = int(
 # covers the whole space at every level, so a bounded run still sees all of it.
 # Default OFF -- every previous fallback design in this repository looked good
 # on static replay and lost on physics.
+# Shipped ON 2026-08-04. The gate acts only when the chosen action is a
+# release the ranker scores at or below the death band; measured across 7
+# scenes it is a no-op where that never happens, +8.5 placed mean on the
+# two-container scene, and on b001-k20 trades one placement for +2.33 fill
+# -- accepted because fill is an always-on score component while the
+# placed gate multiplier is measured to be decaying (14x -> 6.7x).
 DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
-    "DEATH_BAND_FALLBACK", "0"
+    "DEATH_BAND_FALLBACK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Fixed from the measured killer scores, not fitted.
 DEATH_BAND_SCORE = float(os.environ.get("DEATH_BAND_SCORE", "-1.5"))
