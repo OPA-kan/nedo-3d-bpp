@@ -327,6 +327,11 @@ ANCHOR_DEEP_PASS_ATTEMPTS = int(
 # covers the whole space at every level, so a bounded run still sees all of it.
 # Default OFF -- every previous fallback design in this repository looked good
 # on static replay and lost on physics.
+DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
+    "DEATH_BAND_FALLBACK", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+# Fixed from the measured killer scores, not fitted.
+DEATH_BAND_SCORE = float(os.environ.get("DEATH_BAND_SCORE", "-1.5"))
 ANCHOR_FALLBACK_ENABLED = os.environ.get(
     "ANCHOR_FALLBACK_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -7179,6 +7184,34 @@ class Agent:
             )
             if decision is not None and use_anchor_fallback:
                 action_source = "anchor_fallback"
+        if (
+            DEATH_BAND_FALLBACK_ENABLED
+            and decision is not None
+            and action_source == "placement_core"
+            and decision.candidate.name == "release_candidate"
+            and float(decision.score) <= DEATH_BAND_SCORE
+        ):
+            # Gamble detection. Every measured episode death executed a
+            # release the ranker itself scored at or below the death band
+            # (-1.545, -1.545, -2.384 on the two-container scene), wagering
+            # the whole remaining stream on one placement. Before executing
+            # such a release, spend the remaining budget on the alternate
+            # coarse-to-fine anchor space; take its answer only if it is
+            # settled or strictly better.
+            retry = PlacementCore.choose(
+                observation,
+                ordered_items,
+                deadline=primary_deadline,
+                diagnostics=self.last_candidate_diagnostics,
+                risk_lambda=live_lambda,
+                anchor_fallback=True,
+            )
+            if retry is not None and (
+                retry.candidate.name != "release_candidate"
+                or float(retry.score) > float(decision.score)
+            ):
+                decision = retry
+                action_source = "death_band_fallback"
         if decision is None and RESCUE_SCAN_ENABLED:
             rescue_items = rescue_online_items(pool_list)
             decision = PlacementCore.rescue_choose(
