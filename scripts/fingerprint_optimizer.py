@@ -55,6 +55,7 @@ Read the two hashes together:
 from __future__ import annotations
 
 import argparse
+import os
 import hashlib
 import importlib.util
 import json
@@ -127,19 +128,82 @@ def component_versions(agent) -> dict[str, Any]:
     return out
 
 
-def _container(agent, center_x: float = 0.0, cut_x: float = 0.0) -> dict:
+def _half_space_model(dims: dict, center_x: float) -> dict:
+    """
+    The probe container's own half-spaces, built by the SIMULATOR's builder.
+
+    Without these the probe is a bare dimension dict, and
+    rectangular_container_anchor_bounds falls back to its box formula. That
+    made the fingerprint blind to ANCHOR_TRUE_ENVELOPE: the flag changed
+    shipped search geometry and behaviour_sha256 did not move, a false
+    negative from the drift catcher whose whole job is to catch exactly
+    that. The real containers are not boxes -- seven planes, y asymmetric
+    at [-W/2, +W/2 - thickness] -- and a probe that cannot represent the
+    asymmetry cannot see a defect that lives in it.
+
+    Generated rather than hand-written, through the same call chain
+    ContainerManager uses (write_open_cut_corner_cup_obj, then the fixed
+    rotation and offset), so this cannot drift into invented geometry.
+    utils.py imports only math and numpy, so no PyBullet is required and
+    the fingerprint stays runnable anywhere.
+    """
+    import math
+    import tempfile
+
+    sys.path.insert(0, str(ROOT / "simulator"))
+    from src.ground_handling.utils import (  # noqa: E402
+        aff, write_open_cut_corner_cup_obj,
+    )
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        points, n_vecs = write_open_cut_corner_cup_obj(
+            os.path.join(tmp_dir, "probe.obj"),
+            width=dims["length"],
+            height=dims["height"],
+            cut_x=dims["cut_x"],
+            cut_y=dims.get("cut_y", 0.0),
+            depth=dims["width"],
+            wall=dims["thickness"],
+            bottom=dims["thickness"],
+        )
+    rot = [
+        [1, 0, 0],
+        [0, math.cos(math.pi / 2), -math.sin(math.pi / 2)],
+        [0, math.sin(math.pi / 2), math.cos(math.pi / 2)],
+    ]
+    pos = (0.0, 0.0, dims["height"] / 2 + dims["buffer"])
+    aff_points = aff(points, rot, pos)
     return {
+        "center": [pos[0] + center_x, pos[1], pos[2]],
+        "points": [
+            (point[0] + center_x, point[1], point[2])
+            for point in aff_points
+        ],
+        "n_vecs": aff(n_vecs, rot, intercept=(0, 0, 0)),
+    }
+
+
+def _container(
+    agent, center_x: float = 0.0, cut_x: float = 0.44, cut_y: float = 0.4
+) -> dict:
+    # Dimensions and cut match the bundled case-000 container exactly. The
+    # cut used to default to 0.0, which the simulator's own builder rejects
+    # (`cut_x, cut_y must be > 0`) -- the probe was not a shape the
+    # simulator can construct, which is the same root as the missing
+    # half-spaces.
+    dims = {
         "length": 2.0,
         "width": 1.45,
         "height": 1.61,
         "thickness": 0.04,
         "buffer": 0.0,
         "cut_x": cut_x,
+        "cut_y": cut_y,
         "require_shelf": False,
         "is_prioritized": False,
-        "center": [center_x, 0.0, 0.0],
         "packed_items": [],
     }
+    return {**dims, **_half_space_model(dims, center_x)}
 
 
 def _item(index: int, length: float, width: float, height: float,
