@@ -996,6 +996,14 @@
       "status": "active",
       "claim": "Retreating the anchor envelope by the predicted settle lean (ANCHOR_TILT_MARGIN_DEG, sin(theta) x item height) does NOT recover the wall-flush fill forfeit and is rejected under its pre-registered criteria (fill +3 or better with placed non-worse). Local ablation, 2 cases x {base, 2deg, 4deg} x 3 repeats: c000-k1 fill 19.91 -> 11.54 (2deg) / 20.69 (4deg) with placed 22->20; c001-k1 fill 26.24 -> 23.23 / 25.37 with placed 21->19-20. The 7.49-point forfeit measurement (5 of 21 items excluded by boundary-plane contact) was a static counterfactual on a fixed trajectory; the intervention changes the trajectory, the lean happens against neighbours as well as walls, and the retreat only pays the placed cost of narrowing the wall band. Knob stays in the registry at default 0 as a measured-off arm. Non-monotonicity (2deg much worse than both 0 and 4deg on c000-k1) is consistent with deadline-search trajectory sensitivity rather than a smooth tradeoff.",
       "source": "scratchpad taskc-tilt/ rows (2 cases x 3 arms x 3 repeats, run_queue parallel 3, local 4 vCPU); forfeit quantification in the poison-cost experiment output"
+    },
+    {
+      "id": "constructive-composite-survives-preregistered-ablation",
+      "topic": "order",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "The offline constructive_order composite survives its first pre-registered ablation: on the shipped Task A rollout path (bounded128, sample cases 000/001, 3 repeats each) composite places 22-24 with fill 31.8-32.3 versus volume-only's 20-21 / 28.2-29.0 -- no overlap in any cell. The coefficients 0.45/0.30/0.25/0.05 now have the AGENT_OPERATIONS 5.1 ground they lacked: an ablation that reports what the alternative loses (2-3 placed, 3 fill points). The parallel thread's 'volume beat the blend on 2 of 3 seeds' was measured on a different pipeline and does not transfer to this path. Caveats: only volume-only was tested, not other lexicographic variants; two sample cases; CONSTRUCTIVE_ORDER_MODE stays available for future arms.",
+      "source": "scratchpad l4-order/ (2 cases x 2 modes x 3 repeats, run_task_a_rollout bounded128)"
     }
   ]
 }
