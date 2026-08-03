@@ -60,34 +60,82 @@ SCENARIOS = (
 )
 
 
+class PreloadDoesNotFit(RuntimeError):
+    """A requested pre-load cannot be seated inside the container."""
+
+
 def _preloaded_items(items: list[dict], count: int, container: dict) -> list[dict]:
     """
     Seat `count` items on the container floor as a pre-existing load.
 
-    Positions are laid out along the container's length with a margin well
-    inside the inclusion clearance, then the simulator settles them before
-    the episode starts (containers.py steps physics until everything
-    sleeps). Only non-soft, non-priority items are used: a pre-loaded soft
-    item would change what the agent may stack on, which is a separate
-    question from whether pre-loading runs at all.
+    Items are laid along the container's x axis and the simulator settles
+    them before the episode starts (containers.py steps physics until
+    everything sleeps). Only non-soft, non-priority items are used: a
+    pre-loaded soft item would change what the agent may stack on, which is
+    a separate question from whether pre-loading runs at all.
+
+    The containment check is the point of this function, not decoration.
+    The first version had none: it walked a cursor from -length/2 + 0.25 and
+    trusted that whatever it picked would fit. It did not. On the bundled
+    geometry the THIRD item ran to x = 1.20 against an interior half-extent
+    of length/2 - thickness = 0.96, so single-preloaded was seeded with a
+    box driven 24 cm into the far wall, and nothing anywhere reported it --
+    the config carries no `points`/`n_vecs`, so even Geometry.
+    inside_container returns True by its no-envelope early-out. Candidates
+    are now skipped until enough fit, and running out raises rather than
+    quietly returning a short, out-of-bounds load.
     """
+    length = float(container["length"])
+    width = float(container["width"])
+    thickness = float(container["thickness"])
+    # Interior extents. The real envelope is a cut-corner cup
+    # (containers.py -> write_open_cut_corner_cup_obj), so this box is an
+    # OUTER bound: it accepts everything the true envelope accepts and a
+    # little more near the cut. Good enough to catch a 24 cm overshoot,
+    # not a substitute for the simulator's own check.
+    x_limit = length / 2.0 - thickness
+    y_limit = width / 2.0 - thickness
+
     usable = [
         item for item in items
         if not item.get("is_soft") and not item.get("is_prioritized")
     ]
-    chosen = usable[:count]
-    placed = []
-    cursor = -float(container["length"]) / 2.0 + 0.25
-    for item in chosen:
+    # Shelf layout: fill a row along x, then start another row along y.
+    # The bundled items are large enough that only TWO fit in a single row,
+    # which is how the original single-row cursor ran off the end.
+    placed: list[dict] = []
+    x_cursor = -x_limit + 0.05
+    y_cursor = -y_limit + 0.05
+    row_depth = 0.0
+    for item in usable:
+        if len(placed) == count:
+            break
+        item_length = float(item["length"])
+        item_width = float(item["width"])
+        if x_cursor + item_length > x_limit:
+            x_cursor = -x_limit + 0.05
+            y_cursor += row_depth + 0.05
+            row_depth = 0.0
+        if (
+            x_cursor + item_length > x_limit
+            or y_cursor + item_width > y_limit
+        ):
+            continue
         seated = copy.deepcopy(item)
         seated["pos"] = [
-            round(cursor + float(item["length"]) / 2.0, 4),
-            0.0,
+            round(x_cursor + item_length / 2.0, 4),
+            round(y_cursor + item_width / 2.0, 4),
             round(float(item["height"]) / 2.0 + 0.02, 4),
         ]
         seated["orn"] = [0.0, 0.0, 0.0, 1.0]
         placed.append(seated)
-        cursor += float(item["length"]) + 0.05
+        x_cursor += item_length + 0.05
+        row_depth = max(row_depth, item_width)
+    if len(placed) != count:
+        raise PreloadDoesNotFit(
+            f"asked for {count} pre-loaded items, only {len(placed)} fit "
+            f"inside x=+-{x_limit:.3f}, y=+-{y_limit:.3f}"
+        )
     return placed
 
 

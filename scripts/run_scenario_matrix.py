@@ -32,6 +32,12 @@ handed for free, so `agent_placed / agent_of` is reported alongside it.
     python3 scripts/run_scenario_matrix.py --matrix-dir reports/scenario-matrix \
         --output-dir reports/scenario-matrix/runs
 
+`rows.jsonl` is an append-only LOG across invocations -- re-running one
+scenario adds a row rather than replacing one, so it can hold several
+entries per scenario. `summary.json` is the authority: `--summarize`
+rebuilds it from the run directories on disk, each of which holds only its
+latest execution.
+
 This is a coverage probe, not a benchmark. The scenes are synthetic
 combinations of the bundled geometry, so the scores are not comparable to
 the development suite or to any official number; what they establish is
@@ -75,18 +81,34 @@ def sync_agent_into_simulator() -> None:
     target.write_bytes(source_bytes)
 
 
+STATUS_KEYS = ("is_included", "is_valid", "is_placed_safe")
+
+
 def death_channel(place_states: dict[str, Any] | None) -> str:
     """
     Classify the terminal step. See the module docstring: place_states is
     the last step's status, not the episode's.
+
+    The membership check is not defensive padding. `check_action` failing
+    (rules failure condition 1: malformed action, out-of-range index or
+    coordinate) makes env.step return early with a COMPLETELY DIFFERENT
+    status dict -- `{'has_valid_action_keys': False}`,
+    `{'has_valid_action_pos ...': False}`, `{'has_valid_action_index
+    ...': False}` -- which contains none of these three keys. The first
+    version of this function used .get() straight through, so every such
+    ending read `is_included` as None and was reported as "inclusion", a
+    containment failure. That is failure condition 1 silently relabelled as
+    failure condition 2.
     """
     if not place_states:
         return "unknown"
-    if not place_states.get("is_included"):
+    if not all(key in place_states for key in STATUS_KEYS):
+        return "malformed_action"
+    if not place_states["is_included"]:
         return "inclusion"
-    if not place_states.get("is_valid"):
+    if not place_states["is_valid"]:
         return "transport"
-    if not place_states.get("is_placed_safe"):
+    if not place_states["is_placed_safe"]:
         return "settle"
     return "stream_exhausted"
 
@@ -110,6 +132,7 @@ def terminal_decision(trace_path: pathlib.Path) -> dict[str, Any] | None:
     if not trace_path.exists():
         return None
     decisions = []
+    truncated = False
     for line in trace_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -117,13 +140,17 @@ def terminal_decision(trace_path: pathlib.Path) -> dict[str, Any] | None:
         try:
             record = json.loads(line)
         except json.JSONDecodeError:
-            # A truncated last line means the episode was killed; the
-            # decisions before it are still readable and still the answer.
+            truncated = True
             break
         if record.get("event") == "decision":
             decisions.append(record)
     if not decisions:
         return None
+    if truncated:
+        # The dropped line IS the final decision, so the attribution below
+        # would be off by one. An earlier comment here claimed the earlier
+        # decisions were "still the answer"; they are not.
+        return {"decisions": len(decisions), "trace_truncated": True}
     final = decisions[-1]
     kinds: dict[str, int] = {}
     for decision in decisions:
@@ -167,6 +194,18 @@ def summarize_case(
     ratio = float(evaluation.get("num_placed_items", 0.0))
     packed = round(ratio * shape["total_items"])
     final = steps[-1] if steps else {}
+    # The count is reconstructed from a float ratio, and the denominator
+    # comes from the CONFIG rather than the run. Both assumptions are
+    # cheap to check against the simulator's own per-step counter, and a
+    # mismatch means the config and the result do not belong together --
+    # e.g. --summarize pointed at a matrix rebuilt with other parameters.
+    reported = final.get("placed_count")
+    if reported is not None and int(reported) != packed:
+        raise ValueError(
+            f"placed count disagrees: reconstructed {packed} from ratio "
+            f"{ratio} x {shape['total_items']} total, but the run reports "
+            f"{int(reported)}. The config and the result do not match."
+        )
     row = {
         **shape,
         "placed_ratio": round(ratio, 4),
@@ -258,7 +297,42 @@ def run_scenario(
     if trace:
         row["policy_trace"] = str(trace_path)
         row["terminal_decision"] = terminal_decision(trace_path)
+        attach_trace_coverage(row)
     return row
+
+
+def attach_trace_coverage(row: dict[str, Any]) -> None:
+    """
+    Decide whether the trace is entitled to attribute anything.
+
+    app.py calls the agent as
+    `runner.call('policy', time_out_sec=policy_timeout,
+    fallback=env.action_space.sample())`. If the agent overruns, the
+    HARNESS substitutes a RANDOM action and the agent never returns, so it
+    writes no trace record for that step. The margin is thin --
+    POLICY_BUDGET_SECONDS is 6.5 against a policy_timeout of 8.0 -- and
+    when it happens the last trace record belongs to an EARLIER step, so
+    terminal_decision names the wrong action with no outward sign.
+
+    One decision per step is the only evidence that no substitution
+    occurred. Without this the attribution is unfalsifiable, which is worse
+    than absent.
+    """
+    terminal = row.get("terminal_decision") or {}
+    decisions = terminal.get("decisions")
+    steps = row.get("steps")
+    if decisions is None or steps is None:
+        row["trace_covers_every_step"] = None
+        return
+    covers = decisions == steps
+    row["trace_covers_every_step"] = covers
+    if not covers:
+        row["trace_coverage_warning"] = (
+            f"{decisions} decisions for {steps} steps: the harness "
+            "substituted a random action on at least one step "
+            "(policy timeout), so terminal_decision does NOT describe the "
+            "final action"
+        )
 
 
 def resummarize(
@@ -282,6 +356,7 @@ def resummarize(
     if trace_path.exists():
         row["policy_trace"] = str(trace_path)
         row["terminal_decision"] = terminal_decision(trace_path)
+        attach_trace_coverage(row)
     return row
 
 
@@ -295,10 +370,15 @@ def format_row(row: dict[str, Any]) -> str:
     if terminal and row.get("death_channel") not in (
         "stream_exhausted", "did_not_run", None
     ):
-        attribution = (
-            f" | killed by {terminal.get('final_action_source')}"
-            f"/{terminal.get('final_candidate_kind')}"
-        )
+        if row.get("trace_covers_every_step") is False:
+            attribution = " | ATTRIBUTION UNSAFE (harness fallback fired)"
+        elif terminal.get("trace_truncated"):
+            attribution = " | ATTRIBUTION UNSAFE (trace truncated)"
+        else:
+            attribution = (
+                f" | killed by {terminal.get('final_action_source')}"
+                f"/{terminal.get('final_candidate_kind')}"
+            )
     return (
         f"{row['scenario']:26s} "
         f"c={row.get('containers')} shelf={row.get('shelves')} "

@@ -62,6 +62,57 @@ class ScenarioMatrixContractTests(unittest.TestCase):
     scripts/run_scenario_matrix.py.
     """
 
+    def test_preloaded_items_are_inside_the_container(self) -> None:
+        """
+        The check the builder did not have, and the reason it now does.
+
+        The first version walked a single cursor along x from
+        -length/2 + 0.25 and trusted the result. On the bundled geometry
+        only TWO of these items fit in one row, so the third ran to
+        x = 1.20 against an interior half-extent of 0.96 -- a box seeded
+        24 cm inside the far wall, in a scene that was then executed and
+        registered.
+
+        Nothing caught it, and that is the part worth pinning. The configs
+        carry no `points`/`n_vecs` (containers.py adds those at build
+        time), so `Geometry.inside_container` takes its no-envelope early
+        return and reports True for anything. Every assertion in this file
+        that touches containment inherits that hole; this one uses the
+        declared box extents directly instead.
+        """
+        for name, config in MATRIX.items():
+            case = next(iter(config.values()))
+            for container in case["containers"]["container_list"]:
+                x_limit = (
+                    float(container["length"]) / 2.0
+                    - float(container["thickness"])
+                )
+                y_limit = (
+                    float(container["width"]) / 2.0
+                    - float(container["thickness"])
+                )
+                for seated in container["packed_items"]:
+                    with self.subTest(scenario=name, item=seated["index"]):
+                        x = abs(float(seated["pos"][0])) + \
+                            float(seated["length"]) / 2.0
+                        y = abs(float(seated["pos"][1])) + \
+                            float(seated["width"]) / 2.0
+                        self.assertLessEqual(x, x_limit + 1e-9)
+                        self.assertLessEqual(y, y_limit + 1e-9)
+
+    def test_an_impossible_preload_raises_rather_than_truncating(self) -> None:
+        """
+        Asking for more than fits must fail loudly. Returning a short list
+        would put the scenario's `preloaded` count out of step with reality
+        and change the denominator of num_placed_items without saying so.
+        """
+        case = SOURCE["000"]
+        container = case["containers"]["container_list"][0]
+        with self.assertRaises(builder.PreloadDoesNotFit):
+            builder._preloaded_items(
+                case["item_stream"]["item_list"], 40, container
+            )
+
     def test_matrix_covers_every_declared_axis(self) -> None:
         containers = {
             len(c["containers"]["container_list"])
@@ -283,6 +334,87 @@ class DeathChannelReadingTests(unittest.TestCase):
     def test_missing_status_is_unknown_not_success(self) -> None:
         self.assertEqual(runner.death_channel(None), "unknown")
         self.assertEqual(runner.death_channel({}), "unknown")
+
+    def test_a_malformed_action_is_not_reported_as_inclusion(self) -> None:
+        """
+        check_action failing returns a different status dict entirely --
+        none of is_included/is_valid/is_placed_safe is present. Reading it
+        with .get() made every such ending report "inclusion", turning
+        rules failure condition 1 into failure condition 2.
+        """
+        for status in (
+            {"has_valid_action_keys": False},
+            {"has_valid_action_pos (length must be 3)": False},
+            {"has_valid_action_index (index in container_idx ...)": False},
+        ):
+            with self.subTest(status=next(iter(status))):
+                self.assertEqual(
+                    runner.death_channel(status), "malformed_action"
+                )
+
+    def test_a_short_trace_disqualifies_the_attribution(self) -> None:
+        """
+        app.py passes `fallback=env.action_space.sample()` with
+        `time_out_sec=policy_timeout`. On an overrun the harness plays a
+        RANDOM action and the agent writes no record, so the last trace
+        entry belongs to an earlier step. One decision per step is the only
+        evidence that did not happen.
+        """
+        row = {"steps": 20, "terminal_decision": {"decisions": 20}}
+        runner.attach_trace_coverage(row)
+        self.assertTrue(row["trace_covers_every_step"])
+        self.assertNotIn("trace_coverage_warning", row)
+
+        row = {"steps": 20, "terminal_decision": {"decisions": 18}}
+        runner.attach_trace_coverage(row)
+        self.assertFalse(row["trace_covers_every_step"])
+        self.assertIn("trace_coverage_warning", row)
+
+    def test_a_disqualified_attribution_is_not_printed_as_a_cause(
+        self,
+    ) -> None:
+        row = {
+            "scenario": "x", "containers": 1, "shelves": 0, "dedicated": 0,
+            "preloaded": 0, "packed_items": 5, "total_items": 41,
+            "placed_ratio": 0.12, "agent_placed": 5, "agent_of": 41,
+            "fill_score": 1.0, "steps": 20, "death_channel": "settle",
+            "trace_covers_every_step": False,
+            "terminal_decision": {
+                "decisions": 18,
+                "final_action_source": "placement_core",
+                "final_candidate_kind": "release_candidate",
+            },
+        }
+        rendered = runner.format_row(row)
+        self.assertIn("ATTRIBUTION UNSAFE", rendered)
+        self.assertNotIn("release_candidate", rendered)
+
+    def test_a_count_that_contradicts_the_run_is_an_error(self) -> None:
+        """
+        packed_items is reconstructed from a float ratio against a
+        denominator taken from the CONFIG. If the config and the run do not
+        belong together the row would be quietly wrong, so it raises.
+        """
+        shape = {
+            "containers": 1, "shelves": 0, "dedicated": 0,
+            "preloaded": 0, "stream_items": 41, "total_items": 41,
+        }
+        case = {
+            "evaluation": {
+                "num_placed_items": 24 / 41,
+                "fill_score": 1.0,
+                "step_metrics": [{"placed_count": 24}],
+            },
+            "place_states": {
+                "is_included": True, "is_valid": True,
+                "is_placed_safe": False,
+            },
+        }
+        self.assertEqual(runner.summarize_case(case, shape)["packed_items"], 24)
+
+        case["evaluation"]["step_metrics"] = [{"placed_count": 30}]
+        with self.assertRaises(ValueError):
+            runner.summarize_case(case, shape)
 
     def test_preloaded_items_are_removed_from_the_agents_credit(self) -> None:
         """

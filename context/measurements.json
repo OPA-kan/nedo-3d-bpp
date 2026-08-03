@@ -273,7 +273,8 @@
       "conditioned_on": [
         "one episode per configuration -- n=1 per row, and the outcome is machine-speed dependent because the online policy's only stop condition is the wall clock",
         "--trace is an INTERVENTION, not free instrumentation: NEDO_POLICY_TRACE_PATH switches on _record_item_lifecycle (agent.py:6740, consumed at 4101) inside the candidate loop and writes ~40 kB per decision, all of it inside the 6.5 s deadline, so a traced arm searches less. Traced and untraced runs are different arms and must not be pooled",
-        "the synthetic combinations built by build_scenario_matrix.py, hence the bundled 41-item mix across however many containers"
+        "the synthetic combinations built by build_scenario_matrix.py, hence the bundled 41-item mix across however many containers",
+        "trace attribution is only valid when trace_covers_every_step is true: app.py substitutes a RANDOM action on a policy overrun (fallback=env.action_space.sample(), time_out_sec=policy_timeout) and the agent writes no record, so a short trace silently attributes the wrong action"
       ],
       "outcome": [
         "placed ratio and agent_placed/agent_of",
@@ -285,11 +286,13 @@
         "how well a configuration scores -- synthetic scenes, not comparable to the development suite or to any official number",
         "which of two configurations is harder: the placed counts move by 2 or more between executions of the identical binary and config, and the death channel itself flips",
         "which ITEM killed the episode or which item covered a priority one -- terminal_decision names the action's source and acceptance path, not the geometry that failed",
-        "anything about the 80-item two-container scale the rules describe for Task A"
+        "anything about the 80-item two-container scale the rules describe for Task A",
+        "why a configuration is hard -- death_channel and terminal_decision describe the LAST action only"
       ],
       "supports": [
-        "scenario-matrix-seven-rows-executed",
-        "scenario-matrix-reproducibility-is-machine-load"
+        "scenario-matrix-seven-rows-corrected-preload",
+        "scenario-matrix-reproducibility-is-machine-load",
+        "matrix-instrument-self-audit-found-three-defects"
       ],
       "note": "Exists because tests/test_scenario_matrix.py already named it as its physical counterpart while the matrix had only ever been run by hand -- which also skipped sync_agent_into_simulator, the step whose absence made the first risk ablation compare an arm against itself."
     },
@@ -321,7 +324,8 @@
       ],
       "conditioned_on": [
         "the bundled sample's geometry and item mix",
-        "look-ahead and policy timeout passed in; the matrix does not vary them"
+        "look-ahead and policy timeout passed in; the matrix does not vary them",
+        "generated configs carry no points/n_vecs (containers.py adds those at build time), so Geometry.inside_container reports True for ANY geometry against them -- containment must be checked against the declared box extents instead"
       ],
       "outcome": [
         "7 configs covering 1/2 containers x shelf x pre-loaded x dedicated"
@@ -331,7 +335,8 @@
         "anything about 80-item two-container scenes: it reuses the 41-item mix across two containers, which is a different difficulty"
       ],
       "supports": [
-        "scenario-matrix-coverage-gap"
+        "scenario-matrix-seven-rows-corrected-preload",
+        "preloaded-scene-was-seeded-out-of-bounds"
       ]
     }
   },

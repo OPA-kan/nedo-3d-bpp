@@ -164,11 +164,25 @@ With that corrected **all seven configurations run**, and the traced pass
 |---|--:|--:|--:|--:|---|---|--:|---|---|
 | single-empty-noshelf | 1 | 0 | 0 | 0 | 24/41 | 24/41 | 21.13 | settle | `placement_core` / release |
 | single-empty-shelf | 1 | 1 | 0 | 0 | 14/41 | 14/41 | 16.86 | settle | `placement_core` / release |
-| single-preloaded | 1 | 0 | 0 | 3 | 20/41 | 17/38 | 22.48 | transport | `unsafe_protocol_fallback` |
+| single-preloaded | 1 | 0 | 0 | 3 | 13/41 | **10/38** | 14.60 | settle | `placement_core` / release |
 | dual-empty | 2 | 0 | 0 | 0 | 41/41 | 41/41 | 22.98 | survived | -- |
 | dual-shelf-mixed | 2 | 1 | 0 | 0 | 39/41 | 39/41 | 22.26 | settle | `placement_core` / release |
 | dual-dedicated-priority | 2 | 0 | 1 | 0 | 41/41 | 41/41 | 20.36 | survived | -- |
-| dual-preloaded-dedicated | 2 | 0 | 1 | 2 | 36/41 | 34/39 | 17.83 | settle | `placement_core` / settled |
+| dual-preloaded-dedicated | 2 | 0 | 1 | 2 | 16/41 | **14/39** | 10.29 | settle | `placement_core` / release |
+
+**Pre-loading is the hardest axis by a wide margin**, and an earlier
+version of this table said otherwise because the builder had no
+containment check. It walked a single cursor along x and the third item
+ran to x = 1.20 against an interior half-extent of 0.96, so
+`single-preloaded` was executed with a box driven 24 cm into the far wall
+and the rest strung along one row leaving the whole depth free -- an
+*easier* scene than a real pre-load, published as 20/41. With the items
+properly seated in two rows it is 13/41, and `dual-preloaded-dedicated`
+falls 36 -> 16. Nothing flagged the original: the configs carry no
+`points`/`n_vecs`, so `Geometry.inside_container` takes its no-envelope
+early return and reports True for anything, which is also why every
+containment assertion in `tests/test_scenario_matrix.py` is weaker than it
+looks. `_preloaded_items` now raises rather than seating what does not fit.
 
 ### Read the columns before the numbers
 
@@ -212,12 +226,18 @@ the untraced one on every row. Still separate arms; do not pool them.
 
 ### What the traces establish
 
-All four settle deaths are the agent's OWN placement (`placement_core`),
-not a fallback. The single transport death is the hard-coded
-`[0, 0, 0.25]` of `unsafe_protocol_fallback` (`agent.py:7008-7078`), which
-is exactly the ledger's `transport-deaths-are-fallback-poison`.
+**All five** deaths are the agent's OWN placement (`placement_core`), and
+all five came through the release path. The transport/fallback death in the
+earlier version of this table belonged to the buggy pre-loaded scene and is
+gone. The attribution is entitled to stand only because
+`trace_covers_every_step` is true on all seven rows: `app.py` calls the
+agent with `fallback=env.action_space.sample()` and
+`time_out_sec=policy_timeout`, so a policy overrun makes the *harness* play
+a random action and write no trace record, and the last trace entry would
+then belong to an earlier step. One decision per step is the evidence that
+did not happen.
 
-Three of the four settle deaths came through the **release** acceptance
+All five deaths came through the **release** acceptance
 path. That path has no support check: `Geometry.rejection_reason` runs
 containment -> headroom -> static geometry -> **support** -> corridor, and
 `Geometry.release_rejection_reason` runs containment -> static geometry ->
@@ -230,9 +250,46 @@ item whose flag was thrown away, and nothing rejects it.
 geometry, with a control that pins "support" to the flag rather than the
 height.
 
-Treat "3 of 4 deaths were release candidates" as a LEAD, not a finding:
-release candidates are 110 of 215 decisions across the matrix, so 3 of 4 is
-what a 51% base rate produces about a third of the time.
+Treat "5 of 5 deaths were release candidates" as a LEAD, not a finding --
+and use the right base rate. Pooled, release is 91 of 188 decisions (48%),
+but the share drifts hard within an episode: **22 of 91 in the first half,
+69 of 97 in the second**. The relevant conditional for a *terminal*
+decision is the late-episode rate of 0.711, against which 5 of 5 has
+p = 0.18. An earlier version of this section quoted the pooled 51% and so
+overstated how surprising the pattern was.
+
+### A parallel branch already went further -- read it before repeating this
+
+`claude/test-audit-physical-validation-7oj0wu` descends from this branch and
+has, independently, run the matrix physically and gone past it:
+
+- it built the per-event attribution this section lists as the missing
+  instrument, and measured **6 of 7 priority-cover events as release
+  actions** -- the causal link I could only leave as a lead;
+- it shipped `RELEASE_ATTRIBUTE_GUARD` (default off, three modes
+  off/all/priority) with a new rejection reason `attribute_rest`, which is
+  precisely the fix for the gap described above;
+- it made `PHYSICS_LATERAL_GUARD` a knob and **adopted 0.010 -> 0.002**
+  (settled lateral contract 26 mm -> 18 mm), so that branch carries a
+  shipped behavioural default this one does not;
+- it independently reached the same "n=1 shipped episodes rank nothing"
+  conclusion: guard2 reproduced dual-dedicated-priority at 30 while the same
+  base binary returned 19 on the same machine.
+
+Two things do **not** reconcile, and neither should be assumed settled:
+
+1. That branch reports all three single-container episodes dying by
+   `unsafe_protocol_fallback` with ~90% `static_geometry` rejections. The
+   traced runs here have both empty single-container rows dying on a
+   `placement_core` release candidate, with the fallback appearing only in
+   the pre-loaded scene. Different arms, or different attribution -- unknown.
+2. **That branch still carries the single-cursor `_preloaded_items`.** Its
+   `single-preloaded` and `dual-preloaded-dedicated` rows, and anything
+   concluded from them, were measured on the out-of-bounds seed corrected
+   here. Its dual-empty / dual-shelf / dual-dedicated rows are unaffected.
+
+The release-path lead below is therefore **not independent** of that
+branch's measurement; do not count them as two confirmations.
 
 ### Two containers is not a win
 
