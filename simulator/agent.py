@@ -279,6 +279,16 @@ OFFLINE_SKIP_EQUIVALENT_ORDERS = os.environ.get(
 ANCHOR_COMPONENT_ORDER = os.environ.get(
     "ANCHOR_COMPONENT_ORDER", "default"
 ).strip().lower()
+# Where the next order to evaluate comes from.
+#   neighbour - the shipped behaviour: transpose inside a group, or move a
+#               pair macro, starting from wherever the walk currently is.
+#   uniform   - ignore the walk entirely and draw a fresh random
+#               group-respecting order every time. This is the NULL MODEL:
+#               if it matches the shipped arm at equal budget, the offline
+#               search is sampling rather than optimising, and every arm
+#               measured on this branch was comparing ways to draw the
+#               same lottery.
+OFFLINE_PROPOSAL = os.environ.get("OFFLINE_PROPOSAL", "neighbour")
 
 
 def _weight_vector(name, defaults):
@@ -4138,6 +4148,33 @@ def constructive_order_variants(item_list):
     return variants
 
 
+def uniform_group_order(items, rng):
+    """
+    A uniformly random order that keeps the item_group blocks intact.
+
+    The NULL MODEL for the offline search. Every arm measured so far --
+    walk, hillclimb, ils, multi-start, four constructions -- differs only
+    in how it moves through the neighbourhood, and all of them land
+    between 20 and 24.33 placed while the constructive seed evaluates to
+    16 in every case. That is consistent with the search optimising, and
+    equally consistent with it drawing samples from a region whose typical
+    quality is about 22. Nothing distinguishes those two readings until
+    plain random draws are measured at the same budget.
+
+    Blocks are preserved because every other arm preserves them, so this
+    isolates the proposal distribution and nothing else.
+    """
+    blocks = {}
+    for item in items:
+        blocks.setdefault(item_group(item), []).append(item)
+    ordered = []
+    for _group, members in sorted(blocks.items()):
+        shuffled = list(members)
+        rng.shuffle(shuffled)
+        ordered.extend(shuffled)
+    return ordered
+
+
 def kick_order(items, rng, strength):
     """
     Perturb an order by `strength` random transpositions for ILS restarts.
@@ -6743,6 +6780,27 @@ class Agent:
             ]
             if not movable_groups:
                 break
+
+            if OFFLINE_PROPOSAL == "uniform":
+                neighbor = uniform_group_order(initial, rng)
+                used_pair_macro = False
+                if OFFLINE_SKIP_EQUIVALENT_ORDERS:
+                    signature = order_signature(neighbor)
+                    if signature in seen_signatures:
+                        current_items = list(neighbor)
+                        self.last_equivalent_orders_skipped += 1
+                        continue
+                    seen_signatures.add(signature)
+                result = evaluator.evaluate(neighbor, deadline=deadline)
+                moving_runtime = (
+                    0.8 * moving_runtime
+                    + 0.2 * max(0.001, result.runtime_seconds)
+                )
+                if result.rank_key() > best_result.rank_key():
+                    best_result = result
+                    best_items = list(neighbor)
+                current_items = list(neighbor)
+                continue
 
             used_pair_macro = False
             if pair_macros and iteration % 3 == 0:
