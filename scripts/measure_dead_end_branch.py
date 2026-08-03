@@ -256,7 +256,20 @@ def continue_with_oracle_best(
     }
 
 
-def replay_to_step(agent_module, task_config, target_step):
+def replay_to_step(agent_module, task_config, target_step, actions=None):
+    """
+    Replay to the state before ``target_step``.
+
+    Without ``actions`` this re-RUNS the live policy, and the live policy is
+    deadline-driven, so two replays of the same case under different CPU
+    conditions can pick different placements and land on different boards
+    (measured: two distinct millimetre-digest basins within one serial
+    process). Callers that compare branches from "the same state" must
+    therefore capture the action sequence from one reference replay
+    (returned as the last element) and pass it back via ``actions`` for
+    every subsequent replay, which replays the captured actions verbatim
+    and never consults the policy.
+    """
     if str(SIMULATOR) not in sys.path:
         sys.path.insert(0, str(SIMULATOR))
     from src.ground_handling.env import GroundHandlingEnv
@@ -269,7 +282,21 @@ def replay_to_step(agent_module, task_config, target_step):
     raw_observation, _info = env.reset(seed=42)
     step = 0
     rescues = []
+    executed_actions = []
     while step < target_step:
+        if actions is not None:
+            action = copy.deepcopy(actions[step])
+            executed_actions.append(action)
+            raw_observation, _r, terminated, truncated, _info = env.step(
+                action
+            )
+            if terminated or truncated:
+                raise RuntimeError(
+                    f"episode ended at step {step} before the target "
+                    f"{target_step}"
+                )
+            step += 1
+            continue
         observation = policy_observation(env, raw_observation)
         action = solver.policy(observation)
         if solver.last_action_source == "unsafe_protocol_fallback":
@@ -295,13 +322,20 @@ def replay_to_step(agent_module, task_config, target_step):
             rescues.append(
                 {"step": step, "rank": int(safe[0]["oracle_rank"])}
             )
+        executed_actions.append(copy.deepcopy(action))
         raw_observation, _r, terminated, truncated, _info = env.step(action)
         if terminated or truncated:
             raise RuntimeError(
                 f"episode ended at step {step} before the target {target_step}"
             )
         step += 1
-    return env, solver, policy_observation(env, raw_observation), rescues
+    return (
+        env,
+        solver,
+        policy_observation(env, raw_observation),
+        rescues,
+        executed_actions,
+    )
 
 
 def run_horizon(
@@ -331,10 +365,11 @@ def run_horizon(
     # cannot produce). Executing pinned coordinates keeps the action
     # constant; the residual replay-to-replay state noise is made visible
     # via replay_digest instead of being silently absorbed.
-    env, _solver, observation, _rescues = replay_to_step(
+    env, _solver, observation, _rescues, reference_actions = replay_to_step(
         agent_module, task_config, branch_step
     )
     try:
+        reference_digest = replay_digest(observation)
         records = oracle_candidates(agent_module, observation)
         validated, _checked = probe_records(env, records, top_k)
         pinned = [
@@ -351,8 +386,8 @@ def run_horizon(
     branches = []
     safe_count = len(pinned)
     for rank, candidate in enumerate(pinned):
-        env, _solver, observation, _rescues = replay_to_step(
-            agent_module, task_config, branch_step
+        env, _solver, observation, _rescues, _actions = replay_to_step(
+            agent_module, task_config, branch_step, actions=reference_actions
         )
         try:
             raw_observation, _r, terminated, truncated, info = env.step(
@@ -371,6 +406,9 @@ def run_horizon(
                 "center": [float(v) for v in candidate["center"]],
                 "size": [float(v) for v in candidate["size"]],
                 "replay_digest": replay_digest(observation),
+                "replay_matches_reference": (
+                    replay_digest(observation) == reference_digest
+                ),
                 "executed_ok": executed,
             }
             if executed and not (terminated or truncated):
@@ -418,6 +456,7 @@ def run_horizon(
         "horizon": horizon,
         "physically_safe_expanded": len(branches),
         "physically_safe_total": safe_count,
+        "reference_digest": reference_digest,
         "distinct_outcomes": len(reach),
         "choice_matters": len(reach) > 1,
         "seconds": round(time.perf_counter() - started, 1),
@@ -450,7 +489,7 @@ def run(
             horizon=horizon,
             started=started,
         )
-    env, _solver, observation, replay_rescues = replay_to_step(
+    env, _solver, observation, replay_rescues, _actions = replay_to_step(
         agent_module, task_config, branch_step
     )
     try:

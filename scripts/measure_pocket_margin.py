@@ -436,7 +436,7 @@ def main() -> int:
         raise SystemExit(f"unknown case {args.case!r}: {', '.join(config)}")
     agent_module = load_agent_module()
     started = time.perf_counter()
-    env, _solver, observation, rescues = replay_to_step(
+    env, _solver, observation, rescues, _actions = replay_to_step(
         agent_module, json.loads(json.dumps(config[args.case])), args.step
     )
     try:
