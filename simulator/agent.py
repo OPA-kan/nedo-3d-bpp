@@ -279,6 +279,57 @@ OFFLINE_SKIP_EQUIVALENT_ORDERS = os.environ.get(
 ANCHOR_COMPONENT_ORDER = os.environ.get(
     "ANCHOR_COMPONENT_ORDER", "default"
 ).strip().lower()
+
+
+def _weight_vector(name, defaults):
+    """
+    A hand-written weight vector, made settable so it can be MEASURED.
+
+    These three vectors decide, respectively, every online placement, the
+    offline construction that seeds the order search, and the stability
+    term of the offline objective. None of the seventeen numbers in them
+    has a derivation recorded anywhere, and until now none was reachable:
+    they are source literals, so `context/knobs.json` did not list them --
+    its own contract says so -- and the optimizer fingerprint's projection
+    P(Theta) therefore did not cover them. Anyone could have rewritten the
+    ranker and every drift catcher in the repository would have stayed
+    silent.
+
+    Exposed as a VECTOR rather than one knob per coefficient, deliberately.
+    `docs/AGENT_OPERATIONS.md` section 5.1 admits a free coefficient only
+    when it is externally fixed or chosen by a pre-registered ablation that
+    also reports what lost; the unit of such an ablation is the whole
+    vector, not a dial to turn one at a time. Seventeen separate knobs
+    would invite exactly the tuning the rule forbids.
+
+    Defaults reproduce the shipped literals exactly: this commit is meant
+    to leave behaviour_sha256 unchanged.
+    """
+    raw = os.environ.get(name)
+    if not raw:
+        return tuple(float(value) for value in defaults)
+    parts = [part for part in raw.replace(",", " ").split() if part]
+    if len(parts) != len(defaults):
+        raise ValueError(
+            f"{name} expects {len(defaults)} comma-separated weights, "
+            f"got {len(parts)}"
+        )
+    return tuple(float(part) for part in parts)
+
+
+# volume, support, depth(priority), depth(normal), |x| penalty,
+# z*mass penalty, priority routing bonus, priority routing penalty
+RANKER_WEIGHTS = _weight_vector(
+    "RANKER_WEIGHTS", (12.0, 2.0, -0.55, 0.35, 0.12, 0.18, 8.0, -2.5)
+)
+# volume, base area, mass, cutout-filler bonus
+CONSTRUCTIVE_ORDER_WEIGHTS = _weight_vector(
+    "CONSTRUCTIVE_ORDER_WEIGHTS", (0.45, 0.30, 0.25, 0.05)
+)
+# mean support, min support, margin, mass-weighted support, contact count
+STABILITY_PROXY_WEIGHTS = _weight_vector(
+    "STABILITY_PROXY_WEIGHTS", (0.45, 0.20, 0.20, 0.10, 0.05)
+)
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -3727,24 +3778,34 @@ class Ranker:
         x, y, z = candidate.center
         is_priority_item = bool(item.get("is_prioritized", False))
         is_priority_container = bool(container.get("is_prioritized", False))
+        (
+            w_volume,
+            w_support,
+            w_depth_priority,
+            w_depth_normal,
+            w_lateral,
+            w_height_mass,
+            w_routing_bonus,
+            w_routing_penalty,
+        ) = RANKER_WEIGHTS
         if is_priority_item:
-            depth_score = -0.55 * y
+            depth_score = w_depth_priority * y
         else:
-            depth_score = 0.35 * y
+            depth_score = w_depth_normal * y
 
         routing_score = 0.0
         if has_priority_container:
             if is_priority_item and is_priority_container:
-                routing_score = 8.0
+                routing_score = w_routing_bonus
             elif not is_priority_item and is_priority_container:
-                routing_score = -2.5
+                routing_score = w_routing_penalty
 
         return (
-            12.0 * volume
-            + 2.0 * support
+            w_volume * volume
+            + w_support * support
             + depth_score
-            - 0.12 * abs(x)
-            - 0.18 * z * mass
+            - w_lateral * abs(x)
+            - w_height_mass * z * mass
             + routing_score
         )
 
@@ -3957,10 +4018,14 @@ def constructive_order(item_list):
             and mass <= 10.0
         )
         composite = (
-            0.45 * volume / volume_scale
-            + 0.30 * base_area / area_scale
-            + 0.25 * mass / mass_scale
-            - (0.05 if cutout_filler else 0.0)
+            CONSTRUCTIVE_ORDER_WEIGHTS[0] * volume / volume_scale
+            + CONSTRUCTIVE_ORDER_WEIGHTS[1] * base_area / area_scale
+            + CONSTRUCTIVE_ORDER_WEIGHTS[2] * mass / mass_scale
+            - (
+                CONSTRUCTIVE_ORDER_WEIGHTS[3]
+                if cutout_filler
+                else 0.0
+            )
         )
         scored.append(
             (
@@ -6314,11 +6379,11 @@ class DryRunEvaluator:
             else 0.0
         )
         stability = (
-            0.45 * mean_support
-            + 0.20 * min_support
-            + 0.20 * ((mean_margin + 1.0) / 2.0)
-            + 0.10 * mean_mass_support
-            + 0.05 * min(1.0, mean_count / 2.0)
+            STABILITY_PROXY_WEIGHTS[0] * mean_support
+            + STABILITY_PROXY_WEIGHTS[1] * min_support
+            + STABILITY_PROXY_WEIGHTS[2] * ((mean_margin + 1.0) / 2.0)
+            + STABILITY_PROXY_WEIGHTS[3] * mean_mass_support
+            + STABILITY_PROXY_WEIGHTS[4] * min(1.0, mean_count / 2.0)
         )
         result = DryRunResult(
             placed_count=placed_count,

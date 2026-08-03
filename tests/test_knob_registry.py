@@ -17,8 +17,12 @@ fingerprint_optimizer = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = fingerprint_optimizer
 SPEC.loader.exec_module(fingerprint_optimizer)
 
+# Two forms count as reading a knob. The second exists because the weight
+# vectors call os.environ.get through a helper, with the NAME as an argument
+# -- a literal-only pattern silently stops seeing them, which would let a
+# registered knob be deleted from agent.py with no test noticing.
 ENV_READ = re.compile(
-    r"""os\.environ\.get\(\s*["']([A-Z][A-Z0-9_]*)["']"""
+    r"""(?:os\.environ\.get|_weight_vector)\(\s*["']([A-Z][A-Z0-9_]*)["']"""
 )
 
 

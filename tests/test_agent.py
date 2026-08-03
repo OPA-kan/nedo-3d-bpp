@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import math
 import os
 import pathlib
 import random
@@ -3661,6 +3662,61 @@ class OfflineOptimizationTests(unittest.TestCase):
         container["packed_items"] = [entry]
         self.assertEqual(
             agent.same_type_support_tops(container, arriving), set()
+        )
+
+    def test_weight_vectors_default_to_the_shipped_literals(self):
+        """
+        Exposing the weights must not move them. If this fails, the vectors
+        drifted from the numbers every measurement in the repository was
+        taken under.
+        """
+        self.assertEqual(
+            agent.RANKER_WEIGHTS,
+            (12.0, 2.0, -0.55, 0.35, 0.12, 0.18, 8.0, -2.5),
+        )
+        self.assertEqual(
+            agent.CONSTRUCTIVE_ORDER_WEIGHTS, (0.45, 0.30, 0.25, 0.05)
+        )
+        self.assertEqual(
+            agent.STABILITY_PROXY_WEIGHTS, (0.45, 0.20, 0.20, 0.10, 0.05)
+        )
+
+    def test_weight_vector_parses_and_rejects_the_wrong_arity(self):
+        self.assertEqual(
+            agent._weight_vector("NEDO_ABSENT_WEIGHTS", (1.0, 2.0)),
+            (1.0, 2.0),
+        )
+        with mock.patch.dict(os.environ, {"NEDO_TEST_WEIGHTS": "3, 4"}):
+            self.assertEqual(
+                agent._weight_vector("NEDO_TEST_WEIGHTS", (1.0, 2.0)),
+                (3.0, 4.0),
+            )
+        with mock.patch.dict(os.environ, {"NEDO_TEST_WEIGHTS": "3"}):
+            with self.assertRaises(ValueError):
+                agent._weight_vector("NEDO_TEST_WEIGHTS", (1.0, 2.0))
+
+    def test_ranker_weights_actually_reach_the_score(self):
+        """
+        The point of the exposure: a changed vector must change the score.
+        Without this the knob is registered but inert, which is the failure
+        OFFLINE_FILL_WEIGHT already demonstrated.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        item = sample_item(0, length=0.4, width=0.3, height=0.25, mass=7)
+        candidate = agent.AABB(
+            center=(0.1, 0.2, 0.3), size=(0.4, 0.3, 0.25), name="probe"
+        )
+        base = agent.Ranker.score(candidate, item, container, False)
+        with mock.patch.object(
+            agent, "RANKER_WEIGHTS",
+            (24.0, 2.0, -0.55, 0.35, 0.12, 0.18, 8.0, -2.5),
+        ):
+            doubled = agent.Ranker.score(candidate, item, container, False)
+        self.assertNotEqual(base, doubled)
+        self.assertAlmostEqual(
+            doubled - base, 12.0 * math.prod(candidate.size), places=9
         )
 
     def test_transposing_identical_items_is_a_physical_no_op(self):
