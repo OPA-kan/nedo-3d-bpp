@@ -419,20 +419,74 @@ def select_diverse(pinned, top_k):
 # Monte-Carlo rollout value: the board value the theory asks for, measured
 # directly instead of through engineered features. Sample future arrival
 # streams from the published 7-type prior (the exact information a Task C
-# agent has), play each forward with a cheap geometric first-accept policy,
-# and count placements until the arrived item has no accepted pose. No
-# weights, no feature engineering; the number IS the quantity of interest.
+# agent has), play each forward with a cheap first-accept policy, and count
+# placements until the arrived item has no accepted pose. No weights, no
+# feature engineering; the number IS the quantity of interest.
+#
+# v1 (support-level lattice scan against the full rejection_reason contract)
+# failed its positive validation: the shipped policy's placements are
+# RELEASE drops settled by physics, which rest in poses static support
+# checking never accepts, so v1 under-counted 6-12 achievable placements as
+# 0-2 and the bias grew with clutter -- exactly the board dependence that
+# breaks a ranking. v2 approximates release-and-settle with a heightmap
+# drop: the candidate falls at (x, y) onto the highest surface under its
+# footprint, and is accepted by release_rejection_reason (containment,
+# static clearance, corridor -- the same contract release candidates pass),
+# never by a static support test.
 MC_STREAMS = 24
 MC_LATTICE = 0.10
+MC_HEIGHT_CELL = 0.05
 MC_MAX_ROLLOUT = 40
 
 
-def first_accepted_pose(agent_module, container, item, rng):
-    """Cheapest competent placement: floor-up lattice scan, first accept."""
-    components = agent_module.support_plane_components(
-        agent_module.support_surfaces(container)
+def _heightmap(container):
+    length = float(container["length"])
+    width = float(container["width"])
+    thickness = float(container["thickness"])
+    nx = max(1, int(round(length / MC_HEIGHT_CELL)))
+    ny = max(1, int(round(width / MC_HEIGHT_CELL)))
+    return {
+        "nx": nx,
+        "ny": ny,
+        "x0": -length / 2.0,
+        "y0": -width / 2.0,
+        "cells": [[thickness] * ny for _ in range(nx)],
+    }
+
+
+def _footprint_range(hmap, cx, cy, dx, dy):
+    lo_i = max(0, int((cx - dx / 2.0 - hmap["x0"]) / MC_HEIGHT_CELL))
+    hi_i = min(
+        hmap["nx"] - 1, int((cx + dx / 2.0 - hmap["x0"]) / MC_HEIGHT_CELL)
     )
-    levels = sorted({round(float(c.top), 6) for c in components})
+    lo_j = max(0, int((cy - dy / 2.0 - hmap["y0"]) / MC_HEIGHT_CELL))
+    hi_j = min(
+        hmap["ny"] - 1, int((cy + dy / 2.0 - hmap["y0"]) / MC_HEIGHT_CELL)
+    )
+    return lo_i, hi_i, lo_j, hi_j
+
+
+def _drop_height(hmap, cx, cy, dx, dy):
+    lo_i, hi_i, lo_j, hi_j = _footprint_range(hmap, cx, cy, dx, dy)
+    cells = hmap["cells"]
+    return max(
+        cells[i][j]
+        for i in range(lo_i, hi_i + 1)
+        for j in range(lo_j, hi_j + 1)
+    )
+
+
+def _paint(hmap, cx, cy, dx, dy, top):
+    lo_i, hi_i, lo_j, hi_j = _footprint_range(hmap, cx, cy, dx, dy)
+    cells = hmap["cells"]
+    for i in range(lo_i, hi_i + 1):
+        for j in range(lo_j, hi_j + 1):
+            if top > cells[i][j]:
+                cells[i][j] = top
+
+
+def first_accepted_pose(agent_module, container, hmap, item, rng):
+    """Heightmap drop, first accept under the release contract."""
     length = float(container["length"])
     width = float(container["width"])
     orientations = list(agent_module.unique_orientations(item))
@@ -448,26 +502,34 @@ def first_accepted_pose(agent_module, container, item, rng):
     while y < width / 2.0:
         ys.append(y)
         y += MC_LATTICE
-    for level in levels:
-        for orientation in orientations:
-            dx, dy, dz = agent_module.get_rotated_dimensions(
-                item["length"], item["width"], item["height"], orientation
-            )
-            for cx in xs:
-                for cy in ys:
-                    candidate = agent_module.AABB(
-                        center=(cx, cy, level + dz / 2.0),
-                        size=(dx, dy, dz),
-                        name="mc_rollout",
+    best = None
+    for orientation in orientations:
+        dx, dy, dz = agent_module.get_rotated_dimensions(
+            item["length"], item["width"], item["height"], orientation
+        )
+        for cx in xs:
+            for cy in ys:
+                bottom = _drop_height(hmap, cx, cy, dx, dy)
+                candidate = agent_module.AABB(
+                    center=(cx, cy, bottom + dz / 2.0),
+                    size=(dx, dy, dz),
+                    name="mc_rollout",
+                )
+                if (
+                    agent_module.Geometry.release_rejection_reason(
+                        candidate, container
                     )
-                    if (
-                        agent_module.Geometry.rejection_reason(
-                            candidate, container
-                        )
-                        is None
-                    ):
-                        return orientation, candidate
-    return None
+                    is None
+                ):
+                    if best is None or bottom < best[2]:
+                        best = (orientation, candidate, bottom)
+        if best is not None:
+            # Lowest drop within the first orientation that fits at all:
+            # floor-filling first is what every packing policy here does.
+            break
+    if best is None:
+        return None
+    return best[0], best[1]
 
 
 def mc_rollout_value(
@@ -480,11 +542,19 @@ def mc_rollout_value(
         rng = random.Random(f"{seed}-{stream_index}")
         simulated = copy.deepcopy(containers)
         container = simulated[0]
+        hmap = _heightmap(container)
+        for packed, _soft, _prioritized in agent_module.packed_aabbs_local(
+            container
+        ):
+            px, py, pz = packed.center
+            sx, sy, sz = packed.size
+            _paint(hmap, float(px), float(py), float(sx), float(sy),
+                   float(pz) + float(sz) / 2.0)
         placed = 0
         while placed < MC_MAX_ROLLOUT:
             type_index = rng.randrange(len(BAGGAGE_TYPES))
             item = type_representative(BAGGAGE_TYPES[type_index], type_index)
-            pose = first_accepted_pose(agent_module, container, item, rng)
+            pose = first_accepted_pose(agent_module, container, hmap, item, rng)
             if pose is None:
                 break
             orientation, candidate = pose
@@ -503,6 +573,10 @@ def mc_rollout_value(
                 score=0.0,
             )
             agent_module.apply_placement_decision(item, decision, simulated)
+            ccx, ccy, ccz = candidate.center
+            csx, csy, csz = candidate.size
+            _paint(hmap, float(ccx), float(ccy), float(csx), float(csy),
+                   float(ccz) + float(csz) / 2.0)
             placed += 1
         values.append(placed)
     mean = sum(values) / len(values)
