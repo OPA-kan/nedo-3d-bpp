@@ -1,0 +1,121 @@
+name: Death-band ablation
+
+# The death-band lexicographic risk gate fired +6..+10 placed on the
+# two-container scene locally. Local deadline runs cannot decide adoption
+# (CPU speed changes trajectories), so the guard runs here: single-container
+# Task B/C regression plus the multi-container scene where it acts.
+#
+# Dispatch with ref = the branch under test (the workflow checks out the
+# dispatched ref); this copy exists on the trunk only so the workflow is
+# registered for workflow_dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      replicates:
+        description: Replicates per (case, arm)
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: death-band-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, death_band]
+        replicate: [0, 1, 2]
+        case:
+          - case_id: m2-k15
+            prebuilt: reports/l3-l4/m2-k15.json
+          - case_id: c000-k1
+            source_case: "000"
+            look_ahead: 1
+          - case_id: c001-k1
+            source_case: "001"
+            look_ahead: 1
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build config
+        run: >-
+          if [ -n "${{ matrix.case.prebuilt }}" ]; then
+          mkdir -p reports/death-band &&
+          cp "${{ matrix.case.prebuilt }}"
+          "reports/death-band/${{ matrix.case.case_id }}.json";
+          else
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output "reports/death-band/${{ matrix.case.case_id }}.json";
+          fi
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/death-band/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.replicate }}"
+          --output-dir
+          "reports/death-band/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: >-
+            death-band-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+          path: >-
+            reports/death-band/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: death-band-*
+          path: reports/death-band/downloads
+      - name: Combine and summarize
+        run: |
+          mkdir -p reports/death-band/aggregate
+          find reports/death-band/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/death-band/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/death-band/aggregate
+          cat reports/death-band/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: death-band-aggregate
+          path: reports/death-band/aggregate/
