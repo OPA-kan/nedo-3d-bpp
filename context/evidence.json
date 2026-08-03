@@ -1020,6 +1020,14 @@
       "status": "active",
       "claim": "Death-band gate multi-scene round 1 (serial, 2 repeats, all cells deterministic): b000-k15 and c000-k1 are exact no-ops (never fires, outputs identical to base). b001-k20 fires once per episode and trades placed 22->21 for fill 24.59->26.92 (+2.33). The single-container regression story is therefore: no effect where no gamble turn exists, and where one exists the gate converts a placement into fill -- which violates the pre-registered 'placed non-worse' criterion literally, but whether -1 placed / +2.33 fill is a net official loss depends on unpublished weights and the decaying gate multiplier. Adoption undecided; m2-k15 remains the only scene with an unambiguous win (+6..+10 placed).",
       "source": "scratchpad death-band-scenes/ (3 scenes x 2 arms x 2 repeats)"
+    },
+    {
+      "id": "death-band-round2-m2-strengthened-timing-caveat",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Death-band round 2 across 7 scenes: m2-k15 strengthens to mean +7.75 placed over 4 repeats (base 27/18/27/20 vs gate 37/17/33/36; every firing run beats base's best; firings 3/11/7 in the winning runs). Five single-container scenes are exact no-ops; b001-k20 keeps its -1 placed / +2.33 fill trade. New caveat discovered via b000-k20 r0 (gate arm placed 12 with ZERO firings while its base pair varied 19/20): the fired counter counts swaps only, but evaluating P_rot on a death-band release consumes deadline budget even when no swap happens, so the gate has a nonzero timing side-effect on deadline trajectories; b000-k20 is basin-unstable in base as well, so the 12 is not attributable, but the side-effect is real and CI replication is required before adoption.",
+      "source": "scratchpad death-band-scenes/ + death-band-v2/ cumulative (7 scenes)"
     }
   ]
 }
