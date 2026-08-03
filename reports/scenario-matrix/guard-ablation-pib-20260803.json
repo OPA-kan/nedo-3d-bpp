@@ -1885,6 +1885,42 @@
     "is_placed_safe": false
    },
    "max_policy_seconds": 6.3056070869999985
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "bundled-sample",
+   "case": "000",
+   "placed_ratio": 0.7073170731707317,
+   "fill_score": 39.80682689389703,
+   "placed_count": 29,
+   "priority_clean_ratio": null,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": false,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 5.02256403399997
+  },
+  {
+   "arm": "relpriority",
+   "scenario": "bundled-sample",
+   "case": "001",
+   "placed_ratio": 0.38095238095238093,
+   "fill_score": 21.251420384368362,
+   "placed_count": 16,
+   "priority_clean_ratio": null,
+   "priority_covered": 0,
+   "priority_misrouted": 0,
+   "soft_clean_ratio": 1.0,
+   "last_step_status": {
+    "is_included": true,
+    "is_valid": true,
+    "is_placed_safe": false
+   },
+   "max_policy_seconds": 6.3109760549998555
   }
  ],
  "note_20260804": "relpriority measured after the 2mm default flip; comparable 7-scene subset (bundled excluded, still running at write time): base(2mm) placed 197 cov 9, rel-all 150 cov 2, rel-priority 164 cov 4. Priority-only recovers dual-empty fully (41, cov 3->2) but not the shelf scenes: the binding rejections there are priority-top rests themselves, i.e. late-game survival was BUYING placed by covering priority items. A hard reject dies for cleanliness; the next shape is lexicographic preference (avoid covering when a non-covering candidate exists, cover rather than die otherwise), which composes with the death-band gate machinery on claude/l3-l4-allocation-ordering."
