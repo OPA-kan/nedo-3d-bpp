@@ -3602,6 +3602,65 @@ class OfflineOptimizationTests(unittest.TestCase):
             seed_result.rank_key(),
         )
 
+    def test_same_type_first_reorders_without_changing_the_component_set(self):
+        """
+        The arm is a SCAN ORDER change. If it ever alters which components
+        exist, legality moves with it and the comparison stops being a
+        discovery-cost measurement.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        arriving = sample_item(9, length=0.4, width=0.3, height=0.25, mass=7)
+        twin = dict(arriving, index=1)
+        other = sample_item(2, length=0.6, width=0.5, height=0.3, mass=9)
+        for packed, pos in ((other, [0.0, 0.0, 0.20]), (twin, [0.5, 0.2, 0.15])):
+            entry = dict(packed)
+            entry["pos"] = pos
+            entry["orientation"] = 0
+            container.setdefault("packed_items", []).append(entry)
+
+        components = agent.support_plane_components(
+            agent.support_surfaces(container)
+        )
+        default = agent.order_support_plane_components(
+            components, container, arriving
+        )
+        with mock.patch.object(
+            agent, "ANCHOR_COMPONENT_ORDER", "same_type_first"
+        ):
+            reordered = agent.order_support_plane_components(
+                components, container, arriving
+            )
+
+        self.assertEqual(
+            set(map(id, default)),
+            set(map(id, reordered)),
+            "same_type_first must permute components, never add or drop",
+        )
+        tops = agent.same_type_support_tops(container, arriving)
+        self.assertTrue(tops, "the twin should contribute a support top")
+        if len(reordered) > 1 and any(
+            agent._component_rests_on_same_type(c, tops) for c in reordered
+        ):
+            self.assertTrue(
+                agent._component_rests_on_same_type(reordered[0], tops),
+                "a same-type component must sort first",
+            )
+
+    def test_same_type_support_tops_ignores_other_types(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        arriving = sample_item(9, length=0.4, width=0.3, height=0.25, mass=7)
+        entry = dict(sample_item(2, length=0.6, width=0.5, height=0.3, mass=9))
+        entry["pos"] = [0.0, 0.0, 0.20]
+        entry["orientation"] = 0
+        container["packed_items"] = [entry]
+        self.assertEqual(
+            agent.same_type_support_tops(container, arriving), set()
+        )
+
     def test_transposing_identical_items_is_a_physical_no_op(self):
         """
         The fact the skip rests on. Two items identical in every attribute

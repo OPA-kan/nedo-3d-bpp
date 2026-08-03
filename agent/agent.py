@@ -271,6 +271,14 @@ OFFLINE_BUDGET_MODE = os.environ.get("OFFLINE_BUDGET_MODE", "iterations")
 OFFLINE_SKIP_EQUIVALENT_ORDERS = os.environ.get(
     "OFFLINE_SKIP_EQUIVALENT_ORDERS", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
+# Scan order for support-plane components. "same_type_first" visits
+# components resting on an interchangeable item before the rest; the SET of
+# components is unchanged, so this cannot make an illegal placement legal
+# or vice versa. Judge it on discovery cost -- attempts_to_first_candidate,
+# attempts_consumed, accepted/attempted -- not on placed alone.
+ANCHOR_COMPONENT_ORDER = os.environ.get(
+    "ANCHOR_COMPONENT_ORDER", "default"
+).strip().lower()
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -1237,18 +1245,89 @@ def support_plane_components(
     ]
 
 
-def order_support_plane_components(components):
-    """Floor, area, depth, then low height preserve future accessibility."""
+def same_type_support_tops(container, item):
+    """
+    Local-frame (top z, centre xy) of every packed item interchangeable
+    with `item`.
+
+    A support-plane component built on such a face is a face of the block
+    the arriving item would extend. Matching is by geometry because
+    `packed_aabbs_local` labels every packed box "packed_item" and keeps no
+    link back to the source, and the geometry is exact: the AABB centre and
+    size come straight from that item.
+    """
+    signature = item_equivalence_signature(item)
+    tops = set()
+    for packed in container.get("packed_items", []):
+        try:
+            if item_equivalence_signature(packed) != signature:
+                continue
+            centre = world_to_local(packed_position_world(packed), container)
+            dims = packed_dimensions(packed)
+        except (KeyError, TypeError, ValueError):
+            continue
+        tops.add(
+            (
+                round(float(centre[2]) + float(dims[2]) / 2.0, 6),
+                round(float(centre[0]), 6),
+                round(float(centre[1]), 6),
+            )
+        )
+    return tops
+
+
+def _component_rests_on_same_type(component, tops):
+    for surface in component.surfaces:
+        key = (
+            round(float(surface.top), 6),
+            round(float(surface.center[0]), 6),
+            round(float(surface.center[1]), 6),
+        )
+        if key in tops:
+            return True
+    return False
+
+
+def order_support_plane_components(components, container=None, item=None):
+    """
+    Floor, area, depth, then low height preserve future accessibility.
+
+    ``ANCHOR_COMPONENT_ORDER=same_type_first`` puts components resting on an
+    interchangeable item ahead of the rest, WITHOUT changing the set of
+    components. This is a scan-order change only, so legality is untouched
+    and the arms differ solely in how early the same thing is found -- the
+    quantity to read is `attempts_to_first_candidate` and
+    `attempts_consumed`, not placed alone.
+
+    The motivation is not density. A component on a same-type face is where
+    the arriving item extends an existing block, which compresses the
+    branch, keeps residual space regular and leaves a flatter support
+    surface; whether any of that pays is exactly what the arm measures.
+    """
+    default_key = lambda component: (
+        0 if component.contains_floor else 1,
+        -float(component.area),
+        -float(component.maximum_xy[1]),
+        float(component.top),
+        float(component.minimum_xy[0]),
+        float(component.minimum_xy[1]),
+    )
+    if (
+        ANCHOR_COMPONENT_ORDER != "same_type_first"
+        or container is None
+        or item is None
+    ):
+        return sorted(components, key=default_key)
+
+    tops = same_type_support_tops(container, item)
+    if not tops:
+        return sorted(components, key=default_key)
     return sorted(
         components,
         key=lambda component: (
-            0 if component.contains_floor else 1,
-            -float(component.area),
-            -float(component.maximum_xy[1]),
-            float(component.top),
-            float(component.minimum_xy[0]),
-            float(component.minimum_xy[1]),
-        ),
+            0 if _component_rests_on_same_type(component, tops) else 1,
+        )
+        + default_key(component),
     )
 
 
@@ -3152,7 +3231,9 @@ class CandidateGenerator:
             return
 
         components = order_support_plane_components(
-            support_plane_components(support_surfaces(container))
+            support_plane_components(support_surfaces(container)),
+            container,
+            item,
         )
         position_groups = [
             (
@@ -3376,7 +3457,9 @@ class CandidateGenerator:
 
         surfaces = support_surfaces(container)
         components = order_support_plane_components(
-            support_plane_components(surfaces)
+            support_plane_components(surfaces),
+            container,
+            item,
         )
         position_groups = [
             (
@@ -3880,6 +3963,9 @@ def constructive_order(item_list):
     return [row[-1] for row in scored]
 
 
+_PLACEMENT_KEYS = frozenset({"index", "pos", "orientation", "belongs_to"})
+
+
 def item_equivalence_signature(item):
     """
     Everything the placement core can see about an item except its ID.
@@ -3902,11 +3988,20 @@ def item_equivalence_signature(item):
     Attributes are taken from the item dict rather than listed here, so a
     stream carrying a physical field this code does not know about cannot
     be silently treated as interchangeable.
+
+    PLACEMENT-derived keys are excluded, not just `index`. A packed item
+    carries `pos`, `orientation` and `belongs_to`; an item still in the
+    stream carries none of them. Comparing the two without this exclusion
+    never matches, which is a silent no-op rather than an error -- it was
+    caught here by a test asserting a twin contributes a support top, and
+    it also means an earlier per-type dispersion reading was split by
+    orientation rather than by type.
     """
     return tuple(
         (key, item[key])
         for key in sorted(item)
-        if key != "index" and isinstance(item[key], (int, float, bool, str))
+        if key not in _PLACEMENT_KEYS
+        and isinstance(item[key], (int, float, bool, str))
     )
 
 
