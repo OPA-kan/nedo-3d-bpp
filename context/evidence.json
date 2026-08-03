@@ -988,6 +988,14 @@
         "single deadline replay for the terminal step; the certified-zero state is the one this replay reached"
       ],
       "source": "scratchpad autopsy_c000.py output, 2026-08-03; instruments: oracle_candidates, 2.5cm rejection_reason grid, 2.5cm release_rejection_reason drop grid"
+    },
+    {
+      "id": "tilt-margin-rejected-fill-forfeit-not-recoverable-by-envelope-retreat",
+      "topic": "anchor",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "Retreating the anchor envelope by the predicted settle lean (ANCHOR_TILT_MARGIN_DEG, sin(theta) x item height) does NOT recover the wall-flush fill forfeit and is rejected under its pre-registered criteria (fill +3 or better with placed non-worse). Local ablation, 2 cases x {base, 2deg, 4deg} x 3 repeats: c000-k1 fill 19.91 -> 11.54 (2deg) / 20.69 (4deg) with placed 22->20; c001-k1 fill 26.24 -> 23.23 / 25.37 with placed 21->19-20. The 7.49-point forfeit measurement (5 of 21 items excluded by boundary-plane contact) was a static counterfactual on a fixed trajectory; the intervention changes the trajectory, the lean happens against neighbours as well as walls, and the retreat only pays the placed cost of narrowing the wall band. Knob stays in the registry at default 0 as a measured-off arm. Non-monotonicity (2deg much worse than both 0 and 4deg on c000-k1) is consistent with deadline-search trajectory sensitivity rather than a smooth tradeoff.",
+      "source": "scratchpad taskc-tilt/ rows (2 cases x 3 arms x 3 repeats, run_queue parallel 3, local 4 vCPU); forfeit quantification in the poison-cost experiment output"
     }
   ]
 }
