@@ -338,6 +338,84 @@ def replay_to_step(agent_module, task_config, target_step, actions=None):
     )
 
 
+def continue_with_policy(
+    agent_module, solver, env, raw_observation, step, horizon
+) -> dict[str, Any]:
+    """
+    Play on with the live policy instead of the oracle.
+
+    Two reasons to prefer this for ceiling questions. It measures the label
+    that improvement work actually targets -- what the agent achieves from
+    this board -- rather than what an unlimited enumeration achieves. And it
+    is an order of magnitude cheaper per step, which is what makes branching
+    early in the episode affordable. Run it under POLICY_ATTEMPT_BUDGET so
+    the search is work-bounded instead of deadline-bounded; a deadline
+    policy's trajectory depends on CPU load, which is the exact
+    contamination replay pinning removed.
+
+    The poison fixed-coordinate fallback is NOT executed: reaching it is the
+    death being measured, so it ends the continuation as
+    ``policy_no_safe_action``.
+    """
+    placed = 0
+    reached = step
+    outcome = "horizon_reached"
+    while reached < step + horizon:
+        observation = policy_observation(env, raw_observation)
+        action = solver.policy(observation)
+        if solver.last_action_source == "unsafe_protocol_fallback":
+            outcome = "policy_no_safe_action"
+            break
+        raw_observation, _r, terminated, truncated, info = env.step(action)
+        status = (info or {}).get("status", {})
+        if all(
+            bool(status.get(flag))
+            for flag in ("is_included", "is_valid", "is_placed_safe")
+        ):
+            placed += 1
+        else:
+            outcome = "policy_placement_failed"
+            break
+        reached += 1
+        if terminated or truncated:
+            outcome = "episode_ended"
+            break
+    return {
+        "continued_placed": placed,
+        "reached_step": reached,
+        "continuation_outcome": outcome,
+    }
+
+
+def select_diverse(pinned, top_k):
+    """
+    Greedy farthest-point subset over placement centres.
+
+    A score-ordered top-K is often one spatial cluster, which answers "does
+    the ranker's preferred micro-variation matter" when the ceiling question
+    needs "does ANY materially different choice matter". Keep the best-scored
+    candidate as the seed, then repeatedly add the candidate farthest from
+    the already-chosen set.
+    """
+    if len(pinned) <= top_k:
+        return pinned
+    chosen = [pinned[0]]
+    rest = list(pinned[1:])
+    while len(chosen) < top_k and rest:
+        def distance(record):
+            return min(
+                sum(
+                    (float(a) - float(b)) ** 2
+                    for a, b in zip(record["center"], other["center"])
+                )
+                for other in chosen
+            )
+        best = max(rest, key=distance)
+        rest.remove(best)
+        chosen.append(best)
+    return chosen
+
+
 def run_horizon(
     agent_module,
     task_config,
@@ -347,6 +425,8 @@ def run_horizon(
     top_k,
     horizon,
     started,
+    continue_with="oracle",
+    pin_mode="top",
 ) -> dict[str, Any]:
     """
     Backward search for the last recoverable action.
@@ -371,12 +451,17 @@ def run_horizon(
     try:
         reference_digest = replay_digest(observation)
         records = oracle_candidates(agent_module, observation)
-        validated, _checked = probe_records(env, records, top_k)
-        pinned = [
+        probe_target = top_k * 4 if pin_mode == "diverse" else top_k
+        validated, _checked = probe_records(env, records, probe_target)
+        safe_pool = [
             r
             for r in validated
             if r["physical"]["is_physically_valid"]
-        ][:top_k]
+        ][:probe_target]
+        if pin_mode == "diverse":
+            pinned = select_diverse(safe_pool, top_k)
+        else:
+            pinned = safe_pool[:top_k]
     finally:
         try:
             env.close()
@@ -386,7 +471,7 @@ def run_horizon(
     branches = []
     safe_count = len(pinned)
     for rank, candidate in enumerate(pinned):
-        env, _solver, observation, _rescues, _actions = replay_to_step(
+        env, solver, observation, _rescues, _actions = replay_to_step(
             agent_module, task_config, branch_step, actions=reference_actions
         )
         try:
@@ -412,15 +497,27 @@ def run_horizon(
                 "executed_ok": executed,
             }
             if executed and not (terminated or truncated):
-                entry.update(
-                    continue_with_oracle_best(
-                        agent_module,
-                        env,
-                        raw_observation,
-                        branch_step + 1,
-                        horizon,
+                if continue_with == "policy":
+                    entry.update(
+                        continue_with_policy(
+                            agent_module,
+                            solver,
+                            env,
+                            raw_observation,
+                            branch_step + 1,
+                            horizon,
+                        )
                     )
-                )
+                else:
+                    entry.update(
+                        continue_with_oracle_best(
+                            agent_module,
+                            env,
+                            raw_observation,
+                            branch_step + 1,
+                            horizon,
+                        )
+                    )
             else:
                 entry.update(
                     {
@@ -457,6 +554,9 @@ def run_horizon(
         "physically_safe_expanded": len(branches),
         "physically_safe_total": safe_count,
         "reference_digest": reference_digest,
+        "continue_with": continue_with,
+        "pin_mode": pin_mode,
+        "policy_attempt_budget": int(agent_module.POLICY_ATTEMPT_BUDGET),
         "distinct_outcomes": len(reach),
         "choice_matters": len(reach) > 1,
         "seconds": round(time.perf_counter() - started, 1),
@@ -472,6 +572,8 @@ def run(
     branch_step: int,
     top_k: int,
     horizon: int = 0,
+    continue_with: str = "oracle",
+    pin_mode: str = "top",
 ) -> dict[str, Any]:
     started = time.perf_counter()
     item_list = task_config["item_stream"]["item_list"]
@@ -488,6 +590,8 @@ def run(
             top_k=top_k,
             horizon=horizon,
             started=started,
+            continue_with=continue_with,
+            pin_mode=pin_mode,
         )
     env, _solver, observation, replay_rescues, _actions = replay_to_step(
         agent_module, task_config, branch_step
@@ -623,6 +727,28 @@ def main() -> int:
             "the outcome; the static mode assumes you already know it."
         ),
     )
+    parser.add_argument(
+        "--continue-with",
+        choices=["oracle", "policy"],
+        default="oracle",
+        help=(
+            "horizon continuation: 'oracle' plays the enumerated best safe"
+            " candidate each step; 'policy' plays the live agent (run under"
+            " POLICY_ATTEMPT_BUDGET so the search is work-bounded, not"
+            " deadline-bounded)"
+        ),
+    )
+    parser.add_argument(
+        "--pin-mode",
+        choices=["top", "diverse"],
+        default="top",
+        help=(
+            "'top' pins the K best-scored safe candidates; 'diverse' probes"
+            " 4K and picks a farthest-point spatial subset, for ceiling"
+            " questions where micro-variations of one cluster are not the"
+            " point"
+        ),
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -637,6 +763,8 @@ def main() -> int:
         branch_step=args.branch_step,
         top_k=args.top_k,
         horizon=args.horizon,
+        continue_with=args.continue_with,
+        pin_mode=args.pin_mode,
     )
     if result.get("mode") != "horizon":
         result["pairwise"] = pairwise(result["branches"])
