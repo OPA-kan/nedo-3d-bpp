@@ -1,0 +1,67 @@
+# c001-k1 under the true envelope: the wall moves, then becomes real
+
+Date: 2026-08-03. `measure_dead_end_branch.py`, flag `ANCHOR_TRUE_ENVELOPE=1`
+(now the shipped default, so the replays exercise the submitted agent).
+Branch JSONs alongside this file. Companion to `summary.md` (the ablation)
+and `reports/task-c/wall-is-not-a-wall.md` (the box-envelope autopsy).
+
+Both arms replay deterministic trajectories, and the true-envelope
+trajectory diverges from step 0 — so "step N" below is the same position in
+the episode, not the same board. Comparisons are between episodes.
+
+## Step by step
+
+| step | candidates | safe | survivors/killers | total_slots | next_item_slots | conc_max | extinct |
+|---|---:|---:|---|---:|---:|---:|---:|
+| 18 | 68 | 8 | 8 / 0 | 24 | 10 | 0.080 | 2 |
+| 19 | 130 | 8 | 8 / 0 | 4–6 | 1 | 0.333–0.369 | 2 |
+| 20 | 35 | 8 | 0 / 8 | — | 0 | 1.000 | **7** |
+| 21 | **0** | 0 | — | — | — | — | — |
+
+Box-envelope reference at the same episode positions: step 18 was 4/4
+survivors with total_slots 15, step 19 was 8/8 **killers** with
+next_item_slots 0.
+
+## Four findings
+
+**1. The old wall was an artifact.** The box-envelope step-19 wall (8/8
+killers) does not exist on the true-envelope trajectory: step 19 is 8/8
+survivors and the live policy reaches it without rescue
+(`replay_rescues=[]`). The state classification built on the box trajectory
+measured the anchor bug, not the board.
+
+**2. The new terminal at step 21 is certified, this time properly.** Two
+independent instruments agree: exhaustive generator enumeration returns 0
+candidates, and the dense probe (2.5 cm lattice over the full container
+cross-section, every support level, every orientation, geometric acceptance
+against the real half-spaces) returns **0 geometric hits** for item 22.
+This is the same probe that overturned the previous "certified" dead end
+with 16 counterexamples. Caveats: 2.5 cm lattice resolution, one case, one
+deterministic trajectory.
+
+**3. Collapse is non-gradual.** total_slots runs 24 → 4–6 → 0 in two
+steps, and step 20 is uniform annihilation: all 8 legal placements of item
+21 leave **all seven classes extinct** (conc 1.000). There is no gradually
+impoverishing board for a value function to detect early; the cliff spans
+the final two decisions.
+
+**4. Within-step feature separation exists but has nothing to predict.**
+Step 19 is the first state ever measured where the board features split
+across candidates (total_slots 6 vs 4, conc 0.333 vs 0.369 — ranks 0,2 vs
+the rest). But all 8 branches survive step 19 and all merge into the same
+uniform death at step 20, so the split carries no decision-relevant signal.
+Pairwise accuracy is undefined (0 discordant pairs) at every step measured,
+on both trajectories.
+
+## Verdict for the board-value program
+
+On c001-k1 there is **no board-selection problem at any measured step**:
+candidates within a step are either all-alive or all-dead. The
+Φ-as-tie-break line stays dead — now measured on the real search space, not
+the artifact. Φ(s) retains its state-level role (the F1 re-run: the fix
+moved R and Hall on 16/43 snapshots, correlations stay weak, max |ρ|
+0.336). What remains actionable at the step-21 terminal is not selection
+but termination: the episode ends by the poison fixed-coordinate fallback
+`[0,0,0.25]` on a board where nothing fits. Whether that unsafe terminal
+action costs score relative to any cleaner refusal is now the live
+question, plus the same certification for c000-k1's new terminal.

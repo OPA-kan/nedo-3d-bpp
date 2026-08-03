@@ -900,6 +900,34 @@
       "status": "active",
       "claim": "ANCHOR_TRUE_ENVELOPE flipped to ON as the shipped default, and the guard that would normally justify that has NOT run. Recorded plainly because the flip is deliberate rather than an oversight: the previous submission carries the box envelope and is the current trunk score, so the fix can only be evaluated by submitting it. Evidence for: it is a contract correction, not a heuristic -- inside_container and container_z_interval already used the container's real half-spaces while the envelope used a box formula that is one wall thickness too tight on the low-y side of these AKE/AKN-derived shapes, for every item and both generators; on the state previously certified as a dead end both generators exhaustively return 0 candidates under the box bound and 33 under this one, all 33 physically safe; and Task C moves c000-k1 placed 19->23 fill 13.529->26.099 and c001-k1 placed 18->21 fill 22.256->25.366, deterministic over three repeats with no overlap between arms. Evidence missing: the Task B development guard, which does not reproduce off CI, and a Task A re-measurement -- bounded128 (ADR-002) was adopted under the box envelope and the offline dry run uses the same generators, while the optimizer fingerprint cannot raise it because its probe container carries no half-space model (optimizer-fingerprint-probe-container-is-a-box). Reversal is exact: ANCHOR_TRUE_ENVELOPE=0, or the `box_envelope` ablation arm, which is kept for the same reason first_pass64 was kept when that default moved. Submission artefact dist/submission-true-envelope.zip, agent.py sha256 bcd72b3a563b55a3dd0ad390efaf324c7fd107aba65af05dfe41c801d8e6b537.",
       "source": "reports/task-c/true-envelope/summary.md; agent.py ANCHOR_TRUE_ENVELOPE; scripts/run_risk_ablation.py box_envelope arm"
+    },
+    {
+      "id": "taskc-box-wall-at-step-19-was-an-artifact",
+      "topic": "search",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "The c001-k1 step-18/19 wall measured on the box-envelope trajectory does not exist on the true-envelope trajectory. Re-running the branch analysis with ANCHOR_TRUE_ENVELOPE=1 (the shipped default): step 18 is 8/8 survivors (total_slots 24, next_item_slots 10, conc 0.080) and step 19 is 8/8 survivors (next_item_slots 1), where the box trajectory had 8/8 killers with next_item_slots 0 at step 19. The live policy reaches step 19 without oracle rescue (replay_rescues empty). The fatal-state classification built on box-envelope replays measured the anchor parameterisation bug, not the board. Positions are same-episode-index, different boards: the trajectories diverge from step 0, so this is an episode-level comparison, not a same-state one.",
+      "source": "reports/task-c/true-envelope/branch-rerun.md; reports/task-c/true-envelope/c001-k1-step{18,19}.json"
+    },
+    {
+      "id": "c001-k1-true-terminal-at-step-21-certified",
+      "topic": "search",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "The true-envelope c001-k1 trajectory terminates at a genuine dead end after 21 placements. Two independent instruments agree on the step-21 state: exhaustive generator enumeration returns 0 candidates for item 22, and the dense probe (2.5 cm lattice over the full cross-section, every support level, every orientation, geometric acceptance against the real half-spaces) returns 0 geometric hits. This is the same dense probe that overturned the previous dead-end certification with 16 counterexamples, so the failure mode of certifying from generator sampling alone does not apply here. Step 20 shows the approach: all 8 physically safe placements of item 21 are killers with all seven classes extinct and concentration 1.000 -- uniform annihilation, no choice matters. The episode then dies by the poison fixed-coordinate fallback on a board where nothing fits.",
+      "caveats": [
+        "2.5 cm lattice resolution; sub-lattice poses are not excluded",
+        "one case, one deterministic trajectory; c000-k1's new terminal is uncertified"
+      ],
+      "source": "reports/task-c/true-envelope/branch-rerun.md; reports/task-c/true-envelope/c001-k1-step{20,21}.json"
+    },
+    {
+      "id": "taskc-collapse-is-non-gradual-tie-break-line-dead",
+      "topic": "residual-capacity",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "On the true-envelope c001-k1 trajectory the board-value collapse is non-gradual (total_slots 24 at step 18, 4-6 at step 19, 0 after step 20) and no measured step has a board-selection problem: within-step candidates are either all survivors (18, 19) or all killers (20), so discordant pairs are 0 everywhere and pairwise accuracy is undefined on the real search space just as it was on the artifact. Step 19 is the first state where features split within a step (total_slots 6 vs 4, concentration 0.333 vs 0.369) but all branches merge into the same uniform death at step 20, so the split has nothing to predict. Phi-as-within-step-tie-break is dead on the real space for this case; Phi(s) remains a state-level descriptor only (F1 flag-ON re-run: R/Hall moved on 16/43 snapshots, correlations stay weak, max |rho| 0.336). The premise that a value function can detect gradual impoverishment early is contradicted by the two-step cliff.",
+      "source": "reports/task-c/true-envelope/branch-rerun.md; reports/replay-analysis/board-value-f1-findings.md"
     }
   ]
 }
