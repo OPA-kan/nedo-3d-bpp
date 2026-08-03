@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import json
 import pathlib
@@ -111,6 +112,48 @@ class KnobRegistryTests(unittest.TestCase):
             else:
                 os.environ["MAX_POOL_ITEMS_EVALUATED"] = previous
         self.assertNotEqual(before, after)
+
+    def test_the_dead_offline_weights_stay_dead(self) -> None:
+        """
+        OFFLINE_FILL_WEIGHT and OFFLINE_STABILITY_WEIGHT are registered
+        semantic=false on one specific ground: their only read is a default
+        argument of DryRunResult.weighted_score, and nothing calls it.
+        Offline selection is the lexicographic rank_key.
+
+        That is a claim about the source, not a property of the knob, so it
+        can stop being true without anyone touching knobs.json -- and then
+        two knobs that DO change behaviour would sit outside the
+        fingerprint's projection. Assert the claim rather than trusting it:
+        parse agent.py and require that weighted_score has exactly one
+        occurrence, its definition.
+        """
+        source = AGENT_PATH.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        definitions = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "weighted_score"
+        ]
+        self.assertEqual(
+            len(definitions), 1,
+            "weighted_score is expected to exist exactly once",
+        )
+        references = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute) and node.attr == "weighted_score"
+        ] + [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and node.id == "weighted_score"
+        ]
+        self.assertEqual(
+            references, [],
+            "weighted_score now has a caller, so OFFLINE_FILL_WEIGHT and "
+            "OFFLINE_STABILITY_WEIGHT can change behaviour -- flip them "
+            "back to semantic=true in context/knobs.json",
+        )
+        for name in ("OFFLINE_FILL_WEIGHT", "OFFLINE_STABILITY_WEIGHT"):
+            with self.subTest(knob=name):
+                self.assertFalse(self.knobs[name]["semantic"])
 
 
 if __name__ == "__main__":

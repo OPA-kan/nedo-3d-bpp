@@ -204,7 +204,7 @@ def run_scenario(
         return row
     row.update(summarize_case(next(iter(evaluation.values())), shape))
     if trace:
-        row["policy_trace"] = str(trace_path.relative_to(ROOT))
+        row["policy_trace"] = str(trace_path)
     return row
 
 
@@ -219,6 +219,10 @@ def main() -> int:
                         help="write a policy trace per episode; needed to "
                              "attribute a death to a candidate kind")
     args = parser.parse_args()
+    # Resolve before anything derives a path from these: run() executes in
+    # SIMULATOR, so a relative --output-dir would land in the wrong place.
+    args.matrix_dir = args.matrix_dir.resolve()
+    args.output_dir = args.output_dir.resolve()
 
     manifest = load_json(args.matrix_dir / "manifest.json")
     if not manifest:

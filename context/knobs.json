@@ -76,7 +76,8 @@
     },
     "OFFLINE_FILL_WEIGHT": {
       "axis": "order",
-      "semantic": true
+      "semantic": false,
+      "note": "Dead, not diagnostic. It is read only as a default argument of DryRunResult.weighted_score (agent.py:941), which has no callers; offline selection is the lexicographic rank_key. Registering it as semantic was my error: it made the fingerprint report a component move for a knob that provably cannot change behaviour. tests/test_knob_registry.py pins that weighted_score stays uncalled, so wiring it up fails a test instead of silently making this knob semantic again."
     },
     "OFFLINE_MAX_EVALUATIONS": {
       "axis": "order",
@@ -92,7 +93,8 @@
     },
     "OFFLINE_STABILITY_WEIGHT": {
       "axis": "order",
-      "semantic": true
+      "semantic": false,
+      "note": "Dead for the same reason as OFFLINE_FILL_WEIGHT: the only read is a default argument of the uncalled DryRunResult.weighted_score. Note that stability does reach selection, but through rank_key's stability_proxy element, which this knob does not weight."
     },
     "POLICY_ATTEMPT_BUDGET": {
       "axis": "timing",
