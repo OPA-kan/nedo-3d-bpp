@@ -201,7 +201,61 @@ OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM = max(
 OFFLINE_PAIR_MACRO_BUDGET_SECONDS = float(
     os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.5")
 )
-OFFLINE_RANDOM_SEED = 20260723
+OFFLINE_RANDOM_SEED = int(
+    os.environ.get("OFFLINE_RANDOM_SEED", "20260723")
+)
+# How Agent.optimize picks the point the NEXT neighbour is generated from.
+# This is the search's only intensification control, and until it was made
+# explicit the code silently disagreed with ADR-001 section 5, which
+# specifies "採択: 辞書式評価が改善した場合だけ更新".
+#
+#   walk       - the historical behaviour: move to every neighbour whether
+#                or not it improved, and merely RECORD the best seen. That
+#                is a diffusion with best-so-far recording, not a local
+#                search, and it makes rank_key inert as a steering signal:
+#                the objective picks what to keep, never where to look.
+#   hillclimb  - ADR-001 section 5 as written: fall back to the incumbent
+#                on any non-improving evaluation.
+#   ils        - iterated local search: walk while progress looks possible,
+#                and after OFFLINE_ILS_STALL_LIMIT non-improving
+#                evaluations restart from the incumbent with a random
+#                perturbation of OFFLINE_ILS_KICK_STRENGTH moves.
+#
+# Measured on the bundled Task A case, one seed: walk reaches placed 23 and
+# hillclimb 21, so the specification-conforming rule is WORSE here. Do not
+# read that as "diffusion is right" -- a local search losing to a random
+# walk is a symptom of a poor neighbourhood, which is a separate axis.
+OFFLINE_SEARCH_ACCEPTANCE = os.environ.get(
+    "OFFLINE_SEARCH_ACCEPTANCE", "walk"
+)
+OFFLINE_ILS_STALL_LIMIT = max(
+    1, int(os.environ.get("OFFLINE_ILS_STALL_LIMIT", "8"))
+)
+OFFLINE_ILS_KICK_STRENGTH = max(
+    1, int(os.environ.get("OFFLINE_ILS_KICK_STRENGTH", "3"))
+)
+# off  - one start, the historical constructive order.
+# named - four coefficient-free starts (blend, volume, base_area, mass),
+#         each given an equal share of the budget, best taken by rank_key.
+#         The measured driver of Task A quality on case a000 is DISTANCE
+#         FROM THE SEED, not intensification, so diverse starts are the
+#         lever the acceptance-rule experiment pointed at.
+OFFLINE_MULTISTART = os.environ.get("OFFLINE_MULTISTART", "off")
+# Which single construction starts the search when multi-start is off.
+# "blend" is the historical constructive_order. The others are the
+# coefficient-free constructions, available as starts in their own right
+# because the multi-start measurement showed the blend is not the best
+# seed -- it was beaten by mass and base_area at equal shallow budget.
+OFFLINE_START_CONSTRUCTION = os.environ.get(
+    "OFFLINE_START_CONSTRUCTION", "blend"
+)
+# iterations - historical: the cap bounds loop turns.
+# distinct   - the cap bounds DISTINCT orders evaluated. DryRunEvaluator
+#              memoises on the order tuple, so loop turns are not work:
+#              an arm that revisits orders silently gets fewer real
+#              evaluations, which is a confound a multi-start makes much
+#              worse because separate starts converge onto shared ground.
+OFFLINE_BUDGET_MODE = os.environ.get("OFFLINE_BUDGET_MODE", "iterations")
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -307,6 +361,16 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+# Derive the anchor envelope from the container's own half-spaces instead of
+# from a box formula. The generator bounded y at -width/2 + thickness + dy/2 +
+# clearance on BOTH sides, which assumes a symmetric box; the containers are
+# not. Their true y range is [-W/2, +W/2 - thickness], so the low side was
+# over-conservative by exactly one thickness regardless of the item. See
+# rectangular_container_anchor_bounds. Default off: it widens the shipped
+# search space, which needs the Task B guard on CI.
+ANCHOR_TRUE_ENVELOPE = os.environ.get(
+    "ANCHOR_TRUE_ENVELOPE", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -2530,15 +2594,71 @@ def release_candidate_passes_risk_gate(
 
 
 def rectangular_container_anchor_bounds(dims, container):
+    """
+    Where an anchor may sit in x and y.
+
+    The box formula below is not the container. These are AKE/AKN-derived
+    shapes whose y planes are ASYMMETRIC -- measured at [-W/2, +W/2 - t] on
+    both Task C cases -- while this subtracts a thickness from each side, so
+    the low-y side is one thickness too tight for every item, orientation and
+    generator. At c001-k1 step 20 that band held sixteen physically safe
+    placements and both generators, run exhaustively, returned nothing.
+
+    ``ANCHOR_TRUE_ENVELOPE`` derives the bounds from the container's own
+    half-spaces instead. Only axis-aligned planes contribute: a slanted plane
+    (the bottom chamfer) has no single x or y bound, and it needs none here
+    because container_z_interval already applies every half-space exactly at
+    each (x, y). This widens where the search LOOKS; what it finds is still
+    validated by inside_container, so the fix cannot admit an illegal
+    placement.
+
+    Default off. It changes the shipped search space, so adoption needs the
+    Task B guard, which does not reproduce off CI.
+    """
     dx, dy, _dz = dims
     length = float(container["length"])
     width = float(container["width"])
     thickness = float(container["thickness"])
-    return (
+    box = (
         -length / 2.0 + thickness + dx / 2.0 + INCLUSION_CLEARANCE,
         length / 2.0 - thickness - dx / 2.0 - INCLUSION_CLEARANCE,
         -width / 2.0 + thickness + dy / 2.0 + INCLUSION_CLEARANCE,
         width / 2.0 - thickness - dy / 2.0 - INCLUSION_CLEARANCE,
+    )
+    if not ANCHOR_TRUE_ENVELOPE:
+        return box
+    points = container.get("points")
+    normals = container.get("n_vecs")
+    if points is None or normals is None:
+        return box
+    offset_x = container_offset_x(container)
+    half = (dx / 2.0, dy / 2.0)
+    limit = -INCLUSION_CLEARANCE
+    low = [-float("inf"), -float("inf")]
+    high = [float("inf"), float("inf")]
+    for point_values, normal_values in zip(points, normals):
+        normal = np.asarray(normal_values, dtype=np.float64)
+        point = np.asarray(point_values, dtype=np.float64)
+        for axis in (0, 1):
+            if abs(normal[axis]) <= EPS:
+                continue
+            if np.count_nonzero(np.abs(normal) > EPS) != 1:
+                continue
+            # normal[axis] * (centre - point[axis]) + |normal| . half <= limit
+            slack = (limit - abs(normal[axis]) * half[axis]) / abs(
+                normal[axis]
+            )
+            if normal[axis] > 0.0:
+                high[axis] = min(high[axis], float(point[axis]) + slack)
+            else:
+                low[axis] = max(low[axis], float(point[axis]) - slack)
+    if not all(map(math.isfinite, low + high)):
+        return box
+    return (
+        low[0] - offset_x,
+        high[0] - offset_x,
+        low[1],
+        high[1],
     )
 
 
@@ -2764,29 +2884,12 @@ class CandidateGenerator:
         thickness = float(container["thickness"])
         cut_x = float(container.get("cut_x", 0.0))
 
-        x_low = (
-            -length / 2.0
-            + thickness
-            + dx / 2.0
-            + INCLUSION_CLEARANCE
-        )
-        x_high = (
-            length / 2.0
-            - thickness
-            - dx / 2.0
-            - INCLUSION_CLEARANCE
-        )
-        y_low = (
-            -width / 2.0
-            + thickness
-            + dy / 2.0
-            + INCLUSION_CLEARANCE
-        )
-        y_high = (
-            width / 2.0
-            - thickness
-            - dy / 2.0
-            - INCLUSION_CLEARANCE
+        # Shared with the support-plane path so one envelope defect cannot
+        # hide in only one generator -- which is what happened: both carried
+        # the same box formula, so an exhaustive run of both still missed the
+        # band along the low-y wall.
+        x_low, x_high, y_low, y_high = (
+            rectangular_container_anchor_bounds(dims, container)
         )
         if x_low > x_high + EPS or y_low > y_high + EPS:
             _record_envelope_prune(diagnostics, item_idx)
@@ -3760,6 +3863,87 @@ def constructive_order(item_list):
         )
     scored.sort(key=lambda row: row[:-1])
     return [row[-1] for row in scored]
+
+
+def named_order(item_list, key_name):
+    """
+    One construction, sorted on a SINGLE named quantity.
+
+    `AGENT_OPERATIONS.md` section 5.1 rules out inventing coefficients to
+    combine quantities. constructive_order's 0.45 volume / 0.30 base_area
+    / 0.25 mass blend is exactly that shape and has no derivation, so
+    perturbing those three numbers to make a multi-start would be tuning
+    the forbidden thing. These variants avoid it: each sorts on one named
+    quantity, with nothing to weight. Combining them is left to an order
+    statistic (the max over starts), which has no free parameter either.
+
+    item_group leads every key, as in constructive_order, so the group
+    blocks stay contiguous and the starts differ only inside them.
+    """
+    scored = []
+    for stable_position, item in enumerate(item_list):
+        length = float(item["length"])
+        width = float(item["width"])
+        height = float(item["height"])
+        if key_name == "volume":
+            quantity = length * width * height
+        elif key_name == "base_area":
+            quantity = max(
+                length * width, length * height, width * height
+            )
+        elif key_name == "mass":
+            quantity = float(item.get("mass", 1.0))
+        else:
+            raise ValueError(f"unknown construction: {key_name}")
+        scored.append(
+            (item_group(item), -quantity, stable_position, item)
+        )
+    scored.sort(key=lambda row: row[:3])
+    return [row[-1] for row in scored]
+
+
+def constructive_order_variants(item_list):
+    """
+    The starts a multi-start draws from, blend FIRST.
+
+    Order matters: `optimize` uses element 0 as the single start when
+    multi-start is off, so the shipped path stays exactly the historical
+    constructive order.
+    """
+    variants = [("blend", constructive_order(item_list))]
+    for key_name in ("volume", "base_area", "mass"):
+        variants.append((key_name, named_order(item_list, key_name)))
+    return variants
+
+
+def kick_order(items, rng, strength):
+    """
+    Perturb an order by `strength` random transpositions for ILS restarts.
+
+    Moves stay INSIDE an item_group, which is the same restriction the
+    neighbourhood in Agent.optimize already obeys. That keeps this an
+    experiment about the acceptance rule alone: the group blocks that
+    constructive_order lays down are immovable either way, so a kick cannot
+    reach an order the ordinary neighbourhood could not. Widening the
+    neighbourhood across groups is a separate axis and is deliberately not
+    bundled in here.
+    """
+    kicked = list(items)
+    group_positions = {}
+    for position, item in enumerate(kicked):
+        group_positions.setdefault(item_group(item), []).append(position)
+    movable = [
+        positions
+        for _group, positions in sorted(group_positions.items())
+        if len(positions) >= 2
+    ]
+    if not movable:
+        return kicked
+    for _ in range(max(1, int(strength))):
+        positions = movable[rng.randrange(len(movable))]
+        first, second = rng.sample(positions, 2)
+        kicked[first], kicked[second] = kicked[second], kicked[first]
+    return kicked
 
 
 def estimated_remaining_container_volume(container):
@@ -6014,6 +6198,8 @@ class Agent:
         self._offline_max_evaluations = OFFLINE_MAX_EVALUATIONS
         self.last_offline_result = None
         self.last_offline_initial_result = None
+        self.last_offline_seed_result = None
+        self.last_offline_start_results = []
         self.last_offline_evaluations = 0
         self.last_offline_cache_hits = 0
         self.last_pair_macro_candidates = 0
@@ -6226,7 +6412,14 @@ class Agent:
         return True
 
     def optimize(self, item_list: list):
-        initial = constructive_order(item_list)
+        starts = constructive_order_variants(item_list)
+        if OFFLINE_MULTISTART == "off":
+            starts = [
+                start
+                for start in starts
+                if start[0] == OFFLINE_START_CONSTRUCTION
+            ] or starts[:1]
+        initial = starts[0][1]
         initial_indices = [int(item["index"]) for item in initial]
         if len(initial) < 2 or not self._container_templates:
             return initial_indices
@@ -6237,10 +6430,38 @@ class Agent:
         )
         started = time.perf_counter()
         deadline = started + max(0.0, self._offline_search_budget_seconds)
+        budget = max(2, self._offline_max_evaluations // len(starts))
+
+        best_items = None
+        best_result = None
+        self.last_offline_start_results = []
+        for start_name, start_items in starts:
+            items, result = self._search_from_start(
+                start_items, evaluator, deadline, budget
+            )
+            self.last_offline_start_results.append(
+                (start_name, float(result.placed_count))
+            )
+            if best_result is None or result.rank_key() > best_result.rank_key():
+                best_items, best_result = items, result
+            if start_name == starts[0][0]:
+                self.last_offline_initial_result = (
+                    self.last_offline_seed_result
+                )
+
+        self.last_offline_result = best_result
+        self.last_offline_evaluations = evaluator.evaluations
+        self.last_offline_cache_hits = evaluator.cache_hits
+        optimized_indices = [int(item["index"]) for item in best_items]
+        self._append_offline_optimization_trace(optimized_indices)
+        return optimized_indices
+
+    def _search_from_start(self, initial, evaluator, deadline, budget):
+        """One start: seed evaluation, pair macros, then the neighbour loop."""
+        initial_indices = [int(item["index"]) for item in initial]
         best_items = list(initial)
         best_result = evaluator.evaluate(best_items, deadline=deadline)
-        self.last_offline_initial_result = best_result
-        self.last_offline_result = best_result
+        self.last_offline_seed_result = best_result
         if OFFLINE_PAIR_MACRO_BUDGET_SECONDS < 0.0:
             pair_macros = []
         else:
@@ -6261,9 +6482,7 @@ class Agent:
         self.last_pair_macro_adoptions = 0
 
         if self._offline_search_budget_seconds <= 0.0:
-            self.last_offline_evaluations = evaluator.evaluations
-            self._append_offline_optimization_trace(initial_indices)
-            return initial_indices
+            return list(initial), best_result
 
         seed = OFFLINE_RANDOM_SEED
         for position, item in enumerate(initial):
@@ -6274,8 +6493,18 @@ class Agent:
         rng = random.Random(seed)
         current_items = list(best_items)
         moving_runtime = max(0.001, best_result.runtime_seconds)
+        stall = 0
 
-        for iteration in range(max(0, self._offline_max_evaluations - 1)):
+        evaluations_at_start = evaluator.evaluations
+        iteration = -1
+        while True:
+            iteration += 1
+            if OFFLINE_BUDGET_MODE == "distinct":
+                spent = evaluator.evaluations - evaluations_at_start
+            else:
+                spent = iteration
+            if spent >= max(0, budget - 1):
+                break
             remaining = deadline - time.perf_counter()
             if remaining <= max(0.01, 1.5 * moving_runtime):
                 break
@@ -6350,16 +6579,27 @@ class Agent:
             if result.rank_key() > best_result.rank_key():
                 best_result = result
                 best_items = list(neighbor)
-            current_items = list(neighbor)
+                current_items = list(neighbor)
+                stall = 0
+            elif OFFLINE_SEARCH_ACCEPTANCE == "hillclimb":
+                current_items = list(best_items)
+                stall += 1
+            elif OFFLINE_SEARCH_ACCEPTANCE == "ils":
+                stall += 1
+                if stall >= OFFLINE_ILS_STALL_LIMIT:
+                    current_items = kick_order(
+                        best_items, rng, OFFLINE_ILS_KICK_STRENGTH
+                    )
+                    stall = 0
+                else:
+                    current_items = list(neighbor)
+            else:
+                current_items = list(neighbor)
+                stall += 1
             if used_pair_macro:
                 self.last_pair_macro_adoptions += 1
 
-        self.last_offline_result = best_result
-        self.last_offline_evaluations = evaluator.evaluations
-        self.last_offline_cache_hits = evaluator.cache_hits
-        optimized_indices = [int(item["index"]) for item in best_items]
-        self._append_offline_optimization_trace(optimized_indices)
-        return optimized_indices
+        return best_items, best_result
 
     def _append_offline_optimization_trace(self, optimized_indices):
         def result_payload(result):

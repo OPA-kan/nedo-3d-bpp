@@ -361,6 +361,16 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+# Derive the anchor envelope from the container's own half-spaces instead of
+# from a box formula. The generator bounded y at -width/2 + thickness + dy/2 +
+# clearance on BOTH sides, which assumes a symmetric box; the containers are
+# not. Their true y range is [-W/2, +W/2 - thickness], so the low side was
+# over-conservative by exactly one thickness regardless of the item. See
+# rectangular_container_anchor_bounds. Default off: it widens the shipped
+# search space, which needs the Task B guard on CI.
+ANCHOR_TRUE_ENVELOPE = os.environ.get(
+    "ANCHOR_TRUE_ENVELOPE", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -2584,15 +2594,71 @@ def release_candidate_passes_risk_gate(
 
 
 def rectangular_container_anchor_bounds(dims, container):
+    """
+    Where an anchor may sit in x and y.
+
+    The box formula below is not the container. These are AKE/AKN-derived
+    shapes whose y planes are ASYMMETRIC -- measured at [-W/2, +W/2 - t] on
+    both Task C cases -- while this subtracts a thickness from each side, so
+    the low-y side is one thickness too tight for every item, orientation and
+    generator. At c001-k1 step 20 that band held sixteen physically safe
+    placements and both generators, run exhaustively, returned nothing.
+
+    ``ANCHOR_TRUE_ENVELOPE`` derives the bounds from the container's own
+    half-spaces instead. Only axis-aligned planes contribute: a slanted plane
+    (the bottom chamfer) has no single x or y bound, and it needs none here
+    because container_z_interval already applies every half-space exactly at
+    each (x, y). This widens where the search LOOKS; what it finds is still
+    validated by inside_container, so the fix cannot admit an illegal
+    placement.
+
+    Default off. It changes the shipped search space, so adoption needs the
+    Task B guard, which does not reproduce off CI.
+    """
     dx, dy, _dz = dims
     length = float(container["length"])
     width = float(container["width"])
     thickness = float(container["thickness"])
-    return (
+    box = (
         -length / 2.0 + thickness + dx / 2.0 + INCLUSION_CLEARANCE,
         length / 2.0 - thickness - dx / 2.0 - INCLUSION_CLEARANCE,
         -width / 2.0 + thickness + dy / 2.0 + INCLUSION_CLEARANCE,
         width / 2.0 - thickness - dy / 2.0 - INCLUSION_CLEARANCE,
+    )
+    if not ANCHOR_TRUE_ENVELOPE:
+        return box
+    points = container.get("points")
+    normals = container.get("n_vecs")
+    if points is None or normals is None:
+        return box
+    offset_x = container_offset_x(container)
+    half = (dx / 2.0, dy / 2.0)
+    limit = -INCLUSION_CLEARANCE
+    low = [-float("inf"), -float("inf")]
+    high = [float("inf"), float("inf")]
+    for point_values, normal_values in zip(points, normals):
+        normal = np.asarray(normal_values, dtype=np.float64)
+        point = np.asarray(point_values, dtype=np.float64)
+        for axis in (0, 1):
+            if abs(normal[axis]) <= EPS:
+                continue
+            if np.count_nonzero(np.abs(normal) > EPS) != 1:
+                continue
+            # normal[axis] * (centre - point[axis]) + |normal| . half <= limit
+            slack = (limit - abs(normal[axis]) * half[axis]) / abs(
+                normal[axis]
+            )
+            if normal[axis] > 0.0:
+                high[axis] = min(high[axis], float(point[axis]) + slack)
+            else:
+                low[axis] = max(low[axis], float(point[axis]) - slack)
+    if not all(map(math.isfinite, low + high)):
+        return box
+    return (
+        low[0] - offset_x,
+        high[0] - offset_x,
+        low[1],
+        high[1],
     )
 
 
@@ -2818,29 +2884,12 @@ class CandidateGenerator:
         thickness = float(container["thickness"])
         cut_x = float(container.get("cut_x", 0.0))
 
-        x_low = (
-            -length / 2.0
-            + thickness
-            + dx / 2.0
-            + INCLUSION_CLEARANCE
-        )
-        x_high = (
-            length / 2.0
-            - thickness
-            - dx / 2.0
-            - INCLUSION_CLEARANCE
-        )
-        y_low = (
-            -width / 2.0
-            + thickness
-            + dy / 2.0
-            + INCLUSION_CLEARANCE
-        )
-        y_high = (
-            width / 2.0
-            - thickness
-            - dy / 2.0
-            - INCLUSION_CLEARANCE
+        # Shared with the support-plane path so one envelope defect cannot
+        # hide in only one generator -- which is what happened: both carried
+        # the same box formula, so an exhaustive run of both still missed the
+        # band along the low-y wall.
+        x_low, x_high, y_low, y_high = (
+            rectangular_container_anchor_bounds(dims, container)
         )
         if x_low > x_high + EPS or y_low > y_high + EPS:
             _record_envelope_prune(diagnostics, item_idx)

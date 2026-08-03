@@ -453,3 +453,21 @@ class PolicyTraceSummaryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrueEnvelopeArmTests(unittest.TestCase):
+    def test_true_envelope_is_the_shipped_baseline_plus_the_flag(self):
+        base: dict[str, str] = {}
+        arm: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(arm, "true_envelope", 2.0, 0.0)
+
+        self.assertEqual(arm.pop("ANCHOR_TRUE_ENVELOPE"), "1")
+        self.assertEqual(arm, base)
+
+    def test_base_clears_the_true_envelope_flag(self):
+        env = {"ANCHOR_TRUE_ENVELOPE": "1"}
+
+        configure_arm_environment(env, "base", 2.0, 0.0)
+
+        self.assertNotIn("ANCHOR_TRUE_ENVELOPE", env)

@@ -1551,6 +1551,74 @@ class LookaheadSelectionTests(unittest.TestCase):
         self.assertEqual(records[0]["action_center"], [0.1, 0.2, 0.14])
         self.assertIn("elapsed_seconds", records[0])
 
+    def test_true_envelope_follows_asymmetric_container_walls(self):
+        # The AKE/AKN-derived containers have y planes at [-W/2, +W/2 - t],
+        # not at +/-(W/2 - t). The box formula subtracts a thickness from
+        # both sides, so the low-y side is one thickness too tight for every
+        # item and both generators -- the band that held sixteen physically
+        # safe placements where an exhaustive run found none.
+        width, length, thickness = 1.52, 2.0, 0.05
+        container = {
+            "index": 0,
+            "length": length,
+            "width": width,
+            "height": 1.61,
+            "thickness": thickness,
+            "packed_items": [],
+            "points": [
+                [length / 2.0 - thickness, 0.0, 0.8],
+                [-length / 2.0 + thickness, 0.0, 0.8],
+                [0.0, -width / 2.0, 0.8],
+                [0.0, width / 2.0 - thickness, 0.8],
+            ],
+            "n_vecs": [
+                [1.0, 0.0, 0.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+        }
+        dims = (0.65, 0.45, 0.25)
+
+        with mock.patch.object(agent, "ANCHOR_TRUE_ENVELOPE", False):
+            box = agent.rectangular_container_anchor_bounds(dims, container)
+        with mock.patch.object(agent, "ANCHOR_TRUE_ENVELOPE", True):
+            true = agent.rectangular_container_anchor_bounds(dims, container)
+
+        # x is symmetric in this geometry, so the two agree there.
+        self.assertAlmostEqual(box[0], true[0], places=9)
+        self.assertAlmostEqual(box[1], true[1], places=9)
+        # y is not: the low side gains exactly one thickness, the high side
+        # is unchanged. Anything else means the bound stopped tracking the
+        # container.
+        self.assertAlmostEqual(box[2] - true[2], thickness, places=9)
+        self.assertAlmostEqual(box[3], true[3], places=9)
+
+    def test_true_envelope_falls_back_without_a_half_space_model(self):
+        # A container dict with no points/n_vecs is not an error: the offline
+        # dry run and several tests build containers by hand. Widening a
+        # bound from a model that is not there would be worse than the box.
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container.pop("points", None)
+        container.pop("n_vecs", None)
+        dims = (0.4, 0.3, 0.2)
+
+        with mock.patch.object(agent, "ANCHOR_TRUE_ENVELOPE", True):
+            bounds = agent.rectangular_container_anchor_bounds(
+                dims, container
+            )
+        with mock.patch.object(agent, "ANCHOR_TRUE_ENVELOPE", False):
+            box = agent.rectangular_container_anchor_bounds(dims, container)
+
+        self.assertEqual(bounds, box)
+
+    def test_true_envelope_is_off_by_default(self):
+        # It widens the shipped search space, so it waits for the Task B
+        # guard like every other search change here.
+        self.assertFalse(agent.ANCHOR_TRUE_ENVELOPE)
+
     def test_candidate_audit_is_absent_by_default(self):
         container = sample_container(
             require_shelf=False,
