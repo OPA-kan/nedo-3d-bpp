@@ -234,6 +234,28 @@ OFFLINE_ILS_STALL_LIMIT = max(
 OFFLINE_ILS_KICK_STRENGTH = max(
     1, int(os.environ.get("OFFLINE_ILS_KICK_STRENGTH", "3"))
 )
+# off  - one start, the historical constructive order.
+# named - four coefficient-free starts (blend, volume, base_area, mass),
+#         each given an equal share of the budget, best taken by rank_key.
+#         The measured driver of Task A quality on case a000 is DISTANCE
+#         FROM THE SEED, not intensification, so diverse starts are the
+#         lever the acceptance-rule experiment pointed at.
+OFFLINE_MULTISTART = os.environ.get("OFFLINE_MULTISTART", "off")
+# Which single construction starts the search when multi-start is off.
+# "blend" is the historical constructive_order. The others are the
+# coefficient-free constructions, available as starts in their own right
+# because the multi-start measurement showed the blend is not the best
+# seed -- it was beaten by mass and base_area at equal shallow budget.
+OFFLINE_START_CONSTRUCTION = os.environ.get(
+    "OFFLINE_START_CONSTRUCTION", "blend"
+)
+# iterations - historical: the cap bounds loop turns.
+# distinct   - the cap bounds DISTINCT orders evaluated. DryRunEvaluator
+#              memoises on the order tuple, so loop turns are not work:
+#              an arm that revisits orders silently gets fewer real
+#              evaluations, which is a confound a multi-start makes much
+#              worse because separate starts converge onto shared ground.
+OFFLINE_BUDGET_MODE = os.environ.get("OFFLINE_BUDGET_MODE", "iterations")
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
 )
@@ -3794,6 +3816,57 @@ def constructive_order(item_list):
     return [row[-1] for row in scored]
 
 
+def named_order(item_list, key_name):
+    """
+    One construction, sorted on a SINGLE named quantity.
+
+    `AGENT_OPERATIONS.md` section 5.1 rules out inventing coefficients to
+    combine quantities. constructive_order's 0.45 volume / 0.30 base_area
+    / 0.25 mass blend is exactly that shape and has no derivation, so
+    perturbing those three numbers to make a multi-start would be tuning
+    the forbidden thing. These variants avoid it: each sorts on one named
+    quantity, with nothing to weight. Combining them is left to an order
+    statistic (the max over starts), which has no free parameter either.
+
+    item_group leads every key, as in constructive_order, so the group
+    blocks stay contiguous and the starts differ only inside them.
+    """
+    scored = []
+    for stable_position, item in enumerate(item_list):
+        length = float(item["length"])
+        width = float(item["width"])
+        height = float(item["height"])
+        if key_name == "volume":
+            quantity = length * width * height
+        elif key_name == "base_area":
+            quantity = max(
+                length * width, length * height, width * height
+            )
+        elif key_name == "mass":
+            quantity = float(item.get("mass", 1.0))
+        else:
+            raise ValueError(f"unknown construction: {key_name}")
+        scored.append(
+            (item_group(item), -quantity, stable_position, item)
+        )
+    scored.sort(key=lambda row: row[:3])
+    return [row[-1] for row in scored]
+
+
+def constructive_order_variants(item_list):
+    """
+    The starts a multi-start draws from, blend FIRST.
+
+    Order matters: `optimize` uses element 0 as the single start when
+    multi-start is off, so the shipped path stays exactly the historical
+    constructive order.
+    """
+    variants = [("blend", constructive_order(item_list))]
+    for key_name in ("volume", "base_area", "mass"):
+        variants.append((key_name, named_order(item_list, key_name)))
+    return variants
+
+
 def kick_order(items, rng, strength):
     """
     Perturb an order by `strength` random transpositions for ILS restarts.
@@ -6076,6 +6149,8 @@ class Agent:
         self._offline_max_evaluations = OFFLINE_MAX_EVALUATIONS
         self.last_offline_result = None
         self.last_offline_initial_result = None
+        self.last_offline_seed_result = None
+        self.last_offline_start_results = []
         self.last_offline_evaluations = 0
         self.last_offline_cache_hits = 0
         self.last_pair_macro_candidates = 0
@@ -6288,7 +6363,14 @@ class Agent:
         return True
 
     def optimize(self, item_list: list):
-        initial = constructive_order(item_list)
+        starts = constructive_order_variants(item_list)
+        if OFFLINE_MULTISTART == "off":
+            starts = [
+                start
+                for start in starts
+                if start[0] == OFFLINE_START_CONSTRUCTION
+            ] or starts[:1]
+        initial = starts[0][1]
         initial_indices = [int(item["index"]) for item in initial]
         if len(initial) < 2 or not self._container_templates:
             return initial_indices
@@ -6299,10 +6381,38 @@ class Agent:
         )
         started = time.perf_counter()
         deadline = started + max(0.0, self._offline_search_budget_seconds)
+        budget = max(2, self._offline_max_evaluations // len(starts))
+
+        best_items = None
+        best_result = None
+        self.last_offline_start_results = []
+        for start_name, start_items in starts:
+            items, result = self._search_from_start(
+                start_items, evaluator, deadline, budget
+            )
+            self.last_offline_start_results.append(
+                (start_name, float(result.placed_count))
+            )
+            if best_result is None or result.rank_key() > best_result.rank_key():
+                best_items, best_result = items, result
+            if start_name == starts[0][0]:
+                self.last_offline_initial_result = (
+                    self.last_offline_seed_result
+                )
+
+        self.last_offline_result = best_result
+        self.last_offline_evaluations = evaluator.evaluations
+        self.last_offline_cache_hits = evaluator.cache_hits
+        optimized_indices = [int(item["index"]) for item in best_items]
+        self._append_offline_optimization_trace(optimized_indices)
+        return optimized_indices
+
+    def _search_from_start(self, initial, evaluator, deadline, budget):
+        """One start: seed evaluation, pair macros, then the neighbour loop."""
+        initial_indices = [int(item["index"]) for item in initial]
         best_items = list(initial)
         best_result = evaluator.evaluate(best_items, deadline=deadline)
-        self.last_offline_initial_result = best_result
-        self.last_offline_result = best_result
+        self.last_offline_seed_result = best_result
         if OFFLINE_PAIR_MACRO_BUDGET_SECONDS < 0.0:
             pair_macros = []
         else:
@@ -6323,9 +6433,7 @@ class Agent:
         self.last_pair_macro_adoptions = 0
 
         if self._offline_search_budget_seconds <= 0.0:
-            self.last_offline_evaluations = evaluator.evaluations
-            self._append_offline_optimization_trace(initial_indices)
-            return initial_indices
+            return list(initial), best_result
 
         seed = OFFLINE_RANDOM_SEED
         for position, item in enumerate(initial):
@@ -6338,7 +6446,16 @@ class Agent:
         moving_runtime = max(0.001, best_result.runtime_seconds)
         stall = 0
 
-        for iteration in range(max(0, self._offline_max_evaluations - 1)):
+        evaluations_at_start = evaluator.evaluations
+        iteration = -1
+        while True:
+            iteration += 1
+            if OFFLINE_BUDGET_MODE == "distinct":
+                spent = evaluator.evaluations - evaluations_at_start
+            else:
+                spent = iteration
+            if spent >= max(0, budget - 1):
+                break
             remaining = deadline - time.perf_counter()
             if remaining <= max(0.01, 1.5 * moving_runtime):
                 break
@@ -6433,12 +6550,7 @@ class Agent:
             if used_pair_macro:
                 self.last_pair_macro_adoptions += 1
 
-        self.last_offline_result = best_result
-        self.last_offline_evaluations = evaluator.evaluations
-        self.last_offline_cache_hits = evaluator.cache_hits
-        optimized_indices = [int(item["index"]) for item in best_items]
-        self._append_offline_optimization_trace(optimized_indices)
-        return optimized_indices
+        return best_items, best_result
 
     def _append_offline_optimization_trace(self, optimized_indices):
         def result_payload(result):

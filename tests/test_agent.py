@@ -3534,6 +3534,60 @@ class OfflineOptimizationTests(unittest.TestCase):
             seed_result.rank_key(),
         )
 
+    def test_named_orders_sort_on_one_quantity_inside_group_blocks(self):
+        """
+        The multi-start exists to avoid AGENT_OPERATIONS section 5.1: each
+        start sorts on a SINGLE named quantity, so there is no coefficient
+        to tune, and combining them is left to the max over starts.
+        """
+        items = [
+            sample_item(0, length=0.2, width=0.2, height=0.2, mass=9),
+            sample_item(1, length=0.5, width=0.4, height=0.4, mass=1),
+            sample_item(2, length=0.3, width=0.3, height=0.3, mass=5),
+            sample_item(3, length=0.6, width=0.1, height=0.1, mass=2,
+                        is_prioritized=True),
+        ]
+
+        by_volume = agent.named_order(items, "volume")
+        self.assertEqual([i["index"] for i in by_volume], [1, 2, 0, 3])
+
+        by_mass = agent.named_order(items, "mass")
+        self.assertEqual([i["index"] for i in by_mass], [0, 2, 1, 3])
+
+        for key_name in ("volume", "base_area", "mass"):
+            with self.subTest(key=key_name):
+                order = agent.named_order(items, key_name)
+                self.assertEqual(
+                    [agent.item_group(i) for i in order],
+                    sorted(agent.item_group(i) for i in items),
+                    "group blocks must stay contiguous and ordered",
+                )
+
+        with self.assertRaises(ValueError):
+            agent.named_order(items, "not-a-quantity")
+
+    def test_multistart_variants_lead_with_the_shipped_construction(self):
+        """
+        optimize() takes element 0 as its only start when multi-start is
+        off, so the shipped path depends on the blend being first.
+        """
+        items = [sample_item(i, mass=i + 1) for i in range(4)]
+        variants = agent.constructive_order_variants(items)
+
+        self.assertEqual(
+            [name for name, _ in variants],
+            ["blend", "volume", "base_area", "mass"],
+        )
+        self.assertEqual(
+            [i["index"] for i in variants[0][1]],
+            [i["index"] for i in agent.constructive_order(items)],
+        )
+        for _name, order in variants:
+            self.assertEqual(
+                sorted(i["index"] for i in order),
+                sorted(i["index"] for i in items),
+            )
+
     def test_kick_order_permutes_within_groups_only(self):
         """
         The ILS kick must not become a second, wider neighbourhood by
