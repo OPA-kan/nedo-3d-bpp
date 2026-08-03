@@ -76,6 +76,7 @@ def configure_arm_environment(
         "RELEASE_RISK_SHADOW_RERANK",
         "ANCHOR_FALLBACK_ENABLED",
         "ANCHOR_FALLBACK_STRIDES",
+        "ANCHOR_TRUE_ENVELOPE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -87,6 +88,7 @@ def configure_arm_environment(
         "rollout_shadow",
         "rollout_enforce",
         "anchor_fallback",
+        "true_envelope",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -105,6 +107,12 @@ def configure_arm_environment(
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
+        elif arm == "true_envelope":
+            # Derive the anchor envelope from the container half-spaces
+            # instead of a box formula. Not a heuristic: the two
+            # disagreed about the same container, and the box side was
+            # one thickness too tight along the low-y wall.
+            env["ANCHOR_TRUE_ENVELOPE"] = "1"
         elif arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":
