@@ -953,6 +953,14 @@
       "caveats": [
         "the non-contaminated part survives independently: at step 18 the top-8 pinned safe candidates all carry identical discrete features -- feature blindness within a step did not depend on the horizon labels"
       ]
+    },
+    {
+      "id": "c001-k1-step18-choice-does-not-matter",
+      "topic": "residual-capacity",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "On the corrected instrument the step-18 selection problem on c001-k1 disappears: all top-8 physically safe candidates reach exactly step 21 (+3 placed, true_dead_end), distinct_outcomes 1. The 20/21/23 split reported by the defective instrument was entirely replay noise. Instrument validation is built into the run and passed: the reference replay's action sequence was replayed verbatim for every branch and all 8 board digests match the reference (replay_matches_reference true, 8/8), so the branches genuinely start from one board. The pinned top-8 are spatially diverse -- an orientation-5 placement at (+0.81,-0.42) and an orientation-1 cluster at (-0.03..-0.05,-0.60..-0.62) -- and still converge to the same terminal, which together with step 20 uniform annihilation and the certified step-21 dead end makes 21 placed look like a late-game-choice-invariant ceiling for this trajectory. Caveats: top-8 by the agent's own score, not all safe candidates; the reference board itself is load-dependent (two digest basins observed across measurement runs -- this run measured basin 878ec938, the pinned-only run's reference was 22f87e0a), so the ceiling claim is per-basin; early-game choices (steps 0-17) are unmeasured.",
+      "source": "reports/task-c/true-envelope/c001-k1-step18-horizon-replayed.json; validation: determinism check within the run (8/8 digest match)"
     }
   ]
 }

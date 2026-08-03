@@ -96,3 +96,24 @@ discrete counts are blind to it, and the geometric-pocket observation unit
 (stage 3: corridor r_z, support σ_z) has a live, quantified target.
 Caveats: forward play depends on the deadline-driven policy under
 measurement CPU load; one case; top-8 by score.
+
+## Second correction (2026-08-03, fixed instrument): the split was noise
+
+Both instrument defects fixed (candidates pinned once from a reference
+replay; the reference's action sequence replayed verbatim per branch;
+per-branch digest match recorded). Validation passed inside the run:
+8/8 branch boards match the reference digest. Result: **all top-8 safe
+candidates at step 18 reach exactly step 21** (+3 placed, `true_dead_end`),
+including two spatially distinct groups (orient 5 at +0.81,−0.42 and an
+orient-1 cluster at −0.03..−0.05,−0.60). `choice_matters: false`.
+
+The 20/21/23 split in the section above was replay contamination — the
+defective replay re-ran the deadline-driven policy and each "branch"
+started from a different board. Ledger:
+`c001-k1-step18-choice-does-not-matter` (and
+`horizon-labels-were-replay-contaminated` for the defect itself).
+
+Standing conclusion for c001-k1: with the true envelope, 21 placed is
+invariant to late-game choice (steps 18–20 measured); the terminal at 21
+is a certified dead end. Unmeasured: early-game choices (0–17), other
+replay basins, candidates beyond the top-8.
