@@ -1028,6 +1028,14 @@
       "status": "active",
       "claim": "Death-band round 2 across 7 scenes: m2-k15 strengthens to mean +7.75 placed over 4 repeats (base 27/18/27/20 vs gate 37/17/33/36; every firing run beats base's best; firings 3/11/7 in the winning runs). Five single-container scenes are exact no-ops; b001-k20 keeps its -1 placed / +2.33 fill trade. New caveat discovered via b000-k20 r0 (gate arm placed 12 with ZERO firings while its base pair varied 19/20): the fired counter counts swaps only, but evaluating P_rot on a death-band release consumes deadline budget even when no swap happens, so the gate has a nonzero timing side-effect on deadline trajectories; b000-k20 is basin-unstable in base as well, so the 12 is not attributable, but the side-effect is real and CI replication is required before adoption.",
       "source": "scratchpad death-band-scenes/ + death-band-v2/ cumulative (7 scenes)"
+    },
+    {
+      "id": "death-band-round3-m2-plus8.5-b000-timing-cost",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Death-band round 3, 6 repeats per cell, serial: m2-k15 base mean 22.0 vs gate mean 30.5 (+8.5); every run that fired (5 of 6, firing 2-11 times) beat base's best 27, landing 29-37. b000-k20 quantifies the timing side-effect: gate never swaps (0 firings in all 6) yet mean drops 19.7 -> 18.0 with a widened spread (12 outlier; excluding it the ranges overlap) -- evaluating P_rot on death-band releases consumes deadline budget even without swapping. Mitigation candidate: skip the evaluation when remaining budget is below a floor. Adoption state: decisive multi-container win, no-op to slightly-negative single-container timing cost, default OFF, final call needs CI replication (blocked on the default-branch change) and a verdict on the b001-k20 placed-for-fill trade.",
+      "source": "scratchpad death-band-scenes/ + death-band-v2/ (6 repeats per cell)"
     }
   ]
 }
