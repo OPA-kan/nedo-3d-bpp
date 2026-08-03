@@ -63,7 +63,7 @@ class OccupancyTests(unittest.TestCase):
         target = container()
         grid = A.board_grid(target)
 
-        top, filled = A.board_occupancy(target, grid)
+        top, filled, _landable = A.board_occupancy(target, grid)
 
         self.assertTrue(np.allclose(top, grid.floor))
         self.assertTrue(np.allclose(filled, 0.0))
@@ -71,7 +71,7 @@ class OccupancyTests(unittest.TestCase):
     def test_a_stamped_box_raises_the_surface_only_under_itself(self):
         target = container()
         grid = A.board_grid(target)
-        top, filled = A.board_occupancy(target, grid)
+        top, filled, _landable = A.board_occupancy(target, grid)
         top = top.copy()
         filled = filled.copy()
 
@@ -87,7 +87,7 @@ class SealedVolumeTests(unittest.TestCase):
     def test_a_box_resting_on_the_floor_seals_nothing(self):
         target = container()
         grid = A.board_grid(target)
-        top, filled = A.board_occupancy(target, grid)
+        top, filled, _landable = A.board_occupancy(target, grid)
         top, filled = top.copy(), filled.copy()
         A._board_stamp(grid, top, filled, box((0.0, 0.0, 0.1), (0.2, 0.2, 0.2)))
 
@@ -102,7 +102,7 @@ class SealedVolumeTests(unittest.TestCase):
         """
         target = container()
         grid = A.board_grid(target)
-        top, filled = A.board_occupancy(target, grid)
+        top, filled, _landable = A.board_occupancy(target, grid)
         top, filled = top.copy(), filled.copy()
 
         A._board_stamp(grid, top, filled, box((0.0, 0.0, 0.25), (0.2, 0.2, 0.1)))
@@ -118,10 +118,10 @@ class RoughnessTests(unittest.TestCase):
         target = container()
         grid = A.board_grid(target)
 
-        flat_top, flat_filled = A.board_occupancy(target, grid)
+        flat_top, flat_filled, _fl = A.board_occupancy(target, grid)
         flat = A.board_features(grid, flat_top.copy(), flat_filled.copy(), [])
 
-        stepped_top, stepped_filled = A.board_occupancy(target, grid)
+        stepped_top, stepped_filled, _sl = A.board_occupancy(target, grid)
         stepped_top, stepped_filled = stepped_top.copy(), stepped_filled.copy()
         A._board_stamp(
             grid, stepped_top, stepped_filled, box((0.2, 0.2, 0.15), (0.2, 0.2, 0.3))
@@ -172,7 +172,7 @@ class AcceptanceTests(unittest.TestCase):
         self.grid = A.board_grid(self.target)
 
     def features(self, boxes, shapes):
-        top, filled = A.board_occupancy(self.target, self.grid)
+        top, filled, _landable = A.board_occupancy(self.target, self.grid)
         top, filled = top.copy(), filled.copy()
         for item in boxes:
             A._board_stamp(self.grid, top, filled, item)
@@ -213,7 +213,7 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(littered.accepted_shapes, 1)
 
     def sites(self, boxes, shape):
-        top, filled = A.board_occupancy(self.target, self.grid)
+        top, filled, _landable = A.board_occupancy(self.target, self.grid)
         top, filled = top.copy(), filled.copy()
         for item in boxes:
             A._board_stamp(self.grid, top, filled, item)
@@ -411,3 +411,100 @@ class DefaultTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LandabilityTests(unittest.TestCase):
+    """
+    The instrument check for BOARD_LANDABLE_ONLY, run before the feature is
+    used for anything.
+
+    support_surfaces() excludes soft and priority items from being support,
+    so the agent never generates a placement resting on one. board_occupancy
+    stamped every packed item into the height map regardless, so the board
+    features counted landing sites the search cannot reach -- one of the two
+    structural causes behind 123 reported sites at a state where an
+    exhaustive oracle found zero
+    (board-receptivity-is-not-a-feasibility-predictor).
+    """
+
+    def packed(self, x, y, z, dx, dy, dz, soft=False, priority=False):
+        return {
+            "index": 0,
+            "length": dx,
+            "width": dy,
+            "height": dz,
+            "mass": 5.0,
+            "is_soft": soft,
+            "is_prioritized": priority,
+            "pos": [x, y, z],
+            "orientation": 0,
+        }
+
+    def occupancy(self, packed_items):
+        target = container(length=1.0, width=1.0, height=1.0)
+        target["packed_items"] = packed_items
+        grid = A.board_grid(target)
+        top, filled, landable = A.board_occupancy(target, grid)
+        return grid, top, filled, landable
+
+    def test_a_normal_box_stays_landable(self):
+        grid, _top, _filled, landable = self.occupancy(
+            [self.packed(0.0, 0.0, 0.1, 0.4, 0.4, 0.2)]
+        )
+        self.assertTrue(landable.all())
+
+    def test_a_soft_box_makes_its_own_columns_unlandable(self):
+        grid, top, _filled, landable = self.occupancy(
+            [self.packed(0.0, 0.0, 0.1, 0.4, 0.4, 0.2, soft=True)]
+        )
+        raised = top > grid.floor + 1e-9
+        self.assertTrue(raised.any(), "the soft box should raise the surface")
+        self.assertFalse(
+            landable[raised].any(),
+            "no column topped by a soft item may be landable",
+        )
+        self.assertTrue(
+            landable[~raised].all(),
+            "columns the soft box does not cover stay landable",
+        )
+
+    def test_a_priority_box_behaves_the_same_way(self):
+        grid, top, _filled, landable = self.occupancy(
+            [self.packed(0.0, 0.0, 0.1, 0.4, 0.4, 0.2, priority=True)]
+        )
+        self.assertFalse(landable[top > grid.floor + 1e-9].any())
+
+    def test_a_normal_box_stacked_above_a_soft_one_restores_landability(self):
+        """
+        The flag follows the HIGHEST stamp. A normal item resting above a
+        soft one is a legal support again, so the column comes back.
+        """
+        grid, _top, _filled, landable = self.occupancy(
+            [
+                self.packed(0.0, 0.0, 0.1, 0.4, 0.4, 0.2, soft=True),
+                self.packed(0.0, 0.0, 0.3, 0.4, 0.4, 0.2),
+            ]
+        )
+        self.assertTrue(landable.all())
+
+    def test_the_site_count_drops_when_landability_is_required(self):
+        """
+        The measurement that matters: requiring landability must actually
+        remove sites the old count reported.
+        """
+        grid, top, _filled, landable = self.occupancy(
+            [self.packed(0.0, 0.0, 0.1, 0.6, 0.6, 0.2, soft=True)]
+        )
+        headroom = grid.ceiling - top
+        shape = (0.2, 0.2, 0.1)
+
+        without = A._board_site_count(grid, top, headroom, shape)
+        with_flag = A._board_site_count(
+            grid, top, headroom, shape, landable=landable
+        )
+
+        self.assertGreater(
+            without,
+            with_flag,
+            "the soft top must have been counted before and not after",
+        )

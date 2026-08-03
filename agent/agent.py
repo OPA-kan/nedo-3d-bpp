@@ -279,6 +279,17 @@ OFFLINE_SKIP_EQUIVALENT_ORDERS = os.environ.get(
 ANCHOR_COMPONENT_ORDER = os.environ.get(
     "ANCHOR_COMPONENT_ORDER", "default"
 ).strip().lower()
+# Require a landing site to sit on a surface the agent will actually place
+# on. support_surfaces() excludes soft and priority items from being
+# support, but board_occupancy stamped every packed item into the height
+# map, so the board features counted sites the search can never reach --
+# one of the two structural causes behind 123 reported sites at a state
+# where an exhaustive oracle found zero. Default OFF: it changes a shipped
+# feature and the negative it would revisit (board-receptivity-mixed) was
+# measured without it.
+BOARD_LANDABLE_ONLY = os.environ.get(
+    "BOARD_LANDABLE_ONLY", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 # Where the next order to evaluate comes from.
 #   neighbour - the shipped behaviour: transpose inside a group, or move a
 #               pair macro, starting from wherever the walk currently is.
@@ -4864,8 +4875,27 @@ def board_grid(container):
     return grid
 
 
-def _board_stamp(grid, top, filled, box, from_floor=False):
-    """Raise the surface over one box and charge its column volume."""
+def _board_stamp(
+    grid, top, filled, box, from_floor=False, landable=None, can_land=True
+):
+    """
+    Raise the surface over one box and charge its column volume.
+
+    `landable` marks, per column, whether the CURRENT top of that column is
+    a surface the agent will actually place on. support_surfaces() excludes
+    soft and priority items from being support, so an item resting on one
+    is never generated -- but board_occupancy stamped every packed item
+    into `top` regardless, and the height map then reported landing sites
+    the search cannot reach. That is one of the two structural causes of
+    _board_site_count returning 123 sites at a state where an exhaustive
+    oracle found zero (board-receptivity-is-not-a-feasibility-predictor).
+
+    A column whose highest object cannot be landed on is dead for landing,
+    not merely lowered: the space under that object is occupied by
+    whatever supports it, and it cannot be reached by Y->X insertion
+    anyway. So the flag follows the HIGHEST stamp, and is cleared when a
+    landable object later rises above a non-landable one.
+    """
     minimum = box.minimum
     maximum = box.maximum
     i0 = int(np.searchsorted(grid.xs, minimum[0], side="left"))
@@ -4877,6 +4907,9 @@ def _board_stamp(grid, top, filled, box, from_floor=False):
     window = (slice(i0, i1), slice(j0, j1))
     z_top = float(maximum[2])
     z_bottom = float(minimum[2])
+    if landable is not None:
+        rises = z_top > top[window] - EPS
+        landable[window] = np.where(rises, bool(can_land), landable[window])
     np.maximum(top[window], z_top, out=top[window])
     if from_floor:
         filled[window] += np.maximum(z_top - grid.floor[window], 0.0)
@@ -4896,21 +4929,34 @@ def board_occupancy(container, grid=None):
         and hit[1] == len(packed_list)
         and hit[2] is grid
     ):
-        return hit[3], hit[4]
+        return hit[3], hit[4], hit[5]
 
     top = grid.floor.copy()
     filled = np.zeros_like(top)
+    # The bare floor is landable; shelves are too.
+    landable = np.ones_like(top, dtype=bool)
     # A shelf is charged solid from the floor up. See the module note: this
     # hides the space beneath rather than reporting it as damage.
     for shelf in shelf_aabbs(container):
-        _board_stamp(grid, top, filled, shelf, from_floor=True)
-    for box, _is_soft, _is_prioritized in packed_aabbs_local(container):
-        _board_stamp(grid, top, filled, box)
+        _board_stamp(
+            grid, top, filled, shelf, from_floor=True, landable=landable
+        )
+    for box, is_soft, is_prioritized in packed_aabbs_local(container):
+        _board_stamp(
+            grid,
+            top,
+            filled,
+            box,
+            landable=landable,
+            can_land=not (is_soft or is_prioritized),
+        )
 
     if len(_BOARD_OCCUPANCY_CACHE) > 256:
         _BOARD_OCCUPANCY_CACHE.clear()
-    _BOARD_OCCUPANCY_CACHE[key] = (packed_list, len(packed_list), grid, top, filled)
-    return top, filled
+    _BOARD_OCCUPANCY_CACHE[key] = (
+        packed_list, len(packed_list), grid, top, filled, landable
+    )
+    return top, filled, landable
 
 
 def board_probe_shapes(items, limit=None):
@@ -4944,8 +4990,14 @@ def board_probe_shapes(items, limit=None):
     return [(dx, dy, dz) for (dx, dy), dz in ordered[:limit]]
 
 
-def _board_site_count(grid, top, headroom, shape):
-    """Landing sites for one footprint: flat enough, with headroom."""
+def _board_site_count(grid, top, headroom, shape, landable=None):
+    """
+    Landing sites for one footprint: flat enough, with headroom, and on a
+    surface the agent will actually place on.
+
+    `landable` is optional so the previous behaviour stays reachable for
+    the ablation arm; when it is None this counts what it always counted.
+    """
     dx, dy, dz = shape
     wx = min(max(1, int(math.ceil(dx / grid.cell_x - EPS))), top.shape[0])
     wy = min(max(1, int(math.ceil(dy / grid.cell_y - EPS))), top.shape[1])
@@ -4965,16 +5017,24 @@ def _board_site_count(grid, top, headroom, shape):
     )
     room = windows_room.min(axis=axes) >= dz - EPS
     whole = windows_usable.all(axis=axes)
-    return int(np.count_nonzero(flat & room & whole))
+    ok = flat & room & whole
+    if landable is not None:
+        windows_landable = np.lib.stride_tricks.sliding_window_view(
+            landable, (wx, wy)
+        )
+        ok &= windows_landable.all(axis=axes)
+    return int(np.count_nonzero(ok))
 
 
-def board_features(grid, top, filled, shapes):
+def board_features(grid, top, filled, shapes, landable=None):
     """A, R and H for one board state."""
     headroom = grid.ceiling - top
     accepted = 0
     alternativity = 0
     for shape in shapes:
-        sites = _board_site_count(grid, top, headroom, shape)
+        sites = _board_site_count(
+            grid, top, headroom, shape, landable=landable
+        )
         if sites > 0:
             accepted += 1
         alternativity += min(sites, BOARD_SITE_CAP)
@@ -4997,7 +5057,7 @@ def board_features(grid, top, filled, shapes):
     )
 
 
-def board_features_after(container, candidate, shapes):
+def board_features_after(container, candidate, shapes, item=None):
     """Board features for the state one candidate placement would leave.
 
     A release candidate is commanded above its resting height and falls.
@@ -5008,16 +5068,31 @@ def board_features_after(container, candidate, shapes):
     the risk gate agree about where the item ends up.
     """
     grid = board_grid(container)
-    base_top, base_filled = board_occupancy(container, grid)
+    base_top, base_filled, base_landable = board_occupancy(container, grid)
     top = base_top.copy()
     filled = base_filled.copy()
+    landable = base_landable.copy()
     _board_stamp(
-        grid, top, filled, settled_proxy_candidate(candidate, container)
+        grid,
+        top,
+        filled,
+        settled_proxy_candidate(candidate, container),
+        landable=landable,
+        can_land=not (
+            bool((item or {}).get("is_soft", False))
+            or bool((item or {}).get("is_prioritized", False))
+        ),
     )
-    return board_features(grid, top, filled, shapes)
+    return board_features(
+        grid,
+        top,
+        filled,
+        shapes,
+        landable=landable if BOARD_LANDABLE_ONLY else None,
+    )
 
 
-def board_rank_key(decision, containers, shapes):
+def board_rank_key(decision, containers, shapes, item=None):
     """Rank one immediate candidate by the board it would leave behind.
 
     The incumbent score breaks ties last, so within a set of candidates the
@@ -5027,7 +5102,7 @@ def board_rank_key(decision, containers, shapes):
     if not (0 <= container_index < len(containers)):
         return None
     features = board_features_after(
-        containers[container_index], decision.candidate, shapes
+        containers[container_index], decision.candidate, shapes, item
     )
     return features, features.rank_key() + (float(decision.score),)
 
@@ -6937,11 +7012,20 @@ class Agent:
         self.last_board_features = None
         if not shapes or not containers:
             return top[0]
+        items_by_index = {
+            int(item.get("index", index)): item
+            for index, item in ordered_items
+        }
         best_decision = top[0]
         best_key = None
         best_features = None
         for decision in top:
-            ranked = board_rank_key(decision, containers, shapes)
+            ranked = board_rank_key(
+                decision,
+                containers,
+                shapes,
+                items_by_index.get(int(decision.action["item_idx"])),
+            )
             if ranked is None:
                 continue
             features, key = ranked
