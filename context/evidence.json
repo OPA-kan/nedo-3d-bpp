@@ -977,6 +977,17 @@
       "status": "active",
       "claim": "The Monte-Carlo rollout board value does not rank branches and is not promoted. v1 (support-level lattice scan, full rejection_reason) failed on magnitude: the shipped policy's placements are release drops settled by physics, so static support acceptance under-counted 6-12 achievable placements as 0-2, with the bias growing with clutter. v2 (5 cm heightmap drop accepted by release_rejection_reason) fixed the magnitude (3.4-5.9 vs measured 6-12) but not the ranking: on the step-10 labeled branches Spearman(mc, placed) = -0.344 (n=8, indistinguishable from zero), with the best branch (+12) scored mid-pack and one of the two worst (+6) scored highest. Per the pre-registered rule the line is closed: no ranking integration, no further rollout iterations. Caveats that bound the conclusion without reopening it: the validation label is the outcome on the single configured arrival stream while MC estimates the prior expectation -- these are different quantities and n=8 boards x 1 stream has no power to compare them; a proper validation would average continuations over sampled streams, whose cost is not justified by anything measured today. The v1->v2 magnitude fix stands as instrument knowledge: any future capacity estimate on settled boards must use release semantics, not static support acceptance.",
       "source": "reports/task-c/true-envelope/c001-k1-step{10,18}-mc2.json; v1 failure in the same files' -mc predecessors; validation harness: measure_dead_end_branch.py --mc-shadow"
+    },
+    {
+      "id": "c000-k1-terminal-is-also-a-true-dead-end",
+      "topic": "search",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "c000-k1's true-envelope death has the same structure as c001-k1's: the live policy packs until nothing fits (fallback fired at step 22 in this replay; the ablation's deterministic runs placed 23 -- deadline replay is load-dependent) and at the terminal state THREE independent instruments agree on zero: exhaustive generator enumeration (0 candidates), the dense 2.5 cm support-contract grid (0 geometric accepts), and a dense release-drop grid at heightmap drop heights (0 accepts) -- the third instrument is new and covers the poses only release-and-settle can reach, which the previous certification lacked. No envelope-class coverage bug exists at either Task C terminal. Both cases now share one confirmed shape: genuine capacity exhaustion followed by the poison fixed-coordinate fallback. Remaining Task C levers are therefore (a) earlier packing quality -- the step-10 branch spread of +6 placed proves room exists -- and (b) the cost of the poison terminal action itself.",
+      "caveats": [
+        "single deadline replay for the terminal step; the certified-zero state is the one this replay reached"
+      ],
+      "source": "scratchpad autopsy_c000.py output, 2026-08-03; instruments: oracle_candidates, 2.5cm rejection_reason grid, 2.5cm release_rejection_reason drop grid"
     }
   ]
 }
