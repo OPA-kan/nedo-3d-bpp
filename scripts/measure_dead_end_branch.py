@@ -416,6 +416,105 @@ def select_diverse(pinned, top_k):
     return chosen
 
 
+# Monte-Carlo rollout value: the board value the theory asks for, measured
+# directly instead of through engineered features. Sample future arrival
+# streams from the published 7-type prior (the exact information a Task C
+# agent has), play each forward with a cheap geometric first-accept policy,
+# and count placements until the arrived item has no accepted pose. No
+# weights, no feature engineering; the number IS the quantity of interest.
+MC_STREAMS = 24
+MC_LATTICE = 0.10
+MC_MAX_ROLLOUT = 40
+
+
+def first_accepted_pose(agent_module, container, item, rng):
+    """Cheapest competent placement: floor-up lattice scan, first accept."""
+    components = agent_module.support_plane_components(
+        agent_module.support_surfaces(container)
+    )
+    levels = sorted({round(float(c.top), 6) for c in components})
+    length = float(container["length"])
+    width = float(container["width"])
+    orientations = list(agent_module.unique_orientations(item))
+    rng.shuffle(orientations)
+    offset_x = rng.uniform(0.0, MC_LATTICE)
+    offset_y = rng.uniform(0.0, MC_LATTICE)
+    xs, ys = [], []
+    x = -length / 2.0 + offset_x
+    while x < length / 2.0:
+        xs.append(x)
+        x += MC_LATTICE
+    y = -width / 2.0 + offset_y
+    while y < width / 2.0:
+        ys.append(y)
+        y += MC_LATTICE
+    for level in levels:
+        for orientation in orientations:
+            dx, dy, dz = agent_module.get_rotated_dimensions(
+                item["length"], item["width"], item["height"], orientation
+            )
+            for cx in xs:
+                for cy in ys:
+                    candidate = agent_module.AABB(
+                        center=(cx, cy, level + dz / 2.0),
+                        size=(dx, dy, dz),
+                        name="mc_rollout",
+                    )
+                    if (
+                        agent_module.Geometry.rejection_reason(
+                            candidate, container
+                        )
+                        is None
+                    ):
+                        return orientation, candidate
+    return None
+
+
+def mc_rollout_value(
+    agent_module, containers, *, streams=MC_STREAMS, seed=0
+) -> dict[str, Any]:
+    import random
+
+    values = []
+    for stream_index in range(streams):
+        rng = random.Random((seed, stream_index))
+        simulated = copy.deepcopy(containers)
+        container = simulated[0]
+        placed = 0
+        while placed < MC_MAX_ROLLOUT:
+            type_index = rng.randrange(len(BAGGAGE_TYPES))
+            item = type_representative(BAGGAGE_TYPES[type_index], type_index)
+            pose = first_accepted_pose(agent_module, container, item, rng)
+            if pose is None:
+                break
+            orientation, candidate = pose
+            decision = agent_module.PlacementDecision(
+                action={
+                    "item_idx": 0,
+                    "container_idx": 0,
+                    "place_pos": list(
+                        agent_module.simulator_action_center(
+                            candidate, container
+                        )
+                    ),
+                    "orientation": int(orientation),
+                },
+                candidate=candidate,
+                score=0.0,
+            )
+            agent_module.apply_placement_decision(item, decision, simulated)
+            placed += 1
+        values.append(placed)
+    mean = sum(values) / len(values)
+    return {
+        "mc_streams": streams,
+        "mc_value_mean": mean,
+        "mc_value_min": min(values),
+        "mc_value_max": max(values),
+        "mc_values": values,
+    }
+
+
 def run_horizon(
     agent_module,
     task_config,
@@ -427,6 +526,7 @@ def run_horizon(
     started,
     continue_with="oracle",
     pin_mode="top",
+    mc_shadow=False,
 ) -> dict[str, Any]:
     """
     Backward search for the last recoverable action.
@@ -496,6 +596,15 @@ def run_horizon(
                 ),
                 "executed_ok": executed,
             }
+            if mc_shadow and executed:
+                post = policy_observation(env, raw_observation)
+                entry.update(
+                    mc_rollout_value(
+                        agent_module,
+                        copy.deepcopy(post["container_list"]),
+                        seed=rank,
+                    )
+                )
             if executed and not (terminated or truncated):
                 if continue_with == "policy":
                     entry.update(
@@ -574,6 +683,7 @@ def run(
     horizon: int = 0,
     continue_with: str = "oracle",
     pin_mode: str = "top",
+    mc_shadow: bool = False,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     item_list = task_config["item_stream"]["item_list"]
@@ -592,6 +702,7 @@ def run(
             started=started,
             continue_with=continue_with,
             pin_mode=pin_mode,
+            mc_shadow=mc_shadow,
         )
     env, _solver, observation, replay_rescues, _actions = replay_to_step(
         agent_module, task_config, branch_step
@@ -749,6 +860,17 @@ def main() -> int:
             " point"
         ),
     )
+    parser.add_argument(
+        "--mc-shadow",
+        action="store_true",
+        help=(
+            "compute the Monte-Carlo rollout value of each branch's"
+            " post-placement board (prior-sampled streams, geometric"
+            " first-accept rollout) alongside the horizon label, so the"
+            " rollout value can be validated against measured outcomes"
+            " before it is ever allowed to rank anything"
+        ),
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -765,6 +887,7 @@ def main() -> int:
         horizon=args.horizon,
         continue_with=args.continue_with,
         pin_mode=args.pin_mode,
+        mc_shadow=args.mc_shadow,
     )
     if result.get("mode") != "horizon":
         result["pairwise"] = pairwise(result["branches"])
