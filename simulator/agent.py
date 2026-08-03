@@ -332,6 +332,14 @@ DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Fixed from the measured killer scores, not fitted.
 DEATH_BAND_SCORE = float(os.environ.get("DEATH_BAND_SCORE", "-1.5"))
+# Skip the gate entirely when the step's budget is nearly spent: evaluating
+# P_rot and re-searching both cost time, and b000-k20 measured the mean
+# drifting 19.7 -> 18.0 with zero swaps -- pure evaluation overhead on a
+# deadline trajectory. Half a second is the floor below which the re-search
+# cannot complete anyway.
+DEATH_BAND_MIN_BUDGET_SECONDS = float(
+    os.environ.get("DEATH_BAND_MIN_BUDGET_SECONDS", "0.5")
+)
 ANCHOR_FALLBACK_ENABLED = os.environ.get(
     "ANCHOR_FALLBACK_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -7218,7 +7226,14 @@ class Agent:
                 int(decision.action["item_idx"]),
                 observation["pool_list"][0],
             )
-            if rotation_probability(decision, chosen_item) >= 0.5:
+            budget_left = (
+                float("inf")
+                if primary_deadline is None
+                else primary_deadline - time.perf_counter()
+            )
+            if budget_left < DEATH_BAND_MIN_BUDGET_SECONDS:
+                pass  # not enough time to evaluate, let alone re-search
+            elif rotation_probability(decision, chosen_item) >= 0.5:
                 # The model itself calls the chosen release likelier to
                 # topple than not. Additive reranking cannot save this
                 # turn -- the measured score valley between the toppling
