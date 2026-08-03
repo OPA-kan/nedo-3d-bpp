@@ -91,6 +91,55 @@ def death_channel(place_states: dict[str, Any] | None) -> str:
     return "stream_exhausted"
 
 
+def terminal_decision(trace_path: pathlib.Path) -> dict[str, Any] | None:
+    """
+    Attribute the death to an action, which the channel alone cannot do.
+
+    `transport` says the corridor was blocked; it does not say whether the
+    agent chose a placement it believed in or emitted the hard-coded
+    `[0, 0, 0.25]` of the unsafe_protocol_fallback (agent.py:7008-7078).
+    Those call for opposite fixes, and the distinction is only in the
+    trace: action_source `placement_core` means the agent picked and was
+    wrong, `unsafe_protocol_fallback` means it had nothing to pick.
+
+    candidate_kind separates the two acceptance paths.
+    `release_candidate` goes through release_rejection_reason, which checks
+    containment, static geometry and corridor and -- unlike the settled
+    path's rejection_reason -- does NOT check support.
+    """
+    if not trace_path.exists():
+        return None
+    decisions = []
+    for line in trace_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            # A truncated last line means the episode was killed; the
+            # decisions before it are still readable and still the answer.
+            break
+        if record.get("event") == "decision":
+            decisions.append(record)
+    if not decisions:
+        return None
+    final = decisions[-1]
+    kinds: dict[str, int] = {}
+    for decision in decisions:
+        kind = decision.get("candidate_kind") or "none"
+        kinds[kind] = kinds.get(kind, 0) + 1
+    return {
+        "decisions": len(decisions),
+        "candidate_kind_counts": kinds,
+        "final_action_source": final.get("action_source"),
+        "final_candidate_kind": final.get("candidate_kind"),
+        "final_internal_outcome": final.get("internal_outcome"),
+        "final_no_safe_action": bool(final.get("no_safe_action")),
+        "final_action_command": final.get("action_command"),
+    }
+
+
 def scenario_shape(config: dict[str, Any]) -> dict[str, Any]:
     case = next(iter(config.values()))
     containers = case["containers"]["container_list"]
@@ -205,7 +254,77 @@ def run_scenario(
     row.update(summarize_case(next(iter(evaluation.values())), shape))
     if trace:
         row["policy_trace"] = str(trace_path)
+        row["terminal_decision"] = terminal_decision(trace_path)
     return row
+
+
+def resummarize(
+    name: str, config_path: pathlib.Path, output_dir: pathlib.Path
+) -> dict[str, Any] | None:
+    """
+    Rebuild a row from a completed run WITHOUT re-executing the episode.
+
+    Episodes are minutes long and machine-speed dependent, so re-running
+    them to add a derived field would produce a different table, not the
+    same one annotated. This reads the artefacts already on disk.
+    """
+    run_dir = output_dir / name
+    evaluation = load_json(run_dir / "evaluation_results.json")
+    if not isinstance(evaluation, dict) or not evaluation:
+        return None
+    shape = scenario_shape(load_json(config_path))
+    row: dict[str, Any] = {"scenario": name, "config": config_path.name}
+    row.update(summarize_case(next(iter(evaluation.values())), shape))
+    trace_path = run_dir / "policy-trace.jsonl"
+    if trace_path.exists():
+        row["policy_trace"] = str(trace_path)
+        row["terminal_decision"] = terminal_decision(trace_path)
+    return row
+
+
+def format_row(row: dict[str, Any]) -> str:
+    terminal = row.get("terminal_decision") or {}
+    attribution = ""
+    if terminal:
+        attribution = (
+            f" | by {terminal.get('final_action_source')}"
+            f"/{terminal.get('final_candidate_kind')}"
+        )
+    return (
+        f"{row['scenario']:26s} "
+        f"c={row.get('containers')} shelf={row.get('shelves')} "
+        f"ded={row.get('dedicated')} pre={row.get('preloaded')} | "
+        f"placed {row.get('packed_items')}/{row.get('total_items')} "
+        f"({row.get('placed_ratio')}) | "
+        f"agent {row.get('agent_placed')}/{row.get('agent_of')} | "
+        f"fill {row.get('fill_score')} | "
+        f"steps {row.get('steps')} | death {row.get('death_channel')}"
+        f"{attribution}"
+    )
+
+
+def write_summary(
+    output_dir: pathlib.Path, matrix_dir: pathlib.Path,
+    rows: list[dict[str, Any]],
+) -> None:
+    (output_dir / "summary.json").write_text(
+        json.dumps({
+            "schema_version": 2,
+            "purpose": (
+                "Physical execution of the container-configuration matrix. "
+                "Coverage probe, not a benchmark: reports whether a "
+                "configuration runs and which channel ends the episode. "
+                "death_channel is derived from place_states, which app.py "
+                "overwrites every step and which therefore describes the "
+                "LAST step only. terminal_decision comes from the policy "
+                "trace and says whether the agent chose the killing action "
+                "or fell back, and through which acceptance path."
+            ),
+            "matrix_dir": str(matrix_dir),
+            "rows": rows,
+        }, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
@@ -218,6 +337,9 @@ def main() -> int:
     parser.add_argument("--trace", action="store_true",
                         help="write a policy trace per episode; needed to "
                              "attribute a death to a candidate kind")
+    parser.add_argument("--summarize", action="store_true",
+                        help="rebuild summary.json from an existing run "
+                             "without executing any episode")
     args = parser.parse_args()
     # Resolve before anything derives a path from these: run() executes in
     # SIMULATOR, so a relative --output-dir would land in the wrong place.
@@ -237,6 +359,22 @@ def main() -> int:
             parser.error(f"unknown scenario(s): {sorted(unknown)}")
         names = [name for name in names if name in set(args.scenario)]
 
+    if args.summarize:
+        rows = []
+        for name in names:
+            row = resummarize(
+                name, args.matrix_dir / f"{name}.json", args.output_dir
+            )
+            if row is None:
+                print(f"{name:26s} no completed run on disk", flush=True)
+                continue
+            rows.append(row)
+            print(format_row(row), flush=True)
+        if not rows:
+            parser.error(f"nothing to summarize under {args.output_dir}")
+        write_summary(args.output_dir, args.matrix_dir, rows)
+        return 0
+
     sync_agent_into_simulator()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows_path = args.output_dir / "rows.jsonl"
@@ -250,34 +388,9 @@ def main() -> int:
         rows.append(row)
         with rows_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-        print(
-            f"{row['scenario']:26s} "
-            f"c={row.get('containers')} shelf={row.get('shelves')} "
-            f"ded={row.get('dedicated')} pre={row.get('preloaded')} | "
-            f"placed {row.get('packed_items')}/{row.get('total_items')} "
-            f"({row.get('placed_ratio')}) | "
-            f"agent {row.get('agent_placed')}/{row.get('agent_of')} | "
-            f"fill {row.get('fill_score')} | "
-            f"steps {row.get('steps')} | death {row.get('death_channel')}",
-            flush=True,
-        )
+        print(format_row(row), flush=True)
 
-    (args.output_dir / "summary.json").write_text(
-        json.dumps({
-            "schema_version": 1,
-            "purpose": (
-                "Physical execution of the container-configuration matrix. "
-                "Coverage probe, not a benchmark: reports whether a "
-                "configuration runs and which channel ends the episode. "
-                "death_channel is derived from place_states, which app.py "
-                "overwrites every step and which therefore describes the "
-                "LAST step only."
-            ),
-            "matrix_dir": str(args.matrix_dir),
-            "rows": rows,
-        }, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_summary(args.output_dir, args.matrix_dir, rows)
     return 0 if all(r.get("process_returncode") == 0 for r in rows) else 1
 
 
