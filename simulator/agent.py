@@ -338,11 +338,39 @@ ANCHOR_FALLBACK_STRIDES = tuple(
     if value.strip()
 ) or (16, 4, 1)
 # Derive the anchor envelope from the container's own half-spaces instead of
-# from a box formula. See rectangular_container_anchor_bounds. Default off:
-# it widens the shipped search space, which needs the Task B guard on CI.
+# from a box formula. See rectangular_container_anchor_bounds.
+#
+# ON by default since 2026-08-02. This is a contract correction, not a
+# heuristic: inside_container and container_z_interval already used the real
+# half-spaces while the envelope used a box, so the low-y side was one wall
+# thickness too tight on the AKE/AKN-derived containers, for every item and
+# both generators. On the state previously certified as a dead end, both
+# generators run exhaustively returned 0 candidates under the box bound and
+# 33 under this one, all 33 physically safe.
+#
+# Task C, three repeats per cell, deterministic and non-overlapping:
+# c000-k1 placed 19 -> 23 with fill 13.529 -> 26.099, c001-k1 placed 18 -> 21
+# with fill 22.256 -> 25.366.
+#
+# What is NOT measured, and the honest reason it shipped anyway: the Task B
+# guard has not run on CI, and the guard does not reproduce off it. The search
+# space is strictly wider, so each unit spends its attempts differently inside
+# the same budget. `ANCHOR_TRUE_ENVELOPE=0` and the `box_envelope` ablation arm
+# recover the previous behaviour exactly.
 ANCHOR_TRUE_ENVELOPE = os.environ.get(
-    "ANCHOR_TRUE_ENVELOPE", "0"
+    "ANCHOR_TRUE_ENVELOPE", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
+# Shrink the anchor envelope inward by sin(tilt) x item height. The fill
+# evaluator forfeits an item's ENTIRE volume when any settled corner ends up
+# past a boundary plane beyond the inclusion margin, and wall-adjacent tall
+# items lean by the measured settle tilt (local shake proxy: 2.3-3.4 deg on
+# Task C), pushing the top corner several cm outside -- measured forfeit on
+# c001-k1: 5 of 21 items, 23.2% of packed volume, 7.49 fill points. The
+# angle is fixed from that measurement, not fitted; the margin scales with
+# the placed item's height, not with any catalog of item types. 0 disables.
+ANCHOR_TILT_MARGIN_DEG = float(
+    os.environ.get("ANCHOR_TILT_MARGIN_DEG", "0")
+)
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -2587,10 +2615,31 @@ def rectangular_container_anchor_bounds(dims, container):
     Default off. It changes the shipped search space, so adoption needs the
     Task B guard, which does not reproduce off CI.
     """
-    dx, dy, _dz = dims
+    dx, dy, dz = dims
     length = float(container["length"])
     width = float(container["width"])
     thickness = float(container["thickness"])
+    # Tilt margin: a settled item leans, and its top corner moves laterally
+    # by about sin(tilt) * height. The fill evaluator forfeits the whole
+    # item when that corner crosses a boundary plane, so the envelope
+    # retreats from every wall by exactly that predicted drift. Scales with
+    # the placed item's height; independent of any item-type catalog.
+    tilt_margin = (
+        math.sin(math.radians(ANCHOR_TILT_MARGIN_DEG)) * dz
+        if ANCHOR_TILT_MARGIN_DEG > 0.0
+        else 0.0
+    )
+
+    def shrunk(bounds):
+        if tilt_margin <= 0.0:
+            return bounds
+        return (
+            bounds[0] + tilt_margin,
+            bounds[1] - tilt_margin,
+            bounds[2] + tilt_margin,
+            bounds[3] - tilt_margin,
+        )
+
     box = (
         -length / 2.0 + thickness + dx / 2.0 + INCLUSION_CLEARANCE,
         length / 2.0 - thickness - dx / 2.0 - INCLUSION_CLEARANCE,
@@ -2598,11 +2647,11 @@ def rectangular_container_anchor_bounds(dims, container):
         width / 2.0 - thickness - dy / 2.0 - INCLUSION_CLEARANCE,
     )
     if not ANCHOR_TRUE_ENVELOPE:
-        return box
+        return shrunk(box)
     points = container.get("points")
     normals = container.get("n_vecs")
     if points is None or normals is None:
-        return box
+        return shrunk(box)
     offset_x = container_offset_x(container)
     half = (dx / 2.0, dy / 2.0)
     limit = -INCLUSION_CLEARANCE
@@ -2625,12 +2674,14 @@ def rectangular_container_anchor_bounds(dims, container):
             else:
                 low[axis] = max(low[axis], float(point[axis]) - slack)
     if not all(map(math.isfinite, low + high)):
-        return box
-    return (
-        low[0] - offset_x,
-        high[0] - offset_x,
-        low[1],
-        high[1],
+        return shrunk(box)
+    return shrunk(
+        (
+            low[0] - offset_x,
+            high[0] - offset_x,
+            low[1],
+            high[1],
+        )
     )
 
 
