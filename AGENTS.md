@@ -143,6 +143,10 @@ CIは毎pushで`unit-tests`と`replay-integration`を回す。後者は
   `is_placed_safe`が全てtrueでなければ失敗である。
 - **`selected_*`混同行列をgate全体のprecision/recallとして読む。** rankingが
   選択した候補にのみ条件づけられている。反復回数を増やしても解消しない。
+- **導出の無い重み付き和へ逃げる。** 組み合わせ方が分からないときに
+  \(\alpha A+\beta B\) と書いて係数を調整するのは、答えではなく、未解決の問いを
+  自由パラメータへ隠す操作である。このリポジトリでは既に3回失敗している。
+  規則と、係数を入れてよい2つの条件は `docs/AGENT_OPERATIONS.md` §5.1。
 
 ## 更新規則
 
