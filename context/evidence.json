@@ -1151,6 +1151,71 @@
       "status": "active",
       "claim": "The score-calibration plan does not work as designed, for a reason worth recording: the two submissions that differ by 15.3% officially are nearly indistinguishable on our local cases. Replaying both submitted agent.py builds (sha bcd72b3a = trueenvelope 35.375, sha 4988f258 = deathband 29.959) on the two distributed cases as Task A gives IDENTICAL fill (33.124 / 20.268), identical placed (0.561 / 0.381) and identical com_z (0.7302 / 0.7853); only shake_max_shift moves at all, by 2.8% on case 000 and not at all on case 001. So the official 15.3% gap is generated on cases we do not have -- the rules state the evaluation uses entirely different test cases -- and no proxy-to-component mapping can be identified from replaying submissions on this suite. What this does establish, and it is the more useful finding: the distributed two-case suite has almost no discriminating power for a selection change that officially costs 15.3%, which is a property of the suite rather than of the proxies. The consequence for future work is to invest in local cases that resemble the official ones (multi-container, larger streams, priority containers) rather than in more proxies measured on cases that cannot separate the builds.",
       "source": "scratchpad calib2/ replay of both submitted builds after the source-case and agent-sync fixes"
+    },
+    {
+      "id": "official-score-log-trueenvelope",
+      "topic": "scoring",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "submissiontrueenvelope scores 35.37542828677423, against 23.245587753037217 and 17.58143419644042 -- the total has exactly DOUBLED over three submissions (+101.2%), and this step alone is +52.2%. It fixes a y-axis error in the anchor envelope (22b88d2 cherry-pick, 3b1635c). All six components rose again: fill 31.413 -> 34.246, cog 21.505 -> 40.683, stability 29.424 -> 53.240, placement 10.850 -> 16.950, soft 12.650 -> 21.300, num_placed 0.452 -> 0.505. Timing unchanged at 149.19 s and 6.55 s. THE NEW FINDING IS THAT THE GATE AMPLIFICATION IS DECAYING. From sub22 to 3334 a 4.2% placed gain produced 58.2% on the four gated components, about 14x; from 3334 to trueenvelope an 11.6% placed gain produced 77.6%, 6.7x. The pass-fraction lower bound rises 0.207 -> 0.294 -> 0.532. Halving leverage is the signature of the cutoff saturating: as fewer cases remain below it, further placed gains stop earning the multiplier and what is left is conditional quality. A placed-only strategy therefore has an expiry, which is visible for the first time here. The original section-4 conclusion survives all three observations and is now better supported, because a higher f tightens the bounds: at f >= 0.532, E[placement|pass] <= 31.8 and E[soft|pass] <= 40.0 against E[cog|pass] <= 76.4. Conditional on clearing the gate, placement and soft are still the two worst components.",
+      "source": "Official feedback for submissiontrueenvelope.zip, 2026-08-03, against the submission3334 and submission22 logs. Comparison table and the decaying-amplification argument in docs/OFFICIAL_SCORE_LOG.md.",
+      "caveats": "Three observations, and consecutive submissions differ by more than one change, so no component delta is attributable to a single commit. The amplification ratios are computed from mean placed fraction and the sum of the four gated components; both the cutoff value and the score weights remain unpublished, so this describes a trend in the platform's own numbers rather than a model of them. Two points do not establish a decay rate -- record the ratio for every future submission before acting on the crossover."
+    },
+    {
+      "id": "scenario-matrix-coverage-gap",
+      "topic": "protocol",
+      "date": "2026-08-03",
+      "status": "active",
+      "claim": "Three of the four container-configuration axes the competition declares had never been executed, and building a probe for them immediately found a hard crash. COMPETITION_RULES section 2 states every task is posed with combinations of one or two containers, shelf present or absent, empty or pre-loaded, and a priority-dedicated container present or absent; the official QA additionally forbids per-task submissions, so one agent must self-detect the setup and these branches WILL be taken. The bundled sample_config.json covers exactly one axis: both cases are single-container, empty, no dedicated container, differing only in the shelf, and the whole development suite derives from those two cases by changing look-ahead, so it inherits the same blind spot. First defect found: a two-container config built by copying the bundled camera block raises IndexError in env.reset() at env.py:318, because camera.num_containers sizes the shared depth-map array (env.py:80-88) and the bundled value is 1. That is a config-side defect rather than a simulator bug, but it is unavoidable for anyone who has never built a two-container scene. With it corrected the dual-dedicated-priority scene RUNS: placed fraction 0.732 (30 of 41), is_valid true, container usage 22 on index 0 and 9 on index 1, priority_misrouted 0 -- so multi-container placement and dedicated routing both work in physics for the first time. Two caveats on that number: two containers give roughly twice the volume for the same 41-item mix, so 0.732 is not comparable to the single-container development suite or to the official 0.505; and priority_clean_ratio ends at 0.333, so priority items are being covered even though they are routed correctly. Still unmeasured: the 80-item two-container scale the rules describe for Task A.",
+      "source": "docs/COMPETITION_RULES.md section 2; docs/COMPETITION_QA.md; scripts/build_scenario_matrix.py; tests/test_scenario_matrix.py; simulator/src/ground_handling/env.py:80-88,318"
+    },
+    {
+      "id": "lateral-guard-buys-settle-survival",
+      "topic": "search",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "PHYSICS_LATERAL_GUARD (the self-imposed 10 mm on top of the official 15 mm transport clearance) is a SETTLE-SURVIVAL margin, not a search restriction, and lowering it is a regression under the shipped policy. Six scenario-matrix scenes, shipped mode, same machine: 10 mm ends 3 completed / 3 pre-check deaths, 2 mm ends 0 completed / 4 PHYSICAL settle failures (is_valid true, is_placed_safe false) / 2 pre-check -- every episode 10 mm completed becomes a physical failure at 2 mm. Paired Task B CI on the same runner generation, 3 replicates per pool, gate off: pool 10 18.00->15.00, pool 20 19.33->13.33, pool 40 20.00->16.00 placed; suite 57.33->44.33, fill 70.05->54.94, within-arm replicate spread ~0. The effect is not mediated by search volume: under the deadline 2 mm reaches MORE attempts (4518 vs 3651 per step) and MORE accepted candidates (850 vs 565) and still loses. Default reverted to 0.010; the knob remains for further study.",
+      "source": "agent/agent.py PHYSICS_LATERAL_GUARD; reports/scenario-matrix/shipped-baseline-20260803.json; reports/scenario-matrix/shipped-confirm-20260803.json; reports/scenario-matrix/taskb-ci-10mm-30865228317.md; reports/scenario-matrix/taskb-ci-2mm-30865196936.md; Actions runs 30865196936 and 30865228317"
+    },
+    {
+      "id": "attempt-budget-regime-invalidates-contract-ablations",
+      "topic": "method",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "A POLICY_ATTEMPT_BUDGET ablation can rank arms that the shipped policy ranks the other way, because the budget puts the agent in a different operating point. POLICY_ATTEMPT_BUDGET=4000 runs ~2500 attempts/step against ~3651 under the shipped deadline -- about 30% below -- and a starved search loses episodes to physical settle failures for reasons unrelated to the arm under test (the 10 mm guard dies physically in 4 of 6 matrix scenes at budget 4000, 0 of 6 under the deadline). Both arms consumed identical work there (2496 vs 2495 attempts/step), so it was a FAIR comparison of the WRONG regime. Separately, search breadth itself is not harmful: at a fixed guard, attempts/step 1739/2558/3411 give placed 110/164/172 with physical deaths 2/4/1, monotonically better, which REFUTES the intermediate claim that more candidates make this ranker worse. Rule: run contract ablations at or above the shipped attempt rate, or in shipped mode outright.",
+      "source": "reports/scenario-matrix/budget-sweep-20260804.json; reports/scenario-matrix/guard-ablation-pib-20260803.json; agent/agent.py POLICY_ATTEMPT_BUDGET"
+    },
+    {
+      "id": "release-path-causes-priority-covers",
+      "topic": "ranker",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Priority items get covered by non-priority items through the RELEASE path, closing the HANDOFF thread that suspected it. Aligning per-step priority_covered_by_other increments with the policy trace across the dual scenario-matrix scenes: 6 of 7 cover events were release actions. Mechanism: release_rest_height() treats every packed top as a landing surface and release_rejection_reason() has no support check, so planning a rest on a priority top is legal. Release is not a corner case -- about half of all shipped-mode actions are release candidates. A hard reject (RELEASE_ATTRIBUTE_GUARD=all) cuts suite priority covers 7 -> 2 but costs 47 suite placed in pi_B; restricting it to priority tops only (mode 'priority') recovers about a third of that cost (164 vs 150 vs base 197 on the comparable 7-scene subset) because the shelf scenes' binding rejections ARE priority-top rests -- late-game survival was being bought by covering priority items. Default off; the recorded next shape is a lexicographic preference (avoid covering while a non-covering candidate exists) rather than a hard reject.",
+      "source": "agent/agent.py RELEASE_ATTRIBUTE_GUARD and Geometry.release_rests_on_protected_item; reports/scenario-matrix/guard-ablation-pib-20260803.json; simulator/src/ground_handling/diagnostics.py"
+    },
+    {
+      "id": "death-band-gate-regresses-the-official-score",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "submissiondeathband scored 29.959 against submissiontrueenvelope's 35.375, -15.3%, with ALL SIX components down (fill 34.246->33.635, cog 40.683->32.243, stability 53.240->41.288, placement 16.95->14.70, soft 21.30->17.45, num_placed 0.5047->0.4915). Attribution is clean: between the 35.375 artefact (3b1635c) and the submitted commit (8e29934) the only knob whose DEFAULT changes behaviour is DEATH_BAND_FALLBACK=1 -- ANCHOR_TILT_MARGIN_DEG=0 makes its shrunk() the identity, both L3 knobs are off, CONSTRUCTIVE_ORDER_MODE=composite reproduces the formula 3b1635c hard-coded, and the anchor bounds are the same half-space envelope in both. The submitted artefact DID contain the true envelope, confirmed independently by the score level itself (fill 33.6 and placed 0.4915 sit at the envelope-present level, not the pre-envelope 31.4 / 0.452). This is the first case where a local proxy (m2-k15 placed 22.0 -> 30.6) and the official score point in opposite directions.",
+      "source": "docs/OFFICIAL_SCORE_LOG.md; commits 3b1635c and 8e29934; user-supplied official feedback 2026-08-04 08:33:52"
+    },
+    {
+      "id": "num-placed-gate-amplifies-downward-too",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The num_placed_items gate amplifies in BOTH directions at the same rate, so any intervention that costs placed is punished several-fold in the total. trueenvelope -> deathband: placed -2.6% became -20.0% across the four gated components, a 7.6x downward factor, against the 6.7x upward factor measured on 3334 -> trueenvelope. Practical consequence: evaluate every candidate change on placed FIRST, because a change that trades a little placed for better per-placement quality has to clear roughly a 7x hurdle before it can help the total.",
+      "source": "docs/OFFICIAL_SCORE_LOG.md submissiondeathband section"
+    },
+    {
+      "id": "trunk-lacks-the-true-envelope-code",
+      "topic": "protocol",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The implementation that produced the best official score (35.375) is NOT on the trunk. Trunk commit 050d9d7 ('trueenvelope: the total doubles') touches only docs/OFFICIAL_SCORE_LOG.md and context/evidence.json -- no agent code. Trunk's rectangular_container_anchor_bounds is still the 12-line box formula; the 68/91-line half-space version exists only on claude/l3-l4-allocation-ordering, claude/task-bottleneck-optimization-o3qtkk and claude/taskc-algorithm-improvement-ivaqo1. Measured on the bundled 000 container (width 1.45, thickness 0.04) the real y half-spaces sit at y=-0.7250 and y=+0.6850 -- ASYMMETRIC -- while the box formula assumes [-0.6850, +0.6850], so a 4 cm strip along the full 2 m length of the low-y wall is never searched even though inside_container would accept placements there. TRAP: scripts/build_submission.py packs agent/agent.py from the working tree, so rebuilding from trunk ships a pre-envelope agent (~23-point level), not the 35.375 one.",
+      "source": "commit 050d9d7; agent/agent.py rectangular_container_anchor_bounds on trunk vs 3b1635c; simulator/src/ground_handling/containers.py; scripts/build_submission.py"
     }
   ]
 }
