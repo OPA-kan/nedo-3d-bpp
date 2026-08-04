@@ -34,16 +34,23 @@ TRANSPORT_CLEARANCE = (
     OFFICIAL_TRANSPORT_CLEARANCE + FLOAT32_CLEARANCE_GUARD
 )
 # Self-imposed lateral margin on top of the official transport clearance.
-# The 2026-08-03 scenario-matrix death-step audit found ~90% of terminal
-# rejections were static_geometry at ~25% fill. The same night's pi_B
-# ladder (POLICY_ATTEMPT_BUDGET=4000, 8 scenes) measured the guard's
-# price: suite placed 232 at 10mm, 242 at 2mm, 193 at 0mm -- an interior
-# optimum, so the guard is not free but 10mm overpaid. Default moved
-# 0.010 -> 0.002 on 2026-08-04 (user decision); the paired-CI shipped
-# confirmation is still owed and PHYSICS_LATERAL_GUARD=0.010 restores
-# the old contract in one env var.
+# This is a SETTLE-SURVIVAL margin, not merely a search restriction, and
+# the 2026-08-04 measurements say so directly: on the six matrix scenes
+# in shipped mode, 10 mm completes 3 of 6 episodes while 2 mm completes
+# 0 and turns all three of those completions into physical settle
+# failures (`is_valid` true, `is_placed_safe` false). Paired Task B CI
+# agrees -- 3 of 3 pools worse, suite placed 57.33 -> 44.33.
+#
+# The pi_B ladder that briefly justified 0.002 (232/223/242/193 at
+# 10/5/2/0 mm) was measured at POLICY_ATTEMPT_BUDGET=4000, where the
+# 10 mm arm itself dies physically in 4 of 6 scenes; that regime is not
+# the shipped one, so the ladder ranks arms inside a regime the shipped
+# policy never enters. Kept as a knob because the ladder remains real
+# evidence about pi_B, and because the guard's price is worth
+# re-measuring once selection stops preferring physically marginal
+# placements.
 PHYSICS_LATERAL_GUARD = float(
-    os.environ.get("PHYSICS_LATERAL_GUARD", "0.002")
+    os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
 )
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 TRANSPORT_SAMPLE_STEP = 0.03

@@ -222,7 +222,30 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    Shipped-mode confirmations of guard2 and relguard ran sequentially the
    same night (`reports/scenario-matrix/shipped-confirm-20260803.json`).
 
-5. **REVERT OWED — the 2 mm adoption FAILED its CI confirmation.** Paired
+5. **REVERTED 2026-08-04 — the 2 mm adoption FAILED its CI confirmation,
+   and the mechanism is settle survival, not search breadth.** Same six
+   matrix scenes, same machine, shipped mode: 10 mm ends 3 completed /
+   3 pre-check deaths; 2 mm ends **0 completed / 4 physical settle
+   failures** (`is_valid` true, `is_placed_safe` false) / 2 pre-check.
+   Every episode 10 mm completed becomes a physical failure at 2 mm.
+   The guard is buying PyBullet settle survival; that is what the
+   official rule's 15 mm plus a margin is for.
+
+   Why the pi_B ladder said the opposite: at
+   `POLICY_ATTEMPT_BUDGET=4000` the 10 mm arm ALSO dies physically (4 of
+   6 scenes, 1 completed, placed 164) while shipped 10 mm completes 3 of
+   6 at placed 183 on ~3651 attempts/step. The budget pushes both arms
+   into an over-searched regime the shipped policy never enters, so the
+   ladder ranked arms inside a regime that does not transfer. Under the
+   deadline 2 mm accepts ~50% more candidates per step (850 vs 565 at
+   4518 vs 3651 attempts) and the greedy `Ranker.score` spends that
+   extra breadth on physically marginal placements -- the same failure
+   the death-band gate on `claude/l3-l4-allocation-ordering` targets
+   from the selection side. Generalised claim, still to be confirmed by
+   the running budget sweep: **more candidates make this ranker worse,
+   because nothing in the score prices settle risk strongly enough.**
+
+   Paired
    Task B screening on the same runner generation, 3 replicates per pool,
    gate off (`reports/scenario-matrix/taskb-ci-2mm-30865196936.md` and
    `taskb-ci-10mm-30865228317.md`; runs 30865196936 / 30865228317):
