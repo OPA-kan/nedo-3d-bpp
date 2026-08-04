@@ -109,3 +109,19 @@ gate の価値は 2mm 下でも保存(+9.5)。2mm 単独は死番構造を消さ
 むしろ発火が倍増(限界 pose の受理増→死帯到達番の増加)。両変更は
 併用可能。最強セルは 10mm+gate(n=2、要追試)— 単コンテナ行列で測った
 2mm の得は多コンテナでは自明でない。ledger `joint-2mm-x-death-band-factorial`。
+
+## CI 判定(2026-08-04、ubuntu-24.04、3 replicates)
+
+**death-band(6 case × 3):** suite 合計 base 122.3 placed / 110.6 fill →
+gate **125.7 / 119.5**(+3.33 / +8.91)。同セッションで測れた雑音床
+(1.7 placed / 3.9 fill)の約2倍で、方向は陽性。ただし **per-case はローカルと逆転**:
+c000-k1 が最大の得(+4.67 placed / +10.13 fill、ローカルでは発火ゼロ)、
+m2-k15 は **−1.67**(ローカルの主戦場)。CPU が速いと死番の出方が変わるため、
+どの scene で効くかはハードウェア依存。一般化するのは機構であって per-case の値ではない。
+
+**雑音床の較正(重要):** anchor ablation の `base` と `true_envelope` は
+既定 ON 以降 **同一構成**であり、この run は偶然の null pair だった。
+同一コードでも placed mean 18.571 vs 18.333、単一 case では c000-k1 が
+**−2.333** まで振れる。n=3 で ±2.3 placed 未満の per-case 主張は判定不能。
+そして **envelope の Task B guard はこの run では測れていない**(true 対 true)。
+box_envelope 腕での再測定が必要。

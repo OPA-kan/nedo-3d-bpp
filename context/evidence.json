@@ -1060,6 +1060,22 @@
       "status": "active",
       "claim": "2x2 factorial on m2-k15 (PHYSICS_LATERAL_GUARD {0.010, 0.002} x death-band gate {off, on}, serial, 2 reps): the gate's uplift survives the parallel branch's 2mm flip (+15 at 10mm: 18/18 -> 36/30; +9.5 at 2mm: 23/18 -> 30/30) and the two changes compose without conflict. The 2mm guard alone does NOT remove the death-turn structure (gate-off still dies at 18-23), and it DOUBLES gate firings (3 -> 6 per episode) -- consistent with 2mm admitting more marginal poses so more turns reach the death band; the gate absorbs them (30/30 deterministic). Caveat worth relaying: the strongest cell on this multi-container scene is 10mm+gate (36/30), slightly above 2mm+gate (30/30), n=2 -- the 2mm benefit measured on single-container matrices is not automatic under multi-container dynamics.",
       "source": "scratchpad joint-2mm/ (2x2x2, m2-k15)"
+    },
+    {
+      "id": "ci-null-pair-calibrates-the-noise-floor",
+      "topic": "measurement",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The CI anchor ablation accidentally ran a NULL PAIR and it calibrates the suite's noise floor. Since ANCHOR_TRUE_ENVELOPE's default flipped ON (2026-08-02), the run_risk_ablation env-pop makes the `base` arm inherit ON, so `base` and `true_envelope` are the SAME configuration. Their measured difference on 7 cases x 3 replicates is nevertheless placed mean 18.571 vs 18.333 and fill 20.432 vs 19.877 (suite totals 129.999/143.026 vs 128.334/139.14), with per-case placed diffs spanning -2.333 (c000-k1) to +0.667 for identical code. NOISE FLOOR at n=3 per cell is therefore about 1.7 placed and 3.9 fill on suite totals, and about +/-2.3 placed on a single case. Two consequences: (1) the Task B guard owed since the envelope flip was NOT measured by this run -- it compared true-envelope against true-envelope; the real guard needs the box_envelope arm; (2) any per-case ablation claim below the +/-2.3 placed band at n=3 is unresolvable, which retroactively bounds several local single-case results.",
+      "source": "CI run 30865600521 aggregate (Anchor search ablation, ref claude/taskc-algorithm-improvement-ivaqo1)"
+    },
+    {
+      "id": "death-band-ci-suite-positive-per-case-reverses",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Death-band gate on CI (6 cases x 3 replicates, 18 episodes per arm): suite totals base 122.333 placed / 110.587 fill vs gate 125.667 / 119.501, i.e. +3.33 placed and +8.91 fill, roughly twice the null-pair noise floor measured in the same session (1.7 placed / 3.9 fill). Per-case, however, the local story does NOT reproduce: c000-k1 gains most (+4.667 placed, +10.13 fill) where locally the gate never fired, while m2-k15 -- the two-container scene that carried the entire local case (+8.5 mean) -- comes back at -1.667 placed on CI. c001-k1 is unchanged (+0.0/+0.335), b000-k15 -1.0, b000-k20 +0.667, b001-k20 +0.667. The direction of the aggregate is positive and above noise; the per-case attribution measured locally is not supported. Faster CI hardware changes which turns land in the death band, so which scene benefits is hardware-dependent -- the mechanism (do not execute a release your own model prices at P_rot>=0.5 when a safer candidate exists) is what generalises, not the per-case magnitudes.",
+      "source": "CI run 30865594779 aggregate (Death-band ablation, ref claude/l3-l4-allocation-ordering)"
     }
   ]
 }
