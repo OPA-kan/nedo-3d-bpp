@@ -82,6 +82,7 @@ def configure_arm_environment(
         "L3_RELEASE_ROUTE",
         "DEATH_BAND_FALLBACK",
         "DEATH_BAND_SCORE",
+        "DEATH_BAND_REQUIRE_DOMINANCE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -102,6 +103,7 @@ def configure_arm_environment(
         "death_band",
         "no_death_band",
         "death_band_unbanded",
+        "death_band_v1",
         "base_null",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
@@ -125,6 +127,11 @@ def configure_arm_environment(
             # Redundant since the default flipped on 2026-08-02, kept so a
             # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
+        elif arm == "death_band_v1":
+            # The version that shipped and regressed: swap on P_rot alone,
+            # no support-ratio dominance requirement.
+            env["DEATH_BAND_FALLBACK"] = "1"
+            env["DEATH_BAND_REQUIRE_DOMINANCE"] = "0"
         elif arm == "death_band_unbanded":
             # P_rot alone, no score pre-filter: prices the fitted -1.5 by
             # measuring what the gate does without it.

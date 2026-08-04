@@ -1106,9 +1106,26 @@
       "id": "local-acceptance-criterion-shake-veto",
       "topic": "scoring",
       "date": "2026-08-04",
-      "status": "active",
+      "status": "superseded",
       "claim": "A shake-inclusive acceptance criterion would have blocked the death-band regression, and is now wired into the runner everyone reads. Retrospective test on all local base-vs-gate runs (base n=23, gate n=29): placed/fill alone say ADOPT (20.6 -> 23.2 placed, 18.8 -> 20.5 fill), which is the judgement actually made; adding the shake proxy says REJECT (max shift 0.209 -> 0.230, peak kinetic energy 17.00 -> 19.56, items shifted 4.78 -> 4.86, all worse), which matches the official answer (35.375 -> 29.959). run_risk_ablation --summarize now aggregates and prints the three shake columns; previously it printed final_com_z as the only non-official stand-in, and that one pointed the WRONG way on the same pair. The repository already had an aggregator for these (scripts/analyze_stability_tradeoff.py) and four stand-in proxies that no measurement-registry entry described; all are now registered with cannot_answer, including the recorded directional falsifications of final_com_z and priority_clean_ratio. Caveat that bounds this: exactly one controlled official pair supports the shake proxy's direction, the shake protocol magnitudes are invented so only same-config arm comparisons carry meaning, and the one paired study on these axes reached no significant sign test.",
-      "source": "scripts/run_risk_ablation.py summarize wiring; retrospective on scratchpad death-band-v2 and death-band-scenes rows; context/measurements.json instrument entries for evaluator.py and diagnostics.py"
+      "source": "scripts/run_risk_ablation.py summarize wiring; retrospective on scratchpad death-band-v2 and death-band-scenes rows; context/measurements.json instrument entries for evaluator.py and diagnostics.py",
+      "superseded_by": "shake-veto-is-inside-its-own-noise-floor"
+    },
+    {
+      "id": "shake-veto-is-inside-its-own-noise-floor",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The shake proxy cannot serve as a per-run acceptance veto: its own repeat-to-repeat noise exceeds the effect it was credited with catching. Across 20 (case, arm) cells with repeated identical runs, the median relative spread between identical repeats is 22.7% for shake_max_shift, 74.6% for shake_peak_kinetic_energy and 42.9% for shake_items_shifted, against a death_band-vs-base gap of +10.0%, +15.1% and +1.7%. All three 'signals' therefore sit inside the noise, and the three metrics are correlated measurements of one shake, so agreeing in direction is roughly one to two coin flips, not three. My previous entry claiming a shake-inclusive criterion would have blocked the death-band regression is superseded: the direction was right by luck, not by resolution. What remains usable: pooled comparison over many paired runs (at n~25 per arm the standard error of the mean is roughly 8-15%, so the observed 15% gap is one to two SE -- suggestive, not significant), never a single run and never a single case. The design consequence taken instead of trusting it: make a change unable to trade stability BY CONSTRUCTION rather than verifying afterwards with a proxy that cannot resolve the trade.",
+      "source": "within-cell spread audit over scratchpad death-band-v2, death-band-scenes, l3-route, l3-ablate, taskc-tilt rows"
+    },
+    {
+      "id": "death-band-v3-dominance-redesign",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Death-band gate redesigned so the trade that cost the official score cannot occur by construction. v1 swapped to the best-scored candidate with P_rot < 0.5, buying lower toppling risk with whatever the replacement gave up -- support ratio, the physical quantity Ranker.score spends on cog and stability, which the official submission charged 20.7% and 22.4% for. v3 requires DOMINANCE: a replacement must be both safer on P_rot and no worse on support ratio than the action it replaces, otherwise the original action stands and the gamble is taken knowingly. No coefficients; it is a Pareto condition on two quantities the agent already computes. This route was chosen over verifying v1 with a local proxy because the audit showed the shake proxy cannot resolve the trade (repeat spread 23-75% against an effect of 2-15%). Knob DEATH_BAND_REQUIRE_DOMINANCE default on; arm death_band_v1 keeps the regressed behaviour measurable. The gate itself remains default OFF pending a submission. Six contract tests pin: ships off, dominance on, score band present and negative, budget floor positive, and that a lower-support replacement is rejected while an equal-support one is not.",
+      "source": "agent/agent.py death-band block; tests/test_death_band_gate.py; supersedes the mechanism analysed in death-band-official-regression-15pct"
     }
   ]
 }

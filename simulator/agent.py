@@ -359,6 +359,11 @@ DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
 # -1.5 came from three measured killer scores, so it IS a fitted constant --
 # the unbanded form is kept as an ablation arm to price that fit rather than
 # defended as principled.
+# Require the replacement to dominate: no worse on support ratio as well as
+# safer on P_rot. Set to 0 for the v1 behaviour that traded one for the other.
+DEATH_BAND_REQUIRE_DOMINANCE = os.environ.get(
+    "DEATH_BAND_REQUIRE_DOMINANCE", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
 _death_band_score = os.environ.get("DEATH_BAND_SCORE", "-1.5").strip()
 DEATH_BAND_SCORE = float(_death_band_score) if _death_band_score else None
 # Skip the gate entirely when the step's budget is nearly spent: evaluating
@@ -7292,6 +7297,27 @@ class Agent:
                     caught.append(
                         (int(retry.action["item_idx"]), None, retry)
                     )
+                # Dominance, not preference. v1 took the best-scored
+                # candidate with P_rot < 0.5, which bought safety with
+                # whatever the replacement gave up -- and what it gave up
+                # was support ratio, the physical quantity Ranker.score
+                # spends on centre of gravity and stability. The official
+                # submission charged 20.7% of cog and 22.4% of stability
+                # for that trade. The local proxies cannot police it: the
+                # shake metrics' repeat-to-repeat spread (23-75%) swamps
+                # the effect size (2-15%).
+                #
+                # So the trade is removed by construction. A replacement
+                # must be no worse on BOTH axes -- lower toppling risk AND
+                # support ratio not below the action it replaces. Nothing
+                # is weighted; if no candidate dominates, the original
+                # action stands and the gamble is taken knowingly.
+                incumbent_container = observation["container_list"][
+                    int(decision.action["container_idx"])
+                ]
+                incumbent_support = Geometry.support_ratio(
+                    decision.candidate, incumbent_container
+                )
                 best_safe = None
                 for item_idx, item, dec in caught:
                     dec_item = item or pool_by_idx.get(item_idx)
@@ -7301,6 +7327,15 @@ class Agent:
                         rotation_probability(dec, dec_item) >= 0.5
                     ):
                         continue
+                    if DEATH_BAND_REQUIRE_DOMINANCE:
+                        support = Geometry.support_ratio(
+                            dec.candidate,
+                            observation["container_list"][
+                                int(dec.action["container_idx"])
+                            ],
+                        )
+                        if support < incumbent_support - EPS:
+                            continue
                     if best_safe is None or float(dec.score) > float(
                         best_safe.score
                     ):

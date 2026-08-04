@@ -204,11 +204,24 @@ soft はローカルで一度も計算されない。** したがって placed �
 max_shift +33%、shifted items +20% だった。私は毎 run これを保存しながら
 一度も見なかった。
 
+**ただし shake 自体の分解能は低い(2026-08-04 監査)。** 同一 case・同一 arm の
+反復間で、`shake_max_shift` は中央値 22.7%、`shake_peak_kinetic_energy` は
+74.6%、`shake_items_shifted` は 42.9% 振れる(20セル)。death-band の差は
+それぞれ +10.0% / +15.1% / +1.7% で、**全部が雑音床の内側**だった。
+「shake なら止められた」は運であって分解能ではない
+(evidence `shake-veto-is-inside-its-own-noise-floor`)。
+
 規則:
 
 - **選択・順序・配分を変える介入の採否には、`shake_response`(最低でも
   `shake_max_shift` と `shake_peak_kinetic_energy`)を placed/fill と並べて
   報告する。** 悪化していれば、placed が伸びていても採用しない。
+  ただしこれは**多数のペア run をプールした比較でのみ**成立する。単一 run・
+  単一 case の shake 差は読まない。15〜20% 未満の差は n≈25 でも分解できない。
+- **より確実なのは、代理で事後検証することではなく、トレードが構造的に
+  起きない設計にすることである。** 例: 差し替えを「P_rot が下がり、かつ
+  support_ratio が下がらない」という支配条件に限れば、安定性を売って安全を
+  買うことが定義上できない。係数もゼロで済む。
 - `final_com_z` は補助にとどめる。cog の正規化が非公開なので方向しか読めず、
   実際 m2 では com_z が改善しているのに公式 cog は落ちた。**shake の方が
   当たった。**
