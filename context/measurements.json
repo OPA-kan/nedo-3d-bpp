@@ -69,12 +69,19 @@
       "outcome": [
         "placed_count",
         "fill_score",
-        "is_included/is_valid/is_placed_safe"
+        "is_included/is_valid/is_placed_safe",
+        "shake_max_shift",
+        "shake_peak_kinetic_energy",
+        "shake_items_shifted",
+        "final_com_z",
+        "attribute_placement (priority/soft clean ratios)"
       ],
       "cannot_answer": [
         "any effect smaller than its own run-to-run variance, which is config-specific and reaches 5 placed on b000-k40 with an identical binary (MEASUREMENT_AUDIT F3)",
         "why an arm differs -- it reports outcomes, not divergence points",
-        "anything about Task A: these configs set optimize=false"
+        "anything about Task A: these configs set optimize=false",
+        "whether a stand-in proxy tracks its official component: final_com_z and priority_clean_ratio have each been directionally falsified once against a submission pair, and only the shake proxy has ever agreed",
+        "any official component directly -- the bundled evaluator computes fill_score and num_placed_items only, so cog/stability/placement/soft are stand-ins measured by us, not scores"
       ],
       "supports": [
         "risk-gate-ablation-off-baseline",
@@ -234,6 +241,71 @@
       "supports": [
         "item-cap-effect-is-source-dependent",
         "development-suite-noise-floor-permutation"
+      ]
+    },
+    "simulator/src/ground_handling/evaluator.py": {
+      "analysis_unit": "episode (terminal state)",
+      "varied_axis": [
+        "physics"
+      ],
+      "conditioned_on": [
+        "a fixed invented protocol: 0.3 g lateral in +-x and +-y, 60 steps each, 120 settle, inside saveState/restoreState",
+        "the container has NO LID, so an item may leave the opening; a lost item is charged as both shift and topple"
+      ],
+      "outcome": [
+        "shake_max_shift",
+        "shake_mean_shift",
+        "shake_peak_kinetic_energy",
+        "shake_items_shifted",
+        "shake_items_toppled",
+        "shake_items_lost",
+        "shake_max_rotation_deg"
+      ],
+      "cannot_answer": [
+        "the official stability_score, or any absolute level -- the protocol magnitudes are invented, so only same-config arm comparisons carry meaning",
+        "force on an item: kinetic energy stands in for it",
+        "whether an arm difference is significant -- the one paired study (first-pass-256) reached no significant sign test on any shake axis"
+      ],
+      "supports": [
+        "stability-shake-proxy",
+        "death-band-official-regression-15pct"
+      ]
+    },
+    "simulator/src/ground_handling/diagnostics.py": {
+      "analysis_unit": "step (cog) / episode terminal state (attribute placement)",
+      "varied_axis": [
+        "candidate_rank",
+        "order",
+        "physics"
+      ],
+      "conditioned_on": [
+        "uniform density, centre of mass at the diagonal intersection",
+        "coverage read from settled AABBs with CONTACT_TOLERANCE 0.02, so a thin gap can hide a cover and a corner touch can invent one",
+        "priority and soft are evaluated independently, matching the published rule"
+      ],
+      "outcome": [
+        "com_z",
+        "com_z_above_floor",
+        "com_height_ratio",
+        "priority_clean_ratio",
+        "soft_clean_ratio",
+        "priority_misrouted",
+        "priority_covered_by_other",
+        "soft_covered_by_other"
+      ],
+      "cannot_answer": [
+        "the official cog_score: its normalisation is unpublished, so only direction is readable",
+        "even direction reliably -- on the death-band submission pair com_z IMPROVED (0.754 -> 0.704) while official cog fell 20.7 percent",
+        "cross-config comparison, per COG_CONTRACT shipped inside the payload",
+        "anything about priority routing on the development suite: neither source case has a priority container, so priority_misrouted is structurally always 0",
+        "the official placement_score direction -- local priority_clean_ratio fell 0.803 -> 0.575 while official placement_score ROSE 143.8 percent",
+        "single-count differences, which are within the AABB reading noise"
+      ],
+      "supports": [
+        "attribute-placement-local-instrument",
+        "com-centroid-official",
+        "death-band-official-regression-15pct",
+        "official-score-log-submission3334"
       ]
     }
   },

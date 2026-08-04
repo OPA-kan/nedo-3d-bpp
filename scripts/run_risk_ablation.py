@@ -748,6 +748,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "com_z": [],
                     "near_miss": [],
                     "surface_tv": [],
+                    "shake_max_shift": [],
+                    "shake_peak_ke": [],
+                    "shake_shifted": [],
                 },
             )
             arm_bucket["placed"].append(case["placed_count"])
@@ -763,6 +766,22 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 arm_bucket["surface_tv"].append(
                     case["final_surface_total_variation"]
                 )
+            # The shake proxy has been carried in every row since it was
+            # added and aggregated by nothing, which is how a selection
+            # change shipped on a placed gain while worsening peak kinetic
+            # energy by 74% (AGENT_OPERATIONS 5.05). It is the only local
+            # stand-in whose direction has ever agreed with an official
+            # component, so it belongs in the table the reader actually
+            # sees.
+            shake = case.get("shake_response") or {}
+            for bucket_key, shake_key in (
+                ("shake_max_shift", "shake_max_shift"),
+                ("shake_peak_ke", "shake_peak_kinetic_energy"),
+                ("shake_shifted", "shake_items_shifted"),
+            ):
+                value = shake.get(shake_key)
+                if isinstance(value, (int, float)):
+                    arm_bucket[bucket_key].append(float(value))
             case_bucket = per_case_arm.setdefault(
                 (case_id, row["arm"]),
                 {"placed": [], "fill": []},
@@ -988,9 +1007,18 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
         "",
         "## Per arm",
         "",
+        "Lower is better for the three shake columns. They are the veto in "
+        "AGENT_OPERATIONS 5.05: a selection, ordering or allocation change "
+        "that worsens them is not adopted on a placed gain.",
+        "",
+        "`final CoM z` is retained for continuity but its direction has been "
+        "falsified once against an official submission pair (it improved "
+        "while official cog fell 20.7%). Do not read it as a cog proxy.",
+        "",
         "| arm | episodes | placed mean | fill mean | steps mean "
+        "| shake max shift | shake peak KE | shake shifted "
         "| final CoM z | near-miss settles (5-30 deg) | surface TV |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for arm, stats in sorted(summary["arms"].items()):
         lines.append(
@@ -998,6 +1026,9 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['placed'].get('mean', '-')} "
             f"| {stats['fill'].get('mean', '-')} "
             f"| {stats['steps'].get('mean', '-')} "
+            f"| {stats['shake_max_shift'].get('mean', '-')} "
+            f"| {stats['shake_peak_ke'].get('mean', '-')} "
+            f"| {stats['shake_shifted'].get('mean', '-')} "
             f"| {stats['com_z'].get('mean', '-')} "
             f"| {stats['near_miss'].get('mean', '-')} "
             f"| {stats['surface_tv'].get('mean', '-')} |"
