@@ -342,7 +342,17 @@ DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
     "DEATH_BAND_FALLBACK", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Fixed from the measured killer scores, not fitted.
-DEATH_BAND_SCORE = float(os.environ.get("DEATH_BAND_SCORE", "-1.5"))
+# Score pre-filter, and it is load-bearing rather than decoration. Dropping
+# it (DEATH_BAND_SCORE="") turns the gate into a GLOBAL risk filter that acts
+# on any release the model prices at P_rot >= 0.5, which is the intervention
+# class this repository already rejected once
+# (visible-pool-rollout-enforce-rejected-v1, and the reason
+# RELEASE_RISK_LIVE_RERANK ships off). The band is what keeps the gate narrow.
+# -1.5 came from three measured killer scores, so it IS a fitted constant --
+# the unbanded form is kept as an ablation arm to price that fit rather than
+# defended as principled.
+_death_band_score = os.environ.get("DEATH_BAND_SCORE", "-1.5").strip()
+DEATH_BAND_SCORE = float(_death_band_score) if _death_band_score else None
 # Skip the gate entirely when the step's budget is nearly spent: evaluating
 # P_rot and re-searching both cost time, and b000-k20 measured the mean
 # drifting 19.7 -> 18.0 with zero swaps -- pure evaluation overhead on a
@@ -7208,7 +7218,10 @@ class Agent:
             and decision is not None
             and action_source == "placement_core"
             and decision.candidate.name == "release_candidate"
-            and float(decision.score) <= DEATH_BAND_SCORE
+            and (
+                DEATH_BAND_SCORE is None
+                or float(decision.score) <= DEATH_BAND_SCORE
+            )
         ):
             # Gamble detection. Every measured episode death executed a
             # release the ranker itself scored at or below the death band

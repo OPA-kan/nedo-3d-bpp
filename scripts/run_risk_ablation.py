@@ -101,6 +101,8 @@ def configure_arm_environment(
         "l3_release_route",
         "death_band",
         "no_death_band",
+        "death_band_unbanded",
+        "base_null",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -123,6 +125,12 @@ def configure_arm_environment(
             # Redundant since the default flipped on 2026-08-02, kept so a
             # run can pin the value explicitly rather than inherit it.
             env["ANCHOR_TRUE_ENVELOPE"] = "1"
+        elif arm == "death_band_unbanded":
+            # P_rot alone, no score pre-filter: prices the fitted -1.5 by
+            # measuring what the gate does without it.
+            env["DEATH_BAND_SCORE"] = ""
+        elif arm == "base_null":
+            pass  # identical to base: carries the run's own noise floor
         elif arm == "death_band":
             # Redundant since the default flipped on 2026-08-04; kept so a
             # run can pin the value explicitly rather than inherit it.

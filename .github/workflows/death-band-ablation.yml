@@ -28,7 +28,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, death_band]
+        # base_null is base under a second name: every run then carries its
+        # own noise floor, after run 30865600521 showed identical configs
+        # differing by up to 2.3 placed on a single case at n=3.
+        # death_band_unbanded prices the fitted -1.5 score band.
+        arm: [base, base_null, death_band, death_band_unbanded]
         replicate: [0, 1, 2]
         case:
           - case_id: m2-k15
