@@ -120,6 +120,8 @@ jobs:
             --output-dir reports/anchor-fallback/aggregate
           cat reports/anchor-fallback/aggregate/summary.md \
             >> "$GITHUB_STEP_SUMMARY"
+          echo "===AGGREGATE SUMMARY==="
+          cat reports/anchor-fallback/aggregate/summary.md
       - uses: actions/upload-artifact@v4
         with:
           name: anchor-fallback-aggregate
