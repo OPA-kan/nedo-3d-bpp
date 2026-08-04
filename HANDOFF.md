@@ -241,9 +241,32 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    4518 vs 3651 attempts) and the greedy `Ranker.score` spends that
    extra breadth on physically marginal placements -- the same failure
    the death-band gate on `claude/l3-l4-allocation-ordering` targets
-   from the selection side. Generalised claim, still to be confirmed by
-   the running budget sweep: **more candidates make this ranker worse,
-   because nothing in the score prices settle risk strongly enough.**
+   from the selection side.
+
+   **That generalisation was tested and is FALSE.** The budget sweep
+   (`reports/scenario-matrix/budget-sweep-20260804.json`; guard fixed at
+   0.010, only `POLICY_ATTEMPT_BUDGET` varies, same six scenes) makes
+   more search monotonically BETTER: attempts/step 1739/2558/3411 give
+   placed 110/164/172 with physical deaths 2/4/1, against the shipped
+   deadline point at 3651 attempts/step, placed 183, 0 physical deaths.
+   So breadth is not the harm, and "more candidates make this ranker
+   worse" must not be carried forward.
+
+   What the sweep does establish is why the ladder misranked: at budget
+   4000 both arms run at ~2500 attempts/step, about 30% BELOW the
+   shipped operating point, and a starved search loses episodes to
+   physical settle failures for reasons unrelated to the guard (10 mm
+   dies physically 4 of 6 there but 0 of 6 under the deadline). Both
+   arms consumed the same work (10 mm 2496, 2 mm 2495 attempts/step), so
+   it was a fair comparison of the wrong regime. **Any future guard or
+   contract ablation must run at or above the shipped attempt rate, or
+   in shipped mode outright.**
+
+   The guard's effect is direct, not mediated by search volume: under
+   the deadline 2 mm reaches MORE attempts (4518 vs 3651) and MORE
+   accepted candidates (850 vs 565) and still loses. It changes which
+   placements are legal, and the ones 18 mm allows do not survive
+   settle.
 
    Paired
    Task B screening on the same runner generation, 3 replicates per pool,

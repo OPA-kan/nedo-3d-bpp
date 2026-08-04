@@ -42,13 +42,14 @@ TRANSPORT_CLEARANCE = (
 # agrees -- 3 of 3 pools worse, suite placed 57.33 -> 44.33.
 #
 # The pi_B ladder that briefly justified 0.002 (232/223/242/193 at
-# 10/5/2/0 mm) was measured at POLICY_ATTEMPT_BUDGET=4000, where the
-# 10 mm arm itself dies physically in 4 of 6 scenes; that regime is not
-# the shipped one, so the ladder ranks arms inside a regime the shipped
-# policy never enters. Kept as a knob because the ladder remains real
-# evidence about pi_B, and because the guard's price is worth
-# re-measuring once selection stops preferring physically marginal
-# placements.
+# 10/5/2/0 mm) was measured at POLICY_ATTEMPT_BUDGET=4000, which runs
+# ~2500 attempts/step -- about 30% BELOW the shipped rate. A starved
+# search loses episodes to settle failures for reasons unrelated to the
+# guard (10 mm dies physically in 4 of 6 scenes there, 0 of 6 under the
+# deadline), so the ladder could not rank the arms. Search breadth
+# itself is NOT the harm: at a fixed guard, more attempts are
+# monotonically better (budget-sweep-20260804.json). Kept as a knob, but
+# re-measure any contract change at or above the shipped attempt rate.
 PHYSICS_LATERAL_GUARD = float(
     os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
 )
