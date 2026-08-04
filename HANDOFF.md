@@ -222,7 +222,32 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    Shipped-mode confirmations of guard2 and relguard ran sequentially the
    same night (`reports/scenario-matrix/shipped-confirm-20260803.json`).
 
-5. ADOPTED 2026-08-04 (user decision): `PHYSICS_LATERAL_GUARD` default
+5. **REVERT OWED — the 2 mm adoption FAILED its CI confirmation.** Paired
+   Task B screening on the same runner generation, 3 replicates per pool,
+   gate off (`reports/scenario-matrix/taskb-ci-2mm-30865196936.md` and
+   `taskb-ci-10mm-30865228317.md`; runs 30865196936 / 30865228317):
+
+   | pool | 10 mm placed / fill | 2 mm placed / fill |
+   | ---: | --- | --- |
+   | 10 | 18.00 / 21.380 | 15.00 / 18.462 |
+   | 20 | 19.33 / 25.119 | 13.33 / 14.785 |
+   | 40 | 20.00 / 23.546 | 16.00 / 21.692 |
+
+   3 of 3 pools worse, suite placed 57.33 -> 44.33, fill 70.05 -> 54.94,
+   and the replicate spread is ~0 within an arm, so this is not noise.
+   The pi_B ladder that motivated the flip (232/223/242/193 at
+   10/5/2/0 mm) measured a DIFFERENT policy: `POLICY_ATTEMPT_BUDGET=4000`
+   on the scenario matrix. Under the shipped deadline on the Task B
+   suite, cheaper candidates do not pay -- more candidates per second
+   means the deadline stops the search in a different place, and the
+   incumbent it lands on is worse. Treat the whole pi_B ladder as
+   evidence about pi_B only until re-measured under the shipped policy.
+   Failure modes also shift toward `release_failure` (10/20) rather than
+   fallback, which is the death-band gate's target, so the merge with
+   `claude/l3-l4-allocation-ordering` should re-measure this axis.
+
+6. (superseded by 5 — kept for the record) ADOPTED 2026-08-04 (user
+   decision): `PHYSICS_LATERAL_GUARD` default
    0.010 -> 0.002, i.e. the settled lateral contract drops 26 mm -> 18 mm.
    Basis: the pi_B ladder above (232/223/242/193 across 10/5/2/0 mm).
    The paired multi-episode CI confirmation in shipped mode is still
@@ -235,7 +260,7 @@ sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
    already rare (soft_clean 0.92-1.0), so most of the -47 placed the
    "all" mode paid bought protection soft items barely needed.
 
-6. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
+7. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
    cell, deadline-bound, so direction hints only): RELEASE_ATTRIBUTE_GUARD
    reaches priority_clean 1.0 with zero covers on every dual scene and
    two of three singles, confirming the mechanism end-to-end in shipped
