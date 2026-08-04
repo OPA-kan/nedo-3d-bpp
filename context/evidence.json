@@ -1126,6 +1126,14 @@
       "status": "active",
       "claim": "Death-band gate redesigned so the trade that cost the official score cannot occur by construction. v1 swapped to the best-scored candidate with P_rot < 0.5, buying lower toppling risk with whatever the replacement gave up -- support ratio, the physical quantity Ranker.score spends on cog and stability, which the official submission charged 20.7% and 22.4% for. v3 requires DOMINANCE: a replacement must be both safer on P_rot and no worse on support ratio than the action it replaces, otherwise the original action stands and the gamble is taken knowingly. No coefficients; it is a Pareto condition on two quantities the agent already computes. This route was chosen over verifying v1 with a local proxy because the audit showed the shake proxy cannot resolve the trade (repeat spread 23-75% against an effect of 2-15%). Knob DEATH_BAND_REQUIRE_DOMINANCE default on; arm death_band_v1 keeps the regressed behaviour measurable. The gate itself remains default OFF pending a submission. Six contract tests pin: ships off, dominance on, score band present and negative, budget floor positive, and that a lower-support replacement is rejected while an equal-support one is not.",
       "source": "agent/agent.py death-band block; tests/test_death_band_gate.py; supersedes the mechanism analysed in death-band-official-regression-15pct"
+    },
+    {
+      "id": "death-band-dominance-firing-rates-measured",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Each tightening of the death-band dominance condition roughly halves its firing rate on m2-k15, and the fully-guarded version is at the edge of being a no-op. Firings per episode, 2 repeats each: v1 (P_rot only, the version that regressed the official total 15.3%) 2 and 5; v3 (also requires support_ratio not worse) 3 and 2; v4 (also requires z*mass not higher) 2 and 0. The structural finding is that dominance-satisfying replacements DO exist -- v1's official loss was avoidable by design rather than unavoidable -- but the fully-guarded gate acts on at most a couple of turns per episode, so its upside is bounded by construction. Placed counts across these runs (v3 29/31, v4 31/14) are not usable: m2-k15 base alone spans 18-27 and this is n=2, and the shake proxy has already been shown unable to resolve differences of this size. The honest consequence is that v4 cannot be evaluated locally at all -- only a submission could -- while its bounded upside makes that a poor use of a submission compared with first restoring the 35.375 configuration, which the trunk does not currently contain.",
+      "source": "scratchpad dbv3/ and dbv4/ firing counts on m2-k15"
     }
   ]
 }
