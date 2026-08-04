@@ -246,3 +246,75 @@ f の下限が上がったので条件付き上限が締まる:
 **ゲート通過後の条件付き品質(特に placement と soft)への投資が、
 どこかの提出で placed 追求を追い越す。** その交点は、増幅率を提出ごとに
 記録し続ければ観測できる。この表を提出ごとに更新すること。
+
+# submissiondeathband (2026-08-04) — 35.375 → **29.959**、-15.3%
+
+初の**後退**。ユーザー提供の公式フィードバック(2026-08-04 08:33:52 受領)。
+
+```json
+{"fill_score": 33.63457078530077, "cog_score": 32.24327264160162,
+ "stability_score": 41.28780526737894, "placement_score": 14.7,
+ "soft_item_score": 17.45, "num_placed_items": 0.491497901253336,
+ "time_results": {"optimization": 149.057325581, "policy": 6.789711367000564},
+ "status": "Stopped in the middle. Did not satisfy {'is_valid', 'is_placed_safe', 'is_included'}"}
+```
+
+| 成分 | trueenvelope | deathband | 差 | 相対 |
+| --- | ---: | ---: | ---: | ---: |
+| fill | 34.246 | 33.635 | -0.612 | -1.8% |
+| cog | 40.683 | 32.243 | -8.440 | **-20.7%** |
+| stability | 53.240 | 41.288 | -11.952 | **-22.4%** |
+| placement | 16.950 | 14.700 | -2.250 | -13.3% |
+| soft | 21.300 | 17.450 | -3.850 | -18.1% |
+| num_placed | 0.505 | 0.491 | -0.013 | -2.6% |
+| **総合** | **35.375** | **29.959** | **-5.416** | **-15.3%** |
+
+**6 成分すべてが下がった。**
+
+## 1. ゲート増幅は下向きにも働く — 初観測
+
+| 遷移 | placed | ゲート後ろ 4 成分 | 増幅 |
+| --- | ---: | ---: | ---: |
+| 3334 → TE | +11.6% | +77.6% | 6.7× |
+| **TE → deathband** | **-2.6%** | **-20.0%** | **7.6×(下向き)** |
+
+placed の -2.6% が 4 成分の -20.0% に増幅されている。増幅率 7.6× は
+上向きの 6.7× と同水準で、`num_placed_items` がゲートである、という
+モデルが符号を変えても保たれることを意味する。**placed をわずかに削る
+介入は、総合では 7 倍以上の損として返ってくる。**
+
+## 2. 帰属は今回きれい — 差分は death-band gate のみ
+
+35.375 を出した成果物(`3b1635c`)と提出ブランチ head の `agent/agent.py`
+差分は +240/-19 行あるが、**デフォルト値で実際に挙動を変えるのは
+`DEATH_BAND_FALLBACK=1` だけ**である。
+
+| knob | default | 挙動 |
+| --- | --- | --- |
+| `DEATH_BAND_FALLBACK` | **1** | **ON。今回の唯一の実効変更** |
+| `ANCHOR_TILT_MARGIN_DEG` | 0 | `shrunk()` が恒等写像になり無効 |
+| `L3_PREFER_EMPTY_BAND` / `L3_RELEASE_ROUTE` | 0 | off |
+| `CONSTRUCTIVE_ORDER_MODE` | composite | 従来と同一の順序 |
+| `PHYSICS_LATERAL_GUARD` | 0.010 | 従来と同一 |
+
+したがって **-15.3% は death-band gate に帰属する**。ローカルでは
+m2-k15(2 コンテナ 83 個)で μ22.0 → μ30.6 と出ていたので、**ローカル代理量と
+公式スコアが初めて明確に反対を向いた事例**でもある。
+
+考えられる理由(未検証): 公式 scene の多くが 1 コンテナで、gate の利得を
+測った「隣に空コンテナがある」状況が支配的でない。gate は score 最良では
+なく安全側を選ぶので、通過時の条件付き品質(cog/stability)を下げている
+可能性もある — cog -20.7% と stability -22.4% が最大の下げ幅である事実は
+その向きと整合する。
+
+## 3. trunk には 35.375 のコードが入っていない
+
+`050d9d7`(trunk)は `docs/OFFICIAL_SCORE_LOG.md` と `context/evidence.json`
+だけを変更しており、`agent/agent.py` を含まない。trunk の
+`rectangular_container_anchor_bounds` は今も箱式のままで、y 軸非対称を
+半空間から導く true-envelope 修正は **`claude/l3-l4-allocation-ordering`、
+`claude/task-bottleneck-optimization-o3qtkk`、
+`claude/taskc-algorithm-improvement-ivaqo1` の 3 本にしか存在しない**。
+
+**現時点で最高スコアの実装は trunk に無い。** 次に提出物を作る者は、
+trunk から作ってはならない。

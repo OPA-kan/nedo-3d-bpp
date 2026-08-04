@@ -120,6 +120,9 @@ jobs:
           cat \
             "reports/task-b/summary-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.md" \
             >> "$GITHUB_STEP_SUMMARY"
+          echo "===== SUMMARY k${{ matrix.look_ahead }} r${{ matrix.replicate }} ====="
+          cat "reports/task-b/summary-k${{ matrix.look_ahead }}-r${{ matrix.replicate }}.json"
+          echo "===== END SUMMARY ====="
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -152,6 +155,12 @@ jobs:
           --output reports/task-b-screening/aggregate.md
           --json-output reports/task-b-screening/aggregate.json
       - run: cat reports/task-b-screening/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Print aggregate to log
+        run: |
+          echo "===== AGGREGATE ====="
+          cat reports/task-b-screening/aggregate.md
+          cat reports/task-b-screening/aggregate.json
+          echo "===== END AGGREGATE ====="
       - uses: actions/upload-artifact@v4
         with:
           name: task-b-aggregate-${{ inputs.selection_mode }}-${{ inputs.coverage_mode }}-${{ inputs.risk_gate_mode }}

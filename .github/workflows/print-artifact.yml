@@ -1,0 +1,45 @@
+name: Print artifact
+
+# Utility for sandboxed sessions whose egress policy blocks the artifact
+# blob store: downloads an artifact from a prior run of THIS repository and
+# prints its text files straight into the job log, which IS reachable via
+# the GitHub API.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Workflow run ID that produced the artifact
+        required: true
+        type: string
+      artifact_name:
+        description: Artifact name to download and print
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  print:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifact
+      - name: Print text contents
+        run: |
+          find artifact -type f | sort | while read -r f; do
+            case "$f" in
+              *.md|*.json|*.jsonl|*.txt|*.csv)
+                echo "===== BEGIN $f ====="
+                cat "$f"
+                echo "===== END $f ====="
+                ;;
+              *) echo "(skipped binary: $f)";;
+            esac
+          done

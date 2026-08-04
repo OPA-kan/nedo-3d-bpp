@@ -235,11 +235,60 @@
         "item-cap-effect-is-source-dependent",
         "development-suite-noise-floor-permutation"
       ]
+    },
+    "tests/test_scenario_matrix.py": {
+      "analysis_unit": "one policy() call per container configuration",
+      "varied_axis": [
+        "item",
+        "anchor"
+      ],
+      "conditioned_on": [
+        "the FIRST decision of an episode only -- every assertion is on step 1",
+        "geometry copied from the bundled sample; only the COMBINATION is synthetic",
+        "no physics: it asserts the agent answers, not that the answer survives settling",
+        "observation_containers() mirrors containers.py build() (offset_x = i * spacing) rather than calling the simulator, so a change to the simulator's layout silently invalidates it"
+      ],
+      "outcome": [
+        "action well-formedness",
+        "pre-loaded occupancy respected",
+        "priority routed to a dedicated container",
+        "distinct container offsets"
+      ],
+      "cannot_answer": [
+        "whether a configuration survives a whole episode -- step 1 passing says nothing about step 15",
+        "whether the agent ever CHOOSES the second container in normal play; only the forced priority case proves index 1 is addressable, and the 22/9 split comes from the physical run",
+        "how well any configuration scores; the scenes are synthetic combinations and their numbers are not comparable to the development suite",
+        "routing under contention: the priority test hands over a pool with ONE priority item, the easiest possible case"
+      ],
+      "supports": [
+        "scenario-matrix-coverage-gap"
+      ],
+      "note": "Audited 2026-08-03. Two assertions were weaker than their names: the pre-loaded test only excluded a placement within 1e-6 of a seated item's CENTRE (a 1 cm overlap passed), and test_two_containers_are_both_reachable asserted only that indices were in range, which passes when every action goes to container 0. Both were rewritten; the second was renamed because its docstring promised what it did not check."
+    },
+    "scripts/build_scenario_matrix.py": {
+      "analysis_unit": "scenario configuration",
+      "varied_axis": [
+        "item"
+      ],
+      "conditioned_on": [
+        "the bundled sample's geometry and item mix",
+        "look-ahead and policy timeout passed in; the matrix does not vary them"
+      ],
+      "outcome": [
+        "7 configs covering 1/2 containers x shelf x pre-loaded x dedicated"
+      ],
+      "cannot_answer": [
+        "what the official evaluation actually poses -- the combinations are declared in the rules, their distribution is not public",
+        "anything about 80-item two-container scenes: it reuses the 41-item mix across two containers, which is a different difficulty"
+      ],
+      "supports": [
+        "scenario-matrix-coverage-gap"
+      ]
     }
   },
   "provenance": {
     "verified_against_merge_of": {
-      "ours": "039a43d04b3368ca54c4f3553d5ea9174ed73d21",
+      "ours": "1c00664d3ea8fee8bf93960958de97fc7d2c35b8",
       "theirs": "1f48be7deea3fbfccf21b314728e07534ca6d0a8",
       "theirs_branch": "claude/stride-endgame-saturation-test-gqssix"
     },

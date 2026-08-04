@@ -128,6 +128,203 @@ re-raise it. On Task A the shake proxy is mildly worse at 256 (15/25
 shifted against 13/25, peak energy 13.50 against 10.99, n = 1), so
 "neutral on Task A" is true of placed and not of everything.
 
+## Container configurations: three of four axes were never executed
+
+`COMPETITION_RULES` section 2 says every task is posed with combinations of
+**one or two containers, shelf or no shelf, empty or pre-loaded, dedicated
+priority container or not**, and the official QA forbids per-task
+submissions -- one agent self-detects the setup, so these branches WILL be
+taken in evaluation.
+
+`sample_config.json` covers **one** axis. Both cases are single-container,
+empty, no dedicated container; only the shelf differs. The entire
+development suite (b000-k15/k20/k40, b001-k20/k30) derives from those two
+cases by changing look-ahead, so it inherits the blind spot.
+
+```bash
+python3 scripts/build_scenario_matrix.py --output-dir reports/scenario-matrix
+python3 -m unittest tests.test_scenario_matrix       # fast, no physics
+```
+
+Building the probe immediately found a hard crash: a two-container config
+built by copying the bundled `camera` block raises `IndexError` in
+`env.reset()` (`env.py:318`), because `camera.num_containers` sizes the
+shared depth-map array (`env.py:80-88`) and the bundled value is 1.
+Config-side, not a simulator bug -- and unavoidable for anyone who has
+never built a two-container scene.
+
+With that corrected, **two containers and dedicated routing both work in
+physics for the first time**: dual-dedicated-priority reaches placed 0.732
+(30 of 41), `is_valid` true, container usage 22/9 across indices 0 and 1,
+`priority_misrouted` 0.
+
+CORRECTION (2026-08-03, next session): do not read the `is_valid` in that
+sentence as episode quality. `place_states` is the LAST step's status only
+(`app.py:87` overwrites it every step), and the episode dies on the first
+failure (`env.py:229-244`), so `is_valid true` merely says the fatal step
+failed in physics rather than in the pre-checks. placed is a survival
+length, not a packing quality.
+
+Do NOT read 0.732 as an improvement. Two containers give roughly twice the
+volume for the same 41-item mix, so it is not comparable to the
+single-container suite or to the official 0.505. Two things it does show:
+the multi-container path is live, and `priority_clean_ratio` ends at 0.333,
+so priority items are correctly ROUTED and still get covered.
+
+Still unmeasured: the **80-item two-container** scale the rules describe
+for Task A. The matrix reuses the 41-item mix, which is a different
+difficulty.
+
+## Full-matrix physical runs, the death mechanism, and two new knobs
+
+Session 2026-08-03 (branch `claude/test-audit-physical-validation-7oj0wu`)
+completed the physical matrix and closed two open threads. Raw summaries:
+`reports/scenario-matrix/shipped-baseline-20260803.json` (shipped mode,
+sequential) and `reports/scenario-matrix/guard-ablation-pib-20260803.json`
+(measurement mode pi_B, POLICY_ATTEMPT_BUDGET=4000 -- NOT shipped numbers).
+
+1. **Every dual scenario completes; every single scenario dies at
+   0.39-0.56.** Shipped-mode: dual-empty / dual-shelf-mixed /
+   dual-preloaded-dedicated all place 41/41 (fill only ~22%, slack, not
+   skill). All three singles end with `unsafe_protocol_fallback`
+   (`no_safe_action` true) after ~5-7k attempts whose rejections are ~90%
+   `static_geometry` at ~25% fill: under the agent's own 26 mm lateral
+   contract the board saturates at a quarter full. Both prior terminal
+   remedies (rescue scan, cross-step incumbent) were measured, rejected,
+   and are CONSISTENT with this -- 0.2 s of extra search cannot fix a
+   state with no contract-legal moves.
+
+2. **The HANDOFF open thread "a release candidate can land on a priority
+   item" is confirmed and was the dominant cover mechanism.** Aligning
+   per-step `priority_covered_by_other` increments with the policy trace:
+   6 of 7 cover events across the dual runs were release actions.
+   `release_rest_height()` plans rests on ANY packed top and the release
+   path has no support check. Release is also not a corner case: ~half of
+   all shipped-mode actions are release candidates.
+
+3. Two knobs were added for the resulting ablations (defaults unchanged,
+   fingerprint behaviour-identical): `PHYSICS_LATERAL_GUARD` (was a
+   hard-coded 0.010) and `RELEASE_ATTRIBUTE_GUARD` (release candidates
+   whose settled proxy rests on a priority/soft top the mover may not
+   cover are rejected as `attribute_rest`; same-attribute stacking stays
+   allowed).
+
+4. Measurement-mode ablation (8 arms x 8 scenes, suite placed totals):
+   base 232 / guard5 223 / **guard2 242** / guard0 193 / relguard 185 /
+   guard2-relguard 195 / board 187 / all-three 165. Read: the lateral
+   guard has an interior optimum (2 mm helps duals +4/+7, 0 mm collapses
+   into settle deaths, so the guard is not free but 10 mm overpays);
+   RELEASE_ATTRIBUTE_GUARD does its job (suite priority covers 7 -> 2,
+   clean 1.0 on the dedicated scenes) at a real placed cost (-47), so as
+   a hard reject it over-starves release -- restrict it to
+   dominant-support rests or a score penalty before shipping; board
+   remains negative here, consistent with its earlier MIXED verdict.
+   Shipped-mode confirmations of guard2 and relguard ran sequentially the
+   same night (`reports/scenario-matrix/shipped-confirm-20260803.json`).
+
+5. **REVERTED 2026-08-04 — the 2 mm adoption FAILED its CI confirmation,
+   and the mechanism is settle survival, not search breadth.** Same six
+   matrix scenes, same machine, shipped mode: 10 mm ends 3 completed /
+   3 pre-check deaths; 2 mm ends **0 completed / 4 physical settle
+   failures** (`is_valid` true, `is_placed_safe` false) / 2 pre-check.
+   Every episode 10 mm completed becomes a physical failure at 2 mm.
+   The guard is buying PyBullet settle survival; that is what the
+   official rule's 15 mm plus a margin is for.
+
+   Why the pi_B ladder said the opposite: at
+   `POLICY_ATTEMPT_BUDGET=4000` the 10 mm arm ALSO dies physically (4 of
+   6 scenes, 1 completed, placed 164) while shipped 10 mm completes 3 of
+   6 at placed 183 on ~3651 attempts/step. The budget pushes both arms
+   into an over-searched regime the shipped policy never enters, so the
+   ladder ranked arms inside a regime that does not transfer. Under the
+   deadline 2 mm accepts ~50% more candidates per step (850 vs 565 at
+   4518 vs 3651 attempts) and the greedy `Ranker.score` spends that
+   extra breadth on physically marginal placements -- the same failure
+   the death-band gate on `claude/l3-l4-allocation-ordering` targets
+   from the selection side.
+
+   **That generalisation was tested and is FALSE.** The budget sweep
+   (`reports/scenario-matrix/budget-sweep-20260804.json`; guard fixed at
+   0.010, only `POLICY_ATTEMPT_BUDGET` varies, same six scenes) makes
+   more search monotonically BETTER: attempts/step 1739/2558/3411 give
+   placed 110/164/172 with physical deaths 2/4/1, against the shipped
+   deadline point at 3651 attempts/step, placed 183, 0 physical deaths.
+   So breadth is not the harm, and "more candidates make this ranker
+   worse" must not be carried forward.
+
+   What the sweep does establish is why the ladder misranked: at budget
+   4000 both arms run at ~2500 attempts/step, about 30% BELOW the
+   shipped operating point, and a starved search loses episodes to
+   physical settle failures for reasons unrelated to the guard (10 mm
+   dies physically 4 of 6 there but 0 of 6 under the deadline). Both
+   arms consumed the same work (10 mm 2496, 2 mm 2495 attempts/step), so
+   it was a fair comparison of the wrong regime. **Any future guard or
+   contract ablation must run at or above the shipped attempt rate, or
+   in shipped mode outright.**
+
+   The guard's effect is direct, not mediated by search volume: under
+   the deadline 2 mm reaches MORE attempts (4518 vs 3651) and MORE
+   accepted candidates (850 vs 565) and still loses. It changes which
+   placements are legal, and the ones 18 mm allows do not survive
+   settle.
+
+   Paired
+   Task B screening on the same runner generation, 3 replicates per pool,
+   gate off (`reports/scenario-matrix/taskb-ci-2mm-30865196936.md` and
+   `taskb-ci-10mm-30865228317.md`; runs 30865196936 / 30865228317):
+
+   | pool | 10 mm placed / fill | 2 mm placed / fill |
+   | ---: | --- | --- |
+   | 10 | 18.00 / 21.380 | 15.00 / 18.462 |
+   | 20 | 19.33 / 25.119 | 13.33 / 14.785 |
+   | 40 | 20.00 / 23.546 | 16.00 / 21.692 |
+
+   3 of 3 pools worse, suite placed 57.33 -> 44.33, fill 70.05 -> 54.94,
+   and the replicate spread is ~0 within an arm, so this is not noise.
+   The pi_B ladder that motivated the flip (232/223/242/193 at
+   10/5/2/0 mm) measured a DIFFERENT policy: `POLICY_ATTEMPT_BUDGET=4000`
+   on the scenario matrix. Under the shipped deadline on the Task B
+   suite, cheaper candidates do not pay -- more candidates per second
+   means the deadline stops the search in a different place, and the
+   incumbent it lands on is worse. Treat the whole pi_B ladder as
+   evidence about pi_B only until re-measured under the shipped policy.
+   Failure modes also shift toward `release_failure` (10/20) rather than
+   fallback, which is the death-band gate's target, so the merge with
+   `claude/l3-l4-allocation-ordering` should re-measure this axis.
+
+6. (superseded by 5 — kept for the record) ADOPTED 2026-08-04 (user
+   decision): `PHYSICS_LATERAL_GUARD` default
+   0.010 -> 0.002, i.e. the settled lateral contract drops 26 mm -> 18 mm.
+   Basis: the pi_B ladder above (232/223/242/193 across 10/5/2/0 mm).
+   The paired multi-episode CI confirmation in shipped mode is still
+   OWED; `PHYSICS_LATERAL_GUARD=0.010` reverts in one env var. The
+   optimizer fingerprint's behaviour_sha256 is UNCHANGED by this flip
+   (component hash updated), so recorded Task A offline numbers are not
+   invalidated by the fingerprint's own criterion. In the same commit
+   `RELEASE_ATTRIBUTE_GUARD` grew a "priority" mode (guards the 4
+   priority tops only, not the 13 soft tops): base soft covers were
+   already rare (soft_clean 0.92-1.0), so most of the -47 placed the
+   "all" mode paid bought protection soft items barely needed.
+
+7. Shipped-mode confirmation, read with the sigma-branch caveat (n=1 per
+   cell, deadline-bound, so direction hints only): RELEASE_ATTRIBUTE_GUARD
+   reaches priority_clean 1.0 with zero covers on every dual scene and
+   two of three singles, confirming the mechanism end-to-end in shipped
+   mode; guard2 reproduces dual-dedicated-priority placed 30 (the prior
+   session's best) while the SAME base binary returned 19 on this
+   machine. That 30-vs-19 spread on an identical config is the existing
+   sigma-branch finding, remeasured: single shipped episodes cannot rank
+   arms. Next step for adoption is the paired multi-episode CI protocol
+   on guard2 (placed) and on a softened relguard (dominant-support-only
+   reject or a score penalty instead of a hard reject, since the hard
+   reject pays ~-47 suite placed in pi_B for covers 7 -> 2).
+
+The tests are contract-level and were audited; `context/measurements.json`
+records what they cannot answer. The short version: every assertion is on
+**step 1 of an episode**, there is no physics, and the priority test hands
+over a pool with a single priority item, which is the easiest possible
+routing case.
+
 ## Current submission artefact
 
 `dist/submission.zip`, sha256 `179de845a131ba498625a39876c55a9cd8996fc272da356f6805ae017b669574`,

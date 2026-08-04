@@ -1,0 +1,241 @@
+"""
+Build the container-configuration matrix the competition says will appear.
+
+docs/COMPETITION_RULES.md section 2 states that every task is posed with
+combinations of:
+
+  * one or two containers
+  * shelf present or absent
+  * empty or pre-loaded initial state
+  * a priority-dedicated container present or absent
+
+The bundled `sample_config.json` covers exactly ONE of those axes. Both of
+its cases are single-container, empty, with no dedicated container; only
+the shelf differs. The whole development suite is derived from those two
+cases by changing look-ahead, so it inherits the same blind spot: two
+containers, pre-loaded state and a dedicated priority container have never
+been executed against the physics at all.
+
+That is a different kind of gap from an unmeasured effect size. The rules
+also require one agent to handle every task by self-detecting the setup,
+so these branches WILL be taken in evaluation. Code exists for all of them
+(`is_prioritized` container routing, AABB reconstruction from
+`packed_items`, residual-volume comparison across containers) and is
+pinned by unit tests, but no episode has ever run them.
+
+This builds the matrix from the bundled cases so it stays honest about
+geometry: containers and items are taken from the real sample rather than
+invented, and only the combination varies. Pre-loaded items are placed on
+the floor with a conservative margin and settled by the simulator before
+the episode begins, exactly as a genuine pre-loaded scene would be.
+
+    python3 scripts/build_scenario_matrix.py --output-dir reports/scenario-matrix
+
+The output is deliberately NOT a benchmark. It is a coverage probe: the
+question it answers is "does this configuration run at all", not "how well
+does it score". Scores from it are not comparable to the development suite,
+because the scenes are synthetic combinations rather than competition ones.
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+DEFAULT_SOURCE = ROOT / "simulator" / "configs" / "sample_config.json"
+
+# Combination axes from COMPETITION_RULES section 2. `shelf` is the only one
+# the bundled cases already cover, and it is kept so the matrix contains a
+# known-good row to read the others against.
+SCENARIOS = (
+    ("single-empty-noshelf", dict(containers=1, shelf=False, preloaded=0, dedicated=False)),
+    ("single-empty-shelf", dict(containers=1, shelf=True, preloaded=0, dedicated=False)),
+    ("single-preloaded", dict(containers=1, shelf=False, preloaded=3, dedicated=False)),
+    ("dual-empty", dict(containers=2, shelf=False, preloaded=0, dedicated=False)),
+    ("dual-shelf-mixed", dict(containers=2, shelf="mixed", preloaded=0, dedicated=False)),
+    ("dual-dedicated-priority", dict(containers=2, shelf=False, preloaded=0, dedicated=True)),
+    ("dual-preloaded-dedicated", dict(containers=2, shelf=False, preloaded=2, dedicated=True)),
+)
+
+
+def _preloaded_items(items: list[dict], count: int, container: dict) -> list[dict]:
+    """
+    Seat `count` items on the container floor as a pre-existing load.
+
+    Positions are laid out along the container's length with a margin well
+    inside the inclusion clearance, then the simulator settles them before
+    the episode starts (containers.py steps physics until everything
+    sleeps). Only non-soft, non-priority items are used: a pre-loaded soft
+    item would change what the agent may stack on, which is a separate
+    question from whether pre-loading runs at all.
+    """
+    usable = [
+        item for item in items
+        if not item.get("is_soft") and not item.get("is_prioritized")
+    ]
+    chosen = usable[:count]
+    placed = []
+    cursor = -float(container["length"]) / 2.0 + 0.25
+    for item in chosen:
+        seated = copy.deepcopy(item)
+        seated["pos"] = [
+            round(cursor + float(item["length"]) / 2.0, 4),
+            0.0,
+            round(float(item["height"]) / 2.0 + 0.02, 4),
+        ]
+        seated["orn"] = [0.0, 0.0, 0.0, 1.0]
+        placed.append(seated)
+        cursor += float(item["length"]) + 0.05
+    return placed
+
+
+def build_scenario(source: dict, name: str, spec: dict,
+                   *, look_ahead: int, policy_timeout: float) -> dict:
+    base = copy.deepcopy(source["000"])
+    shelf_source = copy.deepcopy(source["001"])
+    items = base["item_stream"]["item_list"]
+
+    template = copy.deepcopy(base["containers"]["container_list"][0])
+    shelf_template = copy.deepcopy(
+        shelf_source["containers"]["container_list"][0]
+    )
+
+    containers = []
+    for index in range(spec["containers"]):
+        if spec["shelf"] == "mixed":
+            want_shelf = index == 1
+        else:
+            want_shelf = bool(spec["shelf"])
+        container = copy.deepcopy(shelf_template if want_shelf else template)
+        container["index"] = index
+        container["require_shelf"] = want_shelf
+        container["packed_items"] = []
+        # A dedicated container is the LAST one, so the agent has to route
+        # priority items away from the container it would reach first.
+        container["is_prioritized"] = bool(
+            spec["dedicated"] and index == spec["containers"] - 1
+        )
+        containers.append(container)
+
+    if spec["preloaded"]:
+        containers[0]["packed_items"] = _preloaded_items(
+            items, spec["preloaded"], containers[0]
+        )
+        seated = {int(i["index"]) for i in containers[0]["packed_items"]}
+        items = [i for i in items if int(i["index"]) not in seated]
+
+    case = copy.deepcopy(base)
+    case["containers"]["container_list"] = containers
+    case["item_stream"]["item_list"] = items
+    case["item_stream"]["look_ahead"] = look_ahead
+    case["item_stream"]["max_space"] = look_ahead
+    case["item_stream"]["visible_pool"] = []
+    case["agent"]["optimize"] = False
+    case["agent"]["policy_timeout"] = float(policy_timeout)
+    # camera.num_containers sizes the simulator's shared depth-map array
+    # (env.py:80-88). The bundled cases are single-container, so copying
+    # their camera block verbatim makes reset() raise IndexError on the
+    # second container -- which is what happened, and is exactly the class
+    # of defect an untried configuration hides.
+    case["camera"]["num_containers"] = len(containers)
+    return {f"m-{name}": case}
+
+
+def observation_containers(case: dict) -> list[dict]:
+    """
+    The container payload shape the SIMULATOR sends, not the raw config.
+
+    `center` is absent from the config: containers.py build() lays them out
+    with `offset_x = i * spacing` and get_init_states ships the resulting
+    centre. Handing the raw config to the agent instead is a shape the
+    harness never produces, and it hides exactly the defect that matters
+    here -- with one container a missing offset is invisible, with two it
+    is the whole question of whether the second is addressable.
+
+    This mirrors containers.py deliberately and is therefore a duplicate of
+    simulator logic. It is kept narrow (offset only) and the physical
+    runner remains the real check; if the simulator changes its layout this
+    helper must follow.
+    """
+    spacing = float(case["containers"]["spacing"])
+    payload = []
+    for index, container in enumerate(case["containers"]["container_list"]):
+        seat = copy.deepcopy(container)
+        seat["center"] = [index * spacing, 0.0, 0.0]
+        seat["shelf"] = container["require_shelf"]
+        payload.append(seat)
+    return payload
+
+
+def build_all(source: dict, *, look_ahead: int,
+              policy_timeout: float) -> dict[str, dict]:
+    return {
+        name: build_scenario(
+            source, name, spec,
+            look_ahead=look_ahead, policy_timeout=policy_timeout,
+        )
+        for name, spec in SCENARIOS
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", type=pathlib.Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--look-ahead", type=int, default=10)
+    parser.add_argument("--policy-timeout", type=float, default=8.0)
+    parser.add_argument("--output-dir", type=pathlib.Path, required=True)
+    args = parser.parse_args()
+
+    source = json.loads(args.source.read_text(encoding="utf-8"))
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    manifest = []
+    for name, config in build_all(
+        source, look_ahead=args.look_ahead,
+        policy_timeout=args.policy_timeout,
+    ).items():
+        path = args.output_dir / f"{name}.json"
+        path.write_text(
+            json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        case = next(iter(config.values()))
+        containers = case["containers"]["container_list"]
+        manifest.append({
+            "scenario": name,
+            "path": path.name,
+            "containers": len(containers),
+            "shelves": sum(1 for c in containers if c["require_shelf"]),
+            "dedicated": sum(1 for c in containers if c["is_prioritized"]),
+            "preloaded": sum(len(c["packed_items"]) for c in containers),
+            "items": len(case["item_stream"]["item_list"]),
+        })
+    (args.output_dir / "manifest.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "purpose": (
+                "Coverage probe for the container combinations "
+                "COMPETITION_RULES section 2 says will be posed. Answers "
+                "'does this configuration run', not 'how well does it "
+                "score' -- the scenes are synthetic combinations of the "
+                "bundled geometry, so scores are not comparable to the "
+                "development suite."
+            ),
+            "source": str(args.source.relative_to(ROOT)),
+            "look_ahead": args.look_ahead,
+            "scenarios": manifest,
+        }, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for row in manifest:
+        print(
+            f"{row['scenario']:26s} containers={row['containers']} "
+            f"shelves={row['shelves']} dedicated={row['dedicated']} "
+            f"preloaded={row['preloaded']} items={row['items']}"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
