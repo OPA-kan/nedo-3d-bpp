@@ -1143,6 +1143,14 @@
       "status": "active",
       "claim": "Two instrument defects in the Task A rollout path, both found while trying to replay submitted agents for score calibration, and both of which contaminated earlier results. (1) run_task_a_rollout.py set case_id = next(iter(config)), so --source-case was written into the row but never applied: every rollout ran case 000 regardless. (2) sync_agent_into_simulator() overwrote simulator/agent.py from the working tree unconditionally, so an attempt to measure a previously submitted build silently measured the current one -- four runs of two different agents on two nominally different cases returned byte-identical fill, placed, com_z and shake. Both are fixed: the case is selected explicitly and written to a single-case config, and the sync honours AGENT_PATH. Consequence for the record: the constructive-order ablation reported as '2 cases x 2 modes x 3 repeats' was in fact ONE case with 6 repeats per mode. Its numbers still do not overlap (composite 22,22,23,22,23,24 vs volume-only 20,21,21,20,20,20), so the direction survives, but the claimed case diversity did not exist and that entry is superseded by this one.",
       "source": "scripts/run_task_a_rollout.py and scripts/run_risk_ablation.py fixes; identical-output evidence in scratchpad calib/"
+    },
+    {
+      "id": "submitted-pair-is-nearly-identical-on-local-cases",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The score-calibration plan does not work as designed, for a reason worth recording: the two submissions that differ by 15.3% officially are nearly indistinguishable on our local cases. Replaying both submitted agent.py builds (sha bcd72b3a = trueenvelope 35.375, sha 4988f258 = deathband 29.959) on the two distributed cases as Task A gives IDENTICAL fill (33.124 / 20.268), identical placed (0.561 / 0.381) and identical com_z (0.7302 / 0.7853); only shake_max_shift moves at all, by 2.8% on case 000 and not at all on case 001. So the official 15.3% gap is generated on cases we do not have -- the rules state the evaluation uses entirely different test cases -- and no proxy-to-component mapping can be identified from replaying submissions on this suite. What this does establish, and it is the more useful finding: the distributed two-case suite has almost no discriminating power for a selection change that officially costs 15.3%, which is a property of the suite rather than of the proxies. The consequence for future work is to invest in local cases that resemble the official ones (multi-container, larger streams, priority containers) rather than in more proxies measured on cases that cannot separate the builds.",
+      "source": "scratchpad calib2/ replay of both submitted builds after the source-case and agent-sync fixes"
     }
   ]
 }
