@@ -676,7 +676,14 @@ def run_horizon(
                     mc_rollout_value(
                         agent_module,
                         copy.deepcopy(post["container_list"]),
-                        seed=rank,
+                        # Common random numbers: every branch is scored on
+                        # the SAME sampled futures, so the comparison is
+                        # paired and the stream-difficulty variance cancels
+                        # instead of masking the between-branch signal. The
+                        # first attempt used seed=rank, which scored each
+                        # branch against a different set of 24 futures --
+                        # comparing branches AND streams at once.
+                        seed=0,
                     )
                 )
             if executed and not (terminated or truncated):
