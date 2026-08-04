@@ -15,6 +15,24 @@ Repository: https://github.com/OPA-kan/nedo-3d-bpp
   with `git fetch --all --prune` and `git log --oneline --decorate -10`.
 - Run `git fetch --all --prune` before judging what exists.
 
+> **提出物を trunk からビルドしてはならない (2026-08-04)。**
+> `scripts/build_submission.py` は作業ツリーの `agent/agent.py` を
+> そのまま固める。trunk にはまだ true-envelope 修正が入っておらず
+> (`050d9d7` はスコア記録だけで agent コードを含まない)、
+> `rectangular_container_anchor_bounds` は 12 行の箱式のままである。
+> 実測: 配布 000 コンテナ (幅 1.45 / 厚み 0.04) の本物の y 半空間は
+> **y=-0.7250 と y=+0.6850 で非対称**、箱式の仮定は [-0.6850, +0.6850]。
+> 低 y 壁沿いの **幅 4 cm x 全長 2 m の帯を探索が一度も見ない**
+> (`inside_container` は置ければ合法と認めるにもかかわらず)。
+> 半空間版は `claude/l3-l4-allocation-ordering`,
+> `claude/task-bottleneck-optimization-o3qtkk`,
+> `claude/taskc-algorithm-improvement-ivaqo1` の 3 本にしかない。
+> **公式最高スコア 35.375 のコードは trunk に無い。** trunk で再ビルド
+> すると envelope 無し (23 点台) の agent が出る。
+> 台帳: `python3 scripts/context.py evidence --topic protocol`
+> (`trunk-lacks-the-true-envelope-code`)。
+
+
 ```powershell
 python scripts/context.py list
 python scripts/context.py show handoff

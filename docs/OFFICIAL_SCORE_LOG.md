@@ -285,8 +285,9 @@ placed の -2.6% が 4 成分の -20.0% に増幅されている。増幅率 7.6
 
 ## 2. 帰属は今回きれい — 差分は death-band gate のみ
 
-35.375 を出した成果物(`3b1635c`)と提出ブランチ head の `agent/agent.py`
-差分は +240/-19 行あるが、**デフォルト値で実際に挙動を変えるのは
+35.375 を出した成果物(`3b1635c`)と**提出コミット `8e29934`**("Ship the
+death-band gate: default ON, submission built")の `agent/agent.py`
+差分は +221/-18 行あるが、**デフォルト値で実際に挙動を変えるのは
 `DEATH_BAND_FALLBACK=1` だけ**である。
 
 | knob | default | 挙動 |
@@ -296,6 +297,10 @@ placed の -2.6% が 4 成分の -20.0% に増幅されている。増幅率 7.6
 | `L3_PREFER_EMPTY_BAND` / `L3_RELEASE_ROUTE` | 0 | off |
 | `CONSTRUCTIVE_ORDER_MODE` | composite | 従来と同一の順序 |
 | `PHYSICS_LATERAL_GUARD` | 0.010 | 従来と同一 |
+
+提出物に true-envelope が入っていたことは、スコアの水準からも独立に
+裏が取れる: envelope 無しの 3334 は fill 31.413 / placed 0.452 だったのに対し、
+deathband は fill 33.635 / placed 0.4915 で **envelope 有り側の水準**にある。
 
 したがって **-15.3% は death-band gate に帰属する**。ローカルでは
 m2-k15(2 コンテナ 83 個)で μ22.0 → μ30.6 と出ていたので、**ローカル代理量と
