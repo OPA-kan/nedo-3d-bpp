@@ -18,7 +18,14 @@ import numpy as np
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-AGENT_PATH = ROOT / "agent" / "agent.py"
+# Overridable so a previously SUBMITTED agent.py can be replayed without
+# clobbering the working tree. The four official submissions are the only
+# calibration data linking our local proxies to the four score components
+# the bundled evaluator never computes, and reconstructing them must not
+# require checking out an old revision over live work.
+AGENT_PATH = pathlib.Path(
+    os.environ.get("AGENT_PATH", "") or (ROOT / "agent" / "agent.py")
+)
 SIMULATOR = ROOT / "simulator"
 DEFAULT_CONFIG = SIMULATOR / "configs" / "sample_config.json"
 DEFAULT_REPORT_ROOT = ROOT / "reports" / "anchor-recall"
