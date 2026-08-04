@@ -7318,6 +7318,9 @@ class Agent:
                 incumbent_support = Geometry.support_ratio(
                     decision.candidate, incumbent_container
                 )
+                incumbent_lift = float(decision.candidate.center[2]) * float(
+                    chosen_item.get("mass", 1.0)
+                )
                 best_safe = None
                 for item_idx, item, dec in caught:
                     dec_item = item or pool_by_idx.get(item_idx)
@@ -7328,6 +7331,13 @@ class Agent:
                     ):
                         continue
                     if DEATH_BAND_REQUIRE_DOMINANCE:
+                        # Both stability-bearing terms of Ranker.score, not
+                        # one: +2.0*support carries stability and
+                        # -0.18*z*mass carries centre of gravity. Guarding
+                        # support alone still lets the gate swap a heavy
+                        # item upward, which is the cog half of the same
+                        # bill. (The remaining +0.35y term is door-side
+                        # depth, which the placement rules score, not cog.)
                         support = Geometry.support_ratio(
                             dec.candidate,
                             observation["container_list"][
@@ -7335,6 +7345,11 @@ class Agent:
                             ],
                         )
                         if support < incumbent_support - EPS:
+                            continue
+                        lift = float(dec.candidate.center[2]) * float(
+                            dec_item.get("mass", 1.0)
+                        )
+                        if lift > incumbent_lift + EPS:
                             continue
                     if best_safe is None or float(dec.score) > float(
                         best_safe.score
