@@ -34,12 +34,7 @@ OFFICIAL_TRANSPORT_CLEARANCE = 0.015
 TRANSPORT_CLEARANCE = (
     OFFICIAL_TRANSPORT_CLEARANCE + FLOAT32_CLEARANCE_GUARD
 )
-# Env-overridable for the joint experiment with the parallel branch's 2 mm
-# flip; the default here stays 0.010 so this branch's measured baselines
-# remain the shipped behaviour until the branches merge.
-PHYSICS_LATERAL_GUARD = float(
-    os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
-)
+PHYSICS_LATERAL_GUARD = 0.010
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
@@ -332,48 +327,6 @@ ANCHOR_DEEP_PASS_ATTEMPTS = int(
 # covers the whole space at every level, so a bounded run still sees all of it.
 # Default OFF -- every previous fallback design in this repository looked good
 # on static replay and lost on physics.
-# Shipped ON 2026-08-04 and REVERTED the same day. The official submission
-# scored 29.959 against 35.375 for the identical build with this off, and
-# all six components fell: cog -20.7%, stability -22.4%, soft -18.1%,
-# placement -13.3%, fill -1.8%, placed -2.6%. Attribution is clean because
-# nothing else in that build changes default behaviour.
-#
-# The mechanism was predictable from Ranker.score and I did not check it:
-# the score this gate deliberately overrides is built from +2.0*support,
-# +0.35y and -0.18*z*mass -- the only terms steering centre-of-gravity and
-# stability. Systematically preferring a lower-scored placement therefore
-# spends exactly the components that fell hardest. Local evaluate() returns
-# only fill and placed, so the four components paying the bill are not
-# computed locally at all, and the local shake proxy that could have stood
-# in was never made an acceptance criterion.
-DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
-    "DEATH_BAND_FALLBACK", "0"
-).strip().lower() in {"1", "true", "yes", "on"}
-# Fixed from the measured killer scores, not fitted.
-# Score pre-filter, and it is load-bearing rather than decoration. Dropping
-# it (DEATH_BAND_SCORE="") turns the gate into a GLOBAL risk filter that acts
-# on any release the model prices at P_rot >= 0.5, which is the intervention
-# class this repository already rejected once
-# (visible-pool-rollout-enforce-rejected-v1, and the reason
-# RELEASE_RISK_LIVE_RERANK ships off). The band is what keeps the gate narrow.
-# -1.5 came from three measured killer scores, so it IS a fitted constant --
-# the unbanded form is kept as an ablation arm to price that fit rather than
-# defended as principled.
-# Require the replacement to dominate: no worse on support ratio as well as
-# safer on P_rot. Set to 0 for the v1 behaviour that traded one for the other.
-DEATH_BAND_REQUIRE_DOMINANCE = os.environ.get(
-    "DEATH_BAND_REQUIRE_DOMINANCE", "1"
-).strip().lower() in {"1", "true", "yes", "on"}
-_death_band_score = os.environ.get("DEATH_BAND_SCORE", "-1.5").strip()
-DEATH_BAND_SCORE = float(_death_band_score) if _death_band_score else None
-# Skip the gate entirely when the step's budget is nearly spent: evaluating
-# P_rot and re-searching both cost time, and b000-k20 measured the mean
-# drifting 19.7 -> 18.0 with zero swaps -- pure evaluation overhead on a
-# deadline trajectory. Half a second is the floor below which the re-search
-# cannot complete anyway.
-DEATH_BAND_MIN_BUDGET_SECONDS = float(
-    os.environ.get("DEATH_BAND_MIN_BUDGET_SECONDS", "0.5")
-)
 ANCHOR_FALLBACK_ENABLED = os.environ.get(
     "ANCHOR_FALLBACK_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -407,38 +360,6 @@ ANCHOR_FALLBACK_STRIDES = tuple(
 ANCHOR_TRUE_ENVELOPE = os.environ.get(
     "ANCHOR_TRUE_ENVELOPE", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
-# Shrink the anchor envelope inward by sin(tilt) x item height. The fill
-# evaluator forfeits an item's ENTIRE volume when any settled corner ends up
-# past a boundary plane beyond the inclusion margin, and wall-adjacent tall
-# items lean by the measured settle tilt (local shake proxy: 2.3-3.4 deg on
-# Task C), pushing the top corner several cm outside -- measured forfeit on
-# c001-k1: 5 of 21 items, 23.2% of packed volume, 7.49 fill points. The
-# angle is fixed from that measurement, not fitted; the margin scales with
-# the placed item's height, not with any catalog of item types. 0 disables.
-ANCHOR_TILT_MARGIN_DEG = float(
-    os.environ.get("ANCHOR_TILT_MARGIN_DEG", "0")
-)
-# Allocation tie-break. Container choice is otherwise an accident of the
-# per-step score maximum, which the two-container smoke measured as a 19:3
-# skew that left one container nearly empty when a failed placement ended
-# the episode. Within this score band, prefer the container with more
-# estimated remaining volume; outside it, score wins as before. 0 disables.
-L3_PREFER_EMPTY_BAND = float(
-    os.environ.get("L3_PREFER_EMPTY_BAND", "0")
-)
-# Measured on the two-container scene: every episode-ending action was a
-# bottom-tier release into the crowded container while the other stood
-# near-empty, and the release risk gate never evaluated it. When ONLY
-# release candidates exist for the step, route the release to the container
-# with the most estimated remaining volume (lexicographic: emptiness, then
-# score). Settled candidates always win as before. 0 disables.
-L3_RELEASE_ROUTE = os.environ.get(
-    "L3_RELEASE_ROUTE", "0"
-).strip().lower() in {"1", "true", "yes", "on"}
-CONSTRUCTIVE_ORDER_MODES = frozenset({"composite", "volume"})
-CONSTRUCTIVE_ORDER_MODE = os.environ.get(
-    "CONSTRUCTIVE_ORDER_MODE", "composite"
-).strip().lower()
 ANCHOR_GENERATOR_MODES = frozenset({"cartesian", "support_plane"})
 ANCHOR_GENERATOR_MODE = os.environ.get(
     "ANCHOR_GENERATOR_MODE", "support_plane"
@@ -2683,31 +2604,10 @@ def rectangular_container_anchor_bounds(dims, container):
     Default off. It changes the shipped search space, so adoption needs the
     Task B guard, which does not reproduce off CI.
     """
-    dx, dy, dz = dims
+    dx, dy, _dz = dims
     length = float(container["length"])
     width = float(container["width"])
     thickness = float(container["thickness"])
-    # Tilt margin: a settled item leans, and its top corner moves laterally
-    # by about sin(tilt) * height. The fill evaluator forfeits the whole
-    # item when that corner crosses a boundary plane, so the envelope
-    # retreats from every wall by exactly that predicted drift. Scales with
-    # the placed item's height; independent of any item-type catalog.
-    tilt_margin = (
-        math.sin(math.radians(ANCHOR_TILT_MARGIN_DEG)) * dz
-        if ANCHOR_TILT_MARGIN_DEG > 0.0
-        else 0.0
-    )
-
-    def shrunk(bounds):
-        if tilt_margin <= 0.0:
-            return bounds
-        return (
-            bounds[0] + tilt_margin,
-            bounds[1] - tilt_margin,
-            bounds[2] + tilt_margin,
-            bounds[3] - tilt_margin,
-        )
-
     box = (
         -length / 2.0 + thickness + dx / 2.0 + INCLUSION_CLEARANCE,
         length / 2.0 - thickness - dx / 2.0 - INCLUSION_CLEARANCE,
@@ -2715,11 +2615,11 @@ def rectangular_container_anchor_bounds(dims, container):
         width / 2.0 - thickness - dy / 2.0 - INCLUSION_CLEARANCE,
     )
     if not ANCHOR_TRUE_ENVELOPE:
-        return shrunk(box)
+        return box
     points = container.get("points")
     normals = container.get("n_vecs")
     if points is None or normals is None:
-        return shrunk(box)
+        return box
     offset_x = container_offset_x(container)
     half = (dx / 2.0, dy / 2.0)
     limit = -INCLUSION_CLEARANCE
@@ -2742,14 +2642,12 @@ def rectangular_container_anchor_bounds(dims, container):
             else:
                 low[axis] = max(low[axis], float(point[axis]) - slack)
     if not all(map(math.isfinite, low + high)):
-        return shrunk(box)
-    return shrunk(
-        (
-            low[0] - offset_x,
-            high[0] - offset_x,
-            low[1],
-            high[1],
-        )
+        return box
+    return (
+        low[0] - offset_x,
+        high[0] - offset_x,
+        low[1],
+        high[1],
     )
 
 
@@ -3936,19 +3834,12 @@ def constructive_order(item_list):
             and sorted((length, width, height))[1] <= 0.44
             and mass <= 10.0
         )
-        if CONSTRUCTIVE_ORDER_MODE == "volume":
-            # Lexicographic: no coefficients. The composite's three terms
-            # are one axis in disguise (base_area/mass correlate 0.94 on
-            # the sample catalog) and its weights are recorded nowhere;
-            # volume-only beat it on 2 of 3 seeds when measured.
-            composite = volume / volume_scale
-        else:
-            composite = (
-                0.45 * volume / volume_scale
-                + 0.30 * base_area / area_scale
-                + 0.25 * mass / mass_scale
-                - (0.05 if cutout_filler else 0.0)
-            )
+        composite = (
+            0.45 * volume / volume_scale
+            + 0.30 * base_area / area_scale
+            + 0.25 * mass / mass_scale
+            - (0.05 if cutout_filler else 0.0)
+        )
         scored.append(
             (
                 item_group(item),
@@ -4977,7 +4868,6 @@ class PlacementCore:
         best_settled_score = -float("inf")
         best_release = None
         best_release_score = -float("inf")
-        release_by_container = {}
 
         for (
             item_idx,
@@ -5033,54 +4923,18 @@ class PlacementCore:
                     decision,
                 )
             updated = False
-
-            def beats(challenger_score, incumbent_score, incumbent):
-                if incumbent is None:
-                    return True
-                if L3_PREFER_EMPTY_BAND <= 0.0:
-                    return challenger_score > incumbent_score
-                if challenger_score > incumbent_score + L3_PREFER_EMPTY_BAND:
-                    return True
-                if challenger_score < incumbent_score - L3_PREFER_EMPTY_BAND:
-                    return False
-                remaining_new = estimated_remaining_container_volume(
-                    containers[int(decision.action["container_idx"])]
-                )
-                remaining_old = estimated_remaining_container_volume(
-                    containers[int(incumbent.action["container_idx"])]
-                )
-                if abs(remaining_new - remaining_old) > EPS:
-                    return remaining_new > remaining_old
-                return challenger_score > incumbent_score
-
             if candidate.name == "release_candidate":
-                if beats(score, best_release_score, best_release):
+                if score > best_release_score:
                     best_release_score = score
                     best_release = decision
                     updated = True
-                if L3_RELEASE_ROUTE:
-                    ridx = int(decision.action["container_idx"])
-                    incumbent = release_by_container.get(ridx)
-                    if incumbent is None or score > incumbent[0]:
-                        release_by_container[ridx] = (score, decision)
-            elif beats(score, best_settled_score, best_settled):
+            elif score > best_settled_score:
                 best_settled_score = score
                 best_settled = decision
                 updated = True
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        if best_settled is not None:
-            return best_settled
-        if L3_RELEASE_ROUTE and len(release_by_container) > 1:
-            emptiest = max(
-                release_by_container,
-                key=lambda cidx: (
-                    estimated_remaining_container_volume(containers[cidx]),
-                    release_by_container[cidx][0],
-                ),
-            )
-            return release_by_container[emptiest][1]
-        return best_release
+        return best_settled or best_release
 
     @staticmethod
     def rescue_choose(
@@ -5128,7 +4982,6 @@ class PlacementCore:
         best_settled_score = -float("inf")
         best_release = None
         best_release_score = -float("inf")
-        release_by_container = {}
 
         deadline_reached = False
         while (
@@ -7226,138 +7079,6 @@ class Agent:
             )
             if decision is not None and use_anchor_fallback:
                 action_source = "anchor_fallback"
-        if (
-            DEATH_BAND_FALLBACK_ENABLED
-            and decision is not None
-            and action_source == "placement_core"
-            and decision.candidate.name == "release_candidate"
-            and (
-                DEATH_BAND_SCORE is None
-                or float(decision.score) <= DEATH_BAND_SCORE
-            )
-        ):
-            # Gamble detection. Every measured episode death executed a
-            # release the ranker itself scored at or below the death band
-            # (-1.545, -1.545, -2.384 on the two-container scene), wagering
-            # the whole remaining stream on one placement. Before executing
-            # such a release, spend the remaining budget on the alternate
-            # coarse-to-fine anchor space; take its answer only if it is
-            # settled or strictly better.
-            def rotation_probability(dec, dec_item):
-                _adj, prob = risk_adjusted_score(
-                    float(dec.score),
-                    dec.candidate,
-                    dec_item,
-                    observation["container_list"][
-                        int(dec.action["container_idx"])
-                    ],
-                    int(dec.action["orientation"]),
-                    1.0,
-                )
-                return float(prob) if prob is not None else 0.0
-
-            pool_by_idx = {
-                int(idx): itm for idx, itm in ordered_items
-            }
-            chosen_item = pool_by_idx.get(
-                int(decision.action["item_idx"]),
-                observation["pool_list"][0],
-            )
-            budget_left = (
-                float("inf")
-                if primary_deadline is None
-                else primary_deadline - time.perf_counter()
-            )
-            if budget_left < DEATH_BAND_MIN_BUDGET_SECONDS:
-                pass  # not enough time to evaluate, let alone re-search
-            elif rotation_probability(decision, chosen_item) >= 0.5:
-                # The model itself calls the chosen release likelier to
-                # topple than not. Additive reranking cannot save this
-                # turn -- the measured score valley between the toppling
-                # pose (-1.44) and the physically safe ones (-2.8) exceeds
-                # the whole penalty range -- so the selection becomes
-                # lexicographic for this one turn: any settled or
-                # P_rot < 0.5 candidate, best score among them, beats
-                # every likely-toppler.
-                caught = []
-
-                def catch(item_idx, item, container_idx, orientation, dec):
-                    caught.append((int(item_idx), item, dec))
-
-                retry = PlacementCore.choose(
-                    observation,
-                    ordered_items,
-                    deadline=primary_deadline,
-                    diagnostics=self.last_candidate_diagnostics,
-                    risk_lambda=live_lambda,
-                    anchor_fallback=True,
-                    candidate_observer=catch,
-                )
-                if retry is not None:
-                    caught.append(
-                        (int(retry.action["item_idx"]), None, retry)
-                    )
-                # Dominance, not preference. v1 took the best-scored
-                # candidate with P_rot < 0.5, which bought safety with
-                # whatever the replacement gave up -- and what it gave up
-                # was support ratio, the physical quantity Ranker.score
-                # spends on centre of gravity and stability. The official
-                # submission charged 20.7% of cog and 22.4% of stability
-                # for that trade. The local proxies cannot police it: the
-                # shake metrics' repeat-to-repeat spread (23-75%) swamps
-                # the effect size (2-15%).
-                #
-                # So the trade is removed by construction. A replacement
-                # must be no worse on BOTH axes -- lower toppling risk AND
-                # support ratio not below the action it replaces. Nothing
-                # is weighted; if no candidate dominates, the original
-                # action stands and the gamble is taken knowingly.
-                incumbent_container = observation["container_list"][
-                    int(decision.action["container_idx"])
-                ]
-                incumbent_support = Geometry.support_ratio(
-                    decision.candidate, incumbent_container
-                )
-                incumbent_lift = float(decision.candidate.center[2]) * float(
-                    chosen_item.get("mass", 1.0)
-                )
-                best_safe = None
-                for item_idx, item, dec in caught:
-                    dec_item = item or pool_by_idx.get(item_idx)
-                    if dec_item is None:
-                        continue
-                    if dec.candidate.name == "release_candidate" and (
-                        rotation_probability(dec, dec_item) >= 0.5
-                    ):
-                        continue
-                    if DEATH_BAND_REQUIRE_DOMINANCE:
-                        # Both stability-bearing terms of Ranker.score, not
-                        # one: +2.0*support carries stability and
-                        # -0.18*z*mass carries centre of gravity. Guarding
-                        # support alone still lets the gate swap a heavy
-                        # item upward, which is the cog half of the same
-                        # bill. (The remaining +0.35y term is door-side
-                        # depth, which the placement rules score, not cog.)
-                        support = Geometry.support_ratio(
-                            dec.candidate,
-                            observation["container_list"][
-                                int(dec.action["container_idx"])
-                            ],
-                        )
-                        if support < incumbent_support - EPS:
-                            continue
-                        lift = float(dec.candidate.center[2]) * float(
-                            dec_item.get("mass", 1.0)
-                        )
-                        if lift > incumbent_lift + EPS:
-                            continue
-                    if best_safe is None or float(dec.score) > float(
-                        best_safe.score
-                    ):
-                        best_safe = dec
-                if best_safe is not None:
-                    decision = best_safe
-                    action_source = "death_band_fallback"
         if decision is None and RESCUE_SCAN_ENABLED:
             rescue_items = rescue_online_items(pool_list)
             decision = PlacementCore.rescue_choose(

@@ -229,7 +229,12 @@ def sync_agent_into_simulator() -> None:
     parallel episodes of the same commit skip the racy rewrite.
     """
     target = SIMULATOR / "agent.py"
-    source_bytes = AGENT.read_bytes()
+    # AGENT_PATH lets a previously submitted agent.py be replayed. Without
+    # it this sync silently overwrites any hand-placed simulator/agent.py
+    # with the working tree, so an attempt to measure an OLD build ends up
+    # measuring the current one and reports the two as identical.
+    source = pathlib.Path(os.environ.get("AGENT_PATH", "") or AGENT)
+    source_bytes = source.read_bytes()
     if target.exists() and target.read_bytes() == source_bytes:
         return
     target.write_bytes(source_bytes)

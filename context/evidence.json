@@ -1001,9 +1001,10 @@
       "id": "constructive-composite-survives-preregistered-ablation",
       "topic": "order",
       "date": "2026-08-03",
-      "status": "active",
+      "status": "superseded",
       "claim": "The offline constructive_order composite survives its first pre-registered ablation: on the shipped Task A rollout path (bounded128, sample cases 000/001, 3 repeats each) composite places 22-24 with fill 31.8-32.3 versus volume-only's 20-21 / 28.2-29.0 -- no overlap in any cell. The coefficients 0.45/0.30/0.25/0.05 now have the AGENT_OPERATIONS 5.1 ground they lacked: an ablation that reports what the alternative loses (2-3 placed, 3 fill points). The parallel thread's 'volume beat the blend on 2 of 3 seeds' was measured on a different pipeline and does not transfer to this path. Caveats: only volume-only was tested, not other lexicographic variants; two sample cases; CONSTRUCTIVE_ORDER_MODE stays available for future arms.",
-      "source": "scratchpad l4-order/ (2 cases x 2 modes x 3 repeats, run_task_a_rollout bounded128)"
+      "source": "scratchpad l4-order/ (2 cases x 2 modes x 3 repeats, run_task_a_rollout bounded128)",
+      "superseded_by": "task-a-rollout-ignored-source-case"
     },
     {
       "id": "death-band-lexicographic-risk-gate-first-positive",
@@ -1134,6 +1135,14 @@
       "status": "active",
       "claim": "Each tightening of the death-band dominance condition roughly halves its firing rate on m2-k15, and the fully-guarded version is at the edge of being a no-op. Firings per episode, 2 repeats each: v1 (P_rot only, the version that regressed the official total 15.3%) 2 and 5; v3 (also requires support_ratio not worse) 3 and 2; v4 (also requires z*mass not higher) 2 and 0. The structural finding is that dominance-satisfying replacements DO exist -- v1's official loss was avoidable by design rather than unavoidable -- but the fully-guarded gate acts on at most a couple of turns per episode, so its upside is bounded by construction. Placed counts across these runs (v3 29/31, v4 31/14) are not usable: m2-k15 base alone spans 18-27 and this is n=2, and the shake proxy has already been shown unable to resolve differences of this size. The honest consequence is that v4 cannot be evaluated locally at all -- only a submission could -- while its bounded upside makes that a poor use of a submission compared with first restoring the 35.375 configuration, which the trunk does not currently contain.",
       "source": "scratchpad dbv3/ and dbv4/ firing counts on m2-k15"
+    },
+    {
+      "id": "task-a-rollout-ignored-source-case",
+      "topic": "order",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Two instrument defects in the Task A rollout path, both found while trying to replay submitted agents for score calibration, and both of which contaminated earlier results. (1) run_task_a_rollout.py set case_id = next(iter(config)), so --source-case was written into the row but never applied: every rollout ran case 000 regardless. (2) sync_agent_into_simulator() overwrote simulator/agent.py from the working tree unconditionally, so an attempt to measure a previously submitted build silently measured the current one -- four runs of two different agents on two nominally different cases returned byte-identical fill, placed, com_z and shake. Both are fixed: the case is selected explicitly and written to a single-case config, and the sync honours AGENT_PATH. Consequence for the record: the constructive-order ablation reported as '2 cases x 2 modes x 3 repeats' was in fact ONE case with 6 repeats per mode. Its numbers still do not overlap (composite 22,22,23,22,23,24 vs volume-only 20,21,21,20,20,20), so the direction survives, but the claimed case diversity did not exist and that entry is superseded by this one.",
+      "source": "scripts/run_task_a_rollout.py and scripts/run_risk_ablation.py fixes; identical-output evidence in scratchpad calib/"
     }
   ]
 }

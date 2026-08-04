@@ -78,12 +78,27 @@ def read_offline_trace(path: pathlib.Path) -> dict:
 def run_episode(args: argparse.Namespace) -> dict:
     sync_agent_into_simulator()
     config = json.loads(args.config.read_text(encoding="utf-8"))
-    case_id = next(iter(config))
+    # --source-case was recorded into the row but never applied: this took
+    # the first key of the config file, so every Task A rollout ran case
+    # 000 no matter what was asked for, and two "different cases" were two
+    # repeats of one. Select explicitly, and write a single-case config so
+    # the simulator cannot fall back to the first entry either.
+    if args.source_case not in config:
+        raise SystemExit(
+            f"case {args.source_case!r} not in config: "
+            f"{', '.join(config)}"
+        )
+    case_id = args.source_case
     run_dir = args.output_dir / (
         f"{case_id}-{args.arm}-r{args.repeat}"
     )
     run_dir.mkdir(parents=True, exist_ok=True)
     result_path = run_dir / "evaluation_results.json"
+    case_config_path = run_dir / "case-config.json"
+    case_config_path.write_text(
+        json.dumps({case_id: config[case_id]}, ensure_ascii=False),
+        encoding="utf-8",
+    )
     trace_path = run_dir / "policy-trace.jsonl"
 
     env = os.environ.copy()
@@ -100,7 +115,7 @@ def run_episode(args: argparse.Namespace) -> dict:
             sys.executable,
             "scripts/run_test.py",
             "--config-path",
-            str(args.config.resolve()),
+            str(case_config_path.resolve()),
             "--module-path",
             "",
             "--result-dir",
