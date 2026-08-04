@@ -111,6 +111,8 @@ jobs:
             --output-dir reports/death-band/aggregate
           cat reports/death-band/aggregate/summary.md \
             >> "$GITHUB_STEP_SUMMARY"
+          echo "===AGGREGATE SUMMARY==="
+          cat reports/death-band/aggregate/summary.md
       - uses: actions/upload-artifact@v4
         with:
           name: death-band-aggregate
