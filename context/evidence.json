@@ -1052,6 +1052,14 @@
       "status": "active",
       "claim": "DEATH_BAND_FALLBACK flipped to shipped default ON at the user's direction. Grounds: no-op on every scene where no death-band turn occurs (5 of 7, byte-identical outputs), +8.5 placed mean on the two-container scene with every firing run beating base's best, timing cost removed by the 0.5 s budget floor, and the b001-k20 -1 placed / +2.33 fill trade accepted because fill is an always-on component while the placed gate multiplier is measured decaying (14x -> 6.7x). The CI guard has NOT run (workflow_dispatch remains unregistrable until the repository default branch moves off frozen main), so like the envelope flip this ships ahead of its guard and the official submission is the deciding measurement. Submission zip sha256 1255b06cd2bf..., agent.py sha256 4988f258f7c0....",
       "source": "reports/l3-l4/morning-summary.md and the cumulative death-band rounds; user approval 2026-08-04"
+    },
+    {
+      "id": "joint-2mm-x-death-band-factorial",
+      "topic": "fallback",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "2x2 factorial on m2-k15 (PHYSICS_LATERAL_GUARD {0.010, 0.002} x death-band gate {off, on}, serial, 2 reps): the gate's uplift survives the parallel branch's 2mm flip (+15 at 10mm: 18/18 -> 36/30; +9.5 at 2mm: 23/18 -> 30/30) and the two changes compose without conflict. The 2mm guard alone does NOT remove the death-turn structure (gate-off still dies at 18-23), and it DOUBLES gate firings (3 -> 6 per episode) -- consistent with 2mm admitting more marginal poses so more turns reach the death band; the gate absorbs them (30/30 deterministic). Caveat worth relaying: the strongest cell on this multi-container scene is 10mm+gate (36/30), slightly above 2mm+gate (30/30), n=2 -- the 2mm benefit measured on single-container matrices is not automatic under multi-container dynamics.",
+      "source": "scratchpad joint-2mm/ (2x2x2, m2-k15)"
     }
   ]
 }
