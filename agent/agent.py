@@ -332,14 +332,22 @@ ANCHOR_DEEP_PASS_ATTEMPTS = int(
 # covers the whole space at every level, so a bounded run still sees all of it.
 # Default OFF -- every previous fallback design in this repository looked good
 # on static replay and lost on physics.
-# Shipped ON 2026-08-04. The gate acts only when the chosen action is a
-# release the ranker scores at or below the death band; measured across 7
-# scenes it is a no-op where that never happens, +8.5 placed mean on the
-# two-container scene, and on b001-k20 trades one placement for +2.33 fill
-# -- accepted because fill is an always-on score component while the
-# placed gate multiplier is measured to be decaying (14x -> 6.7x).
+# Shipped ON 2026-08-04 and REVERTED the same day. The official submission
+# scored 29.959 against 35.375 for the identical build with this off, and
+# all six components fell: cog -20.7%, stability -22.4%, soft -18.1%,
+# placement -13.3%, fill -1.8%, placed -2.6%. Attribution is clean because
+# nothing else in that build changes default behaviour.
+#
+# The mechanism was predictable from Ranker.score and I did not check it:
+# the score this gate deliberately overrides is built from +2.0*support,
+# +0.35y and -0.18*z*mass -- the only terms steering centre-of-gravity and
+# stability. Systematically preferring a lower-scored placement therefore
+# spends exactly the components that fell hardest. Local evaluate() returns
+# only fill and placed, so the four components paying the bill are not
+# computed locally at all, and the local shake proxy that could have stood
+# in was never made an acceptance criterion.
 DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
-    "DEATH_BAND_FALLBACK", "1"
+    "DEATH_BAND_FALLBACK", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
 # Fixed from the measured killer scores, not fitted.
 # Score pre-filter, and it is load-bearing rather than decoration. Dropping

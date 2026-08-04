@@ -1049,9 +1049,10 @@
       "id": "death-band-shipped-on-by-default",
       "topic": "fallback",
       "date": "2026-08-04",
-      "status": "active",
+      "status": "superseded",
       "claim": "DEATH_BAND_FALLBACK flipped to shipped default ON at the user's direction. Grounds: no-op on every scene where no death-band turn occurs (5 of 7, byte-identical outputs), +8.5 placed mean on the two-container scene with every firing run beating base's best, timing cost removed by the 0.5 s budget floor, and the b001-k20 -1 placed / +2.33 fill trade accepted because fill is an always-on component while the placed gate multiplier is measured decaying (14x -> 6.7x). The CI guard has NOT run (workflow_dispatch remains unregistrable until the repository default branch moves off frozen main), so like the envelope flip this ships ahead of its guard and the official submission is the deciding measurement. Submission zip sha256 1255b06cd2bf..., agent.py sha256 4988f258f7c0....",
-      "source": "reports/l3-l4/morning-summary.md and the cumulative death-band rounds; user approval 2026-08-04"
+      "source": "reports/l3-l4/morning-summary.md and the cumulative death-band rounds; user approval 2026-08-04",
+      "superseded_by": "death-band-official-regression-15pct"
     },
     {
       "id": "joint-2mm-x-death-band-factorial",
@@ -1092,6 +1093,14 @@
       "status": "active",
       "claim": "A logistic termination-hazard model fitted on the policy traces already in the repository (309 runs, 6293 decisions, 9 cases, horizon 3 steps, 17 decision-time features, no sklearn) is the first thing measured in this workstream to discriminate WITHIN an episode position. Headline numbers are misleading and are recorded here so they cannot be quoted alone: LOSO mean AUC 0.945, but step_index ALONE scores 0.944 -- essentially the whole pooled AUC is the tautology that late decisions are near the end. The load-bearing number is within-step discordant-pair accuracy over 19254 pairs: 0.644 with all features, 0.615 with step_index removed, against 0.5 chance. Every previous candidate in this workstream (board-value counts, Phi, MC rollout value) produced either zero comparable pairs or chance-level accuracy. Structural limitation that bounds the use: the features describe the SEARCH that produced a decision (unit coverage, accept rates, rejection profile, attempts), not a specific candidate pose, so this cannot tie-break between candidates at one board -- and the pairs measured are same-step-different-trajectory, not same-board-different-action. Its legitimate use is as a state-level trigger, e.g. replacing the death-band gate's fitted -1.5 score constant with a LOSO-validated hazard threshold.",
       "source": "scripts/fit_hazard_model.py; reports/hazard/hazard-h3.json; feature ablation and within-step stratification run 2026-08-04"
+    },
+    {
+      "id": "death-band-official-regression-15pct",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The death-band gate REGRESSED the official score by 15.3% and is reverted to default OFF. submissiondeathband 29.959 against submissiontrueenvelope 35.375, with all six components down: cog -20.7%, stability -22.4%, soft -18.1%, placement -13.3%, fill -1.8%, num_placed -2.6%. Attribution is clean: the build differs from the 35.375 build by ~240 lines but nothing else changes default behaviour (tilt margin 0 makes its shrink an identity, both L3 knobs off, constructive order unchanged, lateral guard unchanged). Two lessons, both checkable in advance and both missed. (1) The mechanism was implied by Ranker.score: the score the gate overrides is +2.0*support +0.35y -0.18*z*mass, the only terms steering cog and stability, so preferring lower-scored placements spends exactly the components that fell hardest. (2) The warning was already in local data -- every ablation row carries shake_response, and on m2-k15, the case whose +8.5 placed justified shipping, the gate arm was WORSE on every stability proxy: peak kinetic energy 25.59 -> 44.64 (+74%), max shift 0.3189 -> 0.4241 (+33%), items shifted 7.00 -> 8.38. final_com_z moved the other way (0.754 -> 0.704, nominally better) and was wrong, so the shake proxy is the one to trust. This is also the first measured instance of the gate multiplier acting DOWNWARD: -2.6% placed produced -20.0% across the four gated components, an amplification of 7.6x against the 6.7x measured upward.",
+      "source": "Official feedback for submissiondeathband vs submissiontrueenvelope; local shake audit over death-band-v2/ and death-band-scenes/ rows; AGENT_OPERATIONS.md section 5.05"
     }
   ]
 }

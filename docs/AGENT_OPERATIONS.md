@@ -183,6 +183,38 @@ python3 scripts/run_queue.py /tmp/plan.json
   機能した例である(§理論文書0.1)。機能させ損ねた上の2件と同じ重みで
   参照すること。
 
+## 5.05 局所の2成分で選択を変えない
+
+公式スコアは6成分だが、ローカル `evaluate()` が返すのは fill と placed の
+2つだけである(`OFFICIAL_SCORE_LOG.md` §1)。**cog / stability / placement /
+soft はローカルで一度も計算されない。** したがって placed と fill だけで
+採否を決めた選択系の変更は、残り4成分に請求書が回っていても見えない。
+
+実例(2026-08-04、death-band gate): ローカル m2-k15 で placed μ22.0→30.6 を
+根拠に出荷 ON にしたところ、公式は 35.375→29.959(**−15.3%**)。6成分すべて
+低下し、下げ幅の最大は stability −22.4% と cog −20.7% だった。機構は
+`Ranker.score` の定義から予測可能だった: gate が意図的に上書きする score は
+`+2.0*support +0.35y −0.18*z*mass` で構成されており、**cog と stability を
+操舵している唯一の項**である。低スコアの手を選ぶ設計は、その2成分を直接
+支払う。
+
+さらに悪いことに、**警告はローカルデータの中に既にあった。** `run_risk_ablation`
+の各 run は `shake_response`(env が持つ振動プロキシ)と `final_com_z` を
+記録している。m2-k15 の gate 腕は base に対し peak kinetic energy +74%、
+max_shift +33%、shifted items +20% だった。私は毎 run これを保存しながら
+一度も見なかった。
+
+規則:
+
+- **選択・順序・配分を変える介入の採否には、`shake_response`(最低でも
+  `shake_max_shift` と `shake_peak_kinetic_energy`)を placed/fill と並べて
+  報告する。** 悪化していれば、placed が伸びていても採用しない。
+- `final_com_z` は補助にとどめる。cog の正規化が非公開なので方向しか読めず、
+  実際 m2 では com_z が改善しているのに公式 cog は落ちた。**shake の方が
+  当たった。**
+- ローカル代理と公式が反対を向いた事例として
+  evidence `death-band-official-regression-15pct` を必ず参照すること。
+
 ## 5.1 重み付き和へ逃げない
 
 **これはAIが最も踏みやすい穴である。全エージェントに対する明示的な警告として
