@@ -1076,6 +1076,14 @@
       "status": "active",
       "claim": "Death-band gate on CI (6 cases x 3 replicates, 18 episodes per arm): suite totals base 122.333 placed / 110.587 fill vs gate 125.667 / 119.501, i.e. +3.33 placed and +8.91 fill, roughly twice the null-pair noise floor measured in the same session (1.7 placed / 3.9 fill). Per-case, however, the local story does NOT reproduce: c000-k1 gains most (+4.667 placed, +10.13 fill) where locally the gate never fired, while m2-k15 -- the two-container scene that carried the entire local case (+8.5 mean) -- comes back at -1.667 placed on CI. c001-k1 is unchanged (+0.0/+0.335), b000-k15 -1.0, b000-k20 +0.667, b001-k20 +0.667. The direction of the aggregate is positive and above noise; the per-case attribution measured locally is not supported. Faster CI hardware changes which turns land in the death band, so which scene benefits is hardware-dependent -- the mechanism (do not execute a release your own model prices at P_rot>=0.5 when a safer candidate exists) is what generalises, not the per-case magnitudes.",
       "source": "CI run 30865594779 aggregate (Death-band ablation, ref claude/l3-l4-allocation-ordering)"
+    },
+    {
+      "id": "mc-rollout-crn-fix-does-not-revive-the-method",
+      "topic": "residual-capacity",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Common random numbers were genuinely missing from the MC rollout comparison (seed=rank scored every branch against a different set of 24 sampled futures) and fixing it does NOT revive the method: Spearman(mc, placed) moves -0.344 -> -0.295 on the same labelled step-10 branches, still indistinguishable from zero and still the wrong sign, with the best branch (+11) scoring mid-pack. The defect was real; it was not the cause. This SUPERSEDES my in-conversation retraction of the earlier closure -- the closure was correct, and it is now better supported because the instrument carries a variance-reduction control it previously lacked. What the residual negative sign suggests, untested: a geometric floor-filling rollout rewards flat well-packed boards, which is not what the deadline-driven policy needs, so the proxy may be anti-correlated with the target by construction rather than merely noisy. The remaining conditional-probability line that does not depend on rollout fidelity is a learned survival model P(reach step t+k | placement features), trainable on the horizon labels and CI traces already generated, with near-zero inference cost.",
+      "source": "scratchpad branch-true-envelope/c001-k1-step10-mc-crn.json vs -mc2.json; replicates mc-rollout-value-fails-validation-line-closed"
     }
   ]
 }
