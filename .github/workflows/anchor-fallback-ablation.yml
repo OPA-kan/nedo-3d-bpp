@@ -37,7 +37,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, anchor_fallback, true_envelope]
+        # base inherits ANCHOR_TRUE_ENVELOPE=1 since the 2026-08-02 default
+        # flip, so a `true_envelope` arm measures nothing -- run 30865600521
+        # compared true against true and became an (informative) null pair.
+        # box_envelope is the arm that actually tests the flip.
+        arm: [base, box_envelope, anchor_fallback]
         replicate: [0, 1, 2]
         case:
           # Task C: where the feature is expected to act.
