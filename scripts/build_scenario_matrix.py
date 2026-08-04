@@ -57,6 +57,17 @@ SCENARIOS = (
     ("dual-shelf-mixed", dict(containers=2, shelf="mixed", preloaded=0, dedicated=False)),
     ("dual-dedicated-priority", dict(containers=2, shelf=False, preloaded=0, dedicated=True)),
     ("dual-preloaded-dedicated", dict(containers=2, shelf=False, preloaded=2, dedicated=True)),
+    # COMPETITION_RULES section 2 also states the scale: up to two containers
+    # holding roughly eighty items. Every scenario above reuses the 41-item
+    # mix from case 000 across however many containers it builds, so two
+    # containers arrive already half empty and contention -- which is what
+    # allocation has to solve -- never appears. `stream="both"` concatenates
+    # both bundled streams to reach that scale. Measured consequence of the
+    # gap: two submitted builds differing 15.3% officially return identical
+    # fill, placed and com_z on the bundled cases
+    # (submitted-pair-is-nearly-identical-on-local-cases).
+    ("dual-full-stream", dict(containers=2, shelf="mixed", preloaded=0,
+                              dedicated=True, stream="both")),
 )
 
 
@@ -96,6 +107,16 @@ def build_scenario(source: dict, name: str, spec: dict,
     base = copy.deepcopy(source["000"])
     shelf_source = copy.deepcopy(source["001"])
     items = base["item_stream"]["item_list"]
+    if spec.get("stream") == "both":
+        items = items + copy.deepcopy(
+            shelf_source["item_stream"]["item_list"]
+        )
+        # index is the identity the action protocol uses (env.py:62,210
+        # treats action item_idx as a POOL position, but item["index"] is
+        # the stream identity), so the concatenated stream must renumber
+        # or two items share an index.
+        for position, item in enumerate(items):
+            item["index"] = position
 
     template = copy.deepcopy(base["containers"]["container_list"][0])
     shelf_template = copy.deepcopy(
