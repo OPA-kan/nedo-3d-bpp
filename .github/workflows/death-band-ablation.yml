@@ -4,10 +4,6 @@ name: Death-band ablation
 # two-container scene locally. Local deadline runs cannot decide adoption
 # (CPU speed changes trajectories), so the guard runs here: single-container
 # Task B/C regression plus the multi-container scene where it acts.
-#
-# Dispatch with ref = the branch under test (the workflow checks out the
-# dispatched ref); this copy exists on the trunk only so the workflow is
-# registered for workflow_dispatch.
 
 on:
   workflow_dispatch:
@@ -32,7 +28,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, death_band]
+        # base_null is base under a second name: every run then carries its
+        # own noise floor, after run 30865600521 showed identical configs
+        # differing by up to 2.3 placed on a single case at n=3.
+        # death_band_unbanded prices the fitted -1.5 score band.
+        arm: [base, base_null, death_band, death_band_unbanded]
         replicate: [0, 1, 2]
         case:
           - case_id: m2-k15
@@ -115,6 +115,8 @@ jobs:
             --output-dir reports/death-band/aggregate
           cat reports/death-band/aggregate/summary.md \
             >> "$GITHUB_STEP_SUMMARY"
+          echo "===AGGREGATE SUMMARY==="
+          cat reports/death-band/aggregate/summary.md
       - uses: actions/upload-artifact@v4
         with:
           name: death-band-aggregate
