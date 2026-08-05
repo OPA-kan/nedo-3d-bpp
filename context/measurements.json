@@ -360,6 +360,34 @@
       "supports": [
         "scenario-matrix-coverage-gap"
       ]
+    },
+    "scripts/score_components.py": {
+      "analysis_unit": "episode",
+      "varied_axis": [
+        "candidate_rank",
+        "order",
+        "allocation",
+        "fallback",
+        "physics"
+      ],
+      "conditioned_on": [
+        "the bundled evaluator for fill and placed (official implementation); our own diagnostics for the other four",
+        "COMPETITION_RULES section 4 for each component's direction; the 0-100 normalisation and the averaging weights are unpublished"
+      ],
+      "outcome": [
+        "a six-entry VECTOR plus the placed gate, each entry carrying raw value, direction and fidelity",
+        "dominates(a, b): Pareto comparison with no weights"
+      ],
+      "cannot_answer": [
+        "the official total, or any ordering between two runs that trade one component for another -- that requires the unpublished weights, and inventing them is the mechanism by which a policy exploits a misspecified objective",
+        "how far apart two runs are on any component: it reports raw quantities, and the stability entries carry 23-75% repeat noise",
+        "anything about priority routing on scenes with no dedicated container, where the count is structurally zero"
+      ],
+      "supports": [
+        "death-band-official-regression-15pct",
+        "shake-veto-is-inside-its-own-noise-floor",
+        "submitted-pair-is-nearly-identical-on-local-cases"
+      ]
     }
   },
   "provenance": {

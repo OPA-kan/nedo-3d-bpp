@@ -1224,6 +1224,14 @@
       "status": "active",
       "claim": "The scenario matrix now covers every combination axis COMPETITION_RULES section 2 declares, including the scale, after merging the trunk's matrix into the L3/L4 line and adding one scenario. The trunk's seven scenes covered containers 1/2, shelf on/off/mixed, preloaded 0/2/3 and a dedicated priority container, but every one of them reused case 000's 41-item mix, so a two-container scene arrived already half empty and allocation contention never appeared. dual-full-stream concatenates both bundled streams (83 items, indices renumbered because item['index'] is the stream identity while the action protocol's item_idx is a pool position) over two containers, one shelved, with a dedicated priority container. The bundled suite by contrast varies only the shelf axis, which is the structural reason two builds differing 15.3% officially are indistinguishable on it.",
       "source": "scripts/build_scenario_matrix.py SCENARIOS; merge eb0403d; builds 8 configs verified against COMPETITION_RULES section 2"
+    },
+    {
+      "id": "six-component-vector-is-buildable-locally",
+      "topic": "scoring",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "All six official components have a local stand-in with a published direction; only the 0-100 normalisation and the averaging weights are missing. fill and num_placed are computed by the bundled evaluator, which IS the official implementation. cog has com_z (rules: lower is better), stability has the shake metrics (rules: less movement is better), placement and soft have exact transcriptions of the covering and misrouting rules (rules: fewer violations is better). scripts/score_components.py reports these as a VECTOR and refuses to produce a total, because collapsing it requires inventing the weights -- the same act that produced the death-band regression, and the mechanism by which any optimiser, hand-written or learned, would exploit a misspecified objective. The placed gate is reported as a CONSTRAINT rather than a sixth term, matching the published rule that below a placement threshold every component except fill is zero. dominates() gives a weight-free Pareto comparison; eight tests pin that no total appears, that every entry declares direction and fidelity, that a trade dominates in neither direction, and that an unmeasured component reads None rather than zero.",
+      "source": "scripts/score_components.py; tests/test_score_components.py; directions from COMPETITION_RULES section 4"
     }
   ]
 }
