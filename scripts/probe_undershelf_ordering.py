@@ -27,12 +27,22 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "simulator"))
 
 from scripts.measure_anchor_recall import load_agent_module, policy_observation  # noqa: E402
+from scripts.fast_afterstate_env import AfterstateBoard  # noqa: E402
 from src.ground_handling.env import GroundHandlingEnv  # noqa: E402
 
 ag = load_agent_module()
 
 
-def poses(container, item, floor, shelf):
+def poses(container, item, floor, shelf, board=None):
+    """
+    Grid poses wholly under the main shelf, each at its DROP height.
+
+    The first version pinned every pose to `floor`, so it only ever
+    proposed a first layer -- and the under-shelf volume is 0.74 m tall.
+    That is why the prefill arms seeded 2 items and the region looked
+    fungible. Filling it with stacking allowed reaches 6 items and 30.5%
+    of the volume, so the earlier rejection was measuring the bug.
+    """
     under = float(shelf.minimum[2])
     ylo, yhi = float(shelf.minimum[1]), float(shelf.maximum[1])
     half = container["length"] / 2.0
@@ -70,9 +80,11 @@ def prefill(env, raw, container_index, budget):
         )
         progressed = False
         for slot, item in pool:
-            for orientation, x, y, dx, dy, dz in poses(container, item, floor, shelf):
+            for orientation, x, y, dx, dy, dz, bottom in poses(
+                container, item, floor, shelf, AfterstateBoard(ag, container)
+            ):
                 box = ag.AABB(
-                    center=(x, y, floor + dz / 2.0),
+                    center=(x, y, bottom + dz / 2.0),
                     size=(dx, dy, dz),
                     name="release_candidate",
                 )
@@ -81,7 +93,7 @@ def prefill(env, raw, container_index, budget):
                 action = {
                     "item_idx": slot,
                     "container_idx": container_index,
-                    "place_pos": [x, y, floor + dz / 2.0],
+                    "place_pos": [x, y, bottom + dz / 2.0],
                     "orientation": int(orientation),
                 }
                 raw, _r, term, trunc, info = env.step(action)
