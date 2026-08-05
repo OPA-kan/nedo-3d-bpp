@@ -211,6 +211,11 @@ def main() -> int:
     for pattern in args.configs:
         for path in sorted(glob.glob(pattern)):
             case_id = pathlib.Path(path).stem
+            # The builder writes a manifest beside the configs; it is not a
+            # case and the env crashes on it in a way that names the wrong
+            # culprit.
+            if case_id == "manifest":
+                continue
             built = build_rows(
                 agent_module, path, case_id, args.horizon, args.stride
             )
