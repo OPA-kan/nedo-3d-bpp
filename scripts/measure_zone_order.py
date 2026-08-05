@@ -57,9 +57,14 @@ def shelf_of(container):
     return plates[0] if plates else None
 
 
-def zone_of(y, top_z, shelf, width):
+def zone_of(y, bottom_z, shelf, width):
     """
-    Which zone a pose belongs to.
+    Which zone a pose belongs to, decided by where it RESTS.
+
+    An earlier version classified on the pose's top instead, which made a
+    tall item standing on the floor by the door count as `shelf_top` -- so
+    the doctrine arm spent its first picks on exactly the poses it was
+    supposed to defer, and toppled at two placements.
 
     Deep and centre are split at a quarter of the width from the far wall,
     which is where the corridor scan put the boundary between blocked and
@@ -67,20 +72,40 @@ def zone_of(y, top_z, shelf, width):
 
     On a container with a main shelf there is effectively no deep FLOOR
     zone: the shelf spans y 0.05..0.71 against a half-width of 0.76, so
-    everything deep and low is under it. A first version of this classifier
-    reported deep=0 on every arm, which read as a bug and is not one -- the
-    four-zone doctrine collapses to shelf_top / under_shelf there, and only
-    a shelf-less container distinguishes deep from centre.
+    everything deep and low is under it. A run reporting deep=0 on every arm
+    is not a classifier bug -- the four-zone doctrine collapses to
+    shelf_top / under_shelf there, and only a shelf-less container
+    distinguishes deep from centre.
     """
     if shelf is not None:
-        if top_z > float(shelf.maximum[2]) - 1e-6:
+        if bottom_z >= float(shelf.maximum[2]) - 1e-3:
             return "shelf_top"
         if float(shelf.minimum[1]) <= y <= float(shelf.maximum[1]):
             return "under_shelf"
     return "deep" if y >= width / 2.0 - width / 4.0 else "centre"
 
 
+def _over_shelf(x, y, dx, dy, shelf):
+    """Footprint wholly within the plate, so the pose can rest on it."""
+    return (
+        x - dx / 2.0 >= float(shelf.minimum[0]) - 1e-9
+        and x + dx / 2.0 <= float(shelf.maximum[0]) + 1e-9
+        and y - dy / 2.0 >= float(shelf.minimum[1]) - 1e-9
+        and y + dy / 2.0 <= float(shelf.maximum[1]) + 1e-9
+    )
+
+
 def candidates(container, item, shelf, stride):
+    """
+    Legal poses, offered on BOTH surfaces a shelf container has.
+
+    `AfterstateBoard.drop_height` knows nothing about shelves: it returns
+    the floor even directly under a plate. That is right for the under-shelf
+    pocket, which a lateral transport really can reach -- but it means
+    shelf-resting poses are never generated at all, so an arm asked to fill
+    the shelf top first was testing an option it could not produce. Both
+    surfaces are offered here and the shipped contract decides which survive.
+    """
     from scripts.fast_afterstate_env import AfterstateBoard
 
     board = AfterstateBoard(ag, container)
@@ -94,42 +119,45 @@ def candidates(container, item, shelf, stride):
                 dx, dy, dz = ag.get_rotated_dimensions(
                     item["length"], item["width"], item["height"], orientation
                 )
-                bottom = float(board.drop_height(x, y, dx, dy))
-                candidate = ag.AABB(
-                    center=(x, y, bottom + dz / 2.0),
-                    size=(dx, dy, dz),
-                    name="release_candidate",
-                )
-                if (
-                    ag.Geometry.release_rejection_reason(candidate, container)
-                    is not None
-                ):
-                    continue
-                # Without this the filler picks the deepest pose in the
-                # zone, stacks against the far wall and topples within a
-                # handful of placements -- every arm of the first run died
-                # at 4 to 9 against the agent's 35, so it was measuring
-                # which zone kills first, not which order packs more.
-                _adjusted, p_rot = ag.risk_adjusted_score(
-                    0.0, candidate, item, container, int(orientation), 1.0
-                )
-                if p_rot is not None and p_rot >= RISK_CAP:
-                    continue
-                out.append(
-                    {
-                        "x": float(x),
-                        "y": float(y),
-                        "z": bottom + dz / 2.0,
-                        "orientation": int(orientation),
-                        "p_rot": 0.0 if p_rot is None else float(p_rot),
-                        "support": float(
-                            ag.Geometry.support_ratio(candidate, container)
-                        ),
-                        "zone": zone_of(
-                            float(y), bottom + dz, shelf, width
-                        ),
-                    }
-                )
+                bottoms = [float(board.drop_height(x, y, dx, dy))]
+                if shelf is not None and _over_shelf(x, y, dx, dy, shelf):
+                    bottoms.append(float(shelf.maximum[2]))
+                for bottom in bottoms:
+                    candidate = ag.AABB(
+                        center=(x, y, bottom + dz / 2.0),
+                        size=(dx, dy, dz),
+                        name="release_candidate",
+                    )
+                    if (
+                        ag.Geometry.release_rejection_reason(
+                            candidate, container
+                        )
+                        is not None
+                    ):
+                        continue
+                    # Without this the filler takes the deepest pose in the
+                    # zone, stacks against the far wall and topples within a
+                    # handful of placements -- every arm of the first run
+                    # died at 4 to 9 against the agent's 35, measuring which
+                    # zone kills first rather than which order packs more.
+                    _adjusted, p_rot = ag.risk_adjusted_score(
+                        0.0, candidate, item, container, int(orientation), 1.0
+                    )
+                    if p_rot is not None and p_rot >= RISK_CAP:
+                        continue
+                    out.append(
+                        {
+                            "x": float(x),
+                            "y": float(y),
+                            "z": bottom + dz / 2.0,
+                            "orientation": int(orientation),
+                            "p_rot": 0.0 if p_rot is None else float(p_rot),
+                            "support": float(
+                                ag.Geometry.support_ratio(candidate, container)
+                            ),
+                            "zone": zone_of(float(y), bottom, shelf, width),
+                        }
+                    )
             y += stride
         x += stride
     return out
