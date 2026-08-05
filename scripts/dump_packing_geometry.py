@@ -45,13 +45,29 @@ def reachability_map(agent_module, container, item, stride=0.10):
     Three outcomes per (x, y), tested at the drop height a release would
     reach, in the order the shipped contract tests them:
 
-      legal     the item can still go here
-      blocked   it fits and the space is free, but transport_path_clear
-                refuses -- reachability spent by earlier placements
-      no room   containment or static geometry refuses
+      supported     the item can go here AND its settled proxy clears
+                    MIN_SUPPORT_RATIO -- somewhere it would actually stand
+      unsupported   the release contract allows the drop, but the pose
+                    would rest on too little
+      blocked       it fits and the space is free, but transport_path_clear
+                    refuses -- reachability spent by earlier placements
+      no room       containment or static geometry refuses
 
-    Only `blocked` is recoverable by placing differently, which is why it is
-    separated rather than folded into one rejection count.
+    The supported/unsupported split is not cosmetic. `release_rejection_reason`
+    tests containment, static geometry, the corridor and the attribute guard
+    -- and NOT support; only the settled path calls `has_stable_support`. So
+    an earlier version of this map reported "legal" for columns nothing would
+    stand on, and `usable = fits AND reachable AND supportable` was being
+    read off two of its three terms.
+
+    Support is measured on `settled_proxy_candidate`, not on the release pose
+    itself: a release candidate is sent 16 mm clear of its surface and scores
+    support 0 by construction, so testing it directly would call every column
+    unsupported.
+
+    Only `blocked` and `unsupported` are recoverable by placing differently,
+    and they are recoverable in different ways, which is why they are counted
+    apart rather than folded into one rejection total.
 
     A column counts as `legal` when ANY orientation fits there. Testing a
     single orientation reported zero legal columns on boards a 5 cm
@@ -62,7 +78,10 @@ def reachability_map(agent_module, container, item, stride=0.10):
 
     board = AfterstateBoard(agent_module, container)
     orientations = list(agent_module.unique_orientations(item))
-    rank = {"no_room": 0, "blocked": 1, "legal": 2}
+    rank = {"no_room": 0, "blocked": 1, "unsupported": 2, "supported": 3}
+    minimum_support = float(
+        getattr(agent_module, "MIN_SUPPORT_RATIO", 0.55)
+    )
     cells = []
     x = board.x0 + stride / 2.0
     while x < -board.x0:
@@ -93,10 +112,19 @@ def reachability_map(agent_module, container, item, stride=0.10):
                 ):
                     state = "blocked"
                 else:
-                    state = "legal"
+                    proxy = agent_module.settled_proxy_candidate(
+                        candidate, container
+                    )
+                    support = float(
+                        agent_module.Geometry.support_ratio(proxy, container)
+                    )
+                    state = (
+                        "supported" if support >= minimum_support
+                        else "unsupported"
+                    )
                 if rank[state] > rank[best]:
                     best, best_bottom = state, bottom
-                if best == "legal":
+                if best == "supported":
                     break
             cells.append(
                 [
@@ -108,14 +136,55 @@ def reachability_map(agent_module, container, item, stride=0.10):
             )
             y += stride
         x += stride
+    counts = {"supported": 0, "unsupported": 0, "blocked": 0, "no_room": 0}
+    for cell in cells:
+        counts[cell[3]] += 1
     return {
         "stride": stride,
+        "counts": counts,
         "orientations": len(orientations),
         "item": [
             round(float(item[k]), 3) for k in ("length", "width", "height")
         ],
         "cells": cells,
     }
+
+
+def classify_termination(source, status, maps):
+    """
+    Why the episode stopped, in terms that do not average together.
+
+    Five endings were being scored as one "space utilisation failure", and
+    they are not the same event: a board that topples with 80 placeable
+    columns left and a board with 2 reachable columns need opposite repairs.
+    Reading them as one number mixes the learning signal.
+
+    `maps` is the per-container reachability census at the terminal board.
+    """
+    if status and not status.get("is_placed_safe", True):
+        return "stability_termination"
+    if status and not status.get("is_valid", True):
+        return "transport_invalid"
+    if status and not status.get("is_included", True):
+        return "containment_violation"
+    if source != "unsafe_protocol_fallback":
+        return "stream_or_step_limit"
+
+    totals = {"supported": 0, "unsupported": 0, "blocked": 0, "no_room": 0}
+    for census in maps:
+        for key in totals:
+            totals[key] += census.get(key, 0)
+    if totals["supported"] > 0:
+        # the contract admits a supported pose somewhere and the agent still
+        # returned the fallback -- the search, not the board, ran out
+        return "search_exhaustion"
+    if totals["unsupported"] > 0 and totals["blocked"] == 0:
+        return "support_surface_exhaustion"
+    if totals["blocked"] > 0 and totals["unsupported"] == 0:
+        return "transport_exhaustion"
+    if totals["blocked"] > 0 or totals["unsupported"] > 0:
+        return "support_and_transport_exhaustion"
+    return "geometric_exhaustion"
 
 
 def dump(config_path, case_key, output_path):
@@ -132,14 +201,18 @@ def dump(config_path, case_key, output_path):
     raw, _ = env.reset(seed=42)
 
     step = 0
+    final_status = {}
+    final_source = None
     try:
         while True:
             observation = policy_observation(env, raw)
             action = solver.policy(observation)
-            if solver.last_action_source == "unsafe_protocol_fallback":
+            final_source = solver.last_action_source
+            if final_source == "unsafe_protocol_fallback":
                 break
             raw, _reward, terminated, truncated, info = env.step(action)
             status = (info or {}).get("status", {})
+            final_status = {k: bool(v) for k, v in status.items()}
             step += 1
             if not all(
                 bool(status.get(flag))
@@ -204,7 +277,22 @@ def dump(config_path, case_key, output_path):
                     )
                 except Exception as error:  # a map is a nicety, the dump is not
                     containers[-1]["reachability_error"] = str(error)
-        payload = {"case": case_key, "steps": step, "containers": containers}
+        census = [
+            c["reachability"]["counts"]
+            for c in containers
+            if isinstance(c.get("reachability"), dict)
+            and "counts" in c["reachability"]
+        ]
+        payload = {
+            "case": case_key,
+            "steps": step,
+            "final_status": final_status,
+            "final_source": final_source,
+            "termination": classify_termination(
+                final_source, final_status, census
+            ),
+            "containers": containers,
+        }
         pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(output_path).write_text(
             json.dumps(payload), encoding="utf-8"
@@ -212,7 +300,19 @@ def dump(config_path, case_key, output_path):
         summary = ", ".join(
             f'c{c["index"]}={len(c["items"])} items' for c in containers
         )
-        print(f"{case_key}: {step} steps, {summary} -> {output_path}")
+        print(
+            f'{case_key}: {step} steps, {summary}, '
+            f'termination={payload["termination"]} -> {output_path}'
+        )
+        for c in containers:
+            counts = (c.get("reachability") or {}).get("counts")
+            if counts:
+                print(
+                    f'   c{c["index"]}  supported {counts["supported"]:3d}  '
+                    f'unsupported {counts["unsupported"]:3d}  '
+                    f'blocked {counts["blocked"]:3d}  '
+                    f'no_room {counts["no_room"]:3d}'
+                )
         try:
             env.close()
         except Exception:
