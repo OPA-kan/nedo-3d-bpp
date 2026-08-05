@@ -42,3 +42,53 @@
   汎用的に動くこと。
 - Python から呼べれば C/C++/Rust 実装・DLL も可(配布 Docker イメージで
   ビルドすること)。生成AIを用いた開発も可。知財は開発者帰属。
+
+## 搬入開始高さの基準面 (公式回答 2026-08-04)
+
+`PlacementValidator.check_transport_path()` の `resting_surfaces` /
+`ceiling_surfaces` に、**大棚が存在しない `require_shelf = False` の
+コンテナでも大棚相当の高さ平面が含まれる**件への公式回答。
+
+**結論: 意図された仕様。`require_shelf` の値によらず維持せよ。**
+
+- 理由: `require_shelf` は**中央の大棚**の有無を制御するフラグだが、
+  コンテナ内には**左端の耳の小棚が常にあり**、空間を上下分割する固定的な
+  構造制約が存在する。したがって大棚が無くても、搬入パス判定の基準面
+  としてその高さ平面を維持する。
+- `resting_surfaces`(= `thickness` と `height/2 + thickness + buffer`):
+  荷物底面との差が **0〜50 mm** なら「棚板・フレーム上面への直接アプローチ
+  (スライド搬入)」と判定され、**追加の持ち上げを適用しない**
+  (`effective_start_z = 0`)。
+- `ceiling_surfaces`(= `height/2 + buffer` と `height + buffer - thickness`):
+  棚下面相当も**空間制約(クリアランス上限)として常に機能**し、持ち上げ量が
+  クリップされる。
+- 意図しない干渉・棄却が起きる場合の公式推奨: **目標Z座標を数 mm 動かして
+  直接判定の範囲(0〜50 mm)から外す**、あるいは**搬入順序を見直す**。
+
+### agent 側の状態: 既に一致している (確認済み 2026-08-04)
+
+`agent.py` の `transport_sweeps()` と `transport_samples()` は、両プレーンを
+**`require_shelf` に依存せず無条件に**適用している。座標も公式と一致する:
+
+| 面 | agent の式 | 意味 |
+| --- | --- | --- |
+| resting | `thickness` | コンテナ床面 |
+| resting | `height/2 + thickness + buffer` | 小棚 **上面**(`shelf_aabbs` の `small_shelf` の top と厳密一致) |
+| ceiling | `height/2 + buffer` | 小棚 **下面** |
+| ceiling | `height + buffer - thickness` | 天井 |
+
+`shelf_aabbs()` 側では、**小棚は `cut_x > 0` なら常に**、**大棚は
+`require_shelf` のときだけ**生成される。これも公式の説明
+(「小棚は常にある、大棚はフラグ次第」)と一致する。
+
+> **この無条件性を「バグ」と読んで `require_shelf` 条件を付けてはならない。**
+> 公式仕様に反し、搬入経路の予測が実機とずれる。
+> `tests/test_transport_plane_contract.py` が固定している。
+
+### まだ取っていない選択肢
+
+公式が挙げた「目標Zを数 mm ずらして 0〜50 mm 帯から外す」制御を、agent は
+**能動的には行っていない**。帯に入った候補は現状そのまま棄却されるだけである
+(`Geometry.transport_path_clear` が偽を返す)。release 候補は
+`RELEASE_TARGET_LIFT = 0.052` で構造的に帯の外に出るので部分的には
+代替になっているが、settled 候補に対する数 mm のずらしは未実装・未測定。
