@@ -1256,6 +1256,14 @@
       "status": "active",
       "claim": "settled_share -- the fraction of a step's search attempts spent on settled rather than release candidates -- is an observable regime variable that recovers most of the hindsight regime effect, and it passes all three checks it was designed to fail. (1) SAME-pairs LOSO comparison over 20764 within-step discordant pairs: one global coefficient vector scores 0.617, two vectors gated on settled_share score 0.679, +0.062. (2) Variable-specific, not a generic benefit of splitting: pool_size gives +0.033, release_accept_rate +0.019, while unit_coverage (-0.005), immediate_score (-0.010) and attempts_to_first (-0.011) give nothing or worse. (3) Threshold-insensitive: accuracy is 0.689/0.685/0.679/0.688 at split quantiles 0.3/0.4/0.5/0.6, degrading only at 0.7, so the boundary is not a fitted constant. It correlates +0.660 with normalised episode progress, which the agent cannot compute because it needs the terminal step, whereas settled_share is available at decision time. It is also physically interpretable: a low settled_share means the board no longer offers settled placements and the search has shifted to releases, i.e. the board is full and fragmented. This is the varying-coefficient structure the Gated Iota controller implements -- open the term where the state supports it, close it where it does not.",
       "source": "stratified refits of scripts/fit_hazard_model.py, 2026-08-04: same-pairs LOSO comparison, variable sweep over eight candidate gates, threshold sweep over five quantiles"
+    },
+    {
+      "id": "l3-knobs-inconclusive-dual-full-stream-is-the-judging-scene",
+      "topic": "allocation",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "Both L3 allocation knobs remain inconclusive after a serial re-run on the scenario matrix, and the reason is scene bimodality rather than the knobs. On dual-dedicated-priority the identical base and base_null configs return [32,40] and [40,32]; on dual-empty they return [41,31] and [31,40] -- an 8 to 10 placed spread WITHIN one configuration, against arm deltas of +3 to +4. A noise floor computed from the difference of arm MEANS reads 0.0 there and is meaningless at n=2 when the within-arm spread is that large; the mistake is recorded because the first pass through this data reported those knobs as adoption candidates on exactly that arithmetic. The useful finding is which scene can judge: dual-full-stream (83 items over two containers, the scale COMPETITION_RULES states) returns 38 for base, base_null and l3_prefer_empty alike, so it is deterministic where the 41-item scenes are bimodal, and it is the scene worth spending repeats on. l3_release_route returned [38,28] there, one repeat of five below, which n=2 cannot separate from a single bad trajectory.",
+      "source": "scratchpad l3-serial/ (3 scenes x 4 arms x 2 repeats, run_queue serial)"
     }
   ]
 }

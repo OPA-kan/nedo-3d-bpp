@@ -40,6 +40,9 @@ if str(ROOT) not in sys.path:
 
 CELL = 0.05
 
+# keyed by container geometry; the mask is pure geometry so it is reusable
+_INSIDE_MASK_CACHE: dict = {}
+
 
 class AfterstateBoard:
     """A container as a heightmap plus its real half-spaces."""
@@ -68,7 +71,20 @@ class AfterstateBoard:
         # Cells outside the real envelope are not floor and must never be
         # counted as usable space; a box assumption here is the defect the
         # envelope fix removed.
-        self.inside = self._inside_mask()
+        # The mask costs nx*ny containment probes and depends only on the
+        # container's geometry, so self-play over many episodes on the same
+        # container must not pay for it repeatedly.
+        key = (
+            self.length, self.width, self.height, self.thickness,
+            container.get("cut_x"), container.get("cut_y"),
+            None if container.get("points") is None
+            else len(container["points"]),
+        )
+        cached = _INSIDE_MASK_CACHE.get(key)
+        if cached is None:
+            cached = self._inside_mask()
+            _INSIDE_MASK_CACHE[key] = cached
+        self.inside = cached
         self.placed = 0
         for packed, _soft, _prioritized in agent_module.packed_aabbs_local(container):
             cx, cy, cz = packed.center
