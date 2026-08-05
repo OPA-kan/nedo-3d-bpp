@@ -112,8 +112,21 @@ def reachability_map(agent_module, container, item, stride=0.10):
                 ):
                     state = "blocked"
                 else:
-                    proxy = agent_module.settled_proxy_candidate(
-                        candidate, container
+                    # NOT settled_proxy_candidate: that takes
+                    # max(containment_minimum_z, rest + h/2), containment
+                    # demands 16 mm of clearance and support_ratio wants
+                    # contact within 6 mm, so the containment term always
+                    # wins and a pose on the bare floor scores 0. A control
+                    # caught it -- an item on an EMPTY container floor read
+                    # 0.0000 where it must read 1. Build the proxy at the
+                    # height the item comes to REST instead.
+                    rest = agent_module.release_rest_height(
+                        x, y, (dx, dy, dz), container
+                    )
+                    proxy = agent_module.AABB(
+                        center=(x, y, rest + dz / 2.0),
+                        size=(dx, dy, dz),
+                        name="settled_proxy",
                     )
                     support = float(
                         agent_module.Geometry.support_ratio(proxy, container)
