@@ -194,6 +194,104 @@ class AfterstateBoard:
         }
 
 
+SLOT_CELL = 0.25
+
+
+def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
+    """
+    Board quality at CONSTANT fullness.
+
+    The six descriptors on AfterstateBoard turned out to be one axis:
+    occupancy_mean alone scores AUC 0.944 against 0.809 for a model fitted
+    on all six, and two of them are that same number inverted. Nothing in
+    the set distinguishes a half-full board that is clean from a half-full
+    board that is ruined, so nothing learned on it can either.
+
+    These are the quantities that vary when fullness does not:
+
+    R_c   per published type, how many INDEPENDENT places it can still go.
+          Independent means separated by a coarse slot, because two drops a
+          few centimetres apart are one escape route and counting them as
+          two is how a raw candidate count measures the generator's stride
+          instead of the board (docs/theory/TASK_C_BOARD_VALUE.md 0.1).
+          Counted from geometry here, never from generated candidates, so
+          that contamination cannot recur.
+
+    covered_void  free height sitting under a taller neighbour -- the
+          analogue of a Tetris hole, expressed as a fraction of interior.
+
+    largest_free_span  the widest run of cells at the floor level, which is
+          what decides whether a big item still has anywhere to go.
+
+    Cost is the reason for the coarse stride: this runs per afterstate.
+    """
+    from scripts.measure_board_value import BAGGAGE_TYPES, type_representative
+
+    interior = max(board.height - board.floor, 1e-9)
+    features = {}
+    total_slots = set()
+    for index, entry in enumerate(BAGGAGE_TYPES):
+        item = type_representative(entry, index)
+        slots = set()
+        for orientation in agent_module.unique_orientations(item):
+            dx, dy, dz = agent_module.get_rotated_dimensions(
+                item["length"], item["width"], item["height"], orientation
+            )
+            x = board.x0 + stride / 2.0
+            while x < -board.x0:
+                y = board.y0 + stride / 2.0
+                while y < -board.y0:
+                    bottom = board.drop_height(x, y, dx, dy)
+                    candidate = agent_module.AABB(
+                        center=(x, y, bottom + dz / 2.0),
+                        size=(dx, dy, dz),
+                        name="release_candidate",
+                    )
+                    if (
+                        agent_module.Geometry.release_rejection_reason(
+                            candidate, board.container
+                        )
+                        is None
+                    ):
+                        slots.add(
+                            (
+                                int(round(x / SLOT_CELL)),
+                                int(round(y / SLOT_CELL)),
+                                int(round(bottom / 0.10)),
+                            )
+                        )
+                    y += stride
+                x += stride
+        features[f"R_{entry['name']}"] = float(len(slots))
+        total_slots |= slots
+
+    heights = np.where(board.inside, board.heights, np.nan)
+    tallest = np.nanmax(heights)
+    covered = np.nansum(tallest - heights) / max(np.isfinite(heights).sum(), 1)
+    floor_cells = board.inside & (board.heights <= board.floor + 1e-9)
+    best_run = 0
+    for row in floor_cells:
+        run = 0
+        for cell in row:
+            run = run + 1 if cell else 0
+            best_run = max(best_run, run)
+
+    features["R_total_slots"] = float(len(total_slots))
+    features["R_min_type"] = float(
+        min(v for k, v in features.items() if k.startswith("R_") and k != "R_total_slots")
+    )
+    features["R_extinct_types"] = float(
+        sum(
+            1
+            for k, v in features.items()
+            if k.startswith("R_") and k not in ("R_total_slots", "R_min_type") and v == 0
+        )
+    )
+    features["covered_void"] = float(covered) / interior
+    features["largest_free_span"] = float(best_run) * CELL / board.length
+    return features
+
+
 def enumerate_afterstates(agent_module, container, item, *, stride=CELL):
     """Every legal drop of one item, with the board each one leaves."""
     board = AfterstateBoard(agent_module, container)
