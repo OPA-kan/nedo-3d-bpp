@@ -504,6 +504,11 @@ L3_RELEASE_ROUTE = os.environ.get(
 # with base/base_null pairs says the effect clears that run's noise floor.
 ZONE_ORDER_MODES = frozenset({"off", "doctrine", "reversed"})
 ZONE_ORDER_MODE = os.environ.get("ZONE_ORDER", "off").strip().lower()
+# The fingerprint resolves each registered knob by its ENV name, so a module
+# attribute called ZONE_ORDER_MODE records as null and the knob is registered
+# without its value ever being hashed. Several knobs already sit in the
+# fingerprint that way; this one does not.
+ZONE_ORDER = ZONE_ORDER_MODE
 # One bonus unit per rank step, so the span is three. It has to clear the
 # 2.0 that `2.0 * support` swings, because a release candidate scores
 # support 0 -- support_ratio needs 6 mm of contact and a release pose is
@@ -839,6 +844,13 @@ class ReleaseRiskThresholds:
         os.environ.get("RELEASE_RISK_MAX_SUPPORT_IMBALANCE", "0.90")
     )
 
+    # These five live as dataclass fields, so `getattr(agent, ENV_NAME)`
+    # finds nothing and the fingerprint stores null for all of them --
+    # registered, and never actually hashed. Exposed at module level below
+    # for the same reason DEATH_BAND_FALLBACK is: a knob the fingerprint
+    # cannot see is a knob a merge can change without moving the hash, which
+    # is the exact failure the registry exists to catch.
+
     def as_dict(self):
         return {
             "min_support_ratio": float(self.min_support_ratio),
@@ -847,6 +859,23 @@ class ReleaseRiskThresholds:
             "max_drop_normalized": float(self.max_drop_normalized),
             "max_support_imbalance": float(self.max_support_imbalance),
         }
+
+
+# Module-level mirrors of the five threshold fields, under their ENV names,
+# so `context/knobs.json` registering them actually reaches the fingerprint.
+# Values come from the dataclass rather than re-reading os.environ, so the
+# two can never drift apart.
+_RELEASE_RISK_DEFAULT_THRESHOLDS = ReleaseRiskThresholds()
+RELEASE_RISK_MIN_SUPPORT_RATIO = _RELEASE_RISK_DEFAULT_THRESHOLDS.min_support_ratio
+RELEASE_RISK_MIN_COM_MARGIN = _RELEASE_RISK_DEFAULT_THRESHOLDS.min_com_margin
+RELEASE_RISK_MAX_OVERHANG_RATIO = _RELEASE_RISK_DEFAULT_THRESHOLDS.max_overhang_ratio
+RELEASE_RISK_MAX_DROP_NORMALIZED = _RELEASE_RISK_DEFAULT_THRESHOLDS.max_drop_normalized
+RELEASE_RISK_MAX_SUPPORT_IMBALANCE = (
+    _RELEASE_RISK_DEFAULT_THRESHOLDS.max_support_imbalance
+)
+# Same gap, same fix: the variable is DEATH_BAND_FALLBACK_ENABLED, so the
+# knob that cost 15.3% officially was registered and never hashed.
+DEATH_BAND_FALLBACK = DEATH_BAND_FALLBACK_ENABLED
 
 
 @dataclass(frozen=True)

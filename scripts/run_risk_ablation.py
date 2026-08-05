@@ -107,6 +107,8 @@ def configure_arm_environment(
         "base_null",
         "zone_doctrine",
         "zone_reversed",
+        "attr_guard_priority",
+        "attr_guard_all",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -146,6 +148,17 @@ def configure_arm_environment(
             # free-and-fits poses at a terminal board are refused only by
             # transport_path_clear, and they sit deep.
             env["ZONE_ORDER"] = "doctrine"
+        elif arm == "attr_guard_priority":
+            # Refuse release poses whose settled proxy rests on a priority
+            # top. At the board c000-k1 dies on, all 950 legal release
+            # candidates rest on soft or priority cargo, so this is the
+            # population -- and the risk is that removing it leaves no legal
+            # pose and simply ends the episode sooner. `priority` is the
+            # narrower half of that population and is measured separately
+            # from `all` for exactly that reason.
+            env["RELEASE_ATTRIBUTE_GUARD"] = "priority"
+        elif arm == "attr_guard_all":
+            env["RELEASE_ATTRIBUTE_GUARD"] = "all"
         elif arm == "zone_reversed":
             # The same machinery pointed the other way. Without it a
             # doctrine arm that beats base has only shown that SOME zone
