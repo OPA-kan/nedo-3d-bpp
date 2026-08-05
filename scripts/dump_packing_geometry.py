@@ -52,45 +52,68 @@ def reachability_map(agent_module, container, item, stride=0.10):
 
     Only `blocked` is recoverable by placing differently, which is why it is
     separated rather than folded into one rejection count.
+
+    A column counts as `legal` when ANY orientation fits there. Testing a
+    single orientation reported zero legal columns on boards a 5 cm
+    all-orientation scan had found 34 placements on -- the map was drawing
+    the first orientation's luck, not the board's.
     """
     from scripts.fast_afterstate_env import AfterstateBoard
 
     board = AfterstateBoard(agent_module, container)
-    orientation = next(iter(agent_module.unique_orientations(item)))
-    dx, dy, dz = agent_module.get_rotated_dimensions(
-        item["length"], item["width"], item["height"], orientation
-    )
+    orientations = list(agent_module.unique_orientations(item))
+    rank = {"no_room": 0, "blocked": 1, "legal": 2}
     cells = []
     x = board.x0 + stride / 2.0
     while x < -board.x0:
         y = board.y0 + stride / 2.0
         while y < -board.y0:
-            bottom = float(board.drop_height(x, y, dx, dy))
-            candidate = agent_module.AABB(
-                center=(x, y, bottom + dz / 2.0),
-                size=(dx, dy, dz),
-                name="release_candidate",
-            )
-            if not agent_module.Geometry.inside_container(candidate, container):
-                state = "no_room"
-            elif not agent_module.Geometry.clears_static_geometry(
-                candidate, container
-            ):
-                state = "no_room"
-            elif not agent_module.Geometry.transport_path_clear(
-                candidate, container
-            ):
-                state = "blocked"
-            else:
-                state = "legal"
+            best = "no_room"
+            best_bottom = None
+            for orientation in orientations:
+                dx, dy, dz = agent_module.get_rotated_dimensions(
+                    item["length"], item["width"], item["height"], orientation
+                )
+                bottom = float(board.drop_height(x, y, dx, dy))
+                candidate = agent_module.AABB(
+                    center=(x, y, bottom + dz / 2.0),
+                    size=(dx, dy, dz),
+                    name="release_candidate",
+                )
+                if not agent_module.Geometry.inside_container(
+                    candidate, container
+                ):
+                    state = "no_room"
+                elif not agent_module.Geometry.clears_static_geometry(
+                    candidate, container
+                ):
+                    state = "no_room"
+                elif not agent_module.Geometry.transport_path_clear(
+                    candidate, container
+                ):
+                    state = "blocked"
+                else:
+                    state = "legal"
+                if rank[state] > rank[best]:
+                    best, best_bottom = state, bottom
+                if best == "legal":
+                    break
             cells.append(
-                [round(float(x), 3), round(float(y), 3), round(bottom, 3), state]
+                [
+                    round(float(x), 3),
+                    round(float(y), 3),
+                    round(best_bottom if best_bottom is not None else 0.0, 3),
+                    best,
+                ]
             )
             y += stride
         x += stride
     return {
         "stride": stride,
-        "probe": [round(float(v), 3) for v in (dx, dy, dz)],
+        "orientations": len(orientations),
+        "item": [
+            round(float(item[k]), 3) for k in ("length", "width", "height")
+        ],
         "cells": cells,
     }
 
