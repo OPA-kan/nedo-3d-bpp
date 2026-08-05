@@ -21,6 +21,19 @@ Two quantities per step:
                solution when every safer pose loses on Q by more than the
                risk range can recover, and that is reported rather than
                smoothed away.
+
+RETRACTED as a source of adoption evidence -- see
+reports/hazard/dominated-choices-retracted.md.
+
+This enumerates alternatives on a 5 cm grid whose drop height comes from
+AfterstateBoard's heightmap. `Ranker.score` carries `-0.18 * z * mass` with
+masses up to 12 kg, so a sub-cell error in z moves the score by ~0.1 --
+wider than the "domination" gaps this was used to claim. The scores it
+produces are not comparable to the agent's.
+
+Use `scripts/measure_anchor_recall.py` instead: it enumerates from the
+agent's own contract and marks each candidate `found_by_anytime`, which is
+what the retracted claim needed and did not use.
 """
 from __future__ import annotations
 

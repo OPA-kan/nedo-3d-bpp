@@ -25,6 +25,19 @@ Ranker.score's terms are `12*volume + 2*support + depth - 0.12*|x| -
 0.18*z*mass + routing`, so a support difference of 0.14 already outweighs a
 P_rot difference of 0.28 at lambda 1. That is the hypothesis this checks; it
 is not assumed.
+
+RETRACTED as a source of adoption evidence -- see
+reports/hazard/dominated-choices-retracted.md.
+
+This enumerates alternatives on a 5 cm grid whose drop height comes from
+AfterstateBoard's heightmap. `Ranker.score` carries `-0.18 * z * mass` with
+masses up to 12 kg, so a sub-cell error in z moves the score by ~0.1 --
+wider than the "domination" gaps this was used to claim. The scores it
+produces are not comparable to the agent's.
+
+Use `scripts/measure_anchor_recall.py` instead: it enumerates from the
+agent's own contract and marks each candidate `found_by_anytime`, which is
+what the retracted claim needed and did not use.
 """
 from __future__ import annotations
 
