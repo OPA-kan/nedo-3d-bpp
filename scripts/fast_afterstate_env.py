@@ -217,8 +217,12 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
           Counted from geometry here, never from generated candidates, so
           that contamination cannot recur.
 
-    covered_void  free height sitting under a taller neighbour -- the
-          analogue of a Tetris hole, expressed as a fraction of interior.
+    covered_void  free space with material directly above it, as a
+          fraction of the interior. Voxelised, NOT read off the heightmap:
+          the first version of this was `mean(max_height - height)`, which
+          is `headroom_deficit` to machine precision, because a heightmap
+          cannot tell a low column beside a tall one from a pocket under an
+          overhang. See `sealed_void_fraction`.
 
     largest_free_span  the widest run of cells at the floor level, which is
           what decides whether a big item still has anywhere to go.
@@ -227,7 +231,6 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
     """
     from scripts.measure_board_value import BAGGAGE_TYPES, type_representative
 
-    interior = max(board.height - board.floor, 1e-9)
     features = {}
     total_slots = set()
     for index, entry in enumerate(BAGGAGE_TYPES):
@@ -265,9 +268,6 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
         features[f"R_{entry['name']}"] = float(len(slots))
         total_slots |= slots
 
-    heights = np.where(board.inside, board.heights, np.nan)
-    tallest = np.nanmax(heights)
-    covered = np.nansum(tallest - heights) / max(np.isfinite(heights).sum(), 1)
     floor_cells = board.inside & (board.heights <= board.floor + 1e-9)
     best_run = 0
     for row in floor_cells:
@@ -287,9 +287,92 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
             if k.startswith("R_") and k not in ("R_total_slots", "R_min_type") and v == 0
         )
     )
-    features["covered_void"] = float(covered) / interior
+    total, by_items = sealed_void_fraction(agent_module, board)
+    features["covered_void"] = total
+    features["covered_void_by_items"] = by_items
     features["largest_free_span"] = float(best_run) * CELL / board.length
     return features
+
+
+def sealed_void_fraction(agent_module, board, *, cell=0.05):
+    """
+    Free volume that has material directly above it, as a fraction of the
+    interior.
+
+    This was originally computed from the heightmap as
+    ``mean(max_height - height)`` -- which is exactly the existing
+    ``headroom_deficit``, to machine precision, so the "new" feature was a
+    rename. The duplication was not a naming slip: a heightmap CANNOT
+    express this quantity. It records one number per column, so a low column
+    beside a tall one (still open from above) and a pocket under an overhang
+    (sealed) look identical to it.
+
+    The distinction is the whole point -- the section drawings put 21.4% of
+    the envelope in sealed void overall and 30% in the shelf containers --
+    so this voxelises the settled AABBs instead, which is the cheapest
+    representation that can see an overhang at all.
+
+    Returns TWO fractions, because the first version conflated them and the
+    conflation is load-bearing: on an EMPTY shelf container the total is
+    already 0.268, all of it the volume the main shelf seals off. That part
+    is a property of the container -- useful to L3 when choosing between
+    containers, useless as a description of what the packing did. So:
+
+      total      everything sealed, shelves included
+      by_items   sealed with only settled items acting as the ceiling,
+                 which is the part the policy created and can avoid
+    """
+    length = board.length
+    width = board.width
+    height = board.height
+    xs = np.arange(-length / 2.0 + cell / 2.0, length / 2.0, cell)
+    ys = np.arange(-width / 2.0 + cell / 2.0, width / 2.0, cell)
+    zs = np.arange(board.floor + cell / 2.0, height, cell)
+    if xs.size == 0 or ys.size == 0 or zs.size == 0:
+        return 0.0
+    gx, gy, gz = np.meshgrid(xs, ys, zs, indexing="ij")
+    points = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1)
+
+    container = board.container
+    planes = container.get("points")
+    normals = container.get("n_vecs")
+    if planes is None or normals is None:
+        inside = np.ones(len(points), dtype=bool)
+    else:
+        offset = float(agent_module.container_offset_x(container))
+        plane_points = np.asarray(planes, dtype=np.float64).copy()
+        plane_points[:, 0] -= offset
+        plane_normals = np.asarray(normals, dtype=np.float64)
+        inside = np.ones(len(points), dtype=bool)
+        for point, normal in zip(plane_points, plane_normals):
+            inside &= (points - point) @ normal <= 0.0
+
+    items = np.zeros(len(points), dtype=bool)
+    for packed, _soft, _prioritized in agent_module.packed_aabbs_local(container):
+        centre = np.asarray(packed.center, dtype=np.float64)
+        half = np.asarray(packed.size, dtype=np.float64) / 2.0
+        items |= np.all(np.abs(points - centre) <= half, axis=1)
+    plates = np.zeros(len(points), dtype=bool)
+    for plate in agent_module.shelf_aabbs(container):
+        plates |= np.all(
+            (points >= np.asarray(plate.minimum))
+            & (points <= np.asarray(plate.maximum)),
+            axis=1,
+        )
+
+    shape = gx.shape
+    inside3 = inside.reshape(shape)
+    interior_cells = int(inside3.sum())
+    if interior_cells == 0:
+        return 0.0, 0.0
+
+    def sealed(ceiling, solid):
+        above = np.cumsum(ceiling[:, :, ::-1], axis=2)[:, :, ::-1] > 0
+        return float((inside3 & ~solid & above).sum()) / interior_cells
+
+    solid3 = (items | plates).reshape(shape)
+    items3 = items.reshape(shape)
+    return sealed(solid3, solid3), sealed(items3, solid3)
 
 
 def enumerate_afterstates(agent_module, container, item, *, stride=CELL):
