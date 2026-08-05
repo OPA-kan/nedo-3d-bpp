@@ -247,6 +247,68 @@ def wall_marks(container):
     return draw
 
 
+REACH_COLOURS = {
+    "legal": "reach-legal",
+    "blocked": "reach-blocked",
+    "no_room": "reach-none",
+}
+
+
+def reachability_pane(container, scale=168.0):
+    """
+    Plan view of where the agent could still put the next item, and why not.
+
+    Drawn from the map `dump_packing_geometry` records at the board the
+    episode ends on. `blocked` is the only class a different packing could
+    have kept: the space is free and the item fits, and only
+    transport_path_clear refuses. Transport enters at y = -width/2, so those
+    cells lying deep is the shape of what earlier placements spent.
+    """
+    reach = container.get("reachability")
+    if not reach or not reach.get("cells"):
+        return None
+    poly = section(container, 2, container["thickness"] + 0.06)
+    if not poly:
+        return None
+    u0, v0, u1, v1 = bounds([poly])
+    view = View(u0, v0, u1, v1, scale, PAD)
+    stride = float(reach.get("stride") or 0.10)
+    canvas_h = view.h + 20.0  # room under the tick row for the door caption
+    out = [
+        f'<svg viewBox="0 0 {view.w:.1f} {canvas_h:.1f}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img">'
+    ]
+    out.append(ticks(view))
+    counts = {"legal": 0, "blocked": 0, "no_room": 0}
+    for cx, cy, _bottom, state in reach["cells"]:
+        counts[state] = counts.get(state, 0) + 1
+        if state == "no_room":
+            continue
+        cls = REACH_COLOURS.get(state, "reach-none")
+        x, y = view.xy(cx - stride / 2.0, cy + stride / 2.0)
+        out.append(
+            f'<rect class="{cls}" x="{x:.2f}" y="{y:.2f}" '
+            f'width="{stride * scale:.2f}" height="{stride * scale:.2f}"/>'
+        )
+    out.append(f'<polygon class="hull" points="{poly_path(view, poly)}"/>')
+    # the door the transport comes through
+    x0, y0 = view.xy(view.u0, view.v0)
+    x1, _ = view.xy(view.u1, view.v0)
+    out.append(
+        f'<line class="door" x1="{min(x0, x1):.1f}" y1="{y0:.1f}" '
+        f'x2="{max(x0, x1):.1f}" y2="{y0:.1f}"/>'
+    )
+    out.append(
+        f'<text class="door-label" x="{(x0 + x1) / 2:.1f}" '
+        f'y="{view.h - PAD + 32:.1f}" text-anchor="middle">'
+        'transport enters along this edge</text>'
+    )
+    out.append("</svg>")
+    usable = counts["legal"] + counts["blocked"]
+    share = counts["blocked"] / usable if usable else 0.0
+    return "".join(out), counts, share
+
+
 def deck_levels(container):
     bottoms = sorted({round(i["c"][2] - i["s"][2] / 2.0, 3) for i in container["items"]})
     levels = []
@@ -400,6 +462,11 @@ p { max-width:68ch; }
 .box.prio { fill:var(--prio); stroke:var(--prio-e); stroke-width:2.2; }
 .box.ghost { fill:none; stroke-dasharray:2 3; opacity:.34; stroke-width:.9; }
 .trace { stroke:var(--hull); stroke-width:.9; stroke-dasharray:7 3 2 3; opacity:.6; }
+.reach-legal { fill:var(--prio); opacity:.30; }
+.reach-blocked { fill:var(--soft); opacity:.42; }
+.door { stroke:var(--soft-e); stroke-width:3; stroke-dasharray:9 4; }
+.door-label { font-family: ui-monospace, Menlo, monospace; font-size:9.5px;
+  fill:var(--soft-e); letter-spacing:.08em; }
 .tick { stroke:var(--rule); stroke-width:1; }
 .hatchline { stroke:var(--hatch); stroke-width:1.4; }
 .tag { font-family: ui-monospace, Menlo, monospace; font-size:9px; fill:var(--ink);
@@ -420,6 +487,8 @@ p { max-width:68ch; }
 .sw.shelf { background:var(--shelf); opacity:.6; }
 .sw.void { background:repeating-linear-gradient(45deg, var(--hatch) 0 1.4px,
   transparent 1.4px 6px); border-color:var(--rule); }
+.sw.reach-l { background:var(--prio); opacity:.55; border-color:var(--prio-e); }
+.sw.reach-b { background:var(--soft); opacity:.65; border-color:var(--soft-e); }
 
 table { border-collapse:collapse; font-size:13px; margin-top:14px; }
 td, th { padding:5px 16px 5px 0; text-align:left; vertical-align:top; }
@@ -485,6 +554,20 @@ def container_block(container, case_label):
         )
     parts.append("</div></div>")
 
+    built = reachability_pane(container)
+    if built:
+        svg, counts, share = built
+        parts.append(
+            "<h3>Reachability — where the next item could still go</h3>"
+        )
+        parts.append(
+            '<div class="scroll"><div class="fig">' + svg
+            + f'<div class="cap">at the board this episode ended on · '
+            f'{counts["legal"]} columns still take it · '
+            f'{counts["blocked"]} are free and fit but unreachable '
+            f'({100 * share:.0f}% of the usable ones)</div></div></div>'
+        )
+
     parts.append("<h3>Stations — transverse sections, looking along +x</h3>")
     parts.append('<div class="scroll"><div class="row strip">')
     for x in sts:
@@ -519,6 +602,10 @@ def build(dumps, out_path, title, intro, notes_html=""):
         '<span><i class="sw ghost"></i>not cut by this plane</span>'
         '<span><i class="sw shelf"></i>shelf</span>'
         '<span><i class="sw void"></i>free but built over</span>'
+        "</div>",
+        '<div class="legend">'
+        '<span><i class="sw reach-l"></i>the next item still fits here</span>'
+        '<span><i class="sw reach-b"></i>free, fits, but no longer reachable</span>'
         "</div>",
         notes_html,
     ]
