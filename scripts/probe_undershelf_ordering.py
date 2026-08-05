@@ -57,7 +57,14 @@ def poses(container, item, floor, shelf, board=None):
         while y + dy / 2.0 <= yhi:
             x = -half + dx / 2.0
             while x + dx / 2.0 <= half:
-                out.append((orientation, round(x, 3), round(y, 3), dx, dy, dz))
+                bottom = (
+                    floor if board is None
+                    else float(board.drop_height(x, y, dx, dy))
+                )
+                if bottom + dz <= under - 0.005:
+                    out.append(
+                        (orientation, round(x, 3), round(y, 3), dx, dy, dz, bottom)
+                    )
                 x += 0.05
             y += 0.05
     return out
