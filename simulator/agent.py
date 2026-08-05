@@ -479,6 +479,49 @@ L3_PREFER_EMPTY_BAND = float(
 L3_RELEASE_ROUTE = os.environ.get(
     "L3_RELEASE_ROUTE", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
+# Loading order over zones of the container, as a score term.
+#
+# Transport enters at y = -width/2 and runs toward +y, so an item parked in
+# front spends the whole lane behind it. Measured on the board
+# dual-shelf-mixed stops on: of the poses where the space is free and the
+# item fits, 62.9% are refused ONLY by transport_path_clear, and those sit
+# deep (y median +0.250) while the legal ones sit by the door (-0.400).
+# The loss is the corridor, not the envelope and not the cargo, so it is
+# recoverable by where and when things go in.
+#
+# Ranker.score already leans deep for ordinary cargo (+0.35*y). What it has
+# no notion of is that the deep region is SPENT first and cannot be
+# revisited. This adds that as a ranking bonus by zone.
+#
+# "doctrine" is shelf top, then deep, then centre, then under the shelf --
+# under-shelf last because it is a dead-end pocket worth using only when
+# nothing else reaches. "reversed" is the same order inverted and exists so
+# the arm has a control that moves the same machinery the other way; a
+# doctrine arm that beats base but not reversed has measured the bonus, not
+# the ordering.
+#
+# Default off. Nothing about the shipped policy changes until an ablation
+# with base/base_null pairs says the effect clears that run's noise floor.
+ZONE_ORDER_MODES = frozenset({"off", "doctrine", "reversed"})
+ZONE_ORDER_MODE = os.environ.get("ZONE_ORDER", "off").strip().lower()
+# One bonus unit per rank step, so the span is three. It has to clear the
+# 2.0 that `2.0 * support` swings, because a release candidate scores
+# support 0 -- support_ratio needs 6 mm of contact and a release pose is
+# sent 16 mm clear of its surface -- while a pose resting on the shelf
+# plate scores 1. At 0.5 the whole zone span was 1.5 and could not reorder
+# that pair, so the knob expressed nothing where it mattered most.
+ZONE_ORDER_BONUS = float(os.environ.get("ZONE_ORDER_BONUS", "1.0"))
+if ZONE_ORDER_MODE not in ZONE_ORDER_MODES:
+    raise ValueError(
+        f"unknown ZONE_ORDER {ZONE_ORDER_MODE!r}; "
+        f"expected one of {', '.join(sorted(ZONE_ORDER_MODES))}"
+    )
+# Rank 0 is filled last. The bonus is rank * ZONE_ORDER_BONUS, so the gap
+# between adjacent zones is one bonus unit and the span is three.
+ZONE_RANKS = {
+    "doctrine": {"shelf_top": 3, "deep": 2, "centre": 1, "under_shelf": 0},
+    "reversed": {"shelf_top": 0, "deep": 1, "centre": 2, "under_shelf": 3},
+}
 CONSTRUCTIVE_ORDER_MODES = frozenset({"composite", "volume"})
 CONSTRUCTIVE_ORDER_MODE = os.environ.get(
     "CONSTRUCTIVE_ORDER_MODE", "composite"
@@ -3777,6 +3820,65 @@ class CandidateGenerator:
         ]
 
 
+@lru_cache(maxsize=256)
+def _zone_geometry(length, width, height, thickness, buffer, cut_x, shelf):
+    """
+    (shelf_top_z, shelf_y_lo, shelf_y_hi, deep_y) for zone classification.
+
+    Cached on the container's dimensions because `Ranker.score` runs on the
+    hot path -- rebuilding the shelf AABBs per candidate would cost search
+    breadth, and a knob that shrinks the search is not measuring its own
+    hypothesis.
+    """
+    container = {
+        "length": length,
+        "width": width,
+        "height": height,
+        "thickness": thickness,
+        "buffer": buffer,
+        "cut_x": cut_x,
+        "shelf": shelf,
+    }
+    plates = [a for a in shelf_aabbs(container) if a.name == "main_shelf"]
+    deep_y = width / 4.0
+    if not plates:
+        return (None, None, None, deep_y)
+    plate = plates[0]
+    return (
+        float(plate.maximum[2]),
+        float(plate.minimum[1]),
+        float(plate.maximum[1]),
+        deep_y,
+    )
+
+
+def candidate_zone(candidate, container):
+    """
+    Which loading zone a pose rests in.
+
+    Classified on the pose's BOTTOM, not its top: a tall item standing on
+    the floor by the door is not on the shelf, and reading it as such
+    inverts the very ordering this is here to express.
+    """
+    top_z, y_lo, y_hi, deep_y = _zone_geometry(
+        float(container["length"]),
+        float(container["width"]),
+        float(container["height"]),
+        float(container["thickness"]),
+        float(container.get("buffer", 0.0) or 0.0),
+        float(container.get("cut_x", 0.0) or 0.0),
+        bool(container_requires_shelf(container)),
+    )
+    y = float(candidate.center[1])
+    bottom = float(candidate.minimum[2])
+    if top_z is not None:
+        if bottom >= top_z - CONTACT_TOLERANCE:
+            return "shelf_top"
+        if y_lo <= y <= y_hi:
+            return "under_shelf"
+    return "deep" if y >= deep_y else "centre"
+
+
 class Ranker:
     @staticmethod
     def score(candidate, item, container, has_priority_container):
@@ -3798,6 +3900,12 @@ class Ranker:
             elif not is_priority_item and is_priority_container:
                 routing_score = -2.5
 
+        zone_score = 0.0
+        if ZONE_ORDER_MODE != "off":
+            zone_score = ZONE_ORDER_BONUS * ZONE_RANKS[ZONE_ORDER_MODE][
+                candidate_zone(candidate, container)
+            ]
+
         return (
             12.0 * volume
             + 2.0 * support
@@ -3805,6 +3913,7 @@ class Ranker:
             - 0.12 * abs(x)
             - 0.18 * z * mass
             + routing_score
+            + zone_score
         )
 
 

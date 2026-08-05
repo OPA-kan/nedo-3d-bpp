@@ -105,6 +105,8 @@ def configure_arm_environment(
         "death_band_unbanded",
         "death_band_v1",
         "base_null",
+        "zone_doctrine",
+        "zone_reversed",
         "rollout_enforce_stride4",
         "rollout_shadow_stride4",
         "live_interleave4",
@@ -138,6 +140,17 @@ def configure_arm_environment(
             env["DEATH_BAND_SCORE"] = ""
         elif arm == "base_null":
             pass  # identical to base: carries the run's own noise floor
+        elif arm == "zone_doctrine":
+            # Loading order over zones: shelf top, deep, centre, under the
+            # shelf. The corridor scan is what motivates it -- 62.9% of the
+            # free-and-fits poses at a terminal board are refused only by
+            # transport_path_clear, and they sit deep.
+            env["ZONE_ORDER"] = "doctrine"
+        elif arm == "zone_reversed":
+            # The same machinery pointed the other way. Without it a
+            # doctrine arm that beats base has only shown that SOME zone
+            # bonus helps, not that this order is the right one.
+            env["ZONE_ORDER"] = "reversed"
         elif arm == "death_band":
             # Redundant since the default flipped on 2026-08-04; kept so a
             # run can pin the value explicitly rather than inherit it.
