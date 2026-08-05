@@ -38,6 +38,63 @@ from scripts.measure_anchor_recall import (  # noqa: E402
 from src.ground_handling.env import GroundHandlingEnv  # noqa: E402
 
 
+def reachability_map(agent_module, container, item, stride=0.10):
+    """
+    At the board the episode ended on, why each column is or is not usable.
+
+    Three outcomes per (x, y), tested at the drop height a release would
+    reach, in the order the shipped contract tests them:
+
+      legal     the item can still go here
+      blocked   it fits and the space is free, but transport_path_clear
+                refuses -- reachability spent by earlier placements
+      no room   containment or static geometry refuses
+
+    Only `blocked` is recoverable by placing differently, which is why it is
+    separated rather than folded into one rejection count.
+    """
+    from scripts.fast_afterstate_env import AfterstateBoard
+
+    board = AfterstateBoard(agent_module, container)
+    orientation = next(iter(agent_module.unique_orientations(item)))
+    dx, dy, dz = agent_module.get_rotated_dimensions(
+        item["length"], item["width"], item["height"], orientation
+    )
+    cells = []
+    x = board.x0 + stride / 2.0
+    while x < -board.x0:
+        y = board.y0 + stride / 2.0
+        while y < -board.y0:
+            bottom = float(board.drop_height(x, y, dx, dy))
+            candidate = agent_module.AABB(
+                center=(x, y, bottom + dz / 2.0),
+                size=(dx, dy, dz),
+                name="release_candidate",
+            )
+            if not agent_module.Geometry.inside_container(candidate, container):
+                state = "no_room"
+            elif not agent_module.Geometry.clears_static_geometry(
+                candidate, container
+            ):
+                state = "no_room"
+            elif not agent_module.Geometry.transport_path_clear(
+                candidate, container
+            ):
+                state = "blocked"
+            else:
+                state = "legal"
+            cells.append(
+                [round(float(x), 3), round(float(y), 3), round(bottom, 3), state]
+            )
+            y += stride
+        x += stride
+    return {
+        "stride": stride,
+        "probe": [round(float(v), 3) for v in (dx, dy, dz)],
+        "cells": cells,
+    }
+
+
 def dump(config_path, case_key, output_path):
     agent_module = load_agent_module()
     config = json.loads(pathlib.Path(config_path).read_text(encoding="utf-8"))
@@ -116,6 +173,14 @@ def dump(config_path, case_key, output_path):
                     "items": items,
                 }
             )
+            pool = observation.get("pool_list") or []
+            if pool:
+                try:
+                    containers[-1]["reachability"] = reachability_map(
+                        agent_module, container, pool[0]
+                    )
+                except Exception as error:  # a map is a nicety, the dump is not
+                    containers[-1]["reachability_error"] = str(error)
         payload = {"case": case_key, "steps": step, "containers": containers}
         pathlib.Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(output_path).write_text(
