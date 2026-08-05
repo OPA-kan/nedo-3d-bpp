@@ -1264,6 +1264,14 @@
       "status": "active",
       "claim": "Both L3 allocation knobs remain inconclusive after a serial re-run on the scenario matrix, and the reason is scene bimodality rather than the knobs. On dual-dedicated-priority the identical base and base_null configs return [32,40] and [40,32]; on dual-empty they return [41,31] and [31,40] -- an 8 to 10 placed spread WITHIN one configuration, against arm deltas of +3 to +4. A noise floor computed from the difference of arm MEANS reads 0.0 there and is meaningless at n=2 when the within-arm spread is that large; the mistake is recorded because the first pass through this data reported those knobs as adoption candidates on exactly that arithmetic. The useful finding is which scene can judge: dual-full-stream (83 items over two containers, the scale COMPETITION_RULES states) returns 38 for base, base_null and l3_prefer_empty alike, so it is deterministic where the 41-item scenes are bimodal, and it is the scene worth spending repeats on. l3_release_route returned [38,28] there, one repeat of five below, which n=2 cannot separate from a single bad trajectory.",
       "source": "scratchpad l3-serial/ (3 scenes x 4 arms x 2 repeats, run_queue serial)"
+    },
+    {
+      "id": "afterstate-features-are-one-axis-fullness",
+      "topic": "state_shaping",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "The six afterstate features are one axis -- board fullness -- written six ways, and a parameter-free single feature beats the model fitted on all of them. Single-predictor AUC on the 233 labelled afterstates: occupancy_mean alone 0.944, roughness 0.872, step_index 0.846, occupancy_max 0.784, occupancy_std 0.746, while headroom_deficit (0.185) and floor_fraction_free (0.143) are simply occupancy inverted. The LOSO-fitted six-feature model scores 0.809, BELOW the raw single feature, which has no parameters to transfer and therefore no LOSO penalty -- so fitting is actively hurting through poor coefficient transfer across cases. This also explains the regime gate returning -0.004 here: gating a one-dimensional signal cannot add information. The methodological consequence is a new baseline: any proposed board feature must beat occupancy_mean's 0.944 on this target, not chance, or it is a restatement of how full the board is. What the set lacks is any quantity that varies at CONSTANT fullness -- covered voids, largest remaining free rectangle, per-type feasibility -- which is precisely what R_c in docs/theory/TASK_C_BOARD_VALUE.md was defined to measure and what could not previously be computed without generator-density contamination. The fast afterstate environment can compute it from geometry directly.",
+      "source": "single-feature ablation over the afterstate rows built by scripts/fit_afterstate_value.py, 2026-08-04"
     }
   ]
 }
