@@ -70,3 +70,50 @@ Recorded because each failed a check that the next one added:
 
 The rasterised version conserves total area (`dA_total` = +/-0.000), which
 is the sanity check the first two would have failed and neither had.
+
+---
+
+## Addendum: the verdict was reached from one step, then confirmed on three
+
+The section above was written from step 5 alone, and step 5 turned out to be
+the only one of four probed steps with ZERO candidates landing level with an
+existing top. That is an over-generalisation from n=1 and it deserved the
+challenge it got:
+
+```
+step   item              candidates   land level with an existing top
+   5   0.65x0.45x0.25        400          0    0.0%
+  10   0.55x0.40x0.24        706         70    9.9%
+  12   0.55x0.40x0.24       1033        345   33.4%
+  16   0.65x0.35x0.23        950          0    0.0%   (soft -- cannot support)
+```
+
+A third of the candidates at step 12 land level. So the material for a
+bridge exists far more often than step 5 suggested.
+
+**It still never bridges.** Rasterised `dA_largest` at those steps:
+
+```
+step 10   min -0.079   median +0.000   max +0.000     0 of 706 grow the face
+step 12   min -0.166   median +0.000   max +0.000     0 of 1033 grow the face
+```
+
+The reason is sharper than the section above gave. `support_surfaces_are_adjacent`
+requires THREE conditions at once:
+
+```python
+abs(first.top - second.top) <= CONTACT_TOLERANCE      # 6 mm, height
+x_gap / y_gap <= SUPPORT_PLANE_ADJACENCY              # 16 mm, lateral
+plus overlap on the other axis
+```
+
+Counting height coincidence alone -- which is what "33.4% land level"
+measures -- is necessary and nowhere near sufficient. Landing level with a
+surface at the far end of the container merges with nothing. Across 2139
+plain-item candidates over three steps, level AND laterally adjacent never
+co-occurs.
+
+So the conclusion holds and the mechanism is now stated correctly: elevated
+support is monotonically non-increasing not because levels never align, but
+because aligning in height and in position at once is a two-condition
+coincidence the candidate set does not contain.
