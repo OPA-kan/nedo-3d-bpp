@@ -133,41 +133,40 @@ def main() -> int:
         report["scenarios"][scenario] = entry
 
         # the reading
-        if {"base", "base_null"} <= set(present):
-            print("\n  against the run's own noise floor (base - base_null):")
+        #
+        # The control is base and base_null POOLED. Using |base - base_null|
+        # as the floor and base_null alone as the baseline double-counts the
+        # same two observations: whichever of the identical pair landed low
+        # became the reference, so any arm sitting near the other one cleared
+        # its own noise. That is exactly how item_cap16 read +6.000 CLEARS in
+        # one run and -5.000 within in the next, while tracking base in both.
+        control = [
+            a for a in ("base", "base_null") if a in present
+        ]
+        if control:
+            print("\n  against the pooled base + base_null control:")
             for name in names:
-                b = table[(scenario, "base")].get(name) or []
-                n = table[(scenario, "base_null")].get(name) or []
-                if not b or not n:
+                pool = []
+                for arm in control:
+                    pool.extend(table[(scenario, arm)].get(name) or [])
+                if len(pool) < 2:
                     continue
-                floor = abs(statistics.fmean(b) - statistics.fmean(n))
-                # the within-arm spread matters as much as the gap between
-                # the two identical arms: a floor computed only from means
-                # cancels to nothing and reported knobs as adoptable once
-                # already today.
-                spreads = [
-                    max(s) - min(s)
-                    for s in (b, n)
-                    if len(s) > 1
-                ]
-                floor = max([floor] + spreads)
+                centre = statistics.fmean(pool)
+                floor = max(pool) - min(pool)
                 verdicts = []
-                # every arm present that is not one of the two controls --
-                # hardcoding the arm names printed nothing at all the first
-                # time a different experiment used this summariser
                 for arm in [
                     a for a in present if a not in ("base", "base_null")
                 ]:
                     series = table[(scenario, arm)].get(name) or []
                     if not series:
                         continue
-                    delta = statistics.fmean(series) - statistics.fmean(n)
+                    delta = statistics.fmean(series) - centre
                     mark = "CLEARS" if abs(delta) > floor else "within"
                     verdicts.append(f"{arm} {delta:+.3f} [{mark}]")
                 if verdicts:
                     print(
-                        f"    {name:24s} floor {floor:.3f}   "
-                        + "   ".join(verdicts)
+                        f"    {name:24s} control {centre:8.3f} "
+                        f"spread {floor:.3f}   " + "   ".join(verdicts)
                     )
 
     print(
