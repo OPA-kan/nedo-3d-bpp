@@ -30,6 +30,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 ARMS = (
+    "anchor_fallback",
+    "rescue",
+    "item_cap16",
+    "first_pass128",
+    "board_k8",
     "base",
     "base_null",
     "zone_doctrine",
