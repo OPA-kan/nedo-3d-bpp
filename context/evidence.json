@@ -1381,6 +1381,14 @@
       "claim": "Scoring candidates BETWEEN the policy call and the env step changes the episode. c000-k1 ends after 21 placements with no topple under a plain replay and after 16 with a topple under a scanning one, reproducibly. The policy deadline is re-taken from perf_counter inside every policy() call so the scan steals no time, but it hammers the module-level caches the search depends on -- _cached_container_z_interval, an lru_cache of 65536, and _PACKED_AABBS_CACHE, which clears past 256 keys -- and a wall-clock-bounded search explores less from a cold cache. Record and score in two passes.",
       "source": "scripts/record_decisions.py, scripts/score_decisions.py",
       "values": {}
+    },
+    {
+      "id": "transport-planes-are-unconditional-official",
+      "topic": "competition",
+      "date": "2026-08-04",
+      "status": "active",
+      "claim": "OFFICIAL RULING (SIGNATE, 2026-08-04): the shelf-height planes in PlacementValidator.check_transport_path()'s resting_surfaces and ceiling_surfaces apply REGARDLESS of require_shelf, and this is intended, not a defect. The stated reason is that require_shelf controls only the CENTRE shelf, while the left-ear small shelf always exists and divides the space, so the plane is a permanent structural constraint. resting_surfaces (thickness, height/2+thickness+buffer): a load bottom within 0-50 mm of either plane counts as a direct slide approach onto a shelf/frame top and gets NO extra lift (effective_start_z=0). ceiling_surfaces (height/2+buffer, height+buffer-thickness): the shelf underside also always acts as a clearance ceiling and clips the lift. Official advice when this causes an unwanted rejection: move the target Z by a few millimetres to leave the 0-50 mm band, or reorder the loading. VERIFIED the agent already complies: transport_sweeps() and transport_samples() apply both plane sets unconditionally, and the agent's resting plane height/2+thickness+buffer is exactly the top face of shelf_aabbs()'s small_shelf, whose generation depends on cut_x>0 and NOT on require_shelf, while main_shelf correctly does depend on the flag. DO NOT make these planes conditional; tests/test_transport_plane_contract.py pins it. NOT YET TAKEN: the agent never applies the official few-millimetre nudge, so settled candidates that land in the band are simply discarded by transport_path_clear; release candidates escape it structurally via RELEASE_TARGET_LIFT=0.052.",
+      "source": "Official SIGNATE answer 2026-08-04 14:50 (user-relayed); simulator/src/ground_handling/validator.py check_transport_path; agent/agent.py transport_sweeps / transport_samples / shelf_aabbs; docs/COMPETITION_QA.md; tests/test_transport_plane_contract.py"
     }
   ]
 }
