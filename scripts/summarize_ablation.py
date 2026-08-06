@@ -29,7 +29,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-ARMS = ("base", "base_null", "zone_doctrine", "zone_reversed")
+ARMS = (
+    "base",
+    "base_null",
+    "zone_doctrine",
+    "zone_reversed",
+    "attr_guard_priority",
+    "attr_guard_all",
+)
 
 
 def load(root: pathlib.Path):
@@ -140,7 +147,12 @@ def main() -> int:
                 ]
                 floor = max([floor] + spreads)
                 verdicts = []
-                for arm in ("zone_doctrine", "zone_reversed"):
+                # every arm present that is not one of the two controls --
+                # hardcoding the arm names printed nothing at all the first
+                # time a different experiment used this summariser
+                for arm in [
+                    a for a in present if a not in ("base", "base_null")
+                ]:
                     series = table[(scenario, arm)].get(name) or []
                     if not series:
                         continue
