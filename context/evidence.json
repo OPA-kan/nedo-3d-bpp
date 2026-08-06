@@ -1269,9 +1269,118 @@
       "id": "afterstate-features-are-one-axis-fullness",
       "topic": "state_shaping",
       "date": "2026-08-04",
-      "status": "active",
+      "status": "superseded",
       "claim": "The six afterstate features are one axis -- board fullness -- written six ways, and a parameter-free single feature beats the model fitted on all of them. Single-predictor AUC on the 233 labelled afterstates: occupancy_mean alone 0.944, roughness 0.872, step_index 0.846, occupancy_max 0.784, occupancy_std 0.746, while headroom_deficit (0.185) and floor_fraction_free (0.143) are simply occupancy inverted. The LOSO-fitted six-feature model scores 0.809, BELOW the raw single feature, which has no parameters to transfer and therefore no LOSO penalty -- so fitting is actively hurting through poor coefficient transfer across cases. This also explains the regime gate returning -0.004 here: gating a one-dimensional signal cannot add information. The methodological consequence is a new baseline: any proposed board feature must beat occupancy_mean's 0.944 on this target, not chance, or it is a restatement of how full the board is. What the set lacks is any quantity that varies at CONSTANT fullness -- covered voids, largest remaining free rectangle, per-type feasibility -- which is precisely what R_c in docs/theory/TASK_C_BOARD_VALUE.md was defined to measure and what could not previously be computed without generator-density contamination. The fast afterstate environment can compute it from geometry directly.",
-      "source": "single-feature ablation over the afterstate rows built by scripts/fit_afterstate_value.py, 2026-08-04"
+      "source": "single-feature ablation over the afterstate rows built by scripts/fit_afterstate_value.py, 2026-08-04",
+      "superseded_by": "afterstate-features-are-a-clock-not-fullness"
+    },
+    {
+      "id": "afterstate-features-are-a-clock-not-fullness",
+      "topic": "state_shaping",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "SUPERSEDES afterstate-features-are-one-axis-fullness by naming the axis correctly. The six afterstate features are not a fullness axis, they are a CLOCK. The label 'episode ends within a horizon of this step' makes step index a predictor by construction: step index alone scores AUC 0.832 on 231 rows over 8 scenario-matrix cases. Removing the within-case linear trend and level takes roughness 0.848 -> 0.439 and occupancy_mean 0.838 -> 0.549, both chance, while `placed` -- a literal step counter -- falls 0.800 -> 0.421, which is the sanity check that the residualisation works. This explains without a new hypothesis why the regime gate added nothing and why three value functions failed. NOT CONFIRMED for anything that survives: within-step pairs are ZERO for every feature because the corpus records one row per step, and residualising removes only a LINEAR clock, so a surviving residual is an upper bound. Two runs over the same eight scenes also disagree about which feature is best, so the earlier reading that R_min_type beats occupancy_mean is withdrawn.",
+      "source": "scripts/measure_step_confound.py, reports/hazard/step-confound.md, tests/test_measure_step_confound.py",
+      "values": {}
+    },
+    {
+      "id": "covered-void-was-a-rename-of-headroom-deficit",
+      "topic": "state_shaping",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "The 'fullness-orthogonal' feature covered_void returned the SAME number as headroom_deficit to machine precision (max absolute difference 3.3e-16, Spearman 1.0). Computed from a heightmap, mean(max_height - height) IS the headroom deficit; a heightmap holds one value per column and cannot express an overhang at all. Replaced by sealed_void_fraction, which voxelises the settled AABBs and returns the shelf-sealed and item-sealed fractions separately -- an EMPTY shelf container already hides 0.268 of its interior, which belongs to the container and not to the packing.",
+      "source": "scripts/fast_afterstate_env.py sealed_void_fraction, tests/test_sealed_void.py",
+      "values": {}
+    },
+    {
+      "id": "zone-loading-order-refuted",
+      "topic": "order",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "Loading order over zones (shelf top, deep, centre, under-shelf last) is REFUTED and ZONE_ORDER ships at default off. Four scenarios, four arms, three repeats, serial, read against a POOLED base+base_null control. zone_doctrine clears the floor DOWNWARD on placed: -7.000 against a spread of 5.000 on dual-shelf-mixed, and -13.000 on single-empty-shelf where base and base_null returned identical values so the spread is degenerate at 0.000. Stability proxies move the same way (more items toppled, com_z up 0.099). zone_reversed sits at base almost everywhere, so the shipped order already beats both alternatives tested. Mechanism: filling deep and high first builds tall stacks with little under them, and a single unsafe placement terminates the episode outright. CAVEAT recorded against my own first write-up, which claimed three scenarios: under the corrected pooled control it is one solid scenario plus one degenerate.",
+      "source": "reports/stowage/zone-order-verdict.md, scripts/summarize_ablation.py",
+      "values": {}
+    },
+    {
+      "id": "attribute-guard-trades-placed-for-priority",
+      "topic": "risk",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "RELEASE_ATTRIBUTE_GUARD is measured for the first time and NOT adopted, but it prices a trade nothing local could settle before. Four scenarios, three repeats, pooled control. Both arms clear the floor DOWNWARD on placed in three of four scenarios (-11.500 against a spread of 1.000 on dual-shelf-mixed). At the same time priority_covered_by_other goes to ZERO in every scenario for both arms, from 0.67-1.00 at base -- the local proxy for placement_score, the worst official component at 16.95 on a 100 scale. So the guard is a clean trade, fewer placements against no priority violations. The gate amplification argues the trade is bad, but that is an argument and not a measurement.",
+      "source": "reports/stowage/attr-guard-verdict.md",
+      "values": {}
+    },
+    {
+      "id": "local-proxies-have-validated-directions",
+      "topic": "method",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "The four official components that exist only in the evaluation service now have locally-checkable DIRECTIONS, closing the root blocker in docs/BLOCKED_WORK.md section 0. Three reconstructible submissions spanning 23.246 to 35.375 official (base=trueenvelope, death_band=deathband, box_envelope=the 3334 level), four scenarios, three repeats, compared WITHIN each scenario against that scenario's own control. priority_covered_by_other -> placement agrees in 3 scenarios and disagrees in 0; com_z -> cog, shake_max_shift -> stability, shake_items_toppled -> stability, soft_covered_by_other -> soft and placed -> placed each agree in 1 and disagree in 0; fill is untested in all four because its spread never clears the floor. NOT ONE proxy points the wrong way. This refutes directions and fits no weights -- three points could not.",
+      "source": "scripts/calibrate_proxies.py, reports/stowage/proxy-calibration.json",
+      "values": {}
+    },
+    {
+      "id": "paired-control-floor-was-double-counting",
+      "topic": "method",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "The verdict rule used by every ablation on this branch was wrong and promoted a knob that does nothing. It took floor = |base - base_null| and then measured each arm against base_null ALONE, so the same two observations set both the reference and the threshold: whichever member of the identical pair landed low became the baseline, and any arm near the other one cleared its own noise. item_cap16 read placed +6.000 CLEARS in one run and -5.000 in the next on the same scenario, while tracking base in both -- the raw repeats show base [40,40,40] / base_null [34,35,36] in the first run and base [34,35,36] / base_null [40,41,41] in the second. Corrected to a POOLED base+base_null control with the pooled spread as the floor. Under the corrected rule the attribute-guard verdict is unchanged, the zone-order verdict stands but weaker, and item_cap16 is refuted at -19.500 on dual-full-stream.",
+      "source": "scripts/summarize_ablation.py",
+      "values": {}
+    },
+    {
+      "id": "support-exhaustion-is-the-terminal-state",
+      "topic": "residual-capacity",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "Boards do not run out of floor space, they run out of places anything would stand on. support_surfaces() admits the floor, the shelves and only PLAIN packed items, so soft and priority tops are not support. At the board c000-k1 dies on -- 16 packed, 5 soft, 3 priority -- ALL 950 legal release candidates enumerated by the deadline-free oracle rest on protected tops: rest-height support ratio median 0.000, max 0.359, zero clearing MIN_SUPPORT_RATIO 0.55, and the pose that toppled scored 0.0055. The settled contract would refuse all 950 for support; the release contract has no support test and RELEASE_ATTRIBUTE_GUARD defaults off. Neither contract matches the published rule, which penalises only DIFFERENT-attribute covering: the settled path is stricter than the rule and the release path is looser.",
+      "source": "reports/stowage/support-exhaustion.md, scripts/dump_packing_geometry.py",
+      "values": {}
+    },
+    {
+      "id": "elevated-support-cannot-grow",
+      "topic": "residual-capacity",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "Connected support area above the floor is monotonically non-increasing under this candidate set, which closes the 'reward placements that create support' line. Rasterised largest-connected-face per height band over three plain-item steps and 2139 candidates: zero grow the largest elevated face, max +0.000. The reason is that support_plane_components requires THREE conditions at once -- tops within CONTACT_TOLERANCE 6 mm, lateral gap within SUPPORT_PLANE_ADJACENCY 16 mm, and overlap on the other axis. Height coincidence alone is common (345 of 1033 candidates at one step land level) and nowhere near sufficient; level AND adjacent never co-occur.",
+      "source": "scripts/measure_support_creation.py, reports/stowage/support-creation-verdict.md",
+      "values": {}
+    },
+    {
+      "id": "the-fatal-choice-is-the-argmax",
+      "topic": "candidate_rank",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "RETRACTS a claim I made and committed on this branch. The agent does NOT take dominated poses. Measured against its own candidate model with the anchor-recall oracle, at the fatal step of c000-k1: chosen pose adjusted -1.5287, best in the 950-candidate oracle -1.5301 and found_by_anytime, ZERO oracle poses beat the chosen one, reachability regret +0.0000 and ranking regret -0.0014. The retracted claim came from a 5 cm grid whose drop height was read off a heightmap; Ranker.score carries -0.18 * z * mass with masses up to 12 kg, so a sub-cell error in z moves the score by ~0.1 -- wider than the 'domination' gaps being claimed. Release recall at that step is 312 of 950 (32.8%) with zero regret, so the poses the deadline misses are ones it did not need.",
+      "source": "reports/hazard/dominated-choices-retracted.md, scripts/measure_release_regret.py",
+      "values": {}
+    },
+    {
+      "id": "heightmap-drop-heights-must-not-score",
+      "topic": "method",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "A method rule, from three failures of the same family in one session. AfterstateBoard drop heights are a 5 cm lattice and must NOT be used to SCORE a pose. Ranker.score carries -0.18 * z * mass and masses reach 12 kg, so a 1 cm error in z is 0.1 of score -- most of the dynamic range that separates candidates. They remain fine for asking whether space EXISTS. Use scripts/measure_anchor_recall.py when scores must be comparable to the agent's: it enumerates from the agent's own contract and marks each candidate found_by_anytime.",
+      "source": "reports/hazard/dominated-choices-retracted.md",
+      "values": {}
+    },
+    {
+      "id": "six-knobs-were-registered-but-never-hashed",
+      "topic": "protocol",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "The optimizer fingerprint resolves each registered knob by its ENV name, and six of sixty-eight resolved to null -- present in context/knobs.json and never actually hashed. DEATH_BAND_FALLBACK, because the variable is DEATH_BAND_FALLBACK_ENABLED, plus the five RELEASE_RISK_* thresholds, which are dataclass fields on ReleaseRiskThresholds and not module attributes at all. A knob the fingerprint cannot see is a knob a merge can change without moving the hash, which is the exact failure the registry exists to catch, and DEATH_BAND_FALLBACK is the one that cost 15.3% officially. Mirrored at module level; unhashed knobs now zero.",
+      "source": "agent/agent.py, context/optimizer_fingerprint.json",
+      "values": {}
+    },
+    {
+      "id": "measurement-that-perturbs-the-agent",
+      "topic": "method",
+      "date": "2026-08-06",
+      "status": "active",
+      "claim": "Scoring candidates BETWEEN the policy call and the env step changes the episode. c000-k1 ends after 21 placements with no topple under a plain replay and after 16 with a topple under a scanning one, reproducibly. The policy deadline is re-taken from perf_counter inside every policy() call so the scan steals no time, but it hammers the module-level caches the search depends on -- _cached_container_z_interval, an lru_cache of 65536, and _PACKED_AABBS_CACHE, which clears past 256 keys -- and a wall-clock-bounded search explores less from a cold cache. Record and score in two passes.",
+      "source": "scripts/record_decisions.py, scripts/score_decisions.py",
+      "values": {}
     }
   ]
 }
