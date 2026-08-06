@@ -17,24 +17,35 @@ way so a win cannot be attributed to "some zone bonus helps".
 ## placed — the gate, and the component that amplifies
 
 ```
-scenario                floor   zone_doctrine        zone_reversed
-m-dual-full-stream     14.000   +2.000  within       -7.000  within
-m-dual-shelf-mixed      5.000   -8.667  CLEARS       -2.667  within
-m-single-empty-noshelf  5.000   -2.333  within       -0.667  within
-m-single-empty-shelf    0.000  -13.000  CLEARS       +1.000  CLEARS*
+scenario                control   floor   zone_doctrine        zone_reversed
+m-dual-full-stream       37.500  14.000   +3.500  within       -5.500  within
+m-dual-shelf-mixed       39.333   5.000   -7.000  CLEARS       -1.000  within
+m-single-empty-noshelf   24.667   5.000   -1.667  within       +0.000  within
+m-single-empty-shelf     20.000   0.000  -13.000  CLEARS       +1.000  CLEARS*
 ```
 
-`single-empty-shelf` goes from 20 placements to 7. `fill` follows it down,
-21.4 to 6.6, and on `dual-shelf-mixed` 23.4 to 18.2 (both clear the floor).
+`single-empty-shelf` goes from 20 placements to 7, and `fill` follows it
+down, 21.4 to 6.6, clearing a floor of 5.3. On `dual-shelf-mixed` fill falls
+22.0 to 18.2 but the floor there is 5.0, so that one is **within** — an
+earlier version of this table called it cleared, which was the retired floor
+rule speaking.
+
+> **Deltas revised 2026-08-06 (audit).** The table above was first published
+> against `base_null` alone with `|base - base_null|` as the floor, which
+> double-counts the same two observations. It is now the pooled `base +
+> base_null` control, matching `scripts/summarize_ablation.py` as shipped.
+> Every verdict is unchanged in direction and in mark; only the magnitudes
+> move, by half the base/base_null gap. Regenerate with
+> `python scripts/summarize_ablation.py --root reports/stowage/raw`.
 
 ## and the stability proxies move the same way
 
 ```
 scenario                metric               floor   zone_doctrine
-m-dual-full-stream      shake_items_toppled  1.000   +1.667  CLEARS
-m-dual-full-stream      shake_max_shift      0.367   +0.533  CLEARS
+m-dual-full-stream      shake_items_toppled  1.000   +1.833  CLEARS
+m-dual-full-stream      shake_max_shift      0.581   +0.654  CLEARS
 m-single-empty-noshelf  shake_items_toppled  0.000   +2.000  CLEARS
-m-single-empty-noshelf  shake_max_shift      0.082   +0.406  CLEARS
+m-single-empty-noshelf  shake_max_shift      0.083   +0.418  CLEARS
 m-single-empty-shelf    com_z                0.011   +0.099  CLEARS
 ```
 

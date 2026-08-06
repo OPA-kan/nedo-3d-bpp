@@ -23,14 +23,23 @@ Against each run's own floor, `placed` clears downward in three of four
 scenarios for both arms:
 
 ```
-m-dual-shelf-mixed      floor  1.000   priority -11.333 CLEARS   all -3.000 CLEARS
-m-single-empty-noshelf  floor  5.000   priority  -5.333 CLEARS   all -6.333 CLEARS
-m-single-empty-shelf    floor  0.000   priority  -2.667 CLEARS   all -5.333 CLEARS
-m-dual-full-stream      floor 10.000   priority  +3.667 within   all -4.333 within
+scenario                control   floor   attr_guard_priority   attr_guard_all
+m-dual-shelf-mixed       40.167   1.000   -11.500  CLEARS       -3.167  CLEARS
+m-single-empty-noshelf   23.167   5.000    -6.167  CLEARS       -7.167  CLEARS
+m-single-empty-shelf     20.000   0.000    -2.667  CLEARS       -5.333  CLEARS
+m-dual-full-stream       34.667  10.000    +0.333  within       -7.667  within
 ```
 
 `dual-full-stream` is "within" only because its floor is 10 placements wide.
 It is not evidence for the guard.
+
+> **Deltas revised 2026-08-06 (audit).** As first published these were
+> measured against `base_null` alone with `|base - base_null|` as the floor.
+> The shipped rule pools `base` and `base_null` into one control, so the
+> table is regenerated. No mark changes; the largest movement is
+> `attr_guard_priority` on `dual-full-stream`, +3.667 to +0.333, which was
+> "within" before and after. Regenerate with
+> `python scripts/summarize_ablation.py --root reports/stowage/raw-attr-guard`.
 
 This is the failure mode that was written down before the run: the guard
 removes the last legal poses and ends episodes sooner. At the fatal board
@@ -78,7 +87,13 @@ last.
 
 ## A defect in the summariser, fixed here
 
-`summarize_zone_order.py` hardcoded the arm names it compared against the
-floor, so the first run of this experiment printed the arm means and no
-verdict lines at all. It now compares every arm present that is not one of
-the two controls.
+`summarize_zone_order.py` — since renamed `scripts/summarize_ablation.py`,
+because it was never specific to zone order — hardcoded the arm names it
+compared against the floor, so the first run of this experiment printed the
+arm means and no verdict lines at all. It now compares every arm present
+that is not one of the two controls.
+
+The 2026-08-06 audit found the same defect one layer down: the arm
+**allow-list** was still hardcoded, so an arm the summariser had not been
+told about vanished from the table entirely rather than erroring. Arms are
+now read off the data and only `base`/`base_null` are named in the source.

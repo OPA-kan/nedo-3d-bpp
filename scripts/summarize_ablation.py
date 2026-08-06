@@ -1,5 +1,5 @@
 """
-Read the zone-order ablation against its own noise floor.
+Read any paired ablation against its own noise floor.
 
 Every arm-vs-arm reading taken today without a control was unreadable, so
 this one refuses to report a difference without one. `base` and `base_null`
@@ -29,32 +29,43 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-ARMS = (
-    "anchor_fallback",
-    "rescue",
-    "item_cap16",
-    "first_pass128",
-    "board_k8",
-    "base",
-    "base_null",
-    "zone_doctrine",
-    "zone_reversed",
-    "attr_guard_priority",
-    "attr_guard_all",
-)
+# Arms are read off the data, not declared here. A hardcoded allow-list was
+# the previous design and it fails silently in the one direction that
+# matters: a newly added arm is simply absent from the table, which reads as
+# "the experiment did not run" rather than "the summariser does not know
+# this name". Only the two control names are fixed, because the whole
+# reading is defined relative to them.
+CONTROL = ("base", "base_null")
 
 
 def load(root: pathlib.Path):
+    """
+    Every ablation row under `root`, in either layout the queue produces.
+
+    `run_queue.py` writes one directory per job with a `rows.jsonl` inside;
+    the ad-hoc serial runs write `<scenario>-<arm>-r<n>.jsonl` flat. Both
+    have been committed under `reports/`, and reading only the first meant
+    no shipped verdict could be regenerated from the repository -- the
+    command printed in the reports returned an empty table.
+    """
+    seen = set()
+    paths = sorted(glob.glob(f"{root}/**/rows.jsonl", recursive=True))
+    paths += sorted(glob.glob(f"{root}/**/*.jsonl", recursive=True))
     rows = []
-    for path in sorted(glob.glob(f"{root}/**/rows.jsonl", recursive=True)):
+    for path in paths:
+        if path in seen:
+            continue
+        seen.add(path)
         for line in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
                 continue
             try:
-                rows.append(json.loads(line))
+                row = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if isinstance(row, dict) and "arm" in row:
+                rows.append(row)
     return rows
 
 
@@ -85,7 +96,7 @@ def collect(rows):
     table = collections.defaultdict(lambda: collections.defaultdict(list))
     for row in rows:
         arm = row.get("arm")
-        if arm not in ARMS:
+        if not arm:
             continue
         for case_id, case in (row.get("cases") or {}).items():
             if case.get("status") != "success":
@@ -109,7 +120,10 @@ def main() -> int:
 
     for scenario in scenarios:
         print(f"\n=== {scenario} ===")
-        present = [a for a in ARMS if (scenario, a) in table]
+        found = sorted({a for s, a in table if s == scenario})
+        present = [a for a in CONTROL if a in found] + [
+            a for a in found if a not in CONTROL
+        ]
         names = sorted(
             {n for a in present for n in table[(scenario, a)]}
         )
@@ -140,9 +154,7 @@ def main() -> int:
         # became the reference, so any arm sitting near the other one cleared
         # its own noise. That is exactly how item_cap16 read +6.000 CLEARS in
         # one run and -5.000 within in the next, while tracking base in both.
-        control = [
-            a for a in ("base", "base_null") if a in present
-        ]
+        control = [a for a in CONTROL if a in present]
         if control:
             print("\n  against the pooled base + base_null control:")
             for name in names:
@@ -154,9 +166,7 @@ def main() -> int:
                 centre = statistics.fmean(pool)
                 floor = max(pool) - min(pool)
                 verdicts = []
-                for arm in [
-                    a for a in present if a not in ("base", "base_null")
-                ]:
+                for arm in [a for a in present if a not in CONTROL]:
                     series = table[(scenario, arm)].get(name) or []
                     if not series:
                         continue
@@ -170,9 +180,13 @@ def main() -> int:
                     )
 
     print(
-        "\nfloor = max(|base - base_null|, the widest within-arm spread of "
-        "either). A knob inside the floor has not been shown to do anything; "
-        "it has NOT been shown to do nothing."
+        "\nfloor = the full spread of base and base_null POOLED, and the "
+        "centre is their pooled mean. This sentence used to describe the "
+        "older rule -- |base - base_null| with base_null as the baseline -- "
+        "which double-counts the same two observations and let item_cap16 "
+        "read +6.000 CLEARS in one run and -5.000 within in the next while "
+        "tracking base in both. A knob inside the floor has not been shown "
+        "to do anything; it has NOT been shown to do nothing."
     )
     print(
         "placed and fill are the only two of the six official components "

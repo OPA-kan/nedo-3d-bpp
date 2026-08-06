@@ -1,5 +1,14 @@
 # The agent leaves dominating poses on the table
 
+> **RETRACTED (2026-08-05).** Every number below is wrong. The scorer built
+> the alternatives with `item={"mass": 1.0}` instead of the real item and
+> read drop heights off the heightmap, whose 5 cm quantisation moves the
+> `-0.18 * z * mass` term by more than the score gaps claimed here. Against
+> the agent's own candidate model no alternative outranks the pose taken.
+> See `reports/hazard/dominated-choices-retracted.md`. The file is kept
+> because the two-pass instrument design it describes at the end is sound
+> and still in use.
+
 Scoring an unperturbed replay of `c000-k1` offline: at 10 of 17 steps a
 legal alternative existed that was **strictly safer AND strictly higher
 scoring** than the pose the agent took. Not a trade-off -- a dominated
