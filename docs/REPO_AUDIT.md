@@ -199,9 +199,13 @@ zone-order の `dual-shelf-mixed` の `fill` で、旧規則では「床を越�
 別のものを測り、設計ごと捨てた、と自分で書いている）。参照されていないのは
 **索引が無いからで、価値が無いからではない。**
 
-`make_stowage_page.py` だけは実害がある。入力 JSON のパスを `scripts/` 直下に
-固定しており、そこにファイルは無い。**未修正**（引数化は数行だが、監査の
-範囲外の挙動変更になる）。
+`make_stowage_page.py` だけは実害があったので直した。入力 JSON のパスを
+`scripts/packing-*.json` に固定していて、そこに dump は書かれない —
+**公開済みの断面図は、作った本人を含め誰にも再描画できなかった。** 引数化し、
+存在しないパスは exit 1 にした。dump 3本（68 KB）はやはり scratchpad にしか
+無かったので `reports/stowage/dumps/` に保全し、再生成が公開版とバイト単位で
+同じ 384,881 B になることを確認した。再生成手順は
+`reports/stowage/section-audit.md` 末尾。
 
 ---
 
@@ -236,6 +240,9 @@ state_shaping:  active な知見5・ノブ0     — 観測のみ。「出荷待�
 | `reports/stowage/proxy-calibration.md` | **新規**。JSON しか無かった結果に散文を付けた |
 | `reports/stowage/calibration/` | **新規・388 KB**。消える場所にあった生データを保全 |
 | `scripts/summarize_ablation.py` | 両レイアウトを読む／arm 許可リスト撤廃／末尾の説明が実装と食い違っていたのを修正 |
+| `scripts/make_stowage_page.py` | 固定パスを引数化。実行できない入口だった |
+| `reports/stowage/dumps/` | **新規・68 KB**。断面図の入力を保全 |
+| `reports/stowage/section-audit.md` | 再生成手順を追記 |
 | `docs/BLOCKED_WORK.md` | §0 を「実施済み・降格」へ更新 |
 
 **agent の挙動は1バイトも変えていない。** `behaviour_sha256` は
@@ -244,9 +251,8 @@ state_shaping:  active な知見5・ノブ0     — 観測のみ。「出荷待�
 ## 次に来た者へ、優先順位つきで
 
 1. **§A を決める。** trunk がどれかを決めない限り、他の全部が誤った木の上に
-   積まれる。監査係の権限外。
-2. §H の `make_stowage_page.py` を引数化する。数行。
-3. §G の第4点（`submission22`, 17.581）を較正に足す。成分間の取引を
+   積まれる。監査係の権限外。**未解決はこれ1件だけである。**
+2. §G の第4点（`submission22`, 17.581）を較正に足す。成分間の取引を
    決着させる唯一の道で、`attr-guard` はそこで止まっている。
-4. §I の `rollout` / `physics` は、問いを登録するかノブを畳むか。放置は
+3. §I の `rollout` / `physics` は、問いを登録するかノブを畳むか。放置は
    「仮説なき計装」のまま。

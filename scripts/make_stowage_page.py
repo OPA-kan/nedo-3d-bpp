@@ -1,10 +1,24 @@
+"""
+The stowage-sections page: the prose that goes around the drawings.
+
+`build_sections_page.py` draws; this holds the reading. Split because the
+notes below are a claim about three specific episodes and must not be
+carried along by a generic drawing tool.
+
+Usage:
+    python scripts/make_stowage_page.py OUT.html DUMP.json [DUMP.json ...]
+
+where each DUMP.json comes from `scripts/dump_packing_geometry.py`. The
+paths used to be hardcoded to `scripts/packing-*.json`, which is not where
+dumps are written and not where they were when the published page was
+built -- the entry point could not be run at all.
+"""
+import argparse
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from build_sections_page import build  # noqa: E402
-
-SP = pathlib.Path(__file__).resolve().parent
 
 INTRO = (
     "Every number in the packing pipeline has been read through summary "
@@ -42,19 +56,25 @@ marks space that is free but has something above it.</p>
 """
 
 
-def main():
-    build(
-        [
-            SP / "packing-c000.json",
-            SP / "packing-dual-shelf-mixed.json",
-            SP / "packing-dual-full-stream.json",
-        ],
-        SP / "stowage-sections.html",
-        "Stowage sections",
-        INTRO,
-        NOTES,
-    )
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("dumps", nargs="+", type=pathlib.Path)
+    args = parser.parse_args()
+
+    missing = [p for p in args.dumps if not p.exists()]
+    if missing:
+        print(
+            "no such dump: " + ", ".join(str(p) for p in missing),
+            file=sys.stderr,
+        )
+        return 1
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    build(args.dumps, args.output, "Stowage sections", INTRO, NOTES)
+    print(f"wrote {args.output}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

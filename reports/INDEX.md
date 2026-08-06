@@ -33,7 +33,7 @@
 | active | 2026-08-06 | `reports/stowage/attr-guard-verdict.md` | `attribute-guard-trades-placed-for-priority` |
 | active | 2026-08-06 | `reports/stowage/support-creation-verdict.md` | `elevated-support-cannot-grow` |
 | active | 2026-08-05 | `reports/stowage/support-exhaustion.md` | `support-exhaustion-is-the-terminal-state` |
-| active | 2026-08-05 | `reports/stowage/zone-order-verdict.md` | `zone-loading-order-refuted` |
+| active | 2026-08-06 | `reports/stowage/zone-order-verdict.md` | `zone-loading-order-refuted` |
 | active | 2026-08-01 | `reports/task-a-rollout/history/30717998654/analysis.md` | `task-a-offline-budget-starved-by-unbounded-scan`, `task-a-bounded128-adopted`, `task-a-offline-proxy-is-relative-only`, `task-a-bounded128-replicated` (superseded) |
 | active | 2026-08-02 | `reports/task-c/anchor-fallback/depth-sweep.md` | `task-c-endgame-is-anchor-order-not-unit-coverage`, `task-c-interleave-rejected` |
 | active | 2026-08-02 | `reports/task-c/anchor-fallback/interleave.md` | `task-c-interleave-rejected` |
@@ -56,7 +56,7 @@
 | uncited | 2026-08-01 | `reports/cross-step-incumbent/history/30706832092/summary.md` | — |
 | uncited | 2026-08-01 | `reports/cross-step-incumbent/history/30707120494/summary.md` | — |
 | uncited | 2026-07-28 | `reports/github-actions-30317807712.md` | — |
-| uncited | 2026-08-05 | `reports/hazard/dominated-choices.md` | — |
+| uncited | 2026-08-06 | `reports/hazard/dominated-choices.md` | — |
 | uncited | 2026-08-05 | `reports/hazard/regime-dependence.md` | — |
 | uncited | 2026-08-04 | `reports/hazard/summary.md` | — |
 | uncited | 2026-08-04 | `reports/l3-l4/two-container-smoke.md` | — |
@@ -82,6 +82,7 @@
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-divergence/report.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-stride4/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/local-20260801/report.md` | — |
+| uncited | 2026-08-06 | `reports/stowage/proxy-calibration.md` | — |
 | uncited | 2026-08-05 | `reports/stowage/section-audit.md` | — |
 | uncited | 2026-08-01 | `reports/task-a-rollout/history/30717533328/summary.md` | — |
 | uncited | 2026-08-01 | `reports/task-a-rollout/history/30717848749/summary.md` | — |
@@ -124,4 +125,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1000 ファイル / 223.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 1050 ファイル / 223.2 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

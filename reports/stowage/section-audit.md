@@ -123,3 +123,24 @@ mode this repo has already recorded twice. The structural facts (34 slots at
 the terminal board, stop-by-topple, pool size 1) are read off the final
 state and the simulator source; the step counts are not comparable across
 loads.
+
+## Regenerating the drawings
+
+The dumps these sections are drawn from are committed under
+`reports/stowage/dumps/` (68 KB). Until the 2026-08-06 audit they existed
+only in a scratchpad, and the page's entry point had its input paths
+hardcoded to `scripts/packing-*.json`, where no dump is ever written — the
+figures could not be redrawn by anyone, including their author.
+
+```
+python scripts/make_stowage_page.py OUT.html \
+    reports/stowage/dumps/packing-c000.json \
+    reports/stowage/dumps/packing-dual-shelf-mixed.json \
+    reports/stowage/dumps/packing-dual-full-stream.json
+```
+
+To rebuild a dump from scratch instead:
+
+```
+python scripts/dump_packing_geometry.py CONFIG.json CASE_ID OUT.json
+```
