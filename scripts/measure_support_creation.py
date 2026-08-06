@@ -69,23 +69,86 @@ def component_areas(agent_module, surfaces):
     return out
 
 
+CELL = 0.02
+
+
 def support_profile(agent_module, container, extra=None):
     """
-    Connected support area by height band, and the largest single component.
+    Usable support area by height band, and the largest connected face in each.
 
-    The largest component matters separately from the total: ten scattered
-    tops of 0.1 m2 do not hold a 0.55 x 0.40 suitcase, and one connected
-    1.0 m2 does.
+    Rasterised, because the two rectangle-based attempts before it both
+    failed on the same thing -- what a placement does to the surface beneath
+    it. Adding the candidate's top without subtracting anything scored every
+    plain placement positive; dropping any surface the candidate overlapped
+    deleted the whole 2.9 m2 floor each time, because the floor spans the
+    container and every candidate sits above part of it. Neither could tell a
+    tower from a bridge, which is the only distinction this metric exists to
+    draw.
+
+    Per cell, the topmost support surface wins and everything below it is
+    roofed. That makes the TOTAL nearly conserved -- a placement moves area
+    up rather than creating it -- so the total is not the signal. The signal
+    is the largest CONNECTED face per band: bridging two tops at one height
+    merges them into a face a big item can span, while raising a tower leaves
+    an isolated footprint-sized patch.
     """
     surfaces = list(agent_module.support_surfaces(container))
     if extra is not None:
         surfaces.append(extra)
+    if not surfaces:
+        return {}, 0.0, 0.0
+
+    length = float(container["length"])
+    width = float(container["width"])
+    nx = max(int(length / CELL), 1)
+    ny = max(int(width / CELL), 1)
+    top = [[None] * ny for _ in range(nx)]
+    for surface in surfaces:
+        i0 = max(int((float(surface.minimum[0]) + length / 2.0) / CELL), 0)
+        i1 = min(int((float(surface.maximum[0]) + length / 2.0) / CELL), nx)
+        j0 = max(int((float(surface.minimum[1]) + width / 2.0) / CELL), 0)
+        j1 = min(int((float(surface.maximum[1]) + width / 2.0) / CELL), ny)
+        height = float(surface.top)
+        for i in range(i0, i1):
+            row = top[i]
+            for j in range(j0, j1):
+                if row[j] is None or height > row[j]:
+                    row[j] = height
+
     bands = collections.defaultdict(float)
-    largest = 0.0
-    for top, area in component_areas(agent_module, surfaces):
-        bands[round(top / BAND) * BAND] += area
-        largest = max(largest, area)
-    return dict(bands), largest, sum(bands.values())
+    seen = [[False] * ny for _ in range(nx)]
+    largest_by_band = collections.defaultdict(float)
+    area = CELL * CELL
+    for i in range(nx):
+        for j in range(ny):
+            if top[i][j] is None:
+                continue
+            bands[round(top[i][j] / BAND) * BAND] += area
+            if seen[i][j]:
+                continue
+            # flood fill one connected face at a constant height
+            height = top[i][j]
+            stack = [(i, j)]
+            seen[i][j] = True
+            count = 0
+            while stack:
+                ci, cj = stack.pop()
+                count += 1
+                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ni, nj = ci + di, cj + dj
+                    if not (0 <= ni < nx and 0 <= nj < ny) or seen[ni][nj]:
+                        continue
+                    other = top[ni][nj]
+                    if other is None or abs(other - height) > agent_module.CONTACT_TOLERANCE:
+                        continue
+                    seen[ni][nj] = True
+                    stack.append((ni, nj))
+            band = round(height / BAND) * BAND
+            largest_by_band[band] = max(largest_by_band[band], count * area)
+
+    floor_band = round(float(container["thickness"]) / BAND) * BAND
+    above = [a for band, a in largest_by_band.items() if band > floor_band]
+    return dict(bands), (max(above) if above else 0.0), sum(bands.values())
 
 
 def candidate_surface(agent_module, container, centre, size, item):
