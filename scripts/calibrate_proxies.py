@@ -100,6 +100,13 @@ def metrics(case: dict) -> dict:
 
 
 def collect(root: pathlib.Path):
+    """(scenario, arm) -> proxy -> repeats.
+
+    Keyed by scenario, not pooled. Pooling four scenarios into one mean puts
+    the between-scenario spread into the noise floor -- it made the floor for
+    `fill` 15.1 against a local span of 1.7 and reported every proxy as
+    untested. Arms are only comparable within the scenario they ran on.
+    """
     per_arm = collections.defaultdict(lambda: collections.defaultdict(list))
     for path in sorted(glob.glob(f"{root}/**/rows.jsonl", recursive=True)):
         for line in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
@@ -109,11 +116,11 @@ def collect(root: pathlib.Path):
             arm = row.get("arm")
             if arm not in OFFICIAL and arm != "base_null":
                 continue
-            for case in (row.get("cases") or {}).values():
+            for case_id, case in (row.get("cases") or {}).items():
                 if case.get("status") != "success":
                     continue
                 for name, value in metrics(case).items():
-                    per_arm[arm][name].append(float(value))
+                    per_arm[(case_id, arm)][name].append(float(value))
     return per_arm
 
 
@@ -139,59 +146,56 @@ def main() -> int:
     args = parser.parse_args()
 
     per_arm = collect(args.root)
-    arms = [a for a in OFFICIAL if a in per_arm]
-    if len(arms) < 3:
-        print(f"only {len(arms)} of 3 configurations present: {arms}",
-              file=sys.stderr)
-
-    # the noise floor, from the two identical configurations
-    floor = {}
-    if "base" in per_arm and "base_null" in per_arm:
-        for name in set(per_arm["base"]) & set(per_arm["base_null"]):
-            b, n = per_arm["base"][name], per_arm["base_null"][name]
-            floor[name] = max(
-                abs(statistics.fmean(b) - statistics.fmean(n)),
-                (max(b) - min(b)) if len(b) > 1 else 0.0,
-                (max(n) - min(n)) if len(n) > 1 else 0.0,
-            )
-
-    print(f'{"proxy":26s} {"official":>10s} ' + "".join(f"{a:>14s}" for a in arms))
+    scenarios = sorted({key[0] for key in per_arm})
     report = {}
-    for proxy, (component, sign) in PROXIES.items():
-        if not all(proxy in per_arm[a] for a in arms):
-            continue
-        local = {a: statistics.fmean(per_arm[a][proxy]) for a in arms}
-        line = f"{proxy:26s} {component:>10s} "
-        for a in arms:
-            line += f"{local[a]:14.3f}"
-        print(line)
-        official_line = f'{"":26s} {"official":>10s} '
-        for a in arms:
-            official_line += f"{OFFICIAL[a][component]:14.3f}"
-        print(official_line)
 
-        pairs = [(sign * local[a], OFFICIAL[a][component]) for a in arms]
-        agree, total = concordant(pairs)
-        span = max(local.values()) - min(local.values())
-        f = floor.get(proxy, 0.0)
-        verdict = (
-            "UNRESOLVED (spread inside the noise floor)"
-            if span <= f
-            else ("agrees" if agree == total and total else
-                  "DISAGREES" if agree == 0 and total else
-                  f"partial {agree}/{total}")
-        )
-        print(f'{"":26s} {"->":>10s}  {verdict}   '
-              f'local span {span:.3f} vs floor {f:.3f}\n')
+    for proxy, (component, sign) in PROXIES.items():
+        print(f"\n=== {proxy}  ->  official {component} "
+              f"(sign {sign:+d}) ===")
+        agree = disagree = untested = 0
+        for scenario in scenarios:
+            arms = [
+                a for a in OFFICIAL
+                if (scenario, a) in per_arm and proxy in per_arm[(scenario, a)]
+            ]
+            if len(arms) < 2:
+                continue
+            local = {
+                a: statistics.fmean(per_arm[(scenario, a)][proxy]) for a in arms
+            }
+            # noise floor from the two identical configurations, in THIS
+            # scenario only
+            floor = 0.0
+            b = per_arm.get((scenario, "base"), {}).get(proxy)
+            n = per_arm.get((scenario, "base_null"), {}).get(proxy)
+            if b and n:
+                floor = max(
+                    abs(statistics.fmean(b) - statistics.fmean(n)),
+                    (max(b) - min(b)) if len(b) > 1 else 0.0,
+                    (max(n) - min(n)) if len(n) > 1 else 0.0,
+                )
+            pairs = [(sign * local[a], OFFICIAL[a][component]) for a in arms]
+            ok, total = concordant(pairs)
+            span = max(local.values()) - min(local.values())
+            if span <= floor or total == 0:
+                verdict = "untested"
+                untested += 1
+            elif ok == total:
+                verdict = "agrees"
+                agree += 1
+            elif ok == 0:
+                verdict = "DISAGREES"
+                disagree += 1
+            else:
+                verdict = f"partial {ok}/{total}"
+            values = "  ".join(f"{a}={local[a]:.3f}" for a in arms)
+            print(f"  {scenario:24s} {values}")
+            print(f"  {'':24s} span {span:.3f} floor {floor:.3f}  -> {verdict}")
+        print(f"  SUMMARY  agrees {agree}  disagrees {disagree}  "
+              f"untested {untested}")
         report[proxy] = {
-            "component": component,
-            "sign": sign,
-            "local": local,
-            "concordant": agree,
-            "comparisons": total,
-            "span": span,
-            "floor": f,
-            "verdict": verdict,
+            "component": component, "sign": sign,
+            "agrees": agree, "disagrees": disagree, "untested": untested,
         }
 
     print(
