@@ -96,3 +96,10 @@ stable item identity.  Default traces remain allocation-light.
 - This contract is infrastructure, not evidence that any richer selector is
   beneficial.  Each selector still requires its own shadow measurement and
   paired physical ablation.
+- A selector ablation is incomplete if it reports only placed/fill. It must
+  also retain the available proxies for official CoG, stability, placement,
+  and soft-item components (`final_com_z`, the shake-response vector,
+  `priority_clean_ratio`, and `soft_clean_ratio`), plus terminal validity,
+  failure channel, policy time, and attempt coverage. Compare the vector by
+  Pareto/dominance and per-component regressions; do not invent a weighted
+  local total.

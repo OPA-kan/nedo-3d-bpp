@@ -190,6 +190,10 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    default scalar path as the negative control; do not add features inside the
    generator loop or rerun candidate generation. Start with named immediate
    terms and explicit constraints/provenance, then shadow and pair the selector.
+   The adoption table must include placed, fill, CoM, the full shake vector,
+   priority/soft cleanliness, terminal failure channel, and compute coverage.
+   Placed/fill alone is explicitly insufficient; use Pareto/dominance without
+   an invented combined score.
 2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
 3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
