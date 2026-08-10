@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pathlib
 import random
+import inspect
 import tempfile
 import threading
 import unittest
@@ -16,6 +17,7 @@ from scripts.build_replay_dataset import (
     match_selected,
     modelling_features,
     outcome_labels,
+    run_case,
     sample_candidate_population,
     sampling_coverage_comparison,
     score_band,
@@ -25,6 +27,7 @@ from scripts.build_replay_dataset import (
 from scripts.residual_diversity import (
     maximin_residual_sample,
     residual_proxy_coverage,
+    settled_portfolio_comparison,
 )
 from scripts.measure_anchor_recall import (
     candidate_key,
@@ -145,6 +148,84 @@ class StratumTests(unittest.TestCase):
 
 
 class SamplingTests(unittest.TestCase):
+    def test_settled_portfolio_comparison_uses_physical_afterstates(self):
+        records = [
+            candidate(center=(float(index), 0.0, 0.5), score=10 - index)
+            for index in range(4)
+        ]
+        results = {}
+        settled_x = (0.00, 0.02, 0.98, 1.00)
+        for record, x_position in zip(records, settled_x):
+            results[candidate_key(record)] = {
+                "is_valid": True,
+                "is_placed_safe": True,
+                "x_plus": {
+                    "position": [x_position, 0.0, 0.5],
+                    "quaternion": [0.0, 0.0, 0.0, 1.0],
+                    "aabb_dimensions": [0.2, 0.2, 0.2],
+                },
+            }
+
+        report = settled_portfolio_comparison(
+            diversity_sample=[records[0], records[3]],
+            random_sample=[records[0], records[1]],
+            results=results,
+        )
+
+        self.assertEqual(report["residual_diversity"]["settled"], 2)
+        self.assertEqual(report["stratified_random"]["placed_safe"], 2)
+        self.assertGreater(
+            report["residual_diversity"]
+            ["mean_nearest_neighbor_distance"],
+            report["stratified_random"]
+            ["mean_nearest_neighbor_distance"],
+        )
+
+    def test_settled_coverage_distinguishes_tilt_at_the_same_position(self):
+        records = [
+            candidate(
+                item_index=index,
+                center=(0.0, 0.0, 0.5),
+                score=10 - index,
+            )
+            for index in range(4)
+        ]
+        quaternions = (
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
+            [0.70710678, 0.0, 0.0, 0.70710678],
+        )
+        results = {
+            candidate_key(record): {
+                "is_valid": True,
+                "is_placed_safe": True,
+                "x_plus": {
+                    "position": [0.0, 0.0, 0.5],
+                    "quaternion": quaternion,
+                    "aabb_dimensions": [0.2, 0.2, 0.2],
+                },
+            }
+            for record, quaternion in zip(records, quaternions)
+        }
+
+        report = settled_portfolio_comparison(
+            random_sample=records[:2],
+            diversity_sample=records[2:],
+            results=results,
+        )
+
+        self.assertGreater(
+            report["residual_diversity"]
+            ["mean_nearest_neighbor_distance"],
+            report["stratified_random"]
+            ["mean_nearest_neighbor_distance"],
+        )
+
+    def test_run_case_defaults_to_legacy_probability_sampling(self):
+        parameter = inspect.signature(run_case).parameters["sampling_mode"]
+        self.assertEqual(parameter.default, "stratified_random")
+
     def test_coverage_comparison_uses_same_population_without_weights(self):
         records = [
             candidate(center=(x, 0.0, 0.5), score=10.0 - index)
@@ -160,15 +241,18 @@ class SamplingTests(unittest.TestCase):
             rng=random.Random(4),
             forced_keys={},
         )
+        random_sample, _ = sample_candidate_population(
+            [dict(record) for record in records],
+            sampling_mode="stratified_random",
+            per_stratum=2,
+            rng=random.Random(4),
+            forced_keys={},
+        )
 
         comparison = sampling_coverage_comparison(
             records,
             diversity_sample=diversity,
-            per_stratum=2,
-            seed=4,
-            case_id="000",
-            step=3,
-            forced_keys={},
+            random_sample=random_sample,
         )
 
         self.assertEqual(comparison["population"], len(records))

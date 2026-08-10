@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import collections
+import math
 from typing import Any
 
 from scripts.measure_anchor_recall import candidate_key
@@ -21,6 +22,7 @@ CONTINUOUS_FIELDS = (
     "support_imbalance",
     "left_right_imbalance",
     "front_back_imbalance",
+    "settle_tilt_deg",
 )
 CATEGORICAL_FIELDS = (
     "pool_index",
@@ -28,6 +30,7 @@ CATEGORICAL_FIELDS = (
     "orientation",
     "kind",
 )
+RISK_FIELDS = CONTINUOUS_FIELDS[6:-1]
 
 
 def residual_proxy_features(record: dict[str, Any]) -> dict[str, Any]:
@@ -62,12 +65,19 @@ def residual_proxy_features(record: dict[str, Any]) -> dict[str, Any]:
         "size_y": vector_value(size, 1),
         "size_z": vector_value(size, 2),
     }
-    for name in CONTINUOUS_FIELDS[6:]:
+    for name in RISK_FIELDS:
         raw = risk_features.get(name)
         try:
             continuous[name] = None if raw is None else float(raw)
         except (TypeError, ValueError):
             continuous[name] = None
+    raw_tilt = record.get("settle_tilt_deg")
+    try:
+        continuous["settle_tilt_deg"] = (
+            None if raw_tilt is None else float(raw_tilt)
+        )
+    except (TypeError, ValueError):
+        continuous["settle_tilt_deg"] = None
     return {
         "continuous": continuous,
         "categorical": {
@@ -187,6 +197,124 @@ def residual_proxy_coverage(
         ),
         "spatial_cell_count": len(spatial_cells),
     }
+
+
+def _settled_proxy_record(
+    record: dict[str, Any], physical: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    if not isinstance(physical, dict):
+        return None
+    x_plus = physical.get("x_plus")
+    if not isinstance(x_plus, dict):
+        return None
+    position = x_plus.get("position")
+    dimensions = x_plus.get("aabb_dimensions")
+    quaternion = x_plus.get("quaternion")
+    if not isinstance(position, list) or len(position) != 3:
+        return None
+    if not isinstance(dimensions, list) or len(dimensions) != 3:
+        return None
+    if not isinstance(quaternion, list) or len(quaternion) != 4:
+        return None
+    qx, qy, qz, qw = (float(value) for value in quaternion)
+    norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+    if norm <= 1e-12:
+        return None
+    qx /= norm
+    qy /= norm
+    vertical_cosine = max(
+        -1.0,
+        min(1.0, 1.0 - 2.0 * (qx * qx + qy * qy)),
+    )
+    tilt_deg = math.degrees(math.acos(vertical_cosine))
+    return {
+        "pool_index": int(record.get("pool_index", -1)),
+        "item_index": int(record.get("item_index", -1)),
+        "container_index": int(record.get("container_index", -1)),
+        "orientation": int(record.get("orientation", -1)),
+        "kind": str(record.get("kind", "candidate")),
+        "center": [float(value) for value in position],
+        "size": [float(value) for value in dimensions],
+        "settle_tilt_deg": tilt_deg,
+    }
+
+
+def settled_portfolio_comparison(
+    *,
+    diversity_sample: list[dict[str, Any]],
+    random_sample: list[dict[str, Any]],
+    results: dict[tuple[Any, ...], dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare the two portfolios using observed settle afterstates only."""
+    arms = {
+        "stratified_random": random_sample,
+        "residual_diversity": diversity_sample,
+    }
+    settled_by_arm: dict[str, list[dict[str, Any]]] = {}
+    for name, records in arms.items():
+        settled_by_arm[name] = [
+            settled
+            for record in records
+            if (
+                settled := _settled_proxy_record(
+                    record, results.get(candidate_key(record))
+                )
+            )
+            is not None
+        ]
+    reference = [
+        record
+        for records in settled_by_arm.values()
+        for record in records
+    ]
+
+    report: dict[str, Any] = {
+        "contract": "official_replay_observed_x_plus",
+    }
+    for name, records in arms.items():
+        physical_rows = [
+            results.get(candidate_key(record)) or {} for record in records
+        ]
+        coverage = residual_proxy_coverage(
+            settled_by_arm[name], reference_records=reference
+        )
+        coverage.update(
+            {
+                "replayed": len(records),
+                "settled": len(settled_by_arm[name]),
+                "valid": sum(
+                    bool(physical.get("is_valid"))
+                    for physical in physical_rows
+                ),
+                "placed_safe": sum(
+                    bool(physical.get("is_placed_safe"))
+                    for physical in physical_rows
+                ),
+            }
+        )
+        report[name] = coverage
+
+    def difference(name: str) -> float | int | None:
+        left = report["residual_diversity"].get(name)
+        right = report["stratified_random"].get(name)
+        if left is None or right is None:
+            return None
+        return left - right
+
+    report["diversity_minus_random"] = {
+        name: difference(name)
+        for name in (
+            "mean_nearest_neighbor_distance",
+            "minimum_nearest_neighbor_distance",
+            "unique_items",
+            "unique_item_orientations",
+            "spatial_cell_count",
+            "settled",
+            "valid",
+            "placed_safe",
+        )
+    }
+    return report
 
 
 def maximin_residual_sample(

@@ -151,6 +151,16 @@ ranking値として飽和した否定結果とも矛盾せず、「同じ親か�
 平均・最小最近傍距離、unique item-orientation数、4分割空間セル数を
 `sampling.residual_proxy_coverage` に記録する。
 
+同一snapshotの対照は `sampling.coverage_comparison` に保存する。さらに両portfolioを
+同じPyBullet状態から個別replayし、観測された `x_plus` の位置、AABB、鉛直軸からの
+settle tilt角から計算した差を
+`sampling.physical_coverage_comparison` に保存する。diversity側の候補行は従来どおり
+`step-NNN-candidates.jsonl`、対照側は `step-NNN-random-control.jsonl` に分離する。
+後者もartifactへ残すため、集計だけでなく候補単位で物理差を再監査できる。
+
+ここで正の距離差が意味するのは「観測settle後状態のsampleがより散っている」ことだけ。
+live方策、placed、fill、公式scoreの改善を意味しない。
+
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの
 一手counterfactual**を広げる。H3以上のbranch rolloutは、prefix action列を

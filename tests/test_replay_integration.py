@@ -181,7 +181,12 @@ class ReplayTrajectoryTests(unittest.TestCase):
         os.environ.setdefault("ITEM_COVERAGE_MODE", "class_aware")
         os.environ.setdefault("RELEASE_RISK_GATE_MODE", "shadow")
 
-    def run_episode(self, *, with_replay: bool):
+    def run_episode(
+        self,
+        *,
+        with_replay: bool,
+        sampling_mode: str = "stratified_random",
+    ):
         from scripts.build_replay_dataset import run_case
         from scripts.measure_anchor_recall import load_agent_module
         from src.ground_handling.env import GroundHandlingEnv
@@ -203,6 +208,7 @@ class ReplayTrajectoryTests(unittest.TestCase):
                     oracle_limit=8,
                     preview_limit=0,
                     skip_optimize=True,
+                    sampling_mode=sampling_mode,
                 )
                 return [
                     entry["action"] for entry in summary["steps"]
@@ -265,6 +271,15 @@ class ReplayTrajectoryTests(unittest.TestCase):
                     places=5,
                     msg=f"step {index} place_pos[{axis}] differs",
                 )
+
+    def test_paired_diversity_replay_does_not_change_actions_taken(self):
+        control = self.run_episode(with_replay=False)
+        replayed = self.run_episode(
+            with_replay=True,
+            sampling_mode="residual_diversity",
+        )
+
+        self.assertEqual(control, replayed)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,86 @@
+name: Residual-state diversity physical pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/residual-diversity-dataset
+
+permissions:
+  contents: write
+
+concurrency:
+  group: residual-diversity-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pilot:
+    if: >-
+      !contains(github.event.head_commit.message,
+      '[skip residual-diversity]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify replay integration contract
+        run: python -m unittest tests.test_replay_integration -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build bounded Task B development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case 000
+          --task-id b000-k20
+          --look-ahead 20
+          --policy-timeout 8
+          --output reports/residual-diversity/config.json
+      - name: Replay paired sampling portfolios
+        run: >-
+          python scripts/build_replay_dataset.py
+          --config reports/residual-diversity/config.json
+          --case b000-k20
+          --steps 3 6 9
+          --per-stratum 4
+          --sampling-mode residual_diversity
+          --risk-gate-mode shadow
+          --skip-optimize
+          --output-dir reports/residual-diversity/dataset
+      - name: Summarize observed settle-state coverage
+        run: |
+          python scripts/summarize_residual_diversity_pilot.py \
+            --manifest reports/residual-diversity/dataset/manifest.json \
+            --json-output reports/residual-diversity/summary.json \
+            --markdown-output reports/residual-diversity/summary.md
+          cat reports/residual-diversity/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: residual-diversity-pilot-${{ github.run_id }}
+          path: reports/residual-diversity/
+      - name: Persist compact pilot history
+        env:
+          HISTORY_DIR: >-
+            reports/residual-diversity/history/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HISTORY_DIR"
+          cp reports/residual-diversity/summary.md "$HISTORY_DIR/summary.md"
+          cp reports/residual-diversity/summary.json "$HISTORY_DIR/summary.json"
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$HISTORY_DIR"
+          git commit \
+            -m "Record residual diversity pilot ${{ github.run_id }} [skip residual-diversity]"
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+          done

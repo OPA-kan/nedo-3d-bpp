@@ -68,6 +68,7 @@ from scripts.summarize_task_b import (  # noqa: E402
 from scripts.residual_diversity import (  # noqa: E402
     residual_diversity_sample,
     residual_proxy_coverage,
+    settled_portfolio_comparison,
 )
 
 SCHEMA_VERSION = 2
@@ -353,29 +354,17 @@ def sampling_coverage_comparison(
     records: list[dict[str, Any]],
     *,
     diversity_sample: list[dict[str, Any]],
-    per_stratum: int,
-    seed: int,
-    case_id: str,
-    step: int,
-    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+    random_sample: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Compare coverage designs on one identical candidate population.
 
-    The random control is sampled from a deep copy because both sampling
-    implementations annotate their selected rows.  These diagnostics compare
+    The caller samples the random control from a copy because both sampling
+    implementations annotate selected rows. These diagnostics compare
     portfolio coverage only; they do not turn the deterministic diversity
     sample into a probability sample.
     """
-    random_control, _table = stratified_sample(
-        copy.deepcopy(records),
-        per_stratum=per_stratum,
-        rng=random.Random(
-            f"{seed}:{case_id}:{step}:residual-coverage-control"
-        ),
-        forced_keys=forced_keys,
-    )
     random_coverage = residual_proxy_coverage(
-        random_control, reference_records=records
+        random_sample, reference_records=records
     )
     diversity_coverage = residual_proxy_coverage(
         diversity_sample, reference_records=records
@@ -804,11 +793,11 @@ def run_case(
     target_steps: set[int],
     output_dir: pathlib.Path,
     per_stratum: int,
-    sampling_mode: str,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
     skip_optimize: bool,
+    sampling_mode: str = "stratified_random",
     on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
@@ -1003,15 +992,20 @@ def collect_step(
         forced_keys=forced_reasons,
     )
     coverage_comparison = None
+    random_control: list[dict[str, Any]] = []
     if sampling_mode == "residual_diversity":
+        random_control, _control_table = stratified_sample(
+            copy.deepcopy(population),
+            per_stratum=per_stratum,
+            rng=random.Random(
+                f"{seed}:{case_id}:{step}:residual-coverage-control"
+            ),
+            forced_keys=forced_reasons,
+        )
         coverage_comparison = sampling_coverage_comparison(
             population,
             diversity_sample=sample,
-            per_stratum=per_stratum,
-            seed=seed,
-            case_id=case_id,
-            step=step,
-            forced_keys=forced_reasons,
+            random_sample=random_control,
         )
     print(
         f"{case_id} step {step}: population={len(population)} "
@@ -1027,9 +1021,27 @@ def collect_step(
         record["preview"] = preview_value(agent_module, observation, record)
     preview_seconds = time.perf_counter() - preview_started
 
-    results, replay_seconds = replay_sample(env, sample)
+    replay_population = list(sample)
+    replay_keys = {candidate_key(record) for record in replay_population}
+    for record in random_control:
+        if candidate_key(record) not in replay_keys:
+            replay_population.append(record)
+            replay_keys.add(candidate_key(record))
+    results, replay_seconds = replay_sample(env, replay_population)
+    physical_coverage_comparison = None
+    if sampling_mode == "residual_diversity":
+        physical_coverage_comparison = settled_portfolio_comparison(
+            diversity_sample=sample,
+            random_sample=random_control,
+            results=results,
+        )
 
     dataset_path = output_dir / f"{step_label}-candidates.jsonl"
+    control_dataset_path = (
+        output_dir / f"{step_label}-random-control.jsonl"
+        if sampling_mode == "residual_diversity"
+        else None
+    )
     availability = agent_module.ReleaseRiskFeatures.feature_availability()
     with dataset_path.open("w", encoding="utf-8") as handle:
         for record in sample:
@@ -1046,9 +1058,30 @@ def collect_step(
                 feature_availability=availability,
                 shadow_key=shadow_key,
             )
+            row["portfolio_role"] = "residual_diversity"
             handle.write(
                 json.dumps(json_safe(row), ensure_ascii=False) + "\n"
             )
+    if control_dataset_path is not None:
+        with control_dataset_path.open("w", encoding="utf-8") as handle:
+            for record in random_control:
+                row = build_row(
+                    record,
+                    dataset_id=dataset_id,
+                    snapshot_id=snapshot_id,
+                    case_id=case_id,
+                    step=step,
+                    snapshot_name=snapshot_path.name,
+                    selected_key=selected_key,
+                    anytime_keys=anytime_keys,
+                    physical=results.get(candidate_key(record)),
+                    feature_availability=availability,
+                    shadow_key=shadow_key,
+                )
+                row["portfolio_role"] = "stratified_random_control"
+                handle.write(
+                    json.dumps(json_safe(row), ensure_ascii=False) + "\n"
+                )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -1060,6 +1093,11 @@ def collect_step(
         "error": selection_error,
         "snapshot_path": snapshot_path.name,
         "dataset_path": dataset_path.name,
+        "control_dataset_path": (
+            control_dataset_path.name
+            if control_dataset_path is not None
+            else None
+        ),
         "population": {
             "settled": len(settled),
             "release": len(release),
@@ -1091,6 +1129,10 @@ def collect_step(
                 sample, reference_records=population
             ),
             "coverage_comparison": coverage_comparison,
+            "physical_coverage_comparison": (
+                physical_coverage_comparison
+            ),
+            "unique_replayed": len(replay_population),
             "strata": stratum_table,
         },
         "preview": {

@@ -1,0 +1,146 @@
+"""Compact report for the residual-diversity physical pilot."""
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+from typing import Any
+
+
+def _delta(comparison: dict[str, Any], name: str) -> float | int | None:
+    value = (comparison.get("diversity_minus_random") or {}).get(name)
+    return value if isinstance(value, (int, float)) else None
+
+
+def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("status") != "complete":
+        raise ValueError(
+            f"dataset status is not complete: {payload.get('status')!r}"
+        )
+    case = payload.get("case")
+    steps = case.get("steps", []) if isinstance(case, dict) else []
+    if not steps:
+        raise ValueError("dataset has no measured steps")
+
+    rows = []
+    for step in steps:
+        sampling = step.get("sampling") or {}
+        proxy = sampling.get("coverage_comparison")
+        physical = sampling.get("physical_coverage_comparison")
+        if not isinstance(physical, dict):
+            raise ValueError(
+                f"step {step.get('step')} has no physical coverage comparison"
+            )
+        if not isinstance(proxy, dict):
+            raise ValueError(
+                f"step {step.get('step')} has no proxy coverage comparison"
+            )
+        rows.append(
+            {
+                "step": int(step["step"]),
+                "status": str(step.get("status", "unknown")),
+                "population": int(
+                    (step.get("population") or {}).get("total", 0)
+                ),
+                "unique_replayed": int(sampling.get("unique_replayed", 0)),
+                "proxy_nn_distance_delta": _delta(
+                    proxy, "mean_nearest_neighbor_distance"
+                ),
+                "proxy_spatial_cells_delta": _delta(
+                    proxy, "spatial_cell_count"
+                ),
+                "physical_nn_distance_delta": _delta(
+                    physical, "mean_nearest_neighbor_distance"
+                ),
+                "physical_spatial_cells_delta": _delta(
+                    physical, "spatial_cell_count"
+                ),
+                "settled_delta": _delta(physical, "settled"),
+                "placed_safe_delta": _delta(physical, "placed_safe"),
+                "proxy": proxy,
+                "physical": physical,
+            }
+        )
+
+    physical_deltas = [
+        float(row["physical_nn_distance_delta"])
+        for row in rows
+        if row["physical_nn_distance_delta"] is not None
+    ]
+    return {
+        "dataset_id": payload.get("dataset_id"),
+        "status": "complete",
+        "steps_measured": len(rows),
+        "steps_with_proxy_gain": sum(
+            (row["proxy_nn_distance_delta"] or 0.0) > 0.0 for row in rows
+        ),
+        "steps_with_physical_gain": sum(
+            (row["physical_nn_distance_delta"] or 0.0) > 0.0
+            for row in rows
+        ),
+        "mean_physical_nn_distance_delta": (
+            sum(physical_deltas) / len(physical_deltas)
+            if physical_deltas
+            else None
+        ),
+        "steps": rows,
+        "interpretation_contract": (
+            "Positive physical distance delta means the sampled observed "
+            "settle afterstates are more dispersed. It is a dataset-coverage "
+            "result, not evidence of a better live policy or score."
+        ),
+    }
+
+
+def markdown(summary: dict[str, Any]) -> str:
+    lines = [
+        "# Residual-state diversity physical pilot",
+        "",
+        f"- Dataset: `{summary.get('dataset_id')}`",
+        f"- Steps measured: {summary['steps_measured']}",
+        (
+            "- Steps with positive proxy/physical NN-distance delta: "
+            f"{summary['steps_with_proxy_gain']}/"
+            f"{summary['steps_with_physical_gain']}"
+        ),
+        (
+            "- Mean physical NN-distance delta: "
+            f"{summary['mean_physical_nn_distance_delta']}"
+        ),
+        "",
+        "| step | population | replayed | proxy ΔNN | physical ΔNN | "
+        "physical Δcells | Δsettled | Δsafe |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in summary["steps"]:
+        lines.append(
+            "| {step} | {population} | {unique_replayed} | "
+            "{proxy_nn_distance_delta} | {physical_nn_distance_delta} | "
+            "{physical_spatial_cells_delta} | {settled_delta} | "
+            "{placed_safe_delta} |".format(**row)
+        )
+    lines.extend(["", summary["interpretation_contract"], ""])
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--manifest", type=pathlib.Path, required=True)
+    parser.add_argument("--json-output", type=pathlib.Path, required=True)
+    parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    args = parser.parse_args()
+
+    payload = json.loads(args.manifest.read_text(encoding="utf-8"))
+    summary = summarize_manifest(payload)
+    args.json_output.parent.mkdir(parents=True, exist_ok=True)
+    args.json_output.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    args.markdown_output.write_text(markdown(summary), encoding="utf-8")
+    print(args.markdown_output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
