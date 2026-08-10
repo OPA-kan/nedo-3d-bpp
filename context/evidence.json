@@ -1787,7 +1787,7 @@
       "id": "control-seeded-observed-swap-passes-condition-matrix",
       "topic": "learning_data",
       "date": "2026-08-10",
-      "status": "active",
+      "status": "superseded",
       "claim": "Seeding the safe-positive portfolio with its own paired safe-random control and then applying intra-stratum observed-afterstate swaps that keep semantic coverage and strictly raise the measured mean-nearest-neighbour delta cleared the four-condition acceptance matrix for the first time. Run 31388832646, same frozen 3x overdraw and same three steps as the failing run 31380879143, passed all four cells with per-scenario mean physical NN deltas of +0.073926 (dual-empty), +0.070353 (dual-shelf-mixed), +0.049806 (single-empty-noshelf) and +0.064257 (single-empty-shelf), and produced 307 safe-positive and 134 negative-physical-risk rows. The two previously failing single-container cells moved from -0.004446 and -0.017559 to positive. Three of the four guards are now structural rather than lucky: because the seed IS the control whenever the control fills the stratum quota, the search starts at a measured delta of exactly 0.0, the seeded portfolio is a superset of the control so unique-item and item-orientation deltas cannot be negative, and both arms are all-safe and equal size so the placed-safe delta is 0. Only the strict mean-NN guard depends on finding an improving swap. This is a dataset-coverage result: the sampled observed settle afterstates are more dispersed than an independent safe-random portfolio. It is not a live-policy, placed, fill or official-score result, and no model has been trained. The ablation arm (--observed-swap-rounds 0) has not been run in Actions, so the seeded-versus-greedy contrast rests on one matched local pair.",
       "source": "reports/residual-diversity-scale/history/31388832646/summary.json; docs/OBSERVED_STATE_SWAP.md; reports/observed-state-swap/local-paired.md; Actions run 31388832646; commit 23972b5",
       "values": {
@@ -1820,6 +1820,86 @@
         },
         "objective_alignment_established": true,
         "ci_ablation_arm_run": false,
+        "adopted_for_training": false,
+        "live_policy_benefit_established": false
+      },
+      "superseded_by": "observed-swap-raises-the-margin-greedy-pass-is-runner-variable"
+    },
+    {
+      "id": "observed-swap-raises-the-margin-greedy-pass-is-runner-variable",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Four matrix runs now separate the control-seeded observed-state swap optimizer from the unseeded greedy construction it replaces, and the honest reading is narrower than 'the optimizer fixed the failing cells'. Seeded runs 31388832646 and 31389471561 both passed 4/4 (per-scenario mean physical NN deltas +0.073926/+0.070353/+0.049806/+0.064257 and +0.083348/+0.084649/+0.061929/+0.081494). The --observed-swap-rounds 0 ablation, run 31389892147 on the same commit, ALSO passed 4/4 (+0.059554/+0.022782/+0.024663/+0.031070), even though the identical greedy construction FAILED two cells in run 31380879143. The greedy arm is therefore runner-variable at the verdict level, and a single passing greedy run is not evidence that the construction is sound. Two facts survive that. First, the greedy deltas are bit-identical between 31380879143 and 31389892147 on both two-container cells (0.059554000212093394 and 0.0227817794889502) and differ only on the two single-container cells -- the same cells that failed -- so the variance is localized, not global, and this also independently confirms the ablation dispatch really ran with rounds 0. Second, every seeded per-scenario delta in both seeded runs exceeds the ablation's corresponding delta in all four cells, and the seeded arm cannot report a negative delta at all whenever the paired control fills the stratum quota, because the seed IS the control, the seeded portfolio is a superset of it, and both arms are all-safe and equal size. The optimizer's established contribution is a structural floor and a consistently larger margin, not the difference between pass and fail on any single run. Do not cite the guard verdict alone as an arm comparison; the per-scenario delta ordering and the floor are the comparable quantities.",
+      "source": "reports/residual-diversity-scale/history/31388832646/summary.json; reports/residual-diversity-scale/history/31389471561/summary.json; reports/residual-diversity-scale/history/31389892147/summary.json; docs/OBSERVED_STATE_SWAP.md; Actions runs 31388832646, 31389471561 and 31389892147 (ablation); commit 45f9edb",
+      "values": {
+        "condition_cells": 4,
+        "steps": [
+          3,
+          9,
+          15
+        ],
+        "overdraw_factor": 3,
+        "scenario_order": [
+          "m-dual-empty",
+          "m-dual-shelf-mixed",
+          "m-single-empty-noshelf",
+          "m-single-empty-shelf"
+        ],
+        "seeded_run_31388832646": {
+          "deltas": [
+            0.07392591424189826,
+            0.07035328894472405,
+            0.049806472005630535,
+            0.06425711193651718
+          ],
+          "verdict": "pass",
+          "positive": 307,
+          "negative": 134
+        },
+        "seeded_run_31389471561": {
+          "deltas": [
+            0.0833479931139688,
+            0.0846488690997614,
+            0.06192852691796898,
+            0.08149432705352078
+          ],
+          "verdict": "pass",
+          "positive": 244,
+          "negative": 106
+        },
+        "ablation_run_31389892147_rounds0": {
+          "deltas": [
+            0.059554000212093394,
+            0.0227817794889502,
+            0.024663468033026843,
+            0.03107001542260632
+          ],
+          "verdict": "pass",
+          "positive": 286,
+          "negative": 111
+        },
+        "greedy_run_31380879143": {
+          "deltas": [
+            0.059554000212093394,
+            0.0227817794889502,
+            0.004947248691169794,
+            0.0248739994562418
+          ],
+          "verdict": "fail"
+        },
+        "greedy_bit_identical_cells": [
+          "m-dual-empty",
+          "m-dual-shelf-mixed"
+        ],
+        "greedy_variable_cells": [
+          "m-single-empty-noshelf",
+          "m-single-empty-shelf"
+        ],
+        "seeded_delta_exceeds_ablation_in_every_cell": true,
+        "seeded_arm_has_structural_zero_floor": true,
+        "greedy_verdict_is_runner_variable": true,
+        "optimizer_is_necessary_for_a_pass": false,
         "adopted_for_training": false,
         "live_policy_benefit_established": false
       }

@@ -17,7 +17,6 @@
 | active | 2026-08-05 | `reports/hazard/dominated-choices-retracted.md` | `the-fatal-choice-is-the-argmax`, `heightmap-drop-heights-must-not-score` |
 | active | 2026-08-05 | `reports/hazard/step-confound.md` | `afterstate-features-are-a-clock-not-fullness` |
 | active | 2026-08-03 | `reports/l3-l4/morning-summary.md` | `death-band-mitigated-adoption-candidate`, `death-band-shipped-on-by-default` (superseded) |
-| active | 2026-08-10 | `reports/observed-state-swap/local-paired.md` | `control-seeded-observed-swap-passes-condition-matrix` |
 | active | 2026-08-10 | `reports/placement-pipeline/parity.md` | `structured-placement-pipeline-preserves-fixed-work-policy`, `selector-adoption-requires-full-proxy-vector` |
 | active | 2026-08-02 | `reports/replay-analysis/board-value-f1-findings.md` | `board-value-f1-discriminates-not-predicts`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded) |
 | active | 2026-07-31 | `reports/replay-analysis/findings-20260730.md` | `gate-high-recall-low-precision` |
@@ -47,6 +46,7 @@
 | active | 2026-08-03 | `reports/task-c/true-envelope/branch-rerun.md` | `taskc-box-wall-at-step-19-was-an-artifact`, `c001-k1-true-terminal-at-step-21-certified`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded), `c001-k1-selection-problem-exists-features-are-blind` (superseded) |
 | active | 2026-08-03 | `reports/task-c/true-envelope/summary.md` | `true-envelope-first-task-c-ablation`, `true-envelope-shipped-without-the-task-b-guard` |
 | active | 2026-08-03 | `reports/task-c/wall-is-not-a-wall.md` | `task-c-wall-is-anchor-parameterisation-not-the-board`, `anchor-envelope-is-a-box-approximation` (superseded), `anchor-envelope-ignores-the-real-container-shape` (superseded), `anchor-envelope-y-bound-is-one-thickness-too-tight` |
+| superseded | 2026-08-10 | `reports/observed-state-swap/local-paired.md` | `control-seeded-observed-swap-passes-condition-matrix` (superseded) |
 | superseded | 2026-08-02 | `reports/task-c/anchor-fallback/after-merge.md` | `task-c-after-first-pass-256` (superseded) |
 | superseded | 2026-08-02 | `reports/task-c/fatal-oracle/summary.md` | `task-c-fatal-oracle-two-classes` (superseded), `task-c-post-fallback-terminal-is-a-coverage-gap` (superseded) |
 | uncited | 2026-07-28 | `reports/README.md` | — |
@@ -89,6 +89,8 @@
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31372706195/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31380879143/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31388832646/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31389471561/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31389892147/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31367396930/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31368589378/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31369511973/summary.md` | — |
@@ -144,4 +146,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1108 ファイル / 224.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 1112 ファイル / 224.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

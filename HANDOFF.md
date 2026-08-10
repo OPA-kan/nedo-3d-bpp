@@ -232,9 +232,17 @@ and SHA-256. Do not reuse hashes in old prose.
   arms are all-safe and equal size so the placed-safe delta is 0. Only the
   strict mean-NN guard needs an improving swap to exist. See
   `docs/OBSERVED_STATE_SWAP.md`.
-- The CI ablation arm (`--observed-swap-rounds 0`) has not been dispatched.
-  Seeded-versus-greedy rests on one matched local pair (+0.080765 against
-  +0.001029). Dispatch it before treating the contrast as measured.
+- The ablation arm was then run, and it moved the conclusion. Run
+  `31389892147` (`--observed-swap-rounds 0`, same commit) ALSO passed 4/4,
+  although that identical greedy construction failed two cells in
+  `31380879143`. The greedy verdict is runner-variable, so a passing greedy
+  run proves nothing and "the optimizer made the matrix pass" is not
+  supported. What survives: the greedy deltas are bit-identical across both
+  greedy runs on the two-container cells and vary only on the two
+  single-container cells that failed; every seeded delta in both seeded runs
+  exceeds the ablation's in all four cells; and the seeded arm has a
+  structural zero floor the greedy arm does not. Compare the arms on the
+  delta ordering and the floor, never on the verdict.
 
 ### Local score proxies
 
@@ -329,9 +337,9 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 1. The four-condition guard now passes (`31388832646`), so the sampler
    question is closed and the data question is open. In order:
-   (a) dispatch the `--observed-swap-rounds 0` ablation arm on the same
-   matrix so seeded-versus-greedy is measured on a runner, not inferred from
-   one local pair; (b) decide where accepted rows are retained -- they exist
+   (a) the ablation arm is done (`31389892147`) and showed the guard verdict
+   is runner-variable for the greedy arm, so any further arm comparison needs
+   repeated runs and per-step deltas, not one verdict; (b) decide where accepted rows are retained -- they exist
    only as Actions artifacts that expire, so scaling states without a
    retention decision produces data that cannot be trained on later; (c) scale
    the number of distinct STATES, not the rows per state, since rows inside

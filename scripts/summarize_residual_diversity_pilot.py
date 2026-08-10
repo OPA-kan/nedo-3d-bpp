@@ -36,9 +36,24 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
                 f"step {step.get('step')} has no proxy coverage comparison"
             )
         outcome_split = sampling.get("outcome_split") or {}
+        swap = outcome_split.get("swap_optimizer") or {}
         rows.append(
             {
                 "step": int(step["step"]),
+                # Which construction produced this row. Without it a seeded
+                # run and its --observed-swap-rounds 0 ablation land in
+                # history looking like the same experiment.
+                "portfolio_construction": swap.get("design"),
+                "swap_terminated": swap.get("terminated"),
+                "swaps_applied": swap.get("swaps_applied"),
+                "control_seeded_positive": outcome_split.get(
+                    "control_seeded_positive"
+                ),
+                "initial_physical_nn_distance_delta": (
+                    (swap.get("initial_objective") or {}).get(
+                        "mean_nearest_neighbor_distance_delta"
+                    )
+                ),
                 "status": str(step.get("status", "unknown")),
                 "population": int(
                     (step.get("population") or {}).get("total", 0)
@@ -111,9 +126,21 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
             for row in rows
         ),
     }
+    constructions = sorted(
+        {
+            str(row["portfolio_construction"])
+            for row in rows
+            if row["portfolio_construction"]
+        }
+    )
     return {
         "dataset_id": payload.get("dataset_id"),
         "case_id": case.get("case_id"),
+        "observed_swap_rounds": payload.get("observed_swap_rounds"),
+        "portfolio_constructions": constructions,
+        "swaps_applied": sum(
+            int(row["swaps_applied"] or 0) for row in rows
+        ),
         "scenario_context": case.get("scenario_context"),
         "sampling_mode": payload.get("sampling_mode"),
         "status": "complete",
@@ -164,6 +191,12 @@ def markdown(summary: dict[str, Any]) -> str:
         "",
         f"- Dataset: `{summary.get('dataset_id')}`",
         f"- Sampling mode: `{summary.get('sampling_mode')}`",
+        (
+            "- Observed swap rounds / constructions: "
+            f"{summary.get('observed_swap_rounds')} / "
+            f"`{summary.get('portfolio_constructions')}`"
+        ),
+        f"- Swaps applied: {summary.get('swaps_applied')}",
         f"- Steps measured: {summary['steps_measured']}",
         (
             "- Steps with positive proxy/physical NN-distance delta: "

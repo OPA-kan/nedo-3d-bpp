@@ -40,6 +40,12 @@ from scripts.residual_diversity import (
 
 
 SWAP_DESIGN = "paired_control_seed_then_observed_state_swap"
+# What the portfolio is when the optimizer is switched off. The trace has to
+# name the construction that actually ran, or the ablation arm files itself in
+# history under the name of the thing it is the control for.
+UNSEEDED_DESIGN = (
+    "deterministic_global_item_matching_then_observed_afterstate_maximin"
+)
 SWAP_OBJECTIVE = "paired_observed_mean_nearest_neighbour_delta"
 IMPROVEMENT_TOLERANCE = 1e-12
 _INFINITY = float("inf")
@@ -152,9 +158,12 @@ def optimize_observed_state_portfolio(
         initial_semantics: tuple[int, int],
         final_semantics: tuple[int, int],
     ) -> dict[str, Any]:
+        enabled = int(max_rounds) > 0
         return {
-            "design": SWAP_DESIGN,
-            "seed": "paired_random_control_portfolio",
+            "design": SWAP_DESIGN if enabled else UNSEEDED_DESIGN,
+            "seed": (
+                "paired_random_control_portfolio" if enabled else "none"
+            ),
             "objective": SWAP_OBJECTIVE,
             "distance_basis": "official_replay_observed_x_plus",
             "terminated": terminated,

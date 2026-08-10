@@ -16,6 +16,10 @@ objective, and the matrix showed the gap directly: single-empty-noshelf step 9
 their minimum distance stayed positive (+0.002102 and +0.002309) and their item
 and item-orientation coverage did not regress.
 
+Those two cells later turned out to be the runner-variable ones — see the
+ablation section below, where the same greedy construction passed them. Read
+the paragraph above as what one run showed, not as a reproducible failure.
+
 The question this instrument answers is therefore narrow: does removing the
 mismatch — optimizing the statistic that is measured, from a seed that is
 already feasible — recover those cells without giving up the semantic coverage
@@ -82,6 +86,9 @@ from the same snapshot and compared directly.
 
 ## Condition-matrix result
 
+*Superseded in interpretation by the ablation section that follows: the pass
+below is real, but it is not attributable to the optimizer on its own.*
+
 Actions run `31388832646`, same frozen 3x overdraw and the same steps 3/9/15
 as the failing run `31380879143`, passed all four cells and produced 307
 safe-positive and 134 negative-physical-risk rows.
@@ -106,9 +113,40 @@ the swap constraint keeps them there; and both arms are all-safe and the same
 size, so the placed-safe delta is `0`. Only the strict `> 0` mean-NN guard
 depends on an improving swap existing.
 
-The `--observed-swap-rounds 0` ablation arm has **not** been dispatched in
-Actions. The seeded-versus-greedy contrast rests on the single matched local
-pair below.
+## The ablation arm, and what it took away
+
+`--observed-swap-rounds 0` was then dispatched on the same commit as run
+`31389892147`, and a second seeded run landed as `31389471561`. Four matrix
+runs now exist:
+
+| run | arm | dual-empty | dual-shelf | 1c-noshelf | 1c-shelf | verdict |
+|---|---|---:|---:|---:|---:|---|
+| `31380879143` | greedy | +0.059554 | +0.022782 | +0.004947 | +0.024874 | **fail** |
+| `31389892147` | greedy (ablation) | +0.059554 | +0.022782 | +0.024663 | +0.031070 | pass |
+| `31388832646` | seeded + swap | +0.073926 | +0.070353 | +0.049806 | +0.064257 | pass |
+| `31389471561` | seeded + swap | +0.083348 | +0.084649 | +0.061929 | +0.081494 | pass |
+
+**The ablation passed.** The same greedy construction that failed two cells in
+`31380879143` cleared all four in `31389892147`. So "the optimizer made the
+matrix pass" is not a claim this evidence supports: a greedy run can pass on
+its own, and the guard verdict is runner-variable for that arm.
+
+Two things do survive:
+
+- The variance is localized and the ablation is self-verifying. The greedy
+  deltas are **bit-identical** across the two greedy runs on both
+  two-container cells (`0.059554000212093394` and `0.0227817794889502`) and
+  differ only on the two single-container cells — the ones that failed. That
+  the two-container numbers reproduce exactly also confirms the dispatch
+  really ran with rounds 0, since the seeded arm moves them.
+- Every seeded per-scenario delta, in both seeded runs, exceeds the ablation's
+  corresponding delta in all four cells; and the seeded arm cannot report a
+  negative delta at all while the control fills the stratum quota.
+
+The optimizer's established contribution is therefore **a structural floor and
+a consistently larger margin**, not the difference between pass and fail on any
+one run. Cite the delta ordering and the floor, not the verdict, when
+comparing the arms.
 
 ## Local paired measurement
 

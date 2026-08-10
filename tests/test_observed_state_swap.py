@@ -8,6 +8,7 @@ from scripts.build_replay_dataset import split_observed_outcomes
 from scripts.measure_anchor_recall import candidate_key
 from scripts.observed_state_swap import (
     SWAP_DESIGN,
+    UNSEEDED_DESIGN,
     _nearest_tables,
     _screened_mean,
     annotate_swapped_portfolio,
@@ -333,6 +334,15 @@ class SwapOptimizerTests(unittest.TestCase):
         )
         self.assertEqual(trace["terminated"], "disabled")
         self.assertEqual(trace["swaps_applied"], 0)
+
+    def test_the_ablation_arm_does_not_file_itself_under_the_swap_design(self):
+        _final, disabled = self.optimize(self.control, max_rounds=0)
+        _final2, enabled = self.optimize(self.control)
+
+        self.assertEqual(disabled["design"], UNSEEDED_DESIGN)
+        self.assertEqual(disabled["seed"], "none")
+        self.assertEqual(enabled["design"], SWAP_DESIGN)
+        self.assertNotEqual(disabled["design"], enabled["design"])
 
     def test_rows_without_an_observed_afterstate_stay_put(self):
         unobserved = self.pool[7]

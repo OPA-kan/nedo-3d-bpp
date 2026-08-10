@@ -33,6 +33,11 @@ def summarize_matrix(summaries: list[dict[str, Any]]) -> dict[str, Any]:
                     context.get("initial_preloaded_count", 0)
                 ),
                 "steps_measured": int(summary.get("steps_measured", 0)),
+                "observed_swap_rounds": summary.get("observed_swap_rounds"),
+                "portfolio_constructions": list(
+                    summary.get("portfolio_constructions") or []
+                ),
+                "swaps_applied": summary.get("swaps_applied"),
                 "mean_physical_nn_distance_delta": summary.get(
                     "mean_physical_nn_distance_delta"
                 ),
@@ -52,6 +57,17 @@ def summarize_matrix(summaries: list[dict[str, Any]]) -> dict[str, Any]:
     cells = {
         (row["container_count"], row["shelf_count"] > 0) for row in rows
     }
+    # A matrix run is one arm. If the scenarios disagree about which
+    # construction they used, the aggregate is not comparable to anything and
+    # must say so rather than average across two experiments.
+    arms = sorted({str(row["observed_swap_rounds"]) for row in rows})
+    constructions = sorted(
+        {
+            name
+            for row in rows
+            for name in row["portfolio_constructions"]
+        }
+    )
     required_cells = {(1, False), (1, True), (2, False), (2, True)}
     failed_scenarios = [
         row["case_id"] for row in rows if row["acceptance_verdict"] != "pass"
@@ -73,6 +89,16 @@ def summarize_matrix(summaries: list[dict[str, Any]]) -> dict[str, Any]:
                 for count, has_shelf in sorted(cells)
             ],
             "core_2x2_complete": coverage_complete,
+        },
+        "arm": {
+            "observed_swap_rounds": (
+                rows[0]["observed_swap_rounds"] if len(arms) == 1 else None
+            ),
+            "portfolio_constructions": constructions,
+            "swaps_applied": sum(
+                int(row["swaps_applied"] or 0) for row in rows
+            ),
+            "uniform_across_scenarios": len(arms) == 1,
         },
         "labels": {
             "positive_transition": sum(
@@ -118,6 +144,20 @@ def markdown(summary: dict[str, Any]) -> str:
             "- Positive / negative-risk labels: "
             f"{summary['labels']['positive_transition']} / "
             f"{summary['labels']['negative_physical_risk']}"
+        ),
+        (
+            "- Arm (observed swap rounds): "
+            f"{summary['arm']['observed_swap_rounds']}"
+            + (
+                ""
+                if summary["arm"]["uniform_across_scenarios"]
+                else " **(scenarios disagree -- not one arm)**"
+            )
+        ),
+        (
+            "- Portfolio construction: "
+            f"`{summary['arm']['portfolio_constructions']}`, "
+            f"swaps applied: {summary['arm']['swaps_applied']}"
         ),
         f"- Acceptance verdict: **{summary['acceptance']['verdict']}**",
         f"- Failed scenarios: {summary['acceptance']['failed_scenarios']}",
