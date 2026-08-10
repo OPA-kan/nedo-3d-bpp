@@ -1212,6 +1212,162 @@ class GeometryContractTests(unittest.TestCase):
         )
 
 
+class RankingPipelineContractTests(unittest.TestCase):
+    def test_ranker_evaluation_exposes_components_without_changing_total(self):
+        candidate = agent.AABB(
+            (0.1, 0.5, 0.3),
+            (0.2, 0.3, 0.4),
+            "settled_candidate",
+        )
+        item = sample_item(7, mass=5)
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+
+        with mock.patch.object(
+            agent.Geometry, "support_ratio", return_value=0.75
+        ):
+            evaluation = agent.Ranker.evaluate(
+                candidate, item, container, False
+            )
+            scalar = agent.Ranker.score(
+                candidate, item, container, False
+            )
+
+        self.assertAlmostEqual(evaluation.volume, 12.0 * 0.2 * 0.3 * 0.4)
+        self.assertAlmostEqual(evaluation.support, 2.0 * 0.75)
+        self.assertAlmostEqual(evaluation.depth, 0.35 * 0.5)
+        self.assertAlmostEqual(evaluation.lateral, -0.12 * 0.1)
+        self.assertAlmostEqual(evaluation.lift, -0.18 * 0.3 * 5.0)
+        self.assertAlmostEqual(evaluation.routing, 0.0)
+        self.assertAlmostEqual(evaluation.zone, 0.0)
+        self.assertAlmostEqual(evaluation.total, scalar)
+        self.assertAlmostEqual(
+            evaluation.total,
+            sum(evaluation.components().values()),
+        )
+
+    def test_candidate_pipeline_separates_proposal_evaluation_and_command(self):
+        candidate = agent.AABB(
+            (0.2, -0.1, 0.25),
+            (0.3, 0.2, 0.2),
+            "settled_candidate",
+        )
+        item = sample_item(42)
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        proposal = agent.PlacementProposal(
+            pool_index=1,
+            stable_item_index=42,
+            item=item,
+            container_index=0,
+            container=container,
+            orientation=3,
+            candidate=candidate,
+            source="unit-test",
+        )
+
+        with mock.patch.object(
+            agent.Geometry, "support_ratio", return_value=1.0
+        ):
+            decision = agent.evaluate_placement_proposal(
+                proposal,
+                has_priority_container=False,
+                risk_lambda=None,
+            )
+
+        self.assertIs(decision.proposal, proposal)
+        self.assertEqual(decision.command.stable_item_index, 42)
+        self.assertEqual(decision.command.mode, "settled")
+        self.assertEqual(decision.evaluation.provenance, "unit-test")
+        self.assertAlmostEqual(
+            decision.score, decision.evaluation.adjusted_score
+        )
+        self.assertEqual(decision.evaluation.risk.total_penalty, 0.0)
+        self.assertEqual(decision.action["item_idx"], 1)
+        self.assertEqual(decision.action["orientation"], 3)
+        np.testing.assert_allclose(
+            decision.action["place_pos"], candidate.center
+        )
+
+        record = agent.placement_evaluation_record(decision)
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(record["stable_item_index"], 42)
+        self.assertEqual(record["command_mode"], "settled")
+        np.testing.assert_array_equal(
+            agent.action_for_execution(decision)["place_pos"],
+            decision.action["place_pos"],
+        )
+
+    def test_placement_core_accepts_a_selector_without_regenerating_candidates(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(9)
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        first = agent.AABB(
+            (0.1, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "settled_candidate",
+        )
+        second = agent.AABB(
+            (0.2, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "settled_candidate",
+        )
+
+        class ChooseLast:
+            def __init__(self):
+                self.seen = []
+
+            def observe(self, decision):
+                self.seen.append(decision)
+                return True
+
+            def select(self):
+                return self.seen[-1]
+
+        selector = ChooseLast()
+        stream = iter(
+            [
+                (0, item, 0, 0, first),
+                (0, item, 0, 0, second),
+            ]
+        )
+        with (
+            mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=stream,
+            ),
+            mock.patch.object(
+                agent.Ranker,
+                "evaluate",
+                side_effect=[10.0, 1.0],
+            ),
+        ):
+            selected = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+                selector=selector,
+            )
+
+        self.assertEqual(len(selector.seen), 2)
+        self.assertIsNotNone(selector.seen[0].evaluation)
+        self.assertIs(selected.candidate, second)
+        self.assertEqual(selected.score, 1.0)
+
+
 class LookaheadSelectionTests(unittest.TestCase):
     @staticmethod
     def decision(score, item_idx=0):
@@ -1415,7 +1571,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", return_value=7.0),
+            mock.patch.object(agent.Ranker, "evaluate", return_value=7.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -1891,7 +2047,7 @@ class LookaheadSelectionTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "score",
+                "evaluate",
                 side_effect=lambda candidate, *_args: candidate.center[0],
             ),
         ):
@@ -1951,7 +2107,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", return_value=3.0),
+            mock.patch.object(agent.Ranker, "evaluate", return_value=3.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -1997,7 +2153,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", return_value=5.0),
+            mock.patch.object(agent.Ranker, "evaluate", return_value=5.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -2045,7 +2201,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", side_effect=score),
+            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -2938,7 +3094,7 @@ class ShadowRerankTests(unittest.TestCase):
                 agent.CandidateGenerator, "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", side_effect=score),
+            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
             mock.patch.object(
                 agent, "release_risk_features",
                 side_effect=lambda candidate, *_a, **_k: candidate,
@@ -3339,7 +3495,7 @@ class SlideRiskModelTests(unittest.TestCase):
                 agent.CandidateGenerator, "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "score", side_effect=score),
+            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
             mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "mech"),
             mock.patch.object(
                 agent,
@@ -3921,7 +4077,7 @@ class RescueScanTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "score",
+                "evaluate",
                 side_effect=lambda candidate, *_args: float(
                     candidate.center[0]
                 ),
@@ -4923,7 +5079,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "score",
+                "evaluate",
                 side_effect=lambda candidate, *_: (
                     100.0
                     if candidate.name == "release_candidate"

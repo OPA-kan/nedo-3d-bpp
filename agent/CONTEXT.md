@@ -139,6 +139,24 @@
   `candidate_generated/search_started`を記録する。
 - 3方式は引き続き同一履歴であり、30個前後へ届くまでlookahead比較・重み調整は保留する。
 
+## Structured placement pipeline
+
+- Candidate search emits `PlacementProposal`; it no longer needs to hide item,
+  container, orientation and provenance behind the final action dictionary.
+- `Ranker.evaluate()` retains the seven immediate score components, while
+  `release_risk_adjustment()` retains rotation/slide probabilities and
+  penalties.  `PlacementDecision.score` remains the compatibility scalar.
+- `PlacementCore.choose()` and `top_candidates()` accept an optional selector.
+  Their defaults (`SettledFirstSelector` and `TopKSettledFirstSelector`)
+  preserve the shipped settled-before-release behavior exactly.
+- `PlacementCommand` is the simulator command pose, not a predicted settle
+  pose. `action_for_execution()` owns conversion to the external action API.
+- The selected structured evaluation is written to policy diagnostics under
+  `selected_candidate_evaluation`.  Advanced selectors should consume the
+  evaluated candidate stream rather than rerun search to reconstruct terms.
+- This is an integration contract, not a new adopted ranking policy.  See
+  `docs/PLACEMENT_PIPELINE.md`.
+
 ## Release fallback ordering
 
 - Settled and release candidates are searched as independent units so that a

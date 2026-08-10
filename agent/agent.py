@@ -978,11 +978,109 @@ class ReleaseRiskAssessment:
     reasons: tuple
 
 
+@dataclass(frozen=True, slots=True)
+class RankEvaluation:
+    """Named immediate-score terms before physical-risk adjustment."""
+
+    volume: float
+    support: float
+    depth: float
+    lateral: float
+    lift: float
+    routing: float
+    zone: float
+    unattributed: float
+    total: float
+
+    def components(self):
+        return {
+            "volume": float(self.volume),
+            "support": float(self.support),
+            "depth": float(self.depth),
+            "lateral": float(self.lateral),
+            "lift": float(self.lift),
+            "routing": float(self.routing),
+            "zone": float(self.zone),
+            "unattributed": float(self.unattributed),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RiskAdjustment:
+    rotation_probability: float | None
+    slide_probability: float | None
+    rotation_penalty: float
+    slide_penalty: float
+    total_penalty: float
+
+
+@dataclass(frozen=True, slots=True)
+class PlacementCommand:
+    """The command sent to the simulator, separate from predicted settle."""
+
+    pool_index: int
+    stable_item_index: int
+    container_index: int
+    place_pos: tuple
+    orientation: int
+    mode: str
+
+    def as_action(self):
+        return {
+            "item_idx": int(self.pool_index),
+            "container_idx": int(self.container_index),
+            "place_pos": np.asarray(self.place_pos, dtype=np.float32),
+            "orientation": int(self.orientation),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PlacementProposal:
+    """Candidate facts produced by search, before ranking or selection."""
+
+    pool_index: int
+    stable_item_index: int
+    item: dict
+    container_index: int
+    container: dict
+    orientation: int
+    candidate: AABB
+    source: str = "placement_core"
+
+    def command(self):
+        center = simulator_action_center(self.candidate, self.container)
+        return PlacementCommand(
+            pool_index=int(self.pool_index),
+            stable_item_index=int(self.stable_item_index),
+            container_index=int(self.container_index),
+            place_pos=tuple(float(value) for value in center),
+            orientation=int(self.orientation),
+            mode=(
+                "release"
+                if self.candidate.name == "release_candidate"
+                else "settled"
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateEvaluation:
+    """The complete scalar evaluation retained for later selectors."""
+
+    immediate: RankEvaluation
+    risk: RiskAdjustment
+    adjusted_score: float
+    provenance: str
+
+
 @dataclass(frozen=True)
 class PlacementDecision:
     action: dict
     candidate: AABB
     score: float
+    proposal: PlacementProposal | None = None
+    command: PlacementCommand | None = None
+    evaluation: CandidateEvaluation | None = None
 
 
 @dataclass(frozen=True)
@@ -2622,22 +2720,18 @@ def release_rotation_risk_probability(features):
     return 1.0 / (1.0 + math.exp(-z))
 
 
-def risk_adjusted_score(
-    score,
+def release_risk_adjustment(
     candidate,
     item,
     container,
     orientation,
     risk_lambda,
 ):
-    """
-    Q_lambda = Q_old - lambda * P_rot for release candidates; settled
-    candidates are returned unchanged. Returns (score, probability).
-    """
+    """Return named physical-risk terms without changing rank order here."""
     if risk_lambda is None or candidate.name != "release_candidate":
-        return float(score), None
+        return RiskAdjustment(None, None, 0.0, 0.0, 0.0)
     if RELEASE_RISK_P_MODEL == "mech":
-        probability = release_rotation_risk_probability_mech(
+        rotation_probability = release_rotation_risk_probability_mech(
             float(candidate.center[0]),
             float(candidate.center[1]),
             float(candidate.center[2]),
@@ -2648,15 +2742,54 @@ def risk_adjusted_score(
         features = release_risk_features(
             candidate, item, container, orientation
         )
-        probability = release_rotation_risk_probability(features)
-    adjusted = float(score) - float(risk_lambda) * float(probability)
+        rotation_probability = release_rotation_risk_probability(features)
+    rotation_penalty = float(risk_lambda) * float(rotation_probability)
+    slide_probability = None
+    slide_penalty = 0.0
     if RELEASE_RISK_SLIDE_LAMBDA > 0.0:
-        adjusted -= RELEASE_RISK_SLIDE_LAMBDA * float(
+        slide_probability = float(
             release_large_slide_probability(
                 candidate, item, container, orientation
             )
         )
-    return adjusted, float(probability)
+        slide_penalty = (
+            float(RELEASE_RISK_SLIDE_LAMBDA) * slide_probability
+        )
+    return RiskAdjustment(
+        rotation_probability=float(rotation_probability),
+        slide_probability=slide_probability,
+        rotation_penalty=float(rotation_penalty),
+        slide_penalty=float(slide_penalty),
+        total_penalty=float(rotation_penalty + slide_penalty),
+    )
+
+
+def risk_adjusted_score(
+    score,
+    candidate,
+    item,
+    container,
+    orientation,
+    risk_lambda,
+):
+    """
+    Q_lambda = Q_old - lambda * P_rot - lambda_slide * P_slide for
+    release candidates; settled candidates are returned unchanged.
+
+    Kept as the scalar compatibility API.  New selection code should retain
+    ``RiskAdjustment`` through ``evaluate_placement_proposal``.
+    """
+    adjustment = release_risk_adjustment(
+        candidate,
+        item,
+        container,
+        orientation,
+        risk_lambda,
+    )
+    return (
+        float(score) - float(adjustment.total_penalty),
+        adjustment.rotation_probability,
+    )
 
 
 def _record_release_risk_diagnostic(
@@ -3946,7 +4079,7 @@ def candidate_zone(candidate, container):
 
 class Ranker:
     @staticmethod
-    def score(candidate, item, container, has_priority_container):
+    def evaluate(candidate, item, container, has_priority_container):
         support = Geometry.support_ratio(candidate, container)
         volume = math.prod(candidate.size)
         mass = float(item.get("mass", 1.0))
@@ -3971,15 +4104,121 @@ class Ranker:
                 candidate_zone(candidate, container)
             ]
 
-        return (
-            12.0 * volume
-            + 2.0 * support
-            + depth_score
-            - 0.12 * abs(x)
-            - 0.18 * z * mass
-            + routing_score
-            + zone_score
+        components = {
+            "volume": 12.0 * volume,
+            "support": 2.0 * support,
+            "depth": depth_score,
+            "lateral": -0.12 * abs(x),
+            "lift": -0.18 * z * mass,
+            "routing": routing_score,
+            "zone": zone_score,
+        }
+        return RankEvaluation(
+            **components,
+            unattributed=0.0,
+            total=float(sum(components.values())),
         )
+
+    @staticmethod
+    def score(candidate, item, container, has_priority_container):
+        """Scalar compatibility API for reports and older experiments."""
+        return Ranker.evaluate(
+            candidate, item, container, has_priority_container
+        ).total
+
+
+def evaluate_placement_proposal(
+    proposal,
+    has_priority_container,
+    risk_lambda=None,
+):
+    """
+    Turn search facts into one scored command without selecting it.
+
+    This is the stable seam for future-value, chunk and learned selectors:
+    candidate generation owns ``PlacementProposal``; this function owns the
+    current immediate/risk model; selectors consume ``PlacementDecision``;
+    the simulator receives only ``PlacementCommand.as_action()``.
+    """
+    immediate = Ranker.evaluate(
+        proposal.candidate,
+        proposal.item,
+        proposal.container,
+        has_priority_container,
+    )
+    if not isinstance(immediate, RankEvaluation):
+        # Compatibility for small experiment/test evaluators that return a
+        # scalar.  Production Ranker.evaluate always returns named terms.
+        scalar = float(immediate)
+        immediate = RankEvaluation(
+            volume=0.0,
+            support=0.0,
+            depth=0.0,
+            lateral=0.0,
+            lift=0.0,
+            routing=0.0,
+            zone=0.0,
+            unattributed=scalar,
+            total=scalar,
+        )
+    risk = release_risk_adjustment(
+        proposal.candidate,
+        proposal.item,
+        proposal.container,
+        proposal.orientation,
+        risk_lambda,
+    )
+    adjusted = float(immediate.total) - float(risk.total_penalty)
+    command = proposal.command()
+    evaluation = CandidateEvaluation(
+        immediate=immediate,
+        risk=risk,
+        adjusted_score=adjusted,
+        provenance=str(proposal.source),
+    )
+    return PlacementDecision(
+        action=command.as_action(),
+        candidate=proposal.candidate,
+        score=adjusted,
+        proposal=proposal,
+        command=command,
+        evaluation=evaluation,
+    )
+
+
+def placement_evaluation_record(decision):
+    """JSON-safe explanation of a structured candidate evaluation."""
+    evaluation = getattr(decision, "evaluation", None)
+    command = getattr(decision, "command", None)
+    if evaluation is None:
+        return None
+    risk = evaluation.risk
+    return {
+        "schema_version": 1,
+        "provenance": str(evaluation.provenance),
+        "immediate_components": evaluation.immediate.components(),
+        "immediate_total": float(evaluation.immediate.total),
+        "risk": {
+            "rotation_probability": risk.rotation_probability,
+            "slide_probability": risk.slide_probability,
+            "rotation_penalty": float(risk.rotation_penalty),
+            "slide_penalty": float(risk.slide_penalty),
+            "total_penalty": float(risk.total_penalty),
+        },
+        "adjusted_score": float(evaluation.adjusted_score),
+        "command_mode": None if command is None else str(command.mode),
+        "stable_item_index": (
+            None if command is None else int(command.stable_item_index)
+        ),
+    }
+
+
+def action_for_execution(decision):
+    """Convert the selected decision to the external simulator contract."""
+    command = getattr(decision, "command", None)
+    if command is not None:
+        return command.as_action()
+    return decision.action
 
 
 def eligible_container_indices(item, containers):
@@ -4421,38 +4660,22 @@ def revalidate_cross_step_candidates(
 
         pool_index, item = pool_entry
         container = containers[retained.container_index]
-        score = Ranker.score(
-            retained.candidate,
-            item,
-            container,
-            any(
+        decision = evaluate_placement_proposal(
+            PlacementProposal(
+                pool_index=int(pool_index),
+                stable_item_index=int(retained.item_index),
+                item=item,
+                container_index=int(retained.container_index),
+                container=container,
+                orientation=int(retained.orientation),
+                candidate=retained.candidate,
+                source="cross_step_revalidation",
+            ),
+            has_priority_container=any(
                 bool(candidate_container.get("is_prioritized", False))
                 for candidate_container in containers
             ),
-        )
-        score, _risk_probability = risk_adjusted_score(
-            score,
-            retained.candidate,
-            item,
-            container,
-            retained.orientation,
-            risk_lambda,
-        )
-        decision = PlacementDecision(
-            action={
-                "item_idx": int(pool_index),
-                "container_idx": int(retained.container_index),
-                "place_pos": np.asarray(
-                    simulator_action_center(
-                        retained.candidate,
-                        container,
-                    ),
-                    dtype=np.float32,
-                ),
-                "orientation": int(retained.orientation),
-            },
-            candidate=retained.candidate,
-            score=float(score),
+            risk_lambda=risk_lambda,
         )
         valid.append(decision)
         valid_items.add(retained.item_index)
@@ -4462,7 +4685,7 @@ def revalidate_cross_step_candidates(
             else "settled"
         )
         valid_kinds[kind] += 1
-        record["current_score"] = float(score)
+        record["current_score"] = float(decision.score)
 
     finished = time.perf_counter()
     return {
@@ -5204,6 +5427,117 @@ def board_rank_key(decision, containers, shapes):
     return features, features.rank_key() + (float(decision.score),)
 
 
+class SettledFirstSelector:
+    """Current live selection doctrine, isolated from candidate search."""
+
+    def __init__(self, containers):
+        self.containers = containers
+        self.best_settled = None
+        self.best_settled_score = -float("inf")
+        self.best_release = None
+        self.best_release_score = -float("inf")
+        self.release_by_container = {}
+
+    def _beats(self, challenger, incumbent_score, incumbent):
+        challenger_score = float(challenger.score)
+        if incumbent is None:
+            return True
+        if L3_PREFER_EMPTY_BAND <= 0.0:
+            return challenger_score > incumbent_score
+        if challenger_score > incumbent_score + L3_PREFER_EMPTY_BAND:
+            return True
+        if challenger_score < incumbent_score - L3_PREFER_EMPTY_BAND:
+            return False
+        remaining_new = estimated_remaining_container_volume(
+            self.containers[int(challenger.action["container_idx"])]
+        )
+        remaining_old = estimated_remaining_container_volume(
+            self.containers[int(incumbent.action["container_idx"])]
+        )
+        if abs(remaining_new - remaining_old) > EPS:
+            return remaining_new > remaining_old
+        return challenger_score > incumbent_score
+
+    def observe(self, decision):
+        score = float(decision.score)
+        updated = False
+        if decision.candidate.name == "release_candidate":
+            if self._beats(
+                decision, self.best_release_score, self.best_release
+            ):
+                self.best_release_score = score
+                self.best_release = decision
+                updated = True
+            if L3_RELEASE_ROUTE:
+                container_index = int(decision.action["container_idx"])
+                incumbent = self.release_by_container.get(container_index)
+                if incumbent is None or score > incumbent[0]:
+                    self.release_by_container[container_index] = (
+                        score,
+                        decision,
+                    )
+        elif self._beats(
+            decision, self.best_settled_score, self.best_settled
+        ):
+            self.best_settled_score = score
+            self.best_settled = decision
+            updated = True
+        return updated
+
+    def select(self):
+        if self.best_settled is not None:
+            return self.best_settled
+        if L3_RELEASE_ROUTE and len(self.release_by_container) > 1:
+            emptiest = max(
+                self.release_by_container,
+                key=lambda container_index: (
+                    estimated_remaining_container_volume(
+                        self.containers[container_index]
+                    ),
+                    self.release_by_container[container_index][0],
+                ),
+            )
+            return self.release_by_container[emptiest][1]
+        return self.best_release
+
+
+class TopKSettledFirstSelector:
+    """Bounded portfolio with the same settled-before-release doctrine."""
+
+    def __init__(self, k):
+        self.k = max(0, int(k))
+        self.settled_heap = []
+        self.release_heap = []
+        self.counter = 0
+
+    def observe(self, decision):
+        self.counter += 1
+        score = float(decision.score)
+        entry = (score, self.counter, decision)
+        heap = (
+            self.release_heap
+            if decision.candidate.name == "release_candidate"
+            else self.settled_heap
+        )
+        if len(heap) < self.k:
+            heapq.heappush(heap, entry)
+            return True
+        if heap and score > heap[0][0]:
+            heapq.heapreplace(heap, entry)
+            return True
+        return False
+
+    def select(self):
+        return [
+            decision
+            for _, _, decision in sorted(
+                self.settled_heap or self.release_heap,
+                key=lambda entry: entry[0],
+                reverse=True,
+            )
+        ]
+
+
 class PlacementCore:
     """Single source of truth used by online policy and offline dry-runs."""
 
@@ -5217,6 +5551,7 @@ class PlacementCore:
         candidate_observer=None,
         anchor_fallback=False,
         attempt_budget=None,
+        selector=None,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -5226,11 +5561,7 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
-        best_settled = None
-        best_settled_score = -float("inf")
-        best_release = None
-        best_release_score = -float("inf")
-        release_by_container = {}
+        active_selector = selector or SettledFirstSelector(containers)
 
         for (
             item_idx,
@@ -5248,35 +5579,21 @@ class PlacementCore:
             attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
-            score = Ranker.score(
-                candidate,
-                item,
-                container,
-                has_priority_container,
+            decision = evaluate_placement_proposal(
+                PlacementProposal(
+                    pool_index=int(item_idx),
+                    stable_item_index=int(item.get("index", item_idx)),
+                    item=item,
+                    container_index=int(container_idx),
+                    container=container,
+                    orientation=int(orientation),
+                    candidate=candidate,
+                    source="placement_core",
+                ),
+                has_priority_container=has_priority_container,
+                risk_lambda=risk_lambda,
             )
-            score, _risk_probability = risk_adjusted_score(
-                score,
-                candidate,
-                item,
-                container,
-                orientation,
-                risk_lambda,
-            )
-            decision = PlacementDecision(
-                action={
-                    "item_idx": int(item_idx),
-                    "container_idx": int(container_idx),
-                    "place_pos": np.asarray(
-                        simulator_action_center(
-                            candidate, container
-                        ),
-                        dtype=np.float32,
-                    ),
-                    "orientation": int(orientation),
-                },
-                candidate=candidate,
-                score=float(score),
-            )
+            score = float(decision.score)
             if candidate_observer is not None:
                 candidate_observer(
                     item_idx,
@@ -5285,55 +5602,10 @@ class PlacementCore:
                     orientation,
                     decision,
                 )
-            updated = False
-
-            def beats(challenger_score, incumbent_score, incumbent):
-                if incumbent is None:
-                    return True
-                if L3_PREFER_EMPTY_BAND <= 0.0:
-                    return challenger_score > incumbent_score
-                if challenger_score > incumbent_score + L3_PREFER_EMPTY_BAND:
-                    return True
-                if challenger_score < incumbent_score - L3_PREFER_EMPTY_BAND:
-                    return False
-                remaining_new = estimated_remaining_container_volume(
-                    containers[int(decision.action["container_idx"])]
-                )
-                remaining_old = estimated_remaining_container_volume(
-                    containers[int(incumbent.action["container_idx"])]
-                )
-                if abs(remaining_new - remaining_old) > EPS:
-                    return remaining_new > remaining_old
-                return challenger_score > incumbent_score
-
-            if candidate.name == "release_candidate":
-                if beats(score, best_release_score, best_release):
-                    best_release_score = score
-                    best_release = decision
-                    updated = True
-                if L3_RELEASE_ROUTE:
-                    ridx = int(decision.action["container_idx"])
-                    incumbent = release_by_container.get(ridx)
-                    if incumbent is None or score > incumbent[0]:
-                        release_by_container[ridx] = (score, decision)
-            elif beats(score, best_settled_score, best_settled):
-                best_settled_score = score
-                best_settled = decision
-                updated = True
+            updated = bool(active_selector.observe(decision))
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        if best_settled is not None:
-            return best_settled
-        if L3_RELEASE_ROUTE and len(release_by_container) > 1:
-            emptiest = max(
-                release_by_container,
-                key=lambda cidx: (
-                    estimated_remaining_container_volume(containers[cidx]),
-                    release_by_container[cidx][0],
-                ),
-            )
-            return release_by_container[emptiest][1]
-        return best_release
+        return active_selector.select()
 
     @staticmethod
     def rescue_choose(
@@ -5452,35 +5724,23 @@ class PlacementCore:
                             item_index
                         )
                     container = containers[container_idx]
-                    score = Ranker.score(
-                        candidate,
-                        item,
-                        container,
-                        has_priority_container,
-                    )
-                    score, _risk_probability = risk_adjusted_score(
-                        score,
-                        candidate,
-                        item,
-                        container,
-                        orientation,
-                        risk_lambda,
-                    )
-                    decision = PlacementDecision(
-                        action={
-                            "item_idx": int(item_idx),
-                            "container_idx": int(container_idx),
-                            "place_pos": np.asarray(
-                                simulator_action_center(
-                                    candidate, container
-                                ),
-                                dtype=np.float32,
+                    decision = evaluate_placement_proposal(
+                        PlacementProposal(
+                            pool_index=int(item_idx),
+                            stable_item_index=int(
+                                item.get("index", item_idx)
                             ),
-                            "orientation": int(orientation),
-                        },
-                        candidate=candidate,
-                        score=float(score),
+                            item=item,
+                            container_index=int(container_idx),
+                            container=container,
+                            orientation=int(orientation),
+                            candidate=candidate,
+                            source="rescue_scan",
+                        ),
+                        has_priority_container=has_priority_container,
+                        risk_lambda=risk_lambda,
                     )
+                    score = float(decision.score)
                     if candidate.name == "release_candidate":
                         stats["accepted_release"] += 1
                         if score > best_release_score:
@@ -5531,6 +5791,7 @@ class PlacementCore:
         risk_lambda=None,
         candidate_observer=None,
         attempt_budget=None,
+        selector=None,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -5546,9 +5807,7 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
-        settled_heap = []
-        release_heap = []
-        counter = 0
+        active_selector = selector or TopKSettledFirstSelector(k)
 
         for (
             item_idx,
@@ -5565,35 +5824,21 @@ class PlacementCore:
             attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
-            score = Ranker.score(
-                candidate,
-                item,
-                container,
-                has_priority_container,
+            decision = evaluate_placement_proposal(
+                PlacementProposal(
+                    pool_index=int(item_idx),
+                    stable_item_index=int(item.get("index", item_idx)),
+                    item=item,
+                    container_index=int(container_idx),
+                    container=container,
+                    orientation=int(orientation),
+                    candidate=candidate,
+                    source="placement_core_top_k",
+                ),
+                has_priority_container=has_priority_container,
+                risk_lambda=risk_lambda,
             )
-            score, _risk_probability = risk_adjusted_score(
-                score,
-                candidate,
-                item,
-                container,
-                orientation,
-                risk_lambda,
-            )
-            decision = PlacementDecision(
-                action={
-                    "item_idx": int(item_idx),
-                    "container_idx": int(container_idx),
-                    "place_pos": np.asarray(
-                        simulator_action_center(
-                            candidate, container
-                        ),
-                        dtype=np.float32,
-                    ),
-                    "orientation": int(orientation),
-                },
-                candidate=candidate,
-                score=float(score),
-            )
+            score = float(decision.score)
             if candidate_observer is not None:
                 candidate_observer(
                     item_idx,
@@ -5602,30 +5847,10 @@ class PlacementCore:
                     orientation,
                     decision,
                 )
-            counter += 1
-            entry = (score, counter, decision)
-            heap = (
-                release_heap
-                if candidate.name == "release_candidate"
-                else settled_heap
-            )
-            updated = False
-            if len(heap) < k:
-                heapq.heappush(heap, entry)
-                updated = True
-            elif score > heap[0][0]:
-                heapq.heapreplace(heap, entry)
-                updated = True
+            updated = bool(active_selector.observe(decision))
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        return [
-            decision
-            for _, _, decision in sorted(
-                settled_heap or release_heap,
-                key=lambda entry: entry[0],
-                reverse=True,
-            )
-        ]
+        return active_selector.select()
 
 
 def normalized_lookahead_mode(mode):
@@ -5813,33 +6038,25 @@ def bounded_rollout_decision(
     ):
         accepted += 1
         container = containers[container_idx]
-        score = Ranker.score(
-            candidate, item, container, has_priority_container
+        decision = evaluate_placement_proposal(
+            PlacementProposal(
+                pool_index=int(item_idx),
+                stable_item_index=int(item.get("index", item_idx)),
+                item=item,
+                container_index=int(container_idx),
+                container=container,
+                orientation=int(orientation),
+                candidate=candidate,
+                source="bounded_rollout",
+            ),
+            has_priority_container=has_priority_container,
+            risk_lambda=risk_lambda,
         )
-        score, _ = risk_adjusted_score(
-            score,
-            candidate,
-            item,
-            container,
-            orientation,
-            risk_lambda,
-        )
+        score = float(decision.score)
         key = _rollout_candidate_key(candidate, item, container, score)
         if best_key is None or key > best_key:
             best_key = key
-            best = PlacementDecision(
-                action={
-                    "item_idx": int(item_idx),
-                    "container_idx": int(container_idx),
-                    "place_pos": np.asarray(
-                        simulator_action_center(candidate, container),
-                        dtype=np.float32,
-                    ),
-                    "orientation": int(orientation),
-                },
-                candidate=candidate,
-                score=float(score),
-            )
+            best = decision
     search = diagnostics.get("search", {})
     attempts_before = int(search.get("attempts_consumed", 0))
     return best, attempts_before, accepted
@@ -8101,6 +8318,11 @@ class Agent:
                 pool_list,
                 containers,
             )
+            evaluation_record = placement_evaluation_record(decision)
+            if evaluation_record is not None:
+                self.last_candidate_diagnostics[
+                    "selected_candidate_evaluation"
+                ] = evaluation_record
             shadow_record = None
             if action_source != "rescue_scan":
                 shadow_record = self._shadow_rerank_record(
@@ -8170,7 +8392,7 @@ class Agent:
                 }
             )
             self._policy_step += 1
-            return decision.action
+            return action_for_execution(decision)
 
         fallback_container = 0
         if pool_list and containers:
