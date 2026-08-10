@@ -196,6 +196,22 @@ and SHA-256. Do not reuse hashes in old prose.
   `step-*-candidates.jsonl` is the safe residual-state arm and
   `step-*-negative-risk.jsonl` is the unsafe physical-risk arm. This does not
   establish a learned value function or any live-policy score improvement.
+- Runs `31372071696` and `31372706195` scaled that contract across the core
+  1/2-container x shelf/no-shelf matrix at steps 3/9/15. Every condition ran
+  through official PyBullet and produced safe positive plus negative-risk
+  rows. The 2x run yielded 281/69 labels and passed 3/4 scenarios; only
+  dual-empty step 15 missed one safe-control row. The 3x run yielded 282/108
+  labels and fixed dual-empty, but passed only 2/4 scenarios.
+- More overdraw is not monotone. At 3x, the two shelf conditions both lost
+  physical NN distance at step 15 (-0.007839 dual mixed, -0.009555 single)
+  even though the run-wide means stayed positive. Dual mixed also lost one
+  item-orientation there. The command/predicted-contact proxy therefore does
+  not preserve observed settle-state dispersion in late shelf states.
+- Every row now carries `scenario_context` (container count, shelf/dedicated
+  patterns, initial load, stream settings and geometry). Do not pool these
+  conditions without conditioning. Keep the paired safe-random arm and do not
+  tune another overdraw factor; the next sampler question is observed
+  afterstate-aware final selection or an explicit proxy-fidelity model.
 
 ### Local score proxies
 
@@ -243,9 +259,11 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether the accepted bounded safe-split contract generalizes across more
-  non-holdout cases, steps and simulator repetitions, and whether a model
-  trained on it improves residual-state ranking or official component proxies.
+- Whether observed-afterstate-aware final selection can retain the safe-split
+  semantic gains in late shelf states. Plain command-proxy maximin is now known
+  not to generalize monotonically across the 1/2-container x shelf matrix.
+- Whether a model trained on the condition-labelled safe/risk rows improves
+  residual-state ranking or official component proxies.
 
 ## Branch disposition
 
@@ -266,17 +284,20 @@ branches are retained as evidence, not as competing trunks.
   its accepted implementation and compact report are already on live trunk.
 - `experiment/residual-diversity-dataset`: active offline dataset experiment.
   Run `31370546291` accepts the schema-v3 bounded positive/negative dataset
-  contract. It is ready for non-holdout corpus scaling, but it is not a live
-  policy change or trained model yet.
+  contract. Matrix runs `31372071696`/`31372706195` establish condition-aware
+  generation but refute unconditional command-proxy diversity in late shelf
+  states. It is not a live policy change or trained model.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Scale `residual_diversity_safe_split` across non-holdout development cases
-   and early/mid/late steps while retaining paired safe-random controls. Check
-   class/step coverage and label balance, then train a cheap tabular/MLP value
-   baseline before considering a Transformer. Do not open final holdout data.
+1. Replace only the post-replay final portfolio choice with an
+   observed-afterstate-aware selector (or first measure its learnable proxy),
+   retaining global item/item-orientation coverage, safe/risk separation and
+   the paired random arm. Rerun the frozen four-condition matrix; do not tune
+   another overdraw factor. Only after the late-shelf guards pass should a
+   cheap tabular/MLP value baseline be trained. Do not open final holdout data.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before

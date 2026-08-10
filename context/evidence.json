@@ -1596,6 +1596,42 @@
         "bounded_dataset_contract_established": true,
         "live_policy_benefit_established": false
       }
+    },
+    {
+      "id": "residual-diversity-matrix-exposes-late-shelf-proxy-gap",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The schema-v3 safe/risk generator executes across the core 1/2-container x shelf/no-shelf condition matrix, but command/predicted-contact residual maximin is not an unconditional physical-diversity sampler. The 2x-overdraw matrix produced 281 safe-positive and 69 negative-risk rows and passed 3/4 scenario guards; dual-empty step 15 alone had one fewer placed-safe row than its paired safe-random arm. Raising overdraw to 3x produced 282/108 rows and fixed dual-empty, but did not improve monotonically: both shelf conditions lost observed settle-afterstate NN distance at step 15 (-0.007839 dual mixed and -0.009555 single shelf), and dual mixed also lost one item-orientation. All four conditions remained physically executable and each produced a non-empty safe-positive arm. Scenario context is now explicit in every row. Do not pool conditions or tune another overdraw factor. The next dataset experiment must use observed afterstates for final portfolio selection or explicitly learn proxy fidelity, while retaining paired controls and condition-specific guards.",
+      "source": "reports/residual-diversity-scale/history/31372071696/summary.json; reports/residual-diversity-scale/history/31372706195/summary.json; Actions runs 31372071696 and 31372706195; experiment/residual-diversity-dataset commit 0e5113c",
+      "values": {
+        "condition_cells": 4,
+        "steps": [3, 9, 15],
+        "overdraw_2x": {
+          "positive_transition": 281,
+          "negative_physical_risk": 69,
+          "scenario_passes": 3,
+          "scenario_total": 4,
+          "failed_scenarios": ["m-dual-empty"]
+        },
+        "overdraw_3x": {
+          "positive_transition": 282,
+          "negative_physical_risk": 108,
+          "scenario_passes": 2,
+          "scenario_total": 4,
+          "failed_scenarios": [
+            "m-dual-shelf-mixed",
+            "m-single-empty-shelf"
+          ]
+        },
+        "late_shelf_physical_nn_deltas": {
+          "m-dual-shelf-mixed": -0.007839379155344925,
+          "m-single-empty-shelf": -0.009554613836467662
+        },
+        "condition_aware_generation_established": true,
+        "unconditional_diversity_generalization_established": false,
+        "live_policy_benefit_established": false
+      }
     }
   ]
 }
