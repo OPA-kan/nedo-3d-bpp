@@ -99,3 +99,29 @@ This does not support enforcement, but it also did not instantiate a dense
 ensemble: only 84 proposals were produced for 292 steps.  The registered
 follow-up changes only the future anchor scan to stride 4, which prior rollout
 coverage evidence found materially increases reach at the same attempt cap.
+
+## Stride-4 negative control
+
+Actions run `31348827557` repeated the paired five-configuration experiment
+with the same 64-attempt budget and stride 4.  Proposal reach improved:
+
+- 192 proposals were scheduled across 290 shadow steps, versus 84/292;
+- 148 survived static revalidation (77.1%), versus 48 (57.1%);
+- delay-1 survival was 88.9% and delay-2 survival was 30.8%, versus 72.6%
+  and 13.6%; and
+- 10 steps contained valid proposals from multiple origin steps, versus 3.
+
+The extra reach did not create an ensemble.  No coarse action received two
+votes, and no stable item received two votes on any of those 10 multi-origin
+steps.  This item-only check rules out the explanation that the 10 cm action
+cell was merely too strict: different delayed rollouts selected different
+items, not just different coordinates for the same item.  No delayed proposal
+rescued a protocol fallback.  Mean telemetry cost rose to 55.3 ms/step.
+
+The shadow arm's placed/fill differences are not adoption evidence because
+the telemetry runs after selection and perturbs a wall-clock-bounded policy.
+The decision-relevant result is therefore scoped narrowly: with this
+deterministic greedy rollout and horizons 1--2, randomized-delay voting has no
+consensus signal to enforce.  Keep the feature off.  Reopening the line would
+require a proposal-quality label or a learned/weighted aggregator; increasing
+anchor reach again is not justified by these measurements.

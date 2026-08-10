@@ -1398,6 +1398,24 @@
       "status": "active",
       "claim": "The 2026-08-04 branch-split warning is resolved. After the 2026-08-06 consolidation, experiment/anchor-recall-oracle contains the real-half-space anchor envelope that produced the best official score 35.375, together with the later official transport-plane ruling. At audit commit fe39111, commit 3b1635c is an ancestor, agent/agent.py and simulator/agent.py both define ANCHOR_TRUE_ENVELOPE with default 1, and rectangular_container_anchor_bounds contains the half-space implementation. The live branch also contains the adopted Task A bounded dry run (13381bd) and first-pass depth 256 (2cef4b9). A fresh submission artifact is not checked in, so builds must record the fetched commit and new artifact hash rather than reuse an old prose hash.",
       "source": "git fetch --all --prune and ancestry/source audit on 2026-08-10 at fe39111; commits 3b1635c, 13381bd, 2cef4b9; agent/agent.py; simulator/agent.py; docs/REPO_AUDIT.md section A; docs/BRANCH_INVENTORY.md"
+    },
+    {
+      "id": "temporal-delay-votes-do-not-form-consensus",
+      "topic": "candidate_rank",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Two paired Linux shadow experiments tested the Action-Chunking-inspired delayed rollout ensemble without changing live actions. Stride 4 fixed the sparse-reach objection: scheduled proposals rose from 84/292 steps to 192/290, static-valid proposals from 48 to 148, delay-2 survival from 13.6% to 30.8%, and multi-origin-valid steps from 3 to 10. Yet not one of those steps had two delayed origins vote for the same coarse action OR the same stable item. No valid delayed proposal rescued a protocol fallback. The zero item consensus rules out an overly strict 10 cm action cell as the explanation: the deterministic greedy delayed rollouts choose different items. Therefore plain randomized-delay voting has no enforceable consensus signal in this implementation and remains OFF. Shadow placed/fill differences are not causal adoption evidence because post-selection telemetry perturbs the wall-clock-bounded trajectory.",
+      "source": "docs/TEMPORAL_CHUNK_ENSEMBLE.md; reports/temporal-chunk/history/31348162973/summary.json; reports/temporal-chunk/history/31348827557/summary.json; Actions runs 31348162973 and 31348827557",
+      "values": {
+        "stride4_steps": 290,
+        "stride4_scheduled": 192,
+        "stride4_static_valid": 148,
+        "stride4_multi_origin_steps": 10,
+        "stride4_action_consensus_steps": 0,
+        "stride4_item_consensus_steps": 0,
+        "stride4_fallback_rescue": 0,
+        "stride4_ms_per_step": 55.27
+      }
     }
   ]
 }
