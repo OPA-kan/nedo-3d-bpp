@@ -115,6 +115,13 @@
   返却actionには使わず、`would_prevent_protocol_fallback`、生存数、棄却理由、
   再検証時間だけをtraceする。既定は`off`で、`enforce`は未実装。
   詳細は`docs/CROSS_STEP_INCUMBENT.md`。
+- `TEMPORAL_CHUNK_ENSEMBLE_MODE=shadow`は、現在選択を起点とする固定予算の
+  静的rolloutから将来offset別の行動提案を保存する。対象stepでstable item IDを
+  現poolへ再対応付けし、完全な静的契約を通した後、複数origin stepの提案を
+  `(item, container, orientation, kind, coarse x/y)`で集約する。live actionは
+  変更せず、delay別生存率、最大票、現選択との一致、fallback救済可能性、計算税を
+  traceする。既定`off`、`enforce`未実装。詳細は
+  `docs/TEMPORAL_CHUNK_ENSEMBLE.md`。
 - `VISIBLE_POOL_ROLLOUT_MODE=shadow`はlive actionを変えず、探索中に受理済みの
   候補をitemごとに1件保持し、寸法・質量・soft/priority属性の同値classを
   多様化したTop-Kだけに固定attempt数の静的rolloutを行う。値は

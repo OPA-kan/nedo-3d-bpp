@@ -23,6 +23,8 @@ class EvaluationStatusTests(unittest.TestCase):
                 "ITEM_COVERAGE_MODE": "legacy",
                 "CROSS_STEP_INCUMBENT_MODE": "shadow",
                 "CROSS_STEP_INCUMBENT_PER_ITEM": "99",
+                "TEMPORAL_CHUNK_ENSEMBLE_MODE": "shadow",
+                "TEMPORAL_CHUNK_DEPTH": "9",
                 "RELEASE_RISK_GATE_MODE": "enforce",
                 "KEEP_ME": "yes",
             },
@@ -34,6 +36,8 @@ class EvaluationStatusTests(unittest.TestCase):
         self.assertNotIn("ITEM_COVERAGE_MODE", env)
         self.assertNotIn("CROSS_STEP_INCUMBENT_MODE", env)
         self.assertNotIn("CROSS_STEP_INCUMBENT_PER_ITEM", env)
+        self.assertNotIn("TEMPORAL_CHUNK_ENSEMBLE_MODE", env)
+        self.assertNotIn("TEMPORAL_CHUNK_DEPTH", env)
         self.assertNotIn("RELEASE_RISK_GATE_MODE", env)
         self.assertEqual(env["KEEP_ME"], "yes")
 

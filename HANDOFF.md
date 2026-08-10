@@ -35,6 +35,7 @@ These are source defaults in `agent/agent.py`, not proposed settings:
 | death-band fallback | off | officially rejected |
 | release attribute hard guard | off | placed cost too large |
 | anchor-space fallback | off | not adopted |
+| temporal chunk ensemble | off | shadow instrument; unmeasured |
 
 `agent/agent.py` and `simulator/agent.py` must remain byte-identical after an
 agent change. The official simulator itself must not be changed to make an
@@ -144,6 +145,10 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether the Task A offline proposal oracle improves when made risk-on.
 - Whether the unmerged L1/L2 selection-gate instruments transfer onto the
   current live branch. They must be ported surgically, not merged wholesale.
+- Whether delayed rollout proposals survive to their target step, form a
+  multi-origin consensus, or rescue a live no-candidate decision. The
+  temporal chunk ensemble is implemented in shadow only and has not yet run
+  on Linux episodes.
 
 ## Branch disposition
 
@@ -167,15 +172,18 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Reconstruct or locate the `submission22` build and add it as the fourth
+1. Run the paired `base` versus `temporal_chunk_shadow` Linux workflow and
+   measure delay-specific survival, consensus/disagreement, fallback rescue,
+   runtime tax, placed, and fill. Do not add an enforce mode from intuition.
+2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
-2. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
+3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
    same risk-on placement policy as execution, then rerun the paired Task A
    order experiment. Revise ADR-003 before adopting.
-3. Only after 1–2, design an attribute-aware support policy that preserves
+4. Only after 2–3, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.
-4. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
+5. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
    instrument only if its question is still open and its negative control can
    be reproduced on current trunk.
 

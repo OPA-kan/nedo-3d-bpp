@@ -83,6 +83,11 @@ def configure_arm_environment(
         "DEATH_BAND_FALLBACK",
         "DEATH_BAND_SCORE",
         "DEATH_BAND_REQUIRE_DOMINANCE",
+        "TEMPORAL_CHUNK_ENSEMBLE_MODE",
+        "TEMPORAL_CHUNK_DEPTH",
+        "TEMPORAL_CHUNK_ATTEMPTS_PER_STEP",
+        "TEMPORAL_CHUNK_STRIDE",
+        "TEMPORAL_CHUNK_CELL_SIZE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -91,6 +96,7 @@ def configure_arm_environment(
         "base",
         "rescue",
         "cross_step_shadow",
+        "temporal_chunk_shadow",
         "rollout_shadow",
         "rollout_enforce",
         "anchor_fallback",
@@ -188,6 +194,8 @@ def configure_arm_environment(
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":
             env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"
+        elif arm == "temporal_chunk_shadow":
+            env["TEMPORAL_CHUNK_ENSEMBLE_MODE"] = "shadow"
         elif arm == "rollout_shadow":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
         elif arm == "rollout_enforce":
@@ -406,6 +414,21 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "cross_step_validation_seconds_total": 0.0,
         "cross_step_validation_seconds_max": 0.0,
         "cross_step_deadline_overrun_count": 0,
+        "temporal_chunk_observed_steps": 0,
+        "temporal_chunk_scheduled_count": 0,
+        "temporal_chunk_static_valid_count": 0,
+        "temporal_chunk_multi_origin_steps": 0,
+        "temporal_chunk_consensus_steps": 0,
+        "temporal_chunk_selected_match_count": 0,
+        "temporal_chunk_selected_disagree_count": 0,
+        "temporal_chunk_would_prevent_fallback_count": 0,
+        "temporal_chunk_generated_count": 0,
+        "temporal_chunk_validation_seconds_total": 0.0,
+        "temporal_chunk_validation_seconds_max": 0.0,
+        "temporal_chunk_generation_seconds_total": 0.0,
+        "temporal_chunk_generation_seconds_max": 0.0,
+        "temporal_chunk_valid_by_delay": {},
+        "temporal_chunk_scheduled_by_delay": {},
         "rollout_observed_steps": 0,
         "rollout_candidate_count": 0,
         "rollout_eligible_count": 0,
@@ -487,6 +510,87 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 if remaining is not None and float(remaining) < 0.0:
                     summary["cross_step_deadline_overrun_count"] += 1
+            temporal = (
+                diagnostics.get("temporal_chunk_ensemble")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(temporal, dict):
+                summary["temporal_chunk_observed_steps"] += 1
+                summary["temporal_chunk_scheduled_count"] += int(
+                    temporal.get("scheduled_count", 0)
+                )
+                summary["temporal_chunk_static_valid_count"] += int(
+                    temporal.get("static_valid_count", 0)
+                )
+                summary["temporal_chunk_multi_origin_steps"] += int(
+                    int(temporal.get("valid_origin_count", 0)) >= 2
+                )
+                has_consensus = int(temporal.get("max_vote_count", 0)) >= 2
+                summary["temporal_chunk_consensus_steps"] += int(
+                    has_consensus
+                )
+                if has_consensus:
+                    if temporal.get("selected_matches_consensus") is True:
+                        summary[
+                            "temporal_chunk_selected_match_count"
+                        ] += 1
+                    else:
+                        summary[
+                            "temporal_chunk_selected_disagree_count"
+                        ] += 1
+                if temporal.get("would_prevent_protocol_fallback") is True:
+                    summary[
+                        "temporal_chunk_would_prevent_fallback_count"
+                    ] += 1
+                summary["temporal_chunk_generated_count"] += int(
+                    temporal.get("generated_for_future_count", 0)
+                )
+                validation_seconds = float(
+                    temporal.get("validation_seconds", 0.0)
+                )
+                summary[
+                    "temporal_chunk_validation_seconds_total"
+                ] += validation_seconds
+                summary["temporal_chunk_validation_seconds_max"] = max(
+                    summary["temporal_chunk_validation_seconds_max"],
+                    validation_seconds,
+                )
+                generation = temporal.get("generation")
+                generation_seconds = (
+                    float(generation.get("elapsed_seconds", 0.0))
+                    if isinstance(generation, dict)
+                    else 0.0
+                )
+                summary[
+                    "temporal_chunk_generation_seconds_total"
+                ] += generation_seconds
+                summary["temporal_chunk_generation_seconds_max"] = max(
+                    summary["temporal_chunk_generation_seconds_max"],
+                    generation_seconds,
+                )
+                for delay, count in temporal.get(
+                    "valid_by_delay", {}
+                ).items():
+                    delay_key = str(delay)
+                    summary["temporal_chunk_valid_by_delay"][delay_key] = (
+                        summary["temporal_chunk_valid_by_delay"].get(
+                            delay_key, 0
+                        )
+                        + int(count)
+                    )
+                for delay, count in temporal.get(
+                    "scheduled_by_delay", {}
+                ).items():
+                    delay_key = str(delay)
+                    summary[
+                        "temporal_chunk_scheduled_by_delay"
+                    ][delay_key] = (
+                        summary["temporal_chunk_scheduled_by_delay"].get(
+                            delay_key, 0
+                        )
+                        + int(count)
+                    )
             rollout = (
                 diagnostics.get("visible_pool_rollout")
                 if isinstance(diagnostics, dict)
@@ -679,6 +783,21 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "validation_seconds_total": 0.0,
                     "validation_seconds_max": 0.0,
                     "deadline_overrun_count": 0,
+                    "temporal_chunk_observed_steps": 0,
+                    "temporal_chunk_scheduled_count": 0,
+                    "temporal_chunk_static_valid_count": 0,
+                    "temporal_chunk_multi_origin_steps": 0,
+                    "temporal_chunk_consensus_steps": 0,
+                    "temporal_chunk_selected_match_count": 0,
+                    "temporal_chunk_selected_disagree_count": 0,
+                    "temporal_chunk_would_prevent_fallback_count": 0,
+                    "temporal_chunk_generated_count": 0,
+                    "temporal_chunk_validation_seconds_total": 0.0,
+                    "temporal_chunk_validation_seconds_max": 0.0,
+                    "temporal_chunk_generation_seconds_total": 0.0,
+                    "temporal_chunk_generation_seconds_max": 0.0,
+                    "temporal_chunk_valid_by_delay": {},
+                    "temporal_chunk_scheduled_by_delay": {},
                     "rollout_observed_steps": 0,
                     "rollout_candidate_count": 0,
                     "rollout_eligible_count": 0,
@@ -723,6 +842,52 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             trace_bucket["deadline_overrun_count"] += int(
                 trace.get("cross_step_deadline_overrun_count", 0)
             )
+            for name in (
+                "temporal_chunk_observed_steps",
+                "temporal_chunk_scheduled_count",
+                "temporal_chunk_static_valid_count",
+                "temporal_chunk_multi_origin_steps",
+                "temporal_chunk_consensus_steps",
+                "temporal_chunk_selected_match_count",
+                "temporal_chunk_selected_disagree_count",
+                "temporal_chunk_would_prevent_fallback_count",
+                "temporal_chunk_generated_count",
+            ):
+                trace_bucket[name] += int(trace.get(name, 0))
+            for name in (
+                "temporal_chunk_validation_seconds_total",
+                "temporal_chunk_generation_seconds_total",
+            ):
+                trace_bucket[name] += float(trace.get(name, 0.0))
+            for name in (
+                "temporal_chunk_validation_seconds_max",
+                "temporal_chunk_generation_seconds_max",
+            ):
+                trace_bucket[name] = max(
+                    trace_bucket[name], float(trace.get(name, 0.0))
+                )
+            for delay, count in trace.get(
+                "temporal_chunk_valid_by_delay", {}
+            ).items():
+                delay_key = str(delay)
+                trace_bucket["temporal_chunk_valid_by_delay"][delay_key] = (
+                    trace_bucket["temporal_chunk_valid_by_delay"].get(
+                        delay_key, 0
+                    )
+                    + int(count)
+                )
+            for delay, count in trace.get(
+                "temporal_chunk_scheduled_by_delay", {}
+            ).items():
+                delay_key = str(delay)
+                trace_bucket[
+                    "temporal_chunk_scheduled_by_delay"
+                ][delay_key] = (
+                    trace_bucket["temporal_chunk_scheduled_by_delay"].get(
+                        delay_key, 0
+                    )
+                    + int(count)
+                )
             for name in (
                 "rollout_observed_steps",
                 "rollout_candidate_count",
@@ -924,6 +1089,91 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "deadline_overrun_count": int(
                 bucket["deadline_overrun_count"]
             ),
+            "temporal_chunk_observed_steps": int(
+                bucket["temporal_chunk_observed_steps"]
+            ),
+            "temporal_chunk_scheduled_count": int(
+                bucket["temporal_chunk_scheduled_count"]
+            ),
+            "temporal_chunk_static_valid_count": int(
+                bucket["temporal_chunk_static_valid_count"]
+            ),
+            "temporal_chunk_static_survival_rate": (
+                round(
+                    bucket["temporal_chunk_static_valid_count"]
+                    / bucket["temporal_chunk_scheduled_count"],
+                    6,
+                )
+                if bucket["temporal_chunk_scheduled_count"]
+                else None
+            ),
+            "temporal_chunk_multi_origin_steps": int(
+                bucket["temporal_chunk_multi_origin_steps"]
+            ),
+            "temporal_chunk_consensus_steps": int(
+                bucket["temporal_chunk_consensus_steps"]
+            ),
+            "temporal_chunk_selected_match_count": int(
+                bucket["temporal_chunk_selected_match_count"]
+            ),
+            "temporal_chunk_selected_disagree_count": int(
+                bucket["temporal_chunk_selected_disagree_count"]
+            ),
+            "temporal_chunk_would_prevent_fallback_count": int(
+                bucket["temporal_chunk_would_prevent_fallback_count"]
+            ),
+            "temporal_chunk_generated_count": int(
+                bucket["temporal_chunk_generated_count"]
+            ),
+            "temporal_chunk_validation_seconds_total": round(
+                bucket["temporal_chunk_validation_seconds_total"], 6
+            ),
+            "temporal_chunk_validation_seconds_max": round(
+                bucket["temporal_chunk_validation_seconds_max"], 6
+            ),
+            "temporal_chunk_generation_seconds_total": round(
+                bucket["temporal_chunk_generation_seconds_total"], 6
+            ),
+            "temporal_chunk_generation_seconds_max": round(
+                bucket["temporal_chunk_generation_seconds_max"], 6
+            ),
+            "temporal_chunk_ms_per_observed_step": (
+                round(
+                    1000.0
+                    * (
+                        bucket["temporal_chunk_validation_seconds_total"]
+                        + bucket["temporal_chunk_generation_seconds_total"]
+                    )
+                    / bucket["temporal_chunk_observed_steps"],
+                    3,
+                )
+                if bucket["temporal_chunk_observed_steps"]
+                else None
+            ),
+            "temporal_chunk_valid_by_delay": dict(
+                sorted(
+                    bucket["temporal_chunk_valid_by_delay"].items(),
+                    key=lambda pair: int(pair[0]),
+                )
+            ),
+            "temporal_chunk_scheduled_by_delay": dict(
+                sorted(
+                    bucket["temporal_chunk_scheduled_by_delay"].items(),
+                    key=lambda pair: int(pair[0]),
+                )
+            ),
+            "temporal_chunk_survival_by_delay": {
+                delay: round(
+                    bucket["temporal_chunk_valid_by_delay"].get(delay, 0)
+                    / scheduled,
+                    6,
+                )
+                for delay, scheduled in sorted(
+                    bucket["temporal_chunk_scheduled_by_delay"].items(),
+                    key=lambda pair: int(pair[0]),
+                )
+                if scheduled
+            },
             "rollout_observed_steps": int(
                 bucket["rollout_observed_steps"]
             ),
@@ -1119,6 +1369,31 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['would_prevent_fallback_count']} "
                 f"| {trace['validation_ms_per_observed_step']} "
                 f"| {trace['deadline_overrun_count']} |"
+            )
+        lines += [
+            "",
+            "## Temporal chunk ensemble telemetry",
+            "",
+            "| arm | steps | scheduled | static valid | survival "
+            "| multi-origin steps | consensus steps | selected match "
+            "| selected disagree | fallback rescue | generated "
+            "| ms/step | survival by delay |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['temporal_chunk_observed_steps']} "
+                f"| {trace['temporal_chunk_scheduled_count']} "
+                f"| {trace['temporal_chunk_static_valid_count']} "
+                f"| {trace['temporal_chunk_static_survival_rate']} "
+                f"| {trace['temporal_chunk_multi_origin_steps']} "
+                f"| {trace['temporal_chunk_consensus_steps']} "
+                f"| {trace['temporal_chunk_selected_match_count']} "
+                f"| {trace['temporal_chunk_selected_disagree_count']} "
+                f"| {trace['temporal_chunk_would_prevent_fallback_count']} "
+                f"| {trace['temporal_chunk_generated_count']} "
+                f"| {trace['temporal_chunk_ms_per_observed_step']} "
+                f"| `{json.dumps(trace['temporal_chunk_survival_by_delay'], sort_keys=True)}` |"
             )
         lines += [
             "",

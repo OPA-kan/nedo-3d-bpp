@@ -96,6 +96,43 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(trace["would_prevent_fallback_count"], 1)
         self.assertEqual(trace["validation_ms_per_observed_step"], 2.0)
 
+    def test_temporal_chunk_telemetry_is_preserved_in_compact_summary(self):
+        row = episode_row("temporal_chunk_shadow", "b000-k20", 13, 14.5)
+        row["policy_trace"] = {
+            "temporal_chunk_observed_steps": 10,
+            "temporal_chunk_scheduled_count": 16,
+            "temporal_chunk_static_valid_count": 12,
+            "temporal_chunk_multi_origin_steps": 8,
+            "temporal_chunk_consensus_steps": 5,
+            "temporal_chunk_selected_match_count": 3,
+            "temporal_chunk_selected_disagree_count": 2,
+            "temporal_chunk_would_prevent_fallback_count": 1,
+            "temporal_chunk_generated_count": 18,
+            "temporal_chunk_validation_seconds_total": 0.02,
+            "temporal_chunk_validation_seconds_max": 0.004,
+            "temporal_chunk_generation_seconds_total": 0.08,
+            "temporal_chunk_generation_seconds_max": 0.015,
+            "temporal_chunk_valid_by_delay": {"1": 7, "2": 5},
+            "temporal_chunk_scheduled_by_delay": {"1": 8, "2": 8},
+        }
+
+        trace = summarize([row])["policy_trace_by_arm"][
+            "temporal_chunk_shadow"
+        ]
+
+        self.assertEqual(trace["temporal_chunk_static_survival_rate"], 0.75)
+        self.assertEqual(trace["temporal_chunk_consensus_steps"], 5)
+        self.assertEqual(trace["temporal_chunk_selected_match_count"], 3)
+        self.assertEqual(trace["temporal_chunk_selected_disagree_count"], 2)
+        self.assertEqual(trace["temporal_chunk_ms_per_observed_step"], 10.0)
+        self.assertEqual(
+            trace["temporal_chunk_valid_by_delay"], {"1": 7, "2": 5}
+        )
+        self.assertEqual(
+            trace["temporal_chunk_survival_by_delay"],
+            {"1": 0.875, "2": 0.625},
+        )
+
     def test_development_and_full_suite_totals_are_separate(self):
         rows = [
             episode_row("base", "b000-k15", 10, 11.0),
@@ -155,6 +192,18 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
         self.assertEqual(env["CROSS_STEP_INCUMBENT_MODE"], "shadow")
         self.assertNotIn("CROSS_STEP_INCUMBENT_PER_ITEM", env)
+
+    def test_temporal_chunk_shadow_is_baseline_plus_shadow_flag(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "TEMPORAL_CHUNK_DEPTH": "99",
+        }
+
+        configure_arm_environment(env, "temporal_chunk_shadow", 2.0, 0.0)
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["TEMPORAL_CHUNK_ENSEMBLE_MODE"], "shadow")
+        self.assertNotIn("TEMPORAL_CHUNK_DEPTH", env)
 
     def test_rollout_shadow_is_the_shipped_baseline_plus_telemetry(self):
         env = {
@@ -428,6 +477,21 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "cross_step_validation_seconds_total": 0.004,
                 "cross_step_validation_seconds_max": 0.004,
                 "cross_step_deadline_overrun_count": 1,
+                "temporal_chunk_observed_steps": 0,
+                "temporal_chunk_scheduled_count": 0,
+                "temporal_chunk_static_valid_count": 0,
+                "temporal_chunk_multi_origin_steps": 0,
+                "temporal_chunk_consensus_steps": 0,
+                "temporal_chunk_selected_match_count": 0,
+                "temporal_chunk_selected_disagree_count": 0,
+                "temporal_chunk_would_prevent_fallback_count": 0,
+                "temporal_chunk_generated_count": 0,
+                "temporal_chunk_validation_seconds_total": 0.0,
+                "temporal_chunk_validation_seconds_max": 0.0,
+                "temporal_chunk_generation_seconds_total": 0.0,
+                "temporal_chunk_generation_seconds_max": 0.0,
+                "temporal_chunk_valid_by_delay": {},
+                "temporal_chunk_scheduled_by_delay": {},
                 "rollout_observed_steps": 0,
                 "rollout_candidate_count": 0,
                 "rollout_eligible_count": 0,
@@ -447,6 +511,49 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "rollout_seconds_total": 0.0,
                 "rollout_seconds_max": 0.0,
             },
+        )
+
+    def test_temporal_chunk_summary_counts_delay_consensus_and_cost(self):
+        record = {
+            "event": "decision",
+            "step": 5,
+            "candidate_diagnostics": {
+                "temporal_chunk_ensemble": {
+                    "scheduled_count": 2,
+                    "static_valid_count": 2,
+                    "origin_count": 2,
+                    "valid_origin_count": 2,
+                    "max_vote_count": 2,
+                    "selected_matches_consensus": False,
+                    "would_prevent_protocol_fallback": False,
+                    "generated_for_future_count": 2,
+                    "validation_seconds": 0.003,
+                    "generation": {"elapsed_seconds": 0.012},
+                    "valid_by_delay": {"1": 1, "2": 1},
+                    "scheduled_by_delay": {"1": 1, "2": 1},
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["temporal_chunk_observed_steps"], 1)
+        self.assertEqual(summary["temporal_chunk_scheduled_count"], 2)
+        self.assertEqual(summary["temporal_chunk_static_valid_count"], 2)
+        self.assertEqual(summary["temporal_chunk_multi_origin_steps"], 1)
+        self.assertEqual(summary["temporal_chunk_consensus_steps"], 1)
+        self.assertEqual(summary["temporal_chunk_selected_disagree_count"], 1)
+        self.assertEqual(summary["temporal_chunk_generated_count"], 2)
+        self.assertEqual(summary["temporal_chunk_valid_by_delay"], {"1": 1, "2": 1})
+        self.assertEqual(
+            summary["temporal_chunk_scheduled_by_delay"],
+            {"1": 1, "2": 1},
+        )
+        self.assertAlmostEqual(
+            summary["temporal_chunk_generation_seconds_total"], 0.012
         )
 
     def test_rollout_shadow_summary_counts_discrimination_and_cost(self):

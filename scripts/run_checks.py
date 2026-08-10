@@ -91,6 +91,11 @@ def unit_test_environment() -> dict[str, str]:
         "RESCUE_SCAN_ATTEMPTS_PER_UNIT",
         "CROSS_STEP_INCUMBENT_MODE",
         "CROSS_STEP_INCUMBENT_PER_ITEM",
+        "TEMPORAL_CHUNK_ENSEMBLE_MODE",
+        "TEMPORAL_CHUNK_DEPTH",
+        "TEMPORAL_CHUNK_ATTEMPTS_PER_STEP",
+        "TEMPORAL_CHUNK_STRIDE",
+        "TEMPORAL_CHUNK_CELL_SIZE",
         "RELEASE_RISK_GATE_MODE",
     ):
         env.pop(name, None)

@@ -221,6 +221,28 @@ if CROSS_STEP_INCUMBENT_MODE not in CROSS_STEP_INCUMBENT_MODES:
 CROSS_STEP_INCUMBENT_PER_ITEM = max(
     1, int(os.environ.get("CROSS_STEP_INCUMBENT_PER_ITEM", "2"))
 )
+TEMPORAL_CHUNK_ENSEMBLE_MODES = frozenset({"off", "shadow"})
+TEMPORAL_CHUNK_ENSEMBLE_MODE = os.environ.get(
+    "TEMPORAL_CHUNK_ENSEMBLE_MODE", "off"
+).strip().lower()
+if TEMPORAL_CHUNK_ENSEMBLE_MODE not in TEMPORAL_CHUNK_ENSEMBLE_MODES:
+    raise ValueError(
+        f"unknown TEMPORAL_CHUNK_ENSEMBLE_MODE "
+        f"{TEMPORAL_CHUNK_ENSEMBLE_MODE!r}; expected one of "
+        f"{sorted(TEMPORAL_CHUNK_ENSEMBLE_MODES)}"
+    )
+TEMPORAL_CHUNK_DEPTH = max(
+    2, int(os.environ.get("TEMPORAL_CHUNK_DEPTH", "3"))
+)
+TEMPORAL_CHUNK_ATTEMPTS_PER_STEP = max(
+    1, int(os.environ.get("TEMPORAL_CHUNK_ATTEMPTS_PER_STEP", "64"))
+)
+TEMPORAL_CHUNK_STRIDE = max(
+    1, int(os.environ.get("TEMPORAL_CHUNK_STRIDE", "1"))
+)
+TEMPORAL_CHUNK_CELL_SIZE = max(
+    0.01, float(os.environ.get("TEMPORAL_CHUNK_CELL_SIZE", "0.10"))
+)
 ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
 ITEM_COVERAGE_MODE = os.environ.get(
     "ITEM_COVERAGE_MODE", "class_aware"
@@ -967,6 +989,20 @@ class PlacementDecision:
 class CrossStepCandidate:
     """A validated candidate retained under a stable item identity."""
 
+    item_index: int
+    previous_pool_index: int
+    container_index: int
+    orientation: int
+    candidate: AABB
+    previous_score: float
+
+
+@dataclass(frozen=True)
+class TemporalChunkProposal:
+    """One future action predicted by a rollout rooted at an older step."""
+
+    origin_step: int
+    target_step: int
     item_index: int
     previous_pool_index: int
     container_index: int
@@ -5945,6 +5981,259 @@ def visible_pool_rollout_value(
     )
 
 
+def build_temporal_chunk_proposals(
+    observation,
+    indexed_items,
+    initial_decision,
+    *,
+    origin_step,
+    depth=TEMPORAL_CHUNK_DEPTH,
+    attempts_per_step=TEMPORAL_CHUNK_ATTEMPTS_PER_STEP,
+    risk_lambda=None,
+    stride=TEMPORAL_CHUNK_STRIDE,
+    stride_offset=0,
+):
+    """Predict future commands without executing them on the live state.
+
+    The selected live action is applied only to a deep-copied static state.
+    Each later settled transition extends that proxy state.  A release
+    transition is retained as a future proposal but terminates the chunk,
+    because its post-settle state is not known without physics.
+    """
+    started = time.perf_counter()
+    pool_list = observation.get("pool_list", [])
+    initial_pool_idx = int(initial_decision.action["item_idx"])
+    if not (0 <= initial_pool_idx < len(pool_list)):
+        raise IndexError("initial decision item_idx is outside the pool")
+
+    containers = copy.deepcopy(observation.get("container_list", []))
+    initial_item = pool_list[initial_pool_idx]
+    apply_placement_decision(initial_item, initial_decision, containers)
+    remaining = [
+        (idx, item)
+        for idx, item in indexed_items
+        if int(idx) != initial_pool_idx
+    ]
+    proposals = []
+    attempts_used = 0
+    accepted_candidates = 0
+    terminal_reason = "depth_reached"
+
+    for offset in range(1, max(1, int(depth))):
+        if not remaining:
+            terminal_reason = "pool_exhausted"
+            break
+        sim_observation = {
+            "pool_list": pool_list,
+            "container_list": containers,
+        }
+        decision, step_attempts, step_accepted = bounded_rollout_decision(
+            sim_observation,
+            remaining,
+            attempts_per_step,
+            risk_lambda=risk_lambda,
+            stride=stride,
+            stride_offset=stride_offset,
+        )
+        attempts_used += int(step_attempts)
+        accepted_candidates += int(step_accepted)
+        if decision is None:
+            terminal_reason = "no_candidate"
+            break
+
+        item_idx = int(decision.action["item_idx"])
+        item = pool_list[item_idx]
+        proposals.append(
+            TemporalChunkProposal(
+                origin_step=int(origin_step),
+                target_step=int(origin_step) + int(offset),
+                item_index=int(item.get("index", item_idx)),
+                previous_pool_index=item_idx,
+                container_index=int(decision.action["container_idx"]),
+                orientation=int(decision.action["orientation"]),
+                candidate=decision.candidate,
+                previous_score=float(decision.score),
+            )
+        )
+        if decision.candidate.name == "release_candidate":
+            terminal_reason = "release_transition_uncertain"
+            break
+
+        apply_placement_decision(item, decision, containers)
+        remaining = [
+            (idx, remaining_item)
+            for idx, remaining_item in remaining
+            if int(idx) != item_idx
+        ]
+
+    return {
+        "origin_step": int(origin_step),
+        "depth": int(depth),
+        "attempts_per_step": int(attempts_per_step),
+        "stride": int(stride),
+        "generated_count": len(proposals),
+        "attempts_used": int(attempts_used),
+        "accepted_candidates": int(accepted_candidates),
+        "terminal_reason": str(terminal_reason),
+        "elapsed_seconds": float(time.perf_counter() - started),
+    }, proposals
+
+
+def temporal_chunk_action_key(
+    *, item_index, container_index, orientation, candidate, cell_size=None
+):
+    """Coarse action class used to ensemble nearby delayed predictions."""
+    cell_size = float(cell_size or TEMPORAL_CHUNK_CELL_SIZE)
+    kind = (
+        "release"
+        if candidate.name == "release_candidate"
+        else "settled"
+    )
+    return (
+        int(item_index),
+        int(container_index),
+        int(orientation),
+        kind,
+        int(round(float(candidate.center[0]) / cell_size)),
+        int(round(float(candidate.center[1]) / cell_size)),
+    )
+
+
+def temporal_chunk_ensemble_evaluation(
+    observation,
+    proposals,
+    selected_decision,
+    *,
+    current_step,
+    deadline=None,
+    risk_lambda=None,
+    cell_size=TEMPORAL_CHUNK_CELL_SIZE,
+):
+    """Revalidate due delayed proposals and measure temporal agreement."""
+    due = [
+        proposal
+        for proposal in proposals
+        if int(proposal.target_step) == int(current_step)
+    ]
+    base, valid_decisions = revalidate_cross_step_candidates(
+        observation,
+        due,
+        deadline=deadline,
+        risk_lambda=risk_lambda,
+    )
+    candidate_records = base.get("candidates", [])
+    scheduled_by_delay = {}
+    for proposal in due:
+        delay_key = str(int(current_step) - int(proposal.origin_step))
+        scheduled_by_delay[delay_key] = (
+            scheduled_by_delay.get(delay_key, 0) + 1
+        )
+    valid_pairs = [
+        (proposal, record)
+        for proposal, record in zip(due, candidate_records)
+        if record.get("valid") is True
+    ]
+
+    groups = {}
+    valid_by_delay = {}
+    for proposal, record in valid_pairs:
+        delay = int(current_step) - int(proposal.origin_step)
+        valid_by_delay[str(delay)] = valid_by_delay.get(str(delay), 0) + 1
+        key = temporal_chunk_action_key(
+            item_index=proposal.item_index,
+            container_index=proposal.container_index,
+            orientation=proposal.orientation,
+            candidate=proposal.candidate,
+            cell_size=cell_size,
+        )
+        group = groups.setdefault(
+            key,
+            {
+                "key": list(key),
+                "vote_count": 0,
+                "origin_steps": [],
+                "delays": [],
+                "best_previous_score": -float("inf"),
+            },
+        )
+        group["vote_count"] += 1
+        group["origin_steps"].append(int(proposal.origin_step))
+        group["delays"].append(delay)
+        group["best_previous_score"] = max(
+            float(group["best_previous_score"]),
+            float(proposal.previous_score),
+        )
+        record["origin_step"] = int(proposal.origin_step)
+        record["target_step"] = int(proposal.target_step)
+        record["delay"] = delay
+        record["action_group"] = list(key)
+
+    ordered_groups = sorted(
+        groups.values(),
+        key=lambda group: (
+            int(group["vote_count"]),
+            float(group["best_previous_score"]),
+            tuple(group["key"]),
+        ),
+        reverse=True,
+    )
+    consensus = ordered_groups[0] if ordered_groups else None
+
+    selected_key = None
+    pool_list = observation.get("pool_list", [])
+    if selected_decision is not None:
+        selected_pool_index = int(selected_decision.action["item_idx"])
+        if 0 <= selected_pool_index < len(pool_list):
+            selected_item_index = int(
+                pool_list[selected_pool_index].get(
+                    "index", selected_pool_index
+                )
+            )
+            selected_key = temporal_chunk_action_key(
+                item_index=selected_item_index,
+                container_index=int(
+                    selected_decision.action["container_idx"]
+                ),
+                orientation=int(selected_decision.action["orientation"]),
+                candidate=selected_decision.candidate,
+                cell_size=cell_size,
+            )
+
+    base.update(
+        {
+            "mode": "shadow",
+            "current_step": int(current_step),
+            "scheduled_count": len(due),
+            "origin_count": len(
+                {proposal.origin_step for proposal in due}
+            ),
+            "valid_origin_count": len(
+                {proposal.origin_step for proposal, _record in valid_pairs}
+            ),
+            "scheduled_by_delay": scheduled_by_delay,
+            "valid_by_delay": valid_by_delay,
+            "action_group_count": len(ordered_groups),
+            "max_vote_count": (
+                0 if consensus is None else int(consensus["vote_count"])
+            ),
+            "consensus": consensus,
+            "selected_action_group": (
+                None if selected_key is None else list(selected_key)
+            ),
+            "selected_matches_consensus": bool(
+                selected_key is not None
+                and consensus is not None
+                and tuple(consensus["key"]) == tuple(selected_key)
+            ),
+            "would_prevent_protocol_fallback": bool(
+                selected_decision is None and valid_decisions
+            ),
+            "action_groups": ordered_groups,
+        }
+    )
+    return base, valid_decisions
+
+
 def visible_pool_rollout_rank_key(value):
     return (
         int(value.placed_count),
@@ -6653,6 +6942,8 @@ class Agent:
         self._policy_trace_path = os.environ.get("NEDO_POLICY_TRACE_PATH")
         self._cross_step_candidates = []
         self.last_cross_step_valid_decisions = []
+        self._temporal_chunk_proposals = []
+        self.last_temporal_chunk_valid_decisions = []
 
     def _append_policy_trace(self, payload):
         if not self._policy_trace_path:
@@ -6822,6 +7113,8 @@ class Agent:
         self.last_future_probe_item_indices = []
         self._cross_step_candidates = []
         self.last_cross_step_valid_decisions = []
+        self._temporal_chunk_proposals = []
+        self.last_temporal_chunk_valid_decisions = []
         self._optimize_enabled = bool(init_states.get("optimize", False))
         self._lookahead_k = int(init_states.get("lookahead_k", 0))
         self._append_policy_trace(
@@ -6837,6 +7130,15 @@ class Agent:
                 "cross_step_incumbent_per_item": (
                     CROSS_STEP_INCUMBENT_PER_ITEM
                 ),
+                "temporal_chunk_ensemble_mode": (
+                    TEMPORAL_CHUNK_ENSEMBLE_MODE
+                ),
+                "temporal_chunk_depth": TEMPORAL_CHUNK_DEPTH,
+                "temporal_chunk_attempts_per_step": (
+                    TEMPORAL_CHUNK_ATTEMPTS_PER_STEP
+                ),
+                "temporal_chunk_stride": TEMPORAL_CHUNK_STRIDE,
+                "temporal_chunk_cell_size": TEMPORAL_CHUNK_CELL_SIZE,
                 "release_risk_thresholds": (
                     ReleaseRiskThresholds().as_dict()
                 ),
@@ -7659,6 +7961,48 @@ class Agent:
             )
             self.last_cross_step_valid_decisions = cross_step_valid
             self._cross_step_candidates = next_cross_step_candidates
+        if TEMPORAL_CHUNK_ENSEMBLE_MODE == "shadow":
+            temporal_summary, temporal_valid = (
+                temporal_chunk_ensemble_evaluation(
+                    observation,
+                    self._temporal_chunk_proposals,
+                    decision,
+                    current_step=self._policy_step,
+                    deadline=deadline,
+                    risk_lambda=live_lambda,
+                )
+            )
+            pending = [
+                proposal
+                for proposal in self._temporal_chunk_proposals
+                if int(proposal.target_step) > int(self._policy_step)
+            ]
+            generated = []
+            generation = None
+            if decision is not None:
+                generation, generated = build_temporal_chunk_proposals(
+                    observation,
+                    ordered_items,
+                    decision,
+                    origin_step=self._policy_step,
+                    risk_lambda=live_lambda,
+                )
+            self._temporal_chunk_proposals = pending + generated
+            self.last_temporal_chunk_valid_decisions = temporal_valid
+            temporal_summary["generation"] = generation
+            temporal_summary["generated_for_future_count"] = len(generated)
+            temporal_summary["pending_future_count"] = len(
+                self._temporal_chunk_proposals
+            )
+            temporal_summary["pending_target_steps"] = sorted(
+                {
+                    int(proposal.target_step)
+                    for proposal in self._temporal_chunk_proposals
+                }
+            )
+            self.last_candidate_diagnostics[
+                "temporal_chunk_ensemble"
+            ] = temporal_summary
         if decision is not None:
             self.last_action_source = action_source
             self.last_candidate_kind = (

@@ -4224,6 +4224,12 @@ class CrossStepIncumbentTests(unittest.TestCase):
                 agent, "visible_pool_rollout_evaluation"
             ) as rollout_shadow,
             mock.patch.object(
+                agent, "temporal_chunk_ensemble_evaluation"
+            ) as temporal_shadow,
+            mock.patch.object(
+                agent, "build_temporal_chunk_proposals"
+            ) as temporal_build,
+            mock.patch.object(
                 agent.Agent,
                 "_closed_loop_choice",
                 autospec=True,
@@ -4242,6 +4248,253 @@ class CrossStepIncumbentTests(unittest.TestCase):
             "cross_step_incumbent", solver.last_candidate_diagnostics
         )
         rollout_shadow.assert_not_called()
+        temporal_shadow.assert_not_called()
+        temporal_build.assert_not_called()
+        self.assertNotIn(
+            "temporal_chunk_ensemble", solver.last_candidate_diagnostics
+        )
+
+    def test_temporal_chunk_builds_future_offsets_and_stops_at_release(self):
+        pool = [sample_item(10), sample_item(20), sample_item(30)]
+        observation = {
+            "pool_list": pool,
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+
+        def decision(pool_index, kind, score):
+            candidate = agent.AABB(
+                (0.1 + pool_index * 0.2, 0.0, 0.1),
+                (0.2, 0.2, 0.2),
+                kind,
+            )
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": np.asarray(
+                        candidate.center, dtype=np.float32
+                    ),
+                    "orientation": 0,
+                },
+                candidate=candidate,
+                score=score,
+            )
+
+        initial = decision(0, "candidate", 3.0)
+        future_settled = decision(1, "candidate", 2.0)
+        future_release = decision(2, "release_candidate", 1.0)
+        with (
+            mock.patch.object(agent, "apply_placement_decision"),
+            mock.patch.object(
+                agent,
+                "bounded_rollout_decision",
+                side_effect=[
+                    (future_settled, 12, 3),
+                    (future_release, 8, 2),
+                ],
+            ),
+        ):
+            summary, proposals = agent.build_temporal_chunk_proposals(
+                observation,
+                list(enumerate(pool)),
+                initial,
+                origin_step=7,
+                depth=4,
+            )
+
+        self.assertEqual([p.target_step for p in proposals], [8, 9])
+        self.assertEqual([p.item_index for p in proposals], [20, 30])
+        self.assertEqual(
+            proposals[-1].candidate.name, "release_candidate"
+        )
+        self.assertEqual(summary["attempts_used"], 20)
+        self.assertEqual(summary["accepted_candidates"], 5)
+        self.assertEqual(
+            summary["terminal_reason"], "release_transition_uncertain"
+        )
+
+    def test_temporal_chunk_ensembles_matching_delays_after_revalidation(self):
+        item = sample_item(42)
+        observation = {
+            "pool_list": [sample_item(99), item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+        candidate_a = agent.AABB(
+            (0.201, 0.001, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        candidate_b = agent.AABB(
+            (0.204, 0.004, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        proposals = [
+            agent.TemporalChunkProposal(
+                origin_step=3,
+                target_step=5,
+                item_index=42,
+                previous_pool_index=0,
+                container_index=0,
+                orientation=0,
+                candidate=candidate_a,
+                previous_score=1.0,
+            ),
+            agent.TemporalChunkProposal(
+                origin_step=4,
+                target_step=5,
+                item_index=42,
+                previous_pool_index=0,
+                container_index=0,
+                orientation=0,
+                candidate=candidate_b,
+                previous_score=1.2,
+            ),
+        ]
+        selected = agent.PlacementDecision(
+            action={
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": np.asarray(candidate_a.center, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=candidate_a,
+            score=1.1,
+        )
+
+        with mock.patch.object(
+            agent.Geometry, "rejection_reason", return_value=None
+        ):
+            record, valid = agent.temporal_chunk_ensemble_evaluation(
+                observation,
+                proposals,
+                selected,
+                current_step=5,
+                cell_size=0.1,
+            )
+
+        self.assertEqual(len(valid), 2)
+        self.assertEqual(record["origin_count"], 2)
+        self.assertEqual(record["valid_origin_count"], 2)
+        self.assertEqual(record["max_vote_count"], 2)
+        self.assertEqual(record["scheduled_by_delay"], {"2": 1, "1": 1})
+        self.assertEqual(record["valid_by_delay"], {"2": 1, "1": 1})
+        self.assertTrue(record["selected_matches_consensus"])
+        self.assertFalse(record["would_prevent_protocol_fallback"])
+
+    def test_temporal_chunk_shadow_records_without_changing_action(self):
+        pool = [sample_item(0), sample_item(1)]
+        observation = {
+            "pool_list": pool,
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+        candidate = agent.AABB(
+            (0.2, 0.0, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        selected = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.asarray(candidate.center, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=candidate,
+            score=1.0,
+        )
+        future = agent.TemporalChunkProposal(
+            origin_step=0,
+            target_step=1,
+            item_index=1,
+            previous_pool_index=1,
+            container_index=0,
+            orientation=0,
+            candidate=candidate,
+            previous_score=0.5,
+        )
+        with (
+            mock.patch.object(
+                agent, "TEMPORAL_CHUNK_ENSEMBLE_MODE", "shadow"
+            ),
+            mock.patch.object(
+                agent, "CROSS_STEP_INCUMBENT_MODE", "off"
+            ),
+            mock.patch.object(agent, "VISIBLE_POOL_ROLLOUT_MODE", "off"),
+            mock.patch.object(
+                agent.Agent, "_closed_loop_choice", return_value=selected
+            ),
+            mock.patch.object(
+                agent,
+                "temporal_chunk_ensemble_evaluation",
+                return_value=(
+                    {"mode": "shadow", "scheduled_count": 0}, []
+                ),
+            ) as evaluate,
+            mock.patch.object(
+                agent,
+                "build_temporal_chunk_proposals",
+                return_value=(
+                    {"generated_count": 1, "elapsed_seconds": 0.01},
+                    [future],
+                ),
+            ) as build,
+        ):
+            solver = agent.Agent("")
+            action = solver.policy(observation)
+
+        np.testing.assert_array_equal(action["place_pos"], selected.action["place_pos"])
+        evaluate.assert_called_once()
+        build.assert_called_once()
+        telemetry = solver.last_candidate_diagnostics[
+            "temporal_chunk_ensemble"
+        ]
+        self.assertEqual(telemetry["generated_for_future_count"], 1)
+        self.assertEqual(telemetry["pending_target_steps"], [1])
+        self.assertEqual(solver._temporal_chunk_proposals, [future])
+
+    def test_temporal_chunk_marks_a_valid_delayed_fallback_alternative(self):
+        item = sample_item(42)
+        candidate = agent.AABB(
+            (0.2, 0.0, 0.1), (0.2, 0.2, 0.2), "candidate"
+        )
+        proposal = agent.TemporalChunkProposal(
+            origin_step=4,
+            target_step=5,
+            item_index=42,
+            previous_pool_index=0,
+            container_index=0,
+            orientation=0,
+            candidate=candidate,
+            previous_score=1.0,
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+
+        with mock.patch.object(
+            agent.Geometry, "rejection_reason", return_value=None
+        ):
+            record, valid = agent.temporal_chunk_ensemble_evaluation(
+                observation,
+                [proposal],
+                None,
+                current_step=5,
+            )
+
+        self.assertEqual(len(valid), 1)
+        self.assertTrue(record["would_prevent_protocol_fallback"])
 
     def test_rollout_shadow_records_but_does_not_change_action(self):
         item = sample_item(0)
