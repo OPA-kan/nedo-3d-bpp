@@ -20,6 +20,16 @@ precision / recallではない。反復回数を増やしてもこの条件づ�
 
 の同定であり、新しい特徴の追加ではない。
 
+## Scenario conditioning
+
+Every row and step manifest carries `scenario_context`. It records container
+count, shelf and priority-container patterns, initial pre-load,
+look-ahead/refill settings, stream size, and each container's static geometry.
+One- and two-container or shelf/no-shelf scenes may share a model, but these
+conditions must be model inputs or explicit evaluation strata. Paired random
+controls and acceptance guards are evaluated inside each scenario; metrics
+must not be pooled in a way that hides a failed condition.
+
 ## 1行の中身
 
 `step-<nnn>-candidates.jsonl` の1行が1候補。
@@ -27,7 +37,7 @@ precision / recallではない。反復回数を増やしてもこの条件づ�
 | 群 | フィールド |
 |---|---|
 | ID | `dataset_id`, `snapshot_id`, `candidate_id` |
-| s | `case_id`, `step`, `snapshot_path`（`step-<nnn>-state.json` を指す） |
+| s | `case_id`, `step`, `snapshot_path`（`step-<nnn>-state.json` を指す）, `scenario_context` |
 | a | `pool_index`, `item_index`, `container_index`, `orientation`, `kind`, `center`, `size`, `action_center` |
 | Φ | `phi`, `phi_modelling`, `phi_availability`, `phi_unavailable`, `gate_passed`, `gate_reasons` |
 | Q | `score_immediate`（`Ranker.score`）, `score_rank`, `score_population`, `preview` |

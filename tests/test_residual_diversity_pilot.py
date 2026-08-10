@@ -24,6 +24,11 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
             "status": "complete",
             "dataset_id": "pilot",
             "case": {
+                "case_id": "m-dual-shelf-mixed",
+                "scenario_context": {
+                    "container_count": 2,
+                    "shelf_count": 1,
+                },
                 "steps": [
                     {
                         "step": 3,
@@ -64,6 +69,8 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
         summary = summarize_manifest(payload)
 
         self.assertEqual(summary["steps_measured"], 1)
+        self.assertEqual(summary["case_id"], "m-dual-shelf-mixed")
+        self.assertEqual(summary["scenario_context"]["container_count"], 2)
         self.assertEqual(summary["steps_with_physical_gain"], 1)
         self.assertAlmostEqual(
             summary["mean_physical_nn_distance_delta"], 0.12

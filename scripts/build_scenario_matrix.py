@@ -151,7 +151,11 @@ def build_scenario(source: dict, name: str, spec: dict,
     case["containers"]["container_list"] = containers
     case["item_stream"]["item_list"] = items
     case["item_stream"]["look_ahead"] = look_ahead
-    case["item_stream"]["max_space"] = look_ahead
+    # Task B replenishes the visible pool as soon as one slot opens.  Using
+    # `look_ahead` here waits until the whole pool is empty and changes the
+    # stream dynamics together with the container condition, confounding the
+    # matrix this builder exists to isolate.
+    case["item_stream"]["max_space"] = 1
     case["item_stream"]["visible_pool"] = []
     case["agent"]["optimize"] = False
     case["agent"]["policy_timeout"] = float(policy_timeout)

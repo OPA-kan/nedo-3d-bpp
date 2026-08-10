@@ -73,6 +73,12 @@ class ScenarioMatrixContractTests(unittest.TestCase):
         self.assertTrue(any(ded for _, ded, _ in flags))
         self.assertTrue(any(pre for _, _, pre in flags))
 
+    def test_matrix_keeps_task_b_single_slot_replenishment(self) -> None:
+        for name, config in MATRIX.items():
+            case = next(iter(config.values()))
+            with self.subTest(scenario=name):
+                self.assertEqual(case["item_stream"]["max_space"], 1)
+
     def test_every_scenario_yields_a_wellformed_action(self) -> None:
         for name, config in MATRIX.items():
             case = next(iter(config.values()))

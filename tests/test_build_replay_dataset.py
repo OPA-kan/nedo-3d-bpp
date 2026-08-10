@@ -20,6 +20,7 @@ from scripts.build_replay_dataset import (
     run_case,
     sample_candidate_population,
     sampling_coverage_comparison,
+    scenario_context,
     score_band,
     selected_action_error,
     split_observed_outcomes,
@@ -40,6 +41,61 @@ from scripts.measure_anchor_recall import (
 )
 
 agent = load_agent_module()
+
+
+class ScenarioContextTests(unittest.TestCase):
+    def test_records_container_count_shelf_routing_and_initial_load(self):
+        task = {
+            "containers": {
+                "container_list": [
+                    {
+                        "index": 0,
+                        "length": 2.0,
+                        "width": 1.4,
+                        "height": 1.6,
+                        "thickness": 0.04,
+                        "buffer": 0.01,
+                        "cut_x": 0.44,
+                        "cut_y": 0.4,
+                        "require_shelf": False,
+                        "is_prioritized": False,
+                        "packed_items": [{"index": 90}],
+                    },
+                    {
+                        "index": 1,
+                        "length": 2.0,
+                        "width": 1.4,
+                        "height": 1.6,
+                        "thickness": 0.04,
+                        "buffer": 0.01,
+                        "cut_x": 0.44,
+                        "cut_y": 0.4,
+                        "require_shelf": True,
+                        "is_prioritized": True,
+                        "packed_items": [],
+                    },
+                ]
+            },
+            "item_stream": {
+                "look_ahead": 20,
+                "max_space": 1,
+                "item_list": [{}, {}, {}],
+            },
+        }
+
+        context = scenario_context(task)
+
+        self.assertEqual(context["container_count"], 2)
+        self.assertEqual(context["shelf_pattern"], [False, True])
+        self.assertEqual(context["shelf_count"], 1)
+        self.assertEqual(context["priority_container_pattern"], [False, True])
+        self.assertEqual(context["initial_packed_item_counts"], [1, 0])
+        self.assertEqual(context["initial_preloaded_count"], 1)
+        self.assertEqual(context["look_ahead"], 20)
+        self.assertEqual(context["max_space"], 1)
+        self.assertEqual(context["stream_item_count"], 3)
+        self.assertEqual(context["containers"][1]["index"], 1)
+        self.assertTrue(context["containers"][1]["has_shelf"])
 
 
 def candidate(

@@ -171,6 +171,65 @@ def file_digest(path: pathlib.Path) -> str | None:
         return None
 
 
+def scenario_context(task_config: dict[str, Any]) -> dict[str, Any]:
+    """Return explicit conditioning variables for one simulator scenario.
+
+    A one-container no-shelf state and a two-container mixed-shelf state are
+    different problems even when a candidate's local geometry happens to be
+    identical.  Keep those setup variables beside every training row so a
+    later model cannot mistake between-scenario variation for action value.
+    """
+    containers = list(
+        (task_config.get("containers") or {}).get("container_list") or []
+    )
+    item_stream = task_config.get("item_stream") or {}
+    container_rows = []
+    for position, container in enumerate(containers):
+        has_shelf = bool(
+            container.get("require_shelf", container.get("shelf", False))
+        )
+        is_priority = bool(container.get("is_prioritized", False))
+        packed_count = len(container.get("packed_items") or [])
+        container_rows.append(
+            {
+                "index": int(container.get("index", position)),
+                "has_shelf": has_shelf,
+                "is_prioritized": is_priority,
+                "initial_packed_item_count": packed_count,
+                "geometry": {
+                    name: float(container.get(name, 0.0))
+                    for name in (
+                        "length",
+                        "width",
+                        "height",
+                        "thickness",
+                        "buffer",
+                        "cut_x",
+                        "cut_y",
+                    )
+                },
+            }
+        )
+    shelf_pattern = [row["has_shelf"] for row in container_rows]
+    priority_pattern = [row["is_prioritized"] for row in container_rows]
+    packed_counts = [
+        row["initial_packed_item_count"] for row in container_rows
+    ]
+    return {
+        "container_count": len(container_rows),
+        "shelf_pattern": shelf_pattern,
+        "shelf_count": sum(shelf_pattern),
+        "priority_container_pattern": priority_pattern,
+        "priority_container_count": sum(priority_pattern),
+        "initial_packed_item_counts": packed_counts,
+        "initial_preloaded_count": sum(packed_counts),
+        "look_ahead": int(item_stream.get("look_ahead", 0)),
+        "max_space": int(item_stream.get("max_space", 0)),
+        "stream_item_count": len(item_stream.get("item_list") or []),
+        "containers": container_rows,
+    }
+
+
 def _git(*arguments: str) -> str | None:
     try:
         completed = subprocess.run(
@@ -830,6 +889,7 @@ def build_row(
     physical: dict[str, Any] | None,
     feature_availability: dict[str, str],
     shadow_key: tuple[Any, ...] | None = None,
+    scenario: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     key = candidate_key(record)
     risk = record.get("release_risk")
@@ -845,6 +905,7 @@ def build_row(
         "snapshot_id": snapshot_id,
         "case_id": str(case_id),
         "step": int(step),
+        "scenario_context": copy.deepcopy(scenario),
         # s
         "snapshot_path": snapshot_name,
         # a
@@ -918,6 +979,7 @@ def run_case(
 
     env = GroundHandlingEnv(config=task_config, verbose=False, render_mode=None)
     solver = agent_module.Agent("")
+    scenario = scenario_context(task_config)
     steps: list[dict[str, Any]] = []
     try:
         env.reset_settings()
@@ -955,6 +1017,7 @@ def run_case(
                         seed=seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
+                        scenario=scenario,
                     )
                 )
                 # Persist after every completed step so an interrupted run
@@ -988,6 +1051,7 @@ def run_case(
     ]
     return {
         "case_id": str(case_id),
+        "scenario_context": scenario,
         "target_steps": sorted(target_steps),
         "reached_steps": sorted(reached),
         "unreached_steps": unreached,
@@ -1022,6 +1086,7 @@ def collect_step(
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
+    scenario: dict[str, Any],
 ) -> dict[str, Any]:
     step_label = f"step-{step:03d}"
     snapshot_id = f"{dataset_id}:{case_id}:{step_label}"
@@ -1205,6 +1270,7 @@ def collect_step(
                 physical=results.get(candidate_key(record)),
                 feature_availability=availability,
                 shadow_key=shadow_key,
+                scenario=scenario,
             )
             row["portfolio_role"] = (
                 "positive_transition" if safe_split_mode else sampling_mode
@@ -1227,6 +1293,7 @@ def collect_step(
                     physical=results.get(candidate_key(record)),
                     feature_availability=availability,
                     shadow_key=shadow_key,
+                    scenario=scenario,
                 )
                 row["portfolio_role"] = (
                     "positive_transition_random_control"
@@ -1251,6 +1318,7 @@ def collect_step(
                     physical=results.get(candidate_key(record)),
                     feature_availability=availability,
                     shadow_key=shadow_key,
+                    scenario=scenario,
                 )
                 row["portfolio_role"] = "negative_physical_risk"
                 handle.write(
@@ -1262,6 +1330,7 @@ def collect_step(
         "dataset_id": dataset_id,
         "snapshot_id": snapshot_id,
         "case_id": str(case_id),
+        "scenario_context": copy.deepcopy(scenario),
         "step": int(step),
         "status": "ok" if selection_error is None else "selection_mismatch",
         "error": selection_error,

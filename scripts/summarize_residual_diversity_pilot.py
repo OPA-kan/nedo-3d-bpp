@@ -107,6 +107,8 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
     }
     return {
         "dataset_id": payload.get("dataset_id"),
+        "case_id": case.get("case_id"),
+        "scenario_context": case.get("scenario_context"),
         "sampling_mode": payload.get("sampling_mode"),
         "status": "complete",
         "steps_measured": len(rows),
