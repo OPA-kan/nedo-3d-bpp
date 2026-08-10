@@ -186,6 +186,16 @@ and SHA-256. Do not reuse hashes in old prose.
   should overdraw, replay, form the positive residual-state arm only from
   observed placed-safe transitions, and retain unsafe rows as a separate
   negative-risk arm. Do not revive the rejected static hard gate.
+- Run `31370546291` implemented that observed-outcome split with 2x overdraw
+  and passed all four preregistered guards. Positive-transition physical
+  NN-distance deltas were +0.030116/+0.017396/+0.017448 (mean +0.021654),
+  unique-item deltas +1/+2/+2, item-orientation +4/0/0, and placed-safe 0/0/0.
+  It yielded 30/13/12 safe positive transitions plus 0/7/15 deduplicated
+  negative-risk examples at steps 3/6/9.
+- Schema v3 is therefore accepted as a bounded offline dataset contract:
+  `step-*-candidates.jsonl` is the safe residual-state arm and
+  `step-*-negative-risk.jsonl` is the unsafe physical-risk arm. This does not
+  establish a learned value function or any live-policy score improvement.
 
 ### Local score proxies
 
@@ -233,10 +243,9 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether an observed-outcome split can turn the globally matched v3 portfolio
-  into an admissible positive-transition training set while retaining unsafe
-  rows as negative risk examples. v3 establishes semantic diversity but misses
-  the placed-safe guard by one late-step candidate.
+- Whether the accepted bounded safe-split contract generalizes across more
+  non-holdout cases, steps and simulator repetitions, and whether a model
+  trained on it improves residual-state ranking or official component proxies.
 
 ## Branch disposition
 
@@ -256,30 +265,34 @@ branches are retained as evidence, not as competing trunks.
 - `experiment/task-a-rollout-transfer`: preserved Codex result/history branch;
   its accepted implementation and compact report are already on live trunk.
 - `experiment/residual-diversity-dataset`: active offline dataset experiment.
-  Run `31369511973` establishes global semantic matching and stronger physical
-  dispersion, but misses the late-step placed-safe guard by one; do not merge
-  as a finished positive-transition training pipeline yet.
+  Run `31370546291` accepts the schema-v3 bounded positive/negative dataset
+  contract. It is ready for non-holdout corpus scaling, but it is not a live
+  policy change or trained model yet.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Replay the 57 multi-axis substitutions from run `31362302154` as paired
+1. Scale `residual_diversity_safe_split` across non-holdout development cases
+   and early/mid/late steps while retaining paired safe-random controls. Check
+   class/step coverage and label balance, then train a cheap tabular/MLP value
+   baseline before considering a Transformer. Do not open final holdout data.
+2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
    designing v2. Do not tune another weighted sum from episode aggregates.
-2. Reconstruct or locate the `submission22` build and add it as the fourth
+3. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
-3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
+4. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
    same risk-on placement policy as execution, then rerun the paired Task A
    order experiment. Revise ADR-003 before adopting.
-4. Only after calibration, design an attribute-aware support policy that preserves
+5. Only after calibration, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.
-5. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
+6. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
    instrument only if its question is still open and its negative control can
    be reproduced on current trunk.
-6. Treat temporal chunking as closed for plain voting.  Reopen only with an
+7. Treat temporal chunking as closed for plain voting.  Reopen only with an
    explicit proposal-quality target and a negative control that can show why
    one delayed origin should outrank another.
 

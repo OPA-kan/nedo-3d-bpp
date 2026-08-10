@@ -1572,6 +1572,30 @@
         "semantic_component_established": true,
         "adopted_for_positive_transition_training": false
       }
+    },
+    {
+      "id": "residual-diversity-safe-split-passes-bounded-pilot",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Observed-outcome splitting turns the globally matched residual-diversity portfolio into an admissible bounded training-data generator. With a 2x per-stratum overdraw, every candidate was replayed through the official PyBullet validator before use: placed-safe rows were globally rematched into a positive-transition arm, while unsafe rows were written separately as negative physical-risk examples. On paired b000-k20 steps 3, 6 and 9, the positive arm passed every preregistered guard. Observed settle-afterstate nearest-neighbour distance beat the safe random control by 0.030116, 0.017396 and 0.017448 (mean +0.021654); unique-item deltas were +1, +2 and +2; item-orientation deltas +4, 0 and 0; and placed-safe deltas 0, 0 and 0. The generator produced 30, 13 and 12 positive transitions and 0, 7 and 15 deduplicated negative-risk examples. This establishes the schema-v3 positive/negative dataset contract for bounded snapshots, not a learned value model or live-policy score improvement. Scale only on non-holdout states before training and retain the paired control.",
+      "source": "reports/residual-diversity/history/31370546291/summary.json; Actions runs 31370546291 and 31370546570; experiment/residual-diversity-dataset commit e3eada6",
+      "values": {
+        "steps": [3, 6, 9],
+        "overdraw_factor": 2,
+        "proxy_gain_steps": 3,
+        "physical_gain_steps": 3,
+        "mean_physical_nn_distance_delta": 0.02165367149246146,
+        "unique_item_deltas": [1, 2, 2],
+        "unique_item_orientation_deltas": [4, 0, 0],
+        "physical_spatial_cell_deltas": [1, 1, 0],
+        "placed_safe_deltas": [0, 0, 0],
+        "positive_transition_counts": [30, 13, 12],
+        "negative_physical_risk_counts": [0, 7, 15],
+        "acceptance_verdict": "pass",
+        "bounded_dataset_contract_established": true,
+        "live_policy_benefit_established": false
+      }
     }
   ]
 }
