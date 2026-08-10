@@ -136,6 +136,7 @@ def configure_arm_environment(
         "structured_noop",
         "structured_retained",
         "multi_axis_shadow",
+        "multi_axis_enforce",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -168,6 +169,11 @@ def configure_arm_environment(
             # changing the action selected by the current policy.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
             env["MULTI_AXIS_SELECTOR_MODE"] = "shadow"
+        elif arm == "multi_axis_enforce":
+            # Replace the final live choice only when a retained candidate
+            # Pareto-dominates it on every trusted rule/physical axis.
+            env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
+            env["MULTI_AXIS_SELECTOR_MODE"] = "enforce"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the
@@ -504,8 +510,11 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "multi_axis_observed_steps": 0,
         "multi_axis_multi_candidate_steps": 0,
         "multi_axis_baseline_dominated_count": 0,
+        "multi_axis_selected_dominated_count": 0,
         "multi_axis_would_change_action_count": 0,
+        "multi_axis_would_change_selected_action_count": 0,
         "multi_axis_would_change_item_count": 0,
+        "multi_axis_enforced_count": 0,
         "multi_axis_candidate_count": 0,
         "multi_axis_pareto_front_count": 0,
     }
@@ -800,11 +809,22 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 summary["multi_axis_baseline_dominated_count"] += int(
                     multi_axis.get("baseline_dominated") is True
                 )
+                summary["multi_axis_selected_dominated_count"] += int(
+                    multi_axis.get("selected_dominated") is True
+                )
                 summary["multi_axis_would_change_action_count"] += int(
                     multi_axis.get("would_change_action") is True
                 )
+                summary[
+                    "multi_axis_would_change_selected_action_count"
+                ] += int(
+                    multi_axis.get("would_change_selected_action") is True
+                )
                 summary["multi_axis_would_change_item_count"] += int(
                     multi_axis.get("would_change_item") is True
+                )
+                summary["multi_axis_enforced_count"] += int(
+                    multi_axis.get("enforced") is True
                 )
     return summary
 
@@ -956,8 +976,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "multi_axis_observed_steps": 0,
                     "multi_axis_multi_candidate_steps": 0,
                     "multi_axis_baseline_dominated_count": 0,
+                    "multi_axis_selected_dominated_count": 0,
                     "multi_axis_would_change_action_count": 0,
+                    "multi_axis_would_change_selected_action_count": 0,
                     "multi_axis_would_change_item_count": 0,
+                    "multi_axis_enforced_count": 0,
                     "multi_axis_candidate_count": 0,
                     "multi_axis_pareto_front_count": 0,
                 },
@@ -980,8 +1003,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "multi_axis_observed_steps",
                 "multi_axis_multi_candidate_steps",
                 "multi_axis_baseline_dominated_count",
+                "multi_axis_selected_dominated_count",
                 "multi_axis_would_change_action_count",
+                "multi_axis_would_change_selected_action_count",
                 "multi_axis_would_change_item_count",
+                "multi_axis_enforced_count",
                 "multi_axis_candidate_count",
                 "multi_axis_pareto_front_count",
             ):
@@ -1311,11 +1337,20 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "multi_axis_baseline_dominated_count": int(
                 bucket["multi_axis_baseline_dominated_count"]
             ),
+            "multi_axis_selected_dominated_count": int(
+                bucket["multi_axis_selected_dominated_count"]
+            ),
             "multi_axis_would_change_action_count": int(
                 bucket["multi_axis_would_change_action_count"]
             ),
             "multi_axis_would_change_item_count": int(
                 bucket["multi_axis_would_change_item_count"]
+            ),
+            "multi_axis_would_change_selected_action_count": int(
+                bucket["multi_axis_would_change_selected_action_count"]
+            ),
+            "multi_axis_enforced_count": int(
+                bucket["multi_axis_enforced_count"]
             ),
             "multi_axis_candidate_count": int(
                 bucket["multi_axis_candidate_count"]
@@ -1325,7 +1360,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             ),
             "multi_axis_change_rate": (
                 round(
-                    bucket["multi_axis_would_change_action_count"]
+                    bucket["multi_axis_would_change_selected_action_count"]
                     / bucket["multi_axis_multi_candidate_steps"],
                     6,
                 )
@@ -1806,8 +1841,9 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             "## Multi-axis selector shadow",
             "",
             "| arm | observed | multi-candidate | candidates | Pareto front "
-            "| baseline dominated | action changes | item changes | change rate |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+            "| rank0 dominated | selected dominated | selected changes "
+            "| item changes | enforced | change rate |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for arm, trace in sorted(policy_trace.items()):
             lines.append(
@@ -1816,8 +1852,10 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['multi_axis_candidate_count']} "
                 f"| {trace['multi_axis_pareto_front_count']} "
                 f"| {trace['multi_axis_baseline_dominated_count']} "
-                f"| {trace['multi_axis_would_change_action_count']} "
+                f"| {trace['multi_axis_selected_dominated_count']} "
+                f"| {trace['multi_axis_would_change_selected_action_count']} "
                 f"| {trace['multi_axis_would_change_item_count']} "
+                f"| {trace['multi_axis_enforced_count']} "
                 f"| {trace['multi_axis_change_rate']} |"
             )
         lines += [

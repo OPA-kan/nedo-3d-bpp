@@ -15,7 +15,8 @@ class MultiAxisSelectorWorkflowTests(unittest.TestCase):
 
     def test_matrix_has_controls_shadow_and_three_repeats(self):
         self.assertIn(
-            "arm: [base, base_null, multi_axis_shadow]", self.text
+            "arm: [base, base_null, multi_axis_shadow, multi_axis_enforce]",
+            self.text,
         )
         self.assertIn("repeat: [0, 1, 2]", self.text)
         self.assertEqual(self.text.count("case_id:"), 5)

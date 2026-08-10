@@ -1347,11 +1347,16 @@ class RankingPipelineContractTests(unittest.TestCase):
             "multi_axis_candidate_record",
             side_effect=records,
         ):
-            record = agent.multi_axis_shadow_record(decisions, {})
+            record = agent.multi_axis_shadow_record(
+                decisions, {}, selected_decision=decisions[1]
+            )
 
         self.assertTrue(record["baseline_dominated"])
+        self.assertTrue(record["selected_dominated"])
+        self.assertEqual(record["selected_rank"], 1)
         self.assertEqual(record["proposed_rank"], 2)
         self.assertTrue(record["would_change_action"])
+        self.assertTrue(record["would_change_selected_action"])
         self.assertTrue(record["would_change_item"])
         self.assertEqual(record["pareto_front_size"], 1)
 

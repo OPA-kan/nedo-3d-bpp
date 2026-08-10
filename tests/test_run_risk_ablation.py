@@ -224,6 +224,14 @@ class SummarizeTests(unittest.TestCase):
 
 
 class ArmEnvironmentTests(unittest.TestCase):
+    def test_multi_axis_enforce_uses_retained_portfolio(self):
+        env = {}
+
+        configure_arm_environment(env, "multi_axis_enforce", 2.0, 0.0)
+
+        self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
+        self.assertEqual(env["MULTI_AXIS_SELECTOR_MODE"], "enforce")
+
     def test_multi_axis_shadow_uses_retained_portfolio_without_enforce(self):
         env = {
             "PLACEMENT_SELECTOR_MODE": "stale",
@@ -662,8 +670,11 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "multi_axis_observed_steps": 0,
                 "multi_axis_multi_candidate_steps": 0,
                 "multi_axis_baseline_dominated_count": 0,
+                "multi_axis_selected_dominated_count": 0,
                 "multi_axis_would_change_action_count": 0,
+                "multi_axis_would_change_selected_action_count": 0,
                 "multi_axis_would_change_item_count": 0,
+                "multi_axis_enforced_count": 0,
                 "multi_axis_candidate_count": 0,
                 "multi_axis_pareto_front_count": 0,
             },
@@ -677,8 +688,11 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                     "candidate_count": 3,
                     "pareto_front_size": 2,
                     "baseline_dominated": True,
+                    "selected_dominated": True,
                     "would_change_action": True,
+                    "would_change_selected_action": True,
                     "would_change_item": False,
+                    "enforced": False,
                 }
             },
         }
@@ -692,8 +706,13 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["multi_axis_candidate_count"], 3)
         self.assertEqual(summary["multi_axis_pareto_front_count"], 2)
         self.assertEqual(summary["multi_axis_baseline_dominated_count"], 1)
+        self.assertEqual(summary["multi_axis_selected_dominated_count"], 1)
         self.assertEqual(summary["multi_axis_would_change_action_count"], 1)
+        self.assertEqual(
+            summary["multi_axis_would_change_selected_action_count"], 1
+        )
         self.assertEqual(summary["multi_axis_would_change_item_count"], 0)
+        self.assertEqual(summary["multi_axis_enforced_count"], 0)
 
     def test_temporal_chunk_summary_counts_delay_consensus_and_cost(self):
         record = {

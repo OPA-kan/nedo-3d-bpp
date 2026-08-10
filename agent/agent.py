@@ -254,7 +254,7 @@ if PLACEMENT_SELECTOR_MODE not in PLACEMENT_SELECTOR_MODES:
         f"unknown PLACEMENT_SELECTOR_MODE {PLACEMENT_SELECTOR_MODE!r}; "
         f"expected one of {sorted(PLACEMENT_SELECTOR_MODES)}"
     )
-MULTI_AXIS_SELECTOR_MODES = frozenset({"off", "shadow"})
+MULTI_AXIS_SELECTOR_MODES = frozenset({"off", "shadow", "enforce"})
 MULTI_AXIS_SELECTOR_MODE = os.environ.get(
     "MULTI_AXIS_SELECTOR_MODE", "off"
 ).strip().lower()
@@ -4498,8 +4498,8 @@ def multi_axis_dominates(first, second):
     return bool(no_worse and strictly_better)
 
 
-def multi_axis_shadow_record(top, observation):
-    """Pareto proposal over retained Top-K; never changes the live action."""
+def multi_axis_shadow_record(top, observation, selected_decision=None):
+    """Pareto proposal over retained Top-K, relative to the live choice."""
     records = [
         multi_axis_candidate_record(decision, observation, rank)
         for rank, decision in enumerate(top)
@@ -4515,8 +4515,29 @@ def multi_axis_shadow_record(top, observation):
             for other in records
         )
     ]
-    proposed = max(front, key=lambda candidate: candidate["adjusted_score"])
     baseline = records[0]
+    selected_rank = next(
+        (
+            rank
+            for rank, decision in enumerate(top)
+            if decision is selected_decision
+        ),
+        None,
+    )
+    selected = (
+        records[selected_rank] if selected_rank is not None else baseline
+    )
+    dominators = [
+        candidate
+        for candidate in records
+        if candidate is not selected
+        and multi_axis_dominates(candidate, selected)
+    ]
+    proposed = (
+        max(dominators, key=lambda candidate: candidate["adjusted_score"])
+        if dominators
+        else selected
+    )
     return {
         "schema_version": 1,
         "mode": "shadow",
@@ -4526,6 +4547,9 @@ def multi_axis_shadow_record(top, observation):
         "candidate_count": len(records),
         "pareto_front_size": len(front),
         "baseline_rank": int(baseline["rank"]),
+        "selected_rank": (
+            None if selected_rank is None else int(selected_rank)
+        ),
         "proposed_rank": int(proposed["rank"]),
         "baseline_dominated": any(
             multi_axis_dominates(other, baseline)
@@ -4533,8 +4557,13 @@ def multi_axis_shadow_record(top, observation):
         ),
         "would_change_action": proposed["rank"] != baseline["rank"],
         "would_change_item": (
-            proposed["item_index"] != baseline["item_index"]
+            proposed["item_index"] != selected["item_index"]
         ),
+        "selected_dominated": bool(dominators),
+        "would_change_selected_action": (
+            proposed["rank"] != selected["rank"]
+        ),
+        "enforced": False,
         "candidates": records,
     }
 
@@ -8849,15 +8878,27 @@ class Agent:
                 "temporal_chunk_ensemble"
             ] = temporal_summary
         if (
-            MULTI_AXIS_SELECTOR_MODE == "shadow"
+            MULTI_AXIS_SELECTOR_MODE in {"shadow", "enforce"}
             and self.last_top_candidates
         ):
             # Compute telemetry only after every live selection decision is
             # frozen.  Running this before lookahead changed its wall-clock
             # budget and failed the first physical negative control.
             self.last_multi_axis_shadow = multi_axis_shadow_record(
-                self.last_top_candidates, observation
+                self.last_top_candidates, observation, decision
             )
+            if (
+                MULTI_AXIS_SELECTOR_MODE == "enforce"
+                and decision is not None
+                and action_source == "placement_core"
+                and self.last_multi_axis_shadow["selected_dominated"]
+            ):
+                proposed_rank = int(
+                    self.last_multi_axis_shadow["proposed_rank"]
+                )
+                decision = self.last_top_candidates[proposed_rank]
+                action_source = "multi_axis_enforce"
+                self.last_multi_axis_shadow["enforced"] = True
         if decision is not None:
             self.last_action_source = action_source
             self.last_candidate_kind = (

@@ -36,9 +36,15 @@ axis and strictly better on at least one. The shadow proposal is the largest
 current adjusted score on the nondominated front. Predicted CoM is excluded
 from dominance until its direction against the official component is resolved.
 
-The baseline is rank 0 of the immediate retained Top-K, not the final
-closed-loop lookahead choice. This scopes the experiment to replacement of the
-immediate Ranker and avoids mixing two selection questions.
+The trace reports both rank 0 of the immediate retained Top-K and the final
+closed-loop choice. The enforce proposal is relative to the final choice: it
+changes that action only when at least one retained candidate dominates it,
+then preserves the current adjusted score as the tie-break among dominators.
+
+After the repaired shadow passed its full-vector negative control in Actions
+`31360283401`, `enforce` was added as an explicit ablation mode. It never
+trades one trusted axis against another and still leaves CoM out of the
+decision until official calibration resolves its direction.
 
 ## Acceptance gate
 
@@ -52,8 +58,8 @@ The first run is diagnostic, not an adoption run. It must report:
   priority/soft cleanliness, terminal physical labels, policy time and search
   attempts.
 
-`base`, `base_null`, and `multi_axis_shadow` run three repeats on five Task B
-development cases. Any physical effect outside the pooled control spread is an
-instrumentation regression because shadow mode cannot alter an action. An
-enforce mode is out of scope until the shadow establishes useful discrimination
-and interpretable component trade directions.
+`base`, `base_null`, `multi_axis_shadow`, and `multi_axis_enforce` run three
+repeats on five Task B development cases. Any physical effect outside the
+pooled control spread in shadow mode is an instrumentation regression. The
+enforce arm is not a default switch: adoption requires the full-vector
+comparison and cannot be justified by placed/fill alone.
