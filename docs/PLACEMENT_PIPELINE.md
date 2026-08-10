@@ -59,6 +59,13 @@ consume this evaluated stream.  They must not rerun candidate generation just
 to recover score components.  A selector changes selection only; it does not
 change static validity or simulator command construction.
 
+The structured stream is opt-in.  Passing a custom selector, or setting
+`structured_evaluation=True`, materializes proposals and named evaluations.
+The shipped default selector stays on the allocation-light scalar path.  This
+is a measured requirement: eagerly constructing rich objects for every valid
+candidate reduced candidate throughput by roughly 16--17% in the first Task B
+parity run.
+
 ## 4. Command and execution
 
 `PlacementCommand` represents the command pose, not the settle result.  It
@@ -72,9 +79,10 @@ This preserves the release contract:
 (p_cmd, o_cmd) != (p_settled, o_settled) in general.
 ```
 
-`placement_evaluation_record()` exposes a JSON-safe schema for the selected
-candidate.  Policy traces now retain its immediate terms, risk adjustment,
-provenance, command mode and stable item identity.
+`placement_evaluation_record()` exposes a JSON-safe schema for a selected
+structured candidate.  When structured evaluation is enabled, policy traces
+retain its immediate terms, risk adjustment, provenance, command mode and
+stable item identity.  Default traces remain allocation-light.
 
 ## Compatibility and adoption boundary
 

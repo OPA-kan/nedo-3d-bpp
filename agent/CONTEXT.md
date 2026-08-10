@@ -149,11 +149,15 @@
 - `PlacementCore.choose()` and `top_candidates()` accept an optional selector.
   Their defaults (`SettledFirstSelector` and `TopKSettledFirstSelector`)
   preserve the shipped settled-before-release behavior exactly.
+- Rich proposal/evaluation objects are opt-in through a custom selector or
+  `structured_evaluation=True`; the default live path retains the old scalar
+  allocation profile. Eager materialization reduced measured candidate
+  throughput by about 16--17% and is not permitted as a default tax.
 - `PlacementCommand` is the simulator command pose, not a predicted settle
   pose. `action_for_execution()` owns conversion to the external action API.
-- The selected structured evaluation is written to policy diagnostics under
-  `selected_candidate_evaluation`.  Advanced selectors should consume the
-  evaluated candidate stream rather than rerun search to reconstruct terms.
+- A selected structured evaluation is written to policy diagnostics under
+  `selected_candidate_evaluation`. Advanced selectors should consume that
+  evaluated stream rather than rerun search to reconstruct terms.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

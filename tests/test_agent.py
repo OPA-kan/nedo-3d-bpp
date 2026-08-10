@@ -1367,6 +1367,45 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertIs(selected.candidate, second)
         self.assertEqual(selected.score, 1.0)
 
+    def test_default_selector_keeps_the_allocation_light_scalar_path(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(3)
+        candidate = agent.AABB(
+            (0.1, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "settled_candidate",
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        with (
+            mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=iter([(0, item, 0, 0, candidate)]),
+            ),
+            mock.patch.object(agent.Ranker, "score", return_value=2.0),
+            mock.patch.object(
+                agent.Ranker,
+                "evaluate",
+                side_effect=AssertionError("rich path must be opt-in"),
+            ),
+        ):
+            selected = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+            )
+
+        self.assertEqual(selected.score, 2.0)
+        self.assertIsNone(selected.proposal)
+        self.assertIsNone(selected.command)
+        self.assertIsNone(selected.evaluation)
+
 
 class LookaheadSelectionTests(unittest.TestCase):
     @staticmethod
@@ -1571,7 +1610,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", return_value=7.0),
+            mock.patch.object(agent.Ranker, "score", return_value=7.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -2047,7 +2086,7 @@ class LookaheadSelectionTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "evaluate",
+                "score",
                 side_effect=lambda candidate, *_args: candidate.center[0],
             ),
         ):
@@ -2107,7 +2146,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", return_value=3.0),
+            mock.patch.object(agent.Ranker, "score", return_value=3.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -2153,7 +2192,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", return_value=5.0),
+            mock.patch.object(agent.Ranker, "score", return_value=5.0),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -2201,7 +2240,7 @@ class LookaheadSelectionTests(unittest.TestCase):
                 "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
         ):
             decision = agent.PlacementCore.choose(
                 observation,
@@ -3094,7 +3133,7 @@ class ShadowRerankTests(unittest.TestCase):
                 agent.CandidateGenerator, "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
             mock.patch.object(
                 agent, "release_risk_features",
                 side_effect=lambda candidate, *_a, **_k: candidate,
@@ -3495,7 +3534,7 @@ class SlideRiskModelTests(unittest.TestCase):
                 agent.CandidateGenerator, "iter_attempts",
                 side_effect=attempts,
             ),
-            mock.patch.object(agent.Ranker, "evaluate", side_effect=score),
+            mock.patch.object(agent.Ranker, "score", side_effect=score),
             mock.patch.object(agent, "RELEASE_RISK_P_MODEL", "mech"),
             mock.patch.object(
                 agent,
@@ -4077,7 +4116,7 @@ class RescueScanTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "evaluate",
+                "score",
                 side_effect=lambda candidate, *_args: float(
                     candidate.center[0]
                 ),
@@ -5079,7 +5118,7 @@ class CrossStepIncumbentTests(unittest.TestCase):
             ),
             mock.patch.object(
                 agent.Ranker,
-                "evaluate",
+                "score",
                 side_effect=lambda candidate, *_: (
                     100.0
                     if candidate.name == "release_candidate"

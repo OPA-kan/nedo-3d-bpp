@@ -2779,17 +2779,29 @@ def risk_adjusted_score(
     Kept as the scalar compatibility API.  New selection code should retain
     ``RiskAdjustment`` through ``evaluate_placement_proposal``.
     """
-    adjustment = release_risk_adjustment(
-        candidate,
-        item,
-        container,
-        orientation,
-        risk_lambda,
-    )
-    return (
-        float(score) - float(adjustment.total_penalty),
-        adjustment.rotation_probability,
-    )
+    if risk_lambda is None or candidate.name != "release_candidate":
+        return float(score), None
+    if RELEASE_RISK_P_MODEL == "mech":
+        probability = release_rotation_risk_probability_mech(
+            float(candidate.center[0]),
+            float(candidate.center[1]),
+            float(candidate.center[2]),
+            tuple(float(v) for v in candidate.size),
+            container,
+        )
+    else:
+        features = release_risk_features(
+            candidate, item, container, orientation
+        )
+        probability = release_rotation_risk_probability(features)
+    adjusted = float(score) - float(risk_lambda) * float(probability)
+    if RELEASE_RISK_SLIDE_LAMBDA > 0.0:
+        adjusted -= RELEASE_RISK_SLIDE_LAMBDA * float(
+            release_large_slide_probability(
+                candidate, item, container, orientation
+            )
+        )
+    return adjusted, float(probability)
 
 
 def _record_release_risk_diagnostic(
@@ -4121,10 +4133,36 @@ class Ranker:
 
     @staticmethod
     def score(candidate, item, container, has_priority_container):
-        """Scalar compatibility API for reports and older experiments."""
-        return Ranker.evaluate(
-            candidate, item, container, has_priority_container
-        ).total
+        """Allocation-light live scalar path."""
+        support = Geometry.support_ratio(candidate, container)
+        volume = math.prod(candidate.size)
+        mass = float(item.get("mass", 1.0))
+        x, y, z = candidate.center
+        is_priority_item = bool(item.get("is_prioritized", False))
+        is_priority_container = bool(
+            container.get("is_prioritized", False)
+        )
+        depth_score = -0.55 * y if is_priority_item else 0.35 * y
+        routing_score = 0.0
+        if has_priority_container:
+            if is_priority_item and is_priority_container:
+                routing_score = 8.0
+            elif not is_priority_item and is_priority_container:
+                routing_score = -2.5
+        zone_score = 0.0
+        if ZONE_ORDER_MODE != "off":
+            zone_score = ZONE_ORDER_BONUS * ZONE_RANKS[ZONE_ORDER_MODE][
+                candidate_zone(candidate, container)
+            ]
+        return (
+            12.0 * volume
+            + 2.0 * support
+            + depth_score
+            - 0.12 * abs(x)
+            - 0.18 * z * mass
+            + routing_score
+            + zone_score
+        )
 
 
 def evaluate_placement_proposal(
@@ -4183,6 +4221,63 @@ def evaluate_placement_proposal(
         proposal=proposal,
         command=command,
         evaluation=evaluation,
+    )
+
+
+def make_placement_decision(
+    item_idx,
+    item,
+    container_idx,
+    container,
+    orientation,
+    candidate,
+    has_priority_container,
+    risk_lambda=None,
+    source="placement_core",
+    structured=False,
+):
+    """Create either the shipped light decision or an opt-in rich one."""
+    if structured:
+        return evaluate_placement_proposal(
+            PlacementProposal(
+                pool_index=int(item_idx),
+                stable_item_index=int(item.get("index", item_idx)),
+                item=item,
+                container_index=int(container_idx),
+                container=container,
+                orientation=int(orientation),
+                candidate=candidate,
+                source=str(source),
+            ),
+            has_priority_container=has_priority_container,
+            risk_lambda=risk_lambda,
+        )
+    score = Ranker.score(
+        candidate,
+        item,
+        container,
+        has_priority_container,
+    )
+    score, _risk_probability = risk_adjusted_score(
+        score,
+        candidate,
+        item,
+        container,
+        orientation,
+        risk_lambda,
+    )
+    return PlacementDecision(
+        action={
+            "item_idx": int(item_idx),
+            "container_idx": int(container_idx),
+            "place_pos": np.asarray(
+                simulator_action_center(candidate, container),
+                dtype=np.float32,
+            ),
+            "orientation": int(orientation),
+        },
+        candidate=candidate,
+        score=float(score),
     )
 
 
@@ -4660,22 +4755,19 @@ def revalidate_cross_step_candidates(
 
         pool_index, item = pool_entry
         container = containers[retained.container_index]
-        decision = evaluate_placement_proposal(
-            PlacementProposal(
-                pool_index=int(pool_index),
-                stable_item_index=int(retained.item_index),
-                item=item,
-                container_index=int(retained.container_index),
-                container=container,
-                orientation=int(retained.orientation),
-                candidate=retained.candidate,
-                source="cross_step_revalidation",
-            ),
+        decision = make_placement_decision(
+            pool_index,
+            item,
+            retained.container_index,
+            container,
+            retained.orientation,
+            retained.candidate,
             has_priority_container=any(
                 bool(candidate_container.get("is_prioritized", False))
                 for candidate_container in containers
             ),
             risk_lambda=risk_lambda,
+            source="cross_step_revalidation",
         )
         valid.append(decision)
         valid_items.add(retained.item_index)
@@ -5552,6 +5644,7 @@ class PlacementCore:
         anchor_fallback=False,
         attempt_budget=None,
         selector=None,
+        structured_evaluation=False,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -5562,6 +5655,9 @@ class PlacementCore:
             for container in containers
         )
         active_selector = selector or SettledFirstSelector(containers)
+        use_structured_evaluation = bool(
+            structured_evaluation or selector is not None
+        )
 
         for (
             item_idx,
@@ -5579,19 +5675,17 @@ class PlacementCore:
             attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
-            decision = evaluate_placement_proposal(
-                PlacementProposal(
-                    pool_index=int(item_idx),
-                    stable_item_index=int(item.get("index", item_idx)),
-                    item=item,
-                    container_index=int(container_idx),
-                    container=container,
-                    orientation=int(orientation),
-                    candidate=candidate,
-                    source="placement_core",
-                ),
+            decision = make_placement_decision(
+                item_idx,
+                item,
+                container_idx,
+                container,
+                orientation,
+                candidate,
                 has_priority_container=has_priority_container,
                 risk_lambda=risk_lambda,
+                source="placement_core",
+                structured=use_structured_evaluation,
             )
             score = float(decision.score)
             if candidate_observer is not None:
@@ -5724,21 +5818,16 @@ class PlacementCore:
                             item_index
                         )
                     container = containers[container_idx]
-                    decision = evaluate_placement_proposal(
-                        PlacementProposal(
-                            pool_index=int(item_idx),
-                            stable_item_index=int(
-                                item.get("index", item_idx)
-                            ),
-                            item=item,
-                            container_index=int(container_idx),
-                            container=container,
-                            orientation=int(orientation),
-                            candidate=candidate,
-                            source="rescue_scan",
-                        ),
+                    decision = make_placement_decision(
+                        item_idx,
+                        item,
+                        container_idx,
+                        container,
+                        orientation,
+                        candidate,
                         has_priority_container=has_priority_container,
                         risk_lambda=risk_lambda,
+                        source="rescue_scan",
                     )
                     score = float(decision.score)
                     if candidate.name == "release_candidate":
@@ -5792,6 +5881,7 @@ class PlacementCore:
         candidate_observer=None,
         attempt_budget=None,
         selector=None,
+        structured_evaluation=False,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -5808,6 +5898,9 @@ class PlacementCore:
             for container in containers
         )
         active_selector = selector or TopKSettledFirstSelector(k)
+        use_structured_evaluation = bool(
+            structured_evaluation or selector is not None
+        )
 
         for (
             item_idx,
@@ -5824,19 +5917,17 @@ class PlacementCore:
             attempt_budget=effective_attempt_budget(attempt_budget),
         ):
             container = containers[container_idx]
-            decision = evaluate_placement_proposal(
-                PlacementProposal(
-                    pool_index=int(item_idx),
-                    stable_item_index=int(item.get("index", item_idx)),
-                    item=item,
-                    container_index=int(container_idx),
-                    container=container,
-                    orientation=int(orientation),
-                    candidate=candidate,
-                    source="placement_core_top_k",
-                ),
+            decision = make_placement_decision(
+                item_idx,
+                item,
+                container_idx,
+                container,
+                orientation,
+                candidate,
                 has_priority_container=has_priority_container,
                 risk_lambda=risk_lambda,
+                source="placement_core_top_k",
+                structured=use_structured_evaluation,
             )
             score = float(decision.score)
             if candidate_observer is not None:
@@ -6003,6 +6094,7 @@ def bounded_rollout_decision(
     risk_lambda=None,
     stride=1,
     stride_offset=0,
+    structured_evaluation=False,
 ):
     """
     Select one proxy-rollout transition under an anchor-attempt budget.
@@ -6038,19 +6130,17 @@ def bounded_rollout_decision(
     ):
         accepted += 1
         container = containers[container_idx]
-        decision = evaluate_placement_proposal(
-            PlacementProposal(
-                pool_index=int(item_idx),
-                stable_item_index=int(item.get("index", item_idx)),
-                item=item,
-                container_index=int(container_idx),
-                container=container,
-                orientation=int(orientation),
-                candidate=candidate,
-                source="bounded_rollout",
-            ),
+        decision = make_placement_decision(
+            item_idx,
+            item,
+            container_idx,
+            container,
+            orientation,
+            candidate,
             has_priority_container=has_priority_container,
             risk_lambda=risk_lambda,
+            source="bounded_rollout",
+            structured=structured_evaluation,
         )
         score = float(decision.score)
         key = _rollout_candidate_key(candidate, item, container, score)
