@@ -100,6 +100,7 @@ step は `status: selection_mismatch` になり、run 全体が `incomplete` と
 | `stratified_random`（既定） | gate候補母集団の率・混同行列推定 | あり |
 | `residual_diversity` | 異なる候補後状態を学習データへ入れる | **なし** |
 | `residual_diversity_constrained` | item被覆を守って残余状態を分散 | **なし** |
+| `residual_diversity_global_constrained` | 全層の枠を協調してitem被覆を最大化 | **なし** |
 
 ### `stratified_random`
 
@@ -177,6 +178,17 @@ v1の物理pilotではsettle後状態の距離は広がったが、unique item /
 独立に測り、全対象stepでrandom controlに対する `placed_safe` 差が非負であることを
 採用条件にする。確率標本でもないため、`inclusion_probability` と
 `sampling_weight` は引き続き `null` である。
+
+### `residual_diversity_global_constrained`
+
+v2は各層の中だけで未選択itemを優先したため、複数層が同じitemへquotaを使い、
+portfolio全体のunique itemを保証できなかった。v3は各層のquotaをslotとして持ち、
+itemとslotの二部マッチングで、層別sample数を保ったまま全体のunique item数を
+最大化する。残りslotに対してitem-orientationを同じ方法で最大化し、それでも残る
+枠だけをresidual-proxy maximinで埋める。
+
+この設計も安全予測器ではない。公式PyBullet replayの `placed_safe` 非劣化を独立guard
+として維持し、guardを通るまでは学習データとして採用しない。
 
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの

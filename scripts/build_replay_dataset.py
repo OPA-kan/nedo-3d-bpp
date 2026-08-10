@@ -67,6 +67,7 @@ from scripts.summarize_task_b import (  # noqa: E402
 )
 from scripts.residual_diversity import (  # noqa: E402
     constrained_residual_diversity_sample,
+    global_constrained_residual_diversity_sample,
     residual_diversity_sample,
     residual_proxy_coverage,
     settled_portfolio_comparison,
@@ -79,7 +80,11 @@ ACTION_MATCH_TOLERANCE = 1e-4
 # f-strings, which only parse on 3.12+.
 REQUIRED_PYTHON = (3, 12)
 DIVERSITY_SAMPLING_MODES = frozenset(
-    {"residual_diversity", "residual_diversity_constrained"}
+    {
+        "residual_diversity",
+        "residual_diversity_constrained",
+        "residual_diversity_global_constrained",
+    }
 )
 
 
@@ -353,6 +358,12 @@ def sample_candidate_population(
         )
     if sampling_mode == "residual_diversity_constrained":
         return constrained_residual_diversity_sample(
+            records,
+            per_stratum=per_stratum,
+            forced_keys=forced_keys,
+        )
+    if sampling_mode == "residual_diversity_global_constrained":
+        return global_constrained_residual_diversity_sample(
             records,
             per_stratum=per_stratum,
             forced_keys=forced_keys,
@@ -1130,10 +1141,16 @@ def collect_step(
                 "stratified without replacement, unequal probability"
                 if sampling_mode == "stratified_random"
                 else (
-                    "deterministic item-coverage-constrained residual-proxy "
+                    "deterministic global item matching then residual-proxy "
                     "maximin coverage"
-                    if sampling_mode == "residual_diversity_constrained"
-                    else "deterministic residual-proxy maximin coverage"
+                    if sampling_mode
+                    == "residual_diversity_global_constrained"
+                    else (
+                        "deterministic item-coverage-constrained "
+                        "residual-proxy maximin coverage"
+                        if sampling_mode == "residual_diversity_constrained"
+                        else "deterministic residual-proxy maximin coverage"
+                    )
                 )
             ),
             "per_stratum": int(per_stratum),
@@ -1220,6 +1237,7 @@ def main() -> int:
             "stratified_random",
             "residual_diversity",
             "residual_diversity_constrained",
+            "residual_diversity_global_constrained",
         ),
         default="stratified_random",
         help=(

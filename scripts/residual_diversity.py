@@ -542,3 +542,224 @@ def constrained_residual_diversity_sample(
             }
         )
     return sampled, table
+
+
+def _maximum_semantic_slot_assignment(
+    records_by_stratum: dict[str, list[dict[str, Any]]],
+    *,
+    capacities: dict[str, int],
+    semantic_key,
+    excluded_semantics: set[Any],
+    selected_keys: set[tuple[Any, ...]],
+) -> list[tuple[Any, str]]:
+    """Maximum-cardinality semantic-to-stratum-capacity matching."""
+    strata_by_semantic: dict[Any, set[str]] = collections.defaultdict(set)
+    for stratum_key, records in records_by_stratum.items():
+        if capacities.get(stratum_key, 0) <= 0:
+            continue
+        for record in records:
+            if candidate_key(record) in selected_keys:
+                continue
+            semantic = semantic_key(record)
+            if semantic not in excluded_semantics:
+                strata_by_semantic[semantic].add(stratum_key)
+
+    slots = [
+        (stratum_key, slot_index)
+        for stratum_key in sorted(records_by_stratum)
+        for slot_index in range(max(0, capacities.get(stratum_key, 0)))
+    ]
+    slot_owner: dict[tuple[str, int], Any] = {}
+
+    def assign(semantic: Any, visited: set[tuple[str, int]]) -> bool:
+        eligible = strata_by_semantic[semantic]
+        for slot in slots:
+            if slot[0] not in eligible or slot in visited:
+                continue
+            visited.add(slot)
+            owner = slot_owner.get(slot)
+            if owner is None or assign(owner, visited):
+                slot_owner[slot] = semantic
+                return True
+        return False
+
+    semantics = sorted(
+        strata_by_semantic,
+        key=lambda semantic: (
+            len(strata_by_semantic[semantic]),
+            repr(semantic),
+        ),
+    )
+    for semantic in semantics:
+        assign(semantic, set())
+    return sorted(
+        ((semantic, slot[0]) for slot, semantic in slot_owner.items()),
+        key=lambda pair: (pair[1], repr(pair[0])),
+    )
+
+
+def global_constrained_residual_diversity_sample(
+    records: list[dict[str, Any]],
+    *,
+    per_stratum: int,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Maximize portfolio semantics subject to every stratum quota."""
+    if not isinstance(forced_keys, dict):
+        forced_keys = {key: "selected_action" for key in forced_keys}
+    groups: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    for record in records:
+        groups[record["stratum_key"]].append(record)
+
+    selected = [
+        record for record in records if candidate_key(record) in forced_keys
+    ]
+    selected_keys = {candidate_key(record) for record in selected}
+    targets: dict[str, int] = {}
+    counts: dict[str, int] = collections.Counter(
+        str(record["stratum_key"]) for record in selected
+    )
+    for stratum_key, group in groups.items():
+        targets[stratum_key] = min(
+            len(group), max(int(per_stratum), counts.get(stratum_key, 0))
+        )
+    capacities = {
+        stratum_key: targets[stratum_key] - counts.get(stratum_key, 0)
+        for stratum_key in groups
+    }
+    ranges = proxy_ranges(records)
+
+    def choose_record(
+        semantic: Any,
+        stratum_key: str,
+        semantic_key,
+    ) -> dict[str, Any]:
+        candidates = [
+            record
+            for record in groups[stratum_key]
+            if candidate_key(record) not in selected_keys
+            and semantic_key(record) == semantic
+        ]
+
+        def priority(record: dict[str, Any]) -> tuple[Any, ...]:
+            minimum_distance = (
+                min(
+                    residual_proxy_distance(record, chosen, ranges=ranges)
+                    for chosen in selected
+                )
+                if selected
+                else 0.0
+            )
+            return (
+                -minimum_distance,
+                -float(record.get("score", 0.0)),
+                candidate_key(record),
+            )
+
+        return min(candidates, key=priority)
+
+    def item_key(record: dict[str, Any]) -> int:
+        return int(record.get("item_index", -1))
+
+    def orientation_key(record: dict[str, Any]) -> tuple[int, int]:
+        return (
+            int(record.get("item_index", -1)),
+            int(record.get("orientation", -1)),
+        )
+
+    def add_assignments(assignments, semantic_key) -> None:
+        for semantic, stratum_key in assignments:
+            record = choose_record(semantic, stratum_key, semantic_key)
+            selected.append(record)
+            selected_keys.add(candidate_key(record))
+            counts[stratum_key] = counts.get(stratum_key, 0) + 1
+            capacities[stratum_key] -= 1
+
+    covered_items = {item_key(record) for record in selected}
+    add_assignments(
+        _maximum_semantic_slot_assignment(
+            groups,
+            capacities=capacities,
+            semantic_key=item_key,
+            excluded_semantics=covered_items,
+            selected_keys=selected_keys,
+        ),
+        item_key,
+    )
+    covered_orientations = {orientation_key(record) for record in selected}
+    add_assignments(
+        _maximum_semantic_slot_assignment(
+            groups,
+            capacities=capacities,
+            semantic_key=orientation_key,
+            excluded_semantics=covered_orientations,
+            selected_keys=selected_keys,
+        ),
+        orientation_key,
+    )
+
+    while any(capacity > 0 for capacity in capacities.values()):
+        eligible = [
+            record
+            for stratum_key, group in groups.items()
+            if capacities[stratum_key] > 0
+            for record in group
+            if candidate_key(record) not in selected_keys
+        ]
+        if not eligible:
+            break
+
+        def fill_priority(record: dict[str, Any]) -> tuple[Any, ...]:
+            minimum_distance = (
+                min(
+                    residual_proxy_distance(record, chosen, ranges=ranges)
+                    for chosen in selected
+                )
+                if selected
+                else 0.0
+            )
+            return (
+                -minimum_distance,
+                -float(record.get("score", 0.0)),
+                str(record["stratum_key"]),
+                candidate_key(record),
+            )
+
+        record = min(eligible, key=fill_priority)
+        stratum_key = str(record["stratum_key"])
+        selected.append(record)
+        selected_keys.add(candidate_key(record))
+        counts[stratum_key] = counts.get(stratum_key, 0) + 1
+        capacities[stratum_key] -= 1
+
+    design = "deterministic_global_item_matching_then_residual_maximin"
+    for record in selected:
+        key = candidate_key(record)
+        stratum_key = str(record["stratum_key"])
+        record["sampling"] = {
+            "design": design,
+            "stratum_key": stratum_key,
+            "stratum_size": len(groups[stratum_key]),
+            "stratum_sampled": counts[stratum_key],
+            "inclusion_probability": None,
+            "sampling_weight": None,
+            "forced": key in forced_keys,
+            "forced_reason": forced_keys.get(key),
+        }
+        record["residual_proxy"] = residual_proxy_features(record)
+
+    table = [
+        {
+            "stratum_key": stratum_key,
+            "stratum": group[0]["stratum"],
+            "population": len(group),
+            "forced": sum(
+                candidate_key(record) in forced_keys for record in group
+            ),
+            "sampled": counts.get(stratum_key, 0),
+            "inclusion_probability": None,
+            "design": design,
+        }
+        for stratum_key, group in sorted(groups.items())
+    ]
+    return selected, table

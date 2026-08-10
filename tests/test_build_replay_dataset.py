@@ -26,6 +26,7 @@ from scripts.build_replay_dataset import (
 )
 from scripts.residual_diversity import (
     constrained_residual_sample,
+    global_constrained_residual_diversity_sample,
     maximin_residual_sample,
     residual_proxy_coverage,
     settled_portfolio_comparison,
@@ -371,7 +372,10 @@ class SamplingTests(unittest.TestCase):
             forced_keys={candidate_key(forced): "selected_action"},
         )
 
-        self.assertIn(candidate_key(forced), {candidate_key(row) for row in sample})
+        self.assertIn(
+            candidate_key(forced),
+            {candidate_key(row) for row in sample},
+        )
         self.assertTrue(forced["sampling"]["forced"])
         self.assertEqual(
             forced["sampling"]["forced_reason"], "selected_action"
@@ -477,6 +481,69 @@ class SamplingTests(unittest.TestCase):
         )
         self.assertTrue(
             all(row["sampling"]["sampling_weight"] is None for row in first)
+        )
+
+    def test_global_constrained_sampling_coordinates_stratum_slots(self):
+        # Item 0 can use either stratum, while item 1 can only use A. A local
+        # per-stratum choice may spend A on item 0 and leave only one unique
+        # item. Portfolio-wide matching must reserve A for item 1.
+        records = [
+            candidate(pool_index=0, item_index=0, score=10.0),
+            candidate(pool_index=1, item_index=1, score=9.0),
+            candidate(pool_index=2, item_index=0, score=8.0),
+        ]
+        for record in records[:2]:
+            record["stratum_key"] = "A"
+            record["stratum"] = {"kind": "candidate", "gate": "pass"}
+        records[2]["stratum_key"] = "B"
+        records[2]["stratum"] = {"kind": "candidate", "gate": "reject"}
+
+        sample, table = global_constrained_residual_diversity_sample(
+            records,
+            per_stratum=1,
+            forced_keys={},
+        )
+
+        self.assertEqual({row["item_index"] for row in sample}, {0, 1})
+        self.assertEqual(
+            {row["stratum_key"] for row in sample}, {"A", "B"}
+        )
+        self.assertEqual(sum(row["sampled"] for row in table), 2)
+        self.assertTrue(
+            all(
+                row["sampling"]["design"]
+                == "deterministic_global_item_matching_then_residual_maximin"
+                for row in sample
+            )
+        )
+
+    def test_global_constrained_mode_preserves_forced_and_is_unweighted(self):
+        records = [
+            candidate(
+                pool_index=index,
+                item_index=index,
+                center=(0.1 * index, 0.0, 0.5),
+                score=10.0 - index,
+            )
+            for index in range(4)
+        ]
+        for record in records:
+            record["stratum_key"] = "only"
+            record["stratum"] = {"kind": "candidate", "gate": "pass"}
+        forced = records[-1]
+
+        sample, _ = sample_candidate_population(
+            records,
+            sampling_mode="residual_diversity_global_constrained",
+            per_stratum=2,
+            rng=random.Random(7),
+            forced_keys={candidate_key(forced): "selected_action"},
+        )
+
+        self.assertIn(candidate_key(forced), {candidate_key(row) for row in sample})
+        self.assertTrue(forced["sampling"]["forced"])
+        self.assertTrue(
+            all(row["sampling"]["sampling_weight"] is None for row in sample)
         )
 
     def test_maximin_sampling_is_deterministic_and_marks_coverage_design(
