@@ -212,6 +212,17 @@ and SHA-256. Do not reuse hashes in old prose.
   conditions without conditioning. Keep the paired safe-random arm and do not
   tune another overdraw factor; the next sampler question is observed
   afterstate-aware final selection or an explicit proxy-fidelity model.
+- Run `31380879143` replaced only that final distance calculation with official
+  replay `x_plus`. It fixed the prior two-container shelf failure: dual mixed
+  step 15 moved from physical NN delta -0.007839 / item-orientation -1 to
+  +0.009883 / +9, and both two-container scenarios passed.
+- The matrix still failed 2/4 conditions. Single no-shelf step 9 had physical
+  mean-NN delta -0.004446 and single shelf step 15 had -0.017559. Their minimum
+  NN deltas were nevertheless positive (+0.002102/+0.002309) and semantic
+  coverage was non-regressive. The remaining defect is objective mismatch,
+  not the old command-to-settle proxy gap: semantic-first greedy maximin
+  optimizes minimum distance, while the guard measures mean NN against the
+  paired control. Do not train from this matrix yet.
 
 ### Local score proxies
 
@@ -259,9 +270,10 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether observed-afterstate-aware final selection can retain the safe-split
-  semantic gains in late shelf states. Plain command-proxy maximin is now known
-  not to generalize monotonically across the 1/2-container x shelf matrix.
+- Whether a control-seeded observed-state swap optimizer can preserve semantic
+  coverage and improve the exact mean-NN acceptance objective in every matrix
+  cell. Direct observed maximin fixed the dual-shelf case but failed two
+  single-container steps because its optimization target differs from the guard.
 - Whether a model trained on the condition-labelled safe/risk rows improves
   residual-state ranking or official component proxies.
 
@@ -286,18 +298,21 @@ branches are retained as evidence, not as competing trunks.
   Run `31370546291` accepts the schema-v3 bounded positive/negative dataset
   contract. Matrix runs `31372071696`/`31372706195` establish condition-aware
   generation but refute unconditional command-proxy diversity in late shelf
-  states. It is not a live policy change or trained model.
+  states. Run `31380879143` fixes the dual-shelf proxy failure with observed
+  afterstates but exposes a remaining mean-vs-min distance objective mismatch
+  in single-container states. It is not a live policy change or trained model.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Replace only the post-replay final portfolio choice with an
-   observed-afterstate-aware selector (or first measure its learnable proxy),
-   retaining global item/item-orientation coverage, safe/risk separation and
-   the paired random arm. Rerun the frozen four-condition matrix; do not tune
-   another overdraw factor. Only after the late-shelf guards pass should a
-   cheap tabular/MLP value baseline be trained. Do not open final holdout data.
+1. Replace the post-replay greedy observed maximin with a control-seeded swap
+   optimizer. Start from the paired safe-random portfolio, allow only
+   within-stratum swaps that do not reduce unique item or item-orientation
+   coverage, and optimize the exact observed mean-NN acceptance statistic
+   (with minimum NN as a secondary diagnostic). Rerun the same frozen 3x
+   four-condition matrix. Do not tune overdraw, train a model, or open final
+   holdout data until all four condition guards pass.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before

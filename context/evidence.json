@@ -1632,6 +1632,43 @@
         "unconditional_diversity_generalization_established": false,
         "live_policy_benefit_established": false
       }
+    },
+    {
+      "id": "observed-afterstate-maximin-fixes-dual-shelf-but-exposes-objective-mismatch",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Replacing only the post-replay safe-positive portfolio distance with official observed x_plus afterstates removed the prior late dual-shelf proxy failure, but did not make the four-condition sampler unconditional. In frozen 3x-overdraw run 31380879143, both two-container scenarios passed. Dual-shelf-mixed step 15 improved from physical mean-NN delta -0.007839 and item-orientation delta -1 to +0.009883 and +9. The matrix nevertheless failed because single-empty-noshelf step 9 had mean-NN delta -0.004446 and single-empty-shelf step 15 had -0.017559. In both failures the minimum-NN delta remained positive (+0.002102 and +0.002309) and semantic coverage did not regress. This is no longer evidence of command-to-settle proxy error; it exposes an objective mismatch: the selector prioritizes semantic matching and greedy minimum distance, while acceptance measures mean nearest-neighbour distance against an independent control. Do not tune overdraw or train a value model yet. Seed the next positive portfolio from the paired safe control and apply observed-state swaps that preserve semantic coverage while directly improving the acceptance distance objective.",
+      "source": "reports/residual-diversity-scale/history/31380879143/summary.json; reports/residual-diversity-scale/history/31380879143/step-details.md; Actions run 31380879143; experiment/residual-diversity-dataset commits bf47bc7 and 20669a0",
+      "values": {
+        "condition_cells": 4,
+        "steps": [3, 9, 15],
+        "overdraw_factor": 3,
+        "positive_transition": 265,
+        "negative_physical_risk": 135,
+        "scenario_passes": 2,
+        "scenario_total": 4,
+        "passed_scenarios": ["m-dual-empty", "m-dual-shelf-mixed"],
+        "failed_scenarios": ["m-single-empty-noshelf", "m-single-empty-shelf"],
+        "dual_shelf_step15_before_after": {
+          "physical_nn_delta_before": -0.007839379155344925,
+          "physical_nn_delta_after": 0.00988300886874785,
+          "item_orientation_delta_before": -1,
+          "item_orientation_delta_after": 9
+        },
+        "remaining_negative_mean_nn_steps": {
+          "m-single-empty-noshelf-step9": -0.004445754410916061,
+          "m-single-empty-shelf-step15": -0.017559307084562548
+        },
+        "minimum_nn_deltas_at_failures": {
+          "m-single-empty-noshelf-step9": 0.0021022753657263726,
+          "m-single-empty-shelf-step15": 0.0023089926945656742
+        },
+        "observed_proxy_gap_reduced": true,
+        "objective_alignment_established": false,
+        "adopted_for_training": false,
+        "live_policy_benefit_established": false
+      }
     }
   ]
 }
