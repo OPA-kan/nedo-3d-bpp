@@ -133,6 +133,7 @@ def configure_arm_environment(
         "first_pass128",
         "first_pass256",
         "structured_noop",
+        "structured_retained",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -156,6 +157,10 @@ def configure_arm_environment(
             # the explicit proposal/evaluation/selector/command contracts.
             # This is the physical negative control for abstraction cost.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_noop"
+        elif arm == "structured_retained":
+            # Preserve the scalar generator/ranker hot path and materialize
+            # named terms only for decisions retained by final selection.
+            env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the

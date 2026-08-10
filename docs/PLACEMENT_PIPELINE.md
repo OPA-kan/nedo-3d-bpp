@@ -73,6 +73,13 @@ the same scalar score and settled-first selector. It is not an adopted live
 mode. See `docs/STRUCTURED_SELECTOR_EXPERIMENT.md` for the preregistered
 full-proxy comparison.
 
+`PLACEMENT_SELECTOR_MODE=structured_retained` leaves the scalar generator,
+ranker and incumbent/heap updates on the shipped fast path. It materializes
+named objects only for the final decision or final Top-K portfolio. This mode
+exists because eager per-candidate materialization failed its deadline-bound
+physical negative control despite fixed-work parity. See
+`docs/RETAINED_SELECTOR_EXPERIMENT.md`.
+
 ## 4. Command and execution
 
 `PlacementCommand` represents the command pose, not the settle result.  It

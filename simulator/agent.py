@@ -243,7 +243,9 @@ TEMPORAL_CHUNK_STRIDE = max(
 TEMPORAL_CHUNK_CELL_SIZE = max(
     0.01, float(os.environ.get("TEMPORAL_CHUNK_CELL_SIZE", "0.10"))
 )
-PLACEMENT_SELECTOR_MODES = frozenset({"scalar", "structured_noop"})
+PLACEMENT_SELECTOR_MODES = frozenset(
+    {"scalar", "structured_noop", "structured_retained"}
+)
 PLACEMENT_SELECTOR_MODE = os.environ.get(
     "PLACEMENT_SELECTOR_MODE", "scalar"
 ).strip().lower()
@@ -308,6 +310,8 @@ def placement_selection_kwargs():
     """Opt into the rich pipeline without changing its selection rule."""
     if PLACEMENT_SELECTOR_MODE == "structured_noop":
         return {"structured_evaluation": True}
+    if PLACEMENT_SELECTOR_MODE == "structured_retained":
+        return {"retained_evaluation": True}
     return {}
 # --- Board receptivity (the Tetris terms) ---
 # Cell size of the 2.5D height map the board features are read off.  0.05 m
@@ -4310,6 +4314,34 @@ def make_placement_decision(
     )
 
 
+def enrich_retained_decision(
+    decision,
+    observation,
+    has_priority_container,
+    risk_lambda=None,
+    source="placement_core_retained",
+):
+    """Materialize named terms only after scalar selection has finished."""
+    if decision is None:
+        return None
+    item_idx = int(decision.action["item_idx"])
+    container_idx = int(decision.action["container_idx"])
+    item = observation["pool_list"][item_idx]
+    container = observation["container_list"][container_idx]
+    return make_placement_decision(
+        item_idx,
+        item,
+        container_idx,
+        container,
+        int(decision.action["orientation"]),
+        decision.candidate,
+        has_priority_container=has_priority_container,
+        risk_lambda=risk_lambda,
+        source=source,
+        structured=True,
+    )
+
+
 def placement_evaluation_record(decision):
     """JSON-safe explanation of a structured candidate evaluation."""
     evaluation = getattr(decision, "evaluation", None)
@@ -5674,6 +5706,7 @@ class PlacementCore:
         attempt_budget=None,
         selector=None,
         structured_evaluation=False,
+        retained_evaluation=False,
     ):
         containers = observation.get("container_list", [])
         if not containers:
@@ -5790,8 +5823,8 @@ class PlacementCore:
                 if updated and diagnostics is not None:
                     diagnostics["search"]["incumbent_updates"] += 1
             if best_settled is not None:
-                return best_settled
-            if L3_RELEASE_ROUTE and len(release_by_container) > 1:
+                selected = best_settled
+            elif L3_RELEASE_ROUTE and len(release_by_container) > 1:
                 emptiest = max(
                     release_by_container,
                     key=lambda container_index: (
@@ -5801,8 +5834,18 @@ class PlacementCore:
                         release_by_container[container_index][0],
                     ),
                 )
-                return release_by_container[emptiest][1]
-            return best_release
+                selected = release_by_container[emptiest][1]
+            else:
+                selected = best_release
+            if retained_evaluation:
+                return enrich_retained_decision(
+                    selected,
+                    observation,
+                    has_priority_container,
+                    risk_lambda=risk_lambda,
+                    source="placement_core_retained",
+                )
+            return selected
 
         active_selector = selector or SettledFirstSelector(containers)
         use_structured_evaluation = bool(
@@ -5849,7 +5892,16 @@ class PlacementCore:
             updated = bool(active_selector.observe(decision))
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        return active_selector.select()
+        selected = active_selector.select()
+        if retained_evaluation:
+            return enrich_retained_decision(
+                selected,
+                observation,
+                has_priority_container,
+                risk_lambda=risk_lambda,
+                source="placement_core_retained",
+            )
+        return selected
 
     @staticmethod
     def rescue_choose(
@@ -6032,6 +6084,7 @@ class PlacementCore:
         attempt_budget=None,
         selector=None,
         structured_evaluation=False,
+        retained_evaluation=False,
     ):
         """
         Same search as choose(), but keeps the best k decisions (a bounded
@@ -6117,7 +6170,7 @@ class PlacementCore:
                     updated = True
                 if updated and diagnostics is not None:
                     diagnostics["search"]["incumbent_updates"] += 1
-            return [
+            selected = [
                 decision
                 for _, _, decision in sorted(
                     settled_heap or release_heap,
@@ -6125,6 +6178,18 @@ class PlacementCore:
                     reverse=True,
                 )
             ]
+            if retained_evaluation:
+                return [
+                    enrich_retained_decision(
+                        decision,
+                        observation,
+                        has_priority_container,
+                        risk_lambda=risk_lambda,
+                        source="placement_core_top_k_retained",
+                    )
+                    for decision in selected
+                ]
+            return selected
 
         active_selector = selector or TopKSettledFirstSelector(k)
         use_structured_evaluation = bool(
@@ -6170,7 +6235,19 @@ class PlacementCore:
             updated = bool(active_selector.observe(decision))
             if updated and diagnostics is not None:
                 diagnostics["search"]["incumbent_updates"] += 1
-        return active_selector.select()
+        selected = active_selector.select()
+        if retained_evaluation:
+            return [
+                enrich_retained_decision(
+                    decision,
+                    observation,
+                    has_priority_container,
+                    risk_lambda=risk_lambda,
+                    source="placement_core_top_k_retained",
+                )
+                for decision in selected
+            ]
+        return selected
 
 
 def normalized_lookahead_mode(mode):

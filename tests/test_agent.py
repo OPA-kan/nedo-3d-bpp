@@ -1223,6 +1223,64 @@ class RankingPipelineContractTests(unittest.TestCase):
             )
         with mock.patch.object(agent, "PLACEMENT_SELECTOR_MODE", "scalar"):
             self.assertEqual(agent.placement_selection_kwargs(), {})
+        with mock.patch.object(
+            agent, "PLACEMENT_SELECTOR_MODE", "structured_retained"
+        ):
+            self.assertEqual(
+                agent.placement_selection_kwargs(),
+                {"retained_evaluation": True},
+            )
+
+    def test_retained_evaluation_enriches_only_the_selected_decision(self):
+        item = sample_item(8)
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "candidate",
+        )
+        alternate = agent.AABB(
+            (0.2, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "candidate",
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        yielded = [
+            (0, item, 0, 0, alternate),
+            (0, item, 0, 0, candidate),
+        ]
+        with (
+            mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=iter(yielded),
+            ),
+            mock.patch.object(
+                agent.Ranker,
+                "evaluate",
+                wraps=agent.Ranker.evaluate,
+            ) as rich_evaluate,
+        ):
+            decision = agent.PlacementCore.choose(
+                observation,
+                [(0, item)],
+                retained_evaluation=True,
+            )
+
+        self.assertEqual(rich_evaluate.call_count, 1)
+        self.assertIsNotNone(decision.evaluation)
+        self.assertEqual(
+            decision.evaluation.immediate.total.hex(),
+            agent.Ranker.score(candidate, item, container, False).hex(),
+        )
+        self.assertEqual(
+            decision.evaluation.provenance, "placement_core_retained"
+        )
 
     def test_closed_loop_threads_structured_noop_into_top_candidates(self):
         item = sample_item(8)

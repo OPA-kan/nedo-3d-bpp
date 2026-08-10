@@ -234,6 +234,15 @@ class ArmEnvironmentTests(unittest.TestCase):
         configure_arm_environment(base, "base", 2.0, 0.0)
         self.assertNotIn("PLACEMENT_SELECTOR_MODE", base)
 
+    def test_structured_retained_is_baseline_plus_selector_mode(self):
+        env = {"PLACEMENT_SELECTOR_MODE": "stale"}
+
+        configure_arm_environment(env, "structured_retained", 2.0, 0.0)
+
+        self.assertEqual(
+            env["PLACEMENT_SELECTOR_MODE"], "structured_retained"
+        )
+
     def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):
         env = {
             "RELEASE_RISK_LIVE_RERANK": "0",

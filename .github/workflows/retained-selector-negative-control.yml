@@ -1,0 +1,123 @@
+name: Retained selector negative control
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retained-selector-negative-control-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, base_null, structured_retained]
+        repeat: [0, 1, 2]
+        case:
+          - {case_id: b000-k15, source_case: "000", look_ahead: 15}
+          - {case_id: b000-k20, source_case: "000", look_ahead: 20}
+          - {case_id: b000-k40, source_case: "000", look_ahead: 40}
+          - {case_id: b001-k20, source_case: "001", look_ahead: 20}
+          - {case_id: b001-k30, source_case: "001", look_ahead: 30}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output
+          "reports/retained-selector/${{ matrix.case.case_id }}.json"
+      - name: Run episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config
+          "reports/retained-selector/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.repeat }}"
+          --output-dir
+          "reports/retained-selector/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retained-selector-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+          path: >-
+            reports/retained-selector/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: retained-selector-*
+          path: reports/retained-selector/downloads
+      - name: Combine and summarize full proxy vector
+        run: |
+          mkdir -p reports/retained-selector/aggregate
+          find reports/retained-selector/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/retained-selector/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/retained-selector/aggregate
+          python scripts/summarize_ablation.py \
+            --root reports/retained-selector/downloads \
+            --output reports/retained-selector/aggregate/noise-floor.json \
+            > reports/retained-selector/aggregate/noise-floor.txt
+          cat reports/retained-selector/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+          cat reports/retained-selector/aggregate/noise-floor.txt \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retained-selector-negative-control-aggregate
+          path: reports/retained-selector/aggregate/
+      - name: Persist compact aggregate history
+        env:
+          HISTORY_DIR: >-
+            reports/retained-selector/history/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HISTORY_DIR"
+          cp reports/retained-selector/aggregate/summary.md \
+            "$HISTORY_DIR/summary.md"
+          cp reports/retained-selector/aggregate/summary.json \
+            "$HISTORY_DIR/summary.json"
+          cp reports/retained-selector/aggregate/noise-floor.txt \
+            "$HISTORY_DIR/noise-floor.txt"
+          cp reports/retained-selector/aggregate/noise-floor.json \
+            "$HISTORY_DIR/noise-floor.json"
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$HISTORY_DIR"
+          git commit \
+            -m "Record retained selector negative control ${{ github.run_id }} [skip retained]"
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+          done
