@@ -1,6 +1,8 @@
 import importlib.util
 import pathlib
+import json
 import sys
+import tempfile
 import unittest
 
 
@@ -74,6 +76,26 @@ class RankAndCorrelationTests(unittest.TestCase):
 
 
 class WeightingTests(unittest.TestCase):
+    def test_loader_skips_nonprobability_coverage_datasets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset = pathlib.Path(tmp) / "coverage"
+            dataset.mkdir()
+            (dataset / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "status": "complete",
+                        "sampling_mode": "residual_diversity",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (dataset / "step-000-candidates.jsonl").write_text(
+                json.dumps({"sampling": {"sampling_weight": None}}) + "\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(analyze_mod.load_rows([dataset]), [])
+
     def test_weighted_rate_uses_sampling_weights(self):
         pairs = [(True, 3.0), (False, 1.0)]
         self.assertAlmostEqual(analyze_mod.weighted_rate(pairs), 0.75)

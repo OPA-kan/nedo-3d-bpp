@@ -84,6 +84,15 @@ def load_release_rows(
         payload = json.loads(manifest.read_text(encoding="utf-8"))
         if payload.get("status") == "running":
             continue
+        if payload.get("sampling_mode", "stratified_random") != (
+            "stratified_random"
+        ):
+            print(
+                "skip (no population sampling weights): "
+                f"{directory.name}",
+                file=sys.stderr,
+            )
+            continue
         split = payload.get("split", "development")
         if split == "final_holdout" and not open_final_holdout:
             print(

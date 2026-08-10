@@ -1,6 +1,8 @@
 # 層化counterfactual replayデータセット
 
 `scripts/build_replay_dataset.py` が生成する候補単位のデータセットの仕様。
+schema version 2 では、母集団率を推定する従来の層化無作為抽出に加え、
+学習用の残余状態coverageを広げる決定的抽出を追加した。
 
 ## 何のためにあるか
 
@@ -91,6 +93,15 @@ step は `status: selection_mismatch` になり、run 全体が `incomplete` と
 
 ## 抽出設計
 
+抽出モードは目的が異なる。混ぜて読んではいけない。
+
+| `--sampling-mode` | 目的 | 確率重み |
+|---|---|---|
+| `stratified_random`（既定） | gate候補母集団の率・混同行列推定 | あり |
+| `residual_diversity` | 異なる候補後状態を学習データへ入れる | **なし** |
+
+### `stratified_random`
+
 **層** は3軸の直積:
 
 | 軸 | 値 |
@@ -119,6 +130,31 @@ step は `status: selection_mismatch` になり、run 全体が `incomplete` と
 policyが実際に選んだ候補は確率1で必ず含める（`forced: true`）。その層の
 残り枠はforced分を差し引いてから抽出するので、設計は不等確率抽出のまま
 保たれ、上位への偏った上乗せにはならない。
+
+### `residual_diversity`
+
+既存の `kind × gate × score_band` 層は維持し、その各層の中でmaximin抽出する。
+同じsnapshotでは親状態が共通なので、候補が作る差だけを安価なafterstate proxy
+として使う。
+
+- command/predicted-contact center とAABB size
+- item、container、orientation、settled/release種別
+- support ratio、CoM margin、overhang、drop、方向別support imbalance
+
+最初の非強制候補は現行score最上位、その後は選択済み集合への最小Gower距離を
+最大にする候補を取る。これは**価値関数ではない**。過去に残余容量記述子が
+ranking値として飽和した否定結果とも矛盾せず、「同じ親から違う状態へ分岐する」
+ためのcoverage距離としてのみ使う。
+
+決定的抽出なので `inclusion_probability` と `sampling_weight` は `null`。
+この行から母集団率を推定してはいけない。step manifestには比較用として、
+平均・最小最近傍距離、unique item-orientation数、4分割空間セル数を
+`sampling.residual_proxy_coverage` に記録する。
+
+現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
+独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの
+一手counterfactual**を広げる。H3以上のbranch rolloutは、prefix action列を
+独立envへ再生しsnapshot同一性を検証する次の契約で追加する。
 
 ## ラベルの契約
 
@@ -159,6 +195,16 @@ Q = q_{\text{immediate}} + \gamma\,q_{\text{best next}}
 python scripts/build_replay_dataset.py \
   --case 000 --steps 13 14 \
   --per-stratum 16 \
+  --risk-gate-mode shadow
+```
+
+残余状態coverage用:
+
+```bash
+python scripts/build_replay_dataset.py \
+  --case 000 --steps 3 6 9 12 \
+  --per-stratum 8 \
+  --sampling-mode residual_diversity \
   --risk-gate-mode shadow
 ```
 

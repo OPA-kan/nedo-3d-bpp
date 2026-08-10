@@ -55,6 +55,15 @@ def load_rows(
         if manifest.get("status") == "running":
             print(f"skip (still running): {directory.name}", file=sys.stderr)
             continue
+        if manifest.get("sampling_mode", "stratified_random") != (
+            "stratified_random"
+        ):
+            print(
+                "skip (no population sampling weights): "
+                f"{directory.name}",
+                file=sys.stderr,
+            )
+            continue
         split = manifest.get("split", "development")
         if split == "final_holdout" and not open_final_holdout:
             # Protocol section 3.1: the final holdout stays closed for

@@ -65,8 +65,12 @@ from scripts.measure_anchor_recall import (  # noqa: E402
 from scripts.summarize_task_b import (  # noqa: E402
     separated_physical_labels,
 )
+from scripts.residual_diversity import (  # noqa: E402
+    residual_diversity_sample,
+    residual_proxy_coverage,
+)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_REPORT_ROOT = ROOT / "reports" / "replay-dataset"
 ACTION_MATCH_TOLERANCE = 1e-4
 # simulator/src/ground_handling/validator.py uses PEP 701 nested-quote
@@ -280,6 +284,7 @@ def stratified_sample(
 
         for record in forced:
             record["sampling"] = {
+                "design": "stratified_random_without_replacement",
                 "stratum_key": stratum_key,
                 "stratum_size": len(group),
                 "stratum_sampled": len(forced) + take,
@@ -290,6 +295,7 @@ def stratified_sample(
             }
         for record in drawn:
             record["sampling"] = {
+                "design": "stratified_random_without_replacement",
                 "stratum_key": stratum_key,
                 "stratum_size": len(group),
                 "stratum_sampled": len(forced) + take,
@@ -316,6 +322,88 @@ def stratified_sample(
             }
         )
     return sampled, table
+
+
+def sample_candidate_population(
+    records: list[dict[str, Any]],
+    *,
+    sampling_mode: str,
+    per_stratum: int,
+    rng: random.Random,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Route population-inference and state-coverage designs explicitly."""
+    if sampling_mode == "stratified_random":
+        return stratified_sample(
+            records,
+            per_stratum=per_stratum,
+            rng=rng,
+            forced_keys=forced_keys,
+        )
+    if sampling_mode == "residual_diversity":
+        return residual_diversity_sample(
+            records,
+            per_stratum=per_stratum,
+            forced_keys=forced_keys,
+        )
+    raise ValueError(f"unknown sampling mode: {sampling_mode!r}")
+
+
+def sampling_coverage_comparison(
+    records: list[dict[str, Any]],
+    *,
+    diversity_sample: list[dict[str, Any]],
+    per_stratum: int,
+    seed: int,
+    case_id: str,
+    step: int,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> dict[str, Any]:
+    """Compare coverage designs on one identical candidate population.
+
+    The random control is sampled from a deep copy because both sampling
+    implementations annotate their selected rows.  These diagnostics compare
+    portfolio coverage only; they do not turn the deterministic diversity
+    sample into a probability sample.
+    """
+    random_control, _table = stratified_sample(
+        copy.deepcopy(records),
+        per_stratum=per_stratum,
+        rng=random.Random(
+            f"{seed}:{case_id}:{step}:residual-coverage-control"
+        ),
+        forced_keys=forced_keys,
+    )
+    random_coverage = residual_proxy_coverage(
+        random_control, reference_records=records
+    )
+    diversity_coverage = residual_proxy_coverage(
+        diversity_sample, reference_records=records
+    )
+
+    def difference(name: str) -> float | int | None:
+        left = diversity_coverage.get(name)
+        right = random_coverage.get(name)
+        if left is None or right is None:
+            return None
+        return left - right
+
+    return {
+        "contract": "same_snapshot_same_candidate_population",
+        "population": len(records),
+        "stratified_random": random_coverage,
+        "residual_diversity": diversity_coverage,
+        "diversity_minus_random": {
+            name: difference(name)
+            for name in (
+                "mean_nearest_neighbor_distance",
+                "minimum_nearest_neighbor_distance",
+                "unique_items",
+                "unique_item_orientations",
+                "spatial_cell_count",
+            )
+        },
+    }
 
 
 # --------------------------------------------------------------------------
@@ -698,6 +786,7 @@ def build_row(
         # sampling design
         "stratum": record["stratum"],
         "sampling": record["sampling"],
+        "residual_proxy": record.get("residual_proxy"),
         # labels
         "physical": physical,
     }
@@ -715,6 +804,7 @@ def run_case(
     target_steps: set[int],
     output_dir: pathlib.Path,
     per_stratum: int,
+    sampling_mode: str,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
@@ -759,6 +849,7 @@ def run_case(
                         step=step,
                         output_dir=output_dir,
                         per_stratum=per_stratum,
+                        sampling_mode=sampling_mode,
                         seed=seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
@@ -824,6 +915,7 @@ def collect_step(
     step: int,
     output_dir: pathlib.Path,
     per_stratum: int,
+    sampling_mode: str,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
@@ -903,12 +995,24 @@ def collect_step(
         forced_reasons[selected_key] = "selected_action"
 
     rng = random.Random(f"{seed}:{case_id}:{step}")
-    sample, stratum_table = stratified_sample(
+    sample, stratum_table = sample_candidate_population(
         population,
+        sampling_mode=sampling_mode,
         per_stratum=per_stratum,
         rng=rng,
         forced_keys=forced_reasons,
     )
+    coverage_comparison = None
+    if sampling_mode == "residual_diversity":
+        coverage_comparison = sampling_coverage_comparison(
+            population,
+            diversity_sample=sample,
+            per_stratum=per_stratum,
+            seed=seed,
+            case_id=case_id,
+            step=step,
+            forced_keys=forced_reasons,
+        )
     print(
         f"{case_id} step {step}: population={len(population)} "
         f"strata={len(stratum_table)} sample={len(sample)} "
@@ -973,11 +1077,20 @@ def collect_step(
             ],
         },
         "sampling": {
-            "design": "stratified without replacement, unequal probability",
+            "mode": str(sampling_mode),
+            "design": (
+                "stratified without replacement, unequal probability"
+                if sampling_mode == "stratified_random"
+                else "deterministic residual-proxy maximin coverage"
+            ),
             "per_stratum": int(per_stratum),
             "seed": int(seed),
             "sampled": len(sample),
             "selected_matched": selected_key is not None,
+            "residual_proxy_coverage": residual_proxy_coverage(
+                sample, reference_records=population
+            ),
+            "coverage_comparison": coverage_comparison,
             "strata": stratum_table,
         },
         "preview": {
@@ -1044,6 +1157,17 @@ def main() -> int:
     )
     parser.add_argument("--output-dir", type=pathlib.Path)
     parser.add_argument("--per-stratum", type=int, default=16)
+    parser.add_argument(
+        "--sampling-mode",
+        choices=("stratified_random", "residual_diversity"),
+        default="stratified_random",
+        help=(
+            "stratified_random supports population-rate estimation with "
+            "sampling weights; residual_diversity deterministically covers "
+            "different candidate-induced afterstate proxies and deliberately "
+            "does not emit probability weights"
+        ),
+    )
     parser.add_argument("--seed", type=int, default=20260730)
     parser.add_argument("--oracle-limit", type=int)
     parser.add_argument(
@@ -1123,6 +1247,7 @@ def main() -> int:
         "risk_gate_mode": str(args.risk_gate_mode),
         "split": str(args.split),
         "per_stratum": int(args.per_stratum),
+        "sampling_mode": str(args.sampling_mode),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
@@ -1138,6 +1263,7 @@ def main() -> int:
             "platform": platform.platform(),
             "case_id": case_id,
             "target_steps": sorted(target_steps),
+            "sampling_mode": str(args.sampling_mode),
         },
         "label_contract": {
             "transport": "official_check_transport_path",
@@ -1146,6 +1272,11 @@ def main() -> int:
                 "Rows are an unequal-probability sample. Re-weight by "
                 "sampling.sampling_weight before reading any rate as a "
                 "population rate."
+                if args.sampling_mode == "stratified_random"
+                else
+                "Rows are a deterministic state-coverage sample. Inclusion "
+                "probabilities and weights are null; do not use these rows "
+                "to estimate population rates."
             ),
         },
         "case": None,
@@ -1176,6 +1307,7 @@ def main() -> int:
             target_steps=target_steps,
             output_dir=output_dir,
             per_stratum=int(args.per_stratum),
+            sampling_mode=str(args.sampling_mode),
             seed=int(args.seed),
             oracle_limit=args.oracle_limit,
             preview_limit=int(args.preview_limit),

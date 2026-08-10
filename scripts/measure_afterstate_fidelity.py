@@ -47,7 +47,12 @@ def load_rows(dataset_root: pathlib.Path):
         manifest = pathlib.Path(path).parent / "manifest.json"
         if manifest.exists():
             try:
-                split = json.loads(manifest.read_text(encoding="utf-8")).get("split")
+                payload = json.loads(manifest.read_text(encoding="utf-8"))
+                split = payload.get("split")
+                if payload.get(
+                    "sampling_mode", "stratified_random"
+                ) != "stratified_random":
+                    continue
             except json.JSONDecodeError:
                 split = None
         # final_holdout is opened once, at the end of the protocol, and not

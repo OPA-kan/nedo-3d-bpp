@@ -1,6 +1,8 @@
 import importlib.util
+import json
 import pathlib
 import sys
+import tempfile
 import unittest
 
 import numpy as np
@@ -57,6 +59,29 @@ def release_row(
 
 
 class LeakageTests(unittest.TestCase):
+    def test_loader_skips_nonprobability_coverage_datasets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset = pathlib.Path(tmp) / "coverage"
+            dataset.mkdir()
+            (dataset / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "status": "complete",
+                        "sampling_mode": "residual_diversity",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (dataset / "step-000-candidates.jsonl").write_text(
+                json.dumps({"kind": "release_candidate"}) + "\n",
+                encoding="utf-8",
+            )
+
+            all_rows, release, summaries = risk_mod.load_release_rows(
+                [dataset]
+            )
+            self.assertEqual((all_rows, release, summaries), ([], [], []))
+
     def test_held_out_group_is_scored_by_other_groups_only(self):
         # Group A is all-positive, group B all-negative. A one-class
         # training fold must fall back to its own mean, proving the

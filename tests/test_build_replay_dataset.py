@@ -16,9 +16,15 @@ from scripts.build_replay_dataset import (
     match_selected,
     modelling_features,
     outcome_labels,
+    sample_candidate_population,
+    sampling_coverage_comparison,
     score_band,
     selected_action_error,
     stratified_sample,
+)
+from scripts.residual_diversity import (
+    maximin_residual_sample,
+    residual_proxy_coverage,
 )
 from scripts.measure_anchor_recall import (
     candidate_key,
@@ -139,6 +145,188 @@ class StratumTests(unittest.TestCase):
 
 
 class SamplingTests(unittest.TestCase):
+    def test_coverage_comparison_uses_same_population_without_weights(self):
+        records = [
+            candidate(center=(x, 0.0, 0.5), score=10.0 - index)
+            for index, x in enumerate(
+                (0.00, 0.01, 0.02, 0.03, 0.97, 0.98, 0.99, 1.00)
+            )
+        ]
+        assign_strata(records)
+        diversity, _ = sample_candidate_population(
+            records,
+            sampling_mode="residual_diversity",
+            per_stratum=2,
+            rng=random.Random(4),
+            forced_keys={},
+        )
+
+        comparison = sampling_coverage_comparison(
+            records,
+            diversity_sample=diversity,
+            per_stratum=2,
+            seed=4,
+            case_id="000",
+            step=3,
+            forced_keys={},
+        )
+
+        self.assertEqual(comparison["population"], len(records))
+        self.assertEqual(
+            comparison["stratified_random"]["sampled"],
+            comparison["residual_diversity"]["sampled"],
+        )
+        self.assertAlmostEqual(
+            comparison["diversity_minus_random"]
+            ["mean_nearest_neighbor_distance"],
+            comparison["residual_diversity"]
+            ["mean_nearest_neighbor_distance"]
+            - comparison["stratified_random"]
+            ["mean_nearest_neighbor_distance"],
+        )
+        self.assertTrue(
+            all(
+                row["sampling"]["sampling_weight"] is None
+                for row in diversity
+            )
+        )
+
+    def test_residual_coverage_distinguishes_clustered_and_spread_samples(
+        self,
+    ) -> None:
+        population = [
+            candidate(center=(x, 0.0, 0.5), score=1.0)
+            for x in (0.00, 0.01, 0.02, 0.98, 0.99, 1.00)
+        ]
+        clustered = population[:3]
+        spread = [population[0], population[2], population[-1]]
+
+        clustered_metrics = residual_proxy_coverage(
+            clustered, reference_records=population
+        )
+        spread_metrics = residual_proxy_coverage(
+            spread, reference_records=population
+        )
+
+        self.assertGreater(
+            spread_metrics["mean_nearest_neighbor_distance"],
+            clustered_metrics["mean_nearest_neighbor_distance"],
+        )
+        self.assertGreater(
+            spread_metrics["spatial_cell_count"],
+            clustered_metrics["spatial_cell_count"],
+        )
+
+    def test_population_sampler_keeps_inference_and_coverage_modes_separate(
+        self,
+    ) -> None:
+        records = [
+            candidate(center=(0.1 * index, 0.0, 0.5), score=-float(index))
+            for index in range(20)
+        ]
+        assign_strata(records)
+
+        random_sample, _ = sample_candidate_population(
+            records,
+            sampling_mode="stratified_random",
+            per_stratum=3,
+            rng=random.Random(4),
+            forced_keys={},
+        )
+        diversity_sample, _ = sample_candidate_population(
+            records,
+            sampling_mode="residual_diversity",
+            per_stratum=3,
+            rng=random.Random(4),
+            forced_keys={},
+        )
+
+        self.assertTrue(
+            any(row["sampling"]["sampling_weight"] for row in random_sample)
+        )
+        self.assertTrue(
+            all(
+                row["sampling"]["sampling_weight"] is None
+                for row in diversity_sample
+            )
+        )
+        self.assertTrue(
+            all("residual_proxy" in row for row in diversity_sample)
+        )
+
+    def test_maximin_sampling_reaches_a_distinct_spatial_cluster(self) -> None:
+        records = [
+            candidate(
+                center=(x, 0.0, 0.5),
+                score=10.0 - index,
+            )
+            for index, x in enumerate((0.00, 0.01, 0.02, 1.00, 1.01, 1.02))
+        ]
+
+        sample = maximin_residual_sample(
+            records,
+            quota=2,
+            forced_keys={},
+        )
+
+        self.assertEqual(len(sample), 2)
+        self.assertEqual(sample[0]["center"][0], 0.0)
+        self.assertGreater(sample[1]["center"][0], 0.9)
+
+    def test_maximin_sampling_preserves_forced_candidates(self) -> None:
+        records = [
+            candidate(center=(float(index), 0.0, 0.5), score=-float(index))
+            for index in range(5)
+        ]
+        forced = records[2]
+
+        sample = maximin_residual_sample(
+            records,
+            quota=2,
+            forced_keys={candidate_key(forced): "selected_action"},
+        )
+
+        self.assertIn(candidate_key(forced), {candidate_key(row) for row in sample})
+        self.assertTrue(forced["sampling"]["forced"])
+        self.assertEqual(
+            forced["sampling"]["forced_reason"], "selected_action"
+        )
+        self.assertIsNone(forced["sampling"]["inclusion_probability"])
+        self.assertIsNone(forced["sampling"]["sampling_weight"])
+
+    def test_maximin_sampling_is_deterministic_and_marks_coverage_design(
+        self,
+    ) -> None:
+        def population() -> list[dict]:
+            return [
+                candidate(
+                    pool_index=index % 2,
+                    orientation=index % 3,
+                    center=(0.1 * index, 0.03 * (index % 4), 0.5),
+                    score=10.0 - index,
+                )
+                for index in range(10)
+            ]
+
+        first = maximin_residual_sample(
+            population(), quota=4, forced_keys={}
+        )
+        second = maximin_residual_sample(
+            population(), quota=4, forced_keys={}
+        )
+
+        self.assertEqual(
+            [candidate_key(row) for row in first],
+            [candidate_key(row) for row in second],
+        )
+        for row in first:
+            self.assertEqual(
+                row["sampling"]["design"],
+                "deterministic_residual_proxy_maximin",
+            )
+            self.assertIsNone(row["sampling"]["inclusion_probability"])
+            self.assertIsNone(row["sampling"]["sampling_weight"])
+
     def test_rejected_candidates_survive_sampling(self) -> None:
         # A ranking-shaped population: rejects exist but are rare, exactly
         # the case an unstratified top-N sample would drop entirely.
@@ -345,6 +533,32 @@ class LabelTests(unittest.TestCase):
 
 
 class RowTests(unittest.TestCase):
+    def test_diversity_row_keeps_the_residual_proxy_descriptor(self) -> None:
+        records = [candidate(center=(0.2, 0.3, 0.5), passed=True)]
+        assign_strata(records)
+        sample = maximin_residual_sample(
+            records, quota=1, forced_keys={}
+        )
+
+        row = build_row(
+            sample[0],
+            dataset_id="ds",
+            snapshot_id="ds:000:step-000",
+            case_id="000",
+            step=0,
+            snapshot_name="s.json",
+            selected_key=None,
+            anytime_keys=set(),
+            physical=None,
+            feature_availability=(
+                agent.ReleaseRiskFeatures.feature_availability()
+            ),
+        )
+
+        self.assertEqual(
+            row["residual_proxy"], sample[0]["residual_proxy"]
+        )
+
     def test_selected_action_is_matched_to_its_candidate(self) -> None:
         records = [
             candidate(center=(0.0, 0.0, 0.5)),
