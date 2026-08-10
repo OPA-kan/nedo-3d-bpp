@@ -1425,7 +1425,10 @@
       "claim": "The placement integration boundary is now explicit without changing the shipped policy: proposal facts, named immediate and release-risk evaluation, selector policy, and simulator command are separate objects. Eager rich-object construction was rejected after the first Task B parity run showed roughly 16-17% lower candidate throughput. The accepted implementation keeps rich evaluation opt-in and executes the former scalar choose/top-K loops verbatim by default. A side-by-side fixed-work check against pre-refactor commit db659b9 matched selected action, ordered top three, float-hex scores, and attempt counts exactly at budgets 128 and 512. Separate wall-clock Actions runs remain runner-noisy and are not treated as exact causal parity evidence. This is an integration seam, not evidence that a richer Ranker is beneficial.",
       "source": "docs/PLACEMENT_PIPELINE.md; reports/placement-pipeline/parity.md; scripts/check_placement_pipeline_parity.py; Actions runs 31350298808, 31350300314, 31351104085, 31351112589",
       "values": {
-        "fixed_work_budgets": [128, 512],
+        "fixed_work_budgets": [
+          128,
+          512
+        ],
         "fixed_work_all_match": true,
         "baseline_commit": "db659b9"
       }
@@ -1450,7 +1453,10 @@
         "episodes": 45,
         "structured_records": 295,
         "structured_decisions": 303,
-        "fixed_work_budgets": [128, 512],
+        "fixed_work_budgets": [
+          128,
+          512
+        ],
         "fixed_work_all_match": true,
         "b000_k15_control_placed": 21.0,
         "b000_k15_structured_placed": 18.333,
@@ -1469,7 +1475,10 @@
         "episodes": 45,
         "structured_records": 283,
         "structured_decisions": 286,
-        "fixed_work_budgets": [128, 512],
+        "fixed_work_budgets": [
+          128,
+          512
+        ],
         "fixed_work_all_match": true,
         "treatment_attempts_per_decision": 8116.409,
         "base_attempts_per_decision": 8291.741,
@@ -1521,14 +1530,34 @@
       "claim": "The first residual-state maximin sampler is a positive result for geometric dispersion but is not yet an admissible training-data sampler. In a same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, its mean observed settle-afterstate nearest-neighbour distance exceeded stratified random at all three steps by 0.022704, 0.019394 and 0.008419 (mean +0.016839). The proxy distance was also positive at all three steps. However, unique item coverage fell by 2, 1 and 1; item-orientation coverage fell by 1, 1 and 0; step 3 lost two spatial cells; and step 9 produced two fewer placed-safe replays. Therefore the descriptor can create farther-apart states, but unconstrained maximin trades away semantic item coverage and some safety. Do not train or adopt from this portfolio yet. The next sampler must guarantee item/item-orientation coverage and treat physical safety as a separate constraint before maximizing residual distance.",
       "source": "reports/residual-diversity/history/31367396930/summary.json; Actions run 31367396930; experiment/residual-diversity-dataset commit a884677",
       "values": {
-        "steps": [3, 6, 9],
+        "steps": [
+          3,
+          6,
+          9
+        ],
         "proxy_gain_steps": 3,
         "physical_gain_steps": 3,
         "mean_physical_nn_distance_delta": 0.016838857600610102,
-        "unique_item_deltas": [-2, -1, -1],
-        "unique_item_orientation_deltas": [-1, -1, 0],
-        "physical_spatial_cell_deltas": [-2, 1, 1],
-        "placed_safe_deltas": [0, 0, -2],
+        "unique_item_deltas": [
+          -2,
+          -1,
+          -1
+        ],
+        "unique_item_orientation_deltas": [
+          -1,
+          -1,
+          0
+        ],
+        "physical_spatial_cell_deltas": [
+          -2,
+          1,
+          1
+        ],
+        "placed_safe_deltas": [
+          0,
+          0,
+          -2
+        ],
         "adopted_for_training": false
       }
     },
@@ -1540,14 +1569,34 @@
       "claim": "The second residual-state sampler enforced unseen item and item-orientation priority inside each existing kind/gate/score stratum before residual maximin. In the same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, observed settle-afterstate nearest-neighbour distance still exceeded stratified random at all three steps by 0.025438, 0.012888 and 0.005581 (mean +0.014636), and item-orientation coverage no longer regressed. It nevertheless failed the preregistered acceptance contract: global unique-item coverage was still -1 at step 3 and placed-safe replay count was still -2 at step 9. Per-stratum semantic priority cannot guarantee portfolio-wide item coverage because different strata can spend their quotas on the same item. Static semantic coverage also does not solve the late-step physical-safety selection problem. Do not train or adopt this sampler. A further dataset sampler must coordinate item coverage globally across strata and keep observed physical safety as an explicit outcome/acceptance axis rather than inferring it from the current static risk proxy.",
       "source": "reports/residual-diversity/history/31368589378/summary.json; Actions runs 31368589378 and 31368589596; experiment/residual-diversity-dataset commit 36a70b7",
       "values": {
-        "steps": [3, 6, 9],
+        "steps": [
+          3,
+          6,
+          9
+        ],
         "proxy_gain_steps": 3,
         "physical_gain_steps": 3,
         "mean_physical_nn_distance_delta": 0.014635930123647514,
-        "unique_item_deltas": [-1, 0, 0],
-        "unique_item_orientation_deltas": [0, 0, 0],
-        "physical_spatial_cell_deltas": [-2, 2, 0],
-        "placed_safe_deltas": [0, 0, -2],
+        "unique_item_deltas": [
+          -1,
+          0,
+          0
+        ],
+        "unique_item_orientation_deltas": [
+          0,
+          0,
+          0
+        ],
+        "physical_spatial_cell_deltas": [
+          -2,
+          2,
+          0
+        ],
+        "placed_safe_deltas": [
+          0,
+          0,
+          -2
+        ],
         "acceptance_verdict": "fail",
         "adopted_for_training": false
       }
@@ -1560,14 +1609,34 @@
       "claim": "Portfolio-wide item-to-stratum slot matching solved the semantic-coverage failure of residual diversity sampling. In the same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, the v3 portfolio beat stratified random in observed settle-afterstate nearest-neighbour distance at all steps by 0.027739, 0.058524 and 0.022009 (mean +0.036091). Global unique-item coverage improved by +1, +3 and +3, and item-orientation coverage by +4, +1 and +1. The preregistered overall verdict remains fail only because placed-safe count was 0, +1 and -1: one late-step unsafe outcome remains. The result establishes global matching as the correct semantic sampler component but not yet an admissible positive-transition training portfolio. Do not discard v3 or add another static safety gate. The next dataset stage should replay an overdrawn v3 portfolio, select the positive residual-state training arm from observed placed-safe transitions, and retain unsafe outcomes separately as negative physical-risk examples.",
       "source": "reports/residual-diversity/history/31369511973/summary.json; Actions runs 31369511973 and 31369512596; experiment/residual-diversity-dataset commit 22090e2",
       "values": {
-        "steps": [3, 6, 9],
+        "steps": [
+          3,
+          6,
+          9
+        ],
         "proxy_gain_steps": 3,
         "physical_gain_steps": 3,
         "mean_physical_nn_distance_delta": 0.03609075418426269,
-        "unique_item_deltas": [1, 3, 3],
-        "unique_item_orientation_deltas": [4, 1, 1],
-        "physical_spatial_cell_deltas": [-1, 2, 2],
-        "placed_safe_deltas": [0, 1, -1],
+        "unique_item_deltas": [
+          1,
+          3,
+          3
+        ],
+        "unique_item_orientation_deltas": [
+          4,
+          1,
+          1
+        ],
+        "physical_spatial_cell_deltas": [
+          -1,
+          2,
+          2
+        ],
+        "placed_safe_deltas": [
+          0,
+          1,
+          -1
+        ],
         "acceptance_verdict": "fail",
         "semantic_component_established": true,
         "adopted_for_positive_transition_training": false
@@ -1581,17 +1650,45 @@
       "claim": "Observed-outcome splitting turns the globally matched residual-diversity portfolio into an admissible bounded training-data generator. With a 2x per-stratum overdraw, every candidate was replayed through the official PyBullet validator before use: placed-safe rows were globally rematched into a positive-transition arm, while unsafe rows were written separately as negative physical-risk examples. On paired b000-k20 steps 3, 6 and 9, the positive arm passed every preregistered guard. Observed settle-afterstate nearest-neighbour distance beat the safe random control by 0.030116, 0.017396 and 0.017448 (mean +0.021654); unique-item deltas were +1, +2 and +2; item-orientation deltas +4, 0 and 0; and placed-safe deltas 0, 0 and 0. The generator produced 30, 13 and 12 positive transitions and 0, 7 and 15 deduplicated negative-risk examples. This establishes the schema-v3 positive/negative dataset contract for bounded snapshots, not a learned value model or live-policy score improvement. Scale only on non-holdout states before training and retain the paired control.",
       "source": "reports/residual-diversity/history/31370546291/summary.json; Actions runs 31370546291 and 31370546570; experiment/residual-diversity-dataset commit e3eada6",
       "values": {
-        "steps": [3, 6, 9],
+        "steps": [
+          3,
+          6,
+          9
+        ],
         "overdraw_factor": 2,
         "proxy_gain_steps": 3,
         "physical_gain_steps": 3,
         "mean_physical_nn_distance_delta": 0.02165367149246146,
-        "unique_item_deltas": [1, 2, 2],
-        "unique_item_orientation_deltas": [4, 0, 0],
-        "physical_spatial_cell_deltas": [1, 1, 0],
-        "placed_safe_deltas": [0, 0, 0],
-        "positive_transition_counts": [30, 13, 12],
-        "negative_physical_risk_counts": [0, 7, 15],
+        "unique_item_deltas": [
+          1,
+          2,
+          2
+        ],
+        "unique_item_orientation_deltas": [
+          4,
+          0,
+          0
+        ],
+        "physical_spatial_cell_deltas": [
+          1,
+          1,
+          0
+        ],
+        "placed_safe_deltas": [
+          0,
+          0,
+          0
+        ],
+        "positive_transition_counts": [
+          30,
+          13,
+          12
+        ],
+        "negative_physical_risk_counts": [
+          0,
+          7,
+          15
+        ],
         "acceptance_verdict": "pass",
         "bounded_dataset_contract_established": true,
         "live_policy_benefit_established": false
@@ -1606,13 +1703,19 @@
       "source": "reports/residual-diversity-scale/history/31372071696/summary.json; reports/residual-diversity-scale/history/31372706195/summary.json; Actions runs 31372071696 and 31372706195; experiment/residual-diversity-dataset commit 0e5113c",
       "values": {
         "condition_cells": 4,
-        "steps": [3, 9, 15],
+        "steps": [
+          3,
+          9,
+          15
+        ],
         "overdraw_2x": {
           "positive_transition": 281,
           "negative_physical_risk": 69,
           "scenario_passes": 3,
           "scenario_total": 4,
-          "failed_scenarios": ["m-dual-empty"]
+          "failed_scenarios": [
+            "m-dual-empty"
+          ]
         },
         "overdraw_3x": {
           "positive_transition": 282,
@@ -1642,14 +1745,24 @@
       "source": "reports/residual-diversity-scale/history/31380879143/summary.json; reports/residual-diversity-scale/history/31380879143/step-details.md; Actions run 31380879143; experiment/residual-diversity-dataset commits bf47bc7 and 20669a0",
       "values": {
         "condition_cells": 4,
-        "steps": [3, 9, 15],
+        "steps": [
+          3,
+          9,
+          15
+        ],
         "overdraw_factor": 3,
         "positive_transition": 265,
         "negative_physical_risk": 135,
         "scenario_passes": 2,
         "scenario_total": 4,
-        "passed_scenarios": ["m-dual-empty", "m-dual-shelf-mixed"],
-        "failed_scenarios": ["m-single-empty-noshelf", "m-single-empty-shelf"],
+        "passed_scenarios": [
+          "m-dual-empty",
+          "m-dual-shelf-mixed"
+        ],
+        "failed_scenarios": [
+          "m-single-empty-noshelf",
+          "m-single-empty-shelf"
+        ],
         "dual_shelf_step15_before_after": {
           "physical_nn_delta_before": -0.007839379155344925,
           "physical_nn_delta_after": 0.00988300886874785,
@@ -1666,6 +1779,47 @@
         },
         "observed_proxy_gap_reduced": true,
         "objective_alignment_established": false,
+        "adopted_for_training": false,
+        "live_policy_benefit_established": false
+      }
+    },
+    {
+      "id": "control-seeded-observed-swap-passes-condition-matrix",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Seeding the safe-positive portfolio with its own paired safe-random control and then applying intra-stratum observed-afterstate swaps that keep semantic coverage and strictly raise the measured mean-nearest-neighbour delta cleared the four-condition acceptance matrix for the first time. Run 31388832646, same frozen 3x overdraw and same three steps as the failing run 31380879143, passed all four cells with per-scenario mean physical NN deltas of +0.073926 (dual-empty), +0.070353 (dual-shelf-mixed), +0.049806 (single-empty-noshelf) and +0.064257 (single-empty-shelf), and produced 307 safe-positive and 134 negative-physical-risk rows. The two previously failing single-container cells moved from -0.004446 and -0.017559 to positive. Three of the four guards are now structural rather than lucky: because the seed IS the control whenever the control fills the stratum quota, the search starts at a measured delta of exactly 0.0, the seeded portfolio is a superset of the control so unique-item and item-orientation deltas cannot be negative, and both arms are all-safe and equal size so the placed-safe delta is 0. Only the strict mean-NN guard depends on finding an improving swap. This is a dataset-coverage result: the sampled observed settle afterstates are more dispersed than an independent safe-random portfolio. It is not a live-policy, placed, fill or official-score result, and no model has been trained. The ablation arm (--observed-swap-rounds 0) has not been run in Actions, so the seeded-versus-greedy contrast rests on one matched local pair.",
+      "source": "reports/residual-diversity-scale/history/31388832646/summary.json; docs/OBSERVED_STATE_SWAP.md; reports/observed-state-swap/local-paired.md; Actions run 31388832646; commit 23972b5",
+      "values": {
+        "condition_cells": 4,
+        "steps": [
+          3,
+          9,
+          15
+        ],
+        "overdraw_factor": 3,
+        "observed_swap_rounds": 64,
+        "positive_transition": 307,
+        "negative_physical_risk": 134,
+        "scenario_passes": 4,
+        "scenario_total": 4,
+        "failed_scenarios": [],
+        "mean_physical_nn_deltas": {
+          "m-dual-empty": 0.07392591424189826,
+          "m-dual-shelf-mixed": 0.07035328894472405,
+          "m-single-empty-noshelf": 0.049806472005630535,
+          "m-single-empty-shelf": 0.06425711193651718
+        },
+        "previously_failing_cells_before": {
+          "m-single-empty-noshelf-step9": -0.004445754410916061,
+          "m-single-empty-shelf-step15": -0.017559307084562548
+        },
+        "local_matched_pair_m_single_empty_shelf_step15": {
+          "swap_optimizer": 0.080765,
+          "unseeded_greedy": 0.001029
+        },
+        "objective_alignment_established": true,
+        "ci_ablation_arm_run": false,
         "adopted_for_training": false,
         "live_policy_benefit_established": false
       }

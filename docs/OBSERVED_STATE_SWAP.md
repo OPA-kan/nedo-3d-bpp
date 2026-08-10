@@ -80,6 +80,36 @@ visible.
 reproduces the run-`31380879143` construction, so the two arms can be built
 from the same snapshot and compared directly.
 
+## Condition-matrix result
+
+Actions run `31388832646`, same frozen 3x overdraw and the same steps 3/9/15
+as the failing run `31380879143`, passed all four cells and produced 307
+safe-positive and 134 negative-physical-risk rows.
+
+| scenario | ΔmeanNN before (`31380879143`) | ΔmeanNN after (`31388832646`) | verdict |
+|---|---:|---:|---|
+| m-dual-empty | +0.059554 | +0.073926 | pass |
+| m-dual-shelf-mixed | +0.022782 | +0.070353 | pass |
+| m-single-empty-noshelf | +0.004947 (**fail**) | +0.049806 | pass |
+| m-single-empty-shelf | +0.024874 (**fail**) | +0.064257 | pass |
+
+The two "before" failures are scenario verdicts, not small scenario means:
+the guard is per step, and those cells averaged positive while step 9
+(-0.004446) and step 15 (-0.017559) were negative. Scenario means are never
+pooled to hide a step.
+
+Three of the four guards are structural once the control fills the stratum
+quota, not outcomes of the search: the seed is the control, so the measured
+delta starts at exactly `0.0`; the seeded portfolio is a superset of the
+control, so the unique-item and item-orientation deltas cannot be negative and
+the swap constraint keeps them there; and both arms are all-safe and the same
+size, so the placed-safe delta is `0`. Only the strict `> 0` mean-NN guard
+depends on an improving swap existing.
+
+The `--observed-swap-rounds 0` ablation arm has **not** been dispatched in
+Actions. The seeded-versus-greedy contrast rests on the single matched local
+pair below.
+
 ## Local paired measurement
 
 Both previously failing cells were rebuilt locally on the same frozen 3x

@@ -223,13 +223,18 @@ and SHA-256. Do not reuse hashes in old prose.
   not the old command-to-settle proxy gap: semantic-first greedy maximin
   optimizes minimum distance, while the guard measures mean NN against the
   paired control. Do not train from this matrix yet.
-- The control-seeded observed-state swap optimizer is now implemented on
-  branch `claude/observed-state-swap-optimizer-lk8m0p`. It is an instrument,
-  not yet evidence: the frozen four-condition matrix has not been rerun on a
-  Linux runner with it. Its structural property is that the paired control is
-  the seed, so whenever the control fills the stratum quota the search starts
-  at delta exactly 0.0 and every accepted move raises the number the guard
-  reports. See `docs/OBSERVED_STATE_SWAP.md`.
+- The control-seeded observed-state swap optimizer cleared the matrix. Run
+  `31388832646` passed all four cells at +0.073926, +0.070353, +0.049806 and
+  +0.064257 and produced 307 safe-positive and 134 negative-risk rows. Three
+  of the four guards are now structural, not lucky: the seed IS the control,
+  so the search starts at delta exactly 0.0, the seeded portfolio is a
+  superset of the control so the semantic deltas cannot be negative, and both
+  arms are all-safe and equal size so the placed-safe delta is 0. Only the
+  strict mean-NN guard needs an improving swap to exist. See
+  `docs/OBSERVED_STATE_SWAP.md`.
+- The CI ablation arm (`--observed-swap-rounds 0`) has not been dispatched.
+  Seeded-versus-greedy rests on one matched local pair (+0.080765 against
+  +0.001029). Dispatch it before treating the contrast as measured.
 
 ### Local score proxies
 
@@ -277,11 +282,15 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether the control-seeded observed-state swap optimizer clears the
-  acceptance guard in every matrix cell. The instrument exists and is unit- and
-  end-to-end tested, but the four-condition matrix has not been rerun with it.
-  Direct observed maximin fixed the dual-shelf case and failed two
-  single-container steps because its optimization target differs from the guard.
+- Whether the accepted rows support a learner at all. The corpus is small and
+  narrow: 48 committed schema-v1 states (2732 rows, no `scenario_context`, and
+  a modelling vector only on the 1765 release rows), plus 12 distinct states
+  per schema-v3 matrix run. Rows inside one state share a parent and are
+  strongly correlated, so 307 positives is not 307 independent examples.
+- Where the accepted rows live. Only compact summaries are committed; the
+  `step-NNN-*.jsonl` rows and snapshots exist as Actions artifacts that expire
+  90 days after the run. There is no accumulating corpus on disk yet, and no
+  decision on whether one belongs in git.
 - Whether the mean-NN guard is itself size-fair. The positive arm is usually
   larger than its paired control, and mean nearest-neighbour distance falls as
   a portfolio grows, so part of a negative delta may be arm size rather than
@@ -318,15 +327,18 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Rerun the frozen 3x four-condition matrix with the control-seeded
-   observed-state swap optimizer, which is implemented but unmeasured on a
-   Linux runner. Run the `--observed-swap-rounds 0` ablation arm on the same
-   configuration so the seeded and greedy constructions are compared on one
-   runner. Do not tune overdraw, train a model, or open final holdout data
-   until all four condition guards pass. If a cell still fails, read the
-   `swap_optimizer` trace first: `terminated`, the initial delta, and the arm
-   sizes separate "the seed did not start at zero" from "no admissible swap
-   improved it", and those two have different fixes.
+1. The four-condition guard now passes (`31388832646`), so the sampler
+   question is closed and the data question is open. In order:
+   (a) dispatch the `--observed-swap-rounds 0` ablation arm on the same
+   matrix so seeded-versus-greedy is measured on a runner, not inferred from
+   one local pair; (b) decide where accepted rows are retained -- they exist
+   only as Actions artifacts that expire, so scaling states without a
+   retention decision produces data that cannot be trained on later; (c) scale
+   the number of distinct STATES, not the rows per state, since rows inside
+   one snapshot share a parent. Only then run the learnability audit
+   (`docs/keystone/tasks/2026-08-10-residual-state-diversity-dataset.md`
+   slice 5: scenario-level split, lookup/GBDT/Deep Sets, oracle regret) before
+   any Transformer. Do not open final holdout data.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
