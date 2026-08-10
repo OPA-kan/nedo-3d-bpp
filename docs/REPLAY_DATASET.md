@@ -262,6 +262,27 @@ controlの報告値も動く。したがって候補の並べ替え（screening�
 `0.0` から始まらないので、正の差を構造的に保証するものでもない。
 どちらも trace に出るので、verdictの裏で消えない。
 
+#### 行の保存先 — artifactからgitへ
+
+**この節は keystone task の非機能要件「raw物理データはartifact、compact
+coverage結果はgitへ残す」を意図的に改訂する。** 当時の懸念は数十MB級の
+rollout dumpだったが、condition matrix 1 runは**圧縮後 約0.46MB / 12 state**
+しかない。一方 artifact は run から90日で失効するので、そこにしか無い行は
+**後から学習に使えない**。軌道は wall-clock 依存で再現しないため、消えた
+stateは作り直せもしない。
+
+したがって matrix の aggregate job は、各scenarioの `dataset/` を
+`reports/residual-diversity-scale/history/<run_id>/dataset/<scenario>/` へ
+そのままコミットする。snapshotも一緒に残す（同じ理由で再生成できないため。
+`step-NNN-state.json` は gzip後 約7KBで、行より小さい）。
+
+`scripts/index_replay_corpus.py` が `corpus.json` / `corpus.md` を生成する。
+これは索引であって集計ではない。**行はrun間で足し上がるが distinct state は
+増えない**（matrixは毎回同じ (case, step) を測り直す）ので、行の総数だけを
+「コーパスの大きさ」として読むと1桁以上過大評価する。索引はこの2つを分けて
+出し、seeded run と `--observed-swap-rounds 0` の ablation も**別armとして
+分けたまま**数える。
+
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの
 一手counterfactual**を広げる。H3以上のbranch rolloutは、prefix action列を

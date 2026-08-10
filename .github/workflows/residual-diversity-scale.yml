@@ -113,13 +113,31 @@ jobs:
         with:
           name: residual-diversity-scale-aggregate
           path: reports/residual-diversity-scale/aggregate/
-      - name: Persist compact matrix history
+      - name: Persist matrix history and the labelled corpus
         env:
           HISTORY_DIR: >-
             reports/residual-diversity-scale/history/${{ github.run_id }}
         run: |
           set -euo pipefail
           mkdir -p "$HISTORY_DIR"
+          # The rows are the corpus. Artifacts expire 90 days after the run,
+          # so a dataset that lives only there cannot be trained on later;
+          # one matrix run is well under a megabyte compressed. Snapshots
+          # come along because the trajectory is wall-clock dependent and a
+          # discarded state cannot be regenerated.
+          for scenario_dir in \
+            reports/residual-diversity-scale/downloads/residual-diversity-scale-*/; do
+            name="$(basename "$scenario_dir")"
+            name="${name#residual-diversity-scale-}"
+            if [ -d "$scenario_dir/dataset" ]; then
+              mkdir -p "$HISTORY_DIR/dataset/$name"
+              cp -R "$scenario_dir/dataset/." "$HISTORY_DIR/dataset/$name/"
+            fi
+          done
+          python scripts/index_replay_corpus.py \
+            --root reports/residual-diversity-scale/history \
+            --json-output reports/residual-diversity-scale/corpus.json \
+            --markdown-output reports/residual-diversity-scale/corpus.md
           cp reports/residual-diversity-scale/aggregate/summary.md \
             "$HISTORY_DIR/summary.md"
           cp reports/residual-diversity-scale/aggregate/summary.json \
@@ -127,7 +145,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$HISTORY_DIR"
+          git add "$HISTORY_DIR" \
+            reports/residual-diversity-scale/corpus.json \
+            reports/residual-diversity-scale/corpus.md
           git commit \
             -m "Record residual diversity matrix ${{ github.run_id }} [skip residual-diversity] [skip residual-diversity-scale]"
           for attempt in 1 2 3; do

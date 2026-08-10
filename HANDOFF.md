@@ -295,10 +295,14 @@ their instruments. A superseded or historical entry is not current evidence.
   a modelling vector only on the 1765 release rows), plus 12 distinct states
   per schema-v3 matrix run. Rows inside one state share a parent and are
   strongly correlated, so 307 positives is not 307 independent examples.
-- Where the accepted rows live. Only compact summaries are committed; the
-  `step-NNN-*.jsonl` rows and snapshots exist as Actions artifacts that expire
-  90 days after the run. There is no accumulating corpus on disk yet, and no
-  decision on whether one belongs in git.
+- Whether the retained corpus is large enough to learn from. Retention is now
+  decided: the matrix commits its rows and snapshots to
+  `reports/residual-diversity-scale/history/<run_id>/dataset/`, indexed by
+  `scripts/index_replay_corpus.py`. That deliberately revises the keystone
+  requirement "raw physical data stays in artifacts" -- one run is about
+  0.46 MB compressed, and artifacts expire 90 days out while the wall-clock
+  dependent trajectory cannot be regenerated. Read `corpus.md` for what is
+  held: it separates rows from distinct states and never merges arms.
 - Whether the mean-NN guard is itself size-fair. The positive arm is usually
   larger than its paired control, and mean nearest-neighbour distance falls as
   a portfolio grows, so part of a negative delta may be arm size rather than
