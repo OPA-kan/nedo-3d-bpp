@@ -1406,6 +1406,45 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertIsNone(selected.command)
         self.assertIsNone(selected.evaluation)
 
+    def test_default_top_k_keeps_the_allocation_light_scalar_path(self):
+        container = sample_container(
+            require_shelf=False,
+            center_x=0.0,
+            cut_x=0.0,
+        )
+        item = sample_item(4)
+        candidate = agent.AABB(
+            (0.1, 0.0, 0.1),
+            (0.2, 0.2, 0.2),
+            "settled_candidate",
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        with (
+            mock.patch.object(
+                agent,
+                "iter_prioritized_candidates",
+                return_value=iter([(0, item, 0, 0, candidate)]),
+            ),
+            mock.patch.object(agent.Ranker, "score", return_value=3.0),
+            mock.patch.object(
+                agent.Ranker,
+                "evaluate",
+                side_effect=AssertionError("rich path must be opt-in"),
+            ),
+        ):
+            selected = agent.PlacementCore.top_candidates(
+                observation,
+                [(0, item)],
+                k=1,
+            )
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0].score, 3.0)
+        self.assertIsNone(selected[0].evaluation)
+
 
 class LookaheadSelectionTests(unittest.TestCase):
     @staticmethod

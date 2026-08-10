@@ -5654,6 +5654,127 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
+        if selector is None and not structured_evaluation:
+            best_settled = None
+            best_settled_score = -float("inf")
+            best_release = None
+            best_release_score = -float("inf")
+            release_by_container = {}
+
+            for (
+                item_idx,
+                item,
+                container_idx,
+                orientation,
+                candidate,
+            ) in iter_prioritized_candidates(
+                observation,
+                indexed_items,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                anchor_fallback=anchor_fallback,
+                interleave=LIVE_SEARCH_INTERLEAVE,
+                attempt_budget=effective_attempt_budget(attempt_budget),
+            ):
+                container = containers[container_idx]
+                score = Ranker.score(
+                    candidate,
+                    item,
+                    container,
+                    has_priority_container,
+                )
+                score, _risk_probability = risk_adjusted_score(
+                    score,
+                    candidate,
+                    item,
+                    container,
+                    orientation,
+                    risk_lambda,
+                )
+                decision = PlacementDecision(
+                    action={
+                        "item_idx": int(item_idx),
+                        "container_idx": int(container_idx),
+                        "place_pos": np.asarray(
+                            simulator_action_center(candidate, container),
+                            dtype=np.float32,
+                        ),
+                        "orientation": int(orientation),
+                    },
+                    candidate=candidate,
+                    score=float(score),
+                )
+                if candidate_observer is not None:
+                    candidate_observer(
+                        item_idx,
+                        item,
+                        container_idx,
+                        orientation,
+                        decision,
+                    )
+
+                def beats(challenger_score, incumbent_score, incumbent):
+                    if incumbent is None:
+                        return True
+                    if L3_PREFER_EMPTY_BAND <= 0.0:
+                        return challenger_score > incumbent_score
+                    if (
+                        challenger_score
+                        > incumbent_score + L3_PREFER_EMPTY_BAND
+                    ):
+                        return True
+                    if (
+                        challenger_score
+                        < incumbent_score - L3_PREFER_EMPTY_BAND
+                    ):
+                        return False
+                    remaining_new = estimated_remaining_container_volume(
+                        containers[int(decision.action["container_idx"])]
+                    )
+                    remaining_old = estimated_remaining_container_volume(
+                        containers[int(incumbent.action["container_idx"])]
+                    )
+                    if abs(remaining_new - remaining_old) > EPS:
+                        return remaining_new > remaining_old
+                    return challenger_score > incumbent_score
+
+                updated = False
+                if candidate.name == "release_candidate":
+                    if beats(score, best_release_score, best_release):
+                        best_release_score = score
+                        best_release = decision
+                        updated = True
+                    if L3_RELEASE_ROUTE:
+                        container_key = int(
+                            decision.action["container_idx"]
+                        )
+                        incumbent = release_by_container.get(container_key)
+                        if incumbent is None or score > incumbent[0]:
+                            release_by_container[container_key] = (
+                                score,
+                                decision,
+                            )
+                elif beats(score, best_settled_score, best_settled):
+                    best_settled_score = score
+                    best_settled = decision
+                    updated = True
+                if updated and diagnostics is not None:
+                    diagnostics["search"]["incumbent_updates"] += 1
+            if best_settled is not None:
+                return best_settled
+            if L3_RELEASE_ROUTE and len(release_by_container) > 1:
+                emptiest = max(
+                    release_by_container,
+                    key=lambda container_index: (
+                        estimated_remaining_container_volume(
+                            containers[container_index]
+                        ),
+                        release_by_container[container_index][0],
+                    ),
+                )
+                return release_by_container[emptiest][1]
+            return best_release
+
         active_selector = selector or SettledFirstSelector(containers)
         use_structured_evaluation = bool(
             structured_evaluation or selector is not None
@@ -5897,6 +6018,85 @@ class PlacementCore:
             bool(container.get("is_prioritized", False))
             for container in containers
         )
+        if selector is None and not structured_evaluation:
+            settled_heap = []
+            release_heap = []
+            counter = 0
+            for (
+                item_idx,
+                item,
+                container_idx,
+                orientation,
+                candidate,
+            ) in iter_prioritized_candidates(
+                observation,
+                indexed_items,
+                deadline=deadline,
+                diagnostics=diagnostics,
+                interleave=LIVE_SEARCH_INTERLEAVE,
+                attempt_budget=effective_attempt_budget(attempt_budget),
+            ):
+                container = containers[container_idx]
+                score = Ranker.score(
+                    candidate,
+                    item,
+                    container,
+                    has_priority_container,
+                )
+                score, _risk_probability = risk_adjusted_score(
+                    score,
+                    candidate,
+                    item,
+                    container,
+                    orientation,
+                    risk_lambda,
+                )
+                decision = PlacementDecision(
+                    action={
+                        "item_idx": int(item_idx),
+                        "container_idx": int(container_idx),
+                        "place_pos": np.asarray(
+                            simulator_action_center(candidate, container),
+                            dtype=np.float32,
+                        ),
+                        "orientation": int(orientation),
+                    },
+                    candidate=candidate,
+                    score=float(score),
+                )
+                if candidate_observer is not None:
+                    candidate_observer(
+                        item_idx,
+                        item,
+                        container_idx,
+                        orientation,
+                        decision,
+                    )
+                counter += 1
+                entry = (score, counter, decision)
+                heap = (
+                    release_heap
+                    if candidate.name == "release_candidate"
+                    else settled_heap
+                )
+                updated = False
+                if len(heap) < k:
+                    heapq.heappush(heap, entry)
+                    updated = True
+                elif score > heap[0][0]:
+                    heapq.heapreplace(heap, entry)
+                    updated = True
+                if updated and diagnostics is not None:
+                    diagnostics["search"]["incumbent_updates"] += 1
+            return [
+                decision
+                for _, _, decision in sorted(
+                    settled_heap or release_heap,
+                    key=lambda entry: entry[0],
+                    reverse=True,
+                )
+            ]
+
         active_selector = selector or TopKSettledFirstSelector(k)
         use_structured_evaluation = bool(
             structured_evaluation or selector is not None
