@@ -66,6 +66,7 @@ from scripts.summarize_task_b import (  # noqa: E402
     separated_physical_labels,
 )
 from scripts.residual_diversity import (  # noqa: E402
+    constrained_residual_diversity_sample,
     residual_diversity_sample,
     residual_proxy_coverage,
     settled_portfolio_comparison,
@@ -77,6 +78,9 @@ ACTION_MATCH_TOLERANCE = 1e-4
 # simulator/src/ground_handling/validator.py uses PEP 701 nested-quote
 # f-strings, which only parse on 3.12+.
 REQUIRED_PYTHON = (3, 12)
+DIVERSITY_SAMPLING_MODES = frozenset(
+    {"residual_diversity", "residual_diversity_constrained"}
+)
 
 
 def require_supported_python() -> None:
@@ -343,6 +347,12 @@ def sample_candidate_population(
         )
     if sampling_mode == "residual_diversity":
         return residual_diversity_sample(
+            records,
+            per_stratum=per_stratum,
+            forced_keys=forced_keys,
+        )
+    if sampling_mode == "residual_diversity_constrained":
+        return constrained_residual_diversity_sample(
             records,
             per_stratum=per_stratum,
             forced_keys=forced_keys,
@@ -993,7 +1003,7 @@ def collect_step(
     )
     coverage_comparison = None
     random_control: list[dict[str, Any]] = []
-    if sampling_mode == "residual_diversity":
+    if sampling_mode in DIVERSITY_SAMPLING_MODES:
         random_control, _control_table = stratified_sample(
             copy.deepcopy(population),
             per_stratum=per_stratum,
@@ -1029,7 +1039,7 @@ def collect_step(
             replay_keys.add(candidate_key(record))
     results, replay_seconds = replay_sample(env, replay_population)
     physical_coverage_comparison = None
-    if sampling_mode == "residual_diversity":
+    if sampling_mode in DIVERSITY_SAMPLING_MODES:
         physical_coverage_comparison = settled_portfolio_comparison(
             diversity_sample=sample,
             random_sample=random_control,
@@ -1039,7 +1049,7 @@ def collect_step(
     dataset_path = output_dir / f"{step_label}-candidates.jsonl"
     control_dataset_path = (
         output_dir / f"{step_label}-random-control.jsonl"
-        if sampling_mode == "residual_diversity"
+        if sampling_mode in DIVERSITY_SAMPLING_MODES
         else None
     )
     availability = agent_module.ReleaseRiskFeatures.feature_availability()
@@ -1058,7 +1068,7 @@ def collect_step(
                 feature_availability=availability,
                 shadow_key=shadow_key,
             )
-            row["portfolio_role"] = "residual_diversity"
+            row["portfolio_role"] = sampling_mode
             handle.write(
                 json.dumps(json_safe(row), ensure_ascii=False) + "\n"
             )
@@ -1119,7 +1129,12 @@ def collect_step(
             "design": (
                 "stratified without replacement, unequal probability"
                 if sampling_mode == "stratified_random"
-                else "deterministic residual-proxy maximin coverage"
+                else (
+                    "deterministic item-coverage-constrained residual-proxy "
+                    "maximin coverage"
+                    if sampling_mode == "residual_diversity_constrained"
+                    else "deterministic residual-proxy maximin coverage"
+                )
             ),
             "per_stratum": int(per_stratum),
             "seed": int(seed),
@@ -1201,13 +1216,17 @@ def main() -> int:
     parser.add_argument("--per-stratum", type=int, default=16)
     parser.add_argument(
         "--sampling-mode",
-        choices=("stratified_random", "residual_diversity"),
+        choices=(
+            "stratified_random",
+            "residual_diversity",
+            "residual_diversity_constrained",
+        ),
         default="stratified_random",
         help=(
             "stratified_random supports population-rate estimation with "
-            "sampling weights; residual_diversity deterministically covers "
-            "different candidate-induced afterstate proxies and deliberately "
-            "does not emit probability weights"
+            "sampling weights; residual_diversity modes deterministically "
+            "cover candidate-induced afterstate proxies and deliberately do "
+            "not emit probability weights"
         ),
     )
     parser.add_argument("--seed", type=int, default=20260730)

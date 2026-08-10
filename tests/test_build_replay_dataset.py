@@ -25,6 +25,7 @@ from scripts.build_replay_dataset import (
     stratified_sample,
 )
 from scripts.residual_diversity import (
+    constrained_residual_sample,
     maximin_residual_sample,
     residual_proxy_coverage,
     settled_portfolio_comparison,
@@ -377,6 +378,106 @@ class SamplingTests(unittest.TestCase):
         )
         self.assertIsNone(forced["sampling"]["inclusion_probability"])
         self.assertIsNone(forced["sampling"]["sampling_weight"])
+
+    def test_constrained_sampling_covers_items_before_distance(self) -> None:
+        records = [
+            candidate(
+                pool_index=index,
+                item_index=item_index,
+                center=(x, 0.0, 0.5),
+                score=score,
+            )
+            for index, (item_index, x, score) in enumerate(
+                (
+                    (0, 0.00, 10.0),
+                    (0, 1.00, 9.0),
+                    (1, 0.01, 8.0),
+                    (2, 0.02, 7.0),
+                )
+            )
+        ]
+
+        sample = constrained_residual_sample(
+            records, quota=3, forced_keys={}
+        )
+
+        self.assertEqual(
+            {row["item_index"] for row in sample},
+            {0, 1, 2},
+        )
+
+    def test_constrained_sampling_covers_orientations_after_items(self) -> None:
+        records = [
+            candidate(
+                pool_index=index,
+                item_index=item_index,
+                orientation=orientation,
+                center=(x, 0.0, 0.5),
+                score=score,
+            )
+            for index, (item_index, orientation, x, score) in enumerate(
+                (
+                    (0, 0, 0.00, 10.0),
+                    (1, 0, 0.01, 9.0),
+                    (0, 0, 1.00, 8.0),
+                    (0, 1, 0.02, 7.0),
+                )
+            )
+        ]
+
+        sample = constrained_residual_sample(
+            records, quota=3, forced_keys={}
+        )
+
+        self.assertIn(
+            (0, 1),
+            {(row["item_index"], row["orientation"]) for row in sample},
+        )
+        self.assertTrue(
+            all(
+                row["sampling"]["design"]
+                == "deterministic_item_coverage_then_residual_maximin"
+                for row in sample
+            )
+        )
+
+    def test_constrained_sampling_mode_is_deterministic_and_unweighted(self):
+        def population() -> list[dict]:
+            records = [
+                candidate(
+                    pool_index=index,
+                    item_index=index % 4,
+                    orientation=index % 3,
+                    center=(0.1 * index, 0.0, 0.5),
+                    score=10.0 - index,
+                )
+                for index in range(12)
+            ]
+            assign_strata(records)
+            return records
+
+        first, _ = sample_candidate_population(
+            population(),
+            sampling_mode="residual_diversity_constrained",
+            per_stratum=3,
+            rng=random.Random(1),
+            forced_keys={},
+        )
+        second, _ = sample_candidate_population(
+            population(),
+            sampling_mode="residual_diversity_constrained",
+            per_stratum=3,
+            rng=random.Random(999),
+            forced_keys={},
+        )
+
+        self.assertEqual(
+            [candidate_key(row) for row in first],
+            [candidate_key(row) for row in second],
+        )
+        self.assertTrue(
+            all(row["sampling"]["sampling_weight"] is None for row in first)
+        )
 
     def test_maximin_sampling_is_deterministic_and_marks_coverage_design(
         self,

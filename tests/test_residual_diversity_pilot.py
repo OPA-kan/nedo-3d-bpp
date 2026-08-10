@@ -43,6 +43,8 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
                                 "diversity_minus_random": {
                                     "mean_nearest_neighbor_distance": 0.12,
                                     "spatial_cell_count": 1,
+                                    "unique_items": 0,
+                                    "unique_item_orientations": 0,
                                     "settled": 0,
                                     "placed_safe": 0,
                                 },
@@ -66,6 +68,43 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
         self.assertAlmostEqual(
             summary["steps"][0]["physical_nn_distance_delta"], 0.12
         )
+        self.assertEqual(summary["acceptance"]["verdict"], "pass")
+
+    def test_acceptance_fails_when_semantic_or_safety_guard_regresses(self):
+        physical = {
+            "stratified_random": coverage(0.08, 2),
+            "residual_diversity": coverage(0.20, 3),
+            "diversity_minus_random": {
+                "mean_nearest_neighbor_distance": 0.12,
+                "spatial_cell_count": 1,
+                "unique_items": -1,
+                "unique_item_orientations": 0,
+                "settled": 0,
+                "placed_safe": -1,
+            },
+        }
+        payload = {
+            "status": "complete",
+            "dataset_id": "guard-failure",
+            "case": {
+                "steps": [
+                    {
+                        "step": 9,
+                        "status": "ok",
+                        "sampling": {
+                            "coverage_comparison": physical,
+                            "physical_coverage_comparison": physical,
+                        },
+                    }
+                ]
+            },
+        }
+
+        summary = summarize_manifest(payload)
+
+        self.assertEqual(summary["acceptance"]["verdict"], "fail")
+        self.assertIn("unique_items", summary["acceptance"]["failed_guards"])
+        self.assertIn("placed_safe", summary["acceptance"]["failed_guards"])
 
     def test_missing_physical_comparison_is_not_success(self):
         payload = {

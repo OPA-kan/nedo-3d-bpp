@@ -12,7 +12,9 @@ class ResidualDiversityWorkflowTests(unittest.TestCase):
 
         self.assertIn("experiment/residual-diversity-dataset", text)
         self.assertIn("requirements-simulator.txt", text)
-        self.assertIn("--sampling-mode residual_diversity", text)
+        self.assertIn(
+            "--sampling-mode residual_diversity_constrained", text
+        )
         self.assertIn("--per-stratum 4", text)
         self.assertIn("--steps 3 6 9", text)
         self.assertIn("summarize_residual_diversity_pilot.py", text)

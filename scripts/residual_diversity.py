@@ -418,3 +418,127 @@ def residual_diversity_sample(
             }
         )
     return sampled, table
+
+
+def constrained_residual_sample(
+    records: list[dict[str, Any]],
+    *,
+    quota: int,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> list[dict[str, Any]]:
+    """Cover item semantics before maximizing residual-proxy distance."""
+    if not isinstance(forced_keys, dict):
+        forced_keys = {key: "selected_action" for key in forced_keys}
+    selected = [
+        record for record in records if candidate_key(record) in forced_keys
+    ]
+    remaining = [
+        record
+        for record in records
+        if candidate_key(record) not in forced_keys
+    ]
+    target = max(int(quota), len(selected))
+    ranges = proxy_ranges(records)
+
+    if not selected and remaining and target > 0:
+        seed = min(
+            remaining,
+            key=lambda record: (
+                -float(record.get("score", 0.0)),
+                candidate_key(record),
+            ),
+        )
+        selected.append(seed)
+        remaining.remove(seed)
+
+    while remaining and len(selected) < target:
+        selected_items = {
+            int(record.get("item_index", -1)) for record in selected
+        }
+        selected_orientations = {
+            (
+                int(record.get("item_index", -1)),
+                int(record.get("orientation", -1)),
+            )
+            for record in selected
+        }
+
+        def priority(record: dict[str, Any]) -> tuple[Any, ...]:
+            item = int(record.get("item_index", -1))
+            item_orientation = (
+                item,
+                int(record.get("orientation", -1)),
+            )
+            minimum_distance = min(
+                residual_proxy_distance(record, chosen, ranges=ranges)
+                for chosen in selected
+            )
+            return (
+                -(item not in selected_items),
+                -(item_orientation not in selected_orientations),
+                -minimum_distance,
+                -float(record.get("score", 0.0)),
+                candidate_key(record),
+            )
+
+        chosen = min(remaining, key=priority)
+        selected.append(chosen)
+        remaining.remove(chosen)
+
+    for record in selected:
+        key = candidate_key(record)
+        record["sampling"] = {
+            "design": (
+                "deterministic_item_coverage_then_residual_maximin"
+            ),
+            "stratum_key": record.get("stratum_key"),
+            "stratum_size": len(records),
+            "stratum_sampled": len(selected),
+            "inclusion_probability": None,
+            "sampling_weight": None,
+            "forced": key in forced_keys,
+            "forced_reason": forced_keys.get(key),
+        }
+        record["residual_proxy"] = residual_proxy_features(record)
+    return selected
+
+
+def constrained_residual_diversity_sample(
+    records: list[dict[str, Any]],
+    *,
+    per_stratum: int,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Apply item-aware residual coverage inside every existing stratum."""
+    if not isinstance(forced_keys, dict):
+        forced_keys = {key: "selected_action" for key in forced_keys}
+    groups: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    for record in records:
+        groups[record["stratum_key"]].append(record)
+
+    sampled: list[dict[str, Any]] = []
+    table: list[dict[str, Any]] = []
+    for stratum_key in sorted(groups):
+        group = groups[stratum_key]
+        selected = constrained_residual_sample(
+            group,
+            quota=per_stratum,
+            forced_keys=forced_keys,
+        )
+        sampled.extend(selected)
+        table.append(
+            {
+                "stratum_key": stratum_key,
+                "stratum": group[0]["stratum"],
+                "population": len(group),
+                "forced": sum(
+                    candidate_key(record) in forced_keys for record in group
+                ),
+                "sampled": len(selected),
+                "inclusion_probability": None,
+                "design": (
+                    "deterministic_item_coverage_then_residual_maximin"
+                ),
+            }
+        )
+    return sampled, table

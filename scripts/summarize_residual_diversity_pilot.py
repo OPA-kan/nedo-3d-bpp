@@ -55,6 +55,10 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
                 "physical_spatial_cells_delta": _delta(
                     physical, "spatial_cell_count"
                 ),
+                "unique_items_delta": _delta(physical, "unique_items"),
+                "unique_item_orientations_delta": _delta(
+                    physical, "unique_item_orientations"
+                ),
                 "settled_delta": _delta(physical, "settled"),
                 "placed_safe_delta": _delta(physical, "placed_safe"),
                 "proxy": proxy,
@@ -67,8 +71,30 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
         for row in rows
         if row["physical_nn_distance_delta"] is not None
     ]
+    guards = {
+        "physical_nn_distance": all(
+            (row["physical_nn_distance_delta"] or 0.0) > 0.0
+            for row in rows
+        ),
+        "unique_items": all(
+            row["unique_items_delta"] is not None
+            and row["unique_items_delta"] >= 0
+            for row in rows
+        ),
+        "unique_item_orientations": all(
+            row["unique_item_orientations_delta"] is not None
+            and row["unique_item_orientations_delta"] >= 0
+            for row in rows
+        ),
+        "placed_safe": all(
+            row["placed_safe_delta"] is not None
+            and row["placed_safe_delta"] >= 0
+            for row in rows
+        ),
+    }
     return {
         "dataset_id": payload.get("dataset_id"),
+        "sampling_mode": payload.get("sampling_mode"),
         "status": "complete",
         "steps_measured": len(rows),
         "steps_with_proxy_gain": sum(
@@ -83,6 +109,18 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
             if physical_deltas
             else None
         ),
+        "acceptance": {
+            "verdict": "pass" if all(guards.values()) else "fail",
+            "guards": guards,
+            "failed_guards": [
+                name for name, passed in guards.items() if not passed
+            ],
+            "contract": (
+                "Every measured step must improve physical NN distance and "
+                "must not reduce unique items, unique item-orientations, or "
+                "placed-safe replay count versus the paired random control."
+            ),
+        },
         "steps": rows,
         "interpretation_contract": (
             "Positive physical distance delta means the sampled observed "
@@ -97,6 +135,7 @@ def markdown(summary: dict[str, Any]) -> str:
         "# Residual-state diversity physical pilot",
         "",
         f"- Dataset: `{summary.get('dataset_id')}`",
+        f"- Sampling mode: `{summary.get('sampling_mode')}`",
         f"- Steps measured: {summary['steps_measured']}",
         (
             "- Steps with positive proxy/physical NN-distance delta: "
@@ -107,16 +146,19 @@ def markdown(summary: dict[str, Any]) -> str:
             "- Mean physical NN-distance delta: "
             f"{summary['mean_physical_nn_distance_delta']}"
         ),
+        f"- Acceptance verdict: **{summary['acceptance']['verdict']}**",
+        f"- Failed guards: {summary['acceptance']['failed_guards']}",
         "",
         "| step | population | replayed | proxy ΔNN | physical ΔNN | "
-        "physical Δcells | Δsettled | Δsafe |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "physical Δcells | Δitems | Δitem-pose | Δsettled | Δsafe |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in summary["steps"]:
         lines.append(
             "| {step} | {population} | {unique_replayed} | "
             "{proxy_nn_distance_delta} | {physical_nn_distance_delta} | "
-            "{physical_spatial_cells_delta} | {settled_delta} | "
+            "{physical_spatial_cells_delta} | {unique_items_delta} | "
+            "{unique_item_orientations_delta} | {settled_delta} | "
             "{placed_safe_delta} |".format(**row)
         )
     lines.extend(["", summary["interpretation_contract"], ""])

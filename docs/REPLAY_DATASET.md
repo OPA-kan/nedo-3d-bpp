@@ -99,6 +99,7 @@ step は `status: selection_mismatch` になり、run 全体が `incomplete` と
 |---|---|---|
 | `stratified_random`（既定） | gate候補母集団の率・混同行列推定 | あり |
 | `residual_diversity` | 異なる候補後状態を学習データへ入れる | **なし** |
+| `residual_diversity_constrained` | item被覆を守って残余状態を分散 | **なし** |
 
 ### `stratified_random`
 
@@ -160,6 +161,22 @@ settle tilt角から計算した差を
 
 ここで正の距離差が意味するのは「観測settle後状態のsampleがより散っている」ことだけ。
 live方策、placed、fill、公式scoreの改善を意味しない。
+
+### `residual_diversity_constrained`
+
+v1の物理pilotではsettle後状態の距離は広がったが、unique item / item-orientationと
+終盤のplaced-safe件数が減った。v2は同じ `kind × gate × score_band` 層を保ち、
+各層内を次の辞書式で選ぶ。
+
+1. 未選択item
+2. 未選択item-orientation
+3. 選択済み集合への最小residual-proxy距離
+4. 現行score
+
+これは新しい安全推定器ではない。安全性は同一snapshotからの公式PyBullet replayで
+独立に測り、全対象stepでrandom controlに対する `placed_safe` 差が非負であることを
+採用条件にする。確率標本でもないため、`inclusion_probability` と
+`sampling_weight` は引き続き `null` である。
 
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの
