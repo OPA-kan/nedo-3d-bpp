@@ -2,7 +2,7 @@
   "version": 1,
   "contract": {
     "purpose": "Canonical registry of every environment knob agent/agent.py reads. One source, so the fingerprint's component list, the axis registry and the documentation cannot drift apart -- they did: the fingerprint tracked 26 of 47 knobs and four of those names did not exist, so a merge that added three knobs passed it unchanged.",
-    "rule": "semantic=true means the knob can change what the agent does, so it belongs in the optimizer fingerprint. semantic=false is diagnostics/telemetry only. A knob absent from this file fails tests/test_knob_registry.py -- adding an env read to agent.py requires registering it here and deciding its axis.",
+    "rule": "semantic=true means the knob can change what the agent does. Such knobs belong in the Task A optimizer fingerprint unless offline_optimizer=false explicitly records that the offline proposal oracle cannot reach them. semantic=false is diagnostics/telemetry only. A knob absent from this file fails tests/test_knob_registry.py -- adding an env read to agent.py requires registering it here and deciding its axis and offline reachability.",
     "projection_warning": "A fingerprint sees only P(Theta), the registered projection. P(Theta)=P(Theta') does not imply Theta=Theta'. This registry is what keeps the projection total over env knobs; it does NOT cover source literals such as the Ranker weights, which remain unregistered because they are not settable."
   },
   "knobs": {
@@ -164,7 +164,8 @@
     },
     "MULTI_AXIS_SELECTOR_MODE": {
       "axis": "candidate_rank",
-      "semantic": true
+      "semantic": true,
+      "offline_optimizer": false
     },
     "POLICY_ATTEMPT_BUDGET": {
       "axis": "timing",

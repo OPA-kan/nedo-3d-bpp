@@ -111,7 +111,7 @@ def component_names(path: pathlib.Path = KNOBS_PATH) -> list[str]:
         registry = json.load(handle)
     names = [
         name for name, spec in registry["knobs"].items()
-        if spec.get("semantic")
+        if spec.get("semantic") and spec.get("offline_optimizer", True)
     ]
     return sorted(set(names) | set(UNSETTABLE_COMPONENTS))
 

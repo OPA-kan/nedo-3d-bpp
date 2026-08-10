@@ -57,17 +57,30 @@ class KnobRegistryTests(unittest.TestCase):
             f"longer reads",
         )
 
-    def test_every_semantic_knob_reaches_the_fingerprint(self) -> None:
+    def test_every_offline_semantic_knob_reaches_the_fingerprint(self) -> None:
         tracked = set(fingerprint_optimizer.component_names())
-        semantic = {
-            name for name, spec in self.knobs.items() if spec["semantic"]
+        offline_semantic = {
+            name for name, spec in self.knobs.items()
+            if spec["semantic"] and spec.get("offline_optimizer", True)
         }
         self.assertEqual(
-            semantic - tracked,
+            offline_semantic - tracked,
             set(),
-            "a semantic knob is not in the fingerprint's projection, so a "
-            "change to it would not move component_sha256",
+            "an offline semantic knob is not in the Task A fingerprint's "
+            "projection, so a change to it would not move component_sha256",
         )
+
+    def test_online_only_semantic_knobs_are_explicitly_excluded(self) -> None:
+        online_only = {
+            name for name, spec in self.knobs.items()
+            if spec["semantic"] and spec.get("offline_optimizer") is False
+        }
+        self.assertTrue(
+            online_only,
+            "expected at least one explicit online-only semantic knob",
+        )
+        tracked = set(fingerprint_optimizer.component_names())
+        self.assertEqual(online_only & tracked, set())
 
     def test_diagnostic_knobs_are_excluded_deliberately(self) -> None:
         diagnostic = {
