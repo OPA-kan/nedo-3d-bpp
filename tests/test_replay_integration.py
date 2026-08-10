@@ -247,12 +247,7 @@ class ReplayTrajectoryTests(unittest.TestCase):
             env.close()
         return actions
 
-    def test_replaying_candidates_does_not_change_the_actions_taken(
-        self,
-    ) -> None:
-        control = self.run_episode(with_replay=False)
-        replayed = self.run_episode(with_replay=True)
-
+    def assert_actions_equivalent(self, control, replayed) -> None:
         self.assertTrue(control, "control episode produced no actions")
         self.assertEqual(len(control), len(replayed))
         for index, (expected, actual) in enumerate(zip(control, replayed)):
@@ -272,6 +267,14 @@ class ReplayTrajectoryTests(unittest.TestCase):
                     msg=f"step {index} place_pos[{axis}] differs",
                 )
 
+    def test_replaying_candidates_does_not_change_the_actions_taken(
+        self,
+    ) -> None:
+        control = self.run_episode(with_replay=False)
+        replayed = self.run_episode(with_replay=True)
+
+        self.assert_actions_equivalent(control, replayed)
+
     def test_paired_diversity_replay_does_not_change_actions_taken(self):
         control = self.run_episode(with_replay=False)
         replayed = self.run_episode(
@@ -279,7 +282,7 @@ class ReplayTrajectoryTests(unittest.TestCase):
             sampling_mode="residual_diversity",
         )
 
-        self.assertEqual(control, replayed)
+        self.assert_actions_equivalent(control, replayed)
 
 
 if __name__ == "__main__":
