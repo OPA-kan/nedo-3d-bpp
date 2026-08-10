@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "runs": 1,
+  "distinct_states": 11,
+  "distinct_cases": 4,
+  "rows_all_runs": {
+    "positive_transition": 231,
+    "negative_physical_risk": 87,
+    "paired_random_control": 231
+  },
+  "by_arm": {
+    "64": {
+      "rows": {
+        "positive_transition": 231,
+        "negative_physical_risk": 87,
+        "paired_random_control": 231
+      },
+      "distinct_states": 11
+    }
+  },
+  "states": [
+    ":003",
+    ":009",
+    "m-dual-empty:003",
+    "m-dual-empty:009",
+    "m-dual-empty:015",
+    "m-dual-shelf-mixed:003",
+    "m-dual-shelf-mixed:009",
+    "m-dual-shelf-mixed:015",
+    "m-single-empty-shelf:003",
+    "m-single-empty-shelf:009",
+    "m-single-empty-shelf:015"
+  ],
+  "run_index": [
+    {
+      "run_id": "31391424126",
+      "verdict": null,
+      "observed_swap_rounds": 64,
+      "uniform_arm": true,
+      "scenarios": 4,
+      "states": 11,
+      "rows": {
+        "positive_transition": 231,
+        "negative_physical_risk": 87,
+        "paired_random_control": 231
+      },
+      "datasets": [
+        {
+          "case_id": "m-dual-empty",
+          "dataset_id": "20260810_130934-m-dual-empty-weighted-class_aware-shadow-5ccb4948-9f4aa8d46cbc",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            3,
+            9,
+            15
+          ],
+          "snapshots": 3,
+          "rows": {
+            "positive_transition": 56,
+            "negative_physical_risk": 16,
+            "paired_random_control": 56
+          },
+          "path": "reports/residual-diversity-scale/history/31391424126/dataset/dual-empty"
+        },
+        {
+          "case_id": "m-dual-shelf-mixed",
+          "dataset_id": "20260810_130935-m-dual-shelf-mixed-weighted-class_aware-shadow-2b80b586-6f6425e6f153",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            3,
+            9,
+            15
+          ],
+          "snapshots": 3,
+          "rows": {
+            "positive_transition": 73,
+            "negative_physical_risk": 12,
+            "paired_random_control": 73
+          },
+          "path": "reports/residual-diversity-scale/history/31391424126/dataset/dual-shelf-mixed"
+        },
+        {
+          "case_id": "",
+          "dataset_id": "20260810_130932-m-single-empty-noshelf-weighted-class_aware-shadow-348ede4d-bcd125cbc19a",
+          "status": "running",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            3,
+            9
+          ],
+          "snapshots": 3,
+          "rows": {
+            "positive_transition": 51,
+            "negative_physical_risk": 26,
+            "paired_random_control": 51
+          },
+          "path": "reports/residual-diversity-scale/history/31391424126/dataset/single-empty-noshelf"
+        },
+        {
+          "case_id": "m-single-empty-shelf",
+          "dataset_id": "20260810_130932-m-single-empty-shelf-weighted-class_aware-shadow-bb0d9517-098b0d8bc5ae",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            3,
+            9,
+            15
+          ],
+          "snapshots": 3,
+          "rows": {
+            "positive_transition": 51,
+            "negative_physical_risk": 33,
+            "paired_random_control": 51
+          },
+          "path": "reports/residual-diversity-scale/history/31391424126/dataset/single-empty-shelf"
+        }
+      ]
+    }
+  ],
+  "contract": "Rows accumulate across runs but distinct states do not: the matrix re-measures the same (case, step) pairs. Rows inside one state share a parent state and are not independent examples. Arms are not merged."
+}
