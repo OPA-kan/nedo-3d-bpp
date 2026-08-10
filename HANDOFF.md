@@ -148,6 +148,24 @@ and SHA-256. Do not reuse hashes in old prose.
 - Elevated connected support cannot grow under the current candidate set in
   the measured states. A naive “reward support creation” term is closed.
 
+### Residual-state learning data
+
+- A first offline-only residual-state maximin sampler and paired PyBullet
+  measurement path exist on `experiment/residual-diversity-dataset`; they do
+  not change the live policy or Ranker.
+- Run `31367396930` compared maximin and stratified-random portfolios from the
+  same b000-k20 snapshots at steps 3, 6 and 9. Mean observed settle-afterstate
+  nearest-neighbour distance improved at all three steps (+0.022704, +0.019394,
+  +0.008419; mean +0.016839), so the proxy does transfer to physical dispersion.
+- This is not yet a usable training distribution. Unique item coverage changed
+  by -2/-1/-1, item-orientation coverage by -1/-1/0, step 3 lost two physical
+  spatial cells, and step 9 had two fewer placed-safe candidates. Unconstrained
+  maximin is therefore a measured trade: farther states, narrower semantic
+  support, and a late-step safety cost.
+- The next sampler must guarantee item and item-orientation coverage first,
+  keep physical safety separate, and only then maximize residual distance.
+  Do not train a Transformer or claim live-policy benefit from this pilot.
+
 ### Local score proxies
 
 - Fill and placed are the bundled evaluator outputs.
@@ -194,6 +212,9 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
+- Whether constrained residual diversity (item/orientation coverage plus a
+  safety floor) can retain the measured settle-state dispersion. The first
+  unconstrained maximin sampler is not adopted for training.
 
 ## Branch disposition
 
@@ -212,6 +233,10 @@ branches are retained as evidence, not as competing trunks.
   entry aimed at MC v1; MC v1/v2 was later closed, so no merge is needed.
 - `experiment/task-a-rollout-transfer`: preserved Codex result/history branch;
   its accepted implementation and compact report are already on live trunk.
+- `experiment/residual-diversity-dataset`: active offline dataset experiment.
+  Run `31367396930` is positive for physical dispersion but negative for
+  semantic item coverage and late-step safety; do not merge as a finished
+  training pipeline.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 

@@ -1512,6 +1512,25 @@
         "shadow_soft_clean": 0.981,
         "adopted": false
       }
+    },
+    {
+      "id": "residual-diversity-maximin-disperses-but-narrows-item-support",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The first residual-state maximin sampler is a positive result for geometric dispersion but is not yet an admissible training-data sampler. In a same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, its mean observed settle-afterstate nearest-neighbour distance exceeded stratified random at all three steps by 0.022704, 0.019394 and 0.008419 (mean +0.016839). The proxy distance was also positive at all three steps. However, unique item coverage fell by 2, 1 and 1; item-orientation coverage fell by 1, 1 and 0; step 3 lost two spatial cells; and step 9 produced two fewer placed-safe replays. Therefore the descriptor can create farther-apart states, but unconstrained maximin trades away semantic item coverage and some safety. Do not train or adopt from this portfolio yet. The next sampler must guarantee item/item-orientation coverage and treat physical safety as a separate constraint before maximizing residual distance.",
+      "source": "reports/residual-diversity/history/31367396930/summary.json; Actions run 31367396930; experiment/residual-diversity-dataset commit a884677",
+      "values": {
+        "steps": [3, 6, 9],
+        "proxy_gain_steps": 3,
+        "physical_gain_steps": 3,
+        "mean_physical_nn_distance_delta": 0.016838857600610102,
+        "unique_item_deltas": [-2, -1, -1],
+        "unique_item_orientation_deltas": [-1, -1, 0],
+        "physical_spatial_cell_deltas": [-2, 1, 1],
+        "placed_safe_deltas": [0, 0, -2],
+        "adopted_for_training": false
+      }
     }
   ]
 }
