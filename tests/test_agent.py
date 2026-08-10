@@ -1282,6 +1282,149 @@ class RankingPipelineContractTests(unittest.TestCase):
             decision.evaluation.provenance, "placement_core_retained"
         )
 
+    def test_multi_axis_dominance_uses_rule_and_physical_axes_not_com(self):
+        baseline = {
+            "priority_cover_violations": 1,
+            "soft_cover_violations": 0,
+            "priority_routing_violation": 0,
+            "rotation_probability": 0.4,
+            "slide_probability": 0.2,
+            "support_ratio": 0.5,
+            "support_center_margin": 0.0,
+            "predicted_com_z": 0.4,
+        }
+        better = dict(
+            baseline,
+            priority_cover_violations=0,
+            rotation_probability=0.3,
+            predicted_com_z=0.9,
+        )
+        self.assertTrue(agent.multi_axis_dominates(better, baseline))
+        self.assertFalse(agent.multi_axis_dominates(baseline, better))
+
+    def test_multi_axis_shadow_proposes_best_score_on_pareto_front(self):
+        decisions = [object(), object(), object()]
+        records = [
+            {
+                "rank": 0,
+                "item_index": 10,
+                "adjusted_score": 5.0,
+                "priority_cover_violations": 1,
+                "soft_cover_violations": 0,
+                "priority_routing_violation": 0,
+                "rotation_probability": 0.4,
+                "slide_probability": 0.2,
+                "support_ratio": 0.5,
+                "support_center_margin": 0.0,
+            },
+            {
+                "rank": 1,
+                "item_index": 11,
+                "adjusted_score": 4.0,
+                "priority_cover_violations": 0,
+                "soft_cover_violations": 0,
+                "priority_routing_violation": 0,
+                "rotation_probability": 0.3,
+                "slide_probability": 0.2,
+                "support_ratio": 0.5,
+                "support_center_margin": 0.0,
+            },
+            {
+                "rank": 2,
+                "item_index": 12,
+                "adjusted_score": 3.0,
+                "priority_cover_violations": 0,
+                "soft_cover_violations": 0,
+                "priority_routing_violation": 0,
+                "rotation_probability": 0.3,
+                "slide_probability": 0.2,
+                "support_ratio": 0.6,
+                "support_center_margin": 0.0,
+            },
+        ]
+        with mock.patch.object(
+            agent,
+            "multi_axis_candidate_record",
+            side_effect=records,
+        ):
+            record = agent.multi_axis_shadow_record(decisions, {})
+
+        self.assertTrue(record["baseline_dominated"])
+        self.assertEqual(record["proposed_rank"], 2)
+        self.assertTrue(record["would_change_action"])
+        self.assertTrue(record["would_change_item"])
+        self.assertEqual(record["pareto_front_size"], 1)
+
+    def test_candidate_attribute_violations_match_incremental_rule(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True, is_prioritized=True),
+                pos=[0.0, 0.0, 0.1],
+                orientation=0,
+            )
+        ]
+        candidate = agent.AABB(
+            (0.0, 0.0, 0.3), (0.3, 0.25, 0.2), "candidate"
+        )
+        plain = sample_item(2)
+        priority, soft = agent.candidate_attribute_violations(
+            plain, candidate, container
+        )
+        self.assertEqual((priority, soft), (1, 1))
+
+    def test_multi_axis_shadow_records_proposal_without_changing_choice(self):
+        items = [sample_item(1), sample_item(2)]
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        observation = {
+            "pool_list": items,
+            "container_list": [container],
+        }
+        top = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": index,
+                    "container_idx": 0,
+                    "place_pos": np.zeros(3, dtype=np.float32),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.0, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=float(2 - index),
+            )
+            for index in range(2)
+        ]
+        shadow = {"would_change_action": True, "proposed_rank": 1}
+        solver = agent.Agent("")
+        with (
+            mock.patch.object(
+                agent.PlacementCore, "top_candidates", return_value=top
+            ),
+            mock.patch.object(
+                agent,
+                "multi_axis_shadow_record",
+                return_value=shadow,
+            ) as shadow_record,
+            mock.patch.object(agent, "MULTI_AXIS_SELECTOR_MODE", "shadow"),
+        ):
+            selected = solver._closed_loop_choice(
+                observation,
+                items,
+                list(enumerate(items)),
+                deadline=time.perf_counter(),
+            )
+
+        self.assertIs(selected, top[0])
+        self.assertEqual(solver.last_multi_axis_shadow, shadow)
+        shadow_record.assert_called_once_with(top, observation)
+
     def test_closed_loop_threads_structured_noop_into_top_candidates(self):
         item = sample_item(8)
         container = sample_container(

@@ -89,6 +89,7 @@ def configure_arm_environment(
         "TEMPORAL_CHUNK_STRIDE",
         "TEMPORAL_CHUNK_CELL_SIZE",
         "PLACEMENT_SELECTOR_MODE",
+        "MULTI_AXIS_SELECTOR_MODE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -134,6 +135,7 @@ def configure_arm_environment(
         "first_pass256",
         "structured_noop",
         "structured_retained",
+        "multi_axis_shadow",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -161,6 +163,11 @@ def configure_arm_environment(
             # Preserve the scalar generator/ranker hot path and materialize
             # named terms only for decisions retained by final selection.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
+        elif arm == "multi_axis_shadow":
+            # Measure a Pareto proposal over the retained Top-K without
+            # changing the action selected by the current policy.
+            env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
+            env["MULTI_AXIS_SELECTOR_MODE"] = "shadow"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the
@@ -494,6 +501,13 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "rollout_by_step": {},
         "rollout_seconds_total": 0.0,
         "rollout_seconds_max": 0.0,
+        "multi_axis_observed_steps": 0,
+        "multi_axis_multi_candidate_steps": 0,
+        "multi_axis_baseline_dominated_count": 0,
+        "multi_axis_would_change_action_count": 0,
+        "multi_axis_would_change_item_count": 0,
+        "multi_axis_candidate_count": 0,
+        "multi_axis_pareto_front_count": 0,
     }
     if not path.exists():
         return summary
@@ -766,6 +780,32 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 step_bucket["seconds_max"] = max(
                     step_bucket["seconds_max"], elapsed
                 )
+            multi_axis = (
+                diagnostics.get("multi_axis_selector")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(multi_axis, dict):
+                summary["multi_axis_observed_steps"] += 1
+                candidate_count = int(
+                    multi_axis.get("candidate_count", 0)
+                )
+                summary["multi_axis_candidate_count"] += candidate_count
+                summary["multi_axis_pareto_front_count"] += int(
+                    multi_axis.get("pareto_front_size", 0)
+                )
+                summary["multi_axis_multi_candidate_steps"] += int(
+                    candidate_count > 1
+                )
+                summary["multi_axis_baseline_dominated_count"] += int(
+                    multi_axis.get("baseline_dominated") is True
+                )
+                summary["multi_axis_would_change_action_count"] += int(
+                    multi_axis.get("would_change_action") is True
+                )
+                summary["multi_axis_would_change_item_count"] += int(
+                    multi_axis.get("would_change_item") is True
+                )
     return summary
 
 
@@ -913,6 +953,13 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "rollout_by_step": {},
                     "rollout_seconds_total": 0.0,
                     "rollout_seconds_max": 0.0,
+                    "multi_axis_observed_steps": 0,
+                    "multi_axis_multi_candidate_steps": 0,
+                    "multi_axis_baseline_dominated_count": 0,
+                    "multi_axis_would_change_action_count": 0,
+                    "multi_axis_would_change_item_count": 0,
+                    "multi_axis_candidate_count": 0,
+                    "multi_axis_pareto_front_count": 0,
                 },
             )
             trace_bucket["episodes"] += 1
@@ -929,6 +976,16 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             trace_bucket["structured_evaluation_count"] += int(
                 trace.get("structured_evaluation_count", 0)
             )
+            for name in (
+                "multi_axis_observed_steps",
+                "multi_axis_multi_candidate_steps",
+                "multi_axis_baseline_dominated_count",
+                "multi_axis_would_change_action_count",
+                "multi_axis_would_change_item_count",
+                "multi_axis_candidate_count",
+                "multi_axis_pareto_front_count",
+            ):
+                trace_bucket[name] += int(trace.get(name, 0))
             trace_bucket["observed_steps"] += int(
                 trace.get("cross_step_observed_steps", 0)
             )
@@ -1243,6 +1300,36 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     3,
                 )
                 if bucket["decision_count"]
+                else None
+            ),
+            "multi_axis_observed_steps": int(
+                bucket["multi_axis_observed_steps"]
+            ),
+            "multi_axis_multi_candidate_steps": int(
+                bucket["multi_axis_multi_candidate_steps"]
+            ),
+            "multi_axis_baseline_dominated_count": int(
+                bucket["multi_axis_baseline_dominated_count"]
+            ),
+            "multi_axis_would_change_action_count": int(
+                bucket["multi_axis_would_change_action_count"]
+            ),
+            "multi_axis_would_change_item_count": int(
+                bucket["multi_axis_would_change_item_count"]
+            ),
+            "multi_axis_candidate_count": int(
+                bucket["multi_axis_candidate_count"]
+            ),
+            "multi_axis_pareto_front_count": int(
+                bucket["multi_axis_pareto_front_count"]
+            ),
+            "multi_axis_change_rate": (
+                round(
+                    bucket["multi_axis_would_change_action_count"]
+                    / bucket["multi_axis_multi_candidate_steps"],
+                    6,
+                )
+                if bucket["multi_axis_multi_candidate_steps"]
                 else None
             ),
             "observed_steps": observed_steps,
@@ -1713,6 +1800,25 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['rollout_enforced_count']} "
                 f"| {trace['rollout_ms_per_observed_step']} "
                 f"| {trace['rollout_seconds_max']} |"
+            )
+        lines += [
+            "",
+            "## Multi-axis selector shadow",
+            "",
+            "| arm | observed | multi-candidate | candidates | Pareto front "
+            "| baseline dominated | action changes | item changes | change rate |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['multi_axis_observed_steps']} "
+                f"| {trace['multi_axis_multi_candidate_steps']} "
+                f"| {trace['multi_axis_candidate_count']} "
+                f"| {trace['multi_axis_pareto_front_count']} "
+                f"| {trace['multi_axis_baseline_dominated_count']} "
+                f"| {trace['multi_axis_would_change_action_count']} "
+                f"| {trace['multi_axis_would_change_item_count']} "
+                f"| {trace['multi_axis_change_rate']} |"
             )
         lines += [
             "",

@@ -224,6 +224,17 @@ class SummarizeTests(unittest.TestCase):
 
 
 class ArmEnvironmentTests(unittest.TestCase):
+    def test_multi_axis_shadow_uses_retained_portfolio_without_enforce(self):
+        env = {
+            "PLACEMENT_SELECTOR_MODE": "stale",
+            "MULTI_AXIS_SELECTOR_MODE": "stale",
+        }
+
+        configure_arm_environment(env, "multi_axis_shadow", 2.0, 0.0)
+
+        self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
+        self.assertEqual(env["MULTI_AXIS_SELECTOR_MODE"], "shadow")
+
     def test_structured_noop_is_baseline_plus_selector_mode(self):
         env = {"PLACEMENT_SELECTOR_MODE": "stale"}
 
@@ -648,8 +659,41 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "rollout_by_step": {},
                 "rollout_seconds_total": 0.0,
                 "rollout_seconds_max": 0.0,
+                "multi_axis_observed_steps": 0,
+                "multi_axis_multi_candidate_steps": 0,
+                "multi_axis_baseline_dominated_count": 0,
+                "multi_axis_would_change_action_count": 0,
+                "multi_axis_would_change_item_count": 0,
+                "multi_axis_candidate_count": 0,
+                "multi_axis_pareto_front_count": 0,
             },
         )
+
+    def test_multi_axis_shadow_summary_counts_proposals(self):
+        record = {
+            "event": "decision",
+            "candidate_diagnostics": {
+                "multi_axis_selector": {
+                    "candidate_count": 3,
+                    "pareto_front_size": 2,
+                    "baseline_dominated": True,
+                    "would_change_action": True,
+                    "would_change_item": False,
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["multi_axis_observed_steps"], 1)
+        self.assertEqual(summary["multi_axis_multi_candidate_steps"], 1)
+        self.assertEqual(summary["multi_axis_candidate_count"], 3)
+        self.assertEqual(summary["multi_axis_pareto_front_count"], 2)
+        self.assertEqual(summary["multi_axis_baseline_dominated_count"], 1)
+        self.assertEqual(summary["multi_axis_would_change_action_count"], 1)
+        self.assertEqual(summary["multi_axis_would_change_item_count"], 0)
 
     def test_temporal_chunk_summary_counts_delay_consensus_and_cost(self):
         record = {

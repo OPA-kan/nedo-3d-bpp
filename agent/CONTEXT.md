@@ -162,6 +162,12 @@
   settled-first rule through the rich path. It is a physical negative control,
   not a new ranking policy; its full-vector protocol is in
   `docs/STRUCTURED_SELECTOR_EXPERIMENT.md`.
+- `structured_retained` leaves candidate scanning scalar and enriches only
+  the retained decision/Top-K. `MULTI_AXIS_SELECTOR_MODE=shadow` consumes that
+  portfolio once, records separate rule, risk, support and predicted-CoM axes,
+  and proposes a Pareto-front candidate without changing the executed action.
+  CoM is telemetry-only until its official direction is resolved; no local
+  weighted total is constructed. See `docs/MULTI_AXIS_SELECTOR.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

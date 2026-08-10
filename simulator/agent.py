@@ -254,6 +254,15 @@ if PLACEMENT_SELECTOR_MODE not in PLACEMENT_SELECTOR_MODES:
         f"unknown PLACEMENT_SELECTOR_MODE {PLACEMENT_SELECTOR_MODE!r}; "
         f"expected one of {sorted(PLACEMENT_SELECTOR_MODES)}"
     )
+MULTI_AXIS_SELECTOR_MODES = frozenset({"off", "shadow"})
+MULTI_AXIS_SELECTOR_MODE = os.environ.get(
+    "MULTI_AXIS_SELECTOR_MODE", "off"
+).strip().lower()
+if MULTI_AXIS_SELECTOR_MODE not in MULTI_AXIS_SELECTOR_MODES:
+    raise ValueError(
+        f"unknown MULTI_AXIS_SELECTOR_MODE {MULTI_AXIS_SELECTOR_MODE!r}; "
+        f"expected one of {sorted(MULTI_AXIS_SELECTOR_MODES)}"
+    )
 ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
 ITEM_COVERAGE_MODE = os.environ.get(
     "ITEM_COVERAGE_MODE", "class_aware"
@@ -4369,6 +4378,167 @@ def placement_evaluation_record(decision):
     }
 
 
+def predicted_center_of_mass_z(observation, item, candidate, container):
+    """Mass-weighted world-z after a static predicted-contact placement."""
+    weighted_z = 0.0
+    total_mass = 0.0
+    for existing_container in observation.get("container_list", []):
+        for packed in existing_container.get("packed_items", []):
+            try:
+                mass = max(EPS, float(packed.get("mass", 1.0)))
+                world_z = float(packed_position_world(packed)[2])
+            except (KeyError, TypeError, ValueError):
+                continue
+            weighted_z += mass * world_z
+            total_mass += mass
+    mass = max(EPS, float(item.get("mass", 1.0)))
+    world_z = float(local_to_world(candidate.center, container)[2])
+    weighted_z += mass * world_z
+    total_mass += mass
+    return weighted_z / total_mass if total_mass > EPS else 0.0
+
+
+def candidate_attribute_violations(item, candidate, container):
+    """Incremental rule-proxy violations caused by placing one candidate."""
+    priority = 0
+    soft = 0
+    bottom = float(candidate.minimum[2])
+    for lower, is_soft, is_priority in packed_aabbs_local(container):
+        if abs(bottom - float(lower.top)) > CONTACT_TOLERANCE:
+            continue
+        if xy_overlap_area(candidate, lower) <= EPS:
+            continue
+        if is_priority and not bool(item.get("is_prioritized", False)):
+            priority += 1
+        if is_soft and not bool(item.get("is_soft", False)):
+            soft += 1
+    return priority, soft
+
+
+def multi_axis_candidate_record(decision, observation, rank):
+    """Separate official-proxy axes for one retained placement candidate."""
+    pool_index = int(decision.action["item_idx"])
+    container_index = int(decision.action["container_idx"])
+    item = observation["pool_list"][pool_index]
+    container = observation["container_list"][container_index]
+    contact = settled_proxy_candidate(decision.candidate, container)
+    support = Geometry.support_metrics(contact, container, item)
+    priority_cover, soft_cover = candidate_attribute_violations(
+        item, contact, container
+    )
+    has_priority_container = any(
+        bool(current.get("is_prioritized", False))
+        for current in observation.get("container_list", [])
+    )
+    priority_routing = int(
+        bool(item.get("is_prioritized", False))
+        and has_priority_container
+        and not bool(container.get("is_prioritized", False))
+    )
+    evaluation = decision.evaluation
+    risk = evaluation.risk if evaluation is not None else None
+    p_rot = (
+        0.0
+        if risk is None or risk.rotation_probability is None
+        else float(risk.rotation_probability)
+    )
+    p_slide = (
+        0.0
+        if risk is None or risk.slide_probability is None
+        else float(risk.slide_probability)
+    )
+    return {
+        "rank": int(rank),
+        "pool_index": pool_index,
+        "item_index": int(item.get("index", pool_index)),
+        "container_index": container_index,
+        "orientation": int(decision.action["orientation"]),
+        "command_mode": (
+            "release"
+            if decision.candidate.name == "release_candidate"
+            else "settled"
+        ),
+        "priority_cover_violations": int(priority_cover),
+        "soft_cover_violations": int(soft_cover),
+        "priority_routing_violation": int(priority_routing),
+        "rotation_probability": p_rot,
+        "slide_probability": p_slide,
+        "support_ratio": float(support.ratio),
+        "support_center_margin": float(support.center_margin),
+        "predicted_com_z": float(
+            predicted_center_of_mass_z(
+                observation, item, contact, container
+            )
+        ),
+        "immediate_score": (
+            float(evaluation.immediate.total)
+            if evaluation is not None
+            else float(decision.score)
+        ),
+        "adjusted_score": float(decision.score),
+    }
+
+
+def multi_axis_dominates(first, second):
+    """True when first is no worse on every trusted physical/rule axis."""
+    minimize = (
+        "priority_cover_violations",
+        "soft_cover_violations",
+        "priority_routing_violation",
+        "rotation_probability",
+        "slide_probability",
+    )
+    maximize = ("support_ratio", "support_center_margin")
+    no_worse = all(first[key] <= second[key] for key in minimize) and all(
+        first[key] >= second[key] for key in maximize
+    )
+    strictly_better = any(
+        first[key] < second[key] for key in minimize
+    ) or any(first[key] > second[key] for key in maximize)
+    return bool(no_worse and strictly_better)
+
+
+def multi_axis_shadow_record(top, observation):
+    """Pareto proposal over retained Top-K; never changes the live action."""
+    records = [
+        multi_axis_candidate_record(decision, observation, rank)
+        for rank, decision in enumerate(top)
+    ]
+    if not records:
+        return None
+    front = [
+        candidate
+        for candidate in records
+        if not any(
+            other is not candidate
+            and multi_axis_dominates(other, candidate)
+            for other in records
+        )
+    ]
+    proposed = max(front, key=lambda candidate: candidate["adjusted_score"])
+    baseline = records[0]
+    return {
+        "schema_version": 1,
+        "mode": "shadow",
+        "scope": "immediate_retained_top_k",
+        "selection_rule": "pareto_then_adjusted_score",
+        "predicted_com_role": "telemetry_only",
+        "candidate_count": len(records),
+        "pareto_front_size": len(front),
+        "baseline_rank": int(baseline["rank"]),
+        "proposed_rank": int(proposed["rank"]),
+        "baseline_dominated": any(
+            multi_axis_dominates(other, baseline)
+            for other in records[1:]
+        ),
+        "would_change_action": proposed["rank"] != baseline["rank"],
+        "would_change_item": (
+            proposed["item_index"] != baseline["item_index"]
+        ),
+        "candidates": records,
+    }
+
+
 def action_for_execution(decision):
     """Convert the selected decision to the external simulator contract."""
     command = getattr(decision, "command", None)
@@ -7611,6 +7781,7 @@ class Agent:
         self.last_cross_step_valid_decisions = []
         self._temporal_chunk_proposals = []
         self.last_temporal_chunk_valid_decisions = []
+        self.last_multi_axis_shadow = None
 
     def _append_policy_trace(self, payload):
         if not self._policy_trace_path:
@@ -7778,6 +7949,7 @@ class Agent:
         self._item_lifecycle = {}
         self.last_top_candidate_item_indices = []
         self.last_future_probe_item_indices = []
+        self.last_multi_axis_shadow = None
         self._cross_step_candidates = []
         self.last_cross_step_valid_decisions = []
         self._temporal_chunk_proposals = []
@@ -7790,6 +7962,7 @@ class Agent:
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
+                "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
                 "release_risk_gate_mode": RELEASE_RISK_GATE_MODE,
                 "release_risk_p_model": RELEASE_RISK_P_MODEL,
                 "release_risk_live_rerank": RELEASE_RISK_LIVE_RERANK,
@@ -8042,6 +8215,7 @@ class Agent:
             diagnostics = self.last_candidate_diagnostics
         self.last_top_candidate_item_indices = []
         self.last_future_probe_item_indices = []
+        self.last_multi_axis_shadow = None
         if not ordered_items:
             self.last_lookahead_evaluation = None
             self.last_top_candidate_count = 0
@@ -8087,6 +8261,10 @@ class Agent:
         if not top:
             self.last_lookahead_evaluation = None
             return None
+        if MULTI_AXIS_SELECTOR_MODE == "shadow":
+            self.last_multi_axis_shadow = multi_axis_shadow_record(
+                top, observation
+            )
         if (
             len(top) == 1
             or len(ordered_items) <= 1
@@ -8722,6 +8900,10 @@ class Agent:
                 self.last_candidate_diagnostics[
                     "selected_candidate_evaluation"
                 ] = evaluation_record
+            if self.last_multi_axis_shadow is not None:
+                self.last_candidate_diagnostics["multi_axis_selector"] = (
+                    self.last_multi_axis_shadow
+                )
             shadow_record = None
             if action_source != "rescue_scan":
                 shadow_record = self._shadow_rerank_record(
@@ -8750,6 +8932,7 @@ class Agent:
                     "step": self._policy_step,
                     "mode": LOOKAHEAD_SELECTION_MODE,
                     "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
+                    "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
                     "item_coverage_mode": ITEM_COVERAGE_MODE,
                     "optimize": self._optimize_enabled,
                     "lookahead_k": self._lookahead_k,
@@ -8829,6 +9012,7 @@ class Agent:
                 "step": self._policy_step,
                 "mode": LOOKAHEAD_SELECTION_MODE,
                 "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
+                "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,
