@@ -430,6 +430,124 @@ def contributing_runs(root: pathlib.Path) -> list[dict[str, Any]]:
     return runs
 
 
+def learning_curve(
+    rows: list[dict[str, Any]],
+    *,
+    sizes: list[int],
+    repeats: int = 5,
+) -> dict[str, Any]:
+    """How the metrics move as the number of training STATES grows.
+
+    "When can we train a bigger model?" is a question about the slope, not
+    about today's number, and the slope is measurable: hold out a case, train
+    on k sampled states from the rest, and sweep k. Sampling is by state
+    rather than by row because rows inside a state are not independent, so a
+    row-wise curve would flatten early and read as saturation that has not
+    happened.
+
+    Extrapolating this is still extrapolation. The curve says what the last
+    doubling bought, not what the next one will.
+    """
+    cases = sorted({row["case_id"] for row in rows})
+    states_by_case: dict[str, list[Any]] = collections.defaultdict(list)
+    for row in rows:
+        if row["state"] not in states_by_case[row["case_id"]]:
+            states_by_case[row["case_id"]].append(row["state"])
+
+    points: list[dict[str, Any]] = []
+    for size in sizes:
+        auc_values: list[float] = []
+        r2_values: dict[str, list[float]] = collections.defaultdict(list)
+        for repeat in range(repeats):
+            rng = np.random.default_rng(1000 * repeat + size)
+            for case in cases:
+                pool = [
+                    state
+                    for other in cases
+                    if other != case
+                    for state in states_by_case[other]
+                ]
+                if len(pool) < size:
+                    continue
+                chosen = {
+                    pool[index]
+                    for index in rng.choice(
+                        len(pool), size=size, replace=False
+                    )
+                }
+                train = [r for r in rows if r["state"] in chosen]
+                test = [r for r in rows if r["case_id"] == case]
+                if len(train) < 2 * len(FEATURES) or not test:
+                    continue
+                x_train_raw = np.array([r["x"] for r in train])
+                x_train = standardize(x_train_raw, x_train_raw)
+                x_test = standardize(
+                    x_train_raw, np.array([r["x"] for r in test])
+                )
+                y_train = np.array([float(r["safe"]) for r in train])
+                if 0.0 < y_train.mean() < 1.0:
+                    scores = apply_linear(
+                        fit_logistic(x_train, y_train), x_test
+                    )
+                    ranked = state_ranking(test, scores)
+                    if ranked["mean_state_auc"] is not None:
+                        auc_values.append(ranked["mean_state_auc"])
+                for target in REGRESSION_TARGETS:
+                    train_rows = [
+                        i
+                        for i, r in enumerate(train)
+                        if r["targets"][target] is not None
+                    ]
+                    test_rows = [
+                        i
+                        for i, r in enumerate(test)
+                        if r["targets"][target] is not None
+                    ]
+                    if not train_rows or not test_rows:
+                        continue
+                    yt = np.array(
+                        [train[i]["targets"][target] for i in train_rows]
+                    )
+                    actual = np.array(
+                        [test[i]["targets"][target] for i in test_rows]
+                    )
+                    weights = fit_linear(x_train[train_rows], yt)
+                    predicted = apply_linear(weights, x_test[test_rows])
+                    denominator = float(((actual - yt.mean()) ** 2).sum())
+                    if denominator <= 0.0:
+                        continue
+                    r2_values[target].append(
+                        1.0
+                        - float(((actual - predicted) ** 2).sum())
+                        / denominator
+                    )
+        points.append(
+            {
+                "train_states": size,
+                "folds_evaluated": len(auc_values),
+                "mean_state_auc": (
+                    sum(auc_values) / len(auc_values) if auc_values else None
+                ),
+                "r2": {
+                    target: (
+                        sum(values) / len(values) if values else None
+                    )
+                    for target, values in r2_values.items()
+                },
+            }
+        )
+    return {
+        "repeats": repeats,
+        "points": points,
+        "contract": (
+            "Sampling is by state, not by row: rows inside a state are not "
+            "independent, so a row-wise curve saturates early and reads as a "
+            "ceiling that is not there. The curve describes doublings "
+            "already taken, not the next one."
+        ),
+    }
+
+
 def audit(root: pathlib.Path) -> dict[str, Any]:
     rows, skipped = load_rows(root)
     states = {row["state"] for row in rows}
@@ -465,6 +583,16 @@ def audit(root: pathlib.Path) -> dict[str, Any]:
         return report
 
     report.update(evaluate(rows))
+    total = len({row["state"] for row in rows})
+    sizes = sorted(
+        {
+            size
+            for size in (4, 8, 12, 16, 24, 32, 40, total - 4)
+            if 4 <= size <= total - 4
+        }
+    )
+    if sizes:
+        report["learning_curve"] = learning_curve(rows, sizes=sizes)
     incumbent = report["classification"]["incumbent"]["mean_state_auc"]
     best_model = max(
         (
@@ -573,6 +701,30 @@ def markdown(report: dict[str, Any]) -> str:
                 rate=_fmt(fold["train_safe_rate"]), **fold
             )
         )
+    curve = report.get("learning_curve")
+    if curve:
+        lines.extend(
+            [
+                "",
+                "## learning curve (training STATES, not rows)",
+                "",
+                "| train states | folds | mean within-state AUC | "
+                "R^2 delta_theta_deg | R^2 d_norm |",
+                "|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for point in curve["points"]:
+            lines.append(
+                "| {states} | {folds} | {auc} | {theta} | {dnorm} |".format(
+                    states=point["train_states"],
+                    folds=point["folds_evaluated"],
+                    auc=_fmt(point["mean_state_auc"]),
+                    theta=_fmt(point["r2"].get("delta_theta_deg")),
+                    dnorm=_fmt(point["r2"].get("d_norm")),
+                )
+            )
+        lines.extend(["", curve["contract"]])
+
     lines.extend(["", report["interpretation"], ""])
     return "\n".join(lines)
 

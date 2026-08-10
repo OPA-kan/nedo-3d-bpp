@@ -216,6 +216,81 @@
       }
     }
   },
+  "learning_curve": {
+    "repeats": 5,
+    "points": [
+      {
+        "train_states": 4,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.6640449933532099,
+        "r2": {
+          "delta_theta_deg": -1.677878664317091,
+          "d_norm": -0.7615338458713382
+        }
+      },
+      {
+        "train_states": 8,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.6968934617811888,
+        "r2": {
+          "delta_theta_deg": 0.13376209619082702,
+          "d_norm": 0.05512053133587733
+        }
+      },
+      {
+        "train_states": 12,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.700655948117218,
+        "r2": {
+          "delta_theta_deg": 0.1458901992226235,
+          "d_norm": 0.05962788768193008
+        }
+      },
+      {
+        "train_states": 16,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.7001629707054935,
+        "r2": {
+          "delta_theta_deg": 0.1517954496479666,
+          "d_norm": 0.08187361910386816
+        }
+      },
+      {
+        "train_states": 24,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.7186004981758669,
+        "r2": {
+          "delta_theta_deg": 0.16944808831143948,
+          "d_norm": 0.09400802090228186
+        }
+      },
+      {
+        "train_states": 32,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.7146388432707471,
+        "r2": {
+          "delta_theta_deg": 0.1722848690682042,
+          "d_norm": 0.10348445733893974
+        }
+      },
+      {
+        "train_states": 40,
+        "folds_evaluated": 40,
+        "mean_state_auc": 0.7196734722495991,
+        "r2": {
+          "delta_theta_deg": 0.17981593266447066,
+          "d_norm": 0.11067520434090317
+        }
+      },
+      {
+        "train_states": 45,
+        "folds_evaluated": 0,
+        "mean_state_auc": null,
+        "r2": {}
+      }
+    ],
+    "contract": "Sampling is by state, not by row: rows inside a state are not independent, so a row-wise curve saturates early and reads as a ceiling that is not there. The curve describes doublings already taken, not the next one."
+  },
   "verdict": "no_established_signal",
   "interpretation": "Mean within-state AUC is the headline. A model must beat the incumbent Ranker.score, not merely a constant, to be worth building on. With this few cases the fold spread is wide, so a small difference is not a result. GBDT and Deep Sets were not run -- only numpy is available -- so a null here bounds them weakly."
 }
