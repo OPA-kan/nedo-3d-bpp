@@ -1551,6 +1551,27 @@
         "acceptance_verdict": "fail",
         "adopted_for_training": false
       }
+    },
+    {
+      "id": "residual-diversity-global-matching-solves-semantics-not-safety",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Portfolio-wide item-to-stratum slot matching solved the semantic-coverage failure of residual diversity sampling. In the same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, the v3 portfolio beat stratified random in observed settle-afterstate nearest-neighbour distance at all steps by 0.027739, 0.058524 and 0.022009 (mean +0.036091). Global unique-item coverage improved by +1, +3 and +3, and item-orientation coverage by +4, +1 and +1. The preregistered overall verdict remains fail only because placed-safe count was 0, +1 and -1: one late-step unsafe outcome remains. The result establishes global matching as the correct semantic sampler component but not yet an admissible positive-transition training portfolio. Do not discard v3 or add another static safety gate. The next dataset stage should replay an overdrawn v3 portfolio, select the positive residual-state training arm from observed placed-safe transitions, and retain unsafe outcomes separately as negative physical-risk examples.",
+      "source": "reports/residual-diversity/history/31369511973/summary.json; Actions runs 31369511973 and 31369512596; experiment/residual-diversity-dataset commit 22090e2",
+      "values": {
+        "steps": [3, 6, 9],
+        "proxy_gain_steps": 3,
+        "physical_gain_steps": 3,
+        "mean_physical_nn_distance_delta": 0.03609075418426269,
+        "unique_item_deltas": [1, 3, 3],
+        "unique_item_orientation_deltas": [4, 1, 1],
+        "physical_spatial_cell_deltas": [-1, 2, 2],
+        "placed_safe_deltas": [0, 1, -1],
+        "acceptance_verdict": "fail",
+        "semantic_component_established": true,
+        "adopted_for_positive_transition_training": false
+      }
     }
   ]
 }

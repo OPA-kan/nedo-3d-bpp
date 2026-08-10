@@ -175,6 +175,17 @@ and SHA-256. Do not reuse hashes in old prose.
   across the whole portfolio (while retaining stratum minima), and treat
   observed physical safety as an outcome/acceptance axis rather than claiming
   the current static risk proxy is a safety label.
+- Run `31369511973` implemented that global coordination with maximum-cardinality
+  item-to-stratum-slot matching. It solved the semantic deficit: physical
+  unique-item deltas were +1/+3/+3 and item-orientation deltas +4/+1/+1. The
+  observed settle-afterstate NN-distance delta stayed positive at all steps
+  (+0.027739/+0.058524/+0.022009; mean +0.036091), materially stronger than v2.
+- The preregistered verdict is still `fail` only because placed-safe was
+  0/+1/-1. This narrows the remaining problem to physical outcome handling,
+  not state diversity. Keep v3 as the semantic sampler. The next dataset stage
+  should overdraw, replay, form the positive residual-state arm only from
+  observed placed-safe transitions, and retain unsafe rows as a separate
+  negative-risk arm. Do not revive the rejected static hard gate.
 
 ### Local score proxies
 
@@ -222,9 +233,10 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether globally coordinated residual diversity can retain measured physical
-  dispersion without losing item coverage or placed-safe outcomes. Both the
-  unconstrained v1 and per-stratum-constrained v2 are not adopted for training.
+- Whether an observed-outcome split can turn the globally matched v3 portfolio
+  into an admissible positive-transition training set while retaining unsafe
+  rows as negative risk examples. v3 establishes semantic diversity but misses
+  the placed-safe guard by one late-step candidate.
 
 ## Branch disposition
 
@@ -244,9 +256,9 @@ branches are retained as evidence, not as competing trunks.
 - `experiment/task-a-rollout-transfer`: preserved Codex result/history branch;
   its accepted implementation and compact report are already on live trunk.
 - `experiment/residual-diversity-dataset`: active offline dataset experiment.
-  Runs `31367396930` and `31368589378` are positive for physical dispersion,
-  but v2 still fails global item coverage and late-step safety; do not merge as
-  a finished training pipeline.
+  Run `31369511973` establishes global semantic matching and stronger physical
+  dispersion, but misses the late-step placed-safe guard by one; do not merge
+  as a finished positive-transition training pipeline yet.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
