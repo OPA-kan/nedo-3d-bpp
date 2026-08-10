@@ -157,10 +157,21 @@ def scan_runs(root: pathlib.Path) -> list[dict[str, Any]]:
         rows: dict[str, int] = collections.Counter()
         for dataset in datasets:
             rows.update(dataset["rows"])
+        incomplete = sorted(
+            dataset["case_id"]
+            for dataset in datasets
+            if dataset["status"] != "complete"
+        )
         runs.append(
             {
                 "run_id": run_dir.name,
                 "verdict": (summary.get("acceptance") or {}).get("verdict"),
+                "completeness": summary.get("completeness"),
+                # A cancelled or crashed scenario job still uploads whatever
+                # it had written. Those rows are validly labelled and worth
+                # keeping, but a corpus that absorbs them without saying so
+                # reports partial coverage as if it were a finished run.
+                "incomplete_datasets": incomplete,
                 "observed_swap_rounds": (
                     next(iter(arms)) if len(arms) == 1 else None
                 ),
@@ -196,6 +207,9 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 board_runs[fingerprint].add(run["run_id"])
         per_arm[arm].update(run["rows"])
         totals.update(run["rows"])
+    incomplete_runs = [
+        run["run_id"] for run in runs if run["incomplete_datasets"]
+    ]
     shared = sorted(
         fingerprint
         for fingerprint, seen in board_runs.items()
@@ -208,6 +222,7 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "case_step_slots": len(slots),
         "distinct_cases": len({case for case, _step in slots}),
         "states_shared_by_more_than_one_run": len(shared),
+        "runs_with_incomplete_datasets": incomplete_runs,
         "rows_all_runs": dict(totals),
         "by_arm": {
             arm: {
@@ -247,6 +262,13 @@ def markdown(summary: dict[str, Any]) -> str:
             f"{summary['states_shared_by_more_than_one_run']}"
         ),
         (
+            "- **Runs holding an unfinished dataset: "
+            f"{summary['runs_with_incomplete_datasets']}** — those rows are "
+            "labelled correctly but their scenario did not run to the end."
+            if summary["runs_with_incomplete_datasets"]
+            else "- Runs holding an unfinished dataset: none"
+        ),
+        (
             "- Rows across all runs: "
             + ", ".join(
                 f"{name} {count}"
@@ -263,7 +285,11 @@ def markdown(summary: dict[str, Any]) -> str:
         lines.append(
             "| `{run}` | {arm} | {verdict} | {scenarios} | {states} | "
             "{positive} | {negative} | {control} |".format(
-                run=run["run_id"],
+                run=(
+                    run["run_id"] + " (partial)"
+                    if run["incomplete_datasets"]
+                    else run["run_id"]
+                ),
                 arm=(
                     run["observed_swap_rounds"]
                     if run["uniform_arm"]

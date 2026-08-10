@@ -202,5 +202,54 @@ class CorpusIndexTests(unittest.TestCase):
         self.assertEqual(scan_runs(self.root), [])
 
 
+class IncompleteRunTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_an_unfinished_dataset_is_named_not_absorbed(self):
+        # A cancelled scenario job still uploads what it wrote. The rows are
+        # labelled correctly, so they are kept -- but a corpus that counts
+        # them silently reports partial coverage as a finished run.
+        dataset = self.root / "run-1" / "dataset"
+        write_dataset(
+            dataset / "alpha",
+            case_id="m-alpha",
+            steps=[3],
+            swap_rounds=64,
+            positives=4,
+        )
+        manifest = json.loads(
+            (dataset / "alpha" / "manifest.json").read_text(encoding="utf-8")
+        )
+        manifest["status"] = "running"
+        (dataset / "alpha" / "manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+
+        summary = summarize(scan_runs(self.root))
+
+        self.assertEqual(
+            summary["runs_with_incomplete_datasets"], ["run-1"]
+        )
+        self.assertEqual(summary["rows_all_runs"]["positive_transition"], 4)
+        self.assertIn("(partial)", markdown(summary))
+
+    def test_a_finished_run_is_not_marked_partial(self):
+        write_dataset(
+            self.root / "run-1" / "dataset" / "alpha",
+            case_id="m-alpha",
+            steps=[3],
+            swap_rounds=64,
+            positives=4,
+        )
+
+        summary = summarize(scan_runs(self.root))
+
+        self.assertEqual(summary["runs_with_incomplete_datasets"], [])
+        self.assertNotIn("(partial)", markdown(summary))
+
+
 if __name__ == "__main__":
     unittest.main()

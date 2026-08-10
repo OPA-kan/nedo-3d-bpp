@@ -1,8 +1,13 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "runs": 1,
   "distinct_states": 11,
+  "case_step_slots": 11,
   "distinct_cases": 4,
+  "states_shared_by_more_than_one_run": 0,
+  "runs_with_incomplete_datasets": [
+    "31391424126"
+  ],
   "rows_all_runs": {
     "positive_transition": 231,
     "negative_physical_risk": 87,
@@ -18,7 +23,7 @@
       "distinct_states": 11
     }
   },
-  "states": [
+  "slots": [
     ":003",
     ":009",
     "m-dual-empty:003",
@@ -34,7 +39,11 @@
   "run_index": [
     {
       "run_id": "31391424126",
-      "verdict": null,
+      "verdict": "fail",
+      "completeness": null,
+      "incomplete_datasets": [
+        ""
+      ],
       "observed_swap_rounds": 64,
       "uniform_arm": true,
       "scenarios": 4,
@@ -46,6 +55,11 @@
       },
       "datasets": [
         {
+          "state_fingerprints": {
+            "3": "7f656a601197afc6",
+            "9": "fede11ca9172019d",
+            "15": "09d67937852baeb8"
+          },
           "case_id": "m-dual-empty",
           "dataset_id": "20260810_130934-m-dual-empty-weighted-class_aware-shadow-5ccb4948-9f4aa8d46cbc",
           "status": "complete",
@@ -68,6 +82,11 @@
           "path": "reports/residual-diversity-scale/history/31391424126/dataset/dual-empty"
         },
         {
+          "state_fingerprints": {
+            "3": "fdf678fa793ccc8f",
+            "9": "d85f4efc012e4be2",
+            "15": "0b9d8526b626d6cd"
+          },
           "case_id": "m-dual-shelf-mixed",
           "dataset_id": "20260810_130935-m-dual-shelf-mixed-weighted-class_aware-shadow-2b80b586-6f6425e6f153",
           "status": "complete",
@@ -90,6 +109,10 @@
           "path": "reports/residual-diversity-scale/history/31391424126/dataset/dual-shelf-mixed"
         },
         {
+          "state_fingerprints": {
+            "3": "a3439c1bdbcdfb7a",
+            "9": "616d32000514494b"
+          },
           "case_id": "",
           "dataset_id": "20260810_130932-m-single-empty-noshelf-weighted-class_aware-shadow-348ede4d-bcd125cbc19a",
           "status": "running",
@@ -111,6 +134,11 @@
           "path": "reports/residual-diversity-scale/history/31391424126/dataset/single-empty-noshelf"
         },
         {
+          "state_fingerprints": {
+            "3": "68121fa1da5b3d48",
+            "9": "7feb1129fa2390f9",
+            "15": "8a405a9782ba5a5b"
+          },
           "case_id": "m-single-empty-shelf",
           "dataset_id": "20260810_130932-m-single-empty-shelf-weighted-class_aware-shadow-bb0d9517-098b0d8bc5ae",
           "status": "complete",
@@ -135,5 +163,5 @@
       ]
     }
   ],
-  "contract": "Rows accumulate across runs but distinct states do not: the matrix re-measures the same (case, step) pairs. Rows inside one state share a parent state and are not independent examples. Arms are not merged."
+  "contract": "A state is a board fingerprint, not a (case, step) label: the policy is deadline-limited, so two runs of one scenario reach different boards at the same step index. Re-running the matrix therefore adds states. Rows inside one state share a parent and are not independent examples. Arms are not merged."
 }

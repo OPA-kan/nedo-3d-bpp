@@ -77,8 +77,15 @@ def summarize_matrix(summaries: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     coverage_complete = required_cells.issubset(cells)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scenario_count": len(rows),
+        # An absent condition and a failed guard are different events. A
+        # cancelled or crashed scenario job leaves the matrix incomplete, and
+        # reporting that as "fail" with an empty failed_scenarios list reads
+        # as a guard result that never happened.
+        "completeness": (
+            "complete" if coverage_complete else "incomplete_conditions"
+        ),
         "condition_coverage": {
             "container_counts": sorted(
                 {row["container_count"] for row in rows}
@@ -117,6 +124,17 @@ def summarize_matrix(summaries: list[dict[str, Any]]) -> dict[str, Any]:
                     and not empty_positive
                 )
                 else "fail"
+            ),
+            "verdict_reason": (
+                "pass"
+                if coverage_complete
+                and not failed_scenarios
+                and not empty_positive
+                else (
+                    "incomplete_conditions"
+                    if not coverage_complete
+                    else "guard_failure"
+                )
             ),
             "failed_scenarios": failed_scenarios,
             "empty_positive_scenarios": empty_positive,
@@ -159,7 +177,17 @@ def markdown(summary: dict[str, Any]) -> str:
             f"`{summary['arm']['portfolio_constructions']}`, "
             f"swaps applied: {summary['arm']['swaps_applied']}"
         ),
-        f"- Acceptance verdict: **{summary['acceptance']['verdict']}**",
+        (
+            "- Acceptance verdict: "
+            f"**{summary['acceptance']['verdict']}** "
+            f"({summary['acceptance']['verdict_reason']})"
+        ),
+        (
+            "- **The matrix is incomplete: a condition is missing, so this is "
+            "not a guard result.** Re-run before citing it."
+            if summary["completeness"] != "complete"
+            else f"- Completeness: {summary['completeness']}"
+        ),
         f"- Failed scenarios: {summary['acceptance']['failed_scenarios']}",
         "",
         "| scenario | containers | shelves | steps | safe positive | "

@@ -20,7 +20,12 @@ permissions:
 
 concurrency:
   group: residual-diversity-scale-${{ github.ref }}
-  cancel-in-progress: true
+  # A matrix run is a measurement, and the `[skip ...]` guard is a job-level
+  # `if` while cancellation is run-level: a push whose jobs all skip still
+  # killed the run in flight. That is how 31391424126 lost its
+  # single-empty-noshelf job at step 15 and then committed a partial corpus
+  # under a "fail" verdict. Queue instead of cancelling.
+  cancel-in-progress: false
 
 jobs:
   scenario:
@@ -134,14 +139,16 @@ jobs:
               cp -R "$scenario_dir/dataset/." "$HISTORY_DIR/dataset/$name/"
             fi
           done
-          python scripts/index_replay_corpus.py \
-            --root reports/residual-diversity-scale/history \
-            --json-output reports/residual-diversity-scale/corpus.json \
-            --markdown-output reports/residual-diversity-scale/corpus.md
           cp reports/residual-diversity-scale/aggregate/summary.md \
             "$HISTORY_DIR/summary.md"
           cp reports/residual-diversity-scale/aggregate/summary.json \
             "$HISTORY_DIR/summary.json"
+          # After the summary is in place: the index reads each run's verdict
+          # from it, and would otherwise file every run as verdict null.
+          python scripts/index_replay_corpus.py \
+            --root reports/residual-diversity-scale/history \
+            --json-output reports/residual-diversity-scale/corpus.json \
+            --markdown-output reports/residual-diversity-scale/corpus.md
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
