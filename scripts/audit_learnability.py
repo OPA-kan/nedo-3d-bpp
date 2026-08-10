@@ -584,15 +584,33 @@ def audit(root: pathlib.Path) -> dict[str, Any]:
 
     report.update(evaluate(rows))
     total = len({row["state"] for row in rows})
+    # The largest usable size is set by the SMALLEST training pool, which is
+    # `total` minus the biggest case -- not by `total` itself. Asking for
+    # more than that silently skips every fold and prints an empty row.
+    per_case: dict[str, set[Any]] = collections.defaultdict(set)
+    for row in rows:
+        per_case[row["case_id"]].add(row["state"])
+    largest_case = max(
+        (len(states) for states in per_case.values()), default=0
+    )
+    ceiling = total - largest_case
+    # Doubling sizes, so the curve keeps a fixed number of points as the
+    # corpus grows instead of getting quadratically more expensive to draw.
     sizes = sorted(
         {
             size
-            for size in (4, 8, 12, 16, 24, 32, 40, total - 4)
-            if 4 <= size <= total - 4
+            for size in [4 * 2 ** power for power in range(12)] + [ceiling]
+            if 4 <= size <= ceiling
         }
     )
     if sizes:
-        report["learning_curve"] = learning_curve(rows, sizes=sizes)
+        report["learning_curve"] = learning_curve(
+            rows,
+            sizes=sizes,
+            # Repeats buy precision at small sizes where the spread is wide,
+            # and cost the most at large ones where it is already narrow.
+            repeats=3 if total > 200 else 5,
+        )
     incumbent = report["classification"]["incumbent"]["mean_state_auc"]
     best_model = max(
         (

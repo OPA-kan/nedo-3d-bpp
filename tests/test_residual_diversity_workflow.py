@@ -93,3 +93,31 @@ class ResidualDiversityWorkflowTests(unittest.TestCase):
         # later and cannot be regenerated either.
         self.assertIn('"$HISTORY_DIR/dataset/$name/"', text)
         self.assertIn("index_replay_corpus.py", text)
+
+    def test_the_run_stops_before_its_own_job_timeout(self):
+        text = SCALE_WORKFLOW.read_text(encoding="utf-8")
+
+        # A job killed by the 180-minute timeout never runs its upload step,
+        # so every step it already measured is lost. The builder stops itself
+        # first and exits cleanly with what it has.
+        self.assertIn("--max-seconds", text)
+        budget = int(text.split("--max-seconds", 1)[1].split()[0])
+        timeout = int(text.split("timeout-minutes:", 1)[1].split()[0])
+        self.assertLess(budget, timeout * 60)
+
+    def test_growth_is_bounded_and_fails_loudly_rather_than_silently(self):
+        text = SCALE_WORKFLOW.read_text(encoding="utf-8")
+
+        # Unbounded retention is the failure mode that only shows up once the
+        # repository is already too big to fix cheaply.
+        self.assertIn("--budget-bytes", text)
+        self.assertIn("::warning::", text)
+        self.assertIn('rm -rf "$HISTORY_DIR/dataset"', text)
+
+    def test_a_lost_push_race_is_retried_rather_than_dropped(self):
+        text = SCALE_WORKFLOW.read_text(encoding="utf-8")
+
+        # Queued runs land close together and race on the corpus push;
+        # losing the race silently would lose that run's whole dataset.
+        self.assertIn("for attempt in 1 2 3 4 5 6; do", text)
+        self.assertIn("::error::", text)

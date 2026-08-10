@@ -1049,7 +1049,17 @@ def dataset_problems(case: dict[str, Any]) -> tuple[list[str], list[int]]:
     beyond_end = (
         [step for step in unreached if step > executed] if ended else []
     )
-    missing = [step for step in unreached if step not in beyond_end]
+    # Stopping on the wall-clock budget is a deliberate, reported choice, not
+    # a defect: the alternative is the CI job timeout killing the process
+    # before it uploads anything at all.
+    budget_stop = case.get("budget_exhausted_at_step")
+    beyond_budget = (
+        [step for step in unreached if step >= int(budget_stop)]
+        if budget_stop is not None
+        else []
+    )
+    deferred = sorted(set(beyond_end) | set(beyond_budget))
+    missing = [step for step in unreached if step not in deferred]
 
     problems: list[str] = []
     if missing:
@@ -1063,7 +1073,7 @@ def dataset_problems(case: dict[str, Any]) -> tuple[list[str], list[int]]:
     ]
     if empty:
         problems.append(f"empty samples at steps {empty}")
-    return problems, beyond_end
+    return problems, deferred
 
 
 # --------------------------------------------------------------------------
@@ -1085,6 +1095,7 @@ def run_case(
     sampling_mode: str = "stratified_random",
     overdraw_factor: int = 2,
     swap_rounds: int = DEFAULT_SWAP_ROUNDS,
+    max_seconds: float = 0.0,
     on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
@@ -1110,9 +1121,29 @@ def run_case(
         last_info: dict[str, Any] | None = None
         step = 0
         final_step = max(target_steps)
+        started = time.perf_counter()
+        budget_exhausted_at: int | None = None
         while not terminated and not truncated and step <= final_step:
             observation = policy_observation(env, raw_observation)
             action = solver.policy(observation)
+            # Stop starting new replays before the CI job timeout kills us.
+            # A killed job does not run its upload step, so every step this
+            # scenario already paid for would be lost; stopping early keeps
+            # them and records why there are fewer.
+            if (
+                max_seconds > 0
+                and budget_exhausted_at is None
+                and time.perf_counter() - started > max_seconds
+                and steps
+            ):
+                budget_exhausted_at = step
+                print(
+                    f"{case_id}: wall-clock budget {max_seconds}s reached at "
+                    f"step {step}; stopping with {len(steps)} steps collected",
+                    flush=True,
+                )
+            if budget_exhausted_at is not None:
+                break
             if step in target_steps:
                 steps.append(
                     collect_step(
@@ -1170,6 +1201,8 @@ def run_case(
         "target_steps": sorted(target_steps),
         "reached_steps": sorted(reached),
         "unreached_steps": unreached,
+        "budget_exhausted_at_step": budget_exhausted_at,
+        "wall_clock_budget_seconds": float(max_seconds),
         "failed_steps": failed_steps,
         "episode_steps_executed": step,
         "episode_terminated": bool(terminated),
@@ -1632,6 +1665,17 @@ def main() -> int:
             "0 restores the unseeded greedy construction as an ablation arm."
         ),
     )
+    parser.add_argument(
+        "--max-seconds",
+        type=float,
+        default=0.0,
+        help=(
+            "Stop starting new steps after this many seconds and exit "
+            "cleanly. A CI job killed by its own timeout never runs its "
+            "upload step, so everything it already measured is lost; this "
+            "keeps it. 0 disables the budget."
+        ),
+    )
     parser.add_argument("--oracle-limit", type=int)
     parser.add_argument(
         "--preview-limit",
@@ -1717,6 +1761,7 @@ def main() -> int:
         "sampling_mode": str(args.sampling_mode),
         "overdraw_factor": int(args.overdraw_factor),
         "observed_swap_rounds": int(args.observed_swap_rounds),
+        "max_seconds": float(args.max_seconds),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
@@ -1785,6 +1830,7 @@ def main() -> int:
             skip_optimize=args.skip_optimize,
             overdraw_factor=int(args.overdraw_factor),
             swap_rounds=int(args.observed_swap_rounds),
+            max_seconds=float(args.max_seconds),
             on_progress=on_progress,
         )
     except BaseException as exc:

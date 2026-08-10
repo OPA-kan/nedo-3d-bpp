@@ -40,14 +40,35 @@ import collections
 import hashlib
 import json
 import pathlib
+import sys
 from typing import Any
 
 
+# Measured over the first two retained runs: 50.4 MB of JSON gzips to 3.4 MB.
+# git stores blobs zlib-compressed, so this is the right order of magnitude
+# for what the repository actually grows by.
+COMPRESSION_RATIO = 14.7
 ROW_KINDS = {
     "candidates": "positive_transition",
     "negative-risk": "negative_physical_risk",
     "random-control": "paired_random_control",
 }
+
+
+def corpus_bytes(root: pathlib.Path) -> dict[str, int]:
+    """Raw bytes held, and what git will actually store.
+
+    These rows are JSON and compress about 15x, so the number that matters
+    for the repository is not the one `du` prints. Both are reported because
+    a budget stated in the wrong one is a budget nobody can reason about.
+    """
+    raw = sum(
+        path.stat().st_size for path in root.rglob("*") if path.is_file()
+    )
+    return {
+        "raw_bytes": raw,
+        "estimated_stored_bytes": int(raw / COMPRESSION_RATIO),
+    }
 
 
 def count_lines(path: pathlib.Path) -> int:
@@ -185,7 +206,9 @@ def scan_runs(root: pathlib.Path) -> list[dict[str, Any]]:
     return runs
 
 
-def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize(
+    runs: list[dict[str, Any]], *, size: dict[str, int] | None = None
+) -> dict[str, Any]:
     # Distinct states, not rows, is the number that bounds a learner -- and a
     # state is a board, not a (case, step) label. See the module docstring.
     boards: set[str] = set()
@@ -223,6 +246,7 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "distinct_cases": len({case for case, _step in slots}),
         "states_shared_by_more_than_one_run": len(shared),
         "runs_with_incomplete_datasets": incomplete_runs,
+        "size": size or {},
         "rows_all_runs": dict(totals),
         "by_arm": {
             arm: {
@@ -251,6 +275,15 @@ def markdown(summary: dict[str, Any]) -> str:
         "`python scripts/index_replay_corpus.py`.",
         "",
         f"- Runs retained: {summary['runs']}",
+        (
+            "- Size: "
+            f"{summary['size'].get('raw_bytes', 0) / 1048576:.0f} MB raw, "
+            "about "
+            f"{summary['size'].get('estimated_stored_bytes', 0) / 1048576:.0f}"
+            " MB stored"
+            if summary.get("size")
+            else "- Size: not measured"
+        ),
         (
             "- Distinct states (board fingerprints): "
             f"**{summary['distinct_states']}** across "
@@ -312,9 +345,20 @@ def main() -> int:
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--budget-bytes",
+        type=int,
+        default=0,
+        help=(
+            "Raw-byte ceiling for the retained corpus. Over it, this exits "
+            "non-zero so the caller can stop retaining rows loudly instead "
+            "of growing the repository until someone notices. 0 disables."
+        ),
+    )
     args = parser.parse_args()
 
-    summary = summarize(scan_runs(args.root))
+    size = corpus_bytes(args.root)
+    summary = summarize(scan_runs(args.root), size=size)
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
@@ -322,6 +366,14 @@ def main() -> int:
     )
     args.markdown_output.write_text(markdown(summary), encoding="utf-8")
     print(args.markdown_output)
+    if args.budget_bytes and size["raw_bytes"] > args.budget_bytes:
+        print(
+            f"corpus is {size['raw_bytes'] / 1048576:.0f} MB raw "
+            f"(about {size['estimated_stored_bytes'] / 1048576:.0f} MB "
+            f"stored), over the {args.budget_bytes / 1048576:.0f} MB budget",
+            file=sys.stderr,
+        )
+        return 2
     return 0
 
 

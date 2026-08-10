@@ -5,7 +5,12 @@ import pathlib
 import tempfile
 import unittest
 
-from scripts.index_replay_corpus import markdown, scan_runs, summarize
+from scripts.index_replay_corpus import (
+    corpus_bytes,
+    markdown,
+    scan_runs,
+    summarize,
+)
 
 
 def write_dataset(
@@ -200,6 +205,46 @@ class CorpusIndexTests(unittest.TestCase):
         (path / "summary.json").write_text("{}", encoding="utf-8")
 
         self.assertEqual(scan_runs(self.root), [])
+
+
+class SizeBudgetTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_size_is_reported_in_both_raw_and_stored_terms(self):
+        write_dataset(
+            self.root / "run-1" / "dataset" / "alpha",
+            case_id="m-alpha",
+            steps=[3],
+            swap_rounds=64,
+            positives=4,
+        )
+
+        size = corpus_bytes(self.root)
+
+        self.assertGreater(size["raw_bytes"], 0)
+        # These rows are JSON and compress heavily, so a budget stated in raw
+        # bytes and one stated in stored bytes are an order of magnitude
+        # apart. Reporting one without the other invites the wrong call.
+        self.assertLess(size["estimated_stored_bytes"], size["raw_bytes"])
+
+    def test_the_markdown_carries_the_size(self):
+        write_dataset(
+            self.root / "run-1" / "dataset" / "alpha",
+            case_id="m-alpha",
+            steps=[3],
+            swap_rounds=64,
+            positives=4,
+        )
+
+        text = markdown(
+            summarize(scan_runs(self.root), size=corpus_bytes(self.root))
+        )
+
+        self.assertIn("MB raw", text)
+        self.assertIn("MB stored", text)
 
 
 class IncompleteRunTests(unittest.TestCase):

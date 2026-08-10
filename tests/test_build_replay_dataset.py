@@ -966,6 +966,7 @@ class DatasetCompletenessTests(unittest.TestCase):
             "episode_terminated": False,
             "episode_truncated": False,
             "episode_steps_executed": 20,
+            "budget_exhausted_at_step": None,
             "steps": [],
         }
         payload.update(overrides)
@@ -1005,6 +1006,33 @@ class DatasetCompletenessTests(unittest.TestCase):
 
         self.assertEqual(beyond, [18])
         self.assertIn("unreached steps [9]", problems)
+
+    def test_stopping_on_the_wall_clock_budget_is_not_a_defect(self):
+        # A CI job killed by its own timeout never runs its upload step, so
+        # everything it measured is lost. Stopping early on purpose keeps it,
+        # and must not then be reported as a broken dataset.
+        problems, deferred = dataset_problems(
+            self.case(
+                unreached_steps=[12, 15],
+                budget_exhausted_at_step=12,
+                episode_steps_executed=11,
+            )
+        )
+
+        self.assertEqual(problems, [])
+        self.assertEqual(deferred, [12, 15])
+
+    def test_a_step_missed_before_the_budget_stop_is_still_a_problem(self):
+        problems, deferred = dataset_problems(
+            self.case(
+                unreached_steps=[6, 15],
+                budget_exhausted_at_step=12,
+                episode_steps_executed=11,
+            )
+        )
+
+        self.assertEqual(deferred, [15])
+        self.assertIn("unreached steps [6]", problems)
 
     def test_a_failed_step_still_fails_the_dataset(self):
         problems, _beyond = dataset_problems(

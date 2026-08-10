@@ -17,6 +17,7 @@
 | active | 2026-08-05 | `reports/hazard/dominated-choices-retracted.md` | `the-fatal-choice-is-the-argmax`, `heightmap-drop-heights-must-not-score` |
 | active | 2026-08-05 | `reports/hazard/step-confound.md` | `afterstate-features-are-a-clock-not-fullness` |
 | active | 2026-08-03 | `reports/l3-l4/morning-summary.md` | `death-band-mitigated-adoption-candidate`, `death-band-shipped-on-by-default` (superseded) |
+| active | 2026-08-10 | `reports/learnability/summary.md` | `phi-does-not-outrank-the-incumbent-score-on-the-retained-corpus` (superseded), `phi-learning-curve-saturates-near-sixteen-states` |
 | active | 2026-08-10 | `reports/placement-pipeline/parity.md` | `structured-placement-pipeline-preserves-fixed-work-policy`, `selector-adoption-requires-full-proxy-vector` |
 | active | 2026-08-02 | `reports/replay-analysis/board-value-f1-findings.md` | `board-value-f1-discriminates-not-predicts`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded) |
 | active | 2026-07-31 | `reports/replay-analysis/findings-20260730.md` | `gate-high-recall-low-precision` |
@@ -28,7 +29,6 @@
 | active | 2026-07-31 | `reports/replay-analysis/risk-rule-comparison.md` | `risk-rule-family-comparison` (superseded), `risk-rule-family-comparison-33snap` |
 | active | 2026-07-31 | `reports/replay-analysis/slide-equivariant.md` | `dxy-equivariant-s0` |
 | active | 2026-08-01 | `reports/replay-analysis/terminal-failures.md` | `terminal-failure-channels`, `transport-now-leading-death-channel` |
-| active | 2026-08-10 | `reports/residual-diversity-scale/corpus.md` | `phi-signal-is-in-settle-displacement-not-in-safety-ranking` |
 | active | 2026-08-10 | `reports/residual-diversity-scale/history/31380879143/step-details.md` | `observed-afterstate-maximin-fixes-dual-shelf-but-exposes-objective-mismatch` |
 | active | 2026-08-01 | `reports/risk-ablation/summary.md` | `online-ablation-round2-positive`, `risk-freeze-mech-lambda1`, `final-holdout-passed-default-switch` |
 | active | 2026-08-04 | `reports/scenario-matrix/taskb-ci-10mm-30865228317.md` | `lateral-guard-buys-settle-survival` |
@@ -47,8 +47,8 @@
 | active | 2026-08-03 | `reports/task-c/true-envelope/branch-rerun.md` | `taskc-box-wall-at-step-19-was-an-artifact`, `c001-k1-true-terminal-at-step-21-certified`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded), `c001-k1-selection-problem-exists-features-are-blind` (superseded) |
 | active | 2026-08-03 | `reports/task-c/true-envelope/summary.md` | `true-envelope-first-task-c-ablation`, `true-envelope-shipped-without-the-task-b-guard` |
 | active | 2026-08-03 | `reports/task-c/wall-is-not-a-wall.md` | `task-c-wall-is-anchor-parameterisation-not-the-board`, `anchor-envelope-is-a-box-approximation` (superseded), `anchor-envelope-ignores-the-real-container-shape` (superseded), `anchor-envelope-y-bound-is-one-thickness-too-tight` |
-| superseded | 2026-08-10 | `reports/learnability/summary.md` | `phi-does-not-outrank-the-incumbent-score-on-the-retained-corpus` (superseded) |
 | superseded | 2026-08-10 | `reports/observed-state-swap/local-paired.md` | `control-seeded-observed-swap-passes-condition-matrix` (superseded) |
+| superseded | 2026-08-10 | `reports/residual-diversity-scale/corpus.md` | `phi-signal-is-in-settle-displacement-not-in-safety-ranking` (superseded) |
 | superseded | 2026-08-02 | `reports/task-c/anchor-fallback/after-merge.md` | `task-c-after-first-pass-256` (superseded) |
 | superseded | 2026-08-02 | `reports/task-c/fatal-oracle/summary.md` | `task-c-fatal-oracle-two-classes` (superseded), `task-c-post-fallback-terminal-is-a-coverage-gap` (superseded) |
 | uncited | 2026-07-28 | `reports/README.md` | — |
@@ -95,6 +95,7 @@
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31389892147/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31391424126/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31393167142/summary.md` | — |
+| uncited | - | `reports/residual-diversity-scale/history/31394891316/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31367396930/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31368589378/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31369511973/summary.md` | — |
@@ -150,4 +151,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1361 ファイル / 251.8 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 1547 ファイル / 274.3 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

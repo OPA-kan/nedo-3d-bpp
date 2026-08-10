@@ -91,6 +91,7 @@ jobs:
           --overdraw-factor 3
           --risk-gate-mode shadow
           --observed-swap-rounds ${{ inputs.observed_swap_rounds || '64' }}
+          --max-seconds 7200
           --skip-optimize
           --output-dir
           "reports/residual-diversity-scale/${{ matrix.scenario }}/dataset"
@@ -163,10 +164,25 @@ jobs:
             "$HISTORY_DIR/summary.json"
           # After the summary is in place: the index reads each run's verdict
           # from it, and would otherwise file every run as verdict null.
-          python scripts/index_replay_corpus.py \
-            --root reports/residual-diversity-scale/history \
-            --json-output reports/residual-diversity-scale/corpus.json \
-            --markdown-output reports/residual-diversity-scale/corpus.md
+          #
+          # The budget is the stop on unbounded growth. Over it, this run
+          # keeps its verdict and drops its rows, loudly, rather than letting
+          # the repository grow until someone notices. 2 GB raw is about
+          # 140 MB stored at the measured 14.7x, i.e. roughly eighty runs.
+          if ! python scripts/index_replay_corpus.py \
+              --root reports/residual-diversity-scale/history \
+              --json-output reports/residual-diversity-scale/corpus.json \
+              --markdown-output reports/residual-diversity-scale/corpus.md \
+              --budget-bytes 2000000000; then
+            echo "::warning::retained corpus is over budget; this run keeps \
+              its summary and drops its rows. Prune older runs or raise the \
+              budget deliberately."
+            rm -rf "$HISTORY_DIR/dataset"
+            python scripts/index_replay_corpus.py \
+              --root reports/residual-diversity-scale/history \
+              --json-output reports/residual-diversity-scale/corpus.json \
+              --markdown-output reports/residual-diversity-scale/corpus.md
+          fi
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
@@ -175,9 +191,16 @@ jobs:
             reports/residual-diversity-scale/corpus.md
           git commit \
             -m "Record residual diversity matrix ${{ github.run_id }} [skip residual-diversity] [skip residual-diversity-scale]"
-          for attempt in 1 2 3; do
+          # Runs are queued rather than cancelled now, so several can land
+          # close together and race on this push. Losing the race means
+          # losing that run's whole corpus, so retry further and back off.
+          for attempt in 1 2 3 4 5 6; do
             if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
-            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            if [ "$attempt" -eq 6 ]; then
+              echo "::error::could not push the corpus after 6 attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
             git fetch origin "$GITHUB_REF_NAME"
             git rebase "origin/$GITHUB_REF_NAME"
           done

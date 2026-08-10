@@ -1959,7 +1959,7 @@
       "id": "phi-signal-is-in-settle-displacement-not-in-safety-ranking",
       "topic": "learning_data",
       "date": "2026-08-10",
-      "status": "active",
+      "status": "superseded",
       "claim": "Widening the matrix from four scenarios and three steps to eight scenarios and six steps took the retained corpus from 11 states over 4 cases to 49 distinct boards over 8 cases (1778 modelable rows), and re-running the learnability audit at that size sharpens the picture without changing the verdict. On leave-one-case-out with ranking measured inside each board, the incumbent Ranker.score still leads for is_placed_safe: mean within-state AUC 0.745 and top-1 safe rate 0.872, against 0.727/0.851 for a logistic model on the eight contact scalars, 0.671/0.780 for a quantile lookup, and 0.500/0.683 for a constant. The verdict stays no_established_signal for safety ranking. What did change is the settle regression, which improved consistently with data: leave-one-case-out R-squared against a held-out constant went from 0.141 to 0.184 for delta_theta_deg and from 0.075 to 0.125 for d_norm with the linear model, while the lookup table went from worse than a constant (-0.121 and -0.082) to positive (0.075 and 0.078). That is the signature of a data-starved estimator becoming viable, and it says the usable signal in Phi is about how far and how much an item settles, not about which candidate is safe. Two measurement corrections are folded in. Boards shared by more than one run are now deduplicated in the audit as they already were in the corpus index, which removed 241 rows and, with them, the apparent top-1 edge the logistic model had at 0.870 against 0.852; that edge was double-counted boards. And a scenario whose episode ends before the last requested step is no longer treated as a broken dataset, which had been silently dropping two of eight scenarios from the matrix verdict and capping the step axis.",
       "source": "reports/learnability/summary.json; reports/residual-diversity-scale/corpus.md; scripts/audit_learnability.py; Actions runs 31391424126 and 31393167142",
       "values": {
@@ -2023,6 +2023,63 @@
           "gbdt",
           "deep_sets"
         ],
+        "adopted_for_training": false,
+        "live_policy_benefit_established": false
+      },
+      "superseded_by": "phi-learning-curve-saturates-near-sixteen-states"
+    },
+    {
+      "id": "phi-learning-curve-saturates-near-sixteen-states",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The learnability learning curve saturates at roughly 16 training states, so more states is not the constraint and the earlier time-to-target extrapolation is withdrawn. Sweeping the number of training boards on the 93-board corpus (leave-one-case-out, sampling by state because rows inside a state are not independent) gives mean within-state AUC 0.666, 0.697, 0.710, 0.708, 0.711, 0.711 at 4, 8, 16, 32, 64 and 78 states, and R-squared for delta_theta_deg of -0.008, 0.055, 0.153, 0.148, 0.166, 0.164 over the same sweep. From 16 states to 78 -- nearly five times the data -- AUC moves by 0.001 and the regression by 0.011. The incumbent Ranker.score sits at 0.745 and is not approached. An earlier fit over 8 to 40 states measured +0.0107 AUC per doubling and was used to project parity near 200 states and AUC 0.80 near 7000; the full curve shows that slope was the estimator climbing out of the data-starved regime below 16 states, not a trend, and those projections are withdrawn. What binds is the feature set and the target, not the row count: eight static contact scalars describing one candidate carry what they carry. Collecting more boards is still worth doing for coverage of conditions the corpus lacks, but it should not be justified as a route to a better model on this feature set.",
+      "source": "reports/learnability/summary.json; reports/learnability/summary.md; scripts/audit_learnability.py; corpus of Actions runs 31391424126, 31393167142 and 31394891316",
+      "values": {
+        "corpus_states": 93,
+        "corpus_cases": 8,
+        "modelable_rows": 3482,
+        "learning_curve_states": [
+          4,
+          8,
+          16,
+          32,
+          64,
+          78
+        ],
+        "learning_curve_mean_state_auc": [
+          0.666,
+          0.697,
+          0.71,
+          0.708,
+          0.711,
+          0.711
+        ],
+        "learning_curve_r2_delta_theta_deg": [
+          -0.008,
+          0.055,
+          0.153,
+          0.148,
+          0.166,
+          0.164
+        ],
+        "learning_curve_r2_d_norm": [
+          -0.124,
+          -0.009,
+          0.075,
+          0.074,
+          0.093,
+          0.091
+        ],
+        "incumbent_mean_state_auc": 0.745,
+        "saturation_states": 16,
+        "withdrawn_projection": {
+          "auc_per_doubling_fit_8_to_40": 0.0107,
+          "projected_states_for_parity": 200,
+          "projected_states_for_auc_0_80": 7020,
+          "status": "withdrawn; the slope was the data-starved regime"
+        },
+        "binding_constraint": "feature_set_and_target_not_row_count",
         "adopted_for_training": false,
         "live_policy_benefit_established": false
       }

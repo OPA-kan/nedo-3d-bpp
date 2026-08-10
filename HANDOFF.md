@@ -297,13 +297,16 @@ their instruments. A superseded or historical entry is not current evidence.
   audit carries a positive control -- a planted signal is detected above AUC
   0.8 -- so the null is not a broken instrument. GBDT and Deep Sets could not
   be run (numpy only), so it bounds them weakly.
-- Where the signal actually is: settle displacement, and it grows with data.
-  Going from 11 to 49 boards moved leave-one-case-out R^2 from 0.141 to 0.184
-  for `delta_theta_deg` and 0.075 to 0.125 for `d_norm`, and took the lookup
-  table from worse-than-constant to positive. Phi predicts how far an item
-  settles better than it predicts which candidate is safe. Keep scaling and
-  re-run `scripts/audit_learnability.py`; the regression is the number to
-  watch, not the AUC. See `reports/learnability/summary.md`.
+- **More states is not the constraint.** The learning curve saturates near 16
+  training boards: from 16 to 78 -- nearly five times the data -- mean
+  within-state AUC moves 0.710 -> 0.711 and R^2 for `delta_theta_deg` moves
+  0.153 -> 0.164. An earlier fit over 8-40 states read +0.011 AUC per
+  doubling and was used to project parity near 200 states; that slope was the
+  estimator climbing out of the data-starved regime below 16, and the
+  projection is withdrawn. What binds is the feature set and the target:
+  eight static contact scalars about one candidate carry what they carry.
+  Keep collecting boards for CONDITION coverage, not as a route to a better
+  model on this feature set. See `reports/learnability/summary.md`.
 - Whether the accepted rows support a learner at all. The corpus is small and
   narrow: 37 committed schema-v1 states (2732 rows, no `scenario_context`, and
   a modelling vector only on the 1765 release rows), plus about 12 states per
@@ -373,11 +376,13 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    once and returned `no_established_signal`
    (`reports/learnability/summary.md`). The next move is more distinct
    STATES, not more rows per state. Repeating the matrix is the cheapest
-   axis: each run lands on fresh boards, so ~12 new states per ~6 CI minutes,
-   without writing a synthetic scenario generator. Re-run
-   `scripts/audit_learnability.py` as states accumulate and watch whether the
-   gap to the incumbent closes. Do not train a Transformer on a null, and do
-   not open final holdout data.
+   axis: a widened run lands ~46 fresh boards in ~25 CI minutes. But the
+   curve has now answered the volume question -- it saturates near 16 states
+   -- so the next move is a better feature set or a different target, not
+   more rows. Two concrete gaps: settled candidates carry no feature vector
+   at all, and there is no board-value label whose noise is smaller than its
+   effect (`sigma-branch-is-the-size-of-the-effects`). Do not train a
+   Transformer on a null, and do not open final holdout data.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
