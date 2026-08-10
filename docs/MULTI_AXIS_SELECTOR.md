@@ -14,7 +14,11 @@ current scalar winner.
 `MULTI_AXIS_SELECTOR_MODE=shadow` runs only with the retained structured
 portfolio. Candidate generation, scalar scoring, heap updates, lookahead and
 the simulator command are unchanged. The shadow evaluates the already retained
-Top-K and records a proposal; it never replaces the live action.
+Top-K only after the final live action has been frozen and records a proposal;
+it never replaces the live action. The post-selection placement is required:
+the first run (`31359754451`) computed before lookahead, changed the remaining
+wall-clock budget and failed its physical negative control despite never
+directly replacing an action.
 
 Each candidate keeps these axes separate:
 

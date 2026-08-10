@@ -7949,6 +7949,7 @@ class Agent:
         self._item_lifecycle = {}
         self.last_top_candidate_item_indices = []
         self.last_future_probe_item_indices = []
+        self.last_top_candidates = []
         self.last_multi_axis_shadow = None
         self._cross_step_candidates = []
         self.last_cross_step_valid_decisions = []
@@ -8261,10 +8262,6 @@ class Agent:
         if not top:
             self.last_lookahead_evaluation = None
             return None
-        if MULTI_AXIS_SELECTOR_MODE == "shadow":
-            self.last_multi_axis_shadow = multi_axis_shadow_record(
-                top, observation
-            )
         if (
             len(top) == 1
             or len(ordered_items) <= 1
@@ -8851,6 +8848,16 @@ class Agent:
             self.last_candidate_diagnostics[
                 "temporal_chunk_ensemble"
             ] = temporal_summary
+        if (
+            MULTI_AXIS_SELECTOR_MODE == "shadow"
+            and self.last_top_candidates
+        ):
+            # Compute telemetry only after every live selection decision is
+            # frozen.  Running this before lookahead changed its wall-clock
+            # budget and failed the first physical negative control.
+            self.last_multi_axis_shadow = multi_axis_shadow_record(
+                self.last_top_candidates, observation
+            )
         if decision is not None:
             self.last_action_source = action_source
             self.last_candidate_kind = (

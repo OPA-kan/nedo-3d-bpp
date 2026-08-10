@@ -1375,7 +1375,7 @@ class RankingPipelineContractTests(unittest.TestCase):
         )
         self.assertEqual((priority, soft), (1, 1))
 
-    def test_multi_axis_shadow_records_proposal_without_changing_choice(self):
+    def test_multi_axis_shadow_does_not_run_inside_closed_loop_selection(self):
         items = [sample_item(1), sample_item(2)]
         container = sample_container(
             require_shelf=False, center_x=0.0, cut_x=0.0
@@ -1401,7 +1401,6 @@ class RankingPipelineContractTests(unittest.TestCase):
             )
             for index in range(2)
         ]
-        shadow = {"would_change_action": True, "proposed_rank": 1}
         solver = agent.Agent("")
         with (
             mock.patch.object(
@@ -1410,7 +1409,7 @@ class RankingPipelineContractTests(unittest.TestCase):
             mock.patch.object(
                 agent,
                 "multi_axis_shadow_record",
-                return_value=shadow,
+                return_value={"would_change_action": True},
             ) as shadow_record,
             mock.patch.object(agent, "MULTI_AXIS_SELECTOR_MODE", "shadow"),
         ):
@@ -1422,8 +1421,9 @@ class RankingPipelineContractTests(unittest.TestCase):
             )
 
         self.assertIs(selected, top[0])
-        self.assertEqual(solver.last_multi_axis_shadow, shadow)
-        shadow_record.assert_called_once_with(top, observation)
+        self.assertIsNone(solver.last_multi_axis_shadow)
+        shadow_record.assert_not_called()
+        self.assertEqual(solver.last_top_candidates, top)
 
     def test_closed_loop_threads_structured_noop_into_top_candidates(self):
         item = sample_item(8)
