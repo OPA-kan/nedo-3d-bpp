@@ -277,11 +277,20 @@ stateは作り直せもしない。
 `step-NNN-state.json` は gzip後 約7KBで、行より小さい）。
 
 `scripts/index_replay_corpus.py` が `corpus.json` / `corpus.md` を生成する。
-これは索引であって集計ではない。**行はrun間で足し上がるが distinct state は
-増えない**（matrixは毎回同じ (case, step) を測り直す）ので、行の総数だけを
-「コーパスの大きさ」として読むと1桁以上過大評価する。索引はこの2つを分けて
-出し、seeded run と `--observed-swap-rounds 0` の ablation も**別armとして
+これは索引であって集計ではない。行の総数だけを「コーパスの大きさ」として
+読んではいけない。**同一snapshot内の行は親状態を共有する**ので、独立な例では
+ない。seeded run と `--observed-swap-rounds 0` の ablation も**別armとして
 分けたまま**数える。
+
+**stateは `(case, step)` ではなく snapshot fingerprint で数える。** 方策は
+deadline依存なので、同じscenarioを2回走らせても同じstep indexで**別の盤面**に
+到達する（`m-single-empty-noshelf` step 9 をローカルで3回測ったところ、
+placed itemの配置は3通りとも異なった）。したがって `(case, step)` の枠数で
+数えると「matrixを再実行しても増えない」という誤った結論になる — 実際には
+1 runあたり約12 stateずつ増える。逆に、稀に2つのrunが同一盤面に着地することも
+あり、それは二重計上してはいけない。fingerprintは packed item の settle後位置と
+残りpoolを含む。索引は fingerprint 基準の `distinct_states` と、枠数である
+`case_step_slots` の両方を出す。
 
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの

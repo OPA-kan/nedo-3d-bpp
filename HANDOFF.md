@@ -291,10 +291,19 @@ their instruments. A superseded or historical entry is not current evidence.
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
 - Whether the accepted rows support a learner at all. The corpus is small and
-  narrow: 48 committed schema-v1 states (2732 rows, no `scenario_context`, and
-  a modelling vector only on the 1765 release rows), plus 12 distinct states
-  per schema-v3 matrix run. Rows inside one state share a parent and are
-  strongly correlated, so 307 positives is not 307 independent examples.
+  narrow: 37 committed schema-v1 states (2732 rows, no `scenario_context`, and
+  a modelling vector only on the 1765 release rows), plus about 12 states per
+  schema-v3 matrix run. Rows inside one state share a parent and are strongly
+  correlated, so 307 positives is not 307 independent examples.
+- A state is a board, not a `(case, step)` label, and this changes the scaling
+  answer. The policy is deadline-limited, so two runs of one scenario reach
+  different boards at the same step index: `m-single-empty-noshelf` step 9 was
+  measured three times locally and gave three different placed-item
+  configurations (one shelf pair did collide, so it happens both ways).
+  Re-running the matrix therefore ADDS roughly 12 fresh states for about six
+  minutes of CI, and is the cheapest scaling axis available. `corpus.md`
+  reports fingerprint-based `distinct_states` beside the `case_step_slots`
+  count so the two are never confused again.
 - Whether the retained corpus is large enough to learn from. Retention is now
   decided: the matrix commits its rows and snapshots to
   `reports/residual-diversity-scale/history/<run_id>/dataset/`, indexed by
@@ -347,7 +356,9 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    only as Actions artifacts that expire, so scaling states without a
    retention decision produces data that cannot be trained on later; (c) scale
    the number of distinct STATES, not the rows per state, since rows inside
-   one snapshot share a parent. Only then run the learnability audit
+   one snapshot share a parent. Repeating the matrix is the cheapest axis:
+   each run lands on fresh boards, so ~12 new states per ~6 CI minutes,
+   without writing a synthetic scenario generator. Only then run the learnability audit
    (`docs/keystone/tasks/2026-08-10-residual-state-diversity-dataset.md`
    slice 5: scenario-level split, lookup/GBDT/Deep Sets, oracle regret) before
    any Transformer. Do not open final holdout data.

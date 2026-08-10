@@ -15,7 +15,9 @@ def write_dataset(
     steps: list[int],
     swap_rounds: int,
     positives: int,
+    board: int = 0,
 ) -> None:
+    """``board`` moves the placed items, i.e. makes it a different state."""
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "manifest.json").write_text(
         json.dumps(
@@ -37,7 +39,26 @@ def write_dataset(
     )
     for step in steps:
         (directory / f"step-{step:03d}-state.json").write_text(
-            "{}", encoding="utf-8"
+            json.dumps(
+                {
+                    "case_id": case_id,
+                    "step": step,
+                    "physics": {
+                        "packed_items": [
+                            {
+                                "container_index": 0,
+                                "item_index": index,
+                                "position": [0.1 * index + board, 0.0, 0.5],
+                            }
+                            for index in range(step)
+                        ]
+                    },
+                    "observation": {
+                        "pool_list": [{"index": step + 1}, {"index": step + 2}]
+                    },
+                }
+            ),
+            encoding="utf-8",
         )
         (directory / f"step-{step:03d}-candidates.jsonl").write_text(
             "".join('{"a":1}\n' for _ in range(positives)), encoding="utf-8"
@@ -65,23 +86,44 @@ class CorpusIndexTests(unittest.TestCase):
         )
         return path / "dataset"
 
-    def test_rows_add_up_across_runs_but_distinct_states_do_not(self):
-        for run in ("run-1", "run-2"):
+    def test_two_runs_of_one_scenario_are_counted_as_different_states(self):
+        # The defect this exists for: the policy is deadline-limited, so the
+        # same (case, step) label is a different board on each run. Counting
+        # labels would say a re-run adds nothing.
+        for index, run in enumerate(("run-1", "run-2")):
             write_dataset(
                 self.run_dir(run) / "alpha",
                 case_id="m-alpha",
                 steps=[3, 9],
                 swap_rounds=64,
                 positives=5,
+                board=index,
             )
 
         summary = summarize(scan_runs(self.root))
 
         self.assertEqual(summary["runs"], 2)
         self.assertEqual(summary["rows_all_runs"]["positive_transition"], 20)
-        # The same two (case, step) pairs, measured twice.
-        self.assertEqual(summary["distinct_states"], 2)
-        self.assertEqual(summary["states"], ["m-alpha:003", "m-alpha:009"])
+        self.assertEqual(summary["case_step_slots"], 2)
+        self.assertEqual(summary["distinct_states"], 4)
+        self.assertEqual(summary["states_shared_by_more_than_one_run"], 0)
+        self.assertEqual(summary["slots"], ["m-alpha:003", "m-alpha:009"])
+
+    def test_two_runs_that_land_on_one_board_are_not_counted_twice(self):
+        for run in ("run-1", "run-2"):
+            write_dataset(
+                self.run_dir(run) / "alpha",
+                case_id="m-alpha",
+                steps=[3],
+                swap_rounds=64,
+                positives=5,
+                board=0,
+            )
+
+        summary = summarize(scan_runs(self.root))
+
+        self.assertEqual(summary["distinct_states"], 1)
+        self.assertEqual(summary["states_shared_by_more_than_one_run"], 1)
 
     def test_blank_lines_are_not_counted_as_rows(self):
         write_dataset(
@@ -112,6 +154,7 @@ class CorpusIndexTests(unittest.TestCase):
             steps=[3],
             swap_rounds=0,
             positives=6,
+            board=1,
         )
 
         summary = summarize(scan_runs(self.root))
@@ -123,7 +166,9 @@ class CorpusIndexTests(unittest.TestCase):
         self.assertEqual(
             summary["by_arm"]["64"]["rows"]["positive_transition"], 6
         )
-        self.assertEqual(summary["distinct_states"], 1)
+        self.assertEqual(summary["by_arm"]["0"]["distinct_states"], 1)
+        self.assertEqual(summary["by_arm"]["64"]["distinct_states"], 1)
+        self.assertEqual(summary["distinct_states"], 2)
 
     def test_a_run_whose_scenarios_disagree_about_the_arm_is_flagged(self):
         dataset = self.run_dir("mixed")
