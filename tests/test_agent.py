@@ -4384,6 +4384,12 @@ class CrossStepIncumbentTests(unittest.TestCase):
         self.assertEqual(record["scheduled_by_delay"], {"2": 1, "1": 1})
         self.assertEqual(record["valid_by_delay"], {"2": 1, "1": 1})
         self.assertTrue(record["selected_matches_consensus"])
+        self.assertTrue(record["selected_matches_any_valid_action"])
+        self.assertTrue(record["selected_matches_any_valid_item"])
+        self.assertEqual(record["item_group_count"], 1)
+        self.assertEqual(record["max_item_vote_count"], 2)
+        self.assertEqual(record["item_consensus"]["item_index"], 42)
+        self.assertTrue(record["selected_matches_item_consensus"])
         self.assertFalse(record["would_prevent_protocol_fallback"])
 
     def test_temporal_chunk_shadow_records_without_changing_action(self):
@@ -4494,6 +4500,8 @@ class CrossStepIncumbentTests(unittest.TestCase):
             )
 
         self.assertEqual(len(valid), 1)
+        self.assertEqual(record["max_item_vote_count"], 1)
+        self.assertFalse(record["selected_matches_any_valid_item"])
         self.assertTrue(record["would_prevent_protocol_fallback"])
 
     def test_rollout_shadow_records_but_does_not_change_action(self):

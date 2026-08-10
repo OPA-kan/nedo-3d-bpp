@@ -97,6 +97,7 @@ def configure_arm_environment(
         "rescue",
         "cross_step_shadow",
         "temporal_chunk_shadow",
+        "temporal_chunk_shadow_stride4",
         "rollout_shadow",
         "rollout_enforce",
         "anchor_fallback",
@@ -196,6 +197,9 @@ def configure_arm_environment(
             env["CROSS_STEP_INCUMBENT_MODE"] = "shadow"
         elif arm == "temporal_chunk_shadow":
             env["TEMPORAL_CHUNK_ENSEMBLE_MODE"] = "shadow"
+        elif arm == "temporal_chunk_shadow_stride4":
+            env["TEMPORAL_CHUNK_ENSEMBLE_MODE"] = "shadow"
+            env["TEMPORAL_CHUNK_STRIDE"] = "4"
         elif arm == "rollout_shadow":
             env["VISIBLE_POOL_ROLLOUT_MODE"] = "shadow"
         elif arm == "rollout_enforce":
@@ -421,6 +425,11 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "temporal_chunk_consensus_steps": 0,
         "temporal_chunk_selected_match_count": 0,
         "temporal_chunk_selected_disagree_count": 0,
+        "temporal_chunk_selected_matches_any_action_count": 0,
+        "temporal_chunk_selected_matches_any_item_count": 0,
+        "temporal_chunk_item_consensus_steps": 0,
+        "temporal_chunk_selected_item_consensus_match_count": 0,
+        "temporal_chunk_selected_item_consensus_disagree_count": 0,
         "temporal_chunk_would_prevent_fallback_count": 0,
         "temporal_chunk_generated_count": 0,
         "temporal_chunk_validation_seconds_total": 0.0,
@@ -538,6 +547,34 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                     else:
                         summary[
                             "temporal_chunk_selected_disagree_count"
+                        ] += 1
+                summary[
+                    "temporal_chunk_selected_matches_any_action_count"
+                ] += int(
+                    temporal.get("selected_matches_any_valid_action") is True
+                )
+                summary[
+                    "temporal_chunk_selected_matches_any_item_count"
+                ] += int(
+                    temporal.get("selected_matches_any_valid_item") is True
+                )
+                has_item_consensus = (
+                    int(temporal.get("max_item_vote_count", 0)) >= 2
+                )
+                summary["temporal_chunk_item_consensus_steps"] += int(
+                    has_item_consensus
+                )
+                if has_item_consensus:
+                    if (
+                        temporal.get("selected_matches_item_consensus")
+                        is True
+                    ):
+                        summary[
+                            "temporal_chunk_selected_item_consensus_match_count"
+                        ] += 1
+                    else:
+                        summary[
+                            "temporal_chunk_selected_item_consensus_disagree_count"
                         ] += 1
                 if temporal.get("would_prevent_protocol_fallback") is True:
                     summary[
@@ -790,6 +827,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "temporal_chunk_consensus_steps": 0,
                     "temporal_chunk_selected_match_count": 0,
                     "temporal_chunk_selected_disagree_count": 0,
+                    "temporal_chunk_selected_matches_any_action_count": 0,
+                    "temporal_chunk_selected_matches_any_item_count": 0,
+                    "temporal_chunk_item_consensus_steps": 0,
+                    "temporal_chunk_selected_item_consensus_match_count": 0,
+                    "temporal_chunk_selected_item_consensus_disagree_count": 0,
                     "temporal_chunk_would_prevent_fallback_count": 0,
                     "temporal_chunk_generated_count": 0,
                     "temporal_chunk_validation_seconds_total": 0.0,
@@ -850,6 +892,11 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "temporal_chunk_consensus_steps",
                 "temporal_chunk_selected_match_count",
                 "temporal_chunk_selected_disagree_count",
+                "temporal_chunk_selected_matches_any_action_count",
+                "temporal_chunk_selected_matches_any_item_count",
+                "temporal_chunk_item_consensus_steps",
+                "temporal_chunk_selected_item_consensus_match_count",
+                "temporal_chunk_selected_item_consensus_disagree_count",
                 "temporal_chunk_would_prevent_fallback_count",
                 "temporal_chunk_generated_count",
             ):
@@ -1119,6 +1166,25 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "temporal_chunk_selected_disagree_count": int(
                 bucket["temporal_chunk_selected_disagree_count"]
             ),
+            "temporal_chunk_selected_matches_any_action_count": int(
+                bucket["temporal_chunk_selected_matches_any_action_count"]
+            ),
+            "temporal_chunk_selected_matches_any_item_count": int(
+                bucket["temporal_chunk_selected_matches_any_item_count"]
+            ),
+            "temporal_chunk_item_consensus_steps": int(
+                bucket["temporal_chunk_item_consensus_steps"]
+            ),
+            "temporal_chunk_selected_item_consensus_match_count": int(
+                bucket[
+                    "temporal_chunk_selected_item_consensus_match_count"
+                ]
+            ),
+            "temporal_chunk_selected_item_consensus_disagree_count": int(
+                bucket[
+                    "temporal_chunk_selected_item_consensus_disagree_count"
+                ]
+            ),
             "temporal_chunk_would_prevent_fallback_count": int(
                 bucket["temporal_chunk_would_prevent_fallback_count"]
             ),
@@ -1375,10 +1441,11 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             "## Temporal chunk ensemble telemetry",
             "",
             "| arm | steps | scheduled | static valid | survival "
-            "| multi-origin steps | consensus steps | selected match "
-            "| selected disagree | fallback rescue | generated "
+            "| multi-origin | action consensus | action match/disagree "
+            "| any action/item match | item consensus | item match/disagree "
+            "| fallback rescue | generated "
             "| ms/step | survival by delay |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+            "|---|---:|---:|---:|---:|---:|---:|---|---|---:|---|---:|---:|---:|---|",
         ]
         for arm, trace in sorted(policy_trace.items()):
             lines.append(
@@ -1388,8 +1455,13 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['temporal_chunk_static_survival_rate']} "
                 f"| {trace['temporal_chunk_multi_origin_steps']} "
                 f"| {trace['temporal_chunk_consensus_steps']} "
-                f"| {trace['temporal_chunk_selected_match_count']} "
-                f"| {trace['temporal_chunk_selected_disagree_count']} "
+                f"| {trace['temporal_chunk_selected_match_count']}/"
+                f"{trace['temporal_chunk_selected_disagree_count']} "
+                f"| {trace['temporal_chunk_selected_matches_any_action_count']}/"
+                f"{trace['temporal_chunk_selected_matches_any_item_count']} "
+                f"| {trace['temporal_chunk_item_consensus_steps']} "
+                f"| {trace['temporal_chunk_selected_item_consensus_match_count']}/"
+                f"{trace['temporal_chunk_selected_item_consensus_disagree_count']} "
                 f"| {trace['temporal_chunk_would_prevent_fallback_count']} "
                 f"| {trace['temporal_chunk_generated_count']} "
                 f"| {trace['temporal_chunk_ms_per_observed_step']} "

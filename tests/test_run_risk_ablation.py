@@ -106,6 +106,11 @@ class SummarizeTests(unittest.TestCase):
             "temporal_chunk_consensus_steps": 5,
             "temporal_chunk_selected_match_count": 3,
             "temporal_chunk_selected_disagree_count": 2,
+            "temporal_chunk_selected_matches_any_action_count": 4,
+            "temporal_chunk_selected_matches_any_item_count": 7,
+            "temporal_chunk_item_consensus_steps": 6,
+            "temporal_chunk_selected_item_consensus_match_count": 4,
+            "temporal_chunk_selected_item_consensus_disagree_count": 2,
             "temporal_chunk_would_prevent_fallback_count": 1,
             "temporal_chunk_generated_count": 18,
             "temporal_chunk_validation_seconds_total": 0.02,
@@ -124,6 +129,19 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(trace["temporal_chunk_consensus_steps"], 5)
         self.assertEqual(trace["temporal_chunk_selected_match_count"], 3)
         self.assertEqual(trace["temporal_chunk_selected_disagree_count"], 2)
+        self.assertEqual(
+            trace["temporal_chunk_selected_matches_any_action_count"], 4
+        )
+        self.assertEqual(
+            trace["temporal_chunk_selected_matches_any_item_count"], 7
+        )
+        self.assertEqual(trace["temporal_chunk_item_consensus_steps"], 6)
+        self.assertEqual(
+            trace["temporal_chunk_selected_item_consensus_match_count"], 4
+        )
+        self.assertEqual(
+            trace["temporal_chunk_selected_item_consensus_disagree_count"], 2
+        )
         self.assertEqual(trace["temporal_chunk_ms_per_observed_step"], 10.0)
         self.assertEqual(
             trace["temporal_chunk_valid_by_delay"], {"1": 7, "2": 5}
@@ -204,6 +222,20 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
         self.assertEqual(env["TEMPORAL_CHUNK_ENSEMBLE_MODE"], "shadow")
         self.assertNotIn("TEMPORAL_CHUNK_DEPTH", env)
+
+    def test_temporal_chunk_stride4_is_shadow_with_explicit_stride(self):
+        env = {
+            "RELEASE_RISK_LIVE_RERANK": "0",
+            "TEMPORAL_CHUNK_STRIDE": "99",
+        }
+
+        configure_arm_environment(
+            env, "temporal_chunk_shadow_stride4", 2.0, 0.0
+        )
+
+        self.assertNotIn("RELEASE_RISK_LIVE_RERANK", env)
+        self.assertEqual(env["TEMPORAL_CHUNK_ENSEMBLE_MODE"], "shadow")
+        self.assertEqual(env["TEMPORAL_CHUNK_STRIDE"], "4")
 
     def test_rollout_shadow_is_the_shipped_baseline_plus_telemetry(self):
         env = {
@@ -484,6 +516,11 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "temporal_chunk_consensus_steps": 0,
                 "temporal_chunk_selected_match_count": 0,
                 "temporal_chunk_selected_disagree_count": 0,
+                "temporal_chunk_selected_matches_any_action_count": 0,
+                "temporal_chunk_selected_matches_any_item_count": 0,
+                "temporal_chunk_item_consensus_steps": 0,
+                "temporal_chunk_selected_item_consensus_match_count": 0,
+                "temporal_chunk_selected_item_consensus_disagree_count": 0,
                 "temporal_chunk_would_prevent_fallback_count": 0,
                 "temporal_chunk_generated_count": 0,
                 "temporal_chunk_validation_seconds_total": 0.0,
@@ -525,6 +562,10 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                     "valid_origin_count": 2,
                     "max_vote_count": 2,
                     "selected_matches_consensus": False,
+                    "selected_matches_any_valid_action": True,
+                    "selected_matches_any_valid_item": True,
+                    "max_item_vote_count": 2,
+                    "selected_matches_item_consensus": True,
                     "would_prevent_protocol_fallback": False,
                     "generated_for_future_count": 2,
                     "validation_seconds": 0.003,
@@ -546,6 +587,19 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["temporal_chunk_multi_origin_steps"], 1)
         self.assertEqual(summary["temporal_chunk_consensus_steps"], 1)
         self.assertEqual(summary["temporal_chunk_selected_disagree_count"], 1)
+        self.assertEqual(
+            summary["temporal_chunk_selected_matches_any_action_count"], 1
+        )
+        self.assertEqual(
+            summary["temporal_chunk_selected_matches_any_item_count"], 1
+        )
+        self.assertEqual(summary["temporal_chunk_item_consensus_steps"], 1)
+        self.assertEqual(
+            summary["temporal_chunk_selected_item_consensus_match_count"], 1
+        )
+        self.assertEqual(
+            summary["temporal_chunk_selected_item_consensus_disagree_count"], 0
+        )
         self.assertEqual(summary["temporal_chunk_generated_count"], 2)
         self.assertEqual(summary["temporal_chunk_valid_by_delay"], {"1": 1, "2": 1})
         self.assertEqual(

@@ -6179,7 +6179,40 @@ def temporal_chunk_ensemble_evaluation(
     )
     consensus = ordered_groups[0] if ordered_groups else None
 
+    item_groups = {}
+    for proposal, _record in valid_pairs:
+        item_group = item_groups.setdefault(
+            int(proposal.item_index),
+            {
+                "item_index": int(proposal.item_index),
+                "vote_count": 0,
+                "origin_steps": [],
+                "delays": [],
+                "best_previous_score": -float("inf"),
+            },
+        )
+        item_group["vote_count"] += 1
+        item_group["origin_steps"].append(int(proposal.origin_step))
+        item_group["delays"].append(
+            int(current_step) - int(proposal.origin_step)
+        )
+        item_group["best_previous_score"] = max(
+            float(item_group["best_previous_score"]),
+            float(proposal.previous_score),
+        )
+    ordered_item_groups = sorted(
+        item_groups.values(),
+        key=lambda group: (
+            int(group["vote_count"]),
+            float(group["best_previous_score"]),
+            int(group["item_index"]),
+        ),
+        reverse=True,
+    )
+    item_consensus = ordered_item_groups[0] if ordered_item_groups else None
+
     selected_key = None
+    selected_item_index = None
     pool_list = observation.get("pool_list", [])
     if selected_decision is not None:
         selected_pool_index = int(selected_decision.action["item_idx"])
@@ -6225,10 +6258,31 @@ def temporal_chunk_ensemble_evaluation(
                 and consensus is not None
                 and tuple(consensus["key"]) == tuple(selected_key)
             ),
+            "selected_matches_any_valid_action": bool(
+                selected_key is not None and selected_key in groups
+            ),
+            "selected_matches_any_valid_item": bool(
+                selected_item_index is not None
+                and selected_item_index in item_groups
+            ),
+            "item_group_count": len(ordered_item_groups),
+            "max_item_vote_count": (
+                0
+                if item_consensus is None
+                else int(item_consensus["vote_count"])
+            ),
+            "item_consensus": item_consensus,
+            "selected_matches_item_consensus": bool(
+                selected_item_index is not None
+                and item_consensus is not None
+                and int(item_consensus["item_index"])
+                == int(selected_item_index)
+            ),
             "would_prevent_protocol_fallback": bool(
                 selected_decision is None and valid_decisions
             ),
             "action_groups": ordered_groups,
+            "item_groups": ordered_item_groups,
         }
     )
     return base, valid_decisions

@@ -52,6 +52,8 @@ The trace records:
 - valid proposals by delay;
 - number of independent origin steps represented;
 - action-group count and maximum vote count;
+- item-only vote count, kept separate from coarse action agreement;
+- whether the live action matches any valid delayed action or item proposal;
 - whether the live action matches the temporal consensus;
 - whether a valid delayed proposal existed when the live policy returned no
   candidate;
@@ -82,3 +84,18 @@ Keep the mode shadow-only until a paired Linux experiment establishes:
 Even a positive result does not authorize direct execution of old commands.
 Any later selection experiment must revalidate against the current state and
 remain one-action closed-loop execution.
+
+## First shadow run
+
+Actions run `31348162973`, stride 1, five development configurations and
+three repeats per arm.  Across 292 shadow steps it generated 84 delayed
+proposals; 48 survived static revalidation.  Delay-1 survival was 45/62
+(72.6%), while delay-2 survival was 3/22 (13.6%).  Only three steps had valid
+proposals from multiple origin steps, no coarse action group received two
+votes, and no protocol fallback had a valid delayed alternative.  Mean
+generation plus validation cost was 30.5 ms/step.
+
+This does not support enforcement, but it also did not instantiate a dense
+ensemble: only 84 proposals were produced for 292 steps.  The registered
+follow-up changes only the future anchor scan to stride 4, which prior rollout
+coverage evidence found materially increases reach at the same attempt cap.
