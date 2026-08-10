@@ -1213,9 +1213,10 @@
       "id": "trunk-lacks-the-true-envelope-code",
       "topic": "protocol",
       "date": "2026-08-04",
-      "status": "active",
+      "status": "superseded",
       "claim": "The implementation that produced the best official score (35.375) is NOT on the trunk. Trunk commit 050d9d7 ('trueenvelope: the total doubles') touches only docs/OFFICIAL_SCORE_LOG.md and context/evidence.json -- no agent code. Trunk's rectangular_container_anchor_bounds is still the 12-line box formula; the 68/91-line half-space version exists only on claude/l3-l4-allocation-ordering, claude/task-bottleneck-optimization-o3qtkk and claude/taskc-algorithm-improvement-ivaqo1. Measured on the bundled 000 container (width 1.45, thickness 0.04) the real y half-spaces sit at y=-0.7250 and y=+0.6850 -- ASYMMETRIC -- while the box formula assumes [-0.6850, +0.6850], so a 4 cm strip along the full 2 m length of the low-y wall is never searched even though inside_container would accept placements there. TRAP: scripts/build_submission.py packs agent/agent.py from the working tree, so rebuilding from trunk ships a pre-envelope agent (~23-point level), not the 35.375 one.",
-      "source": "commit 050d9d7; agent/agent.py rectangular_container_anchor_bounds on trunk vs 3b1635c; simulator/src/ground_handling/containers.py; scripts/build_submission.py"
+      "source": "commit 050d9d7; agent/agent.py rectangular_container_anchor_bounds on trunk vs 3b1635c; simulator/src/ground_handling/containers.py; scripts/build_submission.py",
+      "superseded_by": "live-trunk-now-contains-true-envelope"
     },
     {
       "id": "scenario-matrix-covers-the-declared-scale",
@@ -1389,6 +1390,14 @@
       "status": "active",
       "claim": "OFFICIAL RULING (SIGNATE, 2026-08-04): the shelf-height planes in PlacementValidator.check_transport_path()'s resting_surfaces and ceiling_surfaces apply REGARDLESS of require_shelf, and this is intended, not a defect. The stated reason is that require_shelf controls only the CENTRE shelf, while the left-ear small shelf always exists and divides the space, so the plane is a permanent structural constraint. resting_surfaces (thickness, height/2+thickness+buffer): a load bottom within 0-50 mm of either plane counts as a direct slide approach onto a shelf/frame top and gets NO extra lift (effective_start_z=0). ceiling_surfaces (height/2+buffer, height+buffer-thickness): the shelf underside also always acts as a clearance ceiling and clips the lift. Official advice when this causes an unwanted rejection: move the target Z by a few millimetres to leave the 0-50 mm band, or reorder the loading. VERIFIED the agent already complies: transport_sweeps() and transport_samples() apply both plane sets unconditionally, and the agent's resting plane height/2+thickness+buffer is exactly the top face of shelf_aabbs()'s small_shelf, whose generation depends on cut_x>0 and NOT on require_shelf, while main_shelf correctly does depend on the flag. DO NOT make these planes conditional; tests/test_transport_plane_contract.py pins it. NOT YET TAKEN: the agent never applies the official few-millimetre nudge, so settled candidates that land in the band are simply discarded by transport_path_clear; release candidates escape it structurally via RELEASE_TARGET_LIFT=0.052.",
       "source": "Official SIGNATE answer 2026-08-04 14:50 (user-relayed); simulator/src/ground_handling/validator.py check_transport_path; agent/agent.py transport_sweeps / transport_samples / shelf_aabbs; docs/COMPETITION_QA.md; tests/test_transport_plane_contract.py"
+    },
+    {
+      "id": "live-trunk-now-contains-true-envelope",
+      "topic": "protocol",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The 2026-08-04 branch-split warning is resolved. After the 2026-08-06 consolidation, experiment/anchor-recall-oracle contains the real-half-space anchor envelope that produced the best official score 35.375, together with the later official transport-plane ruling. At audit commit fe39111, commit 3b1635c is an ancestor, agent/agent.py and simulator/agent.py both define ANCHOR_TRUE_ENVELOPE with default 1, and rectangular_container_anchor_bounds contains the half-space implementation. The live branch also contains the adopted Task A bounded dry run (13381bd) and first-pass depth 256 (2cef4b9). A fresh submission artifact is not checked in, so builds must record the fetched commit and new artifact hash rather than reuse an old prose hash.",
+      "source": "git fetch --all --prune and ancestry/source audit on 2026-08-10 at fe39111; commits 3b1635c, 13381bd, 2cef4b9; agent/agent.py; simulator/agent.py; docs/REPO_AUDIT.md section A; docs/BRANCH_INVENTORY.md"
     }
   ]
 }

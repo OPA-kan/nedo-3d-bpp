@@ -398,8 +398,8 @@ DEATH_BAND_FALLBACK_ENABLED = os.environ.get(
 # it (DEATH_BAND_SCORE="") turns the gate into a GLOBAL risk filter that acts
 # on any release the model prices at P_rot >= 0.5, which is the intervention
 # class this repository already rejected once
-# (visible-pool-rollout-enforce-rejected-v1, and the reason
-# RELEASE_RISK_LIVE_RERANK ships off). The band is what keeps the gate narrow.
+# (visible-pool-rollout-enforce-rejected-v1). The live risk rerank is instead
+# a soft score penalty and ships on; this hard replacement gate ships off.
 # -1.5 came from three measured killer scores, so it IS a fitted constant --
 # the unbanded form is kept as an ablation arm to price that fit rather than
 # defended as principled.

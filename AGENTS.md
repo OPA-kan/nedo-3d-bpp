@@ -35,27 +35,21 @@ cat AGENTS.md   # switch後は必ず明示的に読み直す（自動再読込�
 fetch前はremoteに`main`しか見えないことがあり、そのまま読むと**存在しない
 実装について推論することになる**。実際にその事故が起きている。
 
-**そして「どれが trunk か」を、この文の記述で信じてはならない。** 2026-08-06
-の監査時点で、ここが指す `experiment/anchor-recall-oracle` 自体が130コミット
-遅れており、公式最高スコア 35.375 を出した `ANCHOR_TRUE_ENVELOPE` の実装が
-**1箇所も無かった**。手順どおり clone した者が、最高スコアの agent が存在
-しない木の上で作業を始める状態だった。**同じ事故の2度目である。**
-
-だから数字を書かずに、**毎回測る**:
+2026-08-06に分裂は解消され、最高公式スコア35.375を出した
+`ANCHOR_TRUE_ENVELOPE`の実装もこのbranchへ統合された。ただしrefの鮮度は
+主張の一部なので、**毎回測る**:
 
 ```bash
 git fetch --all --prune
-# agent/agent.py が最も大きい branch が、まず疑うべき trunk 候補
-for b in $(git branch -r --format='%(refname:short)' | grep -v HEAD); do
-  printf '%6s %s\n' "$(git show $b:agent/agent.py | wc -l)" "$b"
-done | sort -rn | head -5
-# 出荷済み最高スコアの実装が居るか
-git grep -c ANCHOR_TRUE_ENVELOPE <候補> -- agent/agent.py
+git rev-parse origin/experiment/anchor-recall-oracle
+git grep -c ANCHOR_TRUE_ENVELOPE origin/experiment/anchor-recall-oracle -- agent/agent.py
+git log -1 --oneline origin/experiment/anchor-recall-oracle
 ```
 
-`agent/agent.py` の行数が最大で、かつ `ANCHOR_TRUE_ENVELOPE` を含む branch が
-実際の作業先である。一致しなければ**この節を直してから**作業を始めること。
-経緯は `docs/REPO_AUDIT.md` §A。
+ファイル行数でtrunkを推定してはならない。古い研究branchの方が大きいことが
+ある。指定branchにtrue-envelopeが無い、または`docs/BRANCH_INVENTORY.md`と
+履歴が矛盾する場合は、作業を止めて正本を再監査する。経緯は
+`docs/REPO_AUDIT.md` §A。
 
 ### Step 1 — 現在地を読む（約11 KB）
 
@@ -70,12 +64,10 @@ python3 scripts/context.py show operations   # 日々の作業ループ規則（
 複数ジョブは `scripts/run_queue.py` の計画ファイルで一括実行する。
 詳細は `docs/AGENT_OPERATIONS.md`。
 
-**現在の live 方策(2026-07-31 の final_holdout 評価で切り替え済み):**
-`agent.py` の出荷デフォルトは risk-on — 実 action は
-`Q - 1.0 * P_rot`(力学モデル `mech-dev-v1-20260731`)で選択される。
-`RELEASE_RISK_LIVE_RERANK=0` で切り替え前の挙動に戻る。滑り項
-(`RELEASE_RISK_SLIDE_LAMBDA`)は既定 0 で shadow 検証中。経緯と制約は
-`docs/RELEASE_RISK_PROTOCOL.md` §8。**「baseline」は risk-on 方策を指す。**
+**現在のlive方策:** risk-on (`Q - 1.0*P_rot - 0.5*P_slide`)、
+class-aware coverage、first-pass 256、true-envelope ON。Task Aではbounded128の
+offline dry runも既定ON。正確な一覧と撤回済み方策は`HANDOFF.md`を正本とする。
+**「baseline」はこのlive方策を指す。**
 
 `HANDOFF.md`の次の3節は必ず読む。
 

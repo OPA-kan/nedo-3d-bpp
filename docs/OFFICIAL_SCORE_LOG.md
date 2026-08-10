@@ -312,7 +312,14 @@ m2-k15(2 コンテナ 83 個)で μ22.0 → μ30.6 と出ていたので、**ロ
 可能性もある — cog -20.7% と stability -22.4% が最大の下げ幅である事実は
 その向きと整合する。
 
-## 3. trunk には 35.375 のコードが入っていない
+## 3. trunk には 35.375 のコードが入っていない（当時。解消済み）
+
+> **2026-08-10 訂正:** この節は2026-08-04時点のbranch分裂を記録した
+> historical snapshotである。2026-08-06の統合後、live branch
+> `experiment/anchor-recall-oracle`には`3b1635c`のtrue-envelope実装が入り、
+> `ANCHOR_TRUE_ENVELOPE=1`が既定になった。現在地は`HANDOFF.md`と
+> evidence `live-trunk-now-contains-true-envelope`を参照すること。以下の警告を
+> 現在のbuild指示として使用してはならない。
 
 `050d9d7`(trunk)は `docs/OFFICIAL_SCORE_LOG.md` と `context/evidence.json`
 だけを変更しており、`agent/agent.py` を含まない。trunk の
