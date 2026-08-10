@@ -1531,6 +1531,26 @@
         "placed_safe_deltas": [0, 0, -2],
         "adopted_for_training": false
       }
+    },
+    {
+      "id": "residual-diversity-per-stratum-coverage-still-fails-global-guards",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The second residual-state sampler enforced unseen item and item-orientation priority inside each existing kind/gate/score stratum before residual maximin. In the same-snapshot paired PyBullet pilot on b000-k20 steps 3, 6 and 9, observed settle-afterstate nearest-neighbour distance still exceeded stratified random at all three steps by 0.025438, 0.012888 and 0.005581 (mean +0.014636), and item-orientation coverage no longer regressed. It nevertheless failed the preregistered acceptance contract: global unique-item coverage was still -1 at step 3 and placed-safe replay count was still -2 at step 9. Per-stratum semantic priority cannot guarantee portfolio-wide item coverage because different strata can spend their quotas on the same item. Static semantic coverage also does not solve the late-step physical-safety selection problem. Do not train or adopt this sampler. A further dataset sampler must coordinate item coverage globally across strata and keep observed physical safety as an explicit outcome/acceptance axis rather than inferring it from the current static risk proxy.",
+      "source": "reports/residual-diversity/history/31368589378/summary.json; Actions runs 31368589378 and 31368589596; experiment/residual-diversity-dataset commit 36a70b7",
+      "values": {
+        "steps": [3, 6, 9],
+        "proxy_gain_steps": 3,
+        "physical_gain_steps": 3,
+        "mean_physical_nn_distance_delta": 0.014635930123647514,
+        "unique_item_deltas": [-1, 0, 0],
+        "unique_item_orientation_deltas": [0, 0, 0],
+        "physical_spatial_cell_deltas": [-2, 2, 0],
+        "placed_safe_deltas": [0, 0, -2],
+        "acceptance_verdict": "fail",
+        "adopted_for_training": false
+      }
     }
   ]
 }

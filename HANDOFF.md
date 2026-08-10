@@ -165,6 +165,16 @@ and SHA-256. Do not reuse hashes in old prose.
 - The next sampler must guarantee item and item-orientation coverage first,
   keep physical safety separate, and only then maximize residual distance.
   Do not train a Transformer or claim live-policy benefit from this pilot.
+- Run `31368589378` tested that constrained v2. It retained positive physical
+  dispersion at all three steps (+0.025438/+0.012888/+0.005581; mean
+  +0.014636) and eliminated the item-orientation deficit, but still failed the
+  preregistered guards: global unique-item coverage was -1 at step 3 and
+  placed-safe replay count was -2 at step 9. The constraint was local to each
+  stratum, so several strata could still spend quota on the same item.
+- Do not train from v2. If this line continues, coordinate semantic coverage
+  across the whole portfolio (while retaining stratum minima), and treat
+  observed physical safety as an outcome/acceptance axis rather than claiming
+  the current static risk proxy is a safety label.
 
 ### Local score proxies
 
@@ -212,9 +222,9 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether constrained residual diversity (item/orientation coverage plus a
-  safety floor) can retain the measured settle-state dispersion. The first
-  unconstrained maximin sampler is not adopted for training.
+- Whether globally coordinated residual diversity can retain measured physical
+  dispersion without losing item coverage or placed-safe outcomes. Both the
+  unconstrained v1 and per-stratum-constrained v2 are not adopted for training.
 
 ## Branch disposition
 
@@ -234,9 +244,9 @@ branches are retained as evidence, not as competing trunks.
 - `experiment/task-a-rollout-transfer`: preserved Codex result/history branch;
   its accepted implementation and compact report are already on live trunk.
 - `experiment/residual-diversity-dataset`: active offline dataset experiment.
-  Run `31367396930` is positive for physical dispersion but negative for
-  semantic item coverage and late-step safety; do not merge as a finished
-  training pipeline.
+  Runs `31367396930` and `31368589378` are positive for physical dispersion,
+  but v2 still fails global item coverage and late-step safety; do not merge as
+  a finished training pipeline.
 
 Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
