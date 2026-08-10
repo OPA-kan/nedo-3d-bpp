@@ -124,6 +124,73 @@ class TopOneTieTests(unittest.TestCase):
         self.assertAlmostEqual(report["top1_safe_rate"], 1.0)
 
 
+class BoardIdentityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def snapshot(self, directory: pathlib.Path, *, board: int) -> None:
+        (directory / "step-003-state.json").write_text(
+            json.dumps(
+                {
+                    "case_id": "m-a",
+                    "step": 3,
+                    "physics": {
+                        "packed_items": [
+                            {
+                                "container_index": 0,
+                                "item_index": 0,
+                                "position": [float(board), 0.0, 0.5],
+                            }
+                        ]
+                    },
+                    "observation": {"pool_list": [{"index": 1}]},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def build(self, run: str, *, board: int) -> None:
+        directory = self.root / run / "dataset" / "m-a"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "manifest.json").write_text("{}", encoding="utf-8")
+        entries = [
+            row(
+                case_id="m-a",
+                step=3,
+                candidate=index,
+                features=[0.1 * index] * len(FEATURES),
+                safe=index % 2 == 0,
+                score=float(index),
+            )
+            for index in range(4)
+        ]
+        (directory / "step-003-candidates.jsonl").write_text(
+            "".join(json.dumps(entry) + "\n" for entry in entries),
+            encoding="utf-8",
+        )
+        self.snapshot(directory, board=board)
+
+    def test_two_runs_on_the_same_board_count_as_one_state(self):
+        # Otherwise that board is weighted twice inside its own fold, which
+        # inflated both the state count and the top-1 rate.
+        self.build("run-1", board=0)
+        self.build("run-2", board=0)
+
+        rows, _skipped = load_rows(self.root)
+
+        self.assertEqual(len({r["state"] for r in rows}), 1)
+
+    def test_two_runs_on_different_boards_count_as_two_states(self):
+        self.build("run-1", board=0)
+        self.build("run-2", board=1)
+
+        rows, _skipped = load_rows(self.root)
+
+        self.assertEqual(len({r["state"] for r in rows}), 2)
+
+
 class AuditTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()

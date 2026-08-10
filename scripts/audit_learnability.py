@@ -43,9 +43,16 @@ import collections
 import json
 import math
 import pathlib
+import sys
 from typing import Any
 
 import numpy as np
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.index_replay_corpus import state_fingerprint  # noqa: E402
 
 
 FEATURES = (
@@ -72,13 +79,19 @@ def load_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict]:
         if path.name.endswith("-state.json"):
             continue
         run_id = path.parents[2].name
+        step_label = path.name.split("-")[1]
+        # A state is a board, identified the same way the corpus index
+        # identifies it. Two runs usually reach different boards at one step
+        # index, but they sometimes land on the identical one, and counting
+        # that twice would weight it twice inside its own fold.
+        board = state_fingerprint(
+            path.parent / f"step-{step_label}-state.json"
+        )
         with path.open("r", encoding="utf-8") as handle:
             lines = [line for line in handle if line.strip()]
         for line in lines:
             row = json.loads(line)
-            # A state is a board. The same (case, step) on two runs is two
-            # different boards, so the run id is part of the state key.
-            state = (
+            state = board or (
                 run_id,
                 str(row.get("case_id")),
                 int(row.get("step", -1)),

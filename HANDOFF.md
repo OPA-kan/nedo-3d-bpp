@@ -290,15 +290,20 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether any model family beats the incumbent here. The first audit says
-  the eight-scalar contact vector does not: mean within-state AUC for
-  `is_placed_safe` is 0.768 for `Ranker.score` against 0.741 (logistic) and
-  0.564 (lookup); settle regression is weakly positive only (R^2 0.141 for
-  `delta_theta_deg`, 0.075 for `d_norm`). The audit carries a positive
-  control -- a planted signal is detected at AUC above 0.8 -- so the null is
-  not a broken instrument. But GBDT and Deep Sets could not be run (numpy
-  only), so it bounds them weakly, and four cases is a wide-error-bar test.
-  See `reports/learnability/summary.md`.
+- Whether any model family beats the incumbent at RANKING. At 49 boards over
+  8 cases the answer is still no: mean within-state AUC for `is_placed_safe`
+  is 0.745 for `Ranker.score` against 0.727 (logistic), 0.671 (lookup) and
+  0.500 (constant), with top-1 safe rate 0.872 / 0.851 / 0.780 / 0.683. The
+  audit carries a positive control -- a planted signal is detected above AUC
+  0.8 -- so the null is not a broken instrument. GBDT and Deep Sets could not
+  be run (numpy only), so it bounds them weakly.
+- Where the signal actually is: settle displacement, and it grows with data.
+  Going from 11 to 49 boards moved leave-one-case-out R^2 from 0.141 to 0.184
+  for `delta_theta_deg` and 0.075 to 0.125 for `d_norm`, and took the lookup
+  table from worse-than-constant to positive. Phi predicts how far an item
+  settles better than it predicts which candidate is safe. Keep scaling and
+  re-run `scripts/audit_learnability.py`; the regression is the number to
+  watch, not the AUC. See `reports/learnability/summary.md`.
 - Whether the accepted rows support a learner at all. The corpus is small and
   narrow: 37 committed schema-v1 states (2732 rows, no `scenario_context`, and
   a modelling vector only on the 1765 release rows), plus about 12 states per
