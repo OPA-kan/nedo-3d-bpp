@@ -1903,6 +1903,56 @@
         "adopted_for_training": false,
         "live_policy_benefit_established": false
       }
+    },
+    {
+      "id": "phi-does-not-outrank-the-incumbent-score-on-the-retained-corpus",
+      "topic": "learning_data",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The first learnability audit of the retained corpus returns no established signal. On 325 modelable rows across 11 states and 4 cases from run 31391424126, with a leave-one-case-out split and ranking measured inside each state, the incumbent Ranker.score has the best mean within-state AUC for is_placed_safe at 0.768. A numpy logistic model on the eight-scalar phi_modelling vector reaches 0.741 and a quantile-cell lookup 0.564, against 0.500 for a constant. The linear model does take the safe candidate more often at top-1 (0.900 versus 0.800), but on 10 usable states that is one state of difference and is not a result. Settle regression is weakly positive and not more: leave-one-case-out R-squared against a held-out constant is 0.141 for delta_theta_deg and 0.075 for d_norm with the linear model, while the lookup table is worse than the constant (-0.121 and -0.082). The audit is instrumented to be able to say yes: on a synthetic corpus with a planted feature-0 signal it returns signal_beyond_incumbent with within-state AUC above 0.8, and on matched pure noise it returns no signal. Scope limits are real and bound the conclusion. Only release candidates carry a feature vector, so 117 settled-candidate rows have no phi at all and were excluded; the safe/unsafe mixture is a sampling design, so no calibration claim is made; and only numpy is available, so GBDT and Deep Sets from the keystone plan were NOT run and this bounds them weakly. The actionable reading is that eight static contact scalars do not beat the existing scalar score at ranking one-step physical safety on four cases, and that more distinct states, not more rows per state, is what would make a stronger test possible.",
+      "source": "reports/learnability/summary.json; reports/learnability/summary.md; scripts/audit_learnability.py; tests/test_audit_learnability.py; corpus from Actions run 31391424126",
+      "values": {
+        "modelable_rows": 325,
+        "distinct_states": 11,
+        "cases": 4,
+        "safe_rows": 238,
+        "unsafe_rows": 87,
+        "excluded": {
+          "no_phi_settled_candidate": 117,
+          "duplicate_across_arms": 107
+        },
+        "split": "leave_one_case_out",
+        "mean_within_state_auc": {
+          "constant": 0.5,
+          "incumbent_ranker_score": 0.768,
+          "lookup": 0.564,
+          "linear": 0.741
+        },
+        "top1_safe_rate": {
+          "constant": 0.744,
+          "incumbent_ranker_score": 0.8,
+          "lookup": 0.727,
+          "linear": 0.9
+        },
+        "regression_r2_versus_constant": {
+          "delta_theta_deg": {
+            "linear": 0.141,
+            "lookup": -0.121
+          },
+          "d_norm": {
+            "linear": 0.075,
+            "lookup": -0.082
+          }
+        },
+        "positive_control_detects_planted_signal": true,
+        "models_not_run": [
+          "gbdt",
+          "deep_sets"
+        ],
+        "verdict": "no_established_signal",
+        "adopted_for_training": false,
+        "live_policy_benefit_established": false
+      }
     }
   ]
 }

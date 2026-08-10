@@ -17,6 +17,7 @@
 | active | 2026-08-05 | `reports/hazard/dominated-choices-retracted.md` | `the-fatal-choice-is-the-argmax`, `heightmap-drop-heights-must-not-score` |
 | active | 2026-08-05 | `reports/hazard/step-confound.md` | `afterstate-features-are-a-clock-not-fullness` |
 | active | 2026-08-03 | `reports/l3-l4/morning-summary.md` | `death-band-mitigated-adoption-candidate`, `death-band-shipped-on-by-default` (superseded) |
+| active | - | `reports/learnability/summary.md` | `phi-does-not-outrank-the-incumbent-score-on-the-retained-corpus` |
 | active | 2026-08-10 | `reports/placement-pipeline/parity.md` | `structured-placement-pipeline-preserves-fixed-work-policy`, `selector-adoption-requires-full-proxy-vector` |
 | active | 2026-08-02 | `reports/replay-analysis/board-value-f1-findings.md` | `board-value-f1-discriminates-not-predicts`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded) |
 | active | 2026-07-31 | `reports/replay-analysis/findings-20260730.md` | `gate-high-recall-low-precision` |
@@ -85,12 +86,14 @@
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698074510/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698434932/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698558132/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/corpus.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31372071696/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31372706195/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31380879143/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31388832646/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31389471561/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31389892147/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31391424126/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31367396930/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31368589378/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31369511973/summary.md` | — |
@@ -146,4 +149,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1112 ファイル / 224.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 1167 ファイル / 229.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

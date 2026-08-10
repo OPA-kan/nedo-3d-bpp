@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "modelable_rows": 325,
+    "distinct_states": 11,
+    "cases": [
+      "m-dual-empty",
+      "m-dual-shelf-mixed",
+      "m-single-empty-noshelf",
+      "m-single-empty-shelf"
+    ],
+    "rows_per_state": [
+      22,
+      23,
+      23,
+      26,
+      28,
+      29,
+      30,
+      30,
+      31,
+      37,
+      46
+    ],
+    "safe_rows": 238,
+    "unsafe_rows": 87,
+    "excluded": {
+      "no_phi_candidate": 117,
+      "duplicate_across_arms": 107
+    }
+  },
+  "design": {
+    "split": "leave_one_case_out",
+    "features": [
+      "support_ratio",
+      "com_margin",
+      "overhang_ratio",
+      "drop_normalized",
+      "support_imbalance",
+      "left_right_imbalance",
+      "front_back_imbalance",
+      "initial_orientation"
+    ],
+    "models": [
+      "constant",
+      "incumbent_score",
+      "lookup",
+      "linear"
+    ],
+    "not_run": [
+      "gbdt",
+      "deep_sets"
+    ]
+  },
+  "folds": [
+    {
+      "held_out_case": "m-dual-empty",
+      "train_rows": 248,
+      "test_rows": 77,
+      "train_states": 8,
+      "test_states": 3,
+      "train_safe_rate": 0.7137096774193549
+    },
+    {
+      "held_out_case": "m-dual-shelf-mixed",
+      "train_rows": 241,
+      "test_rows": 84,
+      "train_states": 8,
+      "test_states": 3,
+      "train_safe_rate": 0.6887966804979253
+    },
+    {
+      "held_out_case": "m-single-empty-noshelf",
+      "train_rows": 251,
+      "test_rows": 74,
+      "train_states": 9,
+      "test_states": 2,
+      "train_safe_rate": 0.7569721115537849
+    },
+    {
+      "held_out_case": "m-single-empty-shelf",
+      "train_rows": 235,
+      "test_rows": 90,
+      "train_states": 8,
+      "test_states": 3,
+      "train_safe_rate": 0.7702127659574468
+    }
+  ],
+  "classification": {
+    "constant": {
+      "pooled_auc": 0.368902733507196,
+      "states_with_both_classes": 10,
+      "mean_state_auc": 0.5,
+      "top1_safe_rate": 0.7439684506580091
+    },
+    "incumbent": {
+      "pooled_auc": 0.6907176663768956,
+      "states_with_both_classes": 10,
+      "mean_state_auc": 0.7677315525929561,
+      "top1_safe_rate": 0.8
+    },
+    "lookup": {
+      "pooled_auc": 0.5389017676035932,
+      "states_with_both_classes": 10,
+      "mean_state_auc": 0.5637181945734577,
+      "top1_safe_rate": 0.7270833333333333
+    },
+    "linear": {
+      "pooled_auc": 0.6854534917415241,
+      "states_with_both_classes": 10,
+      "mean_state_auc": 0.7405277680084698,
+      "top1_safe_rate": 0.9
+    }
+  },
+  "regression": {
+    "delta_theta_deg": {
+      "rows": 325,
+      "r2_versus_constant": {
+        "lookup": -0.12121555685682606,
+        "linear": 0.1413361051402452
+      }
+    },
+    "d_norm": {
+      "rows": 325,
+      "r2_versus_constant": {
+        "lookup": -0.08231482974458593,
+        "linear": 0.07450339265974537
+      }
+    }
+  },
+  "verdict": "no_established_signal",
+  "interpretation": "Mean within-state AUC is the headline. A model must beat the incumbent Ranker.score, not merely a constant, to be worth building on. With this few cases the fold spread is wide, so a small difference is not a result. GBDT and Deep Sets were not run -- only numpy is available -- so a null here bounds them weakly."
+}

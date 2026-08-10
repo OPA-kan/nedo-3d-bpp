@@ -290,6 +290,15 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
+- Whether any model family beats the incumbent here. The first audit says
+  the eight-scalar contact vector does not: mean within-state AUC for
+  `is_placed_safe` is 0.768 for `Ranker.score` against 0.741 (logistic) and
+  0.564 (lookup); settle regression is weakly positive only (R^2 0.141 for
+  `delta_theta_deg`, 0.075 for `d_norm`). The audit carries a positive
+  control -- a planted signal is detected at AUC above 0.8 -- so the null is
+  not a broken instrument. But GBDT and Deep Sets could not be run (numpy
+  only), so it bounds them weakly, and four cases is a wide-error-bar test.
+  See `reports/learnability/summary.md`.
 - Whether the accepted rows support a learner at all. The corpus is small and
   narrow: 37 committed schema-v1 states (2732 rows, no `scenario_context`, and
   a modelling vector only on the 1765 release rows), plus about 12 states per
@@ -352,16 +361,18 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    question is closed and the data question is open. In order:
    (a) the ablation arm is done (`31389892147`) and showed the guard verdict
    is runner-variable for the greedy arm, so any further arm comparison needs
-   repeated runs and per-step deltas, not one verdict; (b) decide where accepted rows are retained -- they exist
-   only as Actions artifacts that expire, so scaling states without a
-   retention decision produces data that cannot be trained on later; (c) scale
-   the number of distinct STATES, not the rows per state, since rows inside
-   one snapshot share a parent. Repeating the matrix is the cheapest axis:
-   each run lands on fresh boards, so ~12 new states per ~6 CI minutes,
-   without writing a synthetic scenario generator. Only then run the learnability audit
-   (`docs/keystone/tasks/2026-08-10-residual-state-diversity-dataset.md`
-   slice 5: scenario-level split, lookup/GBDT/Deep Sets, oracle regret) before
-   any Transformer. Do not open final holdout data.
+   repeated runs and per-step deltas, not one verdict; (b) retention is decided and
+   implemented -- rows and snapshots are committed under
+   `reports/residual-diversity-scale/history/<run_id>/dataset/` and indexed by
+   `scripts/index_replay_corpus.py`; (c) the learnability audit has now run
+   once and returned `no_established_signal`
+   (`reports/learnability/summary.md`). The next move is more distinct
+   STATES, not more rows per state. Repeating the matrix is the cheapest
+   axis: each run lands on fresh boards, so ~12 new states per ~6 CI minutes,
+   without writing a synthetic scenario generator. Re-run
+   `scripts/audit_learnability.py` as states accumulate and watch whether the
+   gap to the incumbent closes. Do not train a Transformer on a null, and do
+   not open final holdout data.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
