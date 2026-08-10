@@ -1,0 +1,2622 @@
+{
+  "schema_version": 3,
+  "dataset_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831",
+  "status": "complete",
+  "timestamp": "2026-08-10T13:53:36+00:00",
+  "selection_mode": "weighted",
+  "coverage_mode": "class_aware",
+  "risk_gate_mode": "shadow",
+  "split": "development",
+  "per_stratum": 4,
+  "sampling_mode": "residual_diversity_safe_split",
+  "overdraw_factor": 3,
+  "observed_swap_rounds": 64,
+  "seed": 20260730,
+  "oracle_limit": null,
+  "preview_limit": 0,
+  "provenance": {
+    "git_sha": "c1b64f01d3863e2535c78fc03e54ed441201bbab",
+    "git_dirty": true,
+    "config_path": "/home/runner/work/nedo-3d-bpp/nedo-3d-bpp/reports/residual-diversity-scale/configs/single-preloaded.json",
+    "config_sha256": "38e35d9efca36551a5ea17b522f85acb53da994ecaef281375127ddabfc9c565",
+    "agent_sha256": "83d4c8dc22542988e4553704920a80b2cf42d672de57a93ad6d9f21d2e21daf4",
+    "python": "3.12.13 (main, Jun 16 2026, 22:05:08) [GCC 13.3.0]",
+    "platform": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39",
+    "case_id": "m-single-preloaded",
+    "target_steps": [
+      5,
+      8,
+      11,
+      14,
+      17,
+      20
+    ],
+    "sampling_mode": "residual_diversity_safe_split",
+    "overdraw_factor": 3,
+    "observed_swap_rounds": 64
+  },
+  "label_contract": {
+    "transport": "official_check_transport_path",
+    "settle": "official_place_item",
+    "note": "Rows are a deterministic state-coverage sample. Inclusion probabilities and weights are null; do not use these rows to estimate population rates."
+  },
+  "case": {
+    "case_id": "m-single-preloaded",
+    "scenario_context": {
+      "container_count": 1,
+      "shelf_pattern": [
+        false
+      ],
+      "shelf_count": 0,
+      "priority_container_pattern": [
+        false
+      ],
+      "priority_container_count": 0,
+      "initial_packed_item_counts": [
+        3
+      ],
+      "initial_preloaded_count": 3,
+      "look_ahead": 20,
+      "max_space": 1,
+      "stream_item_count": 38,
+      "containers": [
+        {
+          "index": 0,
+          "has_shelf": false,
+          "is_prioritized": false,
+          "initial_packed_item_count": 3,
+          "geometry": {
+            "length": 2.0,
+            "width": 1.45,
+            "height": 1.61,
+            "thickness": 0.04,
+            "buffer": 0.0,
+            "cut_x": 0.44,
+            "cut_y": 0.4
+          }
+        }
+      ]
+    },
+    "target_steps": [
+      5,
+      8,
+      11,
+      14,
+      17,
+      20
+    ],
+    "reached_steps": [
+      5,
+      8,
+      11,
+      14
+    ],
+    "unreached_steps": [
+      17,
+      20
+    ],
+    "failed_steps": [],
+    "episode_steps_executed": 15,
+    "episode_terminated": true,
+    "episode_truncated": false,
+    "final_status": {
+      "is_included": true,
+      "is_valid": true,
+      "is_placed_safe": false
+    },
+    "trajectory": "competition_equivalent",
+    "steps": [
+      {
+        "schema_version": 3,
+        "dataset_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831",
+        "snapshot_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831:m-single-preloaded:step-005",
+        "case_id": "m-single-preloaded",
+        "scenario_context": {
+          "container_count": 1,
+          "shelf_pattern": [
+            false
+          ],
+          "shelf_count": 0,
+          "priority_container_pattern": [
+            false
+          ],
+          "priority_container_count": 0,
+          "initial_packed_item_counts": [
+            3
+          ],
+          "initial_preloaded_count": 3,
+          "look_ahead": 20,
+          "max_space": 1,
+          "stream_item_count": 38,
+          "containers": [
+            {
+              "index": 0,
+              "has_shelf": false,
+              "is_prioritized": false,
+              "initial_packed_item_count": 3,
+              "geometry": {
+                "length": 2.0,
+                "width": 1.45,
+                "height": 1.61,
+                "thickness": 0.04,
+                "buffer": 0.0,
+                "cut_x": 0.44,
+                "cut_y": 0.4
+              }
+            }
+          ]
+        },
+        "step": 5,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-005-state.json",
+        "dataset_path": "step-005-candidates.jsonl",
+        "control_dataset_path": "step-005-random-control.jsonl",
+        "negative_dataset_path": "step-005-negative-risk.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 2357,
+          "total": 2357,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            11,
+            0,
+            4,
+            15,
+            1,
+            5,
+            7,
+            13,
+            14,
+            16
+          ],
+          "item_indices": [
+            17,
+            2,
+            8,
+            21,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22
+          ]
+        },
+        "sampling": {
+          "mode": "residual_diversity_safe_split",
+          "design": "overdraw global matching, observed PyBullet outcome split, paired-control seed, then observed-state swaps on the reported mean-nearest-neighbour objective",
+          "per_stratum": 4,
+          "overdraw_factor": 3,
+          "overdraw_per_stratum": 12,
+          "seed": 20260730,
+          "sampled": 13,
+          "selected_matched": true,
+          "residual_proxy_coverage": {
+            "sampled": 13,
+            "mean_nearest_neighbor_distance": 0.09704314395723612,
+            "minimum_nearest_neighbor_distance": 0.00213984275109454,
+            "unique_items": 6,
+            "unique_item_orientations": 9,
+            "spatial_cell_count": 8
+          },
+          "coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 2357,
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.05863041695600177,
+              "minimum_nearest_neighbor_distance": 0.0006230208162439749,
+              "unique_items": 5,
+              "unique_item_orientations": 7,
+              "spatial_cell_count": 7
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.09704314395723612,
+              "minimum_nearest_neighbor_distance": 0.00213984275109454,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 8
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.038412727001234354,
+              "minimum_nearest_neighbor_distance": 0.0015168219348505652,
+              "unique_items": 1,
+              "unique_item_orientations": 2,
+              "spatial_cell_count": 1
+            }
+          },
+          "overdraw_coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 2357,
+            "stratified_random": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.05720607761086843,
+              "minimum_nearest_neighbor_distance": 0.0006230208162439749,
+              "unique_items": 8,
+              "unique_item_orientations": 18,
+              "spatial_cell_count": 10
+            },
+            "residual_diversity": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.08194779376540413,
+              "minimum_nearest_neighbor_distance": 0.0006230208162439749,
+              "unique_items": 10,
+              "unique_item_orientations": 25,
+              "spatial_cell_count": 14
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.0247417161545357,
+              "minimum_nearest_neighbor_distance": 0.0,
+              "unique_items": 2,
+              "unique_item_orientations": 7,
+              "spatial_cell_count": 4
+            }
+          },
+          "physical_coverage_comparison": {
+            "contract": "official_replay_observed_x_plus",
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.096408749075323,
+              "minimum_nearest_neighbor_distance": 0.0015546490143012104,
+              "unique_items": 5,
+              "unique_item_orientations": 7,
+              "spatial_cell_count": 7,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.16662996118199375,
+              "minimum_nearest_neighbor_distance": 0.003684527191954555,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 8,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.07022121210667075,
+              "minimum_nearest_neighbor_distance": 0.0021298781776533447,
+              "unique_items": 1,
+              "unique_item_orientations": 2,
+              "spatial_cell_count": 1,
+              "settled": 0,
+              "valid": 0,
+              "placed_safe": 0
+            }
+          },
+          "unique_replayed": 56,
+          "outcome_split": {
+            "contract": "observed_pybullet_outcome_split",
+            "primary_overdraw": 34,
+            "random_overdraw": 34,
+            "primary_safe_pool": 27,
+            "random_safe_pool": 31,
+            "positive_safe_union": 46,
+            "positive_transition": 13,
+            "random_positive_control": 13,
+            "negative_physical_risk": 10,
+            "positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 14,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 22,
+                "forced": 1,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              }
+            ],
+            "random_positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4444444444444444
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": 1.0
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4444444444444444
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 12,
+                "forced": 1,
+                "sampled": 4,
+                "inclusion_probability": 0.2727272727272727
+              }
+            ],
+            "positive_labels": {
+              "is_placed_safe": true
+            },
+            "negative_labels": {
+              "is_placed_safe": false
+            },
+            "selection_distance_basis": "official_replay_observed_x_plus",
+            "control_seeded_positive": 5,
+            "swap_optimizer": {
+              "design": "paired_control_seed_then_observed_state_swap",
+              "seed": "paired_random_control_portfolio",
+              "objective": "paired_observed_mean_nearest_neighbour_delta",
+              "distance_basis": "official_replay_observed_x_plus",
+              "terminated": "no_improving_swap",
+              "rounds": 10,
+              "swaps_applied": 9,
+              "swaps_evaluated": 782,
+              "exact_evaluations": 104,
+              "max_rounds": 64,
+              "exact_checks_per_round": 8,
+              "exact_scan_limit": 32,
+              "portfolio_size": 13,
+              "observed_portfolio_size": 13,
+              "control_size": 13,
+              "observed_control_size": 13,
+              "initial_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.10494686186398064,
+                "control_mean_nearest_neighbor_distance": 0.10494686186398064,
+                "mean_nearest_neighbor_distance_delta": 0.0,
+                "positive_minimum_nearest_neighbor_distance": 0.0023494673868711268,
+                "control_minimum_nearest_neighbor_distance": 0.0023494673868711268,
+                "minimum_nearest_neighbor_distance_delta": 0.0
+              },
+              "final_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.16662996118199375,
+                "control_mean_nearest_neighbor_distance": 0.096408749075323,
+                "mean_nearest_neighbor_distance_delta": 0.07022121210667075,
+                "positive_minimum_nearest_neighbor_distance": 0.003684527191954555,
+                "control_minimum_nearest_neighbor_distance": 0.0015546490143012104,
+                "minimum_nearest_neighbor_distance_delta": 0.0021298781776533447
+              },
+              "initial_semantics": {
+                "unique_items": 5,
+                "unique_item_orientations": 7
+              },
+              "final_semantics": {
+                "unique_items": 6,
+                "unique_item_orientations": 9
+              },
+              "semantic_constraint": "no accepted swap reduces unique items or unique item-orientations among observed rows",
+              "swap_log": [
+                {
+                  "round": 1,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 17,
+                    "pool_index": 11,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 11,
+                    "pool_index": 7,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "delta_before": 0.0,
+                  "delta_after": 0.029557055332982807
+                },
+                {
+                  "round": 2,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 2,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "added": {
+                    "item_index": 19,
+                    "pool_index": 13,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.029557055332982807,
+                  "delta_after": 0.056982480425461626
+                },
+                {
+                  "round": 3,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 11,
+                    "pool_index": 7,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 11,
+                    "pool_index": 7,
+                    "container_index": 0,
+                    "orientation": 0
+                  },
+                  "delta_before": 0.056982480425461626,
+                  "delta_after": 0.06301809061044943
+                },
+                {
+                  "round": 4,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 2,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "added": {
+                    "item_index": 2,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "delta_before": 0.06301809061044943,
+                  "delta_after": 0.06793977991909066
+                },
+                {
+                  "round": 5,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.06793977991909066,
+                  "delta_after": 0.06927961491509661
+                },
+                {
+                  "round": 6,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 2,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 0
+                  },
+                  "added": {
+                    "item_index": 2,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 0
+                  },
+                  "delta_before": 0.06927961491509661,
+                  "delta_after": 0.06989159881183062
+                },
+                {
+                  "round": 7,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.06989159881183062,
+                  "delta_after": 0.07012230396622342
+                },
+                {
+                  "round": 8,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.07012230396622342,
+                  "delta_after": 0.07019615719461879
+                },
+                {
+                  "round": 9,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "added": {
+                    "item_index": 8,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.07019615719461879,
+                  "delta_after": 0.07022121210667075
+                }
+              ],
+              "swap_log_truncated": false,
+              "contract": "Monotone local search on the reported paired delta from the control seed. It does not prove global optimality and does not guarantee a positive delta."
+            }
+          },
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 14,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 22,
+              "forced": 1,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 1.824400000316473e-05
+        },
+        "replay_seconds": 6.534184944999993,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 181440,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 8.068765769999999,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 20519,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 2.443690320999991,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 10.512494332000003
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 50449,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 14.941039657999994
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 626,
+          "accepted_total_count": 626,
+          "search": {
+            "units_total": 120,
+            "units_started": 33,
+            "units_completed": 8,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 19,
+            "attempts_to_first_candidate": 3008,
+            "attempts_consumed": 8012
+          }
+        },
+        "action": {
+          "item_idx": 0,
+          "container_idx": 0,
+          "place_pos": [
+            0.843999981880188,
+            0.4440000057220459,
+            0.24199999868869781
+          ],
+          "orientation": 5
+        },
+        "shadow_rerank": null,
+        "shadow_rerank_matched": false,
+        "shadow_pair": {
+          "changed": null,
+          "baseline_candidate_id": "2|0|0|5|(0.844, 0.444, 0.242)|(0.2, 0.45, 0.3)",
+          "shadow_candidate_id": null
+        }
+      },
+      {
+        "schema_version": 3,
+        "dataset_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831",
+        "snapshot_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831:m-single-preloaded:step-008",
+        "case_id": "m-single-preloaded",
+        "scenario_context": {
+          "container_count": 1,
+          "shelf_pattern": [
+            false
+          ],
+          "shelf_count": 0,
+          "priority_container_pattern": [
+            false
+          ],
+          "priority_container_count": 0,
+          "initial_packed_item_counts": [
+            3
+          ],
+          "initial_preloaded_count": 3,
+          "look_ahead": 20,
+          "max_space": 1,
+          "stream_item_count": 38,
+          "containers": [
+            {
+              "index": 0,
+              "has_shelf": false,
+              "is_prioritized": false,
+              "initial_packed_item_count": 3,
+              "geometry": {
+                "length": 2.0,
+                "width": 1.45,
+                "height": 1.61,
+                "thickness": 0.04,
+                "buffer": 0.0,
+                "cut_x": 0.44,
+                "cut_y": 0.4
+              }
+            }
+          ]
+        },
+        "step": 8,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-008-state.json",
+        "dataset_path": "step-008-candidates.jsonl",
+        "control_dataset_path": "step-008-random-control.jsonl",
+        "negative_dataset_path": "step-008-negative-risk.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 3136,
+          "total": 3136,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            9,
+            2,
+            7,
+            13,
+            0,
+            3,
+            5,
+            11,
+            12,
+            14
+          ],
+          "item_indices": [
+            17,
+            7,
+            13,
+            21,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22
+          ]
+        },
+        "sampling": {
+          "mode": "residual_diversity_safe_split",
+          "design": "overdraw global matching, observed PyBullet outcome split, paired-control seed, then observed-state swaps on the reported mean-nearest-neighbour objective",
+          "per_stratum": 4,
+          "overdraw_factor": 3,
+          "overdraw_per_stratum": 12,
+          "seed": 20260730,
+          "sampled": 13,
+          "selected_matched": true,
+          "residual_proxy_coverage": {
+            "sampled": 13,
+            "mean_nearest_neighbor_distance": 0.17827843278826508,
+            "minimum_nearest_neighbor_distance": 0.003888287425082344,
+            "unique_items": 4,
+            "unique_item_orientations": 10,
+            "spatial_cell_count": 7
+          },
+          "coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 3136,
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.09478240720356265,
+              "minimum_nearest_neighbor_distance": 1.8972523047238632e-05,
+              "unique_items": 3,
+              "unique_item_orientations": 6,
+              "spatial_cell_count": 7
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.17827843278826508,
+              "minimum_nearest_neighbor_distance": 0.003888287425082344,
+              "unique_items": 4,
+              "unique_item_orientations": 10,
+              "spatial_cell_count": 7
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.08349602558470243,
+              "minimum_nearest_neighbor_distance": 0.0038693149020351055,
+              "unique_items": 1,
+              "unique_item_orientations": 4,
+              "spatial_cell_count": 0
+            }
+          },
+          "overdraw_coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 3136,
+            "stratified_random": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.0457244724349147,
+              "minimum_nearest_neighbor_distance": 2.7984536642105055e-06,
+              "unique_items": 7,
+              "unique_item_orientations": 14,
+              "spatial_cell_count": 14
+            },
+            "residual_diversity": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.10405590709988055,
+              "minimum_nearest_neighbor_distance": 2.7984536642105055e-06,
+              "unique_items": 10,
+              "unique_item_orientations": 19,
+              "spatial_cell_count": 15
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.058331434664965855,
+              "minimum_nearest_neighbor_distance": 0.0,
+              "unique_items": 3,
+              "unique_item_orientations": 5,
+              "spatial_cell_count": 1
+            }
+          },
+          "physical_coverage_comparison": {
+            "contract": "official_replay_observed_x_plus",
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.09905811849803009,
+              "minimum_nearest_neighbor_distance": 2.2162541720691822e-05,
+              "unique_items": 3,
+              "unique_item_orientations": 6,
+              "spatial_cell_count": 7,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.18945399574045,
+              "minimum_nearest_neighbor_distance": 0.004587805682751856,
+              "unique_items": 4,
+              "unique_item_orientations": 10,
+              "spatial_cell_count": 7,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.0903958772424199,
+              "minimum_nearest_neighbor_distance": 0.0045656431410311645,
+              "unique_items": 1,
+              "unique_item_orientations": 4,
+              "spatial_cell_count": 0,
+              "settled": 0,
+              "valid": 0,
+              "placed_safe": 0
+            }
+          },
+          "unique_replayed": 57,
+          "outcome_split": {
+            "contract": "observed_pybullet_outcome_split",
+            "primary_overdraw": 34,
+            "random_overdraw": 34,
+            "primary_safe_pool": 26,
+            "random_safe_pool": 26,
+            "positive_safe_union": 42,
+            "positive_transition": 13,
+            "random_positive_control": 13,
+            "negative_physical_risk": 15,
+            "positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 15,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 8,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 18,
+                "forced": 1,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              }
+            ],
+            "random_positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 7,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.5714285714285714
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": 1.0
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 8,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.5
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 10,
+                "forced": 1,
+                "sampled": 4,
+                "inclusion_probability": 0.3333333333333333
+              }
+            ],
+            "positive_labels": {
+              "is_placed_safe": true
+            },
+            "negative_labels": {
+              "is_placed_safe": false
+            },
+            "selection_distance_basis": "official_replay_observed_x_plus",
+            "control_seeded_positive": 5,
+            "swap_optimizer": {
+              "design": "paired_control_seed_then_observed_state_swap",
+              "seed": "paired_random_control_portfolio",
+              "objective": "paired_observed_mean_nearest_neighbour_delta",
+              "distance_basis": "official_replay_observed_x_plus",
+              "terminated": "no_improving_swap",
+              "rounds": 10,
+              "swaps_applied": 9,
+              "swaps_evaluated": 709,
+              "exact_evaluations": 104,
+              "max_rounds": 64,
+              "exact_checks_per_round": 8,
+              "exact_scan_limit": 32,
+              "portfolio_size": 13,
+              "observed_portfolio_size": 13,
+              "control_size": 13,
+              "observed_control_size": 13,
+              "initial_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.1030076351565438,
+                "control_mean_nearest_neighbor_distance": 0.1030076351565438,
+                "mean_nearest_neighbor_distance_delta": 0.0,
+                "positive_minimum_nearest_neighbor_distance": 2.3605547541933043e-05,
+                "control_minimum_nearest_neighbor_distance": 2.3605547541933043e-05,
+                "minimum_nearest_neighbor_distance_delta": 0.0
+              },
+              "final_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.18945399574045,
+                "control_mean_nearest_neighbor_distance": 0.09905811849803009,
+                "mean_nearest_neighbor_distance_delta": 0.0903958772424199,
+                "positive_minimum_nearest_neighbor_distance": 0.004587805682751856,
+                "control_minimum_nearest_neighbor_distance": 2.2162541720691822e-05,
+                "minimum_nearest_neighbor_distance_delta": 0.0045656431410311645
+              },
+              "initial_semantics": {
+                "unique_items": 3,
+                "unique_item_orientations": 6
+              },
+              "final_semantics": {
+                "unique_items": 4,
+                "unique_item_orientations": 10
+              },
+              "semantic_constraint": "no accepted swap reduces unique items or unique item-orientations among observed rows",
+              "swap_log": [
+                {
+                  "round": 1,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 0
+                  },
+                  "added": {
+                    "item_index": 17,
+                    "pool_index": 9,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.0,
+                  "delta_after": 0.029405175869300984
+                },
+                {
+                  "round": 2,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 0
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.029405175869300984,
+                  "delta_after": 0.06099386639631092
+                },
+                {
+                  "round": 3,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 4
+                  },
+                  "delta_before": 0.06099386639631092,
+                  "delta_after": 0.07101228276691965
+                },
+                {
+                  "round": 4,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 5
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "delta_before": 0.07101228276691965,
+                  "delta_after": 0.07920610540227091
+                },
+                {
+                  "round": 5,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 5
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.07920610540227091,
+                  "delta_after": 0.08647543847458403
+                },
+                {
+                  "round": 6,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 4
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 4
+                  },
+                  "delta_before": 0.08647543847458403,
+                  "delta_after": 0.08773357331658524
+                },
+                {
+                  "round": 7,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 11,
+                    "pool_index": 5,
+                    "container_index": 0,
+                    "orientation": 5
+                  },
+                  "added": {
+                    "item_index": 13,
+                    "pool_index": 7,
+                    "container_index": 0,
+                    "orientation": 5
+                  },
+                  "delta_before": 0.08773357331658524,
+                  "delta_after": 0.08839034897672929
+                },
+                {
+                  "round": 8,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.08839034897672929,
+                  "delta_after": 0.0902038021941183
+                },
+                {
+                  "round": 9,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "added": {
+                    "item_index": 7,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "delta_before": 0.0902038021941183,
+                  "delta_after": 0.0903958772424199
+                }
+              ],
+              "swap_log_truncated": false,
+              "contract": "Monotone local search on the reported paired delta from the control seed. It does not prove global optimality and does not guarantee a positive delta."
+            }
+          },
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 15,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 8,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 18,
+              "forced": 1,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 1.754299998424358e-05
+        },
+        "replay_seconds": 9.042169295999997,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 261360,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 11.48500713300001,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 30232,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 3.2826025439999853,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 14.767652776999995
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 74051,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 23.879810451999987
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 500,
+          "accepted_total_count": 500,
+          "search": {
+            "units_total": 120,
+            "units_started": 26,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 25,
+            "attempts_to_first_candidate": 3086,
+            "attempts_consumed": 6568
+          }
+        },
+        "action": {
+          "item_idx": 2,
+          "container_idx": 0,
+          "place_pos": [
+            0.718999981880188,
+            -0.43972247838974,
+            0.5839934945106506
+          ],
+          "orientation": 0
+        },
+        "shadow_rerank": null,
+        "shadow_rerank_matched": false,
+        "shadow_pair": {
+          "changed": null,
+          "baseline_candidate_id": "7|2|0|0|(0.719, -0.439722, 0.583994)|(0.45, 0.3, 0.2)",
+          "shadow_candidate_id": null
+        }
+      },
+      {
+        "schema_version": 3,
+        "dataset_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831",
+        "snapshot_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831:m-single-preloaded:step-011",
+        "case_id": "m-single-preloaded",
+        "scenario_context": {
+          "container_count": 1,
+          "shelf_pattern": [
+            false
+          ],
+          "shelf_count": 0,
+          "priority_container_pattern": [
+            false
+          ],
+          "priority_container_count": 0,
+          "initial_packed_item_counts": [
+            3
+          ],
+          "initial_preloaded_count": 3,
+          "look_ahead": 20,
+          "max_space": 1,
+          "stream_item_count": 38,
+          "containers": [
+            {
+              "index": 0,
+              "has_shelf": false,
+              "is_prioritized": false,
+              "initial_packed_item_count": 3,
+              "geometry": {
+                "length": 2.0,
+                "width": 1.45,
+                "height": 1.61,
+                "thickness": 0.04,
+                "buffer": 0.0,
+                "cut_x": 0.44,
+                "cut_y": 0.4
+              }
+            }
+          ]
+        },
+        "step": 11,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-011-state.json",
+        "dataset_path": "step-011-candidates.jsonl",
+        "control_dataset_path": "step-011-random-control.jsonl",
+        "negative_dataset_path": "step-011-negative-risk.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 2090,
+          "total": 2090,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            7,
+            6,
+            11,
+            19,
+            0,
+            2,
+            4,
+            9,
+            10,
+            12
+          ],
+          "item_indices": [
+            17,
+            14,
+            21,
+            33,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22
+          ]
+        },
+        "sampling": {
+          "mode": "residual_diversity_safe_split",
+          "design": "overdraw global matching, observed PyBullet outcome split, paired-control seed, then observed-state swaps on the reported mean-nearest-neighbour objective",
+          "per_stratum": 4,
+          "overdraw_factor": 3,
+          "overdraw_per_stratum": 12,
+          "seed": 20260730,
+          "sampled": 10,
+          "selected_matched": true,
+          "residual_proxy_coverage": {
+            "sampled": 10,
+            "mean_nearest_neighbor_distance": 0.19963169435175201,
+            "minimum_nearest_neighbor_distance": 0.0020053475935828896,
+            "unique_items": 6,
+            "unique_item_orientations": 9,
+            "spatial_cell_count": 6
+          },
+          "coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 2090,
+            "stratified_random": {
+              "sampled": 10,
+              "mean_nearest_neighbor_distance": 0.1120343046109908,
+              "minimum_nearest_neighbor_distance": 0.0020053475935828896,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 6
+            },
+            "residual_diversity": {
+              "sampled": 10,
+              "mean_nearest_neighbor_distance": 0.19963169435175201,
+              "minimum_nearest_neighbor_distance": 0.0020053475935828896,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 6
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.08759738974076121,
+              "minimum_nearest_neighbor_distance": 0.0,
+              "unique_items": 0,
+              "unique_item_orientations": 0,
+              "spatial_cell_count": 0
+            }
+          },
+          "overdraw_coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 2090,
+            "stratified_random": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.05799354894747285,
+              "minimum_nearest_neighbor_distance": 1.3848763220953605e-05,
+              "unique_items": 8,
+              "unique_item_orientations": 21,
+              "spatial_cell_count": 11
+            },
+            "residual_diversity": {
+              "sampled": 34,
+              "mean_nearest_neighbor_distance": 0.10194877841922588,
+              "minimum_nearest_neighbor_distance": 1.3848763220953605e-05,
+              "unique_items": 10,
+              "unique_item_orientations": 26,
+              "spatial_cell_count": 12
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.04395522947175303,
+              "minimum_nearest_neighbor_distance": 0.0,
+              "unique_items": 2,
+              "unique_item_orientations": 5,
+              "spatial_cell_count": 1
+            }
+          },
+          "physical_coverage_comparison": {
+            "contract": "official_replay_observed_x_plus",
+            "stratified_random": {
+              "sampled": 10,
+              "mean_nearest_neighbor_distance": 0.1436467431957807,
+              "minimum_nearest_neighbor_distance": 0.011140749833025014,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 7,
+              "replayed": 10,
+              "settled": 10,
+              "valid": 10,
+              "placed_safe": 10
+            },
+            "residual_diversity": {
+              "sampled": 10,
+              "mean_nearest_neighbor_distance": 0.24767491970581884,
+              "minimum_nearest_neighbor_distance": 0.011140749833025014,
+              "unique_items": 6,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 7,
+              "replayed": 10,
+              "settled": 10,
+              "valid": 10,
+              "placed_safe": 10
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.10402817651003815,
+              "minimum_nearest_neighbor_distance": 0.0,
+              "unique_items": 0,
+              "unique_item_orientations": 0,
+              "spatial_cell_count": 0,
+              "settled": 0,
+              "valid": 0,
+              "placed_safe": 0
+            }
+          },
+          "unique_replayed": 57,
+          "outcome_split": {
+            "contract": "observed_pybullet_outcome_split",
+            "primary_overdraw": 34,
+            "random_overdraw": 34,
+            "primary_safe_pool": 19,
+            "random_safe_pool": 21,
+            "positive_safe_union": 37,
+            "positive_transition": 10,
+            "random_positive_control": 10,
+            "negative_physical_risk": 20,
+            "positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 17,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 1,
+                "sampled": 1,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 18,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              }
+            ],
+            "random_positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4444444444444444
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 1,
+                "sampled": 1,
+                "inclusion_probability": null
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": 1.0
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 10,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4
+              }
+            ],
+            "positive_labels": {
+              "is_placed_safe": true
+            },
+            "negative_labels": {
+              "is_placed_safe": false
+            },
+            "selection_distance_basis": "official_replay_observed_x_plus",
+            "control_seeded_positive": 4,
+            "swap_optimizer": {
+              "design": "paired_control_seed_then_observed_state_swap",
+              "seed": "paired_random_control_portfolio",
+              "objective": "paired_observed_mean_nearest_neighbour_delta",
+              "distance_basis": "official_replay_observed_x_plus",
+              "terminated": "no_improving_swap",
+              "rounds": 6,
+              "swaps_applied": 5,
+              "swaps_evaluated": 479,
+              "exact_evaluations": 72,
+              "max_rounds": 64,
+              "exact_checks_per_round": 8,
+              "exact_scan_limit": 32,
+              "portfolio_size": 10,
+              "observed_portfolio_size": 10,
+              "control_size": 10,
+              "observed_control_size": 10,
+              "initial_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.1536115699066227,
+                "control_mean_nearest_neighbor_distance": 0.1536115699066227,
+                "mean_nearest_neighbor_distance_delta": 0.0,
+                "positive_minimum_nearest_neighbor_distance": 0.013777168434484455,
+                "control_minimum_nearest_neighbor_distance": 0.013777168434484455,
+                "minimum_nearest_neighbor_distance_delta": 0.0
+              },
+              "final_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.24767491970581884,
+                "control_mean_nearest_neighbor_distance": 0.1436467431957807,
+                "mean_nearest_neighbor_distance_delta": 0.10402817651003815,
+                "positive_minimum_nearest_neighbor_distance": 0.011140749833025014,
+                "control_minimum_nearest_neighbor_distance": 0.011140749833025014,
+                "minimum_nearest_neighbor_distance_delta": 0.0
+              },
+              "initial_semantics": {
+                "unique_items": 6,
+                "unique_item_orientations": 9
+              },
+              "final_semantics": {
+                "unique_items": 6,
+                "unique_item_orientations": 9
+              },
+              "semantic_constraint": "no accepted swap reduces unique items or unique item-orientations among observed rows",
+              "swap_log": [
+                {
+                  "round": 1,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 5,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 14,
+                    "pool_index": 6,
+                    "container_index": 0,
+                    "orientation": 1
+                  },
+                  "delta_before": 0.0,
+                  "delta_after": 0.03464825534972282
+                },
+                {
+                  "round": 2,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 11,
+                    "pool_index": 4,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 21,
+                    "pool_index": 11,
+                    "container_index": 0,
+                    "orientation": 5
+                  },
+                  "delta_before": 0.03464825534972282,
+                  "delta_after": 0.07036641243434633
+                },
+                {
+                  "round": 3,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 14,
+                    "pool_index": 6,
+                    "container_index": 0,
+                    "orientation": 4
+                  },
+                  "added": {
+                    "item_index": 14,
+                    "pool_index": 6,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.07036641243434633,
+                  "delta_after": 0.09200593200147278
+                },
+                {
+                  "round": 4,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.09200593200147278,
+                  "delta_after": 0.09955472330106646
+                },
+                {
+                  "round": 5,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                  "removed": {
+                    "item_index": 19,
+                    "pool_index": 9,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "added": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 2
+                  },
+                  "delta_before": 0.09955472330106646,
+                  "delta_after": 0.10402817651003815
+                }
+              ],
+              "swap_log_truncated": false,
+              "contract": "Monotone local search on the reported paired delta from the control seed. It does not prove global optimality and does not guarantee a positive delta."
+            }
+          },
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 17,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 1,
+              "sampled": 1,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 18,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 1.696199998946213e-05
+        },
+        "replay_seconds": 12.317252324000009,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 384000,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 14.531530099000008,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 41802,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 4.174284940000007,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 18.705854833000018
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 102538,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 26.84677302099999
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 265,
+          "accepted_total_count": 265,
+          "search": {
+            "units_total": 120,
+            "units_started": 46,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 29,
+            "attempts_to_first_candidate": 3086,
+            "attempts_consumed": 11605
+          }
+        },
+        "action": {
+          "item_idx": 6,
+          "container_idx": 0,
+          "place_pos": [
+            0.8289999961853027,
+            -0.3840000033378601,
+            0.8455091118812561
+          ],
+          "orientation": 5
+        },
+        "shadow_rerank": null,
+        "shadow_rerank_matched": false,
+        "shadow_pair": {
+          "changed": null,
+          "baseline_candidate_id": "14|6|0|5|(0.829, -0.384, 0.845509)|(0.23, 0.65, 0.35)",
+          "shadow_candidate_id": null
+        }
+      },
+      {
+        "schema_version": 3,
+        "dataset_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831",
+        "snapshot_id": "20260810_135336-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-f3b13e483831:m-single-preloaded:step-014",
+        "case_id": "m-single-preloaded",
+        "scenario_context": {
+          "container_count": 1,
+          "shelf_pattern": [
+            false
+          ],
+          "shelf_count": 0,
+          "priority_container_pattern": [
+            false
+          ],
+          "priority_container_count": 0,
+          "initial_packed_item_counts": [
+            3
+          ],
+          "initial_preloaded_count": 3,
+          "look_ahead": 20,
+          "max_space": 1,
+          "stream_item_count": 38,
+          "containers": [
+            {
+              "index": 0,
+              "has_shelf": false,
+              "is_prioritized": false,
+              "initial_packed_item_count": 3,
+              "geometry": {
+                "length": 2.0,
+                "width": 1.45,
+                "height": 1.61,
+                "thickness": 0.04,
+                "buffer": 0.0,
+                "cut_x": 0.44,
+                "cut_y": 0.4
+              }
+            }
+          ]
+        },
+        "step": 14,
+        "status": "ok",
+        "error": null,
+        "snapshot_path": "step-014-state.json",
+        "dataset_path": "step-014-candidates.jsonl",
+        "control_dataset_path": "step-014-random-control.jsonl",
+        "negative_dataset_path": "step-014-negative-risk.jsonl",
+        "population": {
+          "settled": 0,
+          "release": 194,
+          "total": 194,
+          "settled_complete": true,
+          "release_complete": true,
+          "item_coverage_mode": "class_aware",
+          "item_source": "policy_capped_online_items",
+          "pool_indices": [
+            6,
+            10,
+            17,
+            0,
+            2,
+            4,
+            8,
+            9,
+            11,
+            12
+          ],
+          "item_indices": [
+            17,
+            21,
+            33,
+            5,
+            9,
+            11,
+            19,
+            20,
+            22,
+            23
+          ]
+        },
+        "sampling": {
+          "mode": "residual_diversity_safe_split",
+          "design": "overdraw global matching, observed PyBullet outcome split, paired-control seed, then observed-state swaps on the reported mean-nearest-neighbour objective",
+          "per_stratum": 4,
+          "overdraw_factor": 3,
+          "overdraw_per_stratum": 12,
+          "seed": 20260730,
+          "sampled": 13,
+          "selected_matched": true,
+          "residual_proxy_coverage": {
+            "sampled": 13,
+            "mean_nearest_neighbor_distance": 0.05512206422089864,
+            "minimum_nearest_neighbor_distance": 0.010987141116778327,
+            "unique_items": 9,
+            "unique_item_orientations": 9,
+            "spatial_cell_count": 5
+          },
+          "coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 194,
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.07812450911302574,
+              "minimum_nearest_neighbor_distance": 0.002201509574323396,
+              "unique_items": 7,
+              "unique_item_orientations": 7,
+              "spatial_cell_count": 4
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.05512206422089864,
+              "minimum_nearest_neighbor_distance": 0.010987141116778327,
+              "unique_items": 9,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 5
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": -0.023002444892127098,
+              "minimum_nearest_neighbor_distance": 0.00878563154245493,
+              "unique_items": 2,
+              "unique_item_orientations": 2,
+              "spatial_cell_count": 1
+            }
+          },
+          "overdraw_coverage_comparison": {
+            "contract": "same_snapshot_same_candidate_population",
+            "population": 194,
+            "stratified_random": {
+              "sampled": 32,
+              "mean_nearest_neighbor_distance": 0.010797478716143153,
+              "minimum_nearest_neighbor_distance": 0.0005176626978640602,
+              "unique_items": 9,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 6
+            },
+            "residual_diversity": {
+              "sampled": 32,
+              "mean_nearest_neighbor_distance": 0.025706071811793553,
+              "minimum_nearest_neighbor_distance": 0.002201509574323396,
+              "unique_items": 10,
+              "unique_item_orientations": 10,
+              "spatial_cell_count": 8
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.0149085930956504,
+              "minimum_nearest_neighbor_distance": 0.0016838468764593358,
+              "unique_items": 1,
+              "unique_item_orientations": 1,
+              "spatial_cell_count": 2
+            }
+          },
+          "physical_coverage_comparison": {
+            "contract": "official_replay_observed_x_plus",
+            "stratified_random": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.11625457766297496,
+              "minimum_nearest_neighbor_distance": 0.017011080783842003,
+              "unique_items": 7,
+              "unique_item_orientations": 7,
+              "spatial_cell_count": 6,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "residual_diversity": {
+              "sampled": 13,
+              "mean_nearest_neighbor_distance": 0.15811024231373166,
+              "minimum_nearest_neighbor_distance": 0.08558064279021067,
+              "unique_items": 9,
+              "unique_item_orientations": 9,
+              "spatial_cell_count": 6,
+              "replayed": 13,
+              "settled": 13,
+              "valid": 13,
+              "placed_safe": 13
+            },
+            "diversity_minus_random": {
+              "mean_nearest_neighbor_distance": 0.0418556646507567,
+              "minimum_nearest_neighbor_distance": 0.06856956200636867,
+              "unique_items": 2,
+              "unique_item_orientations": 2,
+              "spatial_cell_count": 0,
+              "settled": 0,
+              "valid": 0,
+              "placed_safe": 0
+            }
+          },
+          "unique_replayed": 43,
+          "outcome_split": {
+            "contract": "observed_pybullet_outcome_split",
+            "primary_overdraw": 32,
+            "random_overdraw": 32,
+            "primary_safe_pool": 27,
+            "random_safe_pool": 30,
+            "positive_safe_union": 37,
+            "positive_transition": 13,
+            "random_positive_control": 13,
+            "negative_physical_risk": 6,
+            "positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 17,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 10,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": null,
+                "design": "paired_control_seed_then_observed_state_swap"
+              }
+            ],
+            "random_positive_strata": [
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "tail"
+                },
+                "population": 10,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top1"
+                },
+                "population": 1,
+                "forced": 0,
+                "sampled": 1,
+                "inclusion_probability": 1.0
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10"
+                },
+                "population": 9,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4444444444444444
+              },
+              {
+                "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+                "stratum": {
+                  "kind": "release_candidate",
+                  "gate": "reject",
+                  "score_band": "top10pct"
+                },
+                "population": 10,
+                "forced": 0,
+                "sampled": 4,
+                "inclusion_probability": 0.4
+              }
+            ],
+            "positive_labels": {
+              "is_placed_safe": true
+            },
+            "negative_labels": {
+              "is_placed_safe": false
+            },
+            "selection_distance_basis": "official_replay_observed_x_plus",
+            "control_seeded_positive": 9,
+            "swap_optimizer": {
+              "design": "paired_control_seed_then_observed_state_swap",
+              "seed": "paired_random_control_portfolio",
+              "objective": "paired_observed_mean_nearest_neighbour_delta",
+              "distance_basis": "official_replay_observed_x_plus",
+              "terminated": "no_improving_swap",
+              "rounds": 5,
+              "swaps_applied": 4,
+              "swaps_evaluated": 308,
+              "exact_evaluations": 64,
+              "max_rounds": 64,
+              "exact_checks_per_round": 8,
+              "exact_scan_limit": 32,
+              "portfolio_size": 13,
+              "observed_portfolio_size": 13,
+              "control_size": 13,
+              "observed_control_size": 13,
+              "initial_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.12162083483831512,
+                "control_mean_nearest_neighbor_distance": 0.12162083483831512,
+                "mean_nearest_neighbor_distance_delta": 0.0,
+                "positive_minimum_nearest_neighbor_distance": 0.01852675209132087,
+                "control_minimum_nearest_neighbor_distance": 0.01852675209132087,
+                "minimum_nearest_neighbor_distance_delta": 0.0
+              },
+              "final_objective": {
+                "positive_mean_nearest_neighbor_distance": 0.15811024231373166,
+                "control_mean_nearest_neighbor_distance": 0.11625457766297496,
+                "mean_nearest_neighbor_distance_delta": 0.0418556646507567,
+                "positive_minimum_nearest_neighbor_distance": 0.08558064279021067,
+                "control_minimum_nearest_neighbor_distance": 0.017011080783842003,
+                "minimum_nearest_neighbor_distance_delta": 0.06856956200636867
+              },
+              "initial_semantics": {
+                "unique_items": 7,
+                "unique_item_orientations": 7
+              },
+              "final_semantics": {
+                "unique_items": 9,
+                "unique_item_orientations": 9
+              },
+              "semantic_constraint": "no accepted swap reduces unique items or unique item-orientations among observed rows",
+              "swap_log": [
+                {
+                  "round": 1,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 5,
+                    "pool_index": 0,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 33,
+                    "pool_index": 17,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.0,
+                  "delta_after": 0.019949843462757924
+                },
+                {
+                  "round": 2,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+                  "removed": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 23,
+                    "pool_index": 12,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.019949843462757924,
+                  "delta_after": 0.03381539860879691
+                },
+                {
+                  "round": 3,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 20,
+                    "pool_index": 9,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.03381539860879691,
+                  "delta_after": 0.03932180710415549
+                },
+                {
+                  "round": 4,
+                  "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+                  "removed": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "added": {
+                    "item_index": 9,
+                    "pool_index": 2,
+                    "container_index": 0,
+                    "orientation": 3
+                  },
+                  "delta_before": 0.03932180710415549,
+                  "delta_after": 0.0418556646507567
+                }
+              ],
+              "swap_log_truncated": false,
+              "contract": "Monotone local search on the reported paired delta from the control seed. It does not prove global optimality and does not guarantee a positive delta."
+            }
+          },
+          "strata": [
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=tail",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "tail"
+              },
+              "population": 17,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top1",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top1"
+              },
+              "population": 1,
+              "forced": 0,
+              "sampled": 1,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10"
+              },
+              "population": 9,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            },
+            {
+              "stratum_key": "kind=release_candidate|gate=reject|score_band=top10pct",
+              "stratum": {
+                "kind": "release_candidate",
+                "gate": "reject",
+                "score_band": "top10pct"
+              },
+              "population": 10,
+              "forced": 0,
+              "sampled": 4,
+              "inclusion_probability": null,
+              "design": "paired_control_seed_then_observed_state_swap"
+            }
+          ]
+        },
+        "preview": {
+          "requested": 0,
+          "computed": 0,
+          "seconds": 1.0370000040893501e-05
+        },
+        "replay_seconds": 11.984092368000006,
+        "settled_oracle_stats": {
+          "generator_modes": [
+            "cartesian",
+            "support_plane"
+          ],
+          "complete_by_generator": {
+            "cartesian": true,
+            "support_plane": true
+          },
+          "stats_by_generator": {
+            "cartesian": {
+              "generator_mode": "cartesian",
+              "attempt_kind": "settled",
+              "attempts": 513728,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 17.840496970000004,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            },
+            "support_plane": {
+              "generator_mode": "support_plane",
+              "attempt_kind": "settled",
+              "attempts": 48890,
+              "candidate_units_started": 60,
+              "candidate_units_total": 60,
+              "elapsed_seconds": 5.07466081299998,
+              "settled_units_started": 60,
+              "settled_units_total": 60
+            }
+          },
+          "generator_counts": {
+            "cartesian": 0,
+            "support_plane": 0
+          },
+          "union_count": 0,
+          "overlap_count": 0,
+          "cartesian_only_count": 0,
+          "support_plane_only_count": 0,
+          "elapsed_seconds": 22.91519591399998
+        },
+        "release_oracle_stats": {
+          "generator_mode": "cartesian",
+          "attempt_kind": "release",
+          "attempts": 135110,
+          "candidate_units_started": 60,
+          "candidate_units_total": 60,
+          "elapsed_seconds": 17.094588131000023
+        },
+        "policy_log": {
+          "action_source": "placement_core",
+          "candidate_kind": "release_candidate",
+          "top_candidate_count": 3,
+          "accepted_settled_count": 0,
+          "accepted_release_count": 69,
+          "accepted_total_count": 69,
+          "search": {
+            "units_total": 120,
+            "units_started": 67,
+            "units_completed": 0,
+            "rounds_started": 1,
+            "deadline_reached": true,
+            "incumbent_updates": 16,
+            "attempts_to_first_candidate": 3086,
+            "attempts_consumed": 17055
+          }
+        },
+        "action": {
+          "item_idx": 0,
+          "container_idx": 0,
+          "place_pos": [
+            0.718999981880188,
+            -0.3840000033378601,
+            1.3815815448760986
+          ],
+          "orientation": 3
+        },
+        "shadow_rerank": null,
+        "shadow_rerank_matched": false,
+        "shadow_pair": {
+          "changed": null,
+          "baseline_candidate_id": "5|0|0|3|(0.719, -0.384, 1.381582)|(0.45, 0.65, 0.25)",
+          "shadow_candidate_id": null
+        }
+      }
+    ]
+  },
+  "problems": [],
+  "steps_beyond_episode_end": [
+    17,
+    20
+  ]
+}
