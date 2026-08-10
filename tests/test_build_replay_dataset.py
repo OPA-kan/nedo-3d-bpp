@@ -10,6 +10,7 @@ import unittest
 from scripts.build_replay_dataset import (
     OutputDirectoryClaimed,
     assign_strata,
+    dataset_problems,
     build_dataset_id,
     build_row,
     claim_output_directory,
@@ -955,6 +956,72 @@ class SamplingTests(unittest.TestCase):
             shadow["sampling"]["forced_reason"], "shadow_rerank_selection"
         )
         self.assertEqual(shadow["sampling"]["inclusion_probability"], 1.0)
+
+
+class DatasetCompletenessTests(unittest.TestCase):
+    def case(self, **overrides):
+        payload = {
+            "unreached_steps": [],
+            "failed_steps": [],
+            "episode_terminated": False,
+            "episode_truncated": False,
+            "episode_steps_executed": 20,
+            "steps": [],
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_a_step_the_episode_ended_before_is_not_a_problem(self):
+        # Asking for step 18 of a seventeen-step episode is how you find out
+        # how long the episode is. Failing the run for it put a ceiling on
+        # the step axis, which is one of only two sources of new states.
+        problems, beyond = dataset_problems(
+            self.case(
+                unreached_steps=[18],
+                episode_terminated=True,
+                episode_steps_executed=17,
+            )
+        )
+
+        self.assertEqual(problems, [])
+        self.assertEqual(beyond, [18])
+
+    def test_a_step_missed_while_the_episode_ran_on_is_still_a_problem(self):
+        problems, beyond = dataset_problems(
+            self.case(unreached_steps=[9], episode_steps_executed=20)
+        )
+
+        self.assertEqual(beyond, [])
+        self.assertIn("unreached steps [9]", problems)
+
+    def test_a_step_before_the_end_is_a_problem_even_once_it_ended(self):
+        problems, beyond = dataset_problems(
+            self.case(
+                unreached_steps=[9, 18],
+                episode_terminated=True,
+                episode_steps_executed=17,
+            )
+        )
+
+        self.assertEqual(beyond, [18])
+        self.assertIn("unreached steps [9]", problems)
+
+    def test_a_failed_step_still_fails_the_dataset(self):
+        problems, _beyond = dataset_problems(
+            self.case(failed_steps=[6], episode_terminated=True)
+        )
+
+        self.assertIn("failed steps [6]", problems)
+
+    def test_a_step_that_sampled_nothing_still_fails_the_dataset(self):
+        problems, _beyond = dataset_problems(
+            self.case(
+                episode_terminated=True,
+                steps=[{"step": 3, "sampling": {"sampled": 0}}],
+            )
+        )
+
+        self.assertIn("empty samples at steps [3]", problems)
 
 
 class LabelTests(unittest.TestCase):

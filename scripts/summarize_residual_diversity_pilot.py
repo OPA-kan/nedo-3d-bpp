@@ -137,6 +137,11 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
         "dataset_id": payload.get("dataset_id"),
         "case_id": case.get("case_id"),
         "observed_swap_rounds": payload.get("observed_swap_rounds"),
+        # Why a scenario has fewer steps than were asked for. Without this a
+        # short episode is indistinguishable from a scenario that lost steps.
+        "steps_beyond_episode_end": payload.get(
+            "steps_beyond_episode_end"
+        ),
         "portfolio_constructions": constructions,
         "swaps_applied": sum(
             int(row["swaps_applied"] or 0) for row in rows
@@ -197,6 +202,10 @@ def markdown(summary: dict[str, Any]) -> str:
             f"`{summary.get('portfolio_constructions')}`"
         ),
         f"- Swaps applied: {summary.get('swaps_applied')}",
+        (
+            "- Steps the episode ended before: "
+            f"{summary.get('steps_beyond_episode_end') or 'none'}"
+        ),
         f"- Steps measured: {summary['steps_measured']}",
         (
             "- Steps with positive proxy/physical NN-distance delta: "

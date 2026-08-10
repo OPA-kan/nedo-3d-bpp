@@ -1030,6 +1030,42 @@ def build_row(
     }
 
 
+def dataset_problems(case: dict[str, Any]) -> tuple[list[str], list[int]]:
+    """Separate "the episode ended" from "a step went wrong".
+
+    Asking for step 18 of a sixteen-step episode is not a defect; it is how
+    you find out how long the episode is. Treating it as one made the whole
+    scenario fail, dropped it from the matrix verdict, and so put a ceiling on
+    the step axis -- which is one of only two ways this project can generate
+    more distinct states. A step that the episode never reached because it
+    ended is reported separately and does not fail the run. A step that was
+    reachable and did not produce a usable sample still does.
+    """
+    unreached = [int(step) for step in case.get("unreached_steps") or []]
+    ended = bool(
+        case.get("episode_terminated") or case.get("episode_truncated")
+    )
+    executed = int(case.get("episode_steps_executed", 0))
+    beyond_end = (
+        [step for step in unreached if step > executed] if ended else []
+    )
+    missing = [step for step in unreached if step not in beyond_end]
+
+    problems: list[str] = []
+    if missing:
+        problems.append(f"unreached steps {missing}")
+    if case.get("failed_steps"):
+        problems.append(f"failed steps {case['failed_steps']}")
+    empty = [
+        int(entry["step"])
+        for entry in case.get("steps") or []
+        if int(entry["sampling"]["sampled"]) == 0
+    ]
+    if empty:
+        problems.append(f"empty samples at steps {empty}")
+    return problems, beyond_end
+
+
 # --------------------------------------------------------------------------
 # driver
 # --------------------------------------------------------------------------
@@ -1757,22 +1793,10 @@ def main() -> int:
         write_manifest()
         raise
 
-    case = payload["case"]
-    problems = []
-    if case["unreached_steps"]:
-        problems.append(f"unreached steps {case['unreached_steps']}")
-    if case["failed_steps"]:
-        problems.append(f"failed steps {case['failed_steps']}")
-    empty = [
-        int(entry["step"])
-        for entry in case["steps"]
-        if int(entry["sampling"]["sampled"]) == 0
-    ]
-    if empty:
-        problems.append(f"empty samples at steps {empty}")
-
+    problems, beyond_end = dataset_problems(payload["case"])
     payload["status"] = "complete" if not problems else "incomplete"
     payload["problems"] = problems
+    payload["steps_beyond_episode_end"] = beyond_end
     write_manifest()
 
     print(manifest_path)
