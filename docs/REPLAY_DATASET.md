@@ -1,8 +1,9 @@
 # 層化counterfactual replayデータセット
 
 `scripts/build_replay_dataset.py` が生成する候補単位のデータセットの仕様。
-schema version 2 では、母集団率を推定する従来の層化無作為抽出に加え、
-学習用の残余状態coverageを広げる決定的抽出を追加した。
+schema version 3 では、母集団率を推定する従来の層化無作為抽出と、学習用の
+残余状態coverageを広げる決定的抽出に加え、観測物理結果によるpositive transition /
+negative risk分離と、そのoverdraw provenanceを追加した。
 
 ## 何のためにあるか
 
@@ -101,6 +102,7 @@ step は `status: selection_mismatch` になり、run 全体が `incomplete` と
 | `residual_diversity` | 異なる候補後状態を学習データへ入れる | **なし** |
 | `residual_diversity_constrained` | item被覆を守って残余状態を分散 | **なし** |
 | `residual_diversity_global_constrained` | 全層の枠を協調してitem被覆を最大化 | **なし** |
+| `residual_diversity_safe_split` | overdraw後に観測物理結果で正例・負例を分離 | **なし** |
 
 ### `stratified_random`
 
@@ -189,6 +191,22 @@ itemとslotの二部マッチングで、層別sample数を保ったまま全体
 
 この設計も安全予測器ではない。公式PyBullet replayの `placed_safe` 非劣化を独立guard
 として維持し、guardを通るまでは学習データとして採用しない。
+
+### `residual_diversity_safe_split`
+
+v3のglobal matchingを `--overdraw-factor` 倍のquotaで先に抽出し、全候補を公式
+PyBulletで個別replayする。その観測結果だけを使って用途を分離する。
+
+- `step-NNN-candidates.jsonl`: `is_placed_safe=true` だけから再度global matchingした
+  residual-state value用のpositive transition
+- `step-NNN-negative-risk.jsonl`: overdrawとrandom controlの和集合に現れた
+  `is_placed_safe=false` のnegative physical-risk例
+- `step-NNN-random-control.jsonl`: safe候補だけから同じquotaへ落としたpaired control
+
+事前特徴で安全を推定していないため、過去に棄却したstatic hard gateの再導入ではない。
+`sampling.outcome_split` にoverdraw数、safe pool数、positive/negative件数を記録し、
+各行の `overdraw_sampling` で物理観測前の抽出設計も保持する。positive/negativeのどちらも
+母集団率推定用の確率標本ではない。
 
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの

@@ -275,11 +275,11 @@ class ReplayTrajectoryTests(unittest.TestCase):
 
         self.assert_actions_equivalent(control, replayed)
 
-    def test_paired_global_diversity_replay_does_not_change_actions(self):
+    def test_paired_safe_split_replay_does_not_change_actions(self):
         control = self.run_episode(with_replay=False)
         replayed = self.run_episode(
             with_replay=True,
-            sampling_mode="residual_diversity_global_constrained",
+            sampling_mode="residual_diversity_safe_split",
         )
 
         self.assert_actions_equivalent(control, replayed)

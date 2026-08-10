@@ -22,6 +22,7 @@ from scripts.build_replay_dataset import (
     sampling_coverage_comparison,
     score_band,
     selected_action_error,
+    split_observed_outcomes,
     stratified_sample,
 )
 from scripts.residual_diversity import (
@@ -545,6 +546,68 @@ class SamplingTests(unittest.TestCase):
         self.assertTrue(
             all(row["sampling"]["sampling_weight"] is None for row in sample)
         )
+
+    def test_observed_outcome_split_separates_safe_and_risk_arms(self):
+        primary = [
+            candidate(
+                pool_index=index,
+                item_index=index,
+                center=(0.1 * index, 0.0, 0.5),
+                score=10.0 - index,
+            )
+            for index in range(4)
+        ]
+        control = [
+            candidate(
+                pool_index=10 + index,
+                item_index=10 + index,
+                center=(0.1 * index, 0.1, 0.5),
+                score=6.0 - index,
+            )
+            for index in range(3)
+        ]
+        for record in primary + control:
+            record["stratum_key"] = "only"
+            record["stratum"] = {"kind": "candidate", "gate": "pass"}
+            record["sampling"] = {"design": "overdraw"}
+        unsafe = primary[0]
+        results = {
+            candidate_key(record): {
+                "is_placed_safe": record is not unsafe,
+            }
+            for record in primary + control
+        }
+
+        positive, negative, random_positive, report = (
+            split_observed_outcomes(
+                primary,
+                control,
+                results=results,
+                per_stratum=2,
+                rng=random.Random(4),
+                forced_keys={candidate_key(unsafe): "selected_action"},
+            )
+        )
+
+        self.assertEqual(len(positive), 2)
+        self.assertEqual(len(random_positive), 2)
+        self.assertEqual(
+            {candidate_key(row) for row in negative},
+            {candidate_key(unsafe)},
+        )
+        self.assertNotIn(
+            candidate_key(unsafe),
+            {candidate_key(row) for row in positive},
+        )
+        self.assertTrue(
+            all(
+                results[candidate_key(row)]["is_placed_safe"]
+                for row in positive
+            )
+        )
+        self.assertEqual(report["primary_overdraw"], 4)
+        self.assertEqual(report["positive_transition"], 2)
+        self.assertEqual(report["negative_physical_risk"], 1)
 
     def test_maximin_sampling_is_deterministic_and_marks_coverage_design(
         self,

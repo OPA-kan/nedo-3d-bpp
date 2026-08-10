@@ -35,6 +35,7 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(
                 f"step {step.get('step')} has no proxy coverage comparison"
             )
+        outcome_split = sampling.get("outcome_split") or {}
         rows.append(
             {
                 "step": int(step["step"]),
@@ -43,6 +44,18 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
                     (step.get("population") or {}).get("total", 0)
                 ),
                 "unique_replayed": int(sampling.get("unique_replayed", 0)),
+                "primary_overdraw": int(
+                    outcome_split.get("primary_overdraw", 0)
+                ),
+                "primary_safe_pool": int(
+                    outcome_split.get("primary_safe_pool", 0)
+                ),
+                "positive_transition": int(
+                    outcome_split.get("positive_transition", 0)
+                ),
+                "negative_physical_risk": int(
+                    outcome_split.get("negative_physical_risk", 0)
+                ),
                 "proxy_nn_distance_delta": _delta(
                     proxy, "mean_nearest_neighbor_distance"
                 ),
@@ -150,15 +163,18 @@ def markdown(summary: dict[str, Any]) -> str:
         f"- Failed guards: {summary['acceptance']['failed_guards']}",
         "",
         "| step | population | replayed | proxy ΔNN | physical ΔNN | "
-        "physical Δcells | Δitems | Δitem-pose | Δsettled | Δsafe |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "physical Δcells | Δitems | Δitem-pose | safe pool | positive | "
+        "negative | Δsettled | Δsafe |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in summary["steps"]:
         lines.append(
             "| {step} | {population} | {unique_replayed} | "
             "{proxy_nn_distance_delta} | {physical_nn_distance_delta} | "
             "{physical_spatial_cells_delta} | {unique_items_delta} | "
-            "{unique_item_orientations_delta} | {settled_delta} | "
+            "{unique_item_orientations_delta} | {primary_safe_pool} | "
+            "{positive_transition} | {negative_physical_risk} | "
+            "{settled_delta} | "
             "{placed_safe_delta} |".format(**row)
         )
     lines.extend(["", summary["interpretation_contract"], ""])

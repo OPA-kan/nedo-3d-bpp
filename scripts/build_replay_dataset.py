@@ -73,7 +73,7 @@ from scripts.residual_diversity import (  # noqa: E402
     settled_portfolio_comparison,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DEFAULT_REPORT_ROOT = ROOT / "reports" / "replay-dataset"
 ACTION_MATCH_TOLERANCE = 1e-4
 # simulator/src/ground_handling/validator.py uses PEP 701 nested-quote
@@ -84,6 +84,7 @@ DIVERSITY_SAMPLING_MODES = frozenset(
         "residual_diversity",
         "residual_diversity_constrained",
         "residual_diversity_global_constrained",
+        "residual_diversity_safe_split",
     }
 )
 
@@ -368,6 +369,12 @@ def sample_candidate_population(
             per_stratum=per_stratum,
             forced_keys=forced_keys,
         )
+    if sampling_mode == "residual_diversity_safe_split":
+        return global_constrained_residual_diversity_sample(
+            records,
+            per_stratum=per_stratum,
+            forced_keys=forced_keys,
+        )
     raise ValueError(f"unknown sampling mode: {sampling_mode!r}")
 
 
@@ -413,6 +420,88 @@ def sampling_coverage_comparison(
                 "spatial_cell_count",
             )
         },
+    }
+
+
+def split_observed_outcomes(
+    primary_overdraw: list[dict[str, Any]],
+    random_overdraw: list[dict[str, Any]],
+    *,
+    results: dict[tuple[Any, ...], dict[str, Any]],
+    per_stratum: int,
+    rng: random.Random,
+    forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, Any],
+]:
+    """Split replayed rows into safe transitions and physical-risk labels."""
+    if not isinstance(forced_keys, dict):
+        forced_keys = {key: "selected_action" for key in forced_keys}
+
+    def is_safe(record: dict[str, Any]) -> bool:
+        physical = results.get(candidate_key(record)) or {}
+        return bool(physical.get("is_placed_safe"))
+
+    for record in primary_overdraw + random_overdraw:
+        record["overdraw_sampling"] = copy.deepcopy(record.get("sampling"))
+
+    primary_safe = [record for record in primary_overdraw if is_safe(record)]
+    random_safe = [record for record in random_overdraw if is_safe(record)]
+    safe_primary_keys = {candidate_key(record) for record in primary_safe}
+    safe_control_keys = {candidate_key(record) for record in random_safe}
+    primary_forced = {
+        key: reason
+        for key, reason in forced_keys.items()
+        if key in safe_primary_keys
+    }
+    control_forced = {
+        key: reason
+        for key, reason in forced_keys.items()
+        if key in safe_control_keys
+    }
+    positive, positive_table = (
+        global_constrained_residual_diversity_sample(
+            primary_safe,
+            per_stratum=per_stratum,
+            forced_keys=primary_forced,
+        )
+    )
+    random_positive, control_table = stratified_sample(
+        random_safe,
+        per_stratum=per_stratum,
+        rng=rng,
+        forced_keys=control_forced,
+    )
+    for record in random_positive:
+        record["sampling"].update(
+            {
+                "design": "observed_safe_stratified_random_control",
+                "inclusion_probability": None,
+                "sampling_weight": None,
+            }
+        )
+
+    negative_by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for record in primary_overdraw + random_overdraw:
+        if not is_safe(record):
+            negative_by_key.setdefault(candidate_key(record), record)
+    negative = [negative_by_key[key] for key in sorted(negative_by_key)]
+    return positive, negative, random_positive, {
+        "contract": "observed_pybullet_outcome_split",
+        "primary_overdraw": len(primary_overdraw),
+        "random_overdraw": len(random_overdraw),
+        "primary_safe_pool": len(primary_safe),
+        "random_safe_pool": len(random_safe),
+        "positive_transition": len(positive),
+        "random_positive_control": len(random_positive),
+        "negative_physical_risk": len(negative),
+        "positive_strata": positive_table,
+        "random_positive_strata": control_table,
+        "positive_labels": {"is_placed_safe": True},
+        "negative_labels": {"is_placed_safe": False},
     }
 
 
@@ -796,6 +885,7 @@ def build_row(
         # sampling design
         "stratum": record["stratum"],
         "sampling": record["sampling"],
+        "overdraw_sampling": record.get("overdraw_sampling"),
         "residual_proxy": record.get("residual_proxy"),
         # labels
         "physical": physical,
@@ -819,6 +909,7 @@ def run_case(
     preview_limit: int,
     skip_optimize: bool,
     sampling_mode: str = "stratified_random",
+    overdraw_factor: int = 2,
     on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
@@ -860,6 +951,7 @@ def run_case(
                         output_dir=output_dir,
                         per_stratum=per_stratum,
                         sampling_mode=sampling_mode,
+                        overdraw_factor=overdraw_factor,
                         seed=seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
@@ -926,6 +1018,7 @@ def collect_step(
     output_dir: pathlib.Path,
     per_stratum: int,
     sampling_mode: str,
+    overdraw_factor: int,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
@@ -1004,30 +1097,38 @@ def collect_step(
         # The real selection wins when both point at the same candidate.
         forced_reasons[selected_key] = "selected_action"
 
+    safe_split_mode = sampling_mode == "residual_diversity_safe_split"
+    sampling_quota = (
+        per_stratum * max(1, int(overdraw_factor))
+        if safe_split_mode
+        else per_stratum
+    )
     rng = random.Random(f"{seed}:{case_id}:{step}")
     sample, stratum_table = sample_candidate_population(
         population,
         sampling_mode=sampling_mode,
-        per_stratum=per_stratum,
+        per_stratum=sampling_quota,
         rng=rng,
         forced_keys=forced_reasons,
     )
     coverage_comparison = None
+    overdraw_coverage_comparison = None
     random_control: list[dict[str, Any]] = []
     if sampling_mode in DIVERSITY_SAMPLING_MODES:
         random_control, _control_table = stratified_sample(
             copy.deepcopy(population),
-            per_stratum=per_stratum,
+            per_stratum=sampling_quota,
             rng=random.Random(
                 f"{seed}:{case_id}:{step}:residual-coverage-control"
             ),
             forced_keys=forced_reasons,
         )
-        coverage_comparison = sampling_coverage_comparison(
+        overdraw_coverage_comparison = sampling_coverage_comparison(
             population,
             diversity_sample=sample,
             random_sample=random_control,
         )
+        coverage_comparison = overdraw_coverage_comparison
     print(
         f"{case_id} step {step}: population={len(population)} "
         f"strata={len(stratum_table)} sample={len(sample)} "
@@ -1050,6 +1151,27 @@ def collect_step(
             replay_keys.add(candidate_key(record))
     results, replay_seconds = replay_sample(env, replay_population)
     physical_coverage_comparison = None
+    outcome_split = None
+    negative_sample: list[dict[str, Any]] = []
+    if safe_split_mode:
+        sample, negative_sample, random_control, outcome_split = (
+            split_observed_outcomes(
+                sample,
+                random_control,
+                results=results,
+                per_stratum=per_stratum,
+                rng=random.Random(
+                    f"{seed}:{case_id}:{step}:safe-positive-control"
+                ),
+                forced_keys=forced_reasons,
+            )
+        )
+        stratum_table = outcome_split["positive_strata"]
+        coverage_comparison = sampling_coverage_comparison(
+            population,
+            diversity_sample=sample,
+            random_sample=random_control,
+        )
     if sampling_mode in DIVERSITY_SAMPLING_MODES:
         physical_coverage_comparison = settled_portfolio_comparison(
             diversity_sample=sample,
@@ -1061,6 +1183,11 @@ def collect_step(
     control_dataset_path = (
         output_dir / f"{step_label}-random-control.jsonl"
         if sampling_mode in DIVERSITY_SAMPLING_MODES
+        else None
+    )
+    negative_dataset_path = (
+        output_dir / f"{step_label}-negative-risk.jsonl"
+        if safe_split_mode
         else None
     )
     availability = agent_module.ReleaseRiskFeatures.feature_availability()
@@ -1079,7 +1206,9 @@ def collect_step(
                 feature_availability=availability,
                 shadow_key=shadow_key,
             )
-            row["portfolio_role"] = sampling_mode
+            row["portfolio_role"] = (
+                "positive_transition" if safe_split_mode else sampling_mode
+            )
             handle.write(
                 json.dumps(json_safe(row), ensure_ascii=False) + "\n"
             )
@@ -1099,7 +1228,31 @@ def collect_step(
                     feature_availability=availability,
                     shadow_key=shadow_key,
                 )
-                row["portfolio_role"] = "stratified_random_control"
+                row["portfolio_role"] = (
+                    "positive_transition_random_control"
+                    if safe_split_mode
+                    else "stratified_random_control"
+                )
+                handle.write(
+                    json.dumps(json_safe(row), ensure_ascii=False) + "\n"
+                )
+    if negative_dataset_path is not None:
+        with negative_dataset_path.open("w", encoding="utf-8") as handle:
+            for record in negative_sample:
+                row = build_row(
+                    record,
+                    dataset_id=dataset_id,
+                    snapshot_id=snapshot_id,
+                    case_id=case_id,
+                    step=step,
+                    snapshot_name=snapshot_path.name,
+                    selected_key=selected_key,
+                    anytime_keys=anytime_keys,
+                    physical=results.get(candidate_key(record)),
+                    feature_availability=availability,
+                    shadow_key=shadow_key,
+                )
+                row["portfolio_role"] = "negative_physical_risk"
                 handle.write(
                     json.dumps(json_safe(row), ensure_ascii=False) + "\n"
                 )
@@ -1117,6 +1270,11 @@ def collect_step(
         "control_dataset_path": (
             control_dataset_path.name
             if control_dataset_path is not None
+            else None
+        ),
+        "negative_dataset_path": (
+            negative_dataset_path.name
+            if negative_dataset_path is not None
             else None
         ),
         "population": {
@@ -1141,19 +1299,32 @@ def collect_step(
                 "stratified without replacement, unequal probability"
                 if sampling_mode == "stratified_random"
                 else (
-                    "deterministic global item matching then residual-proxy "
-                    "maximin coverage"
-                    if sampling_mode
-                    == "residual_diversity_global_constrained"
+                    "overdraw global matching, observed PyBullet outcome "
+                    "split, then safe residual-proxy coverage"
+                    if sampling_mode == "residual_diversity_safe_split"
                     else (
-                        "deterministic item-coverage-constrained "
+                        "deterministic global item matching then "
                         "residual-proxy maximin coverage"
-                        if sampling_mode == "residual_diversity_constrained"
-                        else "deterministic residual-proxy maximin coverage"
+                        if sampling_mode
+                        == "residual_diversity_global_constrained"
+                        else (
+                            "deterministic item-coverage-constrained "
+                            "residual-proxy maximin coverage"
+                            if sampling_mode
+                            == "residual_diversity_constrained"
+                            else (
+                                "deterministic residual-proxy maximin "
+                                "coverage"
+                            )
+                        )
                     )
                 )
             ),
             "per_stratum": int(per_stratum),
+            "overdraw_factor": (
+                int(overdraw_factor) if safe_split_mode else 1
+            ),
+            "overdraw_per_stratum": int(sampling_quota),
             "seed": int(seed),
             "sampled": len(sample),
             "selected_matched": selected_key is not None,
@@ -1161,10 +1332,14 @@ def collect_step(
                 sample, reference_records=population
             ),
             "coverage_comparison": coverage_comparison,
+            "overdraw_coverage_comparison": (
+                overdraw_coverage_comparison
+            ),
             "physical_coverage_comparison": (
                 physical_coverage_comparison
             ),
             "unique_replayed": len(replay_population),
+            "outcome_split": outcome_split,
             "strata": stratum_table,
         },
         "preview": {
@@ -1238,6 +1413,7 @@ def main() -> int:
             "residual_diversity",
             "residual_diversity_constrained",
             "residual_diversity_global_constrained",
+            "residual_diversity_safe_split",
         ),
         default="stratified_random",
         help=(
@@ -1248,6 +1424,15 @@ def main() -> int:
         ),
     )
     parser.add_argument("--seed", type=int, default=20260730)
+    parser.add_argument(
+        "--overdraw-factor",
+        type=int,
+        default=2,
+        help=(
+            "For residual_diversity_safe_split, replay this multiple of the "
+            "requested per-stratum quota before observed-outcome splitting."
+        ),
+    )
     parser.add_argument("--oracle-limit", type=int)
     parser.add_argument(
         "--preview-limit",
@@ -1293,6 +1478,8 @@ def main() -> int:
     target_steps = {int(step) for step in args.steps}
     if not target_steps or min(target_steps) < 0:
         raise SystemExit("--steps must contain non-negative integers")
+    if int(args.overdraw_factor) < 1:
+        raise SystemExit("--overdraw-factor must be at least 1")
 
     config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1327,6 +1514,7 @@ def main() -> int:
         "split": str(args.split),
         "per_stratum": int(args.per_stratum),
         "sampling_mode": str(args.sampling_mode),
+        "overdraw_factor": int(args.overdraw_factor),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
@@ -1343,6 +1531,7 @@ def main() -> int:
             "case_id": case_id,
             "target_steps": sorted(target_steps),
             "sampling_mode": str(args.sampling_mode),
+            "overdraw_factor": int(args.overdraw_factor),
         },
         "label_contract": {
             "transport": "official_check_transport_path",
@@ -1391,6 +1580,7 @@ def main() -> int:
             oracle_limit=args.oracle_limit,
             preview_limit=int(args.preview_limit),
             skip_optimize=args.skip_optimize,
+            overdraw_factor=int(args.overdraw_factor),
             on_progress=on_progress,
         )
     except BaseException as exc:
