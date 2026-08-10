@@ -36,6 +36,8 @@ class ResidualDiversityWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(scenario, text)
         self.assertIn("build_scenario_matrix.py", text)
+        self.assertIn("experiment/residual-diversity-dataset", text)
+        self.assertIn("[skip residual-diversity-scale]", text)
         self.assertIn("--sampling-mode residual_diversity_safe_split", text)
         self.assertIn("--steps 3 9 15", text)
         self.assertIn("summarize_residual_diversity_matrix.py", text)
