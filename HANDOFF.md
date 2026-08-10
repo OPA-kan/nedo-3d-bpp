@@ -112,6 +112,15 @@ and SHA-256. Do not reuse hashes in old prose.
   per-candidate path.  Preserve scalar streaming and enrich only retained
   Top-K/selected candidates, then repeat the negative control.  See Actions
   `31356809615` and `docs/STRUCTURED_SELECTOR_EXPERIMENT.md`.
+- The retained-only repair passed its 45-episode physical negative control.
+  Candidate generation, scoring and heap/incumbent updates remain scalar;
+  only the final decision or Top-K portfolio is enriched.  All per-case
+  differences across placed/fill, CoM, shake, priority/soft, terminal state,
+  policy time and attempt coverage stayed inside the pooled control spread.
+  Structured telemetry appeared on 283/286 decisions and attempts/decision
+  remained in the control regime.  Multi-axis shadow selection may now use
+  this retained portfolio.  See Actions `31358020306` and
+  `docs/RETAINED_SELECTOR_EXPERIMENT.md`.
 - The box-derived anchor envelope was a real generator defect. Deriving bounds
   from the container half-spaces produced the largest measured improvement and
   the best official score.
@@ -195,12 +204,12 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Before the next Ranker experiment, replace eager per-candidate rich-object
-   construction with scalar streaming plus retained-Top-K/final-selection
-   enrichment.  Repeat the same `base`/`base_null` negative control and require
-   the full proxy vector and attempt coverage to stay within its noise floor.
-   Do not add features inside the generator loop or rerun candidate generation.
-   Only after that control passes should named terms feed a shadow selector.
+1. Build the first multi-axis selector as shadow-only on the retained Top-K
+   portfolio.  Record release rotation/slide risk, support ratio/margin,
+   priority and soft cover violations, routing, predicted CoM, and immediate
+   score separately.  Use constraint/Pareto or lexicographic bands, not guessed
+   official weights.  Measure dominance, proposal frequency and component
+   trade directions before adding an enforce mode.
 2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
 3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
