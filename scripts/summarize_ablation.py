@@ -79,15 +79,60 @@ def metrics(case: dict) -> dict:
         "placed_fraction": case.get("placed_fraction"),
         "fill": case.get("fill_score"),
         "com_z": case.get("final_com_z"),
+        "policy_seconds": case.get("policy_seconds"),
+        "terminal_included": (
+            float(case["is_included"])
+            if isinstance(case.get("is_included"), bool)
+            else None
+        ),
+        "terminal_valid": (
+            float(case["is_valid"])
+            if isinstance(case.get("is_valid"), bool)
+            else None
+        ),
+        "terminal_placed_safe": (
+            float(case["is_placed_safe"])
+            if isinstance(case.get("is_placed_safe"), bool)
+            else None
+        ),
     }
     attribute = case.get("attribute_placement") or {}
-    for key in ("priority_covered_by_other", "soft_covered_by_other"):
+    for key in (
+        "priority_covered_by_other",
+        "soft_covered_by_other",
+        "priority_clean_ratio",
+        "soft_clean_ratio",
+    ):
         if attribute.get(key) is not None:
             out[key] = float(attribute[key])
     shake = case.get("shake_response") or {}
-    for key in ("shake_max_shift", "shake_items_toppled"):
+    for key in (
+        "shake_max_shift",
+        "shake_peak_kinetic_energy",
+        "shake_items_shifted",
+        "shake_items_toppled",
+    ):
         if shake.get(key) is not None:
             out[key] = float(shake[key])
+    shake_items = shake.get("shake_items")
+    shake_shifted = shake.get("shake_items_shifted")
+    if (
+        isinstance(shake_items, (int, float))
+        and shake_items > 0
+        and isinstance(shake_shifted, (int, float))
+    ):
+        out["shake_shifted_fraction"] = float(shake_shifted) / float(
+            shake_items
+        )
+    official = case.get("score_components") or {}
+    for key in (
+        "cog_score",
+        "stability_score",
+        "placement_score",
+        "soft_item_score",
+    ):
+        if isinstance(official.get(key), (int, float)):
+            out[key] = float(official[key])
     return {k: v for k, v in out.items() if v is not None}
 
 

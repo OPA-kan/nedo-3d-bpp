@@ -9,6 +9,7 @@ from scripts.run_risk_ablation import (
     configure_arm_environment,
     policy_trace_summary,
     summarize,
+    terminal_failure_channel,
 )
 
 
@@ -27,6 +28,55 @@ def episode_row(arm, case_id, placed, fill, returncode=0):
 
 
 class SummarizeTests(unittest.TestCase):
+    def test_full_proxy_vector_and_terminal_channels_are_aggregated(self):
+        row = episode_row("structured_noop", "b000-k20", 18, 22.0)
+        case = row["cases"]["b000-k20"]
+        case.update(
+            {
+                "final_com_z": 0.64,
+                "policy_seconds": 6.4,
+                "terminal_channel": "topple",
+                "is_included": True,
+                "is_valid": True,
+                "is_placed_safe": False,
+                "attribute_placement": {
+                    "priority_clean_ratio": 0.75,
+                    "soft_clean_ratio": 1.0,
+                },
+                "shake_response": {
+                    "shake_items": 18,
+                    "shake_items_shifted": 3,
+                    "shake_items_toppled": 1,
+                    "shake_max_shift": 0.12,
+                    "shake_peak_kinetic_energy": 4.5,
+                },
+                "score_components": {
+                    "cog_score": 9.5,
+                    "stability_score": 12.0,
+                    "placement_score": 2.0,
+                    "soft_item_score": 4.0,
+                },
+            }
+        )
+
+        summary = summarize([row])
+        arm = summary["arms"]["structured_noop"]
+
+        self.assertEqual(arm["shake_toppled"]["mean"], 1.0)
+        self.assertAlmostEqual(
+            arm["shake_shifted_fraction"]["mean"], 0.167
+        )
+        self.assertEqual(arm["priority_clean"]["mean"], 0.75)
+        self.assertEqual(arm["soft_clean"]["mean"], 1.0)
+        self.assertEqual(arm["policy_seconds"]["mean"], 6.4)
+        self.assertEqual(arm["official_cog"]["mean"], 9.5)
+        self.assertEqual(arm["terminal_included"]["mean"], 1.0)
+        self.assertEqual(arm["terminal_valid"]["mean"], 1.0)
+        self.assertEqual(arm["terminal_placed_safe"]["mean"], 0.0)
+        self.assertEqual(
+            summary["terminal_channels"]["structured_noop"], {"topple": 1}
+        )
+
     def test_paired_diff_vs_off(self):
         rows = [
             episode_row("off", "b000-k20", 16, 20.0),
@@ -174,6 +224,16 @@ class SummarizeTests(unittest.TestCase):
 
 
 class ArmEnvironmentTests(unittest.TestCase):
+    def test_structured_noop_is_baseline_plus_selector_mode(self):
+        env = {"PLACEMENT_SELECTOR_MODE": "stale"}
+
+        configure_arm_environment(env, "structured_noop", 2.0, 0.0)
+
+        self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_noop")
+        base: dict[str, str] = {"PLACEMENT_SELECTOR_MODE": "stale"}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        self.assertNotIn("PLACEMENT_SELECTOR_MODE", base)
+
     def test_rescue_is_the_shipped_baseline_plus_rescue_flag(self):
         env = {
             "RELEASE_RISK_LIVE_RERANK": "0",
@@ -452,6 +512,35 @@ class ArmEnvironmentTests(unittest.TestCase):
 
 
 class PolicyTraceSummaryTests(unittest.TestCase):
+    def test_records_search_attempt_coverage(self):
+        records = [
+            {
+                "event": "decision",
+                "candidate_diagnostics": {
+                    "search": {"attempts_consumed": 120}
+                },
+            },
+            {
+                "event": "decision",
+                "candidate_diagnostics": {
+                    "search": {"attempts_consumed": 80},
+                    "selected_candidate_evaluation": {"schema_version": 1},
+                },
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["decision_count"], 2)
+        self.assertEqual(summary["search_attempts_total"], 200)
+        self.assertEqual(summary["search_attempts_max"], 120)
+        self.assertEqual(summary["structured_evaluation_count"], 1)
+
     def test_counts_rescue_and_protocol_fallback_separately(self):
         records = [
             {"event": "init"},
@@ -498,6 +587,9 @@ class PolicyTraceSummaryTests(unittest.TestCase):
             summary,
             {
                 "decision_count": 3,
+                "search_attempts_total": 0,
+                "search_attempts_max": 0,
+                "structured_evaluation_count": 0,
                 "rescue_trigger_count": 2,
                 "rescue_action_count": 1,
                 "protocol_fallback_count": 1,
@@ -652,6 +744,43 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["rollout_by_step"]["9"]["observed"], 1)
         self.assertEqual(summary["rollout_by_step"]["9"]["enforced"], 1)
         self.assertAlmostEqual(summary["rollout_seconds_total"], 0.15)
+
+
+class TerminalFailureChannelTests(unittest.TestCase):
+    def test_keeps_transport_topple_slide_and_other_separate(self):
+        self.assertEqual(
+            terminal_failure_channel(
+                {"status": {"is_valid": False}}, {}
+            ),
+            "transport_invalid",
+        )
+        self.assertEqual(
+            terminal_failure_channel(
+                {
+                    "status": {"is_valid": True, "is_placed_safe": False},
+                    "settle_angle_deg": 31.0,
+                },
+                {},
+            ),
+            "topple",
+        )
+        self.assertEqual(
+            terminal_failure_channel(
+                {
+                    "status": {"is_valid": True, "is_placed_safe": False},
+                    "settle_displacement_norm": 0.31,
+                },
+                {},
+            ),
+            "slide",
+        )
+        self.assertEqual(
+            terminal_failure_channel(
+                {"status": {"is_valid": True, "is_placed_safe": False}},
+                {},
+            ),
+            "unsafe_other",
+        )
 
 
 if __name__ == "__main__":

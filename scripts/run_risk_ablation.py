@@ -88,6 +88,7 @@ def configure_arm_environment(
         "TEMPORAL_CHUNK_ATTEMPTS_PER_STEP",
         "TEMPORAL_CHUNK_STRIDE",
         "TEMPORAL_CHUNK_CELL_SIZE",
+        "PLACEMENT_SELECTOR_MODE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -131,6 +132,7 @@ def configure_arm_environment(
         "first_pass64",
         "first_pass128",
         "first_pass256",
+        "structured_noop",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -149,6 +151,11 @@ def configure_arm_environment(
             env["DEATH_BAND_SCORE"] = ""
         elif arm == "base_null":
             pass  # identical to base: carries the run's own noise floor
+        elif arm == "structured_noop":
+            # Same scoring and settled-first selection as base, but through
+            # the explicit proposal/evaluation/selector/command contracts.
+            # This is the physical negative control for abstraction cost.
+            env["PLACEMENT_SELECTOR_MODE"] = "structured_noop"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the
@@ -278,6 +285,26 @@ def sync_agent_into_simulator() -> None:
     target.write_bytes(source_bytes)
 
 
+def terminal_failure_channel(final_step: dict, place_states: dict) -> str:
+    """Classify the terminal action without collapsing physical labels."""
+    status = final_step.get("status") or place_states or {}
+    is_valid = status.get("is_valid")
+    is_safe = status.get("is_placed_safe")
+    angle = float(final_step.get("settle_angle_deg") or 0.0)
+    displacement = float(
+        final_step.get("settle_displacement_norm") or 0.0
+    )
+    if is_valid is False:
+        return "transport_invalid"
+    if angle > 30.0:
+        return "topple"
+    if displacement > 0.3:
+        return "slide"
+    if is_safe is False:
+        return "unsafe_other"
+    return "safe_end"
+
+
 def case_summary(
     evaluation: Any, config: dict[str, Any]
 ) -> dict[str, Any]:
@@ -387,6 +414,9 @@ def case_summary(
             "is_included": place_states.get("is_included") is True,
             "is_valid": place_states.get("is_valid") is True,
             "is_placed_safe": place_states.get("is_placed_safe") is True,
+            "terminal_channel": terminal_failure_channel(
+                final_step, place_states
+            ),
             "final_com_z": (
                 float(final_step["center_of_mass_z"])
                 if "center_of_mass_z" in final_step
@@ -407,6 +437,9 @@ def case_summary(
 def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
     summary = {
         "decision_count": 0,
+        "search_attempts_total": 0,
+        "search_attempts_max": 0,
+        "structured_evaluation_count": 0,
         "rescue_trigger_count": 0,
         "rescue_action_count": 0,
         "protocol_fallback_count": 0,
@@ -477,6 +510,24 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
             }:
                 summary["protocol_fallback_count"] += 1
             diagnostics = record.get("candidate_diagnostics")
+            search = (
+                diagnostics.get("search")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(search, dict):
+                attempts = int(search.get("attempts_consumed", 0))
+                summary["search_attempts_total"] += attempts
+                summary["search_attempts_max"] = max(
+                    summary["search_attempts_max"], attempts
+                )
+            if (
+                isinstance(diagnostics, dict)
+                and isinstance(
+                    diagnostics.get("selected_candidate_evaluation"), dict
+                )
+            ):
+                summary["structured_evaluation_count"] += 1
             rescue = (
                 diagnostics.get("rescue_scan")
                 if isinstance(diagnostics, dict)
@@ -802,6 +853,7 @@ def load_rows(output_dir: pathlib.Path) -> list[dict[str, Any]]:
 def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     per_arm: dict[str, dict[str, list[float]]] = {}
     per_case_arm: dict[tuple[str, str], dict[str, list[float]]] = {}
+    terminal_channels_by_arm: dict[str, dict[str, int]] = {}
     policy_trace_by_arm: dict[str, dict[str, float]] = {}
     for row in rows:
         if row["process_returncode"] != 0:
@@ -812,6 +864,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 row["arm"],
                 {
                     "episodes": 0,
+                    "decision_count": 0,
+                    "search_attempts_total": 0,
+                    "search_attempts_max": 0,
+                    "structured_evaluation_count": 0,
                     "observed_steps": 0,
                     "previous_count": 0,
                     "pool_survivor_count": 0,
@@ -855,6 +911,19 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 },
             )
             trace_bucket["episodes"] += 1
+            trace_bucket["decision_count"] += int(
+                trace.get("decision_count", 0)
+            )
+            trace_bucket["search_attempts_total"] += int(
+                trace.get("search_attempts_total", 0)
+            )
+            trace_bucket["search_attempts_max"] = max(
+                trace_bucket["search_attempts_max"],
+                int(trace.get("search_attempts_max", 0)),
+            )
+            trace_bucket["structured_evaluation_count"] += int(
+                trace.get("structured_evaluation_count", 0)
+            )
             trace_bucket["observed_steps"] += int(
                 trace.get("cross_step_observed_steps", 0)
             )
@@ -1001,21 +1070,61 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "shake_max_shift": [],
                     "shake_peak_ke": [],
                     "shake_shifted": [],
+                    "shake_toppled": [],
+                    "shake_shifted_fraction": [],
+                    "priority_clean": [],
+                    "soft_clean": [],
+                    "policy_seconds": [],
+                    "official_cog": [],
+                    "official_stability": [],
+                    "official_placement": [],
+                    "official_soft": [],
+                    "terminal_included": [],
+                    "terminal_valid": [],
+                    "terminal_placed_safe": [],
                 },
             )
-            arm_bucket["placed"].append(case["placed_count"])
-            arm_bucket["fill"].append(case["fill_score"])
-            arm_bucket["steps"].append(case["steps"])
+            case_bucket = per_case_arm.setdefault(
+                (case_id, row["arm"]), {}
+            )
+
+            def record(metric, value):
+                if not isinstance(value, (int, float)):
+                    return
+                arm_bucket[metric].append(float(value))
+                case_bucket.setdefault(metric, []).append(float(value))
+
+            record("placed", case["placed_count"])
+            record("fill", case["fill_score"])
+            record("steps", case["steps"])
             if case.get("final_com_z") is not None:
-                arm_bucket["com_z"].append(case["final_com_z"])
+                record("com_z", case["final_com_z"])
             if case.get("settle_5_to_30_steps") is not None:
-                arm_bucket["near_miss"].append(
-                    case["settle_5_to_30_steps"]
-                )
+                record("near_miss", case["settle_5_to_30_steps"])
             if case.get("final_surface_total_variation") is not None:
-                arm_bucket["surface_tv"].append(
-                    case["final_surface_total_variation"]
+                record(
+                    "surface_tv", case["final_surface_total_variation"]
                 )
+            record("policy_seconds", case.get("policy_seconds"))
+            attribute = case.get("attribute_placement") or {}
+            record("priority_clean", attribute.get("priority_clean_ratio"))
+            record("soft_clean", attribute.get("soft_clean_ratio"))
+            official = case.get("score_components") or {}
+            for metric, component in (
+                ("official_cog", "cog_score"),
+                ("official_stability", "stability_score"),
+                ("official_placement", "placement_score"),
+                ("official_soft", "soft_item_score"),
+            ):
+                record(metric, official.get(component))
+            for metric, field in (
+                ("terminal_included", "is_included"),
+                ("terminal_valid", "is_valid"),
+                ("terminal_placed_safe", "is_placed_safe"),
+            ):
+                value = case.get(field)
+                if isinstance(value, bool):
+                    record(metric, float(value))
             # The shake proxy has been carried in every row since it was
             # added and aggregated by nothing, which is how a selection
             # change shipped on a placed gain while worsening peak kinetic
@@ -1030,14 +1139,24 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 ("shake_shifted", "shake_items_shifted"),
             ):
                 value = shake.get(shake_key)
-                if isinstance(value, (int, float)):
-                    arm_bucket[bucket_key].append(float(value))
-            case_bucket = per_case_arm.setdefault(
-                (case_id, row["arm"]),
-                {"placed": [], "fill": []},
+                record(bucket_key, value)
+            record("shake_toppled", shake.get("shake_items_toppled"))
+            shake_items = shake.get("shake_items")
+            shake_shifted = shake.get("shake_items_shifted")
+            if (
+                isinstance(shake_items, (int, float))
+                and shake_items > 0
+                and isinstance(shake_shifted, (int, float))
+            ):
+                record(
+                    "shake_shifted_fraction",
+                    float(shake_shifted) / float(shake_items),
+                )
+            channel = str(case.get("terminal_channel") or "unknown")
+            channel_bucket = terminal_channels_by_arm.setdefault(
+                row["arm"], {}
             )
-            case_bucket["placed"].append(case["placed_count"])
-            case_bucket["fill"].append(case["fill_score"])
+            channel_bucket[channel] = channel_bucket.get(channel, 0) + 1
 
     def stats(values: list[float]) -> dict[str, float]:
         if not values:
@@ -1062,6 +1181,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     available_arms = set(per_arm)
     baseline_arm = "off" if "off" in available_arms else "base"
     paired = {}
+    paired_full_vector = {}
     for case_id, arm_stats in cases.items():
         baseline = arm_stats.get(baseline_arm)
         for arm, arm_stat in arm_stats.items():
@@ -1085,6 +1205,19 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     3,
                 ),
             }
+            metric_diffs = {}
+            for metric, arm_metric in arm_stat.items():
+                baseline_metric = baseline.get(metric)
+                if (
+                    not isinstance(baseline_metric, dict)
+                    or baseline_metric.get("n", 0) == 0
+                    or arm_metric.get("n", 0) == 0
+                ):
+                    continue
+                metric_diffs[metric] = round(
+                    arm_metric["mean"] - baseline_metric["mean"], 6
+                )
+            paired_full_vector.setdefault(arm, {})[case_id] = metric_diffs
     policy_trace = {}
     for arm, bucket in sorted(policy_trace_by_arm.items()):
         previous_count = int(bucket["previous_count"])
@@ -1092,6 +1225,21 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         observed_steps = int(bucket["observed_steps"])
         policy_trace[arm] = {
             "episodes": int(bucket["episodes"]),
+            "decision_count": int(bucket["decision_count"]),
+            "search_attempts_total": int(bucket["search_attempts_total"]),
+            "search_attempts_max": int(bucket["search_attempts_max"]),
+            "structured_evaluation_count": int(
+                bucket["structured_evaluation_count"]
+            ),
+            "search_attempts_per_decision": (
+                round(
+                    bucket["search_attempts_total"]
+                    / bucket["decision_count"],
+                    3,
+                )
+                if bucket["decision_count"]
+                else None
+            ),
             "observed_steps": observed_steps,
             "previous_count": previous_count,
             "pool_survivor_count": pool_survivor_count,
@@ -1341,8 +1489,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "baseline_arm": baseline_arm,
         "paired_vs_baseline": paired,
+        "paired_full_vector_vs_baseline": paired_full_vector,
         "paired_vs_off": paired if baseline_arm == "off" else {},
         "policy_trace_by_arm": policy_trace,
+        "terminal_channels": terminal_channels_by_arm,
     }
 
 
@@ -1389,6 +1539,60 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
         )
     lines += [
         "",
+        "## Full local proxy vector",
+        "",
+        "No weighted total is formed. Higher is better for the two clean "
+        "ratios; lower is better for shake and policy cost.",
+        "",
+        "| arm | shake toppled | shifted fraction | priority clean "
+        "| soft clean | included rate | valid rate | placed-safe rate "
+        "| policy seconds |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for arm, stats in sorted(summary["arms"].items()):
+        lines.append(
+            f"| {arm} | {stats['shake_toppled'].get('mean', '-')} "
+            f"| {stats['shake_shifted_fraction'].get('mean', '-')} "
+            f"| {stats['priority_clean'].get('mean', '-')} "
+            f"| {stats['soft_clean'].get('mean', '-')} "
+            f"| {stats['terminal_included'].get('mean', '-')} "
+            f"| {stats['terminal_valid'].get('mean', '-')} "
+            f"| {stats['terminal_placed_safe'].get('mean', '-')} "
+            f"| {stats['policy_seconds'].get('mean', '-')} |"
+        )
+    if any(
+        stats["official_cog"].get("n", 0)
+        for stats in summary["arms"].values()
+    ):
+        lines += [
+            "",
+            "## Official-only components returned by the environment",
+            "",
+            "| arm | cog | stability | placement | soft item |",
+            "|---|---:|---:|---:|---:|",
+        ]
+        for arm, stats in sorted(summary["arms"].items()):
+            lines.append(
+                f"| {arm} | {stats['official_cog'].get('mean', '-')} "
+                f"| {stats['official_stability'].get('mean', '-')} "
+                f"| {stats['official_placement'].get('mean', '-')} "
+                f"| {stats['official_soft'].get('mean', '-')} |"
+            )
+    lines += [
+        "",
+        "## Terminal channels",
+        "",
+        "Counts remain categorical and are not folded into a score.",
+        "",
+        "| arm | channels |",
+        "|---|---|",
+    ]
+    for arm, channels in sorted(summary.get("terminal_channels", {}).items()):
+        lines.append(
+            f"| {arm} | `{json.dumps(channels, sort_keys=True)}` |"
+        )
+    lines += [
+        "",
         "## Mean totals and registered development guard",
         "",
         "| arm | development cases | dev placed total | dev fill total "
@@ -1416,6 +1620,22 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
     ]
     policy_trace = summary.get("policy_trace_by_arm", {})
     if policy_trace:
+        lines += [
+            "",
+            "## Search work",
+            "",
+            "| arm | decisions | structured records | attempts total "
+            "| attempts/decision | max attempts |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['decision_count']} "
+                f"| {trace['structured_evaluation_count']} "
+                f"| {trace['search_attempts_total']} "
+                f"| {trace['search_attempts_per_decision']} "
+                f"| {trace['search_attempts_max']} |"
+            )
         lines += [
             "",
             "## Cross-step incumbent telemetry",

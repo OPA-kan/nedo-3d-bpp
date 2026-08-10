@@ -158,6 +158,10 @@
 - A selected structured evaluation is written to policy diagnostics under
   `selected_candidate_evaluation`. Advanced selectors should consume that
   evaluated stream rather than rerun search to reconstruct terms.
+- `PLACEMENT_SELECTOR_MODE=structured_noop` routes the shipped score and
+  settled-first rule through the rich path. It is a physical negative control,
+  not a new ranking policy; its full-vector protocol is in
+  `docs/STRUCTURED_SELECTOR_EXPERIMENT.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

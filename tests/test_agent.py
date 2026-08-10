@@ -1213,6 +1213,63 @@ class GeometryContractTests(unittest.TestCase):
 
 
 class RankingPipelineContractTests(unittest.TestCase):
+    def test_structured_noop_mode_requests_rich_evaluation_only(self):
+        with mock.patch.object(
+            agent, "PLACEMENT_SELECTOR_MODE", "structured_noop"
+        ):
+            self.assertEqual(
+                agent.placement_selection_kwargs(),
+                {"structured_evaluation": True},
+            )
+        with mock.patch.object(agent, "PLACEMENT_SELECTOR_MODE", "scalar"):
+            self.assertEqual(agent.placement_selection_kwargs(), {})
+
+    def test_closed_loop_threads_structured_noop_into_top_candidates(self):
+        item = sample_item(8)
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        decision = agent.PlacementDecision(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": np.zeros(3, dtype=np.float32),
+                "orientation": 0,
+            },
+            candidate=agent.AABB(
+                (0.0, 0.0, 0.1),
+                (0.2, 0.2, 0.2),
+                "candidate",
+            ),
+            score=1.0,
+        )
+        solver = agent.Agent("")
+        observation = {
+            "pool_list": [item],
+            "container_list": [container],
+        }
+        with (
+            mock.patch.object(
+                agent, "PLACEMENT_SELECTOR_MODE", "structured_noop"
+            ),
+            mock.patch.object(
+                agent.PlacementCore,
+                "top_candidates",
+                return_value=[decision],
+            ) as top_candidates,
+        ):
+            selected = solver._closed_loop_choice(
+                observation,
+                [item],
+                [(0, item)],
+                deadline=time.perf_counter() + 10.0,
+            )
+
+        self.assertIs(selected, decision)
+        self.assertTrue(
+            top_candidates.call_args.kwargs["structured_evaluation"]
+        )
+
     def test_ranker_evaluation_exposes_components_without_changing_total(self):
         candidate = agent.AABB(
             (0.1, 0.5, 0.3),
@@ -1243,7 +1300,7 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertAlmostEqual(evaluation.lift, -0.18 * 0.3 * 5.0)
         self.assertAlmostEqual(evaluation.routing, 0.0)
         self.assertAlmostEqual(evaluation.zone, 0.0)
-        self.assertAlmostEqual(evaluation.total, scalar)
+        self.assertEqual(evaluation.total.hex(), scalar.hex())
         self.assertAlmostEqual(
             evaluation.total,
             sum(evaluation.components().values()),

@@ -67,6 +67,12 @@ is a measured requirement: eagerly constructing rich objects for every valid
 candidate reduced candidate throughput by roughly 16--17% in the first Task B
 parity run.
 
+For the physical integration negative control,
+`PLACEMENT_SELECTOR_MODE=structured_noop` selects this rich path while keeping
+the same scalar score and settled-first selector. It is not an adopted live
+mode. See `docs/STRUCTURED_SELECTOR_EXPERIMENT.md` for the preregistered
+full-proxy comparison.
+
 ## 4. Command and execution
 
 `PlacementCommand` represents the command pose, not the settle result.  It

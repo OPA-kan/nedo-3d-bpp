@@ -243,6 +243,15 @@ TEMPORAL_CHUNK_STRIDE = max(
 TEMPORAL_CHUNK_CELL_SIZE = max(
     0.01, float(os.environ.get("TEMPORAL_CHUNK_CELL_SIZE", "0.10"))
 )
+PLACEMENT_SELECTOR_MODES = frozenset({"scalar", "structured_noop"})
+PLACEMENT_SELECTOR_MODE = os.environ.get(
+    "PLACEMENT_SELECTOR_MODE", "scalar"
+).strip().lower()
+if PLACEMENT_SELECTOR_MODE not in PLACEMENT_SELECTOR_MODES:
+    raise ValueError(
+        f"unknown PLACEMENT_SELECTOR_MODE {PLACEMENT_SELECTOR_MODE!r}; "
+        f"expected one of {sorted(PLACEMENT_SELECTOR_MODES)}"
+    )
 ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
 ITEM_COVERAGE_MODE = os.environ.get(
     "ITEM_COVERAGE_MODE", "class_aware"
@@ -293,6 +302,13 @@ LOOKAHEAD_TIME_RESERVE_SECONDS = float(
     os.environ.get("LOOKAHEAD_TIME_RESERVE_SECONDS", "1.5")
 )
 LOOKAHEAD_INNER_ITEMS = int(os.environ.get("LOOKAHEAD_INNER_ITEMS", "3"))
+
+
+def placement_selection_kwargs():
+    """Opt into the rich pipeline without changing its selection rule."""
+    if PLACEMENT_SELECTOR_MODE == "structured_noop":
+        return {"structured_evaluation": True}
+    return {}
 # --- Board receptivity (the Tetris terms) ---
 # Cell size of the 2.5D height map the board features are read off.  0.05 m
 # against a container on the order of 2 m x 1.5 m gives roughly 40 x 30
@@ -4125,10 +4141,23 @@ class Ranker:
             "routing": routing_score,
             "zone": zone_score,
         }
+        # Keep the shipped scalar expression's left-to-right arithmetic.
+        # Python 3.12's built-in sum uses compensated summation, which can
+        # differ by one ULP and flip a near-tied selector despite identical
+        # named terms.
+        total = (
+            components["volume"]
+            + components["support"]
+            + components["depth"]
+            + components["lateral"]
+            + components["lift"]
+            + components["routing"]
+            + components["zone"]
+        )
         return RankEvaluation(
             **components,
             unattributed=0.0,
-            total=float(sum(components.values())),
+            total=float(total),
         )
 
     @staticmethod
@@ -7954,6 +7983,7 @@ class Agent:
             "deadline": search_deadline,
             "diagnostics": diagnostics,
             "risk_lambda": risk_lambda,
+            **placement_selection_kwargs(),
         }
         if attempt_budget:
             top_candidate_kwargs["attempt_budget"] = attempt_budget
@@ -8296,6 +8326,7 @@ class Agent:
                 "diagnostics": self.last_candidate_diagnostics,
                 "risk_lambda": live_lambda,
                 "anchor_fallback": use_anchor_fallback,
+                **placement_selection_kwargs(),
             }
             if candidate_observers:
                 choose_kwargs["candidate_observer"] = observe_candidate
@@ -8372,6 +8403,7 @@ class Agent:
                     risk_lambda=live_lambda,
                     anchor_fallback=True,
                     candidate_observer=catch,
+                    **placement_selection_kwargs(),
                 )
                 if retry is not None:
                     caught.append(
@@ -8640,6 +8672,7 @@ class Agent:
                     "event": "decision",
                     "step": self._policy_step,
                     "mode": LOOKAHEAD_SELECTION_MODE,
+                    "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
                     "item_coverage_mode": ITEM_COVERAGE_MODE,
                     "optimize": self._optimize_enabled,
                     "lookahead_k": self._lookahead_k,
@@ -8718,6 +8751,7 @@ class Agent:
                 "event": "decision",
                 "step": self._policy_step,
                 "mode": LOOKAHEAD_SELECTION_MODE,
+                "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,
