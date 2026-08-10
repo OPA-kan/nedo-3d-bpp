@@ -63,3 +63,31 @@ repeats on five Task B development cases. Any physical effect outside the
 pooled control spread in shadow mode is an instrumentation regression. The
 enforce arm is not a default switch: adoption requires the full-vector
 comparison and cannot be justified by placed/fill alone.
+
+## Results
+
+The pre-lookahead shadow in Actions `31359754451` was invalid as a negative
+control: telemetry changed the remaining lookahead budget and b000-k40 shake
+regressed. Moving the same calculation after the live choice fixed that
+mechanism. In Actions `31360283401`, every reported per-case shadow difference
+was inside the pooled control spread. The retained portfolio was genuinely
+discriminative: 51 of 285 multi-candidate steps (17.9%) proposed a different
+action and 14 proposed a different item.
+
+The conservative enforce experiment in Actions `31362302154` is rejected as a
+default. It executed 57 Pareto-dominating substitutions. Against its
+policy-matched shadow arm, aggregate placed count was identical (17.333) and
+fill rose 19.921 to 20.454. Priority cleanliness rose 0.850 to 0.917 and soft
+cleanliness 0.981 to 1.000. Those rule-axis gains did not generalise to
+stability: b000-k20 lost 2.333 placed and 4.728 fill, while mean toppled items
+rose by 1.667 and peak kinetic energy by 85.295. On b001-k30 priority
+cleanliness itself fell by 0.167. Terminal validity also fell overall from
+0.867 to 0.733.
+
+The result is not that non-fill axes are unimportant. It establishes a sharper
+failure: one-step static Pareto dominance does not imply trajectory-level
+Pareto improvement. Support ratio/margin and release probabilities do not yet
+price the physical consequences of the next stack, while attribute cleanliness
+can be lost again later. Keep the default `off`. The next version needs paired
+physical outcome labels for the proposed substitutions or a multi-step
+attribute/stability value, not another hand-weighted sum.

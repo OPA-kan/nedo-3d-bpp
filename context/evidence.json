@@ -1476,6 +1476,42 @@
         "base_null_attempts_per_decision": 8328.599,
         "all_reported_case_metrics_within_control_floor": true
       }
+    },
+    {
+      "id": "post-selection-multi-axis-shadow-is-discriminative",
+      "topic": "candidate_rank",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "A multi-axis instrument over retained Top-K is usable only after the live action is frozen. The pre-lookahead run 31359754451 perturbed remaining lookahead time and failed its negative control. After moving identical telemetry post-selection, every per-case metric stayed inside the pooled control spread in run 31360283401. Among 285 multi-candidate steps, 51 (17.9%) had a Pareto-dominating alternative and 14 proposed a different item. Priority/soft cover, routing, release rotation/slide risk, support, predicted CoM and scalar score stay separate; CoM is telemetry-only and no weighted total is formed.",
+      "source": "docs/MULTI_AXIS_SELECTOR.md; reports/multi-axis-selector/history/31360283401/summary.json; reports/multi-axis-selector/history/31360283401/noise-floor.json; Actions runs 31359754451 and 31360283401",
+      "values": {
+        "observed_steps": 285,
+        "proposed_action_changes": 51,
+        "proposed_item_changes": 14,
+        "proposal_rate": 0.178947,
+        "all_reported_case_metrics_within_control_floor": true
+      }
+    },
+    {
+      "id": "static-multi-axis-pareto-does-not-imply-trajectory-dominance",
+      "topic": "candidate_rank",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "Conservative multi-axis Pareto enforcement v1 is rejected. It made 57 substitutions only when another retained candidate dominated the final live choice on every trusted one-step rule/physical proxy. Versus the policy-matched shadow, aggregate placed was identical at 17.333, fill rose 19.921 to 20.454, priority cleanliness rose 0.850 to 0.917 and soft cleanliness 0.981 to 1.000. But b000-k20 lost 2.333 placed and 4.728 fill while topples rose 1.667 and peak kinetic energy rose 85.295; b001-k30 priority cleanliness fell 0.167; aggregate terminal validity fell 0.867 to 0.733. One-step static Pareto dominance therefore does not imply trajectory-level Pareto improvement. Keep the mode off and use paired physical replay before v2.",
+      "source": "docs/MULTI_AXIS_SELECTOR.md; reports/multi-axis-selector/history/31362302154/summary.json; reports/multi-axis-selector/history/31362302154/noise-floor.json; Actions run 31362302154",
+      "values": {
+        "episodes": 60,
+        "enforced_substitutions": 57,
+        "enforce_placed_mean": 17.333,
+        "shadow_placed_mean": 17.333,
+        "enforce_fill_mean": 20.454,
+        "shadow_fill_mean": 19.921,
+        "enforce_priority_clean": 0.917,
+        "shadow_priority_clean": 0.85,
+        "enforce_soft_clean": 1.0,
+        "shadow_soft_clean": 0.981,
+        "adopted": false
+      }
     }
   ]
 }

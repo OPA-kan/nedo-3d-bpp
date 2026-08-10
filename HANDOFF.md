@@ -121,6 +121,18 @@ and SHA-256. Do not reuse hashes in old prose.
   remained in the control regime.  Multi-axis shadow selection may now use
   this retained portfolio.  See Actions `31358020306` and
   `docs/RETAINED_SELECTOR_EXPERIMENT.md`.
+- A post-selection multi-axis shadow is now an admissible instrument. It keeps
+  priority/soft cover, routing, rotation/slide risk, support and predicted CoM
+  separate, with no fabricated total. Run `31360283401` kept every reported
+  case metric inside the pooled control spread and proposed a different
+  retained action on 51/285 multi-candidate steps (14 different items). The
+  earlier pre-lookahead placement failed because it consumed lookahead time.
+- Conservative Pareto enforcement v1 is rejected. Run `31362302154` made 57
+  substitutions and improved aggregate priority/soft cleanliness, but
+  b000-k20 worsened topples and peak kinetic energy sharply and b001-k30 even
+  worsened priority cleanliness. One-step static dominance is not
+  trajectory-level dominance. Default `MULTI_AXIS_SELECTOR_MODE` stays `off`;
+  see `docs/MULTI_AXIS_SELECTOR.md`.
 - The box-derived anchor envelope was a real generator defect. Deriving bounds
   from the container half-spaces produced the largest measured improvement and
   the best official score.
@@ -161,6 +173,7 @@ and SHA-256. Do not reuse hashes in old prose.
 - board receptivity as a global ranking rule;
 - Monte-Carlo rollout value v1/v2;
 - item-cap 16;
+- multi-axis static Pareto enforce v1;
 - using heightmap drop heights to compare Ranker scores.
 
 Negative results are scoped. Read their active ledger entries before reusing
@@ -204,12 +217,10 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Build the first multi-axis selector as shadow-only on the retained Top-K
-   portfolio.  Record release rotation/slide risk, support ratio/margin,
-   priority and soft cover violations, routing, predicted CoM, and immediate
-   score separately.  Use constraint/Pareto or lexicographic bands, not guessed
-   official weights.  Measure dominance, proposal frequency and component
-   trade directions before adding an enforce mode.
+1. Replay the 57 multi-axis substitutions from run `31362302154` as paired
+   selected/proposed physical trials. Determine which static dominance axes
+   fail to predict settle angle, displacement and placement safety before
+   designing v2. Do not tune another weighted sum from episode aggregates.
 2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
 3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
