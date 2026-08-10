@@ -4,6 +4,7 @@
 - Modelable rows: 325 across 11 states and 4 cases
 - Safe / unsafe: 238 / 87 (a sampling design, not a natural rate)
 - Excluded: {'no_phi_candidate': 117, 'duplicate_across_arms': 107}
+- Contributing runs: `31391424126` (verdict fail, swap rounds 64)
 - Split: `leave_one_case_out`; not run: ['gbdt', 'deep_sets']
 
 ## is_placed_safe (ranking only; prevalence is designed)

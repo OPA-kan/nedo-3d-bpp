@@ -386,6 +386,37 @@ def evaluate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def contributing_runs(root: pathlib.Path) -> list[dict[str, Any]]:
+    """Which runs the rows came from, and under what verdict and arm.
+
+    A corpus assembled entirely from runs that failed their coverage guard is
+    still validly labelled -- the labels come from the official validator, not
+    from the sampler -- but a reader has to be able to see that, so the audit
+    reports the mix instead of flattening it.
+    """
+    runs: list[dict[str, Any]] = []
+    for run_dir in sorted(root.glob("*")):
+        if not (run_dir / "dataset").is_dir():
+            continue
+        try:
+            summary = json.loads(
+                (run_dir / "summary.json").read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            summary = {}
+        runs.append(
+            {
+                "run_id": run_dir.name,
+                "verdict": (summary.get("acceptance") or {}).get("verdict"),
+                "completeness": summary.get("completeness"),
+                "observed_swap_rounds": (summary.get("arm") or {}).get(
+                    "observed_swap_rounds"
+                ),
+            }
+        )
+    return runs
+
+
 def audit(root: pathlib.Path) -> dict[str, Any]:
     rows, skipped = load_rows(root)
     states = {row["state"] for row in rows}
@@ -403,6 +434,7 @@ def audit(root: pathlib.Path) -> dict[str, Any]:
             "safe_rows": safe,
             "unsafe_rows": len(rows) - safe,
             "excluded": skipped,
+            "contributing_runs": contributing_runs(root),
         },
         "design": {
             "split": "leave_one_case_out",
@@ -459,6 +491,14 @@ def markdown(report: dict[str, Any]) -> str:
             f"{corpus['unsafe_rows']} (a sampling design, not a natural rate)"
         ),
         f"- Excluded: {corpus['excluded']}",
+        (
+            "- Contributing runs: "
+            + ", ".join(
+                f"`{run['run_id']}` (verdict {run['verdict']}, "
+                f"swap rounds {run['observed_swap_rounds']})"
+                for run in corpus["contributing_runs"]
+            )
+        ),
         f"- Split: `{report['design']['split']}`; "
         f"not run: {report['design']['not_run']}",
         "",

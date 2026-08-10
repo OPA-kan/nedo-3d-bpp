@@ -10,6 +10,14 @@ on:
         required: false
         type: string
         default: "64"
+      steps:
+        description: >-
+          Space-separated target steps per scenario. More steps means more
+          distinct states per run; later steps cost more replay time because
+          the board holds more items.
+        required: false
+        type: string
+        default: "3 6 9 12 15 18"
   push:
     branches:
       - experiment/residual-diversity-dataset
@@ -38,11 +46,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # All eight declared scenarios, not the core 2x2 subset. The jobs run
+        # in parallel, so the extra four cost runners rather than wall clock,
+        # and they carry conditions the corpus has none of: three have a
+        # dedicated priority container and two start pre-loaded. The
+        # learnability audit splits by case, so this also takes it from four
+        # folds to eight.
         scenario:
           - single-empty-noshelf
           - single-empty-shelf
+          - single-preloaded
           - dual-empty
           - dual-shelf-mixed
+          - dual-dedicated-priority
+          - dual-preloaded-dedicated
+          - dual-full-stream
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,7 +85,7 @@ jobs:
           --config
           "reports/residual-diversity-scale/configs/${{ matrix.scenario }}.json"
           --case "m-${{ matrix.scenario }}"
-          --steps 3 9 15
+          --steps ${{ inputs.steps || '3 6 9 12 15 18' }}
           --per-stratum 4
           --sampling-mode residual_diversity_safe_split
           --overdraw-factor 3
