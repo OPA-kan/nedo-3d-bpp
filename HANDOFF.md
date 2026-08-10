@@ -36,6 +36,7 @@ These are source defaults in `agent/agent.py`, not proposed settings:
 | release attribute hard guard | off | placed cost too large |
 | anchor-space fallback | off | not adopted |
 | temporal chunk ensemble | off | shadow measured; delay voting did not form consensus |
+| structured placement pipeline | opt-in | accepted infrastructure; scalar live path preserved |
 
 `agent/agent.py` and `simulator/agent.py` must remain byte-identical after an
 agent change. The official simulator itself must not be changed to make an
@@ -94,6 +95,14 @@ and SHA-256. Do not reuse hashes in old prose.
 
 ### Task C and common placement core
 
+- Candidate proposal facts, named immediate/risk evaluation, selector policy,
+  and simulator command are now separate contracts. A richer selector can
+  consume one generated candidate stream without rerunning search or parsing
+  an opaque score. The default path still executes the former scalar loop;
+  fixed-work comparison at 128 and 512 attempts matched the pre-refactor
+  action, ordered top three, scores, and attempt counts exactly. See
+  `docs/PLACEMENT_PIPELINE.md` and
+  `reports/placement-pipeline/parity.md`.
 - The box-derived anchor envelope was a real generator defect. Deriving bounds
   from the container half-spaces produced the largest measured improvement and
   the best official score.
@@ -177,18 +186,22 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Reconstruct or locate the `submission22` build and add it as the fourth
+1. Use the structured selector seam for the next Ranker experiment. Keep the
+   default scalar path as the negative control; do not add features inside the
+   generator loop or rerun candidate generation. Start with named immediate
+   terms and explicit constraints/provenance, then shadow and pair the selector.
+2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
-2. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
+3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
    same risk-on placement policy as execution, then rerun the paired Task A
    order experiment. Revise ADR-003 before adopting.
-3. Only after 1–2, design an attribute-aware support policy that preserves
+4. Only after calibration, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.
-4. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
+5. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
    instrument only if its question is still open and its negative control can
    be reproduced on current trunk.
-5. Treat temporal chunking as closed for plain voting.  Reopen only with an
+6. Treat temporal chunking as closed for plain voting.  Reopen only with an
    explicit proposal-quality target and a negative control that can show why
    one delayed origin should outrank another.
 

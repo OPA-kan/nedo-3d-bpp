@@ -1416,6 +1416,19 @@
         "stride4_fallback_rescue": 0,
         "stride4_ms_per_step": 55.27
       }
+    },
+    {
+      "id": "structured-placement-pipeline-preserves-fixed-work-policy",
+      "topic": "method",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The placement integration boundary is now explicit without changing the shipped policy: proposal facts, named immediate and release-risk evaluation, selector policy, and simulator command are separate objects. Eager rich-object construction was rejected after the first Task B parity run showed roughly 16-17% lower candidate throughput. The accepted implementation keeps rich evaluation opt-in and executes the former scalar choose/top-K loops verbatim by default. A side-by-side fixed-work check against pre-refactor commit db659b9 matched selected action, ordered top three, float-hex scores, and attempt counts exactly at budgets 128 and 512. Separate wall-clock Actions runs remain runner-noisy and are not treated as exact causal parity evidence. This is an integration seam, not evidence that a richer Ranker is beneficial.",
+      "source": "docs/PLACEMENT_PIPELINE.md; reports/placement-pipeline/parity.md; scripts/check_placement_pipeline_parity.py; Actions runs 31350298808, 31350300314, 31351104085, 31351112589",
+      "values": {
+        "fixed_work_budgets": [128, 512],
+        "fixed_work_all_match": true,
+        "baseline_commit": "db659b9"
+      }
     }
   ]
 }

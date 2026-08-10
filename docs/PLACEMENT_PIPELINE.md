@@ -37,8 +37,9 @@ probabilities and penalties.  `evaluate_placement_proposal()` combines these
 objects into `CandidateEvaluation` and the compatibility scalar
 `PlacementDecision.score`.
 
-The scalar is unchanged.  `Ranker.score()` remains available for old reports
-and delegates to `Ranker.evaluate().total`.
+The scalar is unchanged. `Ranker.score()` retains the allocation-light scalar
+implementation used by the live loop; `Ranker.evaluate()` is its named,
+opt-in representation. Contract tests require the two totals to agree.
 
 ## 3. Selection
 
@@ -49,7 +50,7 @@ selector.observe(decision) -> bool
 selector.select() -> PlacementDecision | list[PlacementDecision] | None
 ```
 
-The default `SettledFirstSelector` exactly preserves the shipped doctrine:
+The opt-in `SettledFirstSelector` exactly preserves the shipped doctrine:
 any settled incumbent beats every release incumbent, and the existing L3
 container tie rules remain in force.  `TopKSettledFirstSelector` preserves the
 same rule for bounded portfolios.
@@ -88,7 +89,8 @@ stable item identity.  Default traces remain allocation-light.
 
 - Existing callers may still construct a three-field `PlacementDecision`.
 - Existing action dictionaries and scalar scores are unchanged.
-- The default selector is the former inline selection logic.
+- The default scalar path is the former inline selection logic; the equivalent
+  selector object is used only by the structured path.
 - The temporal chunk ensemble remains OFF and its negative result remains
   active evidence.
 - This contract is infrastructure, not evidence that any richer selector is
