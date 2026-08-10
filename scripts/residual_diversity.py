@@ -199,7 +199,7 @@ def residual_proxy_coverage(
     }
 
 
-def _settled_proxy_record(
+def settled_proxy_record(
     record: dict[str, Any], physical: dict[str, Any] | None
 ) -> dict[str, Any] | None:
     if not isinstance(physical, dict):
@@ -256,7 +256,7 @@ def settled_portfolio_comparison(
             settled
             for record in records
             if (
-                settled := _settled_proxy_record(
+                settled := settled_proxy_record(
                     record, results.get(candidate_key(record))
                 )
             )
@@ -603,8 +603,18 @@ def global_constrained_residual_diversity_sample(
     *,
     per_stratum: int,
     forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+    distance_records: dict[tuple[Any, ...], dict[str, Any]] | None = None,
+    design: str = (
+        "deterministic_global_item_matching_then_residual_maximin"
+    ),
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Maximize portfolio semantics subject to every stratum quota."""
+    """Maximize semantics, then distance, subject to every stratum quota.
+
+    `distance_records` changes only the geometry used by the maximin tie-break.
+    Identity, score, item/orientation matching and returned rows still come
+    from `records`.  The safe-split dataset uses this seam after replay so its
+    final portfolio covers observed settle states rather than command proxies.
+    """
     if not isinstance(forced_keys, dict):
         forced_keys = {key: "selected_action" for key in forced_keys}
     groups: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
@@ -627,7 +637,21 @@ def global_constrained_residual_diversity_sample(
         stratum_key: targets[stratum_key] - counts.get(stratum_key, 0)
         for stratum_key in groups
     }
-    ranges = proxy_ranges(records)
+    def distance_record(record: dict[str, Any]) -> dict[str, Any]:
+        if distance_records is None:
+            return record
+        return distance_records.get(candidate_key(record), record)
+
+    ranges = proxy_ranges([distance_record(record) for record in records])
+
+    def distance(
+        left: dict[str, Any], right: dict[str, Any]
+    ) -> float:
+        return residual_proxy_distance(
+            distance_record(left),
+            distance_record(right),
+            ranges=ranges,
+        )
 
     def choose_record(
         semantic: Any,
@@ -643,10 +667,7 @@ def global_constrained_residual_diversity_sample(
 
         def priority(record: dict[str, Any]) -> tuple[Any, ...]:
             minimum_distance = (
-                min(
-                    residual_proxy_distance(record, chosen, ranges=ranges)
-                    for chosen in selected
-                )
+                min(distance(record, chosen) for chosen in selected)
                 if selected
                 else 0.0
             )
@@ -711,10 +732,7 @@ def global_constrained_residual_diversity_sample(
 
         def fill_priority(record: dict[str, Any]) -> tuple[Any, ...]:
             minimum_distance = (
-                min(
-                    residual_proxy_distance(record, chosen, ranges=ranges)
-                    for chosen in selected
-                )
+                min(distance(record, chosen) for chosen in selected)
                 if selected
                 else 0.0
             )
@@ -732,7 +750,6 @@ def global_constrained_residual_diversity_sample(
         counts[stratum_key] = counts.get(stratum_key, 0) + 1
         capacities[stratum_key] -= 1
 
-    design = "deterministic_global_item_matching_then_residual_maximin"
     for record in selected:
         key = candidate_key(record)
         stratum_key = str(record["stratum_key"])
@@ -747,6 +764,9 @@ def global_constrained_residual_diversity_sample(
             "forced_reason": forced_keys.get(key),
         }
         record["residual_proxy"] = residual_proxy_features(record)
+        record["selection_distance_proxy"] = residual_proxy_features(
+            distance_record(record)
+        )
 
     table = [
         {

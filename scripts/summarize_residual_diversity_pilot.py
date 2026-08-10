@@ -50,11 +50,17 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
                 "primary_safe_pool": int(
                     outcome_split.get("primary_safe_pool", 0)
                 ),
+                "positive_safe_union": int(
+                    outcome_split.get("positive_safe_union", 0)
+                ),
                 "positive_transition": int(
                     outcome_split.get("positive_transition", 0)
                 ),
                 "negative_physical_risk": int(
                     outcome_split.get("negative_physical_risk", 0)
+                ),
+                "selection_distance_basis": outcome_split.get(
+                    "selection_distance_basis"
                 ),
                 "proxy_nn_distance_delta": _delta(
                     proxy, "mean_nearest_neighbor_distance"
@@ -119,6 +125,13 @@ def summarize_manifest(payload: dict[str, Any]) -> dict[str, Any]:
             (row["physical_nn_distance_delta"] or 0.0) > 0.0
             for row in rows
         ),
+        "selection_distance_bases": sorted(
+            {
+                str(row["selection_distance_basis"])
+                for row in rows
+                if row["selection_distance_basis"]
+            }
+        ),
         "mean_physical_nn_distance_delta": (
             sum(physical_deltas) / len(physical_deltas)
             if physical_deltas
@@ -163,11 +176,16 @@ def markdown(summary: dict[str, Any]) -> str:
         ),
         f"- Acceptance verdict: **{summary['acceptance']['verdict']}**",
         f"- Failed guards: {summary['acceptance']['failed_guards']}",
+        (
+            "- Final selection distance basis: "
+            f"`{summary['selection_distance_bases']}`"
+        ),
         "",
         "| step | population | replayed | proxy ΔNN | physical ΔNN | "
-        "physical Δcells | Δitems | Δitem-pose | safe pool | positive | "
+        "physical Δcells | Δitems | Δitem-pose | primary safe | "
+        "safe union | positive | "
         "negative | Δsettled | Δsafe |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in summary["steps"]:
         lines.append(
@@ -175,6 +193,7 @@ def markdown(summary: dict[str, Any]) -> str:
             "{proxy_nn_distance_delta} | {physical_nn_distance_delta} | "
             "{physical_spatial_cells_delta} | {unique_items_delta} | "
             "{unique_item_orientations_delta} | {primary_safe_pool} | "
+            "{positive_safe_union} | "
             "{positive_transition} | {negative_physical_risk} | "
             "{settled_delta} | "
             "{placed_safe_delta} |".format(**row)

@@ -57,8 +57,12 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
                             "outcome_split": {
                                 "primary_overdraw": 8,
                                 "primary_safe_pool": 7,
+                                "positive_safe_union": 11,
                                 "positive_transition": 4,
                                 "negative_physical_risk": 1,
+                                "selection_distance_basis": (
+                                    "official_replay_observed_x_plus"
+                                ),
                             },
                         },
                     }
@@ -83,8 +87,13 @@ class ResidualDiversityPilotSummaryTests(unittest.TestCase):
         )
         self.assertEqual(summary["acceptance"]["verdict"], "pass")
         self.assertEqual(summary["steps"][0]["primary_overdraw"], 8)
+        self.assertEqual(summary["steps"][0]["positive_safe_union"], 11)
         self.assertEqual(summary["steps"][0]["positive_transition"], 4)
         self.assertEqual(summary["steps"][0]["negative_physical_risk"], 1)
+        self.assertEqual(
+            summary["selection_distance_bases"],
+            ["official_replay_observed_x_plus"],
+        )
 
     def test_acceptance_fails_when_semantic_or_safety_guard_regresses(self):
         physical = {

@@ -70,6 +70,7 @@ from scripts.residual_diversity import (  # noqa: E402
     global_constrained_residual_diversity_sample,
     residual_diversity_sample,
     residual_proxy_coverage,
+    settled_proxy_record,
     settled_portfolio_comparison,
 )
 
@@ -509,24 +510,41 @@ def split_observed_outcomes(
 
     primary_safe = [record for record in primary_overdraw if is_safe(record)]
     random_safe = [record for record in random_overdraw if is_safe(record)]
-    safe_primary_keys = {candidate_key(record) for record in primary_safe}
+    safe_union_by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for record in primary_safe + random_safe:
+        safe_union_by_key.setdefault(candidate_key(record), record)
+    safe_union = [safe_union_by_key[key] for key in sorted(safe_union_by_key)]
+    safe_union_keys = set(safe_union_by_key)
     safe_control_keys = {candidate_key(record) for record in random_safe}
-    primary_forced = {
+    positive_forced = {
         key: reason
         for key, reason in forced_keys.items()
-        if key in safe_primary_keys
+        if key in safe_union_keys
     }
     control_forced = {
         key: reason
         for key, reason in forced_keys.items()
         if key in safe_control_keys
     }
-    positive, positive_table = (
-        global_constrained_residual_diversity_sample(
-            primary_safe,
-            per_stratum=per_stratum,
-            forced_keys=primary_forced,
+    observed_afterstates = {
+        candidate_key(record): settled
+        for record in safe_union
+        if (
+            settled := settled_proxy_record(
+                record, results.get(candidate_key(record))
+            )
         )
+        is not None
+    }
+    positive, positive_table = global_constrained_residual_diversity_sample(
+        safe_union,
+        per_stratum=per_stratum,
+        forced_keys=positive_forced,
+        distance_records=observed_afterstates,
+        design=(
+            "deterministic_global_item_matching_then_"
+            "observed_afterstate_maximin"
+        ),
     )
     random_positive, control_table = stratified_sample(
         random_safe,
@@ -554,6 +572,7 @@ def split_observed_outcomes(
         "random_overdraw": len(random_overdraw),
         "primary_safe_pool": len(primary_safe),
         "random_safe_pool": len(random_safe),
+        "positive_safe_union": len(safe_union),
         "positive_transition": len(positive),
         "random_positive_control": len(random_positive),
         "negative_physical_risk": len(negative),
@@ -561,6 +580,7 @@ def split_observed_outcomes(
         "random_positive_strata": control_table,
         "positive_labels": {"is_placed_safe": True},
         "negative_labels": {"is_placed_safe": False},
+        "selection_distance_basis": "official_replay_observed_x_plus",
     }
 
 
@@ -948,6 +968,9 @@ def build_row(
         "sampling": record["sampling"],
         "overdraw_sampling": record.get("overdraw_sampling"),
         "residual_proxy": record.get("residual_proxy"),
+        "selection_distance_proxy": record.get(
+            "selection_distance_proxy"
+        ),
         # labels
         "physical": physical,
     }

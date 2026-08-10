@@ -205,7 +205,11 @@ itemとslotの二部マッチングで、層別sample数を保ったまま全体
 ### `residual_diversity_safe_split`
 
 v3のglobal matchingを `--overdraw-factor` 倍のquotaで先に抽出し、全候補を公式
-PyBulletで個別replayする。その観測結果だけを使って用途を分離する。
+PyBulletで個別replayする。その観測結果だけを使って用途を分離する。positiveの
+最終portfolioはprimary/control双方のsafe replay和集合を母集団とし、itemと
+item-orientationの被覆を保ったうえで、command proxyではなく観測された `x_plus`
+（位置・AABB・姿勢）のmaximin距離で選ぶ。これにより、棚や斜面でcommand位置と
+settle後状態がずれる候補を、予測幾何だけで誤って近い・遠いと扱わない。
 
 - `step-NNN-candidates.jsonl`: `is_placed_safe=true` だけから再度global matchingした
   residual-state value用のpositive transition
@@ -214,9 +218,14 @@ PyBulletで個別replayする。その観測結果だけを使って用途を分
 - `step-NNN-random-control.jsonl`: safe候補だけから同じquotaへ落としたpaired control
 
 事前特徴で安全を推定していないため、過去に棄却したstatic hard gateの再導入ではない。
-`sampling.outcome_split` にoverdraw数、safe pool数、positive/negative件数を記録し、
+`sampling.outcome_split` にoverdraw数、primary safe pool、safe和集合、
+positive/negative件数、`selection_distance_basis` を記録し、
 各行の `overdraw_sampling` で物理観測前の抽出設計も保持する。positive/negativeのどちらも
 母集団率推定用の確率標本ではない。
+
+各positive行では `residual_proxy` に従来のcommand/predicted-contact特徴を残し、
+`selection_distance_proxy` に最終選択で実際に使った観測afterstate特徴を保存する。
+両者を分けることで、候補生成時の説明変数とreplay後の選択根拠を混同しない。
 
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの

@@ -603,6 +603,53 @@ class SamplingTests(unittest.TestCase):
             all(row["sampling"]["sampling_weight"] is None for row in sample)
         )
 
+    def test_global_sampler_can_use_observed_afterstate_distance(self):
+        records = [
+            candidate(
+                pool_index=index,
+                item_index=0,
+                orientation=0,
+                center=(center, 0.0, 0.5),
+                score=10.0 - index,
+            )
+            for index, center in enumerate((0.0, 10.0, 1.0))
+        ]
+        for record in records:
+            record["stratum_key"] = "only"
+            record["stratum"] = {"kind": "candidate", "gate": "pass"}
+        observed_centers = (0.0, 0.1, 10.0)
+        observed = {
+            candidate_key(record): {
+                **record,
+                "center": [observed_centers[index], 0.0, 0.5],
+            }
+            for index, record in enumerate(records)
+        }
+
+        sample, _table = global_constrained_residual_diversity_sample(
+            records,
+            per_stratum=2,
+            forced_keys={},
+            distance_records=observed,
+            design=(
+                "deterministic_global_item_matching_then_"
+                "observed_afterstate_maximin"
+            ),
+        )
+
+        self.assertEqual(
+            {candidate_key(row) for row in sample},
+            {candidate_key(records[0]), candidate_key(records[2])},
+        )
+        self.assertTrue(
+            all(
+                row["sampling"]["design"].endswith(
+                    "observed_afterstate_maximin"
+                )
+                for row in sample
+            )
+        )
+
     def test_observed_outcome_split_separates_safe_and_risk_arms(self):
         primary = [
             candidate(
@@ -664,6 +711,59 @@ class SamplingTests(unittest.TestCase):
         self.assertEqual(report["primary_overdraw"], 4)
         self.assertEqual(report["positive_transition"], 2)
         self.assertEqual(report["negative_physical_risk"], 1)
+
+    def test_observed_split_backfills_from_the_replayed_safe_union(self):
+        primary = [
+            candidate(pool_index=0, item_index=0, score=10.0),
+            candidate(pool_index=1, item_index=0, score=9.0),
+        ]
+        control = [
+            candidate(pool_index=2, item_index=1, score=8.0),
+            candidate(pool_index=3, item_index=2, score=7.0),
+        ]
+        for record in primary + control:
+            record["stratum_key"] = "only"
+            record["stratum"] = {"kind": "candidate", "gate": "pass"}
+            record["sampling"] = {"design": "overdraw"}
+        unsafe = primary[1]
+        results = {}
+        for index, record in enumerate(primary + control):
+            safe = record is not unsafe
+            results[candidate_key(record)] = {
+                "is_placed_safe": safe,
+                "x_plus": (
+                    {
+                        "position": [float(index), 0.0, 0.5],
+                        "aabb_dimensions": [0.3, 0.2, 0.2],
+                        "quaternion": [0.0, 0.0, 0.0, 1.0],
+                    }
+                    if safe
+                    else None
+                ),
+            }
+
+        positive, negative, _random_positive, report = (
+            split_observed_outcomes(
+                primary,
+                control,
+                results=results,
+                per_stratum=2,
+                rng=random.Random(4),
+                forced_keys={},
+            )
+        )
+
+        self.assertEqual(len(positive), 2)
+        self.assertTrue(
+            {candidate_key(row) for row in positive}
+            & {candidate_key(row) for row in control}
+        )
+        self.assertEqual(len(negative), 1)
+        self.assertEqual(report["positive_safe_union"], 3)
+        self.assertEqual(
+            report["selection_distance_basis"],
+            "official_replay_observed_x_plus",
+        )
 
     def test_maximin_sampling_is_deterministic_and_marks_coverage_design(
         self,
