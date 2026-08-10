@@ -2,9 +2,18 @@ name: Residual-state diversity condition matrix
 
 on:
   workflow_dispatch:
+    inputs:
+      observed_swap_rounds:
+        description: >-
+          Observed-state swap rounds for the safe-positive portfolio.
+          0 dispatches the unseeded greedy construction as the ablation arm.
+        required: false
+        type: string
+        default: "64"
   push:
     branches:
       - experiment/residual-diversity-dataset
+      - claude/observed-state-swap-optimizer-lk8m0p
 
 permissions:
   contents: read
@@ -58,6 +67,7 @@ jobs:
           --sampling-mode residual_diversity_safe_split
           --overdraw-factor 3
           --risk-gate-mode shadow
+          --observed-swap-rounds ${{ inputs.observed_swap_rounds || '64' }}
           --skip-optimize
           --output-dir
           "reports/residual-diversity-scale/${{ matrix.scenario }}/dataset"

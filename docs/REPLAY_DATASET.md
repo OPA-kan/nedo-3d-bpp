@@ -227,6 +227,41 @@ positive/negative件数、`selection_distance_basis` を記録し、
 `selection_distance_proxy` に最終選択で実際に使った観測afterstate特徴を保存する。
 両者を分けることで、候補生成時の説明変数とreplay後の選択根拠を混同しない。
 
+#### paired control seed と observed-state swap
+
+観測 `x_plus` へ切り替えても、**選ぶ量と測る量が違う**という問題は残っていた。
+構築側は「semantic被覆 → 最小NN距離のgreedy最大化」で、acceptance guardは
+paired controlに対する**平均**NN距離を見る。実際、run `31380879143` の
+2つの失敗stepはどちらも最小NN距離とsemantic被覆が非劣化のまま平均NN距離だけを
+落としている。
+
+そこで最終portfolioは次の局所探索で作る。
+
+1. **初期点は paired safe-random control そのもの**。層別quotaに収まる範囲で
+   control行を強制投入し、残枠だけをv3のglobal matchingで埋める。
+   controlがquotaを満たしている限り、初期点の平均NN距離差は定義上ちょうど `0.0`
+   になる（両arm が同一集合なので、共通の range で正規化しても差が消える）。
+2. **同一層内の1行入れ替えだけ**を動きとする。層別sample数、forced行
+   （実選択・shadow rerank）、safe限定という母集団条件は探索の不変量になる。
+3. 採択条件は、`unique_items` と `unique_item_orientations` が減らないこと、
+   かつ **guardが報告するのと同じ** 平均NN距離差が真に増えること。
+
+平均NN距離差は両armを**和集合のrange**で正規化するため、positive側を1行動かすと
+controlの報告値も動く。したがって候補の並べ替え（screening）は固定rangeの距離行列で
+高速に行い、採否は毎回scaleを取り直した厳密値だけで決める。screeningが近似でも
+採択が厳密なので、探索は報告値に対して単調である。
+
+`--observed-swap-rounds`（既定64）でround上限を与える。`0` を渡すと seed と swap の
+両方が止まり、直前のunseeded greedy構築がablation armとして再現できる。
+`sampling.outcome_split.swap_optimizer` に初期/最終の目的関数値、適用swap数、
+評価数、終了理由、semantic被覆の前後を残し、`control_seeded_positive` に
+最終portfolioへ残ったcontrol seed行数を記録する。各行の `sampling.forced` は
+「交換できない行」だけを指し、controlから入った事実は `sampling.seed_role` に分ける。
+
+これは局所探索であって最適性証明ではない。controlがquotaを満たせないstepでは初期点が
+`0.0` から始まらないので、正の差を構造的に保証するものでもない。
+どちらも trace に出るので、verdictの裏で消えない。
+
 現段階のsnapshot JSONは監査用で、PyBulletとPython側のstream/container状態を
 独立に復元するcheckpointではない。したがってこのモードはまず**同一stepの
 一手counterfactual**を広げる。H3以上のbranch rolloutは、prefix action列を
@@ -281,6 +316,25 @@ python scripts/build_replay_dataset.py \
   --case 000 --steps 3 6 9 12 \
   --per-stratum 8 \
   --sampling-mode residual_diversity \
+  --risk-gate-mode shadow
+```
+
+safe/risk分離 + observed-state swap（既定）と、そのablation arm:
+
+```bash
+python scripts/build_replay_dataset.py \
+  --case m-single-empty-shelf --steps 3 9 15 \
+  --per-stratum 4 \
+  --sampling-mode residual_diversity_safe_split \
+  --overdraw-factor 3 \
+  --risk-gate-mode shadow
+
+python scripts/build_replay_dataset.py \
+  --case m-single-empty-shelf --steps 3 9 15 \
+  --per-stratum 4 \
+  --sampling-mode residual_diversity_safe_split \
+  --overdraw-factor 3 \
+  --observed-swap-rounds 0 \
   --risk-gate-mode shadow
 ```
 

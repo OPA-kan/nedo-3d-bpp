@@ -73,6 +73,11 @@ from scripts.residual_diversity import (  # noqa: E402
     settled_proxy_record,
     settled_portfolio_comparison,
 )
+from scripts.observed_state_swap import (  # noqa: E402
+    annotate_swapped_portfolio,
+    optimize_observed_state_portfolio,
+    seed_keys_from_control,
+)
 
 SCHEMA_VERSION = 3
 DEFAULT_REPORT_ROOT = ROOT / "reports" / "replay-dataset"
@@ -80,6 +85,10 @@ ACTION_MATCH_TOLERANCE = 1e-4
 # simulator/src/ground_handling/validator.py uses PEP 701 nested-quote
 # f-strings, which only parse on 3.12+.
 REQUIRED_PYTHON = (3, 12)
+# Local search rounds for the safe-split positive arm. Each round applies at
+# most one swap, so this also caps how far the portfolio can travel from the
+# control seed.
+DEFAULT_SWAP_ROUNDS = 64
 DIVERSITY_SAMPLING_MODES = frozenset(
     {
         "residual_diversity",
@@ -491,6 +500,7 @@ def split_observed_outcomes(
     per_stratum: int,
     rng: random.Random,
     forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
+    swap_rounds: int = DEFAULT_SWAP_ROUNDS,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -536,18 +546,12 @@ def split_observed_outcomes(
         )
         is not None
     }
-    positive, positive_table = global_constrained_residual_diversity_sample(
-        safe_union,
-        per_stratum=per_stratum,
-        forced_keys=positive_forced,
-        distance_records=observed_afterstates,
-        design=(
-            "deterministic_global_item_matching_then_"
-            "observed_afterstate_maximin"
-        ),
-    )
+    # The control draws from copies. A candidate that only the control
+    # overdraw reached is the *same dict* in the safe union, so annotating one
+    # arm would otherwise rewrite the other arm's recorded sampling design --
+    # and the control seed deliberately makes that overlap the common case.
     random_positive, control_table = stratified_sample(
-        random_safe,
+        [copy.deepcopy(record) for record in random_safe],
         per_stratum=per_stratum,
         rng=rng,
         forced_keys=control_forced,
@@ -559,6 +563,50 @@ def split_observed_outcomes(
                 "inclusion_probability": None,
                 "sampling_weight": None,
             }
+        )
+
+    # The paired control is drawn first because it is the seed. Constructing
+    # the positive arm from an unrelated greedy start is what let the reported
+    # objective move the wrong way while the construction's own objective --
+    # minimum distance -- improved.
+    # ``--observed-swap-rounds 0`` restores the unseeded greedy construction
+    # as an ablation arm: seeding and swapping are one instrument, so one
+    # switch turns both off.
+    seed_keys = (
+        seed_keys_from_control(
+            pool=safe_union,
+            control=random_positive,
+            per_stratum=per_stratum,
+            forced_keys=positive_forced,
+        )
+        if int(swap_rounds) > 0
+        else dict(positive_forced)
+    )
+    seeded, positive_table = global_constrained_residual_diversity_sample(
+        safe_union,
+        per_stratum=per_stratum,
+        forced_keys=seed_keys,
+        distance_records=observed_afterstates,
+        design=(
+            "deterministic_global_item_matching_then_"
+            "observed_afterstate_maximin"
+        ),
+    )
+    positive, swap_trace = optimize_observed_state_portfolio(
+        seeded,
+        pool=safe_union,
+        control=random_positive,
+        observed=observed_afterstates,
+        forced_keys=positive_forced,
+        max_rounds=int(swap_rounds),
+    )
+    if int(swap_rounds) > 0:
+        positive_table = annotate_swapped_portfolio(
+            positive,
+            pool=safe_union,
+            observed=observed_afterstates,
+            forced_keys=positive_forced,
+            seed_keys=seed_keys,
         )
 
     negative_by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
@@ -581,6 +629,12 @@ def split_observed_outcomes(
         "positive_labels": {"is_placed_safe": True},
         "negative_labels": {"is_placed_safe": False},
         "selection_distance_basis": "official_replay_observed_x_plus",
+        "control_seeded_positive": sum(
+            1
+            for record in positive
+            if seed_keys.get(candidate_key(record)) == "paired_control_seed"
+        ),
+        "swap_optimizer": swap_trace,
     }
 
 
@@ -994,6 +1048,7 @@ def run_case(
     skip_optimize: bool,
     sampling_mode: str = "stratified_random",
     overdraw_factor: int = 2,
+    swap_rounds: int = DEFAULT_SWAP_ROUNDS,
     on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
@@ -1037,6 +1092,7 @@ def run_case(
                         per_stratum=per_stratum,
                         sampling_mode=sampling_mode,
                         overdraw_factor=overdraw_factor,
+                        swap_rounds=swap_rounds,
                         seed=seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
@@ -1106,6 +1162,7 @@ def collect_step(
     per_stratum: int,
     sampling_mode: str,
     overdraw_factor: int,
+    swap_rounds: int,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
@@ -1252,6 +1309,7 @@ def collect_step(
                     f"{seed}:{case_id}:{step}:safe-positive-control"
                 ),
                 forced_keys=forced_reasons,
+                swap_rounds=swap_rounds,
             )
         )
         stratum_table = outcome_split["positive_strata"]
@@ -1392,7 +1450,8 @@ def collect_step(
                 if sampling_mode == "stratified_random"
                 else (
                     "overdraw global matching, observed PyBullet outcome "
-                    "split, then safe residual-proxy coverage"
+                    "split, paired-control seed, then observed-state swaps "
+                    "on the reported mean-nearest-neighbour objective"
                     if sampling_mode == "residual_diversity_safe_split"
                     else (
                         "deterministic global item matching then "
@@ -1525,6 +1584,18 @@ def main() -> int:
             "requested per-stratum quota before observed-outcome splitting."
         ),
     )
+    parser.add_argument(
+        "--observed-swap-rounds",
+        type=int,
+        default=DEFAULT_SWAP_ROUNDS,
+        help=(
+            "For residual_diversity_safe_split, seed the positive arm with "
+            "the paired safe-random control and run at most this many "
+            "observed-afterstate swap rounds against the same "
+            "mean-nearest-neighbour objective the acceptance guard reports. "
+            "0 restores the unseeded greedy construction as an ablation arm."
+        ),
+    )
     parser.add_argument("--oracle-limit", type=int)
     parser.add_argument(
         "--preview-limit",
@@ -1572,6 +1643,8 @@ def main() -> int:
         raise SystemExit("--steps must contain non-negative integers")
     if int(args.overdraw_factor) < 1:
         raise SystemExit("--overdraw-factor must be at least 1")
+    if int(args.observed_swap_rounds) < 0:
+        raise SystemExit("--observed-swap-rounds must not be negative")
 
     config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1607,6 +1680,7 @@ def main() -> int:
         "per_stratum": int(args.per_stratum),
         "sampling_mode": str(args.sampling_mode),
         "overdraw_factor": int(args.overdraw_factor),
+        "observed_swap_rounds": int(args.observed_swap_rounds),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
@@ -1624,6 +1698,7 @@ def main() -> int:
             "target_steps": sorted(target_steps),
             "sampling_mode": str(args.sampling_mode),
             "overdraw_factor": int(args.overdraw_factor),
+            "observed_swap_rounds": int(args.observed_swap_rounds),
         },
         "label_contract": {
             "transport": "official_check_transport_path",
@@ -1673,6 +1748,7 @@ def main() -> int:
             preview_limit=int(args.preview_limit),
             skip_optimize=args.skip_optimize,
             overdraw_factor=int(args.overdraw_factor),
+            swap_rounds=int(args.observed_swap_rounds),
             on_progress=on_progress,
         )
     except BaseException as exc:

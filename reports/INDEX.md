@@ -17,6 +17,7 @@
 | active | 2026-08-05 | `reports/hazard/dominated-choices-retracted.md` | `the-fatal-choice-is-the-argmax`, `heightmap-drop-heights-must-not-score` |
 | active | 2026-08-05 | `reports/hazard/step-confound.md` | `afterstate-features-are-a-clock-not-fullness` |
 | active | 2026-08-03 | `reports/l3-l4/morning-summary.md` | `death-band-mitigated-adoption-candidate`, `death-band-shipped-on-by-default` (superseded) |
+| active | 2026-08-10 | `reports/placement-pipeline/parity.md` | `structured-placement-pipeline-preserves-fixed-work-policy`, `selector-adoption-requires-full-proxy-vector` |
 | active | 2026-08-02 | `reports/replay-analysis/board-value-f1-findings.md` | `board-value-f1-discriminates-not-predicts`, `taskc-collapse-is-non-gradual-tie-break-line-dead` (superseded) |
 | active | 2026-07-31 | `reports/replay-analysis/findings-20260730.md` | `gate-high-recall-low-precision` |
 | active | 2026-07-31 | `reports/replay-analysis/loss-structure.md` | `official-loss-step-in-angle` |
@@ -27,6 +28,7 @@
 | active | 2026-07-31 | `reports/replay-analysis/risk-rule-comparison.md` | `risk-rule-family-comparison` (superseded), `risk-rule-family-comparison-33snap` |
 | active | 2026-07-31 | `reports/replay-analysis/slide-equivariant.md` | `dxy-equivariant-s0` |
 | active | 2026-08-01 | `reports/replay-analysis/terminal-failures.md` | `terminal-failure-channels`, `transport-now-leading-death-channel` |
+| active | 2026-08-10 | `reports/residual-diversity-scale/history/31380879143/step-details.md` | `observed-afterstate-maximin-fixes-dual-shelf-but-exposes-objective-mismatch` |
 | active | 2026-08-01 | `reports/risk-ablation/summary.md` | `online-ablation-round2-positive`, `risk-freeze-mech-lambda1`, `final-holdout-passed-default-switch` |
 | active | 2026-08-04 | `reports/scenario-matrix/taskb-ci-10mm-30865228317.md` | `lateral-guard-buys-settle-survival` |
 | active | 2026-08-04 | `reports/scenario-matrix/taskb-ci-2mm-30865196936.md` | `lateral-guard-buys-settle-survival` |
@@ -71,6 +73,10 @@
 | uncited | 2026-07-28 | `reports/lookahead/history/30338524490/summary.md` | — |
 | uncited | 2026-07-28 | `reports/lookahead/history/30340049061/summary.md` | — |
 | uncited | 2026-07-28 | `reports/lookahead/latest-summary.md` | — |
+| uncited | 2026-08-10 | `reports/multi-axis-selector/history/31359754451/summary.md` | — |
+| uncited | 2026-08-10 | `reports/multi-axis-selector/history/31360283401/summary.md` | — |
+| uncited | 2026-08-10 | `reports/multi-axis-selector/history/31362302154/summary.md` | — |
+| uncited | - | `reports/observed-state-swap/local-paired.md` | — |
 | uncited | 2026-08-02 | `reports/replay-analysis/board-value-f1.md` | — |
 | uncited | 2026-08-02 | `reports/replay-analysis/kappa-siblings-stage-b/summary.md` | — |
 | uncited | 2026-07-31 | `reports/replay-analysis/latest.md` | — |
@@ -79,11 +85,20 @@
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698074510/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698434932/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rescue-scan/ci-30698558132/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31372071696/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31372706195/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31380879143/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity/history/31367396930/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity/history/31368589378/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity/history/31369511973/summary.md` | — |
+| uncited | 2026-08-10 | `reports/residual-diversity/history/31370546291/summary.md` | — |
+| uncited | 2026-08-10 | `reports/retained-selector/history/31358020306/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-divergence/report.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-stride4/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/local-20260801/report.md` | — |
 | uncited | 2026-08-06 | `reports/stowage/proxy-calibration.md` | — |
 | uncited | 2026-08-06 | `reports/stowage/section-audit.md` | — |
+| uncited | 2026-08-10 | `reports/structured-selector/history/31356809615/summary.md` | — |
 | uncited | 2026-08-01 | `reports/task-a-rollout/history/30717533328/summary.md` | — |
 | uncited | 2026-08-01 | `reports/task-a-rollout/history/30717848749/summary.md` | — |
 | uncited | 2026-08-01 | `reports/task-a-rollout/history/30717998654/summary.md` | — |
@@ -101,7 +116,10 @@
 | uncited | 2026-08-03 | `reports/task-a-rollout/history/30820870931/summary.md` | — |
 | uncited | 2026-08-03 | `reports/task-a-rollout/history/30822981451/summary.md` | — |
 | uncited | 2026-08-04 | `reports/task-b/history/30865228317/aggregate.md` | — |
+| uncited | 2026-08-10 | `reports/task-b/history/31350298808/aggregate.md` | — |
 | uncited | 2026-08-03 | `reports/task-c/tilt-margin/summary.md` | — |
+| uncited | 2026-08-10 | `reports/temporal-chunk/history/31348162973/summary.md` | — |
+| uncited | 2026-08-10 | `reports/temporal-chunk/history/31348827557/summary.md` | — |
 | uncited | 2026-08-02 | `reports/visible-pool-rollout/b000-k20-step009-d3-a128/report.md` | — |
 | uncited | 2026-08-02 | `reports/visible-pool-rollout/b000-k20-step009-d3-a256/report.md` | — |
 | uncited | 2026-08-02 | `reports/visible-pool-rollout/b000-k20-step009-d3-a512/report.md` | — |
@@ -125,4 +143,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1059 ファイル / 223.3 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 1106 ファイル / 223.9 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

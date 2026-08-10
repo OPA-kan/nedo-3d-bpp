@@ -89,17 +89,58 @@ def residual_proxy_features(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def proxy_ranges(records: list[dict[str, Any]]) -> dict[str, float]:
-    features = [residual_proxy_features(record) for record in records]
-    ranges: dict[str, float] = {}
-    for name in CONTINUOUS_FIELDS:
+ProxyVector = tuple[tuple[float | None, ...], tuple[Any, ...]]
+
+
+def proxy_feature_vector(record: dict[str, Any]) -> ProxyVector:
+    """Flatten one descriptor into field-aligned continuous/categorical tuples.
+
+    The dict form is what the JSONL rows carry; this is the same content in
+    the order the distance sums it. Callers that compare one record many
+    times build it once instead of rebuilding the dict per comparison.
+    """
+    features = residual_proxy_features(record)
+    return (
+        tuple(features["continuous"][name] for name in CONTINUOUS_FIELDS),
+        tuple(features["categorical"][name] for name in CATEGORICAL_FIELDS),
+    )
+
+
+def scale_vector(vectors: list[ProxyVector]) -> tuple[float, ...]:
+    """Per-field observed range of a reference set, aligned to the fields."""
+    scales: list[float] = []
+    for index in range(len(CONTINUOUS_FIELDS)):
         values = [
-            feature["continuous"][name]
-            for feature in features
-            if feature["continuous"][name] is not None
+            vector[0][index]
+            for vector in vectors
+            if vector[0][index] is not None
         ]
-        ranges[name] = max(values) - min(values) if values else 0.0
-    return ranges
+        scales.append(max(values) - min(values) if values else 0.0)
+    return tuple(scales)
+
+
+def proxy_ranges(records: list[dict[str, Any]]) -> dict[str, float]:
+    scales = scale_vector([proxy_feature_vector(record) for record in records])
+    return dict(zip(CONTINUOUS_FIELDS, scales))
+
+
+def feature_vector_distance(
+    left: ProxyVector,
+    right: ProxyVector,
+    *,
+    scales: tuple[float, ...],
+) -> float:
+    """Gower-style distance over mixed residual-proxy features."""
+    terms: list[float] = []
+    for index, scale in enumerate(scales):
+        left_value = left[0][index]
+        right_value = right[0][index]
+        if left_value is None or right_value is None or scale <= 0.0:
+            continue
+        terms.append(abs(left_value - right_value) / scale)
+    for index in range(len(CATEGORICAL_FIELDS)):
+        terms.append(0.0 if left[1][index] == right[1][index] else 1.0)
+    return sum(terms) / len(terms) if terms else 0.0
 
 
 def residual_proxy_distance(
@@ -109,21 +150,33 @@ def residual_proxy_distance(
     ranges: dict[str, float],
 ) -> float:
     """Gower-style distance over mixed residual-proxy features."""
-    a = residual_proxy_features(left)
-    b = residual_proxy_features(right)
-    terms: list[float] = []
-    for name in CONTINUOUS_FIELDS:
-        left_value = a["continuous"][name]
-        right_value = b["continuous"][name]
-        scale = ranges.get(name, 0.0)
-        if left_value is None or right_value is None or scale <= 0.0:
-            continue
-        terms.append(abs(left_value - right_value) / scale)
-    for name in CATEGORICAL_FIELDS:
-        terms.append(
-            0.0 if a["categorical"][name] == b["categorical"][name] else 1.0
-        )
-    return sum(terms) / len(terms) if terms else 0.0
+    return feature_vector_distance(
+        proxy_feature_vector(left),
+        proxy_feature_vector(right),
+        scales=tuple(ranges.get(name, 0.0) for name in CONTINUOUS_FIELDS),
+    )
+
+
+def nearest_neighbor_distances(
+    vectors: list[ProxyVector], *, scales: tuple[float, ...]
+) -> list[float]:
+    """In-portfolio nearest-neighbour distance of every member, in order.
+
+    The acceptance guard's ΔNN is a mean over this list, so the reported
+    coverage and anything optimizing against it must not have two
+    implementations. ``residual_proxy_coverage`` and
+    ``paired_mean_nn_objective`` both reduce this one list.
+    """
+    nearest: list[float] = []
+    for index, vector in enumerate(vectors):
+        distances = [
+            feature_vector_distance(vector, other, scales=scales)
+            for other_index, other in enumerate(vectors)
+            if other_index != index
+        ]
+        if distances:
+            nearest.append(min(distances))
+    return nearest
 
 
 def residual_proxy_coverage(
@@ -133,16 +186,13 @@ def residual_proxy_coverage(
 ) -> dict[str, Any]:
     """Compact coverage diagnostics for one sampled candidate portfolio."""
     reference = reference_records or records
-    ranges = proxy_ranges(reference)
-    nearest: list[float] = []
-    for index, record in enumerate(records):
-        distances = [
-            residual_proxy_distance(record, other, ranges=ranges)
-            for other_index, other in enumerate(records)
-            if other_index != index
-        ]
-        if distances:
-            nearest.append(min(distances))
+    scales = scale_vector(
+        [proxy_feature_vector(record) for record in reference]
+    )
+    ranges = dict(zip(CONTINUOUS_FIELDS, scales))
+    nearest = nearest_neighbor_distances(
+        [proxy_feature_vector(record) for record in records], scales=scales
+    )
 
     reference_features = [
         residual_proxy_features(record)["continuous"]
@@ -236,6 +286,47 @@ def settled_proxy_record(
         "center": [float(value) for value in position],
         "size": [float(value) for value in dimensions],
         "settle_tilt_deg": tilt_deg,
+    }
+
+
+def paired_mean_nn_objective(
+    positive_vectors: list[ProxyVector],
+    control_vectors: list[ProxyVector],
+) -> dict[str, float | None]:
+    """The exact quantity ``settled_portfolio_comparison`` reports as ΔNN.
+
+    Both arms are rescaled by the range of their union, so moving one row of
+    the positive arm also moves the control arm's reported distance. Anything
+    optimizing this objective has to re-derive the scales after every move
+    rather than treat the control number as a constant.
+    """
+    scales = scale_vector(list(positive_vectors) + list(control_vectors))
+    positive = nearest_neighbor_distances(positive_vectors, scales=scales)
+    control = nearest_neighbor_distances(control_vectors, scales=scales)
+
+    def mean(values: list[float]) -> float | None:
+        return sum(values) / len(values) if values else None
+
+    def smallest(values: list[float]) -> float | None:
+        return min(values) if values else None
+
+    def delta(left: float | None, right: float | None) -> float | None:
+        return None if left is None or right is None else left - right
+
+    return {
+        "positive_mean_nearest_neighbor_distance": mean(positive),
+        "control_mean_nearest_neighbor_distance": mean(control),
+        "mean_nearest_neighbor_distance_delta": delta(
+            mean(positive), mean(control)
+        ),
+        # Secondary diagnostic only. The acceptance guard does not read it,
+        # and the search does not constrain it, so a mean gain paid for with
+        # a minimum-distance loss stays visible instead of being asserted away.
+        "positive_minimum_nearest_neighbor_distance": smallest(positive),
+        "control_minimum_nearest_neighbor_distance": smallest(control),
+        "minimum_nearest_neighbor_distance_delta": delta(
+            smallest(positive), smallest(control)
+        ),
     }
 
 

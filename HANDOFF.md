@@ -223,6 +223,13 @@ and SHA-256. Do not reuse hashes in old prose.
   not the old command-to-settle proxy gap: semantic-first greedy maximin
   optimizes minimum distance, while the guard measures mean NN against the
   paired control. Do not train from this matrix yet.
+- The control-seeded observed-state swap optimizer is now implemented on
+  branch `claude/observed-state-swap-optimizer-lk8m0p`. It is an instrument,
+  not yet evidence: the frozen four-condition matrix has not been rerun on a
+  Linux runner with it. Its structural property is that the paired control is
+  the seed, so whenever the control fills the stratum quota the search starts
+  at delta exactly 0.0 and every accepted move raises the number the guard
+  reports. See `docs/OBSERVED_STATE_SWAP.md`.
 
 ### Local score proxies
 
@@ -270,10 +277,15 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether a control-seeded observed-state swap optimizer can preserve semantic
-  coverage and improve the exact mean-NN acceptance objective in every matrix
-  cell. Direct observed maximin fixed the dual-shelf case but failed two
+- Whether the control-seeded observed-state swap optimizer clears the
+  acceptance guard in every matrix cell. The instrument exists and is unit- and
+  end-to-end tested, but the four-condition matrix has not been rerun with it.
+  Direct observed maximin fixed the dual-shelf case and failed two
   single-container steps because its optimization target differs from the guard.
+- Whether the mean-NN guard is itself size-fair. The positive arm is usually
+  larger than its paired control, and mean nearest-neighbour distance falls as
+  a portfolio grows, so part of a negative delta may be arm size rather than
+  sampler quality. Arm sizes are recorded; the confound is not yet measured.
 - Whether a model trained on the condition-labelled safe/risk rows improves
   residual-state ranking or official component proxies.
 
@@ -306,13 +318,15 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Replace the post-replay greedy observed maximin with a control-seeded swap
-   optimizer. Start from the paired safe-random portfolio, allow only
-   within-stratum swaps that do not reduce unique item or item-orientation
-   coverage, and optimize the exact observed mean-NN acceptance statistic
-   (with minimum NN as a secondary diagnostic). Rerun the same frozen 3x
-   four-condition matrix. Do not tune overdraw, train a model, or open final
-   holdout data until all four condition guards pass.
+1. Rerun the frozen 3x four-condition matrix with the control-seeded
+   observed-state swap optimizer, which is implemented but unmeasured on a
+   Linux runner. Run the `--observed-swap-rounds 0` ablation arm on the same
+   configuration so the seeded and greedy constructions are compared on one
+   runner. Do not tune overdraw, train a model, or open final holdout data
+   until all four condition guards pass. If a cell still fails, read the
+   `swap_optimizer` trace first: `terminated`, the initial delta, and the arm
+   sizes separate "the seed did not start at zero" from "no admissible swap
+   improved it", and those two have different fixes.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
