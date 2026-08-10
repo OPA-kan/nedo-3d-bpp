@@ -1,6 +1,9 @@
 # Structured selector physical negative control
 
-Status: preregistered, not yet measured.
+Status: measured; eager per-candidate materialization failed the negative
+control and is not an admissible live-selector path.
+
+Actions run: `31356809615` (45/45 episodes plus aggregate succeeded).
 
 ## Question
 
@@ -60,3 +63,29 @@ GitHub Actions workflow:
 The workflow saves raw rows as an artifact and commits only `summary.{md,json}`
 and `noise-floor.{txt,json}` beneath
 `reports/structured-selector/history/<run_id>/`.
+
+## Result
+
+Treatment activation was real: 295 of 303 non-fallback decisions retained a
+named structured evaluation.  Fixed-work checks at 128 and 512 attempts were
+bit-exact for action, ordered top three, score and attempts, so the two paths
+implement the same ordering when work is held constant.
+
+The deadline-bound physical negative control nevertheless failed.  The
+clearest case was `b000-k15`: all six `base`/`base_null` runs returned 21
+placements and fill 23.929, while `structured_noop` averaged 18.333 placements
+and fill 20.849.  Its shake shifted count rose from 3.0 to 6.333, maximum shift
+from 0.065 to 0.219, and shifted fraction from 0.143 to 0.361.  Priority
+cleanliness and terminal validity moved in the opposite (better) direction,
+so this is a proxy trade, not a scalar loss; the full vector still fails the
+no-op requirement.
+
+Across all cases, policy time did not show a uniform slowdown and the
+treatment sometimes improved placed/fill.  Therefore the experiment identifies
+deadline/cache/runtime perturbation by eager rich evaluation, but does not
+isolate object allocation as its only cause.
+
+Decision: keep `PLACEMENT_SELECTOR_MODE=scalar` as the live default.  Do not
+attach a new Ranker to the eager per-candidate path.  The next negative control
+must keep scalar streaming and enrich only the retained Top-K or final selected
+candidate, or else use a deterministic fixed-work policy contract.

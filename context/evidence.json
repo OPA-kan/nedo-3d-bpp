@@ -1438,6 +1438,25 @@
       "claim": "A Ranker or selector intervention must not be adopted from placed and fill alone. Those cover only the bundled count/volume outputs, while the official score also contains CoG, stability, placement-rule, and soft-item components and uses unpublished normalizations and weights. Every paired physical ablation must therefore retain final_com_z; shake shifted fraction, topples, max shift, and peak kinetic energy; priority_clean_ratio and soft_clean_ratio; terminal inclusion/valid/safe state and failure channel; and policy time/attempt coverage alongside placed/fill. Read this as a Pareto/dominance vector and per-component regression guard, not as a fabricated local weighted total. The Task B run used during placement-pipeline refactoring was a throughput diagnostic only and cannot support selector adoption.",
       "source": "docs/PLACEMENT_PIPELINE.md; reports/placement-pipeline/parity.md; HANDOFF.md; docs/AGENT_OPERATIONS.md sections on proxy evaluation",
       "values": {}
+    },
+    {
+      "id": "eager-structured-selector-fails-physical-negative-control",
+      "topic": "method",
+      "date": "2026-08-10",
+      "status": "active",
+      "claim": "The explicit proposal/evaluation/selector/command contracts preserve the shipped policy under deterministic fixed work, but eagerly materializing rich objects for every candidate is not an admissible live measurement path. Scalar and structured evaluation matched action, ordered top three, float-hex score, and attempts exactly at budgets 128 and 512. In the 45-episode Linux physical negative control, treatment activation was confirmed on 295 of 303 decisions, yet b000-k15's six base/base_null controls were identical at placed 21 and fill 23.929 while structured_noop averaged placed 18.333 and fill 20.849; shake shifted rose 3.000 to 6.333, max shift 0.065 to 0.219, and shifted fraction 0.143 to 0.361. Priority cleanliness and terminal validity improved there, so no weighted loss is claimed; the full-vector no-op contract still failed. Policy time did not slow uniformly, so the isolated result is deadline/cache/runtime perturbation, not proof that allocation cost is the sole mechanism. Keep scalar live streaming and enrich only retained Top-K or selected candidates before testing a new Ranker.",
+      "source": "docs/STRUCTURED_SELECTOR_EXPERIMENT.md; reports/structured-selector/history/31356809615/summary.json; reports/structured-selector/history/31356809615/noise-floor.json; Actions run 31356809615",
+      "values": {
+        "episodes": 45,
+        "structured_records": 295,
+        "structured_decisions": 303,
+        "fixed_work_budgets": [128, 512],
+        "fixed_work_all_match": true,
+        "b000_k15_control_placed": 21.0,
+        "b000_k15_structured_placed": 18.333,
+        "b000_k15_control_fill": 23.929,
+        "b000_k15_structured_fill": 20.849
+      }
     }
   ]
 }

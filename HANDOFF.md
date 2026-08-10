@@ -36,7 +36,7 @@ These are source defaults in `agent/agent.py`, not proposed settings:
 | release attribute hard guard | off | placed cost too large |
 | anchor-space fallback | off | not adopted |
 | temporal chunk ensemble | off | shadow measured; delay voting did not form consensus |
-| structured placement pipeline | opt-in | accepted infrastructure; scalar live path preserved |
+| structured placement pipeline | opt-in | contracts accepted; eager live materialization failed its physical negative control |
 
 `agent/agent.py` and `simulator/agent.py` must remain byte-identical after an
 agent change. The official simulator itself must not be changed to make an
@@ -103,6 +103,15 @@ and SHA-256. Do not reuse hashes in old prose.
   action, ordered top three, scores, and attempt counts exactly. See
   `docs/PLACEMENT_PIPELINE.md` and
   `reports/placement-pipeline/parity.md`.
+- The first physical negative control for that seam failed.  Fixed-work scalar
+  versus rich evaluation was bit-exact at 128/512 attempts, but eager rich
+  construction perturbed deadline-bound trajectories.  On `b000-k15`, six
+  control runs were identical at 21 placements/fill 23.929; the structured arm
+  averaged 18.333/20.849 and worsened three shake proxies, while improving some
+  priority/terminal proxies.  Do not place a new Ranker on the eager
+  per-candidate path.  Preserve scalar streaming and enrich only retained
+  Top-K/selected candidates, then repeat the negative control.  See Actions
+  `31356809615` and `docs/STRUCTURED_SELECTOR_EXPERIMENT.md`.
 - The box-derived anchor envelope was a real generator defect. Deriving bounds
   from the container half-spaces produced the largest measured improvement and
   the best official score.
@@ -186,14 +195,12 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. Use the structured selector seam for the next Ranker experiment. Keep the
-   default scalar path as the negative control; do not add features inside the
-   generator loop or rerun candidate generation. Start with named immediate
-   terms and explicit constraints/provenance, then shadow and pair the selector.
-   The adoption table must include placed, fill, CoM, the full shake vector,
-   priority/soft cleanliness, terminal failure channel, and compute coverage.
-   Placed/fill alone is explicitly insufficient; use Pareto/dominance without
-   an invented combined score.
+1. Before the next Ranker experiment, replace eager per-candidate rich-object
+   construction with scalar streaming plus retained-Top-K/final-selection
+   enrichment.  Repeat the same `base`/`base_null` negative control and require
+   the full proxy vector and attempt coverage to stay within its noise floor.
+   Do not add features inside the generator loop or rerun candidate generation.
+   Only after that control passes should named terms feed a shadow selector.
 2. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
 3. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
