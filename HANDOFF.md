@@ -411,8 +411,17 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    of eleven terms are categorical, and identity alone reaches 0.747 mean
    within-board rank agreement against the full metric's 0.844.
    `occupancy_distance` and `consumption_distance` are now reported beside
-   the sum, but the search still maximises the sum, which is a weighting
-   nobody chose. Neither defect explains the observed-state swap optimizer's
+   the sum, and **the search no longer maximises the sum alone**: the
+   `pareto_gate` rule refuses a swap that degrades either component, adopted
+   on paired within-board evidence and replicated with the arms in opposite
+   slots (runs `31491047020` and `31492719115`, 90 boards). It raises
+   consumption diversity (+0.030 and +0.034, sign-test p=0.0001 and
+   p=0.0009) and does NOT measurably move occupancy (p=0.0989 and p=0.1081)
+   -- that second one is not a win, do not quote its positive mean as one.
+   The sum still ORDERS the admissible moves, so the weighting nobody chose
+   is reduced rather than gone. `--observed-swap-acceptance sum` restores
+   the old rule, and whichever is chosen the other runs as a shadow so the
+   comparison keeps being measured. Neither defect explains the optimizer's
    margin: it survives collapsing the frames (+0.0742 to +0.0718 over 454
    boards) and is positive on both components independently. Do NOT read the
    residual-space result (`reports/residual-space/summary.md`) as "a learned
