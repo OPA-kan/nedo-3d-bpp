@@ -1,0 +1,236 @@
+{
+  "schema_version": 2,
+  "scenario_count": 8,
+  "completeness": "complete",
+  "condition_coverage": {
+    "container_counts": [
+      1,
+      2
+    ],
+    "shelf_counts": [
+      0,
+      1
+    ],
+    "cells": [
+      {
+        "container_count": 1,
+        "has_shelf": false
+      },
+      {
+        "container_count": 1,
+        "has_shelf": true
+      },
+      {
+        "container_count": 2,
+        "has_shelf": false
+      },
+      {
+        "container_count": 2,
+        "has_shelf": true
+      }
+    ],
+    "core_2x2_complete": true
+  },
+  "arm": {
+    "observed_swap_rounds": 64,
+    "portfolio_constructions": [
+      "paired_control_seed_then_observed_state_swap"
+    ],
+    "swaps_applied": 502,
+    "uniform_across_scenarios": true
+  },
+  "labels": {
+    "positive_transition": 1000,
+    "negative_physical_risk": 616
+  },
+  "acceptance": {
+    "verdict": "pass",
+    "verdict_reason": "pass",
+    "failed_scenarios": [],
+    "empty_positive_scenarios": [],
+    "contract": "The 1/2-container x shelf/no-shelf cells must all be present; each scenario must retain a non-empty safe-positive arm and pass its paired physical-diversity guards. Scenario metrics are never pooled to hide a failed condition."
+  },
+  "scenarios": [
+    {
+      "case_id": "m-dual-dedicated-priority",
+      "dataset_id": "20260811_131548-m-dual-dedicated-priority-weighted-class_aware-shadow-af9a3a8e-37ec8677c234",
+      "container_count": 2,
+      "shelf_count": 0,
+      "shelf_pattern": [
+        false,
+        false
+      ],
+      "priority_container_count": 1,
+      "initial_preloaded_count": 0,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 45,
+      "mean_physical_nn_distance_delta": 0.05504437816376456,
+      "positive_transition": 112,
+      "negative_physical_risk": 79,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-dual-empty",
+      "dataset_id": "20260811_131547-m-dual-empty-weighted-class_aware-shadow-5ccb4948-2f83f94c53a8",
+      "container_count": 2,
+      "shelf_count": 0,
+      "shelf_pattern": [
+        false,
+        false
+      ],
+      "priority_container_count": 0,
+      "initial_preloaded_count": 0,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 77,
+      "mean_physical_nn_distance_delta": 0.07031221358831218,
+      "positive_transition": 137,
+      "negative_physical_risk": 43,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-dual-full-stream",
+      "dataset_id": "20260811_131554-m-dual-full-stream-weighted-class_aware-shadow-3345e2f3-a6aabf6fa256",
+      "container_count": 2,
+      "shelf_count": 1,
+      "shelf_pattern": [
+        false,
+        true
+      ],
+      "priority_container_count": 1,
+      "initial_preloaded_count": 0,
+      "steps_measured": 5,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 66,
+      "mean_physical_nn_distance_delta": 0.07444105644375104,
+      "positive_transition": 139,
+      "negative_physical_risk": 103,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-dual-preloaded-dedicated",
+      "dataset_id": "20260811_131550-m-dual-preloaded-dedicated-weighted-class_aware-shadow-fb6ee244-028fbe92fe4f",
+      "container_count": 2,
+      "shelf_count": 0,
+      "shelf_pattern": [
+        false,
+        false
+      ],
+      "priority_container_count": 1,
+      "initial_preloaded_count": 2,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 80,
+      "mean_physical_nn_distance_delta": 0.07212373291206524,
+      "positive_transition": 148,
+      "negative_physical_risk": 81,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-dual-shelf-mixed",
+      "dataset_id": "20260811_131552-m-dual-shelf-mixed-weighted-class_aware-shadow-2b80b586-d34a51d5bb83",
+      "container_count": 2,
+      "shelf_count": 1,
+      "shelf_pattern": [
+        false,
+        true
+      ],
+      "priority_container_count": 0,
+      "initial_preloaded_count": 0,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 81,
+      "mean_physical_nn_distance_delta": 0.06682915805496531,
+      "positive_transition": 167,
+      "negative_physical_risk": 35,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-single-empty-noshelf",
+      "dataset_id": "20260811_131548-m-single-empty-noshelf-weighted-class_aware-shadow-348ede4d-7093e7eb1e1a",
+      "container_count": 1,
+      "shelf_count": 0,
+      "shelf_pattern": [
+        false
+      ],
+      "priority_container_count": 0,
+      "initial_preloaded_count": 0,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 59,
+      "mean_physical_nn_distance_delta": 0.06505559706207935,
+      "positive_transition": 114,
+      "negative_physical_risk": 128,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-single-empty-shelf",
+      "dataset_id": "20260811_131544-m-single-empty-shelf-weighted-class_aware-shadow-bb0d9517-3d0fa45401cc",
+      "container_count": 1,
+      "shelf_count": 1,
+      "shelf_pattern": [
+        true
+      ],
+      "priority_container_count": 0,
+      "initial_preloaded_count": 0,
+      "steps_measured": 6,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 53,
+      "mean_physical_nn_distance_delta": 0.05831295570576428,
+      "positive_transition": 106,
+      "negative_physical_risk": 82,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    },
+    {
+      "case_id": "m-single-preloaded",
+      "dataset_id": "20260811_131545-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-10806399cd2d",
+      "container_count": 1,
+      "shelf_count": 0,
+      "shelf_pattern": [
+        false
+      ],
+      "priority_container_count": 0,
+      "initial_preloaded_count": 3,
+      "steps_measured": 5,
+      "observed_swap_rounds": 64,
+      "portfolio_constructions": [
+        "paired_control_seed_then_observed_state_swap"
+      ],
+      "swaps_applied": 41,
+      "mean_physical_nn_distance_delta": 0.0795588708390726,
+      "positive_transition": 77,
+      "negative_physical_risk": 65,
+      "acceptance_verdict": "pass",
+      "failed_guards": []
+    }
+  ]
+}
