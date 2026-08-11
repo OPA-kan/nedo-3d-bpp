@@ -8,11 +8,12 @@ five, and every branch must name the future stream it was evaluated against.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import pathlib
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 
 SCHEMA_VERSION = 1
@@ -211,6 +212,167 @@ def replay_action_prefix(
             error=f"{type(exc).__name__}: {exc}",
             observation=None,
         )
+
+
+@dataclass(frozen=True)
+class BranchCandidate:
+    candidate_id: str
+    command_action: dict[str, Any]
+    selection: dict[str, Any]
+
+
+class BoundedGraphExecutor:
+    """Expand a graph by replaying every path in an independent environment."""
+
+    def __init__(
+        self,
+        *,
+        env_factory: Callable[[], Any],
+        snapshot_factory: Callable[[Any, dict[str, Any]], dict[str, Any]],
+        candidate_provider: Callable[
+            [Any, dict[str, Any], int], list[BranchCandidate]
+        ],
+        outcome_provider: Callable[
+            [Any, dict[str, Any], dict[str, Any]],
+            tuple[dict[str, Any], dict[str, Any]],
+        ],
+    ) -> None:
+        self.env_factory = env_factory
+        self.snapshot_factory = snapshot_factory
+        self.candidate_provider = candidate_provider
+        self.outcome_provider = outcome_provider
+
+    def _reconstruct(
+        self,
+        contract: dict[str, Any],
+        path: list[dict[str, Any]],
+        expected_fingerprint: str,
+    ) -> tuple[Any, PrefixReplayResult]:
+        env = self.env_factory()
+        branch_contract = copy.deepcopy(contract)
+        branch_contract["action_prefix"] = (
+            list(contract["action_prefix"]) + list(path)
+        )
+        result = replay_action_prefix(
+            env,
+            branch_contract,
+            expected_fingerprint=expected_fingerprint,
+            snapshot_factory=self.snapshot_factory,
+        )
+        return env, result
+
+    @staticmethod
+    def _close(env) -> None:
+        close = getattr(env, "close", None)
+        if callable(close):
+            close()
+
+    def expand(
+        self,
+        graph: "CounterfactualGraph",
+        root_contract: dict[str, Any],
+    ) -> "CounterfactualGraph":
+        """Breadth-first expansion with deterministic provider ordering."""
+        paths: dict[str, list[dict[str, Any]]] = {graph.root_id: []}
+        frontier = [graph.root_id]
+        while frontier:
+            parent_id = frontier.pop(0)
+            parent = graph.nodes[parent_id]
+            if parent.depth >= graph.budget.horizon or parent.terminal_reason:
+                continue
+
+            env, rebuilt = self._reconstruct(
+                root_contract,
+                paths[parent_id],
+                parent.board_fingerprint,
+            )
+            try:
+                if not rebuilt.matched or rebuilt.observation is None:
+                    raise RuntimeError(
+                        rebuilt.error or "reconstruction_mismatch"
+                    )
+                candidates = self.candidate_provider(
+                    env,
+                    rebuilt.observation,
+                    graph.budget.branch_factor,
+                )[: graph.budget.branch_factor]
+            finally:
+                self._close(env)
+            if not candidates:
+                parent.terminal_reason = "no_candidate"
+                continue
+
+            for candidate in candidates:
+                env, rebuilt = self._reconstruct(
+                    root_contract,
+                    paths[parent_id],
+                    parent.board_fingerprint,
+                )
+                try:
+                    if not rebuilt.matched or rebuilt.observation is None:
+                        raise RuntimeError(
+                            rebuilt.error or "reconstruction_mismatch"
+                        )
+                    (
+                        observation,
+                        _reward,
+                        terminated,
+                        truncated,
+                        info,
+                    ) = env.step(canonical_action(candidate.command_action))
+                    snapshot = self.snapshot_factory(env, observation)
+                    fingerprint = board_fingerprint(snapshot)
+                    immediate, cumulative = self.outcome_provider(
+                        env,
+                        info,
+                        parent.cumulative_outcomes,
+                    )
+                    status = (
+                        info.get("status", {})
+                        if isinstance(info, dict)
+                        else {}
+                    )
+                    terminal_reason = None
+                    if truncated:
+                        terminal_reason = "protocol_truncated"
+                    elif terminated and not bool(status.get("is_placed_safe")):
+                        terminal_reason = "physical_failure"
+                    elif terminated:
+                        terminal_reason = "stream_exhausted"
+                    pool_indices = [
+                        int(item["index"])
+                        for item in snapshot.get("observation", {}).get(
+                            "pool_list", []
+                        )
+                    ]
+                    child, _edge = graph.add_transition(
+                        parent_id=parent_id,
+                        candidate_id=candidate.candidate_id,
+                        command_action=canonical_action(
+                            candidate.command_action
+                        ),
+                        child_board_fingerprint=fingerprint,
+                        child_state_ref=None,
+                        child_pool_item_indices=pool_indices,
+                        immediate_outcomes=immediate,
+                        cumulative_outcomes=cumulative,
+                        selection=candidate.selection,
+                        terminal_reason=terminal_reason,
+                    )
+                    if child.node_id not in paths:
+                        paths[child.node_id] = paths[parent_id] + [
+                            canonical_action(candidate.command_action)
+                        ]
+                    if (
+                        terminal_reason is None
+                        and child.depth < graph.budget.horizon
+                        and child.node_id not in frontier
+                    ):
+                        frontier.append(child.node_id)
+                finally:
+                    self._close(env)
+        graph.validate()
+        return graph
 
 
 @dataclass

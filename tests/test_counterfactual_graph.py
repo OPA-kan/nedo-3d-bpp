@@ -6,6 +6,8 @@ import tempfile
 import unittest
 
 from scripts.counterfactual_graph import (
+    BoundedGraphExecutor,
+    BranchCandidate,
     CounterfactualGraph,
     GraphBudget,
     board_fingerprint,
@@ -31,6 +33,150 @@ def make_graph(**budget_overrides):
 
 
 class CounterfactualGraphTests(unittest.TestCase):
+    def test_executor_builds_three_step_physical_dag_from_fresh_envs(self):
+        created = []
+
+        class Item:
+            def __init__(self, index):
+                self.index = index
+
+        class Stream:
+            def __init__(self):
+                self.all_items = [Item(1), Item(2), Item(3)]
+                self.visible_pool = list(self.all_items)
+                self.current_index = 3
+
+        class Env:
+            def __init__(self):
+                self.stream_manager = Stream()
+                self.packed = []
+                self.closed = False
+                created.append(self)
+
+            def reset_settings(self):
+                self.packed = []
+
+            def set_item_order(self, order):
+                if set(order) != {1, 2, 3}:
+                    return False
+                by_index = {
+                    item.index: item for item in self.stream_manager.all_items
+                }
+                self.stream_manager.all_items = [by_index[index] for index in order]
+                return True
+
+            def reset_item_stream(self):
+                self.stream_manager.visible_pool = list(
+                    self.stream_manager.all_items
+                )
+
+            def reset(self, seed):
+                return self.observation(), {}
+
+            def observation(self):
+                return {
+                    "pool_list": [
+                        {"index": item.index}
+                        for item in self.stream_manager.visible_pool
+                    ]
+                }
+
+            def step(self, action):
+                item = self.stream_manager.visible_pool.pop(action["item_idx"])
+                self.packed.append(item.index)
+                terminated = not self.stream_manager.visible_pool
+                return (
+                    self.observation(),
+                    0,
+                    terminated,
+                    False,
+                    {
+                        "status": {
+                            "is_included": True,
+                            "is_valid": True,
+                            "is_placed_safe": True,
+                        }
+                    },
+                )
+
+            def close(self):
+                self.closed = True
+
+        def snapshot(env, observation):
+            return {
+                "observation": observation,
+                "physics": {
+                    "packed_items": [
+                        {
+                            "container_index": 0,
+                            "item_index": index,
+                            "position": [index / 10, 0, 0.5],
+                            "quaternion": [0, 0, 0, 1],
+                        }
+                        for index in env.packed
+                    ]
+                },
+            }
+
+        def candidates(_env, observation, limit):
+            return [
+                BranchCandidate(
+                    candidate_id=f"item-{item['index']}",
+                    command_action={
+                        "item_idx": pool_index,
+                        "container_idx": 0,
+                        "place_pos": [item["index"] / 10, 0, 0.5],
+                        "orientation": 0,
+                    },
+                    selection={"rank": pool_index},
+                )
+                for pool_index, item in enumerate(
+                    observation["pool_list"][:limit]
+                )
+            ]
+
+        def outcomes(env, info, _parent):
+            placed = len(env.packed)
+            return (
+                {**info["status"], "placed_delta": 1, "volume_delta": 1.0},
+                {"placed": placed, "volume": float(placed)},
+            )
+
+        root_snapshot = snapshot(Env(), {"pool_list": [
+            {"index": 1}, {"index": 2}, {"index": 3}
+        ]})
+        graph = CounterfactualGraph.create(
+            root_snapshot_id="root",
+            case_id="fake",
+            root_step=0,
+            future_stream_id="stream-fake",
+            budget=GraphBudget(horizon=3, branch_factor=2),
+            provenance={"attempt_budget": 32},
+            board_fingerprint=board_fingerprint(root_snapshot),
+            state_ref=None,
+            pool_item_indices=[1, 2, 3],
+            cumulative_outcomes={"placed": 0, "volume": 0.0},
+        )
+        executor = BoundedGraphExecutor(
+            env_factory=Env,
+            snapshot_factory=snapshot,
+            candidate_provider=candidates,
+            outcome_provider=outcomes,
+        )
+        executor.expand(
+            graph,
+            {
+                "seed": 42,
+                "item_order": [1, 2, 3],
+                "action_prefix": [],
+            },
+        )
+        self.assertTrue(any(node.depth == 3 for node in graph.nodes.values()))
+        self.assertTrue(all(env.closed for env in created[1:]))
+        depth_two = [node for node in graph.nodes.values() if node.depth == 2]
+        self.assertLess(len(depth_two), 4, "equivalent orderings should merge")
+        graph.validate()
+
     def test_prefix_replay_rebuilds_an_independent_root(self):
         class Env:
             def __init__(self):

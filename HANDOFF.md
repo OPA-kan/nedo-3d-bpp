@@ -52,7 +52,8 @@ Nodes are settled residual states; edges are commanded placements with
 separate physical and multi-axis labels. Sibling branches must share the same
 future stream and fixed attempt budget.
 
-The first slice is implemented but is not yet a physical H3 result:
+The first two slices are implemented but there is not yet a Linux physical H3
+artifact:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,
   DAG state convergence, branch/node/edge budgets, atomic JSON output and an
@@ -62,12 +63,17 @@ The first slice is implemented but is not yet a physical H3 result:
 - prefix replay refuses to label a branch unless the reconstructed root
   fingerprint matches. PyBullet `saveState` alone is explicitly insufficient
   because it omits Python stream/container state.
+- `scripts/build_counterfactual_graph.py` now performs bounded breadth-first
+  physical expansion. It uses fixed-attempt `PlacementCore.top_candidates`,
+  reconstructs every candidate path in a fresh env, records multi-axis node
+  totals and edge deltas, merges equal same-depth states, and stops terminal
+  branches. It does not use a wall-clock deadline.
 - no ranker, policy default, simulator rule or final holdout was changed.
 
-Next: add the bounded physical branch executor, beginning with branch factor
-2–3 and horizon 3 on development/validation roots; verify independent-env
-prefix identity in Linux CI before expanding to horizon 5. Raw graphs remain
-artifacts, while compact manifests and aggregate evidence are committed.
+Next: run that executor with branch factor 2 and horizon 3 on at least three
+development/validation roots; verify independent-env prefix identity and
+runtime in Linux CI before expanding to horizon 5. Raw graphs remain artifacts,
+while compact manifests and aggregate evidence are committed.
 
 ## Official score history
 

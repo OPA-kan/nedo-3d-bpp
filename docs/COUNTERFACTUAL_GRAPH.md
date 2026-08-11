@@ -65,3 +65,33 @@ nodeにはそれらの累積値とterminal reasonを保存する。公式に存�
 5. raw graphはartifact、compact manifest/集計/evidenceだけgitへ残す。
 
 最終holdoutは開かず、development/validation scenarioで先に再現性と識別力を確認する。
+
+## 初版の分岐アルゴリズム
+
+`scripts/build_counterfactual_graph.py`はbreadth-firstにDAGを展開する。
+
+1. nodeのaction pathを、毎回新しいenvでepisode先頭から再生する。
+2. board fingerprintがnodeと一致しなければ即時停止する。
+3. deadlineを使わず、固定attempt budgetの`PlacementCore.top_candidates`から
+   上位B件を得る。
+4. 各候補をさらに別の新しいenvで再構築してから1回だけ実行する。
+5. settle後のfingerprintをchild node、commandと物理結果をedgeとして記録する。
+6. 同じdepth・同じfingerprintは合流し、終了枝は展開しない。
+
+初版はlive selectionを変えるアルゴリズムではなく、将来価値を学習・比較するための
+offline graph生成アルゴリズムである。候補生成は現行Ranker順だが、計算量と再現性を
+固定するためwall-clock deadlineは使わない。
+
+例（新形式snapshotが必要）:
+
+```powershell
+python3 scripts/build_counterfactual_graph.py `
+  --snapshot reports/replay-dataset/<run>/step-009-state.json `
+  --config simulator/configs/sample_config.json --case 000 `
+  --split development --horizon 3 --branch-factor 2 `
+  --attempt-budget 512 --output reports/raw/graph-b000-step9.json
+```
+
+branch factor 2・horizon 3でも最大14 edge、horizon 5では最大62 edgeになる。
+各edgeがrootからの物理再生を伴うため、まずH3でroot一致率と実時間を測ってからH5へ
+広げる。

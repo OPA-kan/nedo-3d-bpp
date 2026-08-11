@@ -285,5 +285,95 @@ class ReplayTrajectoryTests(unittest.TestCase):
         self.assert_actions_equivalent(control, replayed)
 
 
+@unittest.skipUnless(AVAILABLE, SKIP_REASON)
+class CounterfactualGraphPhysicsTests(unittest.TestCase):
+    def test_fixed_attempt_executor_reaches_depth_three(self):
+        from scripts.build_counterfactual_graph import (
+            build_candidate_provider,
+            cumulative_metrics,
+            transition_outcomes,
+        )
+        from scripts.counterfactual_graph import (
+            BoundedGraphExecutor,
+            CounterfactualGraph,
+            GraphBudget,
+            board_fingerprint,
+            capture_replay_contract,
+        )
+        from scripts.measure_anchor_recall import (
+            load_agent_module,
+            policy_observation,
+            state_snapshot,
+        )
+        from src.ground_handling.env import GroundHandlingEnv
+
+        config = json.loads(CONFIG.read_text(encoding="utf-8"))["000"]
+        agent_module = load_agent_module()
+
+        def env_factory():
+            return GroundHandlingEnv(
+                config=copy.deepcopy(config),
+                verbose=False,
+                render_mode=None,
+            )
+
+        def snapshot_factory(env, raw_observation):
+            return state_snapshot(
+                env,
+                policy_observation(env, raw_observation),
+                case_id="000",
+                step=0,
+            )
+
+        root_env = env_factory()
+        try:
+            root_env.reset_settings()
+            root_env.reset_item_stream()
+            raw_observation, _info = root_env.reset(seed=42)
+            root_snapshot = snapshot_factory(root_env, raw_observation)
+            contract = capture_replay_contract(root_env, [], seed=42)
+            fingerprint = board_fingerprint(root_snapshot)
+            root_metrics = cumulative_metrics(root_env)
+        finally:
+            root_env.close()
+
+        graph = CounterfactualGraph.create(
+            root_snapshot_id="integration-root",
+            case_id="000",
+            root_step=0,
+            future_stream_id=contract["future_stream_id"],
+            budget=GraphBudget(
+                horizon=3,
+                branch_factor=1,
+                max_nodes=4,
+                max_edges=3,
+            ),
+            provenance={"attempt_budget": 512},
+            board_fingerprint=fingerprint,
+            state_ref=None,
+            pool_item_indices=contract["visible_pool_item_indices"],
+            cumulative_outcomes=root_metrics,
+        )
+        executor = BoundedGraphExecutor(
+            env_factory=env_factory,
+            snapshot_factory=snapshot_factory,
+            candidate_provider=build_candidate_provider(
+                agent_module,
+                attempt_budget=512,
+            ),
+            outcome_provider=transition_outcomes,
+        )
+        executor.expand(graph, contract)
+
+        self.assertEqual(max(node.depth for node in graph.nodes.values()), 3)
+        self.assertEqual(len(graph.edges), 3)
+        self.assertTrue(
+            all(
+                edge.immediate_outcomes["is_placed_safe"]
+                for edge in graph.edges
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
