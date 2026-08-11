@@ -117,6 +117,37 @@ construction. The acceptance guard now also reports
 beside the single sum; the search still maximises the sum, which remains a
 weighting nobody chose.
 
+## The acceptance rule, and the shadow arm that measures it
+
+The search accepts a move whenever the single Gower ΔNN rises. That sum
+averages occupancy and consumption, nobody chose the weights, and it can
+therefore pay for one with the other. `pareto_gate` keeps the same ordering
+but refuses a move that degrades either component.
+
+Which rule is better is not settleable by argument, so the dataset builder
+runs both on every board and keeps the second one's trace only. Same pool,
+same seed, same forced keys; the acceptance rule is the only difference, and
+nothing downstream reads the shadow portfolio. The pairing is the point: the
+policy is deadline-limited, so two runs of one scenario do not reach the same
+board, and the earlier greedy-versus-seeded verdict turned out to be
+runner-variable for exactly that reason. Cost is about 85 ms per step against
+minutes of replay.
+
+The number that decides whether the question is live at all is
+`component_degrading_swaps` on the shipped arm: accepted swaps that raised
+the sum while a component fell. Zero everywhere would mean the two rules
+cannot disagree and the sum rule is fine as it stands.
+
+The name is deliberately `pareto_gate` and not `pareto`. It is not a
+total-free search -- the sum still orders the admissible moves. It only
+removes the moves the sum was allowed to buy at a component's expense. That
+keeps the contrast to one variable, which is what makes the shadow
+attributable; a rule that also changed how ties are broken would confound
+the two.
+
+`scripts/measure_swap_acceptance.py` aggregates the pairs, and the matrix
+workflow runs it into the step summary.
+
 ## Ablation
 
 `--observed-swap-rounds 0` disables the seed and the swaps together and

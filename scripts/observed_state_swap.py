@@ -32,6 +32,7 @@ from scripts.measure_anchor_recall import candidate_key
 from scripts.residual_diversity import (
     ProxyVector,
     feature_vector_distance,
+    paired_component_objective,
     paired_mean_nn_objective,
     proxy_feature_vector,
     residual_proxy_features,
@@ -47,6 +48,18 @@ UNSEEDED_DESIGN = (
     "deterministic_global_item_matching_then_observed_afterstate_maximin"
 )
 SWAP_OBJECTIVE = "paired_observed_mean_nearest_neighbour_delta"
+
+# Two acceptance rules, so the choice between them can be measured instead of
+# argued. `sum` is what shipped: a swap is accepted whenever the single Gower
+# ΔNN rises. `pareto_gate` keeps that ordering but REFUSES a swap that pays
+# for the sum by degrading a component -- occupancy (where the item landed,
+# and in which container) or consumption (which item left the pool).
+#
+# The name is precise on purpose. It is not a total-free search: the sum
+# still orders the admissible moves. It only removes the moves the sum was
+# allowed to buy at a component's expense. That keeps the contrast to one
+# variable, which is what makes the shadow arm attributable.
+ACCEPTANCE_RULES = ("sum", "pareto_gate")
 IMPROVEMENT_TOLERANCE = 1e-12
 _INFINITY = float("inf")
 _SWAP_LOG_LIMIT = 64
@@ -128,6 +141,7 @@ def optimize_observed_state_portfolio(
     max_rounds: int = 64,
     exact_checks_per_round: int = 8,
     exact_scan_limit: int = 32,
+    acceptance: str = "sum",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Swap observed states inside each stratum to raise the measured delta.
 
@@ -157,6 +171,11 @@ def optimize_observed_state_portfolio(
         final: dict[str, float | None],
         initial_semantics: tuple[int, int],
         final_semantics: tuple[int, int],
+        initial_components: dict[str, float | None],
+        final_components: dict[str, float | None],
+        degrading: int = 0,
+        refused_swaps: int = 0,
+        refused_components: set[str] | None = None,
     ) -> dict[str, Any]:
         enabled = int(max_rounds) > 0
         return {
@@ -180,8 +199,17 @@ def optimize_observed_state_portfolio(
             ),
             "control_size": len(control),
             "observed_control_size": len(control_vectors),
+            "acceptance": acceptance,
             "initial_objective": initial,
             "final_objective": final,
+            "initial_components": initial_components,
+            "final_components": final_components,
+            # The number that decides whether the acceptance rule matters at
+            # all: accepted swaps that raised the sum while a component fell.
+            # Zero means the two rules cannot disagree on this board.
+            "component_degrading_swaps": degrading,
+            "swaps_refused_by_gate": refused_swaps,
+            "components_that_refused": sorted(refused_components or ()),
             "initial_semantics": {
                 "unique_items": initial_semantics[0],
                 "unique_item_orientations": initial_semantics[1],
@@ -227,7 +255,41 @@ def optimize_observed_state_portfolio(
             control_vectors,
         )
 
+    control_records = [
+        observed[key]
+        for record in control
+        if (key := candidate_key(record)) in observed
+    ]
+
+    def components(records: list[dict[str, Any]]) -> dict[str, float | None]:
+        return paired_component_objective(
+            [
+                observed[key]
+                for record in records
+                if (key := candidate_key(record)) in observed
+            ],
+            control_records,
+        )
+
+    def not_worse(after: float | None, before: float | None) -> bool:
+        """A missing component carries no information, so it blocks nothing."""
+        if after is None or before is None:
+            return True
+        return after >= before - IMPROVEMENT_TOLERANCE
+
+    def degrades(
+        after: dict[str, float | None], before: dict[str, float | None]
+    ) -> list[str]:
+        return [
+            kind
+            for kind in ("occupancy", "consumption")
+            if not not_worse(
+                after[f"{kind}_delta"], before[f"{kind}_delta"]
+            )
+        ]
+
     initial_objective = objective(slots)
+    initial_components = components(slots)
     observed_records = [slots[index] for index in observed_slots]
     initial_semantics = semantic_signature(observed_records)
     if (
@@ -249,6 +311,8 @@ def optimize_observed_state_portfolio(
             final=initial_objective,
             initial_semantics=initial_semantics,
             final_semantics=initial_semantics,
+            initial_components=initial_components,
+            final_components=initial_components,
         )
 
     # Screening geometry: one fixed basis over every replayed safe row, so the
@@ -289,6 +353,10 @@ def optimize_observed_state_portfolio(
     )
 
     best = initial_objective
+    best_components = initial_components
+    degrading_swaps = 0
+    refused = 0
+    refused_by_component: set[str] = set()
     swaps: list[dict[str, Any]] = []
     evaluated = 0
     exact_evaluations = 0
@@ -346,7 +414,7 @@ def optimize_observed_state_portfolio(
             break
 
         proposals.sort(key=lambda entry: (-entry[0], entry[1], entry[2]))
-        winner: tuple[dict[str, float | None], int, int, int] | None = None
+        winner: tuple[Any, ...] | None = None
         # Screened order is an approximation, so an empty top-K is not proof
         # that the round is exhausted. Keep exact-checking past the budget
         # while nothing has improved, up to the scan limit, and stop early
@@ -366,7 +434,20 @@ def optimize_observed_state_portfolio(
                     or value
                     > winner[0]["mean_nearest_neighbor_distance_delta"]
                 ):
-                    winner = (candidate_objective, slot, other, index)
+                    trial_components = components(trial)
+                    fell = degrades(trial_components, best_components)
+                    if fell and acceptance == "pareto_gate":
+                        refused += 1
+                        refused_by_component.update(fell)
+                        continue
+                    winner = (
+                        candidate_objective,
+                        slot,
+                        other,
+                        index,
+                        trial_components,
+                        fell,
+                    )
             if winner is not None:
                 if scanned >= max(1, int(exact_checks_per_round)):
                     break
@@ -377,7 +458,7 @@ def optimize_observed_state_portfolio(
             terminated = "no_improving_swap"
             break
 
-        candidate_objective, slot, other, index = winner
+        candidate_objective, slot, other, index, new_components, fell = winner
         removed = pool_records[keys[index]]
         added = pool_records[keys[other]]
         slots[observed_slots[slot]] = added
@@ -393,9 +474,19 @@ def optimize_observed_state_portfolio(
                 "delta_after": candidate_objective[
                     "mean_nearest_neighbor_distance_delta"
                 ],
+                # What the single sum was hiding: which component actually
+                # moved, and whether the sum was bought at the other's cost.
+                "occupancy_before": best_components["occupancy_delta"],
+                "occupancy_after": new_components["occupancy_delta"],
+                "consumption_before": best_components["consumption_delta"],
+                "consumption_after": new_components["consumption_delta"],
+                "degraded_components": fell,
             }
         )
+        if fell:
+            degrading_swaps += 1
         best = candidate_objective
+        best_components = new_components
     else:
         terminated = "round_budget"
 
@@ -412,6 +503,11 @@ def optimize_observed_state_portfolio(
         final=best,
         initial_semantics=initial_semantics,
         final_semantics=final_semantics,
+        initial_components=initial_components,
+        final_components=best_components,
+        degrading=degrading_swaps,
+        refused_swaps=refused,
+        refused_components=refused_by_component,
     )
 
 

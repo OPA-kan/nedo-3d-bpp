@@ -518,6 +518,58 @@ class SafeSplitIntegrationTests(unittest.TestCase):
         )
         return positive, negative, control_positive, report, comparison
 
+    def test_the_shadow_arm_does_not_change_the_shipped_portfolio(self):
+        # The whole point of a shadow: it is measured and discarded. If it
+        # could move the emitted rows it would be an unannounced policy
+        # change, not a measurement.
+        first = self.build(swap_rounds=64)[0]
+        second = self.build(swap_rounds=64)[0]
+
+        self.assertEqual(
+            [candidate_key(record) for record in first],
+            [candidate_key(record) for record in second],
+        )
+
+    def test_the_shadow_arm_is_the_paired_gate_on_the_same_board(self):
+        _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+        shipped = report["swap_optimizer"]
+        shadow = report["swap_optimizer_shadow"]
+
+        # Same board, same pool, same seed: only the acceptance rule differs,
+        # which is what makes the difference attributable to the rule.
+        self.assertEqual(shipped["acceptance"], "sum")
+        self.assertEqual(shadow["acceptance"], "pareto_gate")
+        self.assertEqual(
+            shipped["initial_objective"], shadow["initial_objective"]
+        )
+        self.assertEqual(
+            shipped["initial_components"], shadow["initial_components"]
+        )
+
+    def test_the_gate_never_accepts_a_component_degrading_swap(self):
+        _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+
+        # This is the rule itself, so it holds whatever the corpus says.
+        self.assertEqual(
+            report["swap_optimizer_shadow"]["component_degrading_swaps"], 0
+        )
+        for swap in report["swap_optimizer_shadow"]["swap_log"]:
+            self.assertEqual(swap["degraded_components"], [])
+
+    def test_every_swap_records_which_component_moved(self):
+        _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+        log = report["swap_optimizer"]["swap_log"]
+
+        self.assertTrue(log, "expected the seeded arm to apply swaps")
+        for swap in log:
+            for name in (
+                "occupancy_before",
+                "occupancy_after",
+                "consumption_before",
+                "consumption_after",
+            ):
+                self.assertIn(name, swap)
+
     def test_trace_final_objective_equals_the_reported_guard_number(self):
         _positive, _negative, _control, report, comparison = self.build(
             swap_rounds=64

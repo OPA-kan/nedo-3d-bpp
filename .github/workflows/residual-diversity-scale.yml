@@ -140,6 +140,16 @@ jobs:
             --markdown-output reports/residual-diversity-scale/aggregate/summary.md
           cat reports/residual-diversity-scale/aggregate/summary.md \
             >> "$GITHUB_STEP_SUMMARY"
+      - name: Measure the swap acceptance rule against its paired shadow
+        run: |
+          python scripts/measure_swap_acceptance.py \
+            --root reports/residual-diversity-scale/downloads \
+            --json-output \
+              reports/residual-diversity-scale/aggregate/acceptance.json \
+            --markdown-output \
+              reports/residual-diversity-scale/aggregate/acceptance.md
+          cat reports/residual-diversity-scale/aggregate/acceptance.md \
+            >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: residual-diversity-scale-aggregate

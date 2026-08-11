@@ -518,6 +518,32 @@ def component_mean_nn(
     return sum(nearest) / len(nearest) if nearest else None
 
 
+def paired_component_objective(
+    positive_records: list[dict[str, Any]],
+    control_records: list[dict[str, Any]],
+) -> dict[str, float | None]:
+    """The paired delta on each component separately, never summed.
+
+    Same pairing as ``paired_mean_nn_objective`` -- positive arm minus its
+    control, scaled by the union so moving one arm moves the other's number
+    -- but reported once per component, because the two answer different
+    questions and a single sum cannot say which one moved.
+    """
+    reference = list(control_records) + list(positive_records)
+    report: dict[str, float | None] = {}
+    for kind in ("occupancy", "consumption"):
+        positive = component_mean_nn(positive_records, reference, kind)
+        control = component_mean_nn(control_records, reference, kind)
+        report[f"positive_{kind}"] = positive
+        report[f"control_{kind}"] = control
+        report[f"{kind}_delta"] = (
+            None
+            if positive is None or control is None
+            else positive - control
+        )
+    return report
+
+
 def settled_portfolio_comparison(
     *,
     diversity_sample: list[dict[str, Any]],

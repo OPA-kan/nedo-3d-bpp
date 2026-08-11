@@ -604,6 +604,21 @@ def split_observed_outcomes(
         forced_keys=positive_forced,
         max_rounds=int(swap_rounds),
     )
+    # A shadow arm, measured and discarded. Same board, same pool, same seed,
+    # same forced keys -- the acceptance rule is the only thing that differs,
+    # so the comparison is paired within the board instead of across runs,
+    # which matters because the policy is deadline-limited and two runs of one
+    # scenario do not reach the same board. Nothing downstream reads the
+    # shadow portfolio; only its trace is kept.
+    _shadow_portfolio, shadow_trace = optimize_observed_state_portfolio(
+        [dict(record) for record in seeded],
+        pool=safe_union,
+        control=random_positive,
+        observed=observed_afterstates,
+        forced_keys=positive_forced,
+        max_rounds=int(swap_rounds),
+        acceptance="pareto_gate",
+    )
     if int(swap_rounds) > 0:
         positive_table = annotate_swapped_portfolio(
             positive,
@@ -639,6 +654,7 @@ def split_observed_outcomes(
             if seed_keys.get(candidate_key(record)) == "paired_control_seed"
         ),
         "swap_optimizer": swap_trace,
+        "swap_optimizer_shadow": shadow_trace,
     }
 
 
