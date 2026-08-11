@@ -169,6 +169,7 @@ def load_examples(root: pathlib.Path) -> list[dict[str, Any]]:
     examples: list[dict[str, Any]] = []
     for path in sorted(root.glob("*/dataset/*/step-*-*.jsonl")):
         step_label = path.name.split("-")[1]
+        arm = path.name.rsplit("-", 1)[-1].replace(".jsonl", "")
         snapshot_path = path.parent / f"step-{step_label}-state.json"
         board = state_fingerprint(snapshot_path)
         if board is None:
@@ -194,6 +195,7 @@ def load_examples(root: pathlib.Path) -> list[dict[str, Any]]:
             examples.append(
                 {
                     "state": board,
+                    "arm": arm,
                     "case_id": str(row.get("case_id")),
                     "phi": [float(value) for value in values],
                     "candidate": candidate_vector(row, snapshot),
@@ -463,13 +465,44 @@ def state_metrics(
 ARMS = ("phi_mlp", "candidate_mlp", "set_attention")
 
 
+def filter_positive_source(
+    examples: list[dict[str, Any]], source: str
+) -> list[dict[str, Any]]:
+    """Optionally drop the diversity-selected positives.
+
+    The safe rows in `candidates` are the ones the swap optimizer picked to
+    spread out in observed-state space; the unsafe rows are simply every
+    unsafe candidate the overdraw produced. So the two classes are not drawn
+    the same way, and a model could learn "this looks selected" instead of
+    "this is safe". `random-control` is a stratified random draw from the
+    safe rows and carries no such selection, so restricting the positives to
+    it removes the confound. If the result survives that, the selection was
+    not what the model was reading.
+    """
+    if source == "all":
+        return examples
+    if source != "control":
+        raise ValueError(f"unknown positive source: {source!r}")
+    return [
+        example
+        for example in examples
+        if not example["safe"] or example["arm"] == "control"
+    ]
+
+
 def run(
-    root: pathlib.Path, *, seeds: int, epochs: int
+    root: pathlib.Path,
+    *,
+    seeds: int,
+    epochs: int,
+    positive_source: str = "all",
 ) -> dict[str, Any]:
     import torch
 
     torch.set_num_threads(4)
-    examples = load_examples(root)
+    examples = filter_positive_source(
+        load_examples(root), positive_source
+    )
     cases = sorted({example["case_id"] for example in examples})
     states = {example["state"] for example in examples}
     if len(cases) < 2 or len(examples) < 100:
@@ -519,6 +552,7 @@ def run(
         },
         "design": {
             "split": "leave_one_case_out",
+            "positive_source": positive_source,
             "seeds": seeds,
             "epochs": epochs,
             "arms": list(ARMS),
@@ -607,6 +641,10 @@ def markdown(report: dict[str, Any]) -> str:
             f"{len(corpus['cases'])} cases"
         ),
         (
+            "- Positives from: "
+            f"`{report['design'].get('positive_source', 'all')}`"
+        ),
+        (
             f"- Split: `{report['design']['split']}`, "
             f"{report['design']['seeds']} seeds, "
             f"{report['design']['epochs']} epochs"
@@ -660,9 +698,24 @@ def main() -> int:
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument(
+        "--positive-source",
+        choices=("all", "control"),
+        default="all",
+        help=(
+            "'control' keeps only the stratified-random safe rows as "
+            "positives, removing the swap optimizer's diversity selection "
+            "from one class but not the other."
+        ),
+    )
     args = parser.parse_args()
 
-    report = run(args.root, seeds=args.seeds, epochs=args.epochs)
+    report = run(
+        args.root,
+        seeds=args.seeds,
+        epochs=args.epochs,
+        positive_source=args.positive_source,
+    )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(
         json.dumps(report, ensure_ascii=False, indent=2, default=float) + "\n",
