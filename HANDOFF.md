@@ -290,23 +290,30 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- Whether any model family beats the incumbent at RANKING. At 49 boards over
-  8 cases the answer is still no: mean within-state AUC for `is_placed_safe`
+- A model trained on the board DOES beat the incumbent, and the earlier
+  "no signal, saturates at sixteen boards" conclusion is withdrawn -- it was a
+  property of the eight-scalar contact vector, not of the data. Same 3482
+  rows, 93 boards, 8 cases, same protocol: mean within-state AUC 0.725
+  incumbent, 0.709 linear-on-phi, 0.770 MLP-on-the-same-phi, **0.851**
+  candidate-geometry MLP, 0.830 set attention; top-1 safe rate 0.867 / 0.868
+  / 0.876 / **0.967** / 0.944. Capacity alone beats the incumbent, so the
+  audit's linear arm was under-powered. The largest jump is adding the
+  candidate's own position, size, orientation and container -- which
+  `phi_modelling` never carried. Attention does not help safety ranking but
+  does help the settle regression (R^2 0.322/0.382 against 0.277/0.345 and
+  the linear arm's 0.147/0.081). See `reports/state-model/summary.md`.
+: mean within-state AUC for `is_placed_safe`
   is 0.745 for `Ranker.score` against 0.727 (logistic), 0.671 (lookup) and
   0.500 (constant), with top-1 safe rate 0.872 / 0.851 / 0.780 / 0.683. The
   audit carries a positive control -- a planted signal is detected above AUC
   0.8 -- so the null is not a broken instrument. GBDT and Deep Sets could not
   be run (numpy only), so it bounds them weakly.
-- **More states is not the constraint.** The learning curve saturates near 16
-  training boards: from 16 to 78 -- nearly five times the data -- mean
-  within-state AUC moves 0.710 -> 0.711 and R^2 for `delta_theta_deg` moves
-  0.153 -> 0.164. An earlier fit over 8-40 states read +0.011 AUC per
-  doubling and was used to project parity near 200 states; that slope was the
-  estimator climbing out of the data-starved regime below 16, and the
-  projection is withdrawn. What binds is the feature set and the target:
-  eight static contact scalars about one candidate carry what they carry.
-  Keep collecting boards for CONDITION coverage, not as a route to a better
-  model on this feature set. See `reports/learnability/summary.md`.
+- More states was never the constraint, and neither was the model family on
+  its own: the FEATURES were. Withdrawn along with the saturation claim.
+  Scaling boards is still worth doing for condition coverage, and the
+  learning curve should be re-read on the state model rather than on the
+  eight scalars.
+
 - Whether the accepted rows support a learner at all. The corpus is small and
   narrow: 37 committed schema-v1 states (2732 rows, no `scenario_context`, and
   a modelling vector only on the 1765 release rows), plus about 12 states per
@@ -377,12 +384,17 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    (`reports/learnability/summary.md`). The next move is more distinct
    STATES, not more rows per state. Repeating the matrix is the cheapest
    axis: a widened run lands ~46 fresh boards in ~25 CI minutes. But the
-   curve has now answered the volume question -- it saturates near 16 states
-   -- so the next move is a better feature set or a different target, not
-   more rows. Two concrete gaps: settled candidates carry no feature vector
-   at all, and there is no board-value label whose noise is smaller than its
-   effect (`sigma-branch-is-the-size-of-the-effects`). Do not train a
-   Transformer on a null, and do not open final holdout data.
+   state model now beats the incumbent at ranking (0.851 against 0.725 mean
+   within-state AUC, `reports/state-model/summary.md`), so the open question
+   is no longer "is there signal" but "does it survive contact with the live
+   policy". That needs a physical negative control, not another dataset run:
+   this project has rejected selectors that looked better statically and lost
+   on trajectories (multi-axis Pareto enforce v1), and the incumbent is
+   consumed inside a deadline-bounded search, so latency is a live
+   constraint. Two gaps remain regardless: settled candidates carry no
+   feature vector at all, and there is no board-value label whose noise is
+   smaller than its effect (`sigma-branch-is-the-size-of-the-effects`). Do
+   not open final holdout data.
 2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before

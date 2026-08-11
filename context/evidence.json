@@ -2032,7 +2032,7 @@
       "id": "phi-learning-curve-saturates-near-sixteen-states",
       "topic": "learning_data",
       "date": "2026-08-10",
-      "status": "active",
+      "status": "superseded",
       "claim": "The learnability learning curve saturates at roughly 16 training states, so more states is not the constraint and the earlier time-to-target extrapolation is withdrawn. Sweeping the number of training boards on the 93-board corpus (leave-one-case-out, sampling by state because rows inside a state are not independent) gives mean within-state AUC 0.666, 0.697, 0.710, 0.708, 0.711, 0.711 at 4, 8, 16, 32, 64 and 78 states, and R-squared for delta_theta_deg of -0.008, 0.055, 0.153, 0.148, 0.166, 0.164 over the same sweep. From 16 states to 78 -- nearly five times the data -- AUC moves by 0.001 and the regression by 0.011. The incumbent Ranker.score sits at 0.745 and is not approached. An earlier fit over 8 to 40 states measured +0.0107 AUC per doubling and was used to project parity near 200 states and AUC 0.80 near 7000; the full curve shows that slope was the estimator climbing out of the data-starved regime below 16 states, not a trend, and those projections are withdrawn. What binds is the feature set and the target, not the row count: eight static contact scalars describing one candidate carry what they carry. Collecting more boards is still worth doing for coverage of conditions the corpus lacks, but it should not be justified as a route to a better model on this feature set.",
       "source": "reports/learnability/summary.json; reports/learnability/summary.md; scripts/audit_learnability.py; corpus of Actions runs 31391424126, 31393167142 and 31394891316",
       "values": {
@@ -2082,6 +2082,57 @@
         "binding_constraint": "feature_set_and_target_not_row_count",
         "adopted_for_training": false,
         "live_policy_benefit_established": false
+      },
+      "superseded_by": "state-model-beats-the-incumbent-the-saturation-was-the-feature-vector"
+    },
+    {
+      "id": "state-model-beats-the-incumbent-the-saturation-was-the-feature-vector",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "A model trained on the board beats the incumbent Ranker.score at ranking one-step placement safety, and the earlier 'no signal / saturates at sixteen boards' conclusion is withdrawn: it was a property of the eight-scalar contact vector, not of the data. On the same 3482 rows, 93 boards and 8 cases, with the identical protocol (leave-one-case-out, ranking scored inside each board, an assertion that no board straddles a fold), mean within-state AUC for is_placed_safe is 0.725 for the incumbent, 0.709 for a linear model on the eight scalars, 0.770 for the SAME eight scalars with a small MLP, 0.851 for an MLP that also sees the candidate's own geometry and its container, and 0.830 for set attention over the placed items and pending pool. Top-1 safe rate follows the same order: 0.867, 0.868, 0.876, 0.967, 0.944. Two attributions follow from the arm design. Model capacity alone already beats the incumbent, so the audit's linear arm was under-powered rather than the features being empty. The largest single jump is 0.770 to 0.851 on adding the candidate's own position, size, orientation and container geometry -- information phi_modelling never carried, since it describes predicted contact and never says where in the container the item is going. Attention over the board does NOT help safety ranking, coming in below the plain candidate MLP, but it does help the settle regression: leave-one-case-out R-squared against a held-out constant is 0.322 versus 0.277 for delta_theta_deg and 0.382 versus 0.345 for d_norm, against 0.147 and 0.081 for the audit's linear arm. So the board predicts how far an item settles; the action's own geometry predicts whether it is safe. This is a dataset-level ranking result on 8 cases with 2 seeds. It is not a live-policy result: the incumbent is consumed inside a deadline-bounded search, and this project has already rejected selectors that looked better statically and lost on trajectories (multi-axis Pareto enforce v1). Read the ordering of the arms, not the third decimal.",
+      "source": "reports/state-model/summary.json; reports/state-model/summary.md; reports/learnability/summary.json; scripts/train_state_model.py",
+      "values": {
+        "rows": 3482,
+        "boards": 93,
+        "cases": 8,
+        "seeds": 2,
+        "epochs": 200,
+        "mean_within_state_auc": {
+          "incumbent_ranker_score": 0.725,
+          "audit_linear_phi": 0.709,
+          "audit_lookup_phi": 0.676,
+          "phi_mlp": 0.77,
+          "candidate_mlp": 0.851,
+          "set_attention": 0.83
+        },
+        "top1_safe_rate": {
+          "incumbent_ranker_score": 0.867,
+          "audit_linear_phi": 0.868,
+          "phi_mlp": 0.876,
+          "candidate_mlp": 0.967,
+          "set_attention": 0.944
+        },
+        "regression_r2_versus_constant": {
+          "delta_theta_deg": {
+            "audit_linear": 0.147,
+            "phi_mlp": 0.27,
+            "candidate_mlp": 0.277,
+            "set_attention": 0.322
+          },
+          "d_norm": {
+            "audit_linear": 0.081,
+            "phi_mlp": 0.213,
+            "candidate_mlp": 0.345,
+            "set_attention": 0.382
+          }
+        },
+        "capacity_alone_beats_incumbent": true,
+        "candidate_geometry_is_the_largest_single_gain": true,
+        "attention_helps_regression_not_safety_ranking": true,
+        "withdrawn": "phi-learning-curve-saturates-near-sixteen-states",
+        "live_policy_benefit_established": false,
+        "adopted_for_training": false
       }
     }
   ]
