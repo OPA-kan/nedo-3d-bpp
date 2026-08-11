@@ -196,6 +196,22 @@ def load_examples(root: pathlib.Path) -> list[dict[str, Any]]:
                 {
                     "state": board,
                     "arm": arm,
+                    # What the candidate actually settled to. The residual
+                    # space question is whether this is predictable before
+                    # paying for the replay that produced it.
+                    "x_plus": physical.get("x_plus"),
+                    "center": [
+                        float(v) for v in (row.get("center") or [0, 0, 0])[:3]
+                    ],
+                    "size": [
+                        float(v) for v in (row.get("size") or [0, 0, 0])[:3]
+                    ],
+                    "orientation": int(row.get("orientation", -1)),
+                    "container_index": int(row.get("container_index", -1)),
+                    "pool_index": int(row.get("pool_index", -1)),
+                    "item_index": int(row.get("item_index", -1)),
+                    "kind": str(row.get("kind", "candidate")),
+                    "release_risk": row.get("release_risk"),
                     "case_id": str(row.get("case_id")),
                     "phi": [float(value) for value in values],
                     "candidate": candidate_vector(row, snapshot),
@@ -242,6 +258,14 @@ def build_models(torch, widths: dict[str, int]):
             )
             self.head = Head(width)
 
+        def encode(self, phi, candidate, tokens, mask):
+            features = (
+                torch.cat([phi, candidate], dim=-1)
+                if self.use_candidate
+                else phi
+            )
+            return self.head.body(features), features
+
         def forward(self, phi, candidate, tokens, mask):
             if not self.use_candidate:
                 return self.head(phi)
@@ -277,7 +301,8 @@ def build_models(torch, widths: dict[str, int]):
             )
             self.head = Head(dim + widths["phi"] + widths["candidate"])
 
-        def forward(self, phi, candidate, tokens, mask):
+        def encode(self, phi, candidate, tokens, mask):
+            """The board-aware representation, before the prediction head."""
             context = torch.cat([phi, candidate], dim=-1)
             state = self.query(context).unsqueeze(1)
             memory = self.token(tokens)
@@ -287,9 +312,11 @@ def build_models(torch, widths: dict[str, int]):
                 )
                 state = block["norm1"](state + attended)
                 state = block["norm2"](state + block["ff"](state))
-            return self.head(
-                torch.cat([state.squeeze(1), context], dim=-1)
-            )
+            return state.squeeze(1), context
+
+        def forward(self, phi, candidate, tokens, mask):
+            state, context = self.encode(phi, candidate, tokens, mask)
+            return self.head(torch.cat([state, context], dim=-1))
 
     return Mlp, SetAttention
 
@@ -317,7 +344,8 @@ def fit_arm(
     *,
     seed: int,
     epochs: int,
-) -> np.ndarray:
+    return_embeddings: bool = False,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """Train one arm on `train`, return its raw outputs on `test`."""
     torch.manual_seed(seed)
     Mlp, SetAttention = build_models(
@@ -427,11 +455,19 @@ def fit_arm(
         model.load_state_dict(best[1])
     model.eval()
     with torch.no_grad():
-        out = model(
+        arguments = (
             probe["phi"], probe["candidate"], probe["tokens"], probe["mask"]
-        ).numpy()
+        )
+        out = model(*arguments).numpy()
+        embedding = (
+            model.encode(*arguments)[0].numpy()
+            if return_embeddings
+            else None
+        )
     # Undo target standardisation so R^2 is in the reported units.
     out[:, 1:] = out[:, 1:] * stats["targets"][1] + stats["targets"][0]
+    if return_embeddings:
+        return out, embedding
     return out
 
 
