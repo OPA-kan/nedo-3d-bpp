@@ -6,6 +6,11 @@ from scripts.measure_residual_metric_defect import (
     container_centres,
     to_container_frame,
 )
+from scripts.residual_diversity import (
+    consumption_distance,
+    occupancy_distance,
+    occupancy_scales,
+)
 
 
 class ContainerFrameTests(unittest.TestCase):
@@ -63,6 +68,81 @@ class ContainerFrameTests(unittest.TestCase):
         to_container_frame(original, self.centres())
 
         self.assertAlmostEqual(original["center"][0], 3.171)
+
+
+class ComponentDistanceTests(unittest.TestCase):
+    """The single Gower sum answered two questions at once. Split it."""
+
+    def settled(
+        self,
+        *,
+        pool_index: int = 0,
+        item_index: int = 0,
+        container_index: int = 0,
+        center: tuple[float, float, float] = (0.0, 0.0, 0.2),
+    ) -> dict:
+        return {
+            "pool_index": pool_index,
+            "item_index": item_index,
+            "container_index": container_index,
+            "orientation": 0,
+            "kind": "candidate",
+            "center": list(center),
+            "size": [0.3, 0.2, 0.15],
+            "settle_tilt_deg": 0.0,
+        }
+
+    def scales(self, records: list[dict]) -> tuple[float, ...]:
+        return occupancy_scales(records)
+
+    def test_occupancy_does_not_index_past_its_own_field_list(self):
+        # The component vector carries one categorical field, not the four
+        # the full descriptor has. Reading the count from the module-level
+        # tuple raised IndexError here.
+        left = self.settled(center=(0.0, 0.0, 0.2))
+        right = self.settled(center=(0.5, 0.0, 0.2))
+
+        value = occupancy_distance(
+            left, right, scales=self.scales([left, right])
+        )
+
+        self.assertGreater(value, 0.0)
+
+    def test_occupancy_ignores_which_item_was_consumed(self):
+        left = self.settled(pool_index=0, item_index=0)
+        right = self.settled(pool_index=3, item_index=9)
+        scales = self.scales([left, right])
+
+        self.assertEqual(occupancy_distance(left, right, scales=scales), 0.0)
+
+    def test_occupancy_counts_a_different_container(self):
+        # Container membership is carried once, here, instead of also by a
+        # 2.5 m offset in the position term.
+        left = self.settled(container_index=0)
+        right = self.settled(container_index=1)
+
+        self.assertEqual(
+            occupancy_distance(left, right, scales=self.scales([left, right])),
+            1.0,
+        )
+
+    def test_consumption_ignores_where_the_item_landed(self):
+        left = self.settled(center=(0.0, 0.0, 0.2))
+        right = self.settled(center=(0.9, 0.7, 0.5))
+
+        self.assertEqual(consumption_distance(left, right), 0.0)
+
+    def test_consumption_counts_a_different_item(self):
+        left = self.settled(pool_index=0, item_index=0)
+        right = self.settled(pool_index=1, item_index=4)
+
+        self.assertEqual(consumption_distance(left, right), 1.0)
+
+    def test_consumption_is_a_fraction_when_only_one_field_differs(self):
+        left = self.settled(pool_index=0, item_index=0)
+        right = self.settled(pool_index=0, item_index=4)
+
+        self.assertAlmostEqual(consumption_distance(left, right), 0.5)
 
 
 if __name__ == "__main__":

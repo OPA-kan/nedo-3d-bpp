@@ -393,22 +393,44 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    feature vector at all, and there is no board-value label whose noise is
    smaller than its effect (`sigma-branch-is-the-size-of-the-effects`). Do
    not open final holdout data.
-2. Replay the 57 multi-axis substitutions from run `31362302154` as paired
+2. Fix the residual metric before spending more runs optimizing against it.
+   Two defects are now measured, not suspected. (a) It spans two coordinate
+   frames: commands are container-local, settled `x_plus` is world, and the
+   containers sit 2.5 m apart against item extents of tens of centimetres, so
+   a cross-container pair saturates the position term and container
+   membership is counted twice. `settled_proxy_record` must emit
+   container-local coordinates in the live pipeline; the offline measurement
+   in `scripts/measure_residual_metric_defect.py` shows what changes when it
+   does. (b) It averages two different questions into one sum -- where the
+   item landed, and which item left the pool -- and 79 percent of its
+   ordering is discrete identity. `occupancy_distance` and
+   `consumption_distance` now report those separately; the acceptance guard
+   still reports the single sum and should stop. Neither defect explains the
+   observed-state swap optimizer's margin: it survives collapsing the frames
+   (+0.0742 to +0.0718 over 454 boards) and is positive on both components
+   independently. Do NOT read the residual-space result
+   (`reports/residual-space/summary.md`) as "a learned space is not worth
+   building": the learned arms were scored against a target that shares four
+   categorical fields with the hand-made proxy, so the 0.839-against-0.432
+   headline is not an equal-terms comparison. The honest number is
+   geometry-versus-geometry at 0.659. Re-run that comparison after the metric
+   is fixed, and only then decide.
+3. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
    designing v2. Do not tune another weighted sum from episode aggregates.
-3. Reconstruct or locate the `submission22` build and add it as the fourth
+4. Reconstruct or locate the `submission22` build and add it as the fourth
    calibration point. This is the shortest path to pricing component trades.
-4. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
+5. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
    same risk-on placement policy as execution, then rerun the paired Task A
    order experiment. Revise ADR-003 before adopting.
-5. Only after calibration, design an attribute-aware support policy that preserves
+6. Only after calibration, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.
-6. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
+7. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
    instrument only if its question is still open and its negative control can
    be reproduced on current trunk.
-7. Treat temporal chunking as closed for plain voting.  Reopen only with an
+8. Treat temporal chunking as closed for plain voting.  Reopen only with an
    explicit proposal-quality target and a negative control that can show why
    one delayed origin should outrank another.
 

@@ -2209,6 +2209,81 @@
         "latency_measured": false,
         "adopted": false
       }
+    },
+    {
+      "id": "residual-metric-spans-two-coordinate-frames",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "The residual-diversity metric was applied across two coordinate frames and nobody had checked what that cost. `state-NNN.json` states the contract: `candidate_positions` are container-local, `packed_item_positions` are world, and the replayed `x_plus` position is world. So the overdraw stage scores container-local commands and the final observed stage scores world settled positions, and on a two-container board those frames differ by the container spacing -- measured at 2.5 m against item extents of tens of centimetres. Consequences: a cross-container pair saturates the normalised position term whatever the items did, container membership is counted twice (once by that offset, once by the `container_index` categorical), and the command proxy has the opposite bug, seeing two candidates at the same local spot in different containers as nearly identical. Measured on 454 retained boards by shifting settled x and y back into their own container's frame -- not z, because a commanded 0.227 settling to 0.175 is the item dropping five centimetres, not a frame difference. The optimizer's gain against its paired control is +0.074200 as reported and +0.071780 in one frame; on the 294 multi-container boards, +0.075168 against +0.071431, positive on every one of them in both frames. The 160 single-container boards are bit-identical by construction, which is the control on this control. So the defect is real and must be fixed in `settled_proxy_record`, but it is NOT the explanation for the observed-state swap optimizer's margin: the margin survives collapsing the frames, losing about 3 percent of its size.",
+      "source": "reports/residual-metric-frame/summary.json; scripts/measure_residual_metric_defect.py; tests/test_residual_metric_frame.py",
+      "values": {
+        "boards": 454,
+        "multi_container_boards": 294,
+        "single_container_boards": 160,
+        "container_spacing_m": 2.5,
+        "mean_delta_as_reported": 0.0742,
+        "mean_delta_single_frame": 0.07178,
+        "multi_container_delta_as_reported": 0.075168,
+        "multi_container_delta_single_frame": 0.071431,
+        "single_container_frames_identical": true,
+        "gain_survives_one_frame": true,
+        "defect_fixed_in_live_pipeline": false
+      }
+    },
+    {
+      "id": "residual-metric-is-two-questions-averaged-into-one-sum",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "The single Gower sum answers two different questions at once and cannot say which one moved. Placing a candidate occupies a region of a container AND consumes an item, leaving a different pool behind; two placements can match on one and differ on the other. The weighting was never chosen either: each categorical field contributes a full 1.0 while a normalised position difference contributes a fraction, so on observed records -- where only centre, size and settle tilt survive -- four of eleven terms are discrete identity. Measured: identity alone reproduces 0.793 of the full metric's 0.839 mean within-board rank agreement, so most of the ordering is discrete. Splitting the sum into an occupancy component (centre, size, settle tilt, container_index) and a consumption component (pool_index, item_index) and re-scoring the optimizer against its paired control in the corrected frame on 454 boards: mean delta occupancy +0.049909 with 452 wins, 0 ties, 2 losses; mean delta consumption +0.095786 with 294 wins, 81 ties, 79 losses. Both components are positive independently, so the optimizer is not winning one axis by sacrificing the other -- but consumption is much noisier, and the ties are boards where both arms drew the same item set, not boards the optimizer lost. The fix is to report the two components and stop fabricating a total, which is the rule the multi-axis selector already follows.",
+      "source": "reports/residual-metric-frame/summary.json; reports/residual-space/summary.json; scripts/residual_diversity.py; tests/test_residual_metric_frame.py",
+      "values": {
+        "boards": 454,
+        "identity_only_rank_agreement": 0.793,
+        "full_metric_rank_agreement": 0.839,
+        "geometry_only_rank_agreement": 0.658,
+        "mean_delta_occupancy": 0.049909,
+        "occupancy_win_tie_loss": [
+          452,
+          0,
+          2
+        ],
+        "mean_delta_consumption": 0.095786,
+        "consumption_win_tie_loss": [
+          294,
+          81,
+          79
+        ],
+        "both_components_positive": true,
+        "total_no_longer_fabricated": true,
+        "guard_still_reports_the_single_sum": true
+      }
+    },
+    {
+      "id": "learned-residual-space-loses-to-the-hand-made-proxy",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "A learned residual space does not yet beat the fourteen hand-made proxy fields at ordering candidate-versus-candidate afterstate difference, but the evidence is weaker than the headline. On 105108 within-board pairs from 130 boards over 8 cases, leave-one-case-out, against truth = the same Gower distance the acceptance guard reports on observed x_plus: command_proxy 0.839 mean within-board Spearman, candidate_mlp 0.432, set_attention 0.472. Read the decomposition before the headline, because the comparison is not fair to the learned arms: the proxy and the truth share their four categorical fields, so part of command_proxy's agreement is tautological. Identity alone scores 0.793 and geometry alone 0.658, and geometry-versus-geometry -- the only comparison with no shared terms on either side -- is 0.659. So the honest statement is that the proxy's geometry predicts the truth's geometry at about 0.66 and the learned arms have not been measured against that number on equal terms. This is why the same models beat the incumbent on safety ranking (0.842 within-state AUC against 0.733) yet lose here: the two tasks are different, and this one is scored against a metric that is 79 percent discrete identity. Do not read this as 'do not train a transformer'. It says the current residual metric is not a good target to learn, which is a statement about the metric.",
+      "source": "reports/residual-space/summary.json; scripts/measure_residual_space.py; tests/test_measure_residual_space.py",
+      "values": {
+        "pairs": 105108,
+        "boards": 130,
+        "cases": 8,
+        "split": "leave_one_case_out",
+        "mean_within_board_spearman": {
+          "command_proxy": 0.839,
+          "command_proxy_identity_only": 0.793,
+          "command_proxy_geometry_only": 0.658,
+          "geometry_versus_geometry": 0.659,
+          "candidate_mlp": 0.432,
+          "set_attention": 0.472
+        },
+        "proxy_win_is_mostly_identity": true,
+        "learned_arms_scored_on_equal_terms": false,
+        "verdict_is_about_the_metric_not_the_model": true
+      }
     }
   ]
 }

@@ -77,6 +77,25 @@ visible.
 - It is a dataset-coverage instrument. A positive delta means the sampled
   observed settle afterstates are more dispersed. It is not evidence about the
   live policy, placed count, fill, or the official score.
+- **The objective it maximises has two measured defects, and this document
+  claimed nothing about them until they were measured.** The metric spans two
+  coordinate frames -- commands are container-local, settled `x_plus` is
+  world, and the containers sit 2.5 m apart against item extents of tens of
+  centimetres -- and it averages two different questions into one sum: where
+  the item landed, and which item left the pool. Neither defect explains the
+  margin. Re-scoring 454 retained boards with both arms collapsed into a
+  single frame moves the mean delta from +0.074200 to +0.071780, positive on
+  every one of the 294 multi-container boards in both frames, and bit-identical
+  on the 160 single-container boards, which is the control on the correction.
+  Split into components, the delta is +0.049909 on occupancy (452 wins, 0
+  ties, 2 losses) and +0.095786 on consumption (294 wins, 81 ties, 79 losses),
+  so the optimizer is not winning one axis by giving up the other. The corpus
+  grows with every matrix run, so re-run the script rather than quoting these
+  numbers; the conclusion has held from 363 boards to 454. See
+  `scripts/measure_residual_metric_defect.py` and
+  `reports/residual-metric-frame/summary.md`. The defects are still live in
+  the pipeline: `settled_proxy_record` emits world coordinates and the
+  acceptance guard still reports the single sum.
 
 ## Ablation
 

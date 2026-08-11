@@ -538,11 +538,18 @@ class SafeSplitIntegrationTests(unittest.TestCase):
         _p, _n, _c, seeded_report, seeded = self.build(swap_rounds=64)
         _p0, _n0, _c0, greedy_report, greedy = self.build(swap_rounds=0)
 
-        self.assertEqual(
+        # The structural guarantee: when the control fills the quota, the
+        # search starts at the control, so the delta starts at zero and can
+        # only improve. It is zero as a *set* difference -- the same mean
+        # summed over the same distances in a different order -- so it lands
+        # within one ULP of zero, not on it. Asserting exact equality made
+        # this test depend on the summation order of an unordered set.
+        self.assertAlmostEqual(
             seeded_report["swap_optimizer"]["initial_objective"][
                 "mean_nearest_neighbor_distance_delta"
             ],
             0.0,
+            delta=1e-12,
         )
         self.assertEqual(
             greedy_report["swap_optimizer"]["terminated"], "disabled"

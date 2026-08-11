@@ -7,7 +7,10 @@
 | predictor | mean within-board Spearman | pooled Spearman |
 |---|---:|---:|
 | command_proxy | 0.839 | 0.841 |
+| command_proxy_identity_only | 0.793 | 0.807 |
+| command_proxy_geometry_only | 0.658 | 0.649 |
 | candidate_mlp | 0.432 | 0.395 |
 | set_attention | 0.472 | 0.415 |
+| geometry_versus_geometry | 0.659 | — |
 
-Pairs are formed inside a board, so this measures ordering of candidate-versus-candidate residual difference, not how different two boards are. Truth is the same Gower distance the acceptance guard reports, on observed x_plus. Every predictor is available before the replay, which is the expensive step -- so a learned winner would also mean a portfolio can be spread out without settling every overdrawn candidate first. A win for command_proxy means the fourteen hand-made fields already do the job.
+Pairs are formed inside a board, so this measures ordering of candidate-versus-candidate residual difference, not how different two boards are. Truth is the same Gower distance the acceptance guard reports, on observed x_plus. Every predictor is available before the replay, which is the expensive step -- so a learned winner would also mean a portfolio can be spread out without settling every overdrawn candidate first. A win for command_proxy means the fourteen hand-made fields already do the job. Read the decomposition before the headline: the proxy and the truth share their four categorical fields, so command_proxy_identity_only is how much of the agreement is tautological, and geometry_versus_geometry is the only comparison with no shared terms on either side.

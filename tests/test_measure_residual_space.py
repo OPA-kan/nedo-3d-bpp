@@ -7,6 +7,7 @@ import numpy as np
 from scripts.measure_residual_space import (
     board_pairs,
     command_record,
+    markdown,
     observed_record,
     spearman,
 )
@@ -114,6 +115,37 @@ class BoardPairTests(unittest.TestCase):
         self.assertAlmostEqual(
             spearman(columns["set_attention"], columns["truth"]), 1.0, 3
         )
+
+
+class MarkdownTests(unittest.TestCase):
+    """The render runs after a half-hour training run. It must not crash."""
+
+    def report(self) -> dict:
+        return {
+            "verdict": "hand_made_proxy_holds",
+            "best_predictor": "command_proxy",
+            "corpus": {"pairs": 12, "boards": 3, "cases": ["a", "b"]},
+            "design": {"truth": "gower_distance_over_observed_x_plus"},
+            "mean_within_board_spearman": {
+                "command_proxy": 0.84,
+                "geometry_versus_geometry": 0.66,
+            },
+            # Deliberately missing the diagnostic-only row: it has no pooled
+            # twin, and indexing it lost a completed run's markdown once.
+            "pooled_spearman": {"command_proxy": 0.84},
+            "interpretation": "why",
+        }
+
+    def test_a_row_without_a_pooled_twin_renders_as_a_dash(self):
+        rendered = markdown(self.report())
+
+        self.assertIn("| geometry_versus_geometry | 0.660 | — |", rendered)
+
+    def test_every_scored_predictor_reaches_the_table(self):
+        rendered = markdown(self.report())
+
+        for name in ("command_proxy", "geometry_versus_geometry"):
+            self.assertIn(f"| {name} |", rendered)
 
 
 if __name__ == "__main__":

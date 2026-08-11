@@ -1,15 +1,15 @@
 # CPU verification report
 
-- Timestamp: `2026-08-03T14:27:27+00:00`
-- Git SHA: `1c00664d3ea8fee8bf93960958de97fc7d2c35b8`
-- Python: `3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]`
-- Platform: `Linux-6.18.5-x86_64-with-glibc2.39`
+- Timestamp: `2026-08-11T11:12:55+00:00`
+- Git SHA: `dbb720e18a9da8bbfbf181dad94c2b5fe5cc944a`
+- Python: `3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]`
+- Platform: `Linux-6.18.5-fc-v20-x86_64-with-glibc2.39`
 - Processor: `x86_64`
 
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `53.915 s`
+- Runtime: `56.399 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,35 +21,35 @@
 <details><summary>unit tests (tail; full log: reports/raw/unit-tests.log)</summary>
 
 ```text
-test_arm_environment_preserves_legacy_and_enables_bounded (test_task_a_rollout.TaskARolloutTests.test_arm_environment_preserves_legacy_and_enables_bounded) ... ok
-test_base_arm_does_not_inherit_the_adopted_default (test_task_a_rollout.TaskARolloutTests.test_base_arm_does_not_inherit_the_adopted_default)
-The regression this guards: once bounded128 became the shipped ... ok
-test_builder_forces_task_a_contract_without_mutating_source (test_task_a_rollout.TaskARolloutTests.test_builder_forces_task_a_contract_without_mutating_source) ... ok
-test_default_arm_measures_the_shipped_submission (test_task_a_rollout.TaskARolloutTests.test_default_arm_measures_the_shipped_submission) ... ok
-test_summary_reads_isolated_rows (test_task_a_rollout.TaskARolloutTests.test_summary_reads_isolated_rows) ... ok
-test_unknown_arm_is_rejected (test_task_a_rollout.TaskARolloutTests.test_unknown_arm_is_rejected) ... ok
-test_matrix_contrasts_the_shipped_path_against_legacy (test_task_a_rollout_workflow.TaskARolloutWorkflowTests.test_matrix_contrasts_the_shipped_path_against_legacy)
-Post-ADR-002 the treatment arm is the shipped default, so the ... ok
-test_workflow_freezes_adoption_matrix_and_budgets (test_task_a_rollout_workflow.TaskARolloutWorkflowTests.test_workflow_freezes_adoption_matrix_and_budgets) ... ok
-test_builds_online_pool_case_without_mutating_source (test_task_b_config.TaskBConfigTests.test_builds_online_pool_case_without_mutating_source) ... ok
-test_rejects_pool_larger_than_item_stream (test_task_b_config.TaskBConfigTests.test_rejects_pool_larger_than_item_stream) ... ok
-test_supports_largest_planned_pool (test_task_b_config.TaskBConfigTests.test_supports_largest_planned_pool) ... ok
-test_builds_compact_case_table (test_task_b_summary.TaskBSummaryTests.test_builds_compact_case_table) ... ok
-test_confusion_matrix_is_labelled_as_selection_conditioned (test_task_b_summary.TaskBSummaryTests.test_confusion_matrix_is_labelled_as_selection_conditioned) ... ok
-test_counts_shadow_rejection_that_physically_succeeds (test_task_b_summary.TaskBSummaryTests.test_counts_shadow_rejection_that_physically_succeeds) ... ok
-test_records_coverage_and_starvation_failure_mode (test_task_b_summary.TaskBSummaryTests.test_records_coverage_and_starvation_failure_mode) ... ok
-test_selected_confusion_matrix_covers_all_four_cells (test_task_b_summary.TaskBSummaryTests.test_selected_confusion_matrix_covers_all_four_cells) ... ok
-test_separates_physical_labels_from_the_composite (test_task_b_summary.TaskBSummaryTests.test_separates_physical_labels_from_the_composite) ... ok
-test_trace_is_partitioned_by_init_for_each_case (test_task_b_summary.TaskBSummaryTests.test_trace_is_partitioned_by_init_for_each_case) ... ok
-test_compact_aggregate_is_saved_by_run_id_on_the_live_trunk (test_task_b_workflow.TaskBAggregatePersistenceTests.test_compact_aggregate_is_saved_by_run_id_on_the_live_trunk) ... ok
-test_only_the_aggregate_job_gets_write_permission (test_task_b_workflow.TaskBAggregatePersistenceTests.test_only_the_aggregate_job_gets_write_permission) ... ok
-test_push_conflicts_fetch_rebase_and_retry (test_task_b_workflow.TaskBAggregatePersistenceTests.test_push_conflicts_fetch_rebase_and_retry) ... ok
-test_reusable_workflow_caller_grants_write_permission (test_task_b_workflow.TaskBAggregatePersistenceTests.test_reusable_workflow_caller_grants_write_permission) ... ok
+Only the CENTRE shelf is flag-controlled; conflating the two is ... ok
+test_outside_the_band_the_official_drop_height_returns (test_transport_plane_contract.TransportPlaneContractTests.test_outside_the_band_the_official_drop_height_returns)
+Beyond 50 mm above the plane the 80 mm lift applies again, which ... ok
+test_resting_planes_match_the_small_shelf_faces (test_transport_plane_contract.TransportPlaneContractTests.test_resting_planes_match_the_small_shelf_faces)
+The official reason for the planes: the small shelf always ... ok
+test_shelf_plane_suppresses_the_lift_without_a_shelf (test_transport_plane_contract.TransportPlaneContractTests.test_shelf_plane_suppresses_the_lift_without_a_shelf)
+A bottom just above the shelf plane is a direct approach even ... ok
+test_the_floor_plane_is_also_unconditional (test_transport_plane_contract.TransportPlaneContractTests.test_the_floor_plane_is_also_unconditional) ... ok
+test_the_same_pose_behaves_identically_with_a_shelf (test_transport_plane_contract.TransportPlaneContractTests.test_the_same_pose_behaves_identically_with_a_shelf) ... ok
+test_transport_samples_use_the_same_plane_logic (test_transport_plane_contract.TransportPlaneContractTests.test_transport_samples_use_the_same_plane_logic)
+Both transport builders must agree; the sampled path is the one ... ok
 test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
+test_a_shelf_container_has_no_deep_floor_zone (test_zone_order.ZoneClassificationTests.test_a_shelf_container_has_no_deep_floor_zone) ... ok
+test_a_shelfless_container_has_only_deep_and_centre (test_zone_order.ZoneClassificationTests.test_a_shelfless_container_has_only_deep_and_centre) ... ok
+test_a_tall_floor_pose_by_the_door_is_not_shelf_top (test_zone_order.ZoneClassificationTests.test_a_tall_floor_pose_by_the_door_is_not_shelf_top)
+The defect this exists for. Classifying on the pose's TOP made a tall ... ok
+test_resting_on_the_shelf_is_shelf_top (test_zone_order.ZoneClassificationTests.test_resting_on_the_shelf_is_shelf_top) ... ok
+test_under_the_shelf_is_its_own_zone (test_zone_order.ZoneClassificationTests.test_under_the_shelf_is_its_own_zone) ... ok
+test_an_unknown_mode_is_refused_at_import (test_zone_order.ZoneScoreTests.test_an_unknown_mode_is_refused_at_import) ... ok
+test_doctrine_ranks_the_shelf_top_above_under_the_shelf (test_zone_order.ZoneScoreTests.test_doctrine_ranks_the_shelf_top_above_under_the_shelf) ... ok
+test_off_by_default_leaves_the_score_untouched (test_zone_order.ZoneScoreTests.test_off_by_default_leaves_the_score_untouched) ... ok
+test_reversed_inverts_it (test_zone_order.ZoneScoreTests.test_reversed_inverts_it) ... ok
+test_the_bonus_span_is_three_units (test_zone_order.ZoneScoreTests.test_the_bonus_span_is_three_units) ... ok
+test_the_span_must_clear_the_support_term (test_zone_order.ZoneScoreTests.test_the_span_must_clear_the_support_term)
+Why the default bonus is 1.0 and not 0.5. ... ok
 
 ----------------------------------------------------------------------
-Ran 492 tests in 53.085s
+Ran 735 tests in 55.801s
 
-OK
+OK (skipped=5)
 ```
 </details>

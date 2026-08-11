@@ -32,6 +32,34 @@ CATEGORICAL_FIELDS = (
 )
 RISK_FIELDS = CONTINUOUS_FIELDS[6:-1]
 
+# Two kinds of "different residual state", kept apart on purpose.
+#
+# Placing a candidate changes the board in two ways that a single Gower sum
+# silently averages together. It occupies a region of a container, and it
+# consumes an item, leaving a different pool behind. Two placements can match
+# on one and differ on the other, and the sum cannot say which.
+#
+# The weighting was never chosen either: each categorical field contributes a
+# full 1.0 while a normalised position difference contributes a fraction, so
+# on the observed records -- where only centre, size and settle tilt survive
+# -- four of eleven terms are discrete identity, and they carry most of the
+# ordering. Measured on the retained corpus: identity alone reproduces 0.793
+# of the full metric's 0.839 rank agreement with itself.
+#
+# So report the two components, and do not fabricate a total. This is the
+# same rule the multi-axis selector already follows.
+OCCUPANCY_CONTINUOUS = (
+    "center_x",
+    "center_y",
+    "center_z",
+    "size_x",
+    "size_y",
+    "size_z",
+    "settle_tilt_deg",
+)
+OCCUPANCY_CATEGORICAL = ("container_index",)
+CONSUMPTION_CATEGORICAL = ("pool_index", "item_index")
+
 
 def residual_proxy_features(record: dict[str, Any]) -> dict[str, Any]:
     """
@@ -130,15 +158,21 @@ def feature_vector_distance(
     *,
     scales: tuple[float, ...],
 ) -> float:
-    """Gower-style distance over mixed residual-proxy features."""
+    """Gower-style distance over mixed residual-proxy features.
+
+    The arities come from the vectors, not from the module-level field
+    tuples: a component vector carries fewer fields than the full
+    descriptor, and reading the count from ``CATEGORICAL_FIELDS`` would
+    index past its end.
+    """
     terms: list[float] = []
-    for index, scale in enumerate(scales):
+    for index, scale in enumerate(scales[: len(left[0])]):
         left_value = left[0][index]
         right_value = right[0][index]
         if left_value is None or right_value is None or scale <= 0.0:
             continue
         terms.append(abs(left_value - right_value) / scale)
-    for index in range(len(CATEGORICAL_FIELDS)):
+    for index in range(min(len(left[1]), len(right[1]))):
         terms.append(0.0 if left[1][index] == right[1][index] else 1.0)
     return sum(terms) / len(terms) if terms else 0.0
 
@@ -287,6 +321,78 @@ def settled_proxy_record(
         "size": [float(value) for value in dimensions],
         "settle_tilt_deg": tilt_deg,
     }
+
+
+def component_vector(
+    record: dict[str, Any], names: tuple[str, ...]
+) -> tuple[tuple[float | None, ...], tuple[Any, ...]]:
+    """A descriptor restricted to one named component."""
+    features = residual_proxy_features(record)
+    continuous = tuple(
+        features["continuous"].get(name)
+        for name in names
+        if name in CONTINUOUS_FIELDS
+    )
+    categorical = tuple(
+        int(record.get(name, -1))
+        for name in names
+        if name not in CONTINUOUS_FIELDS
+    )
+    return continuous, categorical
+
+
+def occupancy_distance(
+    left: dict[str, Any],
+    right: dict[str, Any],
+    *,
+    scales: tuple[float, ...],
+) -> float:
+    """Do these two placements occupy a different region of a container?
+
+    Geometry plus container membership, and nothing else. Positions must
+    already be in a single frame; `settled_proxy_record` emits world
+    coordinates while commands are container-local, and on a two-container
+    board that difference is the container spacing.
+    """
+    return feature_vector_distance(
+        component_vector(left, OCCUPANCY_CONTINUOUS + OCCUPANCY_CATEGORICAL),
+        component_vector(right, OCCUPANCY_CONTINUOUS + OCCUPANCY_CATEGORICAL),
+        scales=scales,
+    )
+
+
+def consumption_distance(
+    left: dict[str, Any], right: dict[str, Any]
+) -> float:
+    """Do these two placements consume a different item?
+
+    Not decoration: the residual state includes what is left to pack, so two
+    placements with identical occupancy but different items leave different
+    futures. It is a separate question from occupancy, which is why it is a
+    separate number.
+    """
+    a = component_vector(left, CONSUMPTION_CATEGORICAL)[1]
+    b = component_vector(right, CONSUMPTION_CATEGORICAL)[1]
+    return sum(
+        0.0 if x == y else 1.0 for x, y in zip(a, b)
+    ) / max(1, len(a))
+
+
+def occupancy_scales(
+    records: list[dict[str, Any]],
+) -> tuple[float, ...]:
+    vectors = [
+        component_vector(record, OCCUPANCY_CONTINUOUS) for record in records
+    ]
+    scales: list[float] = []
+    for index in range(len(OCCUPANCY_CONTINUOUS)):
+        values = [
+            vector[0][index]
+            for vector in vectors
+            if vector[0][index] is not None
+        ]
+        scales.append(max(values) - min(values) if values else 0.0)
+    return tuple(scales)
 
 
 def paired_mean_nn_objective(

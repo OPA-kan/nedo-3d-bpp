@@ -376,7 +376,11 @@ def markdown(report: dict[str, Any]) -> str:
         "|---|---:|---:|",
     ]
     for name, value in report["mean_within_board_spearman"].items():
-        pooled = report["pooled_spearman"][name]
+        # Not every row has a pooled twin: `geometry_versus_geometry` is a
+        # within-board diagnostic only. Indexing here crashed the render
+        # AFTER the training run had already written the JSON, which is how
+        # the two files came to disagree.
+        pooled = report["pooled_spearman"].get(name)
         lines.append(
             f"| {name} | "
             f"{'—' if value is None else f'{value:.3f}'} | "

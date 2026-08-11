@@ -43,7 +43,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.residual_diversity import (  # noqa: E402
+    consumption_distance,
     nearest_neighbor_distances,
+    occupancy_distance,
+    occupancy_scales,
     proxy_feature_vector,
     scale_vector,
     settled_proxy_record,
@@ -94,6 +97,29 @@ def mean_nn(records: list[dict[str, Any]], reference) -> float | None:
     nearest = nearest_neighbor_distances(
         [proxy_feature_vector(r) for r in records], scales=scales
     )
+    return sum(nearest) / len(nearest) if nearest else None
+
+
+def component_mean_nn(
+    records: list[dict[str, Any]],
+    reference: list[dict[str, Any]],
+    kind: str,
+) -> float | None:
+    """Mean nearest-neighbour distance under one named component alone."""
+    if len(records) < 2:
+        return None
+    scales = occupancy_scales(reference)
+    nearest: list[float] = []
+    for index, record in enumerate(records):
+        distances = [
+            occupancy_distance(record, other, scales=scales)
+            if kind == "occupancy"
+            else consumption_distance(record, other)
+            for other_index, other in enumerate(records)
+            if other_index != index
+        ]
+        if distances:
+            nearest.append(min(distances))
     return sum(nearest) / len(nearest) if nearest else None
 
 
@@ -161,6 +187,16 @@ def score(board: dict[str, Any]) -> dict[str, Any]:
         "control_rows": len(control),
         "delta_as_reported": delta(as_reported, control_reported),
         "delta_single_frame": delta(as_local, control_local),
+        # The two components the single sum was averaging together, each in
+        # the corrected frame.
+        "delta_occupancy": delta(
+            component_mean_nn(local_positive, local_reference, "occupancy"),
+            component_mean_nn(local_control, local_reference, "occupancy"),
+        ),
+        "delta_consumption": delta(
+            component_mean_nn(local_positive, local_reference, "consumption"),
+            component_mean_nn(local_control, local_reference, "consumption"),
+        ),
     }
 
 
@@ -176,15 +212,37 @@ def measure(root: pathlib.Path) -> dict[str, Any]:
         return {"verdict": "no_scorable_boards"}
 
     def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        reported = [row["delta_as_reported"] for row in rows]
-        single = [row["delta_single_frame"] for row in rows]
-        return {
+        def column(name: str) -> list[float]:
+            return [
+                row[name] for row in rows if row.get(name) is not None
+            ]
+
+        summary = {
             "boards": len(rows),
-            "mean_delta_as_reported": sum(reported) / len(rows),
-            "mean_delta_single_frame": sum(single) / len(rows),
-            "boards_positive_as_reported": sum(v > 0 for v in reported),
-            "boards_positive_single_frame": sum(v > 0 for v in single),
+            "mean_delta_as_reported": sum(column("delta_as_reported"))
+            / len(rows),
+            "mean_delta_single_frame": sum(column("delta_single_frame"))
+            / len(rows),
+            "boards_positive_as_reported": sum(
+                v > 0 for v in column("delta_as_reported")
+            ),
+            "boards_positive_single_frame": sum(
+                v > 0 for v in column("delta_single_frame")
+            ),
         }
+        for name in ("delta_occupancy", "delta_consumption"):
+            values = column(name)
+            summary[f"mean_{name}"] = (
+                sum(values) / len(values) if values else None
+            )
+            summary[f"boards_positive_{name}"] = sum(v > 0 for v in values)
+            # Ties are not losses. On the consumption axis both arms often
+            # draw the same item set, and reading "positive" against "scored"
+            # would count those boards against the optimizer.
+            summary[f"boards_tied_{name}"] = sum(v == 0 for v in values)
+            summary[f"boards_negative_{name}"] = sum(v < 0 for v in values)
+            summary[f"boards_scored_{name}"] = len(values)
+        return summary
 
     multi = [row for row in boards if row["containers"] > 1]
     single = [row for row in boards if row["containers"] <= 1]
@@ -253,6 +311,42 @@ def markdown(report: dict[str, Any]) -> str:
             f"{block['mean_delta_single_frame']:+.6f} | "
             f"{block['boards_positive_as_reported']} | "
             f"{block['boards_positive_single_frame']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## the two components the sum was averaging together",
+            "",
+            "Occupancy is where the item landed and in which container; "
+            "consumption is which item was taken out of the pool. A single "
+            "Gower sum averages them, and cannot say which one moved.",
+            "",
+            "| board set | mean Δ occupancy | win/tie/loss | "
+            "mean Δ consumption | win/tie/loss |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for name, key in (
+        ("all", "all_boards"),
+        ("multi-container", "multi_container_boards"),
+        ("single-container", "single_container_boards"),
+    ):
+        block = report.get(key)
+        if not block:
+            continue
+
+        def cell(component: str) -> str:
+            mean = block.get(f"mean_{component}")
+            record = "/".join(
+                str(block.get(f"boards_{outcome}_{component}", 0))
+                for outcome in ("positive", "tied", "negative")
+            )
+            shown = "—" if mean is None else f"{mean:+.6f}"
+            return f"{shown} | {record}"
+
+        lines.append(
+            f"| {name} | {cell('delta_occupancy')} | "
+            f"{cell('delta_consumption')} |"
         )
     lines.extend(["", report["contract"], ""])
     return "\n".join(lines)
