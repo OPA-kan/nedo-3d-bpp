@@ -1163,6 +1163,7 @@ def run_case(
         truncated = False
         last_info: dict[str, Any] | None = None
         step = 0
+        action_prefix: list[dict[str, Any]] = []
         final_step = max(target_steps)
         started = time.perf_counter()
         budget_exhausted_at: int | None = None
@@ -1208,6 +1209,7 @@ def run_case(
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
                         scenario=scenario,
+                        action_prefix=action_prefix,
                     )
                 )
                 # Persist after every completed step so an interrupted run
@@ -1222,6 +1224,7 @@ def run_case(
                 info,
             ) = env.step(action)
             last_info = info
+            action_prefix.append(json_safe(action))
             step += 1
     finally:
         env.close()
@@ -1281,16 +1284,25 @@ def collect_step(
     oracle_limit: int | None,
     preview_limit: int,
     scenario: dict[str, Any],
+    action_prefix: list[dict[str, Any]],
 ) -> dict[str, Any]:
     step_label = f"step-{step:03d}"
     snapshot_id = f"{dataset_id}:{case_id}:{step_label}"
     snapshot_path = output_dir / f"{step_label}-state.json"
+    snapshot = state_snapshot(env, observation, case_id=case_id, step=step)
+    from scripts.counterfactual_graph import (
+        board_fingerprint,
+        capture_replay_contract,
+    )
+
+    snapshot["replay_contract"] = capture_replay_contract(
+        env,
+        action_prefix,
+        seed=42,
+    )
+    snapshot["board_fingerprint"] = board_fingerprint(snapshot)
     snapshot_path.write_text(
-        json.dumps(
-            state_snapshot(env, observation, case_id=case_id, step=step),
-            ensure_ascii=False,
-            indent=2,
-        ),
+        json.dumps(snapshot, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -1541,6 +1553,9 @@ def collect_step(
         "status": "ok" if selection_error is None else "selection_mismatch",
         "error": selection_error,
         "snapshot_path": snapshot_path.name,
+        "board_fingerprint": snapshot["board_fingerprint"],
+        "future_stream_id": snapshot["replay_contract"]["future_stream_id"],
+        "action_prefix_id": snapshot["replay_contract"]["action_prefix_id"],
         "dataset_path": dataset_path.name,
         "control_dataset_path": (
             control_dataset_path.name

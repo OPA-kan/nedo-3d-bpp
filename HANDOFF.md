@@ -42,6 +42,33 @@ These are source defaults in `agent/agent.py`, not proposed settings:
 agent change. The official simulator itself must not be changed to make an
 agent pass.
 
+## Active dataset branch: 3–5 step counterfactual graph
+
+Branch `experiment/counterfactual-graph` starts from the latest observed-state
+dataset line (`aebc4bd`) and is intentionally separate from the live agent.
+The direction is fixed in `docs/COUNTERFACTUAL_GRAPH.md`: preserve bounded
+multi-step futures as a deterministic DAG, not as independent one-step rows.
+Nodes are settled residual states; edges are commanded placements with
+separate physical and multi-axis labels. Sibling branches must share the same
+future stream and fixed attempt budget.
+
+The first slice is implemented but is not yet a physical H3 result:
+
+- `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,
+  DAG state convergence, branch/node/edge budgets, atomic JSON output and an
+  independent-env prefix replay contract.
+- replay-dataset snapshots now retain the optimized item order, visible pool,
+  stream offset, exact action prefix, future-stream ID and board fingerprint.
+- prefix replay refuses to label a branch unless the reconstructed root
+  fingerprint matches. PyBullet `saveState` alone is explicitly insufficient
+  because it omits Python stream/container state.
+- no ranker, policy default, simulator rule or final holdout was changed.
+
+Next: add the bounded physical branch executor, beginning with branch factor
+2–3 and horizon 3 on development/validation roots; verify independent-env
+prefix identity in Linux CI before expanding to horizon 5. Raw graphs remain
+artifacts, while compact manifests and aggregate evidence are committed.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |
