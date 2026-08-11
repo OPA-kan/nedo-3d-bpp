@@ -2,12 +2,12 @@
 
 **This file is generated.** Rebuild it with `python scripts/index_replay_corpus.py`.
 
-- Runs retained: 11
-- Size: 225 MB raw, about 15 MB stored
-- Distinct states (board fingerprints): **171** across 9 cases and 96 (case, step) slots
-- States reached by more than one run: 74
+- Runs retained: 12
+- Size: 248 MB raw, about 17 MB stored
+- Distinct states (board fingerprints): **174** across 9 cases and 96 (case, step) slots
+- States reached by more than one run: 80
 - **Runs holding an unfinished dataset: ['31391424126', '31393167142', '31394891316']** — those rows are labelled correctly but their scenario did not run to the end.
-- Rows across all runs: negative_physical_risk 5999, paired_random_control 9718, positive_transition 9789
+- Rows across all runs: negative_physical_risk 6560, paired_random_control 10713, positive_transition 10791
 
 | run | arm (swap rounds) | verdict | scenarios | states | positive | negative | control |
 |---|---:|---|---:|---:|---:|---:|---:|
@@ -22,5 +22,6 @@
 | `31476716531` | 64 | fail | 8 | 46 | 984 | 619 | 975 |
 | `31478264881` | 64 | pass | 8 | 45 | 948 | 511 | 940 |
 | `31484299493` | 64 | pass | 8 | 46 | 1056 | 571 | 1052 |
+| `31485721899` | 64 | pass | 8 | 46 | 1002 | 561 | 995 |
 
 A state is a board fingerprint, not a (case, step) label: the policy is deadline-limited, so two runs of one scenario reach different boards at the same step index. Re-running the matrix therefore adds states. Rows inside one state share a parent and are not independent examples. Arms are not merged.
