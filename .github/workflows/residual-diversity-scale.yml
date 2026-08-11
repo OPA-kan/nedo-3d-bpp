@@ -27,12 +27,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: residual-diversity-scale-${{ github.ref }}
-  # A matrix run is a measurement, and the `[skip ...]` guard is a job-level
-  # `if` while cancellation is run-level: a push whose jobs all skip still
-  # killed the run in flight. That is how 31391424126 lost its
-  # single-empty-noshelf job at step 15 and then committed a partial corpus
-  # under a "fail" verdict. Queue instead of cancelling.
+  # Per-run, i.e. no grouping at all. Two earlier attempts at this were both
+  # wrong. Grouping with cancel-in-progress killed a measurement mid-flight
+  # when a push whose jobs all skipped entered the group -- the skip guard is
+  # a job-level `if` while cancellation is run-level -- and that is how
+  # 31391424126 lost single-empty-noshelf and committed a partial corpus.
+  # Turning cancellation off did not fix it either: a group holds at most one
+  # PENDING run, so dispatching three runs to accumulate states cancelled two
+  # of them (31394867759 and 31394879139) before they started.
+  #
+  # Runs are measurements and must never cancel each other. The reason a
+  # group existed at all was the shared push at the end, and that is handled
+  # where it happens, by rebase-and-retry in the aggregate job.
+  group: residual-diversity-scale-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:

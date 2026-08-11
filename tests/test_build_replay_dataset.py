@@ -987,6 +987,22 @@ class DatasetCompletenessTests(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(beyond, [18])
 
+    def test_an_episode_ending_exactly_at_a_target_step_is_not_a_defect(self):
+        # The boundary case, and the one that actually bit: a step is
+        # measured before env.step, so an episode reporting 20 executed steps
+        # never had a step 20 to collect. Testing `> executed` instead of
+        # `>= executed` dropped single-empty-shelf out of run 31394891316.
+        problems, deferred = dataset_problems(
+            self.case(
+                unreached_steps=[20],
+                episode_terminated=True,
+                episode_steps_executed=20,
+            )
+        )
+
+        self.assertEqual(problems, [])
+        self.assertEqual(deferred, [20])
+
     def test_a_step_missed_while_the_episode_ran_on_is_still_a_problem(self):
         problems, beyond = dataset_problems(
             self.case(unreached_steps=[9], episode_steps_executed=20)

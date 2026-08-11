@@ -3,6 +3,7 @@
 **This file is generated.** Rebuild it with `python scripts/index_replay_corpus.py`.
 
 - Runs retained: 3
+- Size: 50 MB raw, about 3 MB stored
 - Distinct states (board fingerprints): **93** across 9 cases and 92 (case, step) slots
 - States reached by more than one run: 8
 - **Runs holding an unfinished dataset: ['31391424126', '31393167142', '31394891316']** — those rows are labelled correctly but their scenario did not run to the end.

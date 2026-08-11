@@ -77,13 +77,18 @@ class ResidualDiversityWorkflowTests(unittest.TestCase):
         default = text.split('default: "3', 1)[1].split('"', 1)[0]
         self.assertGreaterEqual(len(("3" + default).split()), 3)
 
-    def test_a_push_does_not_cancel_a_measurement_already_running(self):
+    def test_runs_never_cancel_each_other(self):
         text = SCALE_WORKFLOW.read_text(encoding="utf-8")
 
-        # The skip guard is a job-level `if` and cancellation is run-level, so
-        # a push whose jobs all skip once killed a run mid-measurement and
-        # committed a partial corpus under a "fail" verdict.
+        # Two ways this went wrong. cancel-in-progress killed a run
+        # mid-measurement when a push whose jobs all skipped entered the
+        # group. And a concurrency group holds at most one PENDING run, so
+        # even with cancellation off, dispatching several runs to accumulate
+        # states cancelled all but the last before they started. A run is a
+        # measurement; the group must not be shared at all.
         self.assertIn("cancel-in-progress: false", text)
+        group = text.split("group:", 1)[1].split("\n", 1)[0]
+        self.assertIn("github.run_id", group)
 
     def test_scale_workflow_retains_the_rows_not_only_the_verdict(self):
         text = SCALE_WORKFLOW.read_text(encoding="utf-8")

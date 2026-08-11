@@ -1046,8 +1046,14 @@ def dataset_problems(case: dict[str, Any]) -> tuple[list[str], list[int]]:
         case.get("episode_terminated") or case.get("episode_truncated")
     )
     executed = int(case.get("episode_steps_executed", 0))
+    # `episode_steps_executed` counts steps taken, so the last index that
+    # could ever have been collected is executed - 1: the step is measured
+    # BEFORE env.step, and an episode that ends on the transition out of
+    # step n-1 never reaches n. `>` here instead of `>=` left exactly the
+    # boundary case -- the episode ending precisely at a target step --
+    # looking like a defect, which dropped that scenario from the verdict.
     beyond_end = (
-        [step for step in unreached if step > executed] if ended else []
+        [step for step in unreached if step >= executed] if ended else []
     )
     # Stopping on the wall-clock budget is a deliberate, reported choice, not
     # a defect: the alternative is the CI job timeout killing the process
