@@ -1,0 +1,96 @@
+name: Counterfactual graph physical pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - scripts/counterfactual_graph.py
+      - scripts/build_counterfactual_graph.py
+      - scripts/build_replay_dataset.py
+      - tests/test_replay_integration.py
+      - .github/workflows/counterfactual-graph-pilot.yml
+
+concurrency:
+  group: counterfactual-graph-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  h3-b2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify physical graph contract
+        run: python -m unittest tests.test_replay_integration -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build bounded Task B development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case 000
+          --task-id b000-k20
+          --look-ahead 20
+          --policy-timeout 8
+          --output reports/counterfactual-graph/config.json
+      - name: Capture a replayable step-3 root
+        run: >-
+          python scripts/build_replay_dataset.py
+          --config reports/counterfactual-graph/config.json
+          --case b000-k20
+          --steps 3
+          --per-stratum 1
+          --oracle-limit 16
+          --sampling-mode stratified_random
+          --risk-gate-mode shadow
+          --split development
+          --skip-optimize
+          --output-dir reports/counterfactual-graph/root
+      - name: Expand H3 branch-factor-2 graph
+        run: >-
+          python scripts/build_counterfactual_graph.py
+          --snapshot reports/counterfactual-graph/root/step-003-state.json
+          --config reports/counterfactual-graph/config.json
+          --case b000-k20
+          --split development
+          --horizon 3
+          --branch-factor 2
+          --attempt-budget 512
+          --max-nodes 15
+          --max-edges 14
+          --output reports/counterfactual-graph/h3-b2.json
+      - name: Publish compact graph counts
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import collections
+          import json
+          import pathlib
+
+          path = pathlib.Path("reports/counterfactual-graph/h3-b2.json")
+          graph = json.loads(path.read_text(encoding="utf-8"))
+          depths = collections.Counter(node["depth"] for node in graph["nodes"])
+          terminals = collections.Counter(
+              node["terminal_reason"] or "open" for node in graph["nodes"]
+          )
+          safe = sum(
+              edge["immediate_outcomes"].get("is_placed_safe") is True
+              for edge in graph["edges"]
+          )
+          print("# Counterfactual graph H3/B2 pilot")
+          print(f"- graph: `{graph['graph_id']}`")
+          print(f"- nodes by depth: `{dict(sorted(depths.items()))}`")
+          print(f"- edges: `{len(graph['edges'])}`; safe: `{safe}`")
+          print(f"- terminal reasons: `{dict(terminals)}`")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: counterfactual-graph-h3-b2-${{ github.run_id }}
+          path: reports/counterfactual-graph/
