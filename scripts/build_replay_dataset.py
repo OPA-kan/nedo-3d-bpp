@@ -75,6 +75,7 @@ from scripts.residual_diversity import (  # noqa: E402
     settled_portfolio_comparison,
 )
 from scripts.observed_state_swap import (  # noqa: E402
+    ACCEPTANCE_RULES,
     annotate_swapped_portfolio,
     optimize_observed_state_portfolio,
     seed_keys_from_control,
@@ -90,6 +91,15 @@ REQUIRED_PYTHON = (3, 12)
 # most one swap, so this also caps how far the portfolio can travel from the
 # control seed.
 DEFAULT_SWAP_ROUNDS = 64
+# Adopted on the paired evidence in run 31491047020: refusing a swap that
+# degrades a component raises consumption diversity (+0.030, 25/15/4,
+# sign-test p=0.0001) and does not measurably move occupancy (p=0.0989). It
+# costs the single Gower sum, which is a weighting nobody chose, and the
+# acceptance guard still clears zero on every board with margin. The rule it
+# replaces stays available and now runs as the shadow, so the pairing that
+# produced this evidence keeps running in reverse.
+DEFAULT_SWAP_ACCEPTANCE = "pareto_gate"
+SHADOW_SWAP_ACCEPTANCE = "sum"
 DIVERSITY_SAMPLING_MODES = frozenset(
     {
         "residual_diversity",
@@ -503,6 +513,7 @@ def split_observed_outcomes(
     forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
     swap_rounds: int = DEFAULT_SWAP_ROUNDS,
     container_offsets: dict[int, tuple[float, float]] | None = None,
+    acceptance: str = DEFAULT_SWAP_ACCEPTANCE,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -603,6 +614,7 @@ def split_observed_outcomes(
         observed=observed_afterstates,
         forced_keys=positive_forced,
         max_rounds=int(swap_rounds),
+        acceptance=acceptance,
     )
     # A shadow arm, measured and discarded. Same board, same pool, same seed,
     # same forced keys -- the acceptance rule is the only thing that differs,
@@ -617,7 +629,11 @@ def split_observed_outcomes(
         observed=observed_afterstates,
         forced_keys=positive_forced,
         max_rounds=int(swap_rounds),
-        acceptance="pareto_gate",
+        acceptance=(
+            SHADOW_SWAP_ACCEPTANCE
+            if acceptance != SHADOW_SWAP_ACCEPTANCE
+            else DEFAULT_SWAP_ACCEPTANCE
+        ),
     )
     if int(swap_rounds) > 0:
         positive_table = annotate_swapped_portfolio(
@@ -1121,6 +1137,7 @@ def run_case(
     sampling_mode: str = "stratified_random",
     overdraw_factor: int = 2,
     swap_rounds: int = DEFAULT_SWAP_ROUNDS,
+    swap_acceptance: str = DEFAULT_SWAP_ACCEPTANCE,
     max_seconds: float = 0.0,
     on_progress=None,
 ) -> dict[str, Any]:
@@ -1186,6 +1203,7 @@ def run_case(
                         sampling_mode=sampling_mode,
                         overdraw_factor=overdraw_factor,
                         swap_rounds=swap_rounds,
+                        swap_acceptance=swap_acceptance,
                         seed=seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
@@ -1258,6 +1276,7 @@ def collect_step(
     sampling_mode: str,
     overdraw_factor: int,
     swap_rounds: int,
+    swap_acceptance: str,
     seed: int,
     oracle_limit: int | None,
     preview_limit: int,
@@ -1414,6 +1433,7 @@ def collect_step(
                 forced_keys=forced_reasons,
                 swap_rounds=swap_rounds,
                 container_offsets=container_offsets,
+                acceptance=swap_acceptance,
             )
         )
         stratum_table = outcome_split["positive_strata"]
@@ -1690,6 +1710,20 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--observed-swap-acceptance",
+        choices=list(ACCEPTANCE_RULES),
+        default=DEFAULT_SWAP_ACCEPTANCE,
+        help=(
+            "Which swap the search accepts. `sum` takes any move that raises "
+            "the single Gower mean-nearest-neighbour delta, which averages "
+            "occupancy and consumption with weights nobody chose and can pay "
+            "for one with the other. `pareto_gate`, the default, keeps that "
+            "ordering but refuses a move that degrades either component. "
+            "Whichever is chosen, the other runs as a measured-and-discarded "
+            "shadow on the same board, so the pair stays comparable."
+        ),
+    )
+    parser.add_argument(
         "--observed-swap-rounds",
         type=int,
         default=DEFAULT_SWAP_ROUNDS,
@@ -1761,6 +1795,11 @@ def main() -> int:
         raise SystemExit("--overdraw-factor must be at least 1")
     if int(args.observed_swap_rounds) < 0:
         raise SystemExit("--observed-swap-rounds must not be negative")
+    if args.observed_swap_acceptance not in ACCEPTANCE_RULES:
+        raise SystemExit(
+            "--observed-swap-acceptance must be one of "
+            + ", ".join(ACCEPTANCE_RULES)
+        )
 
     config_bytes = args.config.read_bytes()
     run_id = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1797,6 +1836,7 @@ def main() -> int:
         "sampling_mode": str(args.sampling_mode),
         "overdraw_factor": int(args.overdraw_factor),
         "observed_swap_rounds": int(args.observed_swap_rounds),
+        "observed_swap_acceptance": str(args.observed_swap_acceptance),
         "max_seconds": float(args.max_seconds),
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
@@ -1816,6 +1856,7 @@ def main() -> int:
             "sampling_mode": str(args.sampling_mode),
             "overdraw_factor": int(args.overdraw_factor),
             "observed_swap_rounds": int(args.observed_swap_rounds),
+        "observed_swap_acceptance": str(args.observed_swap_acceptance),
         },
         "label_contract": {
             "transport": "official_check_transport_path",
@@ -1866,6 +1907,7 @@ def main() -> int:
             skip_optimize=args.skip_optimize,
             overdraw_factor=int(args.overdraw_factor),
             swap_rounds=int(args.observed_swap_rounds),
+            swap_acceptance=str(args.observed_swap_acceptance),
             max_seconds=float(args.max_seconds),
             on_progress=on_progress,
         )

@@ -148,6 +148,35 @@ the two.
 `scripts/measure_swap_acceptance.py` aggregates the pairs, and the matrix
 workflow runs it into the step summary.
 
+### What the pairs said, and what changed
+
+Run `31491047020`, 44 boards, both rules on each. The question was live:
+the sum rule accepted 171 swaps that raised the sum while a component fell,
+on 40 of the 44 boards.
+
+| gate − sum | mean | win/tie/loss | sign test | call |
+|---|---:|---:|---:|---|
+| Δ consumption | +0.029919 | 25/15/4 | p=0.0001 | gate better |
+| Δ occupancy | +0.001921 | 24/7/13 | p=0.0989 | indistinguishable |
+| single Gower ΔNN | −0.005548 | 2/6/36 | p<0.0001 | sum better |
+
+Consumption is a real gain, raising the mean delta from 0.095 to 0.125.
+Occupancy is **not** a win: a +0.0019 mean with 24 boards better and 13
+worse reads like one, and an exact two-sided sign test says otherwise. The
+sum falls by construction, because the gate refuses moves the sum rule
+takes; that row checks the arms differ rather than reporting a result.
+
+So `pareto_gate` is the default from commit `3ba4653`'s successor, on the
+grounds that it improves a component nobody was watching, does not
+measurably move the one they were, and pays in a number whose weighting
+nobody chose. Adoption is safe on the guard, which reads that number: its
+minimum over the 44 boards falls only from 0.035931 to 0.030851, with no
+board at or below zero under either rule.
+
+`--observed-swap-acceptance sum` restores the old rule. Whichever is chosen
+runs as the shipped arm and the other becomes the shadow, so the comparison
+that justified the change keeps being measured in reverse.
+
 ## Ablation
 
 `--observed-swap-rounds 0` disables the seed and the swaps together and

@@ -530,31 +530,66 @@ class SafeSplitIntegrationTests(unittest.TestCase):
             [candidate_key(record) for record in second],
         )
 
-    def test_the_shadow_arm_is_the_paired_gate_on_the_same_board(self):
+    def arms(self, report: dict) -> dict[str, dict]:
+        """The two traces keyed by the rule they ran, not by their slot.
+
+        Adopting the gate swapped which rule ships and which shadows. The
+        contract is about the rules, so the tests key on those; otherwise
+        every adoption rewrites tests that were never about the assignment.
+        """
+        return {
+            trace["acceptance"]: trace
+            for trace in (
+                report["swap_optimizer"],
+                report["swap_optimizer_shadow"],
+            )
+        }
+
+    def test_both_acceptance_rules_run_on_the_same_board(self):
         _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
-        shipped = report["swap_optimizer"]
-        shadow = report["swap_optimizer_shadow"]
+        arms = self.arms(report)
 
         # Same board, same pool, same seed: only the acceptance rule differs,
         # which is what makes the difference attributable to the rule.
-        self.assertEqual(shipped["acceptance"], "sum")
-        self.assertEqual(shadow["acceptance"], "pareto_gate")
+        self.assertEqual(set(arms), {"sum", "pareto_gate"})
         self.assertEqual(
-            shipped["initial_objective"], shadow["initial_objective"]
+            arms["sum"]["initial_objective"],
+            arms["pareto_gate"]["initial_objective"],
         )
         self.assertEqual(
-            shipped["initial_components"], shadow["initial_components"]
+            arms["sum"]["initial_components"],
+            arms["pareto_gate"]["initial_components"],
+        )
+
+    def test_the_adopted_rule_is_the_one_that_ships(self):
+        _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+
+        # Adopted on the paired evidence in run 31491047020. The rule it
+        # replaced keeps running as the shadow, so the comparison that
+        # justified the change goes on being measured in reverse.
+        self.assertEqual(report["swap_optimizer"]["acceptance"], "pareto_gate")
+        self.assertEqual(
+            report["swap_optimizer_shadow"]["acceptance"], "sum"
         )
 
     def test_the_gate_never_accepts_a_component_degrading_swap(self):
         _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+        gate = self.arms(report)["pareto_gate"]
 
         # This is the rule itself, so it holds whatever the corpus says.
-        self.assertEqual(
-            report["swap_optimizer_shadow"]["component_degrading_swaps"], 0
-        )
-        for swap in report["swap_optimizer_shadow"]["swap_log"]:
+        self.assertEqual(gate["component_degrading_swaps"], 0)
+        for swap in gate["swap_log"]:
             self.assertEqual(swap["degraded_components"], [])
+
+    def test_the_sum_rule_is_the_one_that_can_degrade_a_component(self):
+        _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
+        arms = self.arms(report)
+
+        # If the sum rule never traded a component away on this fixture the
+        # two rules would be indistinguishable here, and the gate tests above
+        # would pass without exercising anything.
+        self.assertGreater(arms["sum"]["component_degrading_swaps"], 0)
+        self.assertGreater(arms["pareto_gate"]["swaps_refused_by_gate"], 0)
 
     def test_every_swap_records_which_component_moved(self):
         _p, _n, _c, report, _comparison = self.build(swap_rounds=64)
