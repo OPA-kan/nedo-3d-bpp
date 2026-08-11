@@ -425,10 +425,19 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    margin: it survives collapsing the frames (+0.0742 to +0.0718 over 454
    boards) and is positive on both components independently. Do NOT read the
    residual-space result (`reports/residual-space/summary.md`) as "a learned
-   space is not worth building": the learned arms are scored against a target
-   that shares four categorical fields with the hand-made proxy, so the
-   0.844-against-0.460 headline is not an equal-terms comparison. The honest
-   number is geometry-versus-geometry, 0.686 in the corrected frame.
+   space is not worth building". That comparison has now been redone on equal
+   terms and the caveat is retired: scored against the OCCUPANCY half of the
+   truth alone -- the part physics decides, with no field the proxy carries
+   verbatim -- command_proxy 0.709 against set_attention 0.502 and
+   candidate_mlp 0.491, over 162978 pairs from 182 boards. The unfair
+   advantage was real but small; the gap only falls from 0.344 to 0.207. Even
+   commanded geometry alone reaches 0.667. What the result does NOT say, and
+   must not be cited as saying: those arms were trained on safety
+   classification and settle regression and had their embeddings read out.
+   **No model has ever been trained directly on the residual-distance
+   target.** So embeddings trained for safety ranking do not transfer to
+   ordering residual difference; that is not the same claim as a learned
+   residual space being unreachable.
 3. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before

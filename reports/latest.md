@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-11T13:14:11+00:00`
-- Git SHA: `08285113fae90e6a4b7a9bbc92273f2e0e1995dc`
+- Timestamp: `2026-08-11T15:43:55+00:00`
+- Git SHA: `afad050cf9f79cb35e4c44e2ede24d97f750ecdc`
 - Python: `3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]`
 - Platform: `Linux-6.18.5-fc-v20-x86_64-with-glibc2.39`
 - Processor: `x86_64`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `58.523 s`
+- Runtime: `58.989 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -48,7 +48,7 @@ test_the_span_must_clear_the_support_term (test_zone_order.ZoneScoreTests.test_t
 Why the default bonus is 1.0 and not 0.5. ... ok
 
 ----------------------------------------------------------------------
-Ran 765 tests in 57.841s
+Ran 765 tests in 55.003s
 
 OK (skipped=5)
 ```
