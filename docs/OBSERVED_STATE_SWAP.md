@@ -77,11 +77,10 @@ visible.
 - It is a dataset-coverage instrument. A positive delta means the sampled
   observed settle afterstates are more dispersed. It is not evidence about the
   live policy, placed count, fill, or the official score.
-- **The objective it maximises has two measured defects, and this document
-  claimed nothing about them until they were measured.** The metric spans two
-  coordinate frames -- commands are container-local, settled `x_plus` is
+- **The objective it maximises had two measured defects.** The metric spanned
+  two coordinate frames -- commands are container-local, settled `x_plus` is
   world, and the containers sit 2.5 m apart against item extents of tens of
-  centimetres -- and it averages two different questions into one sum: where
+  centimetres -- and it averaged two different questions into one sum: where
   the item landed, and which item left the pool. Neither defect explains the
   margin. Re-scoring 454 retained boards with both arms collapsed into a
   single frame moves the mean delta from +0.074200 to +0.071780, positive on
@@ -93,9 +92,30 @@ visible.
   grows with every matrix run, so re-run the script rather than quoting these
   numbers; the conclusion has held from 363 boards to 454. See
   `scripts/measure_residual_metric_defect.py` and
-  `reports/residual-metric-frame/summary.md`. The defects are still live in
-  the pipeline: `settled_proxy_record` emits world coordinates and the
-  acceptance guard still reports the single sum.
+  `reports/residual-metric-frame/summary.md`.
+
+## The frame fix, and what it invalidates
+
+`settled_proxy_record` now takes `container_offsets` and the dataset builder
+passes them, so the search, the guard and the coverage report all read one
+frame. `container_frame_offsets` shifts x and y only: a commanded z of 0.227
+settling to 0.175 is the item dropping five centimetres, and subtracting a
+container's z would turn that physical fact into a frame error.
+
+Omitting the argument still reproduces the world-frame descriptor, because
+every measurement recorded before 2026-08-11 read it that way and those
+ledger entries have to stay readable. The offline measurement uses that
+default for its `as reported` column and the offsets for its `single frame`
+column, so it exercises the shipped path on both sides rather than
+reimplementing the shift.
+
+What this invalidates: guard deltas from runs before the fix are in the old
+frame and must not be compared directly against later ones on
+multi-container boards. Single-container boards are unaffected by
+construction. The acceptance guard now also reports
+`mean_nearest_neighbor_occupancy` and `mean_nearest_neighbor_consumption`
+beside the single sum; the search still maximises the sum, which remains a
+weighting nobody chose.
 
 ## Ablation
 

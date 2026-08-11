@@ -70,6 +70,7 @@ from scripts.residual_diversity import (  # noqa: E402
     global_constrained_residual_diversity_sample,
     residual_diversity_sample,
     residual_proxy_coverage,
+    container_frame_offsets,
     settled_proxy_record,
     settled_portfolio_comparison,
 )
@@ -501,6 +502,7 @@ def split_observed_outcomes(
     rng: random.Random,
     forced_keys: set[tuple[Any, ...]] | dict[tuple[Any, ...], str],
     swap_rounds: int = DEFAULT_SWAP_ROUNDS,
+    container_offsets: dict[int, tuple[float, float]] | None = None,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -541,7 +543,9 @@ def split_observed_outcomes(
         for record in safe_union
         if (
             settled := settled_proxy_record(
-                record, results.get(candidate_key(record))
+                record,
+                results.get(candidate_key(record)),
+                container_offsets=container_offsets,
             )
         )
         is not None
@@ -1370,6 +1374,14 @@ def collect_step(
             replay_population.append(record)
             replay_keys.add(candidate_key(record))
     results, replay_seconds = replay_sample(env, replay_population)
+    # The commands the sampler compared are container-local; the replayed
+    # x_plus position is world. Scoring both in one metric made a
+    # cross-container pair near-maximally distant whatever the items did.
+    # Collapse the settled side back into the commands' frame here, once, so
+    # every consumer downstream reads a single frame.
+    container_offsets = container_frame_offsets(
+        observation.get("container_list")
+    )
     physical_coverage_comparison = None
     outcome_split = None
     negative_sample: list[dict[str, Any]] = []
@@ -1385,6 +1397,7 @@ def collect_step(
                 ),
                 forced_keys=forced_reasons,
                 swap_rounds=swap_rounds,
+                container_offsets=container_offsets,
             )
         )
         stratum_table = outcome_split["positive_strata"]
@@ -1398,6 +1411,7 @@ def collect_step(
             diversity_sample=sample,
             random_sample=random_control,
             results=results,
+            container_offsets=container_offsets,
         )
 
     dataset_path = output_dir / f"{step_label}-candidates.jsonl"

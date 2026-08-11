@@ -53,6 +53,9 @@ from scripts.audit_learnability import (  # noqa: E402
     auc,
 )
 from scripts.index_replay_corpus import state_fingerprint  # noqa: E402
+from scripts.residual_diversity import (  # noqa: E402
+    container_frame_offsets,
+)
 
 MAX_PLACED = 24
 MAX_POOL = 16
@@ -178,6 +181,9 @@ def load_examples(root: pathlib.Path) -> list[dict[str, Any]]:
             snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        container_offsets = container_frame_offsets(
+            (snapshot.get("observation") or {}).get("container_list")
+        )
         with path.open("r", encoding="utf-8") as handle:
             lines = [line for line in handle if line.strip()]
         for line in lines:
@@ -212,6 +218,9 @@ def load_examples(root: pathlib.Path) -> list[dict[str, Any]]:
                     "item_index": int(row.get("item_index", -1)),
                     "kind": str(row.get("kind", "candidate")),
                     "release_risk": row.get("release_risk"),
+                    # Commands are container-local, x_plus is world. Anything
+                    # comparing the two needs this to collapse the frames.
+                    "container_offsets": container_offsets,
                     "case_id": str(row.get("case_id")),
                     "phi": [float(value) for value in values],
                     "candidate": candidate_vector(row, snapshot),

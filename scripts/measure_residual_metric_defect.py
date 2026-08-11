@@ -43,10 +43,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.residual_diversity import (  # noqa: E402
-    consumption_distance,
+    component_mean_nn,
+    container_frame_offsets,
     nearest_neighbor_distances,
-    occupancy_distance,
-    occupancy_scales,
     proxy_feature_vector,
     scale_vector,
     settled_proxy_record,
@@ -54,40 +53,6 @@ from scripts.residual_diversity import (  # noqa: E402
 
 POSITIVE = "positive_transition"
 CONTROL = "positive_transition_random_control"
-
-
-def container_centres(snapshot: dict[str, Any]) -> dict[int, list[float]]:
-    return {
-        int(entry.get("index", -1)): [
-            float(value) for value in (entry.get("center") or [0.0, 0.0, 0.0])
-        ]
-        for entry in (
-            (snapshot.get("observation") or {}).get("container_list") or []
-        )
-    }
-
-
-def to_container_frame(
-    record: dict[str, Any], centres: dict[int, list[float]]
-) -> dict[str, Any]:
-    """Put a settled position back into its own container's frame.
-
-    Only x and y are shifted. z is already measured the same way on both
-    sides -- a commanded z of 0.227 settling to 0.175 is the item dropping
-    five centimetres, not a frame difference -- so subtracting the container
-    centre's z would introduce the very error this removes.
-    """
-    centre = centres.get(int(record.get("container_index", -1)))
-    if centre is None:
-        return record
-    center = list(record.get("center") or [0.0, 0.0, 0.0])
-    shifted = dict(record)
-    shifted["center"] = [
-        center[0] - centre[0],
-        center[1] - centre[1],
-        center[2],
-    ]
-    return shifted
 
 
 def mean_nn(records: list[dict[str, Any]], reference) -> float | None:
@@ -100,40 +65,25 @@ def mean_nn(records: list[dict[str, Any]], reference) -> float | None:
     return sum(nearest) / len(nearest) if nearest else None
 
 
-def component_mean_nn(
-    records: list[dict[str, Any]],
-    reference: list[dict[str, Any]],
-    kind: str,
-) -> float | None:
-    """Mean nearest-neighbour distance under one named component alone."""
-    if len(records) < 2:
-        return None
-    scales = occupancy_scales(reference)
-    nearest: list[float] = []
-    for index, record in enumerate(records):
-        distances = [
-            occupancy_distance(record, other, scales=scales)
-            if kind == "occupancy"
-            else consumption_distance(record, other)
-            for other_index, other in enumerate(records)
-            if other_index != index
-        ]
-        if distances:
-            nearest.append(min(distances))
-    return sum(nearest) / len(nearest) if nearest else None
-
-
 def load_board(path: pathlib.Path) -> dict[str, Any] | None:
-    """One board's positive and control arms, with settled records."""
+    """One board's positive and control arms, in both frames.
+
+    Both descriptors come from `settled_proxy_record`, the same function the
+    dataset builder calls -- the corrected arm just gets the container
+    offsets. Rebuilding the shift here would let the measurement and the
+    shipped path drift apart, which is exactly the failure being measured.
+    """
     step = path.name.split("-")[1]
     snapshot_path = path.parent / f"step-{step}-state.json"
     try:
         snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    centres = container_centres(snapshot)
+    containers = (snapshot.get("observation") or {}).get("container_list")
+    offsets = container_frame_offsets(containers)
 
     arms: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    local: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
     for suffix, role in (
         ("candidates", POSITIVE),
         ("random-control", CONTROL),
@@ -146,17 +96,22 @@ def load_board(path: pathlib.Path) -> dict[str, Any] | None:
                 if not line.strip():
                     continue
                 row = json.loads(line)
-                settled = settled_proxy_record(row, row.get("physical"))
-                if settled is not None:
+                physical = row.get("physical")
+                settled = settled_proxy_record(row, physical)
+                shifted = settled_proxy_record(
+                    row, physical, container_offsets=offsets
+                )
+                if settled is not None and shifted is not None:
                     arms[role].append(settled)
+                    local[role].append(shifted)
     if len(arms[POSITIVE]) < 2 or len(arms[CONTROL]) < 2:
         return None
     return {
         "case_id": path.parent.name,
         "step": int(step),
-        "centres": centres,
-        "containers": len(centres),
+        "containers": len(offsets),
         "arms": dict(arms),
+        "local_arms": dict(local),
     }
 
 
@@ -166,9 +121,8 @@ def score(board: dict[str, Any]) -> dict[str, Any]:
     control = board["arms"][CONTROL]
     reference = control + positive
 
-    centres = board["centres"]
-    local_positive = [to_container_frame(r, centres) for r in positive]
-    local_control = [to_container_frame(r, centres) for r in control]
+    local_positive = board["local_arms"][POSITIVE]
+    local_control = board["local_arms"][CONTROL]
     local_reference = local_control + local_positive
 
     as_reported = mean_nn(positive, reference)

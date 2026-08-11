@@ -111,9 +111,21 @@ def command_record(example: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def observed_record(example: dict[str, Any]) -> dict[str, Any] | None:
+def observed_record(
+    example: dict[str, Any], *, world_frame: bool = False
+) -> dict[str, Any] | None:
+    """The settled afterstate, in the same frame as `command_record`.
+
+    Without the container offsets the truth would be world coordinates while
+    every predictor is container-local, and on a two-container board the
+    2.5 m spacing would dominate the comparison.
+    """
     return settled_proxy_record(
-        command_record(example), {"x_plus": example.get("x_plus")}
+        command_record(example),
+        {"x_plus": example.get("x_plus")},
+        container_offsets=None if world_frame else example.get(
+            "container_offsets"
+        ),
     )
 
 
@@ -149,11 +161,19 @@ def partial_distance(
 def board_pairs(
     examples: list[dict[str, Any]],
     embeddings: dict[str, np.ndarray],
+    *,
+    world_frame: bool = False,
 ) -> dict[str, list[float]]:
-    """Every within-board pair, scored by truth and by each predictor."""
+    """Every within-board pair, scored by truth and by each predictor.
+
+    ``world_frame`` scores the truth the way every measurement before
+    2026-08-11 did: settled positions in world coordinates against
+    container-local commands. Running both on one set of trained embeddings
+    is what makes the frame the only thing that differs between them.
+    """
     by_board: dict[Any, list[int]] = collections.defaultdict(list)
     for index, example in enumerate(examples):
-        if observed_record(example) is not None:
+        if observed_record(example, world_frame=world_frame) is not None:
             by_board[example["state"]].append(index)
 
     columns: dict[str, list[float]] = collections.defaultdict(list)
@@ -161,7 +181,10 @@ def board_pairs(
     for indexes in by_board.values():
         if len(indexes) < 3:
             continue
-        observed = [observed_record(examples[i]) for i in indexes]
+        observed = [
+            observed_record(examples[i], world_frame=world_frame)
+            for i in indexes
+        ]
         commanded = [command_record(examples[i]) for i in indexes]
         # Scales come from the board's own population, matching how
         # residual_proxy_coverage normalises inside a portfolio.
@@ -283,12 +306,18 @@ def measure(
         for name in columns
         if name not in ("truth", "truth_geometry_only")
     ]
+    # The same trained embeddings, scored against the truth as it was read
+    # before the frames were collapsed. Nothing else differs, so the gap
+    # between the two columns is the frame and only the frame.
+    world_columns = board_pairs(examples, embeddings, world_frame=True)
+    world_per_board = world_columns.pop("_per_board")
+
+    def mean_of(rows: list[dict[str, float]], name: str) -> float | None:
+        values = [row[name] for row in rows if row.get(name) is not None]
+        return sum(values) / len(values) if values else None
 
     def mean_board(name: str) -> float | None:
-        values = [
-            row[name] for row in per_board if row.get(name) is not None
-        ]
-        return sum(values) / len(values) if values else None
+        return mean_of(per_board, name)
 
     report = {
         "schema_version": 1,
@@ -304,7 +333,9 @@ def measure(
             "seeds": seeds,
             "epochs": epochs,
             "pairs": "within_board_only",
-            "truth": "gower_distance_over_observed_x_plus",
+            "truth": (
+                "gower_distance_over_observed_x_plus_in_container_frame"
+            ),
             "proxy_fields": list(CONTINUOUS_FIELDS),
         },
         "mean_within_board_spearman": {
@@ -314,6 +345,10 @@ def measure(
         "pooled_spearman": {
             name: spearman(columns[name], columns["truth"])
             for name in predictors
+        },
+        "mean_within_board_spearman_world_frame": {
+            name: mean_of(world_per_board, name)
+            for name in [*predictors, "geometry_versus_geometry"]
         },
     }
     ranked = sorted(
@@ -352,7 +387,11 @@ def measure(
         "their four categorical fields, so command_proxy_identity_only is "
         "how much of the agreement is tautological, and "
         "geometry_versus_geometry is the only comparison with no shared "
-        "terms on either side."
+        "terms on either side. The truth is now scored with settled "
+        "positions in their own container's frame; the world-frame column "
+        "is the same trained embeddings scored the way every measurement "
+        "before 2026-08-11 read them, so the gap between the two is the "
+        "coordinate frame and nothing else."
     )
     return report
 
@@ -372,19 +411,23 @@ def markdown(report: dict[str, Any]) -> str:
         ),
         f"- Truth: `{report['design']['truth']}`",
         "",
-        "| predictor | mean within-board Spearman | pooled Spearman |",
-        "|---|---:|---:|",
+        "| predictor | mean within-board Spearman | pooled Spearman | "
+        "world frame (old) |",
+        "|---|---:|---:|---:|",
     ]
+    world = report.get("mean_within_board_spearman_world_frame") or {}
     for name, value in report["mean_within_board_spearman"].items():
         # Not every row has a pooled twin: `geometry_versus_geometry` is a
         # within-board diagnostic only. Indexing here crashed the render
         # AFTER the training run had already written the JSON, which is how
         # the two files came to disagree.
         pooled = report["pooled_spearman"].get(name)
+        old_frame = world.get(name)
         lines.append(
             f"| {name} | "
             f"{'—' if value is None else f'{value:.3f}'} | "
-            f"{'—' if pooled is None else f'{pooled:.3f}'} |"
+            f"{'—' if pooled is None else f'{pooled:.3f}'} | "
+            f"{'—' if old_frame is None else f'{old_frame:.3f}'} |"
         )
     lines.extend(["", report["interpretation"], ""])
     return "\n".join(lines)

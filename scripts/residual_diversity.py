@@ -283,9 +283,54 @@ def residual_proxy_coverage(
     }
 
 
+def container_frame_offsets(
+    containers: list[dict[str, Any]] | None,
+) -> dict[int, tuple[float, float]]:
+    """Container-index to the x/y offset of that container's origin.
+
+    Built from an observation's ``container_list``. z is deliberately absent:
+    a commanded z of 0.227 settling to 0.175 is the item dropping five
+    centimetres, and subtracting a container's z would turn that physical
+    fact into a frame error.
+    """
+    offsets: dict[int, tuple[float, float]] = {}
+    for entry in containers or []:
+        if not isinstance(entry, dict):
+            continue
+        centre = entry.get("center")
+        if not isinstance(centre, (list, tuple)) or len(centre) < 2:
+            continue
+        try:
+            offsets[int(entry.get("index", -1))] = (
+                float(centre[0]),
+                float(centre[1]),
+            )
+        except (TypeError, ValueError):
+            continue
+    return offsets
+
+
 def settled_proxy_record(
-    record: dict[str, Any], physical: dict[str, Any] | None
+    record: dict[str, Any],
+    physical: dict[str, Any] | None,
+    *,
+    container_offsets: dict[int, tuple[float, float]] | None = None,
 ) -> dict[str, Any] | None:
+    """The observed afterstate descriptor, in the commands' coordinate frame.
+
+    The replayed ``x_plus`` position is world; ``candidate_positions`` are
+    container-local. Comparing the two frames in one metric made a
+    cross-container pair near-maximally distant whatever the items did --
+    the containers sit 2.5 m apart against item extents of tens of
+    centimetres -- and counted container membership twice, once through that
+    offset and again through the ``container_index`` categorical field.
+
+    Passing ``container_offsets`` puts the settled position back in its own
+    container's frame, so membership is carried once. Omitting it reproduces
+    the old world-frame descriptor, which is what every measurement recorded
+    before 2026-08-11 used; see `reports/residual-metric-frame/summary.md`
+    for what the correction moves.
+    """
     if not isinstance(physical, dict):
         return None
     x_plus = physical.get("x_plus")
@@ -311,13 +356,18 @@ def settled_proxy_record(
         min(1.0, 1.0 - 2.0 * (qx * qx + qy * qy)),
     )
     tilt_deg = math.degrees(math.acos(vertical_cosine))
+    container_index = int(record.get("container_index", -1))
+    centre = [float(value) for value in position]
+    offset = (container_offsets or {}).get(container_index)
+    if offset is not None:
+        centre = [centre[0] - offset[0], centre[1] - offset[1], centre[2]]
     return {
         "pool_index": int(record.get("pool_index", -1)),
         "item_index": int(record.get("item_index", -1)),
-        "container_index": int(record.get("container_index", -1)),
+        "container_index": container_index,
         "orientation": int(record.get("orientation", -1)),
         "kind": str(record.get("kind", "candidate")),
-        "center": [float(value) for value in position],
+        "center": centre,
         "size": [float(value) for value in dimensions],
         "settle_tilt_deg": tilt_deg,
     }
@@ -436,11 +486,41 @@ def paired_mean_nn_objective(
     }
 
 
+def component_mean_nn(
+    records: list[dict[str, Any]],
+    reference: list[dict[str, Any]],
+    kind: str,
+) -> float | None:
+    """Mean nearest-neighbour distance under one named component alone.
+
+    ``kind`` is ``"occupancy"`` (where the item landed, and in which
+    container) or ``"consumption"`` (which item left the pool). They are
+    reported separately because a single sum averages them and cannot say
+    which one moved.
+    """
+    if len(records) < 2:
+        return None
+    scales = occupancy_scales(reference)
+    nearest: list[float] = []
+    for index, record in enumerate(records):
+        distances = [
+            occupancy_distance(record, other, scales=scales)
+            if kind == "occupancy"
+            else consumption_distance(record, other)
+            for other_index, other in enumerate(records)
+            if other_index != index
+        ]
+        if distances:
+            nearest.append(min(distances))
+    return sum(nearest) / len(nearest) if nearest else None
+
+
 def settled_portfolio_comparison(
     *,
     diversity_sample: list[dict[str, Any]],
     random_sample: list[dict[str, Any]],
     results: dict[tuple[Any, ...], dict[str, Any]],
+    container_offsets: dict[int, tuple[float, float]] | None = None,
 ) -> dict[str, Any]:
     """Compare the two portfolios using observed settle afterstates only."""
     arms = {
@@ -454,7 +534,9 @@ def settled_portfolio_comparison(
             for record in records
             if (
                 settled := settled_proxy_record(
-                    record, results.get(candidate_key(record))
+                    record,
+                    results.get(candidate_key(record)),
+                    container_offsets=container_offsets,
                 )
             )
             is not None
@@ -477,6 +559,16 @@ def settled_portfolio_comparison(
         )
         coverage.update(
             {
+                # The two questions the single Gower sum averages together.
+                # Reported beside it, never folded into it: the multi-axis
+                # selector's rule is that a total nobody chose the weights
+                # for is not a number.
+                "mean_nearest_neighbor_occupancy": component_mean_nn(
+                    settled_by_arm[name], reference, "occupancy"
+                ),
+                "mean_nearest_neighbor_consumption": component_mean_nn(
+                    settled_by_arm[name], reference, "consumption"
+                ),
                 "replayed": len(records),
                 "settled": len(settled_by_arm[name]),
                 "valid": sum(
@@ -502,6 +594,8 @@ def settled_portfolio_comparison(
         name: difference(name)
         for name in (
             "mean_nearest_neighbor_distance",
+            "mean_nearest_neighbor_occupancy",
+            "mean_nearest_neighbor_consumption",
             "minimum_nearest_neighbor_distance",
             "unique_items",
             "unique_item_orientations",

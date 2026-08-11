@@ -2,40 +2,54 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.measure_residual_metric_defect import (
-    container_centres,
-    to_container_frame,
-)
 from scripts.residual_diversity import (
     consumption_distance,
+    container_frame_offsets,
     occupancy_distance,
     occupancy_scales,
+    settled_proxy_record,
 )
 
 
 class ContainerFrameTests(unittest.TestCase):
-    def centres(self):
-        return container_centres(
-            {
-                "observation": {
-                    "container_list": [
-                        {"index": 0, "center": [0.0, 0.0, 0.805]},
-                        {"index": 1, "center": [2.5, 0.0, 0.805]},
-                    ]
-                }
-            }
+    """`settled_proxy_record` is where the frame is collapsed, so test it."""
+
+    def offsets(self):
+        return container_frame_offsets(
+            [
+                {"index": 0, "center": [0.0, 0.0, 0.805]},
+                {"index": 1, "center": [2.5, 0.0, 0.805]},
+            ]
         )
 
-    def record(self, container: int, center: list[float]) -> dict:
-        return {"container_index": container, "center": list(center)}
+    def settled(self, container: int, center: list[float]) -> dict:
+        physical = {
+            "x_plus": {
+                "position": list(center),
+                "aabb_dimensions": [0.3, 0.2, 0.15],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }
+        }
+        record = {
+            "pool_index": 0,
+            "item_index": 0,
+            "container_index": container,
+            "orientation": 0,
+            "kind": "candidate",
+        }
+        return record, physical
+
+    def shift(self, container: int, center: list[float]) -> dict:
+        record, physical = self.settled(container, center)
+        return settled_proxy_record(
+            record, physical, container_offsets=self.offsets()
+        )
 
     def test_the_container_offset_is_removed_from_x_and_y(self):
         # The defect: settled positions are world, commands are
         # container-local, and the containers sit 2.5 m apart -- against item
         # extents of tens of centimetres.
-        shifted = to_container_frame(
-            self.record(1, [3.171, 0.4, 0.175]), self.centres()
-        )
+        shifted = self.shift(1, [3.171, 0.4, 0.175])
 
         self.assertAlmostEqual(shifted["center"][0], 0.671)
         self.assertAlmostEqual(shifted["center"][1], 0.4)
@@ -44,30 +58,35 @@ class ContainerFrameTests(unittest.TestCase):
         # A commanded z of 0.227 settling to 0.175 is the item dropping five
         # centimetres. Subtracting the container centre's z would turn that
         # physical fact into a frame error.
-        shifted = to_container_frame(
-            self.record(1, [3.171, 0.0, 0.175]), self.centres()
-        )
+        shifted = self.shift(1, [3.171, 0.0, 0.175])
 
         self.assertAlmostEqual(shifted["center"][2], 0.175)
 
     def test_the_first_container_is_untouched(self):
-        original = self.record(0, [-0.106, 0.388, 0.175])
+        self.assertEqual(
+            self.shift(0, [-0.106, 0.388, 0.175])["center"],
+            [-0.106, 0.388, 0.175],
+        )
 
-        shifted = to_container_frame(original, self.centres())
+    def test_an_unknown_container_keeps_world_coordinates(self):
+        self.assertEqual(
+            self.shift(7, [1.0, 2.0, 3.0])["center"], [1.0, 2.0, 3.0]
+        )
 
-        self.assertEqual(shifted["center"], original["center"])
+    def test_omitting_the_offsets_reproduces_the_old_descriptor(self):
+        # Every measurement recorded before 2026-08-11 read the world-frame
+        # descriptor. The default must keep reproducing it, or those entries
+        # stop being readable.
+        record, physical = self.settled(1, [3.171, 0.4, 0.175])
 
-    def test_an_unknown_container_is_returned_unchanged(self):
-        original = self.record(7, [1.0, 2.0, 3.0])
+        self.assertEqual(
+            settled_proxy_record(record, physical)["center"],
+            [3.171, 0.4, 0.175],
+        )
 
-        self.assertIs(to_container_frame(original, self.centres()), original)
-
-    def test_the_input_record_is_not_mutated(self):
-        original = self.record(1, [3.171, 0.0, 0.175])
-
-        to_container_frame(original, self.centres())
-
-        self.assertAlmostEqual(original["center"][0], 3.171)
+    def test_a_container_list_without_centres_yields_no_offsets(self):
+        self.assertEqual(container_frame_offsets([{"index": 0}]), {})
+        self.assertEqual(container_frame_offsets(None), {})
 
 
 class ComponentDistanceTests(unittest.TestCase):

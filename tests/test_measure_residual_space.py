@@ -133,13 +133,23 @@ class MarkdownTests(unittest.TestCase):
             # Deliberately missing the diagnostic-only row: it has no pooled
             # twin, and indexing it lost a completed run's markdown once.
             "pooled_spearman": {"command_proxy": 0.84},
+            "mean_within_board_spearman_world_frame": {
+                "command_proxy": 0.81
+            },
             "interpretation": "why",
         }
 
     def test_a_row_without_a_pooled_twin_renders_as_a_dash(self):
         rendered = markdown(self.report())
 
-        self.assertIn("| geometry_versus_geometry | 0.660 | — |", rendered)
+        self.assertIn(
+            "| geometry_versus_geometry | 0.660 | — | — |", rendered
+        )
+
+    def test_the_world_frame_column_carries_the_old_reading(self):
+        rendered = markdown(self.report())
+
+        self.assertIn("| command_proxy | 0.840 | 0.840 | 0.810 |", rendered)
 
     def test_every_scored_predictor_reaches_the_table(self):
         rendered = markdown(self.report())
