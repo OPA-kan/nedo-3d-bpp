@@ -60,6 +60,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.residual_diversity import (  # noqa: E402
+    CATEGORICAL_FIELDS,
     CONTINUOUS_FIELDS,
     feature_vector_distance,
     proxy_feature_vector,
@@ -116,6 +117,35 @@ def observed_record(example: dict[str, Any]) -> dict[str, Any] | None:
     )
 
 
+def partial_distance(
+    left,
+    right,
+    *,
+    scales,
+    continuous: bool = True,
+    categorical: bool = True,
+) -> float:
+    """The Gower distance restricted to one half of its terms.
+
+    The truth metric and the command proxy share their four categorical
+    fields -- item, pool, container, orientation and kind are the same
+    numbers before and after the replay, by construction. So a proxy can
+    score well on the truth without predicting any physics at all, and the
+    two halves have to be reported separately or the headline is circular.
+    """
+    terms: list[float] = []
+    if continuous:
+        for index, scale in enumerate(scales):
+            a, b = left[0][index], right[0][index]
+            if a is None or b is None or scale <= 0.0:
+                continue
+            terms.append(abs(a - b) / scale)
+    if categorical:
+        for index in range(len(CATEGORICAL_FIELDS)):
+            terms.append(0.0 if left[1][index] == right[1][index] else 1.0)
+    return sum(terms) / len(terms) if terms else 0.0
+
+
 def board_pairs(
     examples: list[dict[str, Any]],
     embeddings: dict[str, np.ndarray],
@@ -161,6 +191,32 @@ def board_pairs(
                         scales=command_scales,
                     )
                 )
+                # How much of the proxy's agreement is the shared discrete
+                # identity, and how much is actual geometry.
+                local["command_proxy_identity_only"].append(
+                    partial_distance(
+                        command_vectors[left],
+                        command_vectors[right],
+                        scales=command_scales,
+                        continuous=False,
+                    )
+                )
+                local["command_proxy_geometry_only"].append(
+                    partial_distance(
+                        command_vectors[left],
+                        command_vectors[right],
+                        scales=command_scales,
+                        categorical=False,
+                    )
+                )
+                local["truth_geometry_only"].append(
+                    partial_distance(
+                        observed_vectors[left],
+                        observed_vectors[right],
+                        scales=observed_scales,
+                        categorical=False,
+                    )
+                )
                 for arm, matrix in embeddings.items():
                     a = matrix[indexes[left]]
                     b = matrix[indexes[right]]
@@ -168,8 +224,13 @@ def board_pairs(
         row = {
             name: spearman(local[name], local["truth"])
             for name in local
-            if name != "truth"
+            if name not in ("truth", "truth_geometry_only")
         }
+        # The one comparison with no shared terms at all: does commanded
+        # geometry order settled geometry?
+        row["geometry_versus_geometry"] = spearman(
+            local["command_proxy_geometry_only"], local["truth_geometry_only"]
+        )
         if any(value is not None for value in row.values()):
             per_board.append(row)
         for name, values in local.items():
@@ -217,7 +278,11 @@ def measure(
 
     columns = board_pairs(examples, embeddings)
     per_board = columns.pop("_per_board")
-    predictors = [name for name in columns if name != "truth"]
+    predictors = [
+        name
+        for name in columns
+        if name not in ("truth", "truth_geometry_only")
+    ]
 
     def mean_board(name: str) -> float | None:
         values = [
@@ -243,7 +308,8 @@ def measure(
             "proxy_fields": list(CONTINUOUS_FIELDS),
         },
         "mean_within_board_spearman": {
-            name: mean_board(name) for name in predictors
+            name: mean_board(name)
+            for name in [*predictors, "geometry_versus_geometry"]
         },
         "pooled_spearman": {
             name: spearman(columns[name], columns["truth"])
@@ -254,6 +320,7 @@ def measure(
         (
             (report["mean_within_board_spearman"][name] or -1.0, name)
             for name in predictors
+            if not name.startswith("command_proxy_")
         ),
         reverse=True,
     )
@@ -265,6 +332,13 @@ def measure(
         if best_name != "command_proxy" and best_value > incumbent + 0.02
         else "hand_made_proxy_holds"
     )
+    identity = report["mean_within_board_spearman"].get(
+        "command_proxy_identity_only"
+    )
+    full = report["mean_within_board_spearman"].get("command_proxy")
+    report["proxy_win_is_mostly_identity"] = bool(
+        identity is not None and full is not None and identity > 0.9 * full
+    )
     report["interpretation"] = (
         "Pairs are formed inside a board, so this measures ordering of "
         "candidate-versus-candidate residual difference, not how different "
@@ -273,7 +347,12 @@ def measure(
         "before the replay, which is the expensive step -- so a learned "
         "winner would also mean a portfolio can be spread out without "
         "settling every overdrawn candidate first. A win for command_proxy "
-        "means the fourteen hand-made fields already do the job."
+        "means the fourteen hand-made fields already do the job. Read the "
+        "decomposition before the headline: the proxy and the truth share "
+        "their four categorical fields, so command_proxy_identity_only is "
+        "how much of the agreement is tautological, and "
+        "geometry_versus_geometry is the only comparison with no shared "
+        "terms on either side."
     )
     return report
 
