@@ -176,20 +176,23 @@ jobs:
           # keeps its verdict and drops its rows, loudly, rather than letting
           # the repository grow until someone notices. 2 GB raw is about
           # 140 MB stored at the measured 14.7x, i.e. roughly eighty runs.
-          if ! python scripts/index_replay_corpus.py \
-              --root reports/residual-diversity-scale/history \
-              --json-output reports/residual-diversity-scale/corpus.json \
-              --markdown-output reports/residual-diversity-scale/corpus.md \
-              --budget-bytes 2000000000; then
-            echo "::warning::retained corpus is over budget; this run keeps \
-              its summary and drops its rows. Prune older runs or raise the \
-              budget deliberately."
-            rm -rf "$HISTORY_DIR/dataset"
-            python scripts/index_replay_corpus.py \
-              --root reports/residual-diversity-scale/history \
-              --json-output reports/residual-diversity-scale/corpus.json \
-              --markdown-output reports/residual-diversity-scale/corpus.md
-          fi
+          reindex() {
+            if ! python scripts/index_replay_corpus.py \
+                --root reports/residual-diversity-scale/history \
+                --json-output reports/residual-diversity-scale/corpus.json \
+                --markdown-output reports/residual-diversity-scale/corpus.md \
+                --budget-bytes 2000000000; then
+              echo "::warning::retained corpus is over budget; this run keeps \
+                its summary and drops its rows. Prune older runs or raise the \
+                budget deliberately."
+              rm -rf "$HISTORY_DIR/dataset"
+              python scripts/index_replay_corpus.py \
+                --root reports/residual-diversity-scale/history \
+                --json-output reports/residual-diversity-scale/corpus.json \
+                --markdown-output reports/residual-diversity-scale/corpus.md
+            fi
+          }
+          reindex
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
@@ -209,5 +212,25 @@ jobs:
             fi
             sleep "$((attempt * 5))"
             git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
+            if git rebase "origin/$GITHUB_REF_NAME"; then continue; fi
+            # Each run writes its rows under a unique history/<run_id>/ path,
+            # so two runs can never conflict on data. They conflict on the
+            # index, which is DERIVED from the tree -- and merging two stale
+            # renderings of it is meaningless. Rebuild it from the rebased
+            # tree instead. Losing this race used to drop the whole run.
+            for path in $(git diff --name-only --diff-filter=U); do
+              case "$path" in
+                reports/residual-diversity-scale/corpus.json) ;;
+                reports/residual-diversity-scale/corpus.md) ;;
+                *)
+                  echo "::error::unexpected rebase conflict in $path"
+                  git rebase --abort
+                  exit 1
+                  ;;
+              esac
+            done
+            reindex
+            git add reports/residual-diversity-scale/corpus.json \
+              reports/residual-diversity-scale/corpus.md
+            GIT_EDITOR=true git rebase --continue
           done

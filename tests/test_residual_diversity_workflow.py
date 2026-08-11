@@ -126,3 +126,24 @@ class ResidualDiversityWorkflowTests(unittest.TestCase):
         # losing the race silently would lose that run's whole dataset.
         self.assertIn("for attempt in 1 2 3 4 5 6; do", text)
         self.assertIn("::error::", text)
+
+    def test_the_derived_index_is_rebuilt_rather_than_merged(self):
+        text = SCALE_WORKFLOW.read_text(encoding="utf-8")
+
+        # How run 31487983562 lost its corpus: retrying was not enough,
+        # because the retry rebased and the rebase conflicted. Rows never
+        # conflict -- each run owns history/<run_id>/ -- but corpus.json and
+        # corpus.md are rendered from the whole tree, so two runs always
+        # collide there and merging two stale renderings means nothing.
+        self.assertIn('if git rebase "origin/$GITHUB_REF_NAME"; then', text)
+        self.assertIn("git diff --name-only --diff-filter=U", text)
+        self.assertIn("GIT_EDITOR=true git rebase --continue", text)
+
+    def test_an_unexpected_conflict_aborts_instead_of_continuing(self):
+        text = SCALE_WORKFLOW.read_text(encoding="utf-8")
+
+        # Rebuilding the index resolves the only conflict that should ever
+        # happen. Continuing through any other one would push a tree with
+        # conflict markers in it.
+        self.assertIn("::error::unexpected rebase conflict in $path", text)
+        self.assertIn("git rebase --abort", text)
