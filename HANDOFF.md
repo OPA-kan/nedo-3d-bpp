@@ -290,24 +290,22 @@ their instruments. A superseded or historical entry is not current evidence.
 - Whether a learned or outcome-weighted delayed proposal aggregator can
   distinguish proposal quality.  Plain randomized-delay voting has been
   measured and produced no action-level or item-level consensus.
-- A model trained on the board DOES beat the incumbent, and the earlier
-  "no signal, saturates at sixteen boards" conclusion is withdrawn -- it was a
-  property of the eight-scalar contact vector, not of the data. Same 3482
-  rows, 93 boards, 8 cases, same protocol: mean within-state AUC 0.725
-  incumbent, 0.709 linear-on-phi, 0.770 MLP-on-the-same-phi, **0.851**
-  candidate-geometry MLP, 0.830 set attention; top-1 safe rate 0.867 / 0.868
-  / 0.876 / **0.967** / 0.944. Capacity alone beats the incumbent, so the
-  audit's linear arm was under-powered. The largest jump is adding the
-  candidate's own position, size, orientation and container -- which
-  `phi_modelling` never carried. Attention does not help safety ranking but
-  does help the settle regression (R^2 0.322/0.382 against 0.277/0.345 and
-  the linear arm's 0.147/0.081). See `reports/state-model/summary.md`.
-: mean within-state AUC for `is_placed_safe`
-  is 0.745 for `Ranker.score` against 0.727 (logistic), 0.671 (lookup) and
-  0.500 (constant), with top-1 safe rate 0.872 / 0.851 / 0.780 / 0.683. The
-  audit carries a positive control -- a planted signal is detected above AUC
-  0.8 -- so the null is not a broken instrument. GBDT and Deep Sets could not
-  be run (numpy only), so it bounds them weakly.
+- A model trained on the board beats the incumbent, and it survives the leak
+  worth worrying about. On a FROZEN copy of the same 130 boards over 8 cases,
+  mean within-state AUC is 0.733 incumbent / 0.767 MLP-on-the-eight-scalars /
+  **0.842** candidate-geometry MLP / 0.835 set attention. Restricting the
+  positives to the stratified-random control arm -- which removes the swap
+  optimizer's diversity selection from the safe class -- gives 0.745 / 0.768 /
+  **0.851** / 0.841: the same ordering, and a slightly larger margin. Six
+  measurements now agree (three corpus sizes, two positive sources). Capacity
+  alone clears the incumbent, so the audit's linear arm was under-powered;
+  the largest jump comes from the candidate's own position, size, orientation
+  and container, which `phi_modelling` never carried. Attention loses on
+  safety ranking and wins on the settle regression in every arm (R^2 up to
+  0.337 and 0.390 against the audit linear arm's 0.147 and 0.081). Quote AUC,
+  not top-1: top-1 tracks the safe fraction per board, which is a sampling
+  design. See `docs/STATE_MODEL_EXPERIMENT.md`.
+
 - More states was never the constraint, and neither was the model family on
   its own: the FEATURES were. Withdrawn along with the saturation claim.
   Scaling boards is still worth doing for condition coverage, and the

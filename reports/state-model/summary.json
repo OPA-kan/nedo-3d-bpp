@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "corpus": {
-    "rows": 3482,
-    "states": 93,
+    "rows": 4955,
+    "states": 130,
     "cases": [
       "m-dual-dedicated-priority",
       "m-dual-empty",
@@ -13,10 +13,11 @@
       "m-single-empty-shelf",
       "m-single-preloaded"
     ],
-    "safe_rows": 2213
+    "safe_rows": 3147
   },
   "design": {
     "split": "leave_one_case_out",
+    "positive_source": "all",
     "seeds": 2,
     "epochs": 200,
     "arms": [
@@ -29,40 +30,40 @@
   },
   "classification": {
     "incumbent": {
-      "pooled_auc": 0.7052224177143657,
-      "states": 90,
-      "mean_state_auc": 0.7253386333575141,
-      "top1_safe_rate": 0.8666666666666667
+      "pooled_auc": 0.7149366688600747,
+      "states": 127,
+      "mean_state_auc": 0.7333789213265397,
+      "top1_safe_rate": 0.8818897637795275
     },
     "phi_mlp": {
-      "pooled_auc": 0.7694828930130966,
-      "states": 90,
-      "mean_state_auc": 0.7697134915652095,
-      "top1_safe_rate": 0.8762037037037037
+      "pooled_auc": 0.7693445225260186,
+      "states": 127,
+      "mean_state_auc": 0.766807415810114,
+      "top1_safe_rate": 0.8443569553805773
     },
     "candidate_mlp": {
-      "pooled_auc": 0.8470165370685508,
-      "states": 90,
-      "mean_state_auc": 0.8506125179509891,
-      "top1_safe_rate": 0.9666666666666667
+      "pooled_auc": 0.8431488339787014,
+      "states": 127,
+      "mean_state_auc": 0.8421020081385935,
+      "top1_safe_rate": 0.968503937007874
     },
     "set_attention": {
-      "pooled_auc": 0.8280837105192221,
-      "states": 90,
-      "mean_state_auc": 0.8298492366279129,
-      "top1_safe_rate": 0.9444444444444444
+      "pooled_auc": 0.8390590420431314,
+      "states": 127,
+      "mean_state_auc": 0.8351099242289907,
+      "top1_safe_rate": 0.9606299212598425
     }
   },
   "regression": {
     "delta_theta_deg": {
-      "phi_mlp": 0.26978326811164,
-      "candidate_mlp": 0.2773198127393197,
-      "set_attention": 0.3224013194309523
+      "phi_mlp": 0.27161108090568187,
+      "candidate_mlp": 0.27501962887369846,
+      "set_attention": 0.33665205908618334
     },
     "d_norm": {
-      "phi_mlp": 0.21301553034661636,
-      "candidate_mlp": 0.3445592296843367,
-      "set_attention": 0.3818681334967077
+      "phi_mlp": 0.21476101219405364,
+      "candidate_mlp": 0.3432256418013635,
+      "set_attention": 0.3899785335156124
     }
   },
   "verdict": "state_model_beats_incumbent",

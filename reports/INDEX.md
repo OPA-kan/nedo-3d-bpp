@@ -32,7 +32,7 @@
 | active | 2026-08-01 | `reports/risk-ablation/summary.md` | `online-ablation-round2-positive`, `risk-freeze-mech-lambda1`, `final-holdout-passed-default-switch` |
 | active | 2026-08-04 | `reports/scenario-matrix/taskb-ci-10mm-30865228317.md` | `lateral-guard-buys-settle-survival` |
 | active | 2026-08-04 | `reports/scenario-matrix/taskb-ci-2mm-30865196936.md` | `lateral-guard-buys-settle-survival` |
-| active | - | `reports/state-model/summary.md` | `state-model-beats-the-incumbent-the-saturation-was-the-feature-vector` |
+| active | 2026-08-11 | `reports/state-model/summary.md` | `state-model-beats-the-incumbent-the-saturation-was-the-feature-vector` |
 | active | 2026-08-06 | `reports/stowage/attr-guard-verdict.md` | `attribute-guard-trades-placed-for-priority` |
 | active | 2026-08-06 | `reports/stowage/support-creation-verdict.md` | `elevated-support-cannot-grow` |
 | active | 2026-08-05 | `reports/stowage/support-exhaustion.md` | `support-exhaustion-is-the-terminal-state` |
@@ -98,6 +98,8 @@
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31393167142/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity-scale/history/31394891316/summary.md` | — |
 | uncited | 2026-08-11 | `reports/residual-diversity-scale/history/31447660500/summary.md` | — |
+| uncited | 2026-08-11 | `reports/residual-diversity-scale/history/31450172632/summary.md` | — |
+| uncited | 2026-08-11 | `reports/residual-diversity-scale/history/31464662520/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31367396930/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31368589378/summary.md` | — |
 | uncited | 2026-08-10 | `reports/residual-diversity/history/31369511973/summary.md` | — |
@@ -106,6 +108,7 @@
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-divergence/report.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/b000-k15-stride4/summary.md` | — |
 | uncited | 2026-08-01 | `reports/rollout-saturation/local-20260801/report.md` | — |
+| uncited | 2026-08-11 | `reports/state-model/control-only.md` | — |
 | uncited | 2026-08-06 | `reports/stowage/proxy-calibration.md` | — |
 | uncited | 2026-08-06 | `reports/stowage/section-audit.md` | — |
 | uncited | 2026-08-10 | `reports/structured-selector/history/31356809615/summary.md` | — |
@@ -153,4 +156,4 @@
 | `reports/merge-taskA/` | 7 | 1.8 MB | `scripts/fit_hazard_model.py` |
 | `reports/stability-tradeoff/` | 62 | 37.0 MB | `scripts/analyze_stability_tradeoff.py` |
 
-追跡下の `reports/` 全体: 1719 ファイル / 294.0 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。
+追跡下の `reports/` 全体: 2105 ファイル / 339.7 MB。内訳と、これが clone コストではない理由は `docs/REPO_AUDIT.md` §D。

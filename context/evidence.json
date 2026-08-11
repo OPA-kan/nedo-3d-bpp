@@ -2134,6 +2134,81 @@
         "live_policy_benefit_established": false,
         "adopted_for_training": false
       }
+    },
+    {
+      "id": "state-model-result-survives-the-sampler-on-a-matched-pair",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "replicates": "state-model-beats-the-incumbent-the-saturation-was-the-feature-vector",
+      "claim": "The state model's advantage over the incumbent reproduces on a larger corpus and survives the obvious leak. Both arms were trained on a frozen copy of the same 130 boards over 8 cases, which matters because CI lands boards continuously and two earlier attempts compared 93 boards against 118 without noticing. With all positives (4955 rows): mean within-state AUC 0.733 incumbent, 0.767 phi_mlp, 0.842 candidate_mlp, 0.835 set_attention. With the positives restricted to the stratified-random control arm (2926 rows), which removes the observed-state swap optimizer's diversity selection from the safe class: 0.745, 0.768, 0.851, 0.841. The ordering is identical and the candidate MLP's margin over the incumbent is if anything larger once the selection is removed, so the model is not reading the sampler. That is now six measurements -- three corpus sizes at 93, 118 and 130 boards, two positive sources -- all with the same ordering. Top-1 safe rate is the metric that moves between arms (0.969 against 0.882 for the candidate MLP), because it depends on the safe fraction per board, which is a sampling design; AUC is the rank measure to quote. Attention again loses to the plain candidate MLP on safety ranking and wins on the settle regression, where it is the best arm on both targets in both sources (R-squared 0.337 and 0.390 with all positives, 0.299 and 0.373 with control only, against the audit linear arm's 0.147 and 0.081). Still not a live-policy result: the incumbent is consumed inside a deadline-bounded search, latency is unmeasured, and a selector that looked better statically has already lost on trajectories here (multi-axis Pareto enforce v1). The next gate is a physical negative control, not another dataset run.",
+      "source": "reports/state-model/summary.json; reports/state-model/control-only.json; docs/STATE_MODEL_EXPERIMENT.md; scripts/train_state_model.py",
+      "values": {
+        "boards": 130,
+        "cases": 8,
+        "seeds": 2,
+        "epochs": 200,
+        "matched_frozen_corpus": true,
+        "all_positives": {
+          "rows": 4955,
+          "mean_within_state_auc": {
+            "incumbent": 0.733,
+            "phi_mlp": 0.767,
+            "candidate_mlp": 0.842,
+            "set_attention": 0.835
+          },
+          "top1_safe_rate": {
+            "incumbent": 0.882,
+            "phi_mlp": 0.844,
+            "candidate_mlp": 0.969,
+            "set_attention": 0.961
+          },
+          "r2": {
+            "delta_theta_deg": {
+              "phi_mlp": 0.272,
+              "candidate_mlp": 0.275,
+              "set_attention": 0.337
+            },
+            "d_norm": {
+              "phi_mlp": 0.215,
+              "candidate_mlp": 0.343,
+              "set_attention": 0.39
+            }
+          }
+        },
+        "control_only_positives": {
+          "rows": 2926,
+          "mean_within_state_auc": {
+            "incumbent": 0.745,
+            "phi_mlp": 0.768,
+            "candidate_mlp": 0.851,
+            "set_attention": 0.841
+          },
+          "top1_safe_rate": {
+            "incumbent": 0.874,
+            "phi_mlp": 0.757,
+            "candidate_mlp": 0.882,
+            "set_attention": 0.874
+          },
+          "r2": {
+            "delta_theta_deg": {
+              "phi_mlp": 0.249,
+              "candidate_mlp": 0.269,
+              "set_attention": 0.299
+            },
+            "d_norm": {
+              "phi_mlp": 0.182,
+              "candidate_mlp": 0.373,
+              "set_attention": 0.373
+            }
+          }
+        },
+        "selection_confound_refuted": true,
+        "attention_wins_regression_loses_safety_ranking": true,
+        "live_policy_benefit_established": false,
+        "latency_measured": false,
+        "adopted": false
+      }
     }
   ]
 }
