@@ -2415,6 +2415,60 @@
         "adoption_safe_on_the_guard": true,
         "adopted": false
       }
+    },
+    {
+      "id": "acceptance-gate-replicates-with-the-arms-in-opposite-slots",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "replicates": "swap-acceptance-gate-buys-consumption-diversity-with-the-sum",
+      "claim": "The acceptance-gate result reproduces on 46 fresh boards with the two rules in the opposite slots, and this is also the adoption's negative control. Run 31492719115 ships pareto_gate and shadows sum; run 31491047020 did the reverse. Gate minus sum, second run against first: consumption +0.033687 against +0.029919, 25/15/6 against 25/15/4, sign-test p=0.0009 against p=0.0001; occupancy +0.001274 against +0.001921, 25/7/14 against 24/7/13, p=0.1081 against p=0.0989 -- indistinguishable in both, which is the honest call and not a win; the single sum -0.004560 against -0.005548, expected by construction. Same verdict string from an instrument that had no way to know which run it was reading. The condition matrix passes 8/8 with the gate shipped, 985 safe-positive and 548 negative-risk rows, and the guard number's minimum is 0.033627, clear of zero. ONE DEFECT FOUND AND FIXED IN THE INSTRUMENT: scripts/measure_swap_acceptance.py keyed the two arms by slot rather than by the acceptance rule each ran, so the moment adoption swapped the slots every column came out sign-flipped and mislabelled -- the replicated consumption win first printed as 'sum_better'. It now reads each trace's own `acceptance` field, and a test drives the same fixture through both slot assignments and asserts the answer does not move. The pre-adoption entry's numbers were computed before the swap and are unaffected.",
+      "source": "reports/swap-acceptance/summary.json; reports/swap-acceptance/pre-adoption.json; reports/residual-diversity-scale/history/31492719115/summary.md",
+      "values": {
+        "run": "31492719115",
+        "shipped_rule": "pareto_gate",
+        "boards": 46,
+        "replicates_run": "31491047020",
+        "component_degrading_swaps_under_sum_rule": 166,
+        "boards_with_a_degrading_swap": 41,
+        "gate_minus_sum": {
+          "consumption": {
+            "mean": 0.033687,
+            "win_tie_loss": [
+              25,
+              15,
+              6
+            ],
+            "sign_test_p": 0.0009,
+            "call": "gate_better"
+          },
+          "occupancy": {
+            "mean": 0.001274,
+            "win_tie_loss": [
+              25,
+              7,
+              14
+            ],
+            "sign_test_p": 0.1081,
+            "call": "indistinguishable"
+          },
+          "single_sum": {
+            "mean": -0.00456,
+            "win_tie_loss": [
+              4,
+              6,
+              36
+            ],
+            "call": "sum_better_by_construction"
+          }
+        },
+        "matrix_verdict": "pass",
+        "scenarios_passing": 8,
+        "guard_minimum_under_shipped_gate": 0.033627,
+        "boards_at_or_below_zero": 0,
+        "instrument_slot_bug_fixed": true,
+        "adopted": true
+      }
     }
   ]
 }

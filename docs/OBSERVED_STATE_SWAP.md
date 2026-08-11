@@ -177,6 +177,28 @@ board at or below zero under either rule.
 runs as the shipped arm and the other becomes the shadow, so the comparison
 that justified the change keeps being measured in reverse.
 
+### It replicated in reverse
+
+Run `31492719115` is the adoption's negative control: 46 fresh boards, gate
+shipped and sum shadowing, the opposite of the run above.
+
+| gate − sum | run 31491047020 | run 31492719115 |
+|---|---:|---:|
+| Δ consumption | +0.029919, 25/15/4, p=0.0001 | +0.033687, 25/15/6, p=0.0009 |
+| Δ occupancy | +0.001921, 24/7/13, p=0.0989 | +0.001274, 25/7/14, p=0.1081 |
+| single sum | −0.005548, 2/6/36 | −0.004560, 4/6/36 |
+
+Same verdict, same signs, occupancy indistinguishable both times. The matrix
+passes 8/8 with the gate shipped and the guard number's minimum is 0.033627,
+clear of zero.
+
+Reading that took fixing the reader. `measure_swap_acceptance.py` keyed the
+arms by slot rather than by the rule each one ran, so the instant adoption
+swapped the slots every column came out sign-flipped and mislabelled -- the
+replicated consumption win first printed as `sum_better`. It reads each
+trace's own `acceptance` now, and a test drives one fixture through both
+assignments and asserts the answer does not move.
+
 ## Ablation
 
 `--observed-swap-rounds 0` disables the seed and the swaps together and

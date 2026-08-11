@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.measure_swap_acceptance import sign_test, summarise, verdict
+import json
+import pathlib as _pathlib
+import tempfile
+
+from scripts.measure_swap_acceptance import (
+    paired_rows,
+    sign_test,
+    summarise,
+    verdict,
+)
 
 
 def row(
@@ -18,14 +27,15 @@ def row(
         "step": 3,
         "degrading_swaps": degrading,
         "refused_by_gate": refused,
-        "shipped_swaps": 5,
-        "shadow_swaps": 4,
-        "shipped_sum": shipped[0],
-        "shipped_occupancy": shipped[1],
-        "shipped_consumption": shipped[2],
-        "shadow_sum": shadow[0],
-        "shadow_occupancy": shadow[1],
-        "shadow_consumption": shadow[2],
+        "shipped_rule": "pareto_gate",
+        "sum_rule_swaps": 5,
+        "gate_swaps": 4,
+        "sum_rule_sum": shipped[0],
+        "sum_rule_occupancy": shipped[1],
+        "sum_rule_consumption": shipped[2],
+        "gate_sum": shadow[0],
+        "gate_occupancy": shadow[1],
+        "gate_consumption": shadow[2],
     }
 
 
@@ -109,10 +119,10 @@ class GuardSafetyTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            report["shipped_guard_number"]["boards_at_or_below_zero"], 0
+            report["sum_rule_guard_number"]["boards_at_or_below_zero"], 0
         )
         self.assertEqual(
-            report["shadow_guard_number"]["boards_at_or_below_zero"], 1
+            report["gate_guard_number"]["boards_at_or_below_zero"], 1
         )
 
 
@@ -163,12 +173,101 @@ class SummaryTests(unittest.TestCase):
 
     def test_a_missing_component_is_skipped_not_counted_as_zero(self):
         missing = row()
-        missing["shadow_consumption"] = None
+        missing["gate_consumption"] = None
 
         report = summarise([missing, row()])
 
         self.assertEqual(report["gate_minus_sum_consumption"]["boards"], 1)
         self.assertEqual(report["gate_minus_sum_occupancy"]["boards"], 2)
+
+
+def trace(rule: str, *, sum_delta: float, occupancy: float,
+          consumption: float, degrading: int = 0, refused: int = 0) -> dict:
+    return {
+        "acceptance": rule,
+        "swaps_applied": 5,
+        "component_degrading_swaps": degrading,
+        "swaps_refused_by_gate": refused,
+        "final_objective": {
+            "mean_nearest_neighbor_distance_delta": sum_delta
+        },
+        "final_components": {
+            "occupancy_delta": occupancy,
+            "consumption_delta": consumption,
+        },
+    }
+
+
+class SlotIndependenceTests(unittest.TestCase):
+    """The defect: reading the arms by slot instead of by rule.
+
+    Adopting the gate swapped which rule ships and which shadows. A reader
+    that assumed the old assignment reported every column with its sign
+    flipped -- the gate's replicated consumption win came out labelled
+    `sum_better`, which is the opposite of what the corpus said.
+    """
+
+    SUM = trace("sum", sum_delta=0.10, occupancy=0.05,
+                consumption=0.00, degrading=3)
+    GATE = trace("pareto_gate", sum_delta=0.09, occupancy=0.06,
+                 consumption=0.10, refused=7)
+
+    def manifest(self, shipped: dict, shadow: dict) -> dict:
+        return {
+            "case": {
+                "case_id": "m-dual-empty",
+                "steps": [
+                    {
+                        "step": 3,
+                        "sampling": {
+                            "outcome_split": {
+                                "swap_optimizer": shipped,
+                                "swap_optimizer_shadow": shadow,
+                            }
+                        },
+                    }
+                ],
+            }
+        }
+
+    def rows_for(self, shipped: dict, shadow: dict) -> list[dict]:
+        with tempfile.TemporaryDirectory() as raw:
+            root = _pathlib.Path(raw)
+            (root / "dataset").mkdir()
+            (root / "dataset" / "manifest.json").write_text(
+                json.dumps(self.manifest(shipped, shadow)), encoding="utf-8"
+            )
+            return paired_rows(root)
+
+    def test_the_two_slot_assignments_give_the_same_answer(self):
+        before = summarise(self.rows_for(self.SUM, self.GATE))
+        after = summarise(self.rows_for(self.GATE, self.SUM))
+
+        for name in ("sum", "occupancy", "consumption"):
+            self.assertEqual(
+                before[f"gate_minus_sum_{name}"]["mean"],
+                after[f"gate_minus_sum_{name}"]["mean"],
+                f"{name} flipped when the arms swapped slots",
+            )
+
+    def test_the_counts_come_from_the_rule_that_can_produce_them(self):
+        # Only the sum rule can accept a component-degrading swap, and only
+        # the gate can refuse one, whichever slot each happens to sit in.
+        for shipped, shadow in ((self.SUM, self.GATE), (self.GATE, self.SUM)):
+            row = self.rows_for(shipped, shadow)[0]
+
+            self.assertEqual(row["degrading_swaps"], 3)
+            self.assertEqual(row["refused_by_gate"], 7)
+
+    def test_the_shipped_rule_is_reported_not_assumed(self):
+        self.assertEqual(
+            self.rows_for(self.GATE, self.SUM)[0]["shipped_rule"],
+            "pareto_gate",
+        )
+
+    def test_a_step_missing_one_rule_is_skipped(self):
+        # Runs measured before the shadow arm landed carry one trace only.
+        self.assertEqual(self.rows_for(self.SUM, {}), [])
 
 
 if __name__ == "__main__":

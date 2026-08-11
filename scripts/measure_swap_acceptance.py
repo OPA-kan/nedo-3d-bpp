@@ -30,6 +30,9 @@ from typing import Any
 
 SHIPPED = "swap_optimizer"
 SHADOW = "swap_optimizer_shadow"
+SUM_RULE = "sum"
+GATE_RULE = "pareto_gate"
+RULES = (SUM_RULE, GATE_RULE)
 COMPONENTS = ("occupancy", "consumption")
 
 
@@ -48,24 +51,43 @@ def paired_rows(root: pathlib.Path) -> list[dict[str, Any]]:
         case = manifest.get("case") or {}
         for step in case.get("steps") or []:
             split = (step.get("sampling") or {}).get("outcome_split") or {}
-            shipped = split.get(SHIPPED) or {}
-            shadow = split.get(SHADOW)
-            if not shipped or not isinstance(shadow, dict):
+            traces = [
+                split.get(SHIPPED) or {},
+                split.get(SHADOW) or {},
+            ]
+            # Key on the rule each trace ran, never on the slot it sits in.
+            # Adopting the gate swapped the two slots, and a reader that
+            # assumed the old assignment reported every column with its sign
+            # flipped and its label inverted -- the gate's replicated
+            # consumption win came out as "sum_better".
+            by_rule = {
+                str(trace.get("acceptance")): trace
+                for trace in traces
+                if trace.get("acceptance") in RULES
+            }
+            if set(by_rule) != set(RULES):
                 continue
+            sum_arm = by_rule[SUM_RULE]
+            gate_arm = by_rule[GATE_RULE]
             row: dict[str, Any] = {
                 "source": str(path.parent),
                 "case_id": str(case.get("case_id")),
                 "step": step.get("step"),
+                "shipped_rule": str(
+                    (split.get(SHIPPED) or {}).get("acceptance")
+                ),
+                # Only the sum rule can take a move that costs a component,
+                # and only the gate can refuse one. Read each from its own.
                 "degrading_swaps": int(
-                    shipped.get("component_degrading_swaps", 0)
+                    sum_arm.get("component_degrading_swaps", 0)
                 ),
                 "refused_by_gate": int(
-                    shadow.get("swaps_refused_by_gate", 0)
+                    gate_arm.get("swaps_refused_by_gate", 0)
                 ),
-                "shipped_swaps": int(shipped.get("swaps_applied", 0)),
-                "shadow_swaps": int(shadow.get("swaps_applied", 0)),
+                "sum_rule_swaps": int(sum_arm.get("swaps_applied", 0)),
+                "gate_swaps": int(gate_arm.get("swaps_applied", 0)),
             }
-            for arm, trace in (("shipped", shipped), ("shadow", shadow)):
+            for arm, trace in (("sum_rule", sum_arm), ("gate", gate_arm)):
                 final = trace.get("final_objective") or {}
                 row[f"{arm}_sum"] = final.get(
                     "mean_nearest_neighbor_distance_delta"
@@ -80,10 +102,10 @@ def paired_rows(root: pathlib.Path) -> list[dict[str, Any]]:
 def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     def paired(name: str) -> list[float]:
         return [
-            row[f"shadow_{name}"] - row[f"shipped_{name}"]
+            row[f"gate_{name}"] - row[f"sum_rule_{name}"]
             for row in rows
-            if row.get(f"shadow_{name}") is not None
-            and row.get(f"shipped_{name}") is not None
+            if row.get(f"gate_{name}") is not None
+            and row.get(f"sum_rule_{name}") is not None
         ]
 
     report: dict[str, Any] = {
@@ -92,14 +114,17 @@ def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
             1 for row in rows if row["degrading_swaps"] > 0
         ),
         "degrading_swaps": sum(row["degrading_swaps"] for row in rows),
-        "shipped_swaps": sum(row["shipped_swaps"] for row in rows),
-        "shadow_swaps": sum(row["shadow_swaps"] for row in rows),
+        "sum_rule_swaps": sum(row["sum_rule_swaps"] for row in rows),
+        "gate_swaps": sum(row["gate_swaps"] for row in rows),
+        "shipped_rules": sorted(
+            {row["shipped_rule"] for row in rows}
+        ),
         "swaps_refused_by_gate": sum(row["refused_by_gate"] for row in rows),
     }
     # Adoption question, separate from the comparison: the acceptance guard
     # tests the single sum, and the gate lowers it. Would any board fall to
     # or below zero and turn a passing condition into a failing one?
-    for arm in ("shipped", "shadow"):
+    for arm in ("sum_rule", "gate"):
         sums = [row[f"{arm}_sum"] for row in rows if row.get(f"{arm}_sum")]
         report[f"{arm}_guard_number"] = {
             "minimum": min(sums) if sums else None,
@@ -192,7 +217,10 @@ def markdown(report: dict[str, Any]) -> str:
         "# Swap acceptance: does refusing a component-degrading swap help?",
         "",
         f"- Verdict: **{report['verdict']}**",
-        f"- {report['boards']} boards, both arms on each",
+        (
+            f"- {report['boards']} boards, both rules on each; the shipped "
+            f"arm ran {', '.join(report['shipped_rules'])}"
+        ),
         (
             f"- Shipped arm accepted {report['degrading_swaps']} swaps that "
             f"raised the sum while a component fell, on "
@@ -200,16 +228,16 @@ def markdown(report: dict[str, Any]) -> str:
         ),
         (
             f"- The gate refused {report['swaps_refused_by_gate']} moves; "
-            f"{report['shipped_swaps']} swaps applied by the sum rule against "
-            f"{report['shadow_swaps']} by the gate"
+            f"{report['sum_rule_swaps']} swaps applied by the sum rule against "
+            f"{report['gate_swaps']} by the gate"
         ),
         (
             "- Guard number (the sum the acceptance test reads): minimum "
-            f"{report['shipped_guard_number']['minimum']:.6f} under the sum "
-            f"rule against {report['shadow_guard_number']['minimum']:.6f} "
+            f"{report['sum_rule_guard_number']['minimum']:.6f} under the sum "
+            f"rule against {report['gate_guard_number']['minimum']:.6f} "
             "under the gate; boards at or below zero, "
-            f"{report['shipped_guard_number']['boards_at_or_below_zero']} "
-            f"and {report['shadow_guard_number']['boards_at_or_below_zero']}"
+            f"{report['sum_rule_guard_number']['boards_at_or_below_zero']} "
+            f"and {report['gate_guard_number']['boards_at_or_below_zero']}"
         ),
         "",
         "| quantity | mean gate − sum | median | gate better | tied | "
