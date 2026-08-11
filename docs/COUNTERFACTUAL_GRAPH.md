@@ -72,8 +72,9 @@ nodeにはそれらの累積値とterminal reasonを保存する。公式に存�
 
 1. nodeのaction pathを、毎回新しいenvでepisode先頭から再生する。
 2. board fingerprintがnodeと一致しなければ即時停止する。
-3. deadlineを使わず、固定attempt budgetの`PlacementCore.top_candidates`から
-   上位B件を得る。
+3. deadlineを使わず、固定attempt budgetの`PlacementCore.top_candidates`を
+   走査器として使う。settled優先を保ったまま荷物ごとの最良候補を残し、異なる
+   荷物から上位B件を得る。同一荷物の近接poseだけで幅を消費しない。
 4. 各候補をさらに別の新しいenvで再構築してから1回だけ実行する。
 5. settle後のfingerprintをchild node、commandと物理結果をedgeとして記録する。
 6. 同じdepth・同じfingerprintは合流し、終了枝は展開しない。

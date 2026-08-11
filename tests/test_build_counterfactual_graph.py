@@ -1,14 +1,80 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 from scripts.build_counterfactual_graph import (
+    build_candidate_provider,
     cumulative_metrics,
     transition_outcomes,
 )
 
 
 class PhysicalOutcomeTests(unittest.TestCase):
+    def test_candidate_frontier_spends_width_on_distinct_items(self):
+        def decision(pool_index, score, name=None):
+            return SimpleNamespace(
+                action={
+                    "item_idx": pool_index,
+                    "container_idx": 0,
+                    "place_pos": [score / 10, 0, 0.5],
+                    "orientation": 0,
+                },
+                candidate=SimpleNamespace(name=name),
+                score=score,
+            )
+
+        emitted = [
+            (0, {"index": 10}, decision(0, 5.0)),
+            (0, {"index": 10}, decision(0, 6.0)),
+            (1, {"index": 11}, decision(1, 4.0)),
+            (2, {"index": 12}, decision(2, 9.0, "release_candidate")),
+        ]
+
+        class PlacementCore:
+            @staticmethod
+            def top_candidates(
+                _observation,
+                _indexed_items,
+                _k,
+                **kwargs,
+            ):
+                observer = kwargs["candidate_observer"]
+                for pool_index, item, selected in emitted:
+                    observer(pool_index, item, 0, 0, selected)
+                return []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=PlacementCore,
+        )
+        provider = build_candidate_provider(module, attempt_budget=64)
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value={"pool_list": []},
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[],
+            ),
+        ):
+            candidates = provider(object(), {}, 2)
+
+        self.assertEqual(
+            [candidate.selection["stable_item_index"] for candidate in candidates],
+            [10, 11],
+        )
+        self.assertEqual(candidates[0].selection["score"], 6.0)
+        self.assertTrue(
+            all(
+                candidate.selection["candidate_kind"] == "settled_candidate"
+                for candidate in candidates
+            )
+        )
+
     def test_records_all_score_proxies_without_collapsing_them(self):
         class Container:
             packed_items = [object(), object()]

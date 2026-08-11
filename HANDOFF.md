@@ -64,10 +64,12 @@ artifact:
   fingerprint matches. PyBullet `saveState` alone is explicitly insufficient
   because it omits Python stream/container state.
 - `scripts/build_counterfactual_graph.py` now performs bounded breadth-first
-  physical expansion. It uses fixed-attempt `PlacementCore.top_candidates`,
-  reconstructs every candidate path in a fresh env, records multi-axis node
-  totals and edge deltas, merges equal same-depth states, and stops terminal
-  branches. It does not use a wall-clock deadline.
+  physical expansion. It uses fixed-attempt `PlacementCore.top_candidates` as
+  a scanner, then retains the best candidate per stable item so graph width is
+  not consumed by near-duplicate poses of one item. It reconstructs every
+  candidate path in a fresh env, records multi-axis node totals and edge
+  deltas, merges equal same-depth states, and stops terminal branches. It does
+  not use a wall-clock deadline.
 - no ranker, policy default, simulator rule or final holdout was changed.
 
 Next: run that executor with branch factor 2 and horizon 3 on at least three

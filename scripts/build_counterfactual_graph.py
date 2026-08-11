@@ -127,20 +127,56 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
     def provide(env, raw_observation, limit: int) -> list[BranchCandidate]:
         observation = policy_observation(env, raw_observation)
         indexed_items = policy_indexed_items(agent_module, observation)
-        decisions = agent_module.PlacementCore.top_candidates(
+        settled_by_item = {}
+        release_by_item = {}
+
+        def retain_item_best(
+            pool_index,
+            item,
+            _container_index,
+            _orientation,
+            decision,
+        ):
+            stable_item_index = int(item.get("index", pool_index))
+            target = (
+                release_by_item
+                if decision.candidate.name == "release_candidate"
+                else settled_by_item
+            )
+            previous = target.get(stable_item_index)
+            if previous is None or float(decision.score) > float(
+                previous.score
+            ):
+                target[stable_item_index] = decision
+
+        # The return value is intentionally ignored. Its bounded heap can be
+        # filled by near-duplicate poses of one item. The observer sees the
+        # same fixed-attempt scan and retains the best action PER ITEM, which
+        # makes graph width mean different decisions rather than millimetre
+        # variants of one command.
+        agent_module.PlacementCore.top_candidates(
             observation,
             indexed_items,
-            int(limit),
+            max(1, int(limit)),
             deadline=None,
             diagnostics=None,
             risk_lambda=risk_lambda,
+            candidate_observer=retain_item_best,
             attempt_budget=int(attempt_budget),
-            retained_evaluation=True,
         )
+        source = settled_by_item or release_by_item
+        decisions = sorted(
+            source.items(),
+            key=lambda pair: (-float(pair[1].score), int(pair[0])),
+        )[: int(limit)]
         result = []
-        for rank, decision in enumerate(decisions):
+        for rank, (stable_item_index, decision) in enumerate(decisions):
             action = canonical_action(decision.action)
-            candidate_kind = decision.candidate.name or "candidate"
+            candidate_kind = (
+                "release_candidate"
+                if decision.candidate.name == "release_candidate"
+                else "settled_candidate"
+            )
             result.append(
                 BranchCandidate(
                     candidate_id=stable_id(
@@ -148,12 +184,17 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
                         {
                             "action": action,
                             "kind": candidate_kind,
+                            "stable_item_index": stable_item_index,
                         },
                     ),
                     command_action=action,
                     selection={
-                        "provider": "placement_core_top_k_fixed_attempts",
+                        "provider": (
+                            "placement_core_item_diverse_fixed_attempts"
+                        ),
                         "rank": int(rank),
+                        "pool_index": int(action["item_idx"]),
+                        "stable_item_index": int(stable_item_index),
                         "score": float(decision.score),
                         "candidate_kind": candidate_kind,
                         "attempt_budget": int(attempt_budget),
@@ -282,7 +323,9 @@ def main() -> int:
             "config": str(args.config),
             "config_case": str(args.case),
             "split": str(args.split),
-            "candidate_provider": "placement_core_top_k_fixed_attempts",
+            "candidate_provider": (
+                "placement_core_item_diverse_fixed_attempts"
+            ),
             "attempt_budget": int(args.attempt_budget),
             "root_action_prefix_id": contract.get("action_prefix_id"),
         },
