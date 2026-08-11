@@ -401,20 +401,25 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    membership is counted twice. `settled_proxy_record` must emit
    container-local coordinates in the live pipeline; the offline measurement
    in `scripts/measure_residual_metric_defect.py` shows what changes when it
-   does. (b) It averages two different questions into one sum -- where the
-   item landed, and which item left the pool -- and 79 percent of its
-   ordering is discrete identity. `occupancy_distance` and
-   `consumption_distance` now report those separately; the acceptance guard
-   still reports the single sum and should stop. Neither defect explains the
-   observed-state swap optimizer's margin: it survives collapsing the frames
-   (+0.0742 to +0.0718 over 454 boards) and is positive on both components
-   independently. Do NOT read the residual-space result
-   (`reports/residual-space/summary.md`) as "a learned space is not worth
-   building": the learned arms were scored against a target that shares four
-   categorical fields with the hand-made proxy, so the 0.839-against-0.432
-   headline is not an equal-terms comparison. The honest number is
-   geometry-versus-geometry at 0.659. Re-run that comparison after the metric
-   is fixed, and only then decide.
+   does. **(a) is now fixed at the source** -- `settled_proxy_record` takes
+   `container_offsets` and `build_replay_dataset` passes them, so the search,
+   the guard and the coverage report read one frame. Guard deltas from runs
+   before commit `2ccb262` are in the old frame and must not be compared
+   directly against later ones on multi-container boards. (b) It averages two
+   different questions into one sum -- where the item landed, and which item
+   left the pool -- and the discrete half carries most of the ordering: four
+   of eleven terms are categorical, and identity alone reaches 0.747 mean
+   within-board rank agreement against the full metric's 0.844.
+   `occupancy_distance` and `consumption_distance` are now reported beside
+   the sum, but the search still maximises the sum, which is a weighting
+   nobody chose. Neither defect explains the observed-state swap optimizer's
+   margin: it survives collapsing the frames (+0.0742 to +0.0718 over 454
+   boards) and is positive on both components independently. Do NOT read the
+   residual-space result (`reports/residual-space/summary.md`) as "a learned
+   space is not worth building": the learned arms are scored against a target
+   that shares four categorical fields with the hand-made proxy, so the
+   0.844-against-0.460 headline is not an equal-terms comparison. The honest
+   number is geometry-versus-geometry, 0.686 in the corrected frame.
 3. Replay the 57 multi-axis substitutions from run `31362302154` as paired
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before

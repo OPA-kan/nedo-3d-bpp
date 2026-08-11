@@ -43,8 +43,11 @@ RISK_FIELDS = CONTINUOUS_FIELDS[6:-1]
 # full 1.0 while a normalised position difference contributes a fraction, so
 # on the observed records -- where only centre, size and settle tilt survive
 # -- four of eleven terms are discrete identity, and they carry most of the
-# ordering. Measured on the retained corpus: identity alone reproduces 0.793
-# of the full metric's 0.839 rank agreement with itself.
+# ordering. Measured on the retained corpus in the corrected frame: the
+# identity-only proxy alone reaches 0.747 mean within-board rank agreement
+# with the truth, against the full metric's 0.844. That is a correlation and
+# not a share -- no percentage of the metric is attributable to identity, and
+# an earlier note here quoted one that should not be repeated.
 #
 # So report the two components, and do not fabricate a total. This is the
 # same rule the multi-axis selector already follows.

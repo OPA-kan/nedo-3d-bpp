@@ -2264,7 +2264,7 @@
       "id": "learned-residual-space-loses-to-the-hand-made-proxy",
       "topic": "learning_data",
       "date": "2026-08-11",
-      "status": "active",
+      "status": "superseded",
       "claim": "A learned residual space does not yet beat the fourteen hand-made proxy fields at ordering candidate-versus-candidate afterstate difference, but the evidence is weaker than the headline. On 105108 within-board pairs from 130 boards over 8 cases, leave-one-case-out, against truth = the same Gower distance the acceptance guard reports on observed x_plus: command_proxy 0.839 mean within-board Spearman, candidate_mlp 0.432, set_attention 0.472. Read the decomposition before the headline, because the comparison is not fair to the learned arms: the proxy and the truth share their four categorical fields, so part of command_proxy's agreement is tautological. Identity alone scores 0.793 and geometry alone 0.658, and geometry-versus-geometry -- the only comparison with no shared terms on either side -- is 0.659. So the honest statement is that the proxy's geometry predicts the truth's geometry at about 0.66 and the learned arms have not been measured against that number on equal terms. This is why the same models beat the incumbent on safety ranking (0.842 within-state AUC against 0.733) yet lose here: the two tasks are different, and this one is scored against a metric that is 79 percent discrete identity. Do not read this as 'do not train a transformer'. It says the current residual metric is not a good target to learn, which is a statement about the metric.",
       "source": "reports/residual-space/summary.json; scripts/measure_residual_space.py; tests/test_measure_residual_space.py",
       "values": {
@@ -2281,6 +2281,75 @@
           "set_attention": 0.472
         },
         "proxy_win_is_mostly_identity": true,
+        "learned_arms_scored_on_equal_terms": false,
+        "verdict_is_about_the_metric_not_the_model": true
+      },
+      "superseded_by": "residual-space-in-one-frame-and-a-corrected-gloss"
+    },
+    {
+      "id": "residual-metric-frame-fix-landed-and-moved-the-metric-toward-geometry",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "The coordinate-frame defect is fixed at the source and the fix moves the metric in the intended direction. `settled_proxy_record` now takes `container_offsets` and `build_replay_dataset` derives them once from the observation and passes them to both the outcome split and the acceptance guard, so the swap search, the guard and the coverage report read a single frame; x and y are shifted and z is not, because a commanded z of 0.227 settling to 0.175 is the item dropping five centimetres. Omitting the argument still reproduces the world-frame descriptor, so every measurement recorded before 2026-08-11 stays readable. Measured as a paired comparison -- the same trained embeddings scored against the truth in both frames, 140456 within-board pairs from 171 boards over 8 cases, so the frame is the only thing that differs: commanded geometry against settled geometry, the one comparison with no shared terms on either side, rises from 0.658 to 0.686 mean within-board Spearman; geometry-only proxy against the full truth rises from 0.665 to 0.708; identity-only falls from 0.787 to 0.747. That is the fix working: the 2.5 m offset was inflating the discrete half of the metric by double-counting container membership, and removing it shifts weight onto actual geometry. The learned arms are unmoved (candidate_mlp 0.469 to 0.460, set_attention 0.494 to 0.498), so the frame was never what was holding them back. Guard deltas from runs before commit 2ccb262 are in the old frame and must not be compared directly against later ones on multi-container boards; single-container boards are unaffected by construction. The second defect is NOT fixed: the search still maximises the single sum.",
+      "source": "reports/residual-space/summary.json; scripts/residual_diversity.py; scripts/build_replay_dataset.py; tests/test_residual_metric_frame.py",
+      "values": {
+        "pairs": 140456,
+        "boards": 171,
+        "cases": 8,
+        "paired_design_same_embeddings_both_frames": true,
+        "geometry_versus_geometry": {
+          "world_frame": 0.658,
+          "container_frame": 0.686
+        },
+        "command_proxy_geometry_only": {
+          "world_frame": 0.665,
+          "container_frame": 0.708
+        },
+        "command_proxy_identity_only": {
+          "world_frame": 0.787,
+          "container_frame": 0.747
+        },
+        "command_proxy": {
+          "world_frame": 0.837,
+          "container_frame": 0.844
+        },
+        "candidate_mlp": {
+          "world_frame": 0.469,
+          "container_frame": 0.46
+        },
+        "set_attention": {
+          "world_frame": 0.494,
+          "container_frame": 0.498
+        },
+        "frame_fixed_in_live_pipeline": true,
+        "search_still_maximises_the_single_sum": true
+      }
+    },
+    {
+      "id": "residual-space-in-one-frame-and-a-corrected-gloss",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "Re-measured in the corrected coordinate frame on a larger corpus, a learned residual space still does not beat the fourteen hand-made proxy fields at ordering candidate-versus-candidate afterstate difference -- and one number in the superseded entry was glossed wrongly. On 140456 within-board pairs from 171 boards over 8 cases, leave-one-case-out, truth = the Gower distance over settled x_plus in the container frame: command_proxy 0.844 mean within-board Spearman, candidate_mlp 0.460, set_attention 0.498. THE CORRECTION: the superseded entry called this 'a metric that is 79 percent discrete identity'. That is wrong. 0.793 was a Spearman rank correlation between the identity-only proxy and the truth, not a share of the metric. The correct statements are two: four of the eleven terms present on observed records are categorical, and the identity-only proxy alone reaches 0.747 rank agreement against the full metric's 0.844 -- so the discrete half carries most of the ordering, but no percentage of the metric is attributable to it and none should be quoted. The rest of the reading stands and is now firmer: the proxy and the truth share their four categorical fields, so part of command_proxy's agreement is tautological, and the only comparison with no shared terms on either side is commanded geometry against settled geometry, at 0.686. That is the number the learned arms should be judged against, and they have still not been measured against it on equal terms. This is why the same models beat the incumbent on safety ranking (0.842 within-state AUC against 0.733) yet lose here: the tasks are different. Do not read this as 'do not train a transformer'.",
+      "source": "reports/residual-space/summary.json; scripts/measure_residual_space.py",
+      "supersedes_reason": "corrects a percentage gloss and re-measures in the corrected frame",
+      "values": {
+        "pairs": 140456,
+        "boards": 171,
+        "cases": 8,
+        "split": "leave_one_case_out",
+        "truth": "gower_distance_over_observed_x_plus_in_container_frame",
+        "mean_within_board_spearman": {
+          "command_proxy": 0.844,
+          "command_proxy_identity_only": 0.747,
+          "command_proxy_geometry_only": 0.708,
+          "geometry_versus_geometry": 0.686,
+          "candidate_mlp": 0.46,
+          "set_attention": 0.498
+        },
+        "categorical_terms_of_eleven": 4,
+        "percentage_gloss_withdrawn": true,
         "learned_arms_scored_on_equal_terms": false,
         "verdict_is_about_the_metric_not_the_model": true
       }
