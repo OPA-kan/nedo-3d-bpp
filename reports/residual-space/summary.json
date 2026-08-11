@@ -41,15 +41,21 @@
   },
   "mean_within_board_spearman": {
     "command_proxy": 0.8388457548949221,
+    "command_proxy_identity_only": 0.7927826735631414,
+    "command_proxy_geometry_only": 0.6582234461161699,
     "candidate_mlp": 0.4320491769612162,
-    "set_attention": 0.4715948813863487
+    "set_attention": 0.4715948813863487,
+    "geometry_versus_geometry": 0.6592561154339237
   },
   "pooled_spearman": {
     "command_proxy": 0.8411222152774974,
+    "command_proxy_identity_only": 0.8073364141449748,
+    "command_proxy_geometry_only": 0.6485148689242205,
     "candidate_mlp": 0.3953481034244461,
     "set_attention": 0.4147459303617492
   },
   "best_predictor": "command_proxy",
   "verdict": "hand_made_proxy_holds",
-  "interpretation": "Pairs are formed inside a board, so this measures ordering of candidate-versus-candidate residual difference, not how different two boards are. Truth is the same Gower distance the acceptance guard reports, on observed x_plus. Every predictor is available before the replay, which is the expensive step -- so a learned winner would also mean a portfolio can be spread out without settling every overdrawn candidate first. A win for command_proxy means the fourteen hand-made fields already do the job."
+  "proxy_win_is_mostly_identity": true,
+  "interpretation": "Pairs are formed inside a board, so this measures ordering of candidate-versus-candidate residual difference, not how different two boards are. Truth is the same Gower distance the acceptance guard reports, on observed x_plus. Every predictor is available before the replay, which is the expensive step -- so a learned winner would also mean a portfolio can be spread out without settling every overdrawn candidate first. A win for command_proxy means the fourteen hand-made fields already do the job. Read the decomposition before the headline: the proxy and the truth share their four categorical fields, so command_proxy_identity_only is how much of the agreement is tautological, and geometry_versus_geometry is the only comparison with no shared terms on either side."
 }
