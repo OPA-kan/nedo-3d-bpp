@@ -2353,6 +2353,68 @@
         "learned_arms_scored_on_equal_terms": false,
         "verdict_is_about_the_metric_not_the_model": true
       }
+    },
+    {
+      "id": "swap-acceptance-gate-buys-consumption-diversity-with-the-sum",
+      "topic": "learning_data",
+      "date": "2026-08-11",
+      "status": "active",
+      "claim": "Refusing a component-degrading swap buys consumption diversity and costs the single sum, measured as a within-board paired comparison. The dataset builder runs two optimizers on every board -- same pool, same seed, same forced keys, only the acceptance rule differs -- so the difference is the rule and not the board. That pairing is not optional: the policy is deadline-limited, two runs of one scenario do not reach the same board, and the earlier greedy-versus-seeded verdict turned out to be runner-variable for exactly that reason. On 44 boards from matrix run 31491047020: the question is live, because the shipped sum rule accepted 171 swaps that raised the sum while a component fell, on 40 of the 44 boards. Gate minus sum, with an exact two-sided sign test on the paired boards: consumption +0.029919 mean, 25 boards better / 15 tied / 4 worse, p=0.0001 -- a real gain, raising mean consumption delta from 0.095 to 0.125. Occupancy +0.001921 mean, 24 / 7 / 13, p=0.0989 -- INDISTINGUISHABLE, and reporting it as a win on the strength of the mean sign was a mistake the instrument now refuses to make. The single Gower sum falls by 0.005548, 2 / 6 / 36, p<0.0001, which is expected by construction because the gate refuses moves the sum rule would take; that row is a check that the arms differ, not a result. Adoption is safe on the guard: the acceptance test reads the sum, and its minimum over the 44 boards falls only from 0.035931 to 0.030851, with no board at or below zero under either rule. So the honest summary is that the gate improves the component nobody was watching, does not measurably move the one they were, and pays for it in a number whose weighting nobody chose.",
+      "source": "reports/swap-acceptance/summary.json; scripts/measure_swap_acceptance.py; scripts/observed_state_swap.py; docs/OBSERVED_STATE_SWAP.md",
+      "values": {
+        "boards": 44,
+        "run": "31491047020",
+        "paired_within_board": true,
+        "component_degrading_swaps_under_sum_rule": 171,
+        "boards_with_a_degrading_swap": 40,
+        "swaps_applied": {
+          "sum": 605,
+          "pareto_gate": 490
+        },
+        "swaps_refused_by_gate": 2062,
+        "gate_minus_sum": {
+          "consumption": {
+            "mean": 0.029919,
+            "win_tie_loss": [
+              25,
+              15,
+              4
+            ],
+            "sign_test_p": 0.0001,
+            "call": "gate_better"
+          },
+          "occupancy": {
+            "mean": 0.001921,
+            "win_tie_loss": [
+              24,
+              7,
+              13
+            ],
+            "sign_test_p": 0.0989,
+            "call": "indistinguishable"
+          },
+          "single_sum": {
+            "mean": -0.005548,
+            "win_tie_loss": [
+              2,
+              6,
+              36
+            ],
+            "sign_test_p": 0.0,
+            "call": "sum_better_by_construction"
+          }
+        },
+        "guard_minimum": {
+          "sum": 0.035931,
+          "pareto_gate": 0.030851
+        },
+        "boards_at_or_below_zero": {
+          "sum": 0,
+          "pareto_gate": 0
+        },
+        "adoption_safe_on_the_guard": true,
+        "adopted": false
+      }
     }
   ]
 }

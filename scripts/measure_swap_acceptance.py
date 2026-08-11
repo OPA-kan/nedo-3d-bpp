@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
 import statistics
 from typing import Any
@@ -95,17 +96,61 @@ def summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "shadow_swaps": sum(row["shadow_swaps"] for row in rows),
         "swaps_refused_by_gate": sum(row["refused_by_gate"] for row in rows),
     }
+    # Adoption question, separate from the comparison: the acceptance guard
+    # tests the single sum, and the gate lowers it. Would any board fall to
+    # or below zero and turn a passing condition into a failing one?
+    for arm in ("shipped", "shadow"):
+        sums = [row[f"{arm}_sum"] for row in rows if row.get(f"{arm}_sum")]
+        report[f"{arm}_guard_number"] = {
+            "minimum": min(sums) if sums else None,
+            "mean": statistics.fmean(sums) if sums else None,
+            "boards_at_or_below_zero": sum(value <= 0.0 for value in sums),
+        }
     for name in ("sum", *COMPONENTS):
         values = paired(name)
+        better = sum(v > 0 for v in values)
+        worse = sum(v < 0 for v in values)
         report[f"gate_minus_sum_{name}"] = {
             "boards": len(values),
             "mean": statistics.fmean(values) if values else None,
             "median": statistics.median(values) if values else None,
-            "gate_better": sum(v > 0 for v in values),
+            "gate_better": better,
             "tied": sum(v == 0 for v in values),
-            "gate_worse": sum(v < 0 for v in values),
+            "gate_worse": worse,
+            "sign_test_p": sign_test(better, worse),
+            "direction": direction(
+                better,
+                worse,
+                statistics.fmean(values) if values else None,
+            ),
         }
     return report
+
+
+def sign_test(better: int, worse: int) -> float:
+    """Two-sided exact sign test on the paired wins and losses.
+
+    A mean with the right sign is not a result. Occupancy came out at
+    +0.0019 with 24 boards better and 13 worse, which reads as a win and is
+    not one: p is about 0.1. The verdict reads this, not the mean.
+    """
+    total = better + worse
+    if total == 0:
+        return 1.0
+    smaller = min(better, worse)
+    tail = sum(math.comb(total, k) for k in range(smaller + 1)) / 2**total
+    return min(1.0, 2.0 * tail)
+
+
+SIGNIFICANCE = 0.05
+
+
+def direction(better: int, worse: int, mean: float | None) -> str:
+    if mean is None:
+        return "unmeasured"
+    if sign_test(better, worse) >= SIGNIFICANCE:
+        return "indistinguishable"
+    return "gate_better" if mean > 0 else "sum_better"
 
 
 def verdict(report: dict[str, Any]) -> str:
@@ -113,15 +158,25 @@ def verdict(report: dict[str, Any]) -> str:
         return "no_paired_boards"
     if report["degrading_swaps"] == 0:
         return "acceptance_rule_cannot_matter_here"
-    components = [report[f"gate_minus_sum_{name}"] for name in COMPONENTS]
-    means = [block["mean"] for block in components]
-    if any(value is None for value in means):
+    calls = {
+        name: report[f"gate_minus_sum_{name}"]["direction"]
+        for name in COMPONENTS
+    }
+    if any(value == "unmeasured" for value in calls.values()):
         return "insufficient_component_coverage"
-    if all(value > 0 for value in means):
+    wins = sorted(k for k, v in calls.items() if v == "gate_better")
+    losses = sorted(k for k, v in calls.items() if v == "sum_better")
+    if wins and losses:
+        return "gate_trades_one_component_for_the_other"
+    if not wins and not losses:
+        return "no_measurable_difference"
+    if len(wins) == len(COMPONENTS):
         return "gate_dominates_on_both_components"
-    if all(value < 0 for value in means):
+    if len(losses) == len(COMPONENTS):
         return "sum_dominates_on_both_components"
-    return "gate_trades_one_component_for_the_other"
+    if wins:
+        return f"gate_wins_{wins[0]}_rest_indistinguishable"
+    return f"sum_wins_{losses[0]}_rest_indistinguishable"
 
 
 def markdown(report: dict[str, Any]) -> str:
@@ -148,10 +203,18 @@ def markdown(report: dict[str, Any]) -> str:
             f"{report['shipped_swaps']} swaps applied by the sum rule against "
             f"{report['shadow_swaps']} by the gate"
         ),
+        (
+            "- Guard number (the sum the acceptance test reads): minimum "
+            f"{report['shipped_guard_number']['minimum']:.6f} under the sum "
+            f"rule against {report['shadow_guard_number']['minimum']:.6f} "
+            "under the gate; boards at or below zero, "
+            f"{report['shipped_guard_number']['boards_at_or_below_zero']} "
+            f"and {report['shadow_guard_number']['boards_at_or_below_zero']}"
+        ),
         "",
         "| quantity | mean gate − sum | median | gate better | tied | "
-        "gate worse |",
-        "|---|---:|---:|---:|---:|---:|",
+        "gate worse | sign test p | call |",
+        "|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     for name, label in (
         ("sum", "the single Gower ΔNN (what the sum rule maximises)"),
@@ -167,7 +230,8 @@ def markdown(report: dict[str, Any]) -> str:
             + " | "
             + ("—" if median is None else f"{median:+.6f}")
             + f" | {block['gate_better']} | {block['tied']} "
-            f"| {block['gate_worse']} |"
+            f"| {block['gate_worse']} | {block['sign_test_p']:.4f} "
+            f"| {block['direction']} |"
         )
     lines.extend(
         [
