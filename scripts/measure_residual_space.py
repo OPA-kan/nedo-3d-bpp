@@ -65,6 +65,9 @@ from scripts.residual_diversity import (  # noqa: E402
     feature_vector_distance,
     proxy_feature_vector,
     scale_vector,
+    consumption_distance,
+    occupancy_distance,
+    occupancy_scales,
     settled_proxy_record,
 )
 from scripts.train_state_model import (  # noqa: E402
@@ -196,6 +199,7 @@ def board_pairs(
         )
         observed_vectors = [proxy_feature_vector(r) for r in observed]
         command_vectors = [proxy_feature_vector(r) for r in commanded]
+        occupancy_scale = occupancy_scales(observed)
 
         local: dict[str, list[float]] = collections.defaultdict(list)
         for left in range(len(indexes)):
@@ -240,15 +244,47 @@ def board_pairs(
                         categorical=False,
                     )
                 )
+                # The truth, split the way the acceptance guard now reports
+                # it. Consumption is which item left the pool -- the proxy
+                # carries those two fields verbatim, so agreement there is
+                # definitional, not prediction. Occupancy is where the item
+                # actually settled, which is the part physics decides and
+                # the only part worth predicting.
+                local["truth_occupancy"].append(
+                    occupancy_distance(
+                        observed[left],
+                        observed[right],
+                        scales=occupancy_scale,
+                    )
+                )
+                local["truth_consumption"].append(
+                    consumption_distance(observed[left], observed[right])
+                )
                 for arm, matrix in embeddings.items():
                     a = matrix[indexes[left]]
                     b = matrix[indexes[right]]
                     local[arm].append(float(np.linalg.norm(a - b)))
+        truths = (
+            "truth",
+            "truth_geometry_only",
+            "truth_occupancy",
+            "truth_consumption",
+        )
         row = {
             name: spearman(local[name], local["truth"])
             for name in local
-            if name not in ("truth", "truth_geometry_only")
+            if name not in truths
         }
+        # Every predictor against each half of the truth, on one footing.
+        # Scoring only against the full sum let the proxy bank its four
+        # shared categorical fields while the learned arms had to earn them.
+        for truth in ("truth_occupancy", "truth_consumption"):
+            for name in local:
+                if name in truths:
+                    continue
+                row[f"{name}__vs__{truth}"] = spearman(
+                    local[name], local[truth]
+                )
         # The one comparison with no shared terms at all: does commanded
         # geometry order settled geometry?
         row["geometry_versus_geometry"] = spearman(
@@ -301,10 +337,11 @@ def measure(
 
     columns = board_pairs(examples, embeddings)
     per_board = columns.pop("_per_board")
+    # Anything named truth_* is a target, not a predictor. Leaving the two
+    # component truths in this list put them in the ranking against their
+    # own parent sum, which is not a prediction of anything.
     predictors = [
-        name
-        for name in columns
-        if name not in ("truth", "truth_geometry_only")
+        name for name in columns if not name.startswith("truth")
     ]
     # The same trained embeddings, scored against the truth as it was read
     # before the frames were collapsed. Nothing else differs, so the gap
@@ -350,17 +387,47 @@ def measure(
             name: mean_of(world_per_board, name)
             for name in [*predictors, "geometry_versus_geometry"]
         },
+        # The equal-terms table. Consumption is definitional for the proxy
+        # -- it carries pool_index and item_index verbatim -- so a high
+        # number there is not prediction. Occupancy is where the item
+        # actually settled, and that column is the one that decides whether
+        # a learned residual space is worth building.
+        # Not a predictor row: how much of the full sum's ORDERING each
+        # half accounts for. The sum is far closer to its occupancy half
+        # than to its consumption half, which is why a verdict read off the
+        # sum was mostly a verdict about occupancy without saying so.
+        "full_sum_versus_its_own_halves": {
+            "occupancy": spearman(
+                columns["truth_occupancy"], columns["truth"]
+            ),
+            "consumption": spearman(
+                columns["truth_consumption"], columns["truth"]
+            ),
+        },
+        "mean_within_board_spearman_by_component": {
+            component: {
+                name: mean_board(f"{name}__vs__truth_{component}")
+                for name in predictors
+            }
+            for component in ("occupancy", "consumption")
+        },
     }
+    occupancy = report["mean_within_board_spearman_by_component"][
+        "occupancy"
+    ]
     ranked = sorted(
         (
-            (report["mean_within_board_spearman"][name] or -1.0, name)
+            (occupancy.get(name) or -1.0, name)
             for name in predictors
             if not name.startswith("command_proxy_")
         ),
         reverse=True,
     )
     best_value, best_name = ranked[0]
-    incumbent = report["mean_within_board_spearman"]["command_proxy"] or 0.0
+    # Judged on occupancy, not on the full sum. The full sum hands the proxy
+    # four categorical fields it shares with the truth, so a verdict read
+    # off it was never a verdict about prediction.
+    incumbent = occupancy.get("command_proxy") or 0.0
     report["best_predictor"] = best_name
     report["verdict"] = (
         "learned_residual_space_wins"
@@ -428,6 +495,49 @@ def markdown(report: dict[str, Any]) -> str:
             f"{'—' if value is None else f'{value:.3f}'} | "
             f"{'—' if pooled is None else f'{pooled:.3f}'} | "
             f"{'—' if old_frame is None else f'{old_frame:.3f}'} |"
+        )
+    by_component = report.get("mean_within_board_spearman_by_component")
+    if by_component:
+        lines.extend(
+            [
+                "",
+                "## on one footing: each half of the truth, separately",
+                "",
+                (
+                    "The full sum's own ordering is "
+                    f"{report['full_sum_versus_its_own_halves']['occupancy']:.3f}"
+                    " correlated with its occupancy half and "
+                    f"{report['full_sum_versus_its_own_halves']['consumption']:.3f}"
+                    " with its consumption half, so a verdict read off the "
+                    "sum was mostly a verdict about occupancy without "
+                    "saying so."
+                ),
+                "",
+                "| predictor | vs occupancy (settled where) | "
+                "vs consumption (which item) |",
+                "|---|---:|---:|",
+            ]
+        )
+        for name in by_component["occupancy"]:
+            occupancy = by_component["occupancy"][name]
+            consumption = by_component["consumption"][name]
+            lines.append(
+                f"| {name} | "
+                + ("—" if occupancy is None else f"{occupancy:.3f}")
+                + " | "
+                + ("—" if consumption is None else f"{consumption:.3f}")
+                + " |"
+            )
+        lines.extend(
+            [
+                "",
+                "The consumption column is not prediction. The proxy carries "
+                "`pool_index` and `item_index` verbatim, so its agreement "
+                "there is definitional and a learned arm has to earn what "
+                "the proxy is handed. The occupancy column is where the item "
+                "actually settled -- the part physics decides -- and it is "
+                "what the verdict is read from.",
+            ]
         )
     lines.extend(["", report["interpretation"], ""])
     return "\n".join(lines)
