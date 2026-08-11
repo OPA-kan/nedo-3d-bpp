@@ -1,32 +1,32 @@
 {
   "schema_version": 2,
-  "runs": 3,
-  "distinct_states": 93,
-  "case_step_slots": 92,
+  "runs": 4,
+  "distinct_states": 118,
+  "case_step_slots": 95,
   "distinct_cases": 9,
-  "states_shared_by_more_than_one_run": 8,
+  "states_shared_by_more_than_one_run": 20,
   "runs_with_incomplete_datasets": [
     "31391424126",
     "31393167142",
     "31394891316"
   ],
   "size": {
-    "raw_bytes": 52808246,
-    "estimated_stored_bytes": 3592397
+    "raw_bytes": 73440729,
+    "estimated_stored_bytes": 4995967
   },
   "rows_all_runs": {
-    "positive_transition": 2161,
-    "negative_physical_risk": 1447,
-    "paired_random_control": 2142
+    "positive_transition": 2977,
+    "negative_physical_risk": 1987,
+    "paired_random_control": 2956
   },
   "by_arm": {
     "64": {
       "rows": {
-        "positive_transition": 2161,
-        "negative_physical_risk": 1447,
-        "paired_random_control": 2142
+        "positive_transition": 2977,
+        "negative_physical_risk": 1987,
+        "paired_random_control": 2956
       },
-      "distinct_states": 93
+      "distinct_states": 118
     }
   },
   "slots": [
@@ -56,6 +56,7 @@
     "m-dual-empty:017",
     "m-dual-empty:018",
     "m-dual-empty:020",
+    "m-dual-empty:021",
     "m-dual-full-stream:003",
     "m-dual-full-stream:005",
     "m-dual-full-stream:006",
@@ -78,6 +79,7 @@
     "m-dual-preloaded-dedicated:017",
     "m-dual-preloaded-dedicated:018",
     "m-dual-preloaded-dedicated:020",
+    "m-dual-preloaded-dedicated:021",
     "m-dual-shelf-mixed:003",
     "m-dual-shelf-mixed:005",
     "m-dual-shelf-mixed:006",
@@ -90,6 +92,7 @@
     "m-dual-shelf-mixed:017",
     "m-dual-shelf-mixed:018",
     "m-dual-shelf-mixed:020",
+    "m-dual-shelf-mixed:021",
     "m-single-empty-noshelf:003",
     "m-single-empty-noshelf:005",
     "m-single-empty-noshelf:006",
@@ -801,6 +804,271 @@
             "paired_random_control": 49
           },
           "path": "reports/residual-diversity-scale/history/31394891316/dataset/single-preloaded"
+        }
+      ]
+    },
+    {
+      "run_id": "31447660500",
+      "verdict": "pass",
+      "completeness": "complete",
+      "incomplete_datasets": [],
+      "observed_swap_rounds": 64,
+      "uniform_arm": true,
+      "scenarios": 8,
+      "states": 40,
+      "rows": {
+        "positive_transition": 816,
+        "negative_physical_risk": 540,
+        "paired_random_control": 814
+      },
+      "datasets": [
+        {
+          "state_fingerprints": {
+            "6": "ff82304997895dbc",
+            "9": "b8ba3eb8fcf5a051",
+            "12": "bb233f3c729bd0c5",
+            "15": "94e8eb69bb7c34dd",
+            "18": "eb8e10182f97f6d2"
+          },
+          "case_id": "m-dual-dedicated-priority",
+          "dataset_id": "20260811_005555-m-dual-dedicated-priority-weighted-class_aware-shadow-af9a3a8e-2d9fbd1383a6",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18
+          ],
+          "snapshots": 5,
+          "rows": {
+            "positive_transition": 86,
+            "negative_physical_risk": 61,
+            "paired_random_control": 84
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/dual-dedicated-priority"
+        },
+        {
+          "state_fingerprints": {
+            "6": "d329bc1ba6c362ec",
+            "9": "fede11ca9172019d",
+            "12": "b579615b9b7ff618",
+            "15": "09d67937852baeb8",
+            "18": "0b95db39fac544c0",
+            "21": "d515b2467ba303da"
+          },
+          "case_id": "m-dual-empty",
+          "dataset_id": "20260811_005604-m-dual-empty-weighted-class_aware-shadow-5ccb4948-54d0655ac062",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18,
+            21
+          ],
+          "snapshots": 6,
+          "rows": {
+            "positive_transition": 141,
+            "negative_physical_risk": 57,
+            "paired_random_control": 141
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/dual-empty"
+        },
+        {
+          "state_fingerprints": {
+            "6": "28dfb619ab5ef1a3",
+            "9": "48ac7c22b5f00455",
+            "12": "6b30425648f36a59",
+            "15": "d3f38f5f273620b0"
+          },
+          "case_id": "m-dual-full-stream",
+          "dataset_id": "20260811_005551-m-dual-full-stream-weighted-class_aware-shadow-3345e2f3-1a372e109aa1",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15
+          ],
+          "snapshots": 4,
+          "rows": {
+            "positive_transition": 109,
+            "negative_physical_risk": 35,
+            "paired_random_control": 109
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/dual-full-stream"
+        },
+        {
+          "state_fingerprints": {
+            "6": "4f2fc2f3cce9e425",
+            "9": "3dbb8b34d8407a71",
+            "12": "16728b055c73a572",
+            "15": "673ce9b3cccbf79a",
+            "18": "7fd0a0444fd3a3e2",
+            "21": "8bf71998ef763bba"
+          },
+          "case_id": "m-dual-preloaded-dedicated",
+          "dataset_id": "20260811_005554-m-dual-preloaded-dedicated-weighted-class_aware-shadow-fb6ee244-a94d9146b863",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18,
+            21
+          ],
+          "snapshots": 6,
+          "rows": {
+            "positive_transition": 127,
+            "negative_physical_risk": 80,
+            "paired_random_control": 127
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/dual-preloaded-dedicated"
+        },
+        {
+          "state_fingerprints": {
+            "6": "95120dfd086e279d",
+            "9": "c6ee127d122c14b6",
+            "12": "632fee019a07d6d3",
+            "15": "c15db8ea67905bee",
+            "18": "75bcb5a5db96f301",
+            "21": "661a9529d03869f2"
+          },
+          "case_id": "m-dual-shelf-mixed",
+          "dataset_id": "20260811_005548-m-dual-shelf-mixed-weighted-class_aware-shadow-2b80b586-001ff68f2009",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18,
+            21
+          ],
+          "snapshots": 6,
+          "rows": {
+            "positive_transition": 142,
+            "negative_physical_risk": 49,
+            "paired_random_control": 142
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/dual-shelf-mixed"
+        },
+        {
+          "state_fingerprints": {
+            "6": "7c4ef8328314ec82",
+            "9": "616d32000514494b",
+            "12": "7608cfed3928df6a",
+            "15": "eac1d78199723eea",
+            "18": "b71295dba6e87c2c"
+          },
+          "case_id": "m-single-empty-noshelf",
+          "dataset_id": "20260811_005555-m-single-empty-noshelf-weighted-class_aware-shadow-348ede4d-ceec1aee8474",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18
+          ],
+          "snapshots": 5,
+          "rows": {
+            "positive_transition": 101,
+            "negative_physical_risk": 140,
+            "paired_random_control": 101
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/single-empty-noshelf"
+        },
+        {
+          "state_fingerprints": {
+            "6": "eb4caab92adf5922",
+            "9": "7a0bf67c4a28243b",
+            "12": "e99cae184df4e8de",
+            "15": "d18191f7f87a33a7",
+            "18": "7c76676158675af5"
+          },
+          "case_id": "m-single-empty-shelf",
+          "dataset_id": "20260811_005553-m-single-empty-shelf-weighted-class_aware-shadow-bb0d9517-c9929b6efdc4",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12,
+            15,
+            18
+          ],
+          "snapshots": 5,
+          "rows": {
+            "positive_transition": 76,
+            "negative_physical_risk": 77,
+            "paired_random_control": 76
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/single-empty-shelf"
+        },
+        {
+          "state_fingerprints": {
+            "6": "8e3cac6a4af84d44",
+            "9": "340fd592b21a1508",
+            "12": "bc8ff6a5b1b6fd32"
+          },
+          "case_id": "m-single-preloaded",
+          "dataset_id": "20260811_005549-m-single-preloaded-weighted-class_aware-shadow-38e35d9e-253c5d3f1a12",
+          "status": "complete",
+          "schema_version": 3,
+          "sampling_mode": "residual_diversity_safe_split",
+          "overdraw_factor": 3,
+          "observed_swap_rounds": 64,
+          "split": "development",
+          "steps": [
+            6,
+            9,
+            12
+          ],
+          "snapshots": 3,
+          "rows": {
+            "positive_transition": 34,
+            "negative_physical_risk": 41,
+            "paired_random_control": 34
+          },
+          "path": "reports/residual-diversity-scale/history/31447660500/dataset/single-preloaded"
         }
       ]
     }
