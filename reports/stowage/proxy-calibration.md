@@ -1,4 +1,33 @@
-# The evaluation-side proxies point the right way — all seven, zero exceptions
+# Four-point calibration: signs are not sufficient for pricing trades
+
+Run `31568295912` added the reconstructed `submission22` arm (box envelope,
+first-pass depth 64) to the same four scenarios and three repeats used by the
+original calibration. All 12 physical jobs and the aggregate succeeded.
+
+The fourth point changes the conclusion materially. No proxy is wholly
+reversed in every readable scenario, but the earlier statement that all seven
+point the right way is too strong. The new low-score point makes `placed`,
+both shake proxies, and both attribute-covering proxies only partially
+concordant in at least one scenario. `fill` remains below its noise floor in
+all four scenarios. Only `com_z` has one fully concordant readable scenario,
+and it is partial in another.
+
+```text
+proxy                       agrees  disagrees  untested  partial readable cells
+fill                             0          0         4       0
+placed                           0          0         2       2
+com_z                            1          0         2       1
+shake_max_shift                  1          0         1       2
+shake_items_toppled              1          0         1       2
+priority_covered_by_other        0          0         1       3
+soft_covered_by_other            1          0         2       1
+```
+
+Consequently these proxies remain useful as diagnostics, but none licenses
+an official-component exchange rate or an attribute-aware live selector.
+The original three-point report is retained below as historical context.
+
+# Historical three-point result
 
 `docs/BLOCKED_WORK.md` §0 named one blocker as the cause of every stalled
 adoption on this branch: four of the six official components are computed

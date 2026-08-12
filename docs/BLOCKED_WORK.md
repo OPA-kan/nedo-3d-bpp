@@ -36,35 +36,38 @@
 | trueenvelope | 35.375 | 34.246 | 40.683 | 53.240 | 16.95 | 21.30 | 0.505 |
 | deathband | 29.959 | 33.635 | 32.243 | 41.288 | 14.70 | 17.45 | 0.491 |
 
-### 外し方 — **2026-08-06 に実施済み。方向は取れた**
+### 外し方 — **2026-08-12 に第4点まで実施済み。交換レートは取れない**
 
-`scripts/calibrate_proxies.py`。再構成可能な3提出(`trueenvelope` 35.375 /
-`deathband` 29.959 / `3334` 相当 23.246)を4シナリオ・3反復・直列で走らせ、
+`scripts/calibrate_proxies.py`。再構成可能な4提出(`trueenvelope` 35.375 /
+`deathband` 29.959 / `3334` 相当 23.246 / `submission22` 17.581)を
+4シナリオ・3反復で走らせ、
 各シナリオ**内**で自前の対照(`base` + `base_null`)と比べた。結果:
 
 ```
-proxy                       official      agrees  disagrees  untested
-priority_covered_by_other   placement          3          0         1
-placed                      placed             1          0         3
-com_z                       cog                1          0         2
-shake_max_shift             stability          1          0         2
-shake_items_toppled         stability          1          0         2
-soft_covered_by_other       soft               1          0         3
-fill                        fill               0          0         4
+proxy                       official      agrees  disagrees  partial  untested
+priority_covered_by_other   placement          0          0        3         1
+placed                      placed             0          0        2         2
+com_z                       cog                1          0        1         2
+shake_max_shift             stability          1          0        2         1
+shake_items_toppled         stability          1          0        2         1
+soft_covered_by_other       soft               1          0        1         2
+fill                        fill               0          0        0         4
 ```
 
-**逆を向いた代理は1つも無い。** `fill` だけは全シナリオで untested — 公式
-fill が2.8点離れた3構成をローカルは区別できない。これは代理の問題ではなく
-ローカル計測の分解能の問題である。
+全シナリオで完全に逆を向く代理は無いが、**「全代理の方向が合う」という3点
+結論は撤回する。** 第4点により、placed・shake・属性coveringは読めるセルでも
+partialになった。`fill` は全シナリオで untested のままである。
 
 `reports/stowage/proxy-calibration.md`、生データは
 `reports/stowage/calibration/`(388 KB、再実行可能)。
 
-**残る制約:** 3点は**方向を反証**できるが**重みを当てはめられない**。したがって
+**残る制約:** 4点でも未公開の非線形スコア関数やゲートを同定できず、代理の
+順序自体も構成依存である。したがって
 `placed` を落として `priority_covered_by_other` を稼ぐような**成分間の取引は
 依然として決着不能**である(実例: `reports/stowage/attr-guard-verdict.md`)。
-第4点(`submission22`, 17.581)を足すこと、および fill の分解能を上げること
-が次の一手。**§0 は「根本原因」から「方向は既知・交換レートは未知」へ降格する。**
+第4点は追加済み(run `31568295912`)。次の校正課題は公式成分をもう1点増やす
+ことではなく、fillの分解能改善か、同一公式構成を複数ローカルsceneで対応付ける
+設計である。
 
 ## 1. coverage_report が出している警報(4件)
 

@@ -31,3 +31,15 @@ knobs explicitly. The bounded offline value remains the tested shipped
 default, rather than being redundantly overridden by an experimental arm.
 This is a behavioural reconstruction, not a claim that the lost ZIP archive
 or its byte-identical `agent.py` has been recovered.
+
+## Physical replication
+
+GitHub Actions run `31568295912` executed this arm on four calibration
+scenarios with three repeats each. All 12 jobs and the aggregate succeeded.
+The raw rows are stored under
+`reports/stowage/calibration/submission22-*/rows.jsonl`.
+
+The fourth point does not identify score weights. Instead it weakens the
+three-point sign claim: several proxies become only partially concordant and
+`fill` remains unresolved in all four scenarios. See
+`reports/stowage/proxy-calibration.md`.

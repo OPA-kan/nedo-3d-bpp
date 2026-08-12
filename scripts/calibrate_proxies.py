@@ -170,7 +170,7 @@ def main() -> int:
     for proxy, (component, sign) in PROXIES.items():
         print(f"\n=== {proxy}  ->  official {component} "
               f"(sign {sign:+d}) ===")
-        agree = disagree = untested = 0
+        agree = disagree = partial = untested = 0
         for scenario in scenarios:
             arms = [
                 a for a in OFFICIAL
@@ -206,14 +206,16 @@ def main() -> int:
                 disagree += 1
             else:
                 verdict = f"partial {ok}/{total}"
+                partial += 1
             values = "  ".join(f"{a}={local[a]:.3f}" for a in arms)
             print(f"  {scenario:24s} {values}")
             print(f"  {'':24s} span {span:.3f} floor {floor:.3f}  -> {verdict}")
         print(f"  SUMMARY  agrees {agree}  disagrees {disagree}  "
-              f"untested {untested}")
+              f"partial {partial}  untested {untested}")
         report[proxy] = {
             "component": component, "sign": sign,
-            "agrees": agree, "disagrees": disagree, "untested": untested,
+            "agrees": agree, "disagrees": disagree, "partial": partial,
+            "untested": untested,
         }
 
     print(

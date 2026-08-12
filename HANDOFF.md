@@ -368,11 +368,13 @@ and SHA-256. Do not reuse hashes in old prose.
 ### Local score proxies
 
 - Fill and placed are the bundled evaluator outputs.
-- Directions for `com_z`, shake metrics, priority-cover violations, and
-  soft-cover violations agree with the reconstructible official submissions;
-  no tested proxy points in the opposite direction.
+- Four-point calibration now includes reconstructed `submission22` from
+  physical run `31568295912` (4 scenarios x 3 repeats). The fourth point
+  refutes the earlier blanket statement that all proxy directions agree:
+  several readable cells are only partially concordant.
 - The 0–100 normalization and component exchange rates remain unknown. The
-  proxies support Pareto/dominance checks, not a fabricated total score.
+  proxies remain diagnostics and can support within-state Pareto checks, not
+  a fabricated total score or an attribute-aware live selector.
 - `fill` did not clear the local noise floor across the calibration builds and
   remains unresolved as a discriminator.
 
@@ -563,8 +565,9 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    selected/proposed physical trials. Determine which static dominance axes
    fail to predict settle angle, displacement and placement safety before
    designing v2. Do not tune another weighted sum from episode aggregates.
-4. Reconstruct or locate the `submission22` build and add it as the fourth
-   calibration point. This is the shortest path to pricing component trades.
+4. **Completed:** `submission22` is behaviourally reconstructed and added as
+   the fourth calibration point in run `31568295912`. It did not identify an
+   exchange rate; it exposed partial proxy ordering and left fill unresolved.
 5. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
    same risk-on placement policy as execution, then rerun the paired Task A
    order experiment. Revise ADR-003 before adopting.
