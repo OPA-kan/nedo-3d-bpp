@@ -237,6 +237,34 @@ def git_commit() -> str:
         return "unknown"
 
 
+def scenario_axes(task_config: dict[str, Any]) -> dict[str, int]:
+    """Record the competition-condition axes represented by one root."""
+    containers = task_config.get("containers", {}).get(
+        "container_list", []
+    )
+    return {
+        "container_count": len(containers),
+        "shelf_count": sum(
+            bool(container.get("require_shelf"))
+            for container in containers
+        ),
+        "dedicated_container_count": sum(
+            bool(container.get("is_prioritized"))
+            for container in containers
+        ),
+        "preloaded_item_count": sum(
+            len(container.get("packed_items", []))
+            for container in containers
+        ),
+        "pool_width": int(
+            task_config.get("item_stream", {}).get("look_ahead", 0)
+        ),
+        "stream_item_count": len(
+            task_config.get("item_stream", {}).get("item_list", [])
+        ),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", type=pathlib.Path, required=True)
@@ -343,6 +371,7 @@ def main() -> int:
             "attempt_budget": int(args.attempt_budget),
             "attempt_budget_scope": "per_item",
             "root_action_prefix_id": contract.get("action_prefix_id"),
+            "scenario_axes": scenario_axes(task_config),
         },
         board_fingerprint=expected,
         state_ref=str(args.snapshot),

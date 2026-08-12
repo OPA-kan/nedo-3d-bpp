@@ -7,11 +7,45 @@ from unittest import mock
 from scripts.build_counterfactual_graph import (
     build_candidate_provider,
     cumulative_metrics,
+    scenario_axes,
     transition_outcomes,
 )
 
 
 class PhysicalOutcomeTests(unittest.TestCase):
+    def test_scenario_axes_are_saved_with_the_graph(self):
+        config = {
+            "containers": {
+                "container_list": [
+                    {
+                        "require_shelf": True,
+                        "is_prioritized": False,
+                        "packed_items": [{"index": 1}],
+                    },
+                    {
+                        "require_shelf": False,
+                        "is_prioritized": True,
+                        "packed_items": [{"index": 2}, {"index": 3}],
+                    },
+                ]
+            },
+            "item_stream": {
+                "look_ahead": 40,
+                "item_list": [{}, {}, {}],
+            },
+        }
+        self.assertEqual(
+            scenario_axes(config),
+            {
+                "container_count": 2,
+                "shelf_count": 1,
+                "dedicated_container_count": 1,
+                "preloaded_item_count": 3,
+                "pool_width": 40,
+                "stream_item_count": 3,
+            },
+        )
+
     def test_candidate_frontier_spends_width_on_distinct_items(self):
         def decision(pool_index, score, name=None):
             return SimpleNamespace(
