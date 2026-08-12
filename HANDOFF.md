@@ -181,6 +181,12 @@ not call that confirmation: the rule was designed after viewing those errors.
 Its preregistered next-run gate is >=75% late coverage, zero errors, and no
 covered-row regression versus either constituent or action geometry.
 
+The preregistered confirmation then passed on new physical Actions run
+`31598349094`: 5/5 directional late fill rows covered, 5/5 correct, versus
+action geometry 4/5. All eight matrix conditions and aggregate succeeded. This
+is a real held-out confirmation, but only one row is discordant versus action;
+keep the policy offline and replicate once more before considering a shadow.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

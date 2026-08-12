@@ -214,3 +214,11 @@ number is confirmation evidence. Its first valid test is the complete late
 split of the next physical matrix after the policy commit; it must cover at
 least 75%, make zero errors, and not underperform either constituent or action
 geometry on covered rows.
+
+That confirmation completed in Actions run `31598349094`, generated from the
+frozen-policy commit. All eight physical conditions and the aggregate passed.
+The late split contained five directional fill rows; consensus covered 5/5 and
+was correct 5/5, versus action geometry at 4/5. The preregistered gate passed.
+This is the first genuinely new-run confirmation of incremental afterstate
+fill signal, but it contains only one discordant improvement over action. It
+licenses another offline replication, not H5, live shadowing or enforcement.
