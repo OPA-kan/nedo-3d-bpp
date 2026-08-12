@@ -19,3 +19,18 @@ the fixed Task A budget; fidelity is not free and is not beneficial overall.
 
 Decision: do not adopt. Keep ADR-003's risk-off proposal oracle as shipped.
 The flag remains available only to reproduce the comparison.
+
+## Exact hypothesis test
+
+The matrix repeats are independent runner jobs, not matched pairs. An exact
+unpaired permutation analysis therefore enumerated all 20 label assignments
+within each case and all 400 stratified assignments across the two cases. The
+primary equal-case placed-count effect is -2.5, with one-sided p=0.9525 for
+improvement, p=0.05 for harm, and two-sided p=0.10. The benefit hypothesis is
+unsupported and the no-regression adoption gate fails.
+
+At three observations per arm, 0.05 is the smallest attainable one-sided p and
+0.10 is the smallest attainable two-sided p without ties. The a000 regression
+is complete separation at that resolution boundary, not a two-sided 5%
+significance claim. Reproducible inputs, code, and the full report are stored
+under `reports/task-a-risk-on/history/31569837492/`.

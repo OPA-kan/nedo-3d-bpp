@@ -199,7 +199,11 @@ and SHA-256. Do not reuse hashes in old prose.
   cases x two arms x three repeats, found risk-on proposal ranking regressed
   a000 from 28.67 to 22.67 placed and improved a001 only 19 to 20. It also
   evaluated fewer orders under the same budget. Keep the ADR-003 risk-off
-  proposal oracle; `OFFLINE_RISK_RERANK=1` remains an experimental arm.
+  proposal oracle; `OFFLINE_RISK_RERANK=1` remains an experimental arm. Exact
+  unpaired permutation testing gives an equal-case placed delta of -2.5
+  (p=0.9525 for improvement, p=0.05 for harm, p=0.10 two-sided). With n=3 per
+  arm, 0.10 is the best possible two-sided resolution; this is a failed
+  adoption gate, not a claim of universal statistical falsification.
 
 ### Task B
 
@@ -573,7 +577,9 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
    exchange rate; it exposed partial proxy ordering and left fill unresolved.
 5. **Completed and rejected:** Task A F8 risk-on proposal arm, run
    `31569837492`. It loses badly on a000 despite +1 placed on a001; do not
-   adopt. ADR-003 remains risk-off by design.
+   adopt. Exact stratified permutation testing finds placed delta -2.5 and
+   p=0.9525 for improvement (400 allocations); the n=3/arm two-sided floor is
+   0.10. ADR-003 remains risk-off by design.
 6. Only after calibration, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.
