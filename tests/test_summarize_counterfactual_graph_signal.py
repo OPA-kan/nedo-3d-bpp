@@ -90,10 +90,17 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
 
         self.assertEqual(
             summary["training_readiness"],
-            "not_established_small_condition_matrix",
+            "not_established_preregistered_gates_failed",
         )
         self.assertEqual(summary["run_id"], "123")
-        self.assertIn("not established", render_markdown(summary))
+        self.assertFalse(summary["readiness_gates"]["minimum_16_graphs"])
+        self.assertEqual(
+            summary["root_step_partitions"]["discovery_step_lt_15"][
+                "graph_count"
+            ],
+            1,
+        )
+        self.assertIn("not_established", render_markdown(summary))
 
 
 if __name__ == "__main__":

@@ -1067,6 +1067,18 @@ class DatasetCompletenessTests(unittest.TestCase):
 
         self.assertIn("empty samples at steps [3]", problems)
 
+    def test_snapshot_only_step_is_not_an_empty_candidate_sample(self):
+        problems, _beyond = dataset_problems(
+            self.case(
+                steps=[{
+                    "step": 3,
+                    "sampling": {"mode": "snapshot_only", "sampled": None},
+                }],
+            )
+        )
+
+        self.assertEqual(problems, [])
+
 
 class LabelTests(unittest.TestCase):
     def test_outcome_splits_regression_targets_and_labels(self) -> None:

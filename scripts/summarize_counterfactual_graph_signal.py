@@ -192,6 +192,49 @@ def summarize_paths(
         graph["unequal_score_pairs_with_different_downstream_ranges"]
         for graph in graphs
     )
+    partitions = {}
+    for name, selected in (
+        ("discovery_step_lt_15", [
+            graph for graph in graphs if int(graph["root_step"]) < 15
+        ]),
+        ("late_holdout_step_ge_15", [
+            graph for graph in graphs if int(graph["root_step"]) >= 15
+        ]),
+    ):
+        partitions[name] = {
+            "graph_count": len(selected),
+            "graphs_with_edges": sum(graph["edges"] > 0 for graph in selected),
+            "sibling_pair_count": sum(
+                graph["sibling_pair_count"] for graph in selected
+            ),
+            "unequal_score_pairs_with_different_downstream_ranges": sum(
+                graph[
+                    "unequal_score_pairs_with_different_downstream_ranges"
+                ]
+                for graph in selected
+            ),
+            "score_order_counterexample_observed": any(
+                any(
+                    graph["lower_score_better_reachable_leaf_counts"].values()
+                )
+                for graph in selected
+            ),
+        }
+    readiness_gates = {
+        "minimum_16_graphs": len(graphs) >= 16,
+        "terminal_label_coverage": bool(
+            terminal_reasons.get("physical_failure")
+            or terminal_reasons.get("no_candidate")
+        ),
+        "discovery_score_order_counterexample": partitions[
+            "discovery_step_lt_15"
+        ]["score_order_counterexample_observed"],
+        "late_holdout_score_order_counterexample": partitions[
+            "late_holdout_step_ge_15"
+        ]["score_order_counterexample_observed"],
+        "exact_score_future_separation": equal_separated > 0,
+    }
+    ready = all(readiness_gates.values())
     return {
         "schema_version": 1,
         "run_id": run_id,
@@ -199,7 +242,13 @@ def summarize_paths(
             graph["commit"] for graph in graphs if graph["commit"]
         }),
         "status": "bounded_h3_signal_measured" if graphs else "empty",
-        "training_readiness": "not_established_small_condition_matrix",
+        "training_readiness": (
+            "h3_teacher_baseline_ready"
+            if ready
+            else "not_established_preregistered_gates_failed"
+        ),
+        "readiness_gates": readiness_gates,
+        "root_step_partitions": partitions,
         "graph_count": len(graphs),
         "graphs_with_edges": sum(graph["edges"] > 0 for graph in graphs),
         "total_edges": sum(graph["edges"] for graph in graphs),
@@ -263,7 +312,9 @@ def render_markdown(summary: dict[str, Any]) -> str:
         f"- Unequal-score pairs with different downstream ranges: "
         f"{summary['unequal_score_pairs_with_different_downstream_ranges']}",
         f"- Lower-score action had a better reachable leaf: {lower}",
-        "- Training readiness: not established by this small condition matrix.",
+        f"- Training readiness: {summary['training_readiness']}.",
+        "- Root-step split is preregistered as discovery <15 and late "
+        "holdout >=15.",
         "",
         "| case | step | edges | terminal trajectories | terminals | siblings | "
         "equal score separated | unequal score separated |",

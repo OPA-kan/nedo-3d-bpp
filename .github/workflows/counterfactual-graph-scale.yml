@@ -8,6 +8,7 @@ on:
     paths:
       - scripts/counterfactual_graph.py
       - scripts/build_counterfactual_graph.py
+      - scripts/build_replay_dataset.py
       - scripts/summarize_counterfactual_graph_matrix.py
       - scripts/summarize_counterfactual_graph_signal.py
       - .github/workflows/counterfactual-graph-scale.yml
@@ -82,45 +83,41 @@ jobs:
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs"
       - name: Capture replayable mid/late root
-        continue-on-error: true
         run: >-
           python scripts/build_replay_dataset.py
           --config
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json"
           --case "m-${{ matrix.scenario }}"
           --steps ${{ matrix.root_steps }}
-          --per-stratum 1
-          --oracle-limit 16
-          --sampling-mode stratified_random
+          --snapshot-only
           --risk-gate-mode shadow
           --split development
           --skip-optimize
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/root"
-      - name: Select latest captured root
-        id: root
+      - name: Expand every captured root as a bounded H3/B2 physical graph
         shell: bash
         run: |
-          snapshot="$(find \
+          mapfile -t snapshots < <(find \
             "reports/counterfactual-graph-scale/${{ matrix.label }}/root" \
-            -maxdepth 1 -type f -name 'step-*-state.json' \
-            | sort | tail -n 1)"
-          test -n "$snapshot"
-          echo "snapshot=$snapshot" >> "$GITHUB_OUTPUT"
-      - name: Expand bounded H3/B2 physical graph
-        shell: bash
-        run: |
-          python scripts/build_counterfactual_graph.py \
-            --snapshot "${{ steps.root.outputs.snapshot }}" \
-            --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
-            --case "m-${{ matrix.scenario }}" \
-            --split development \
-            --horizon 3 \
-            --branch-factor 2 \
-            --attempt-budget 256 \
-            --max-nodes 15 \
-            --max-edges 14 \
-            --output "reports/counterfactual-graph-scale/${{ matrix.label }}/graph.json"
+            -maxdepth 1 -type f -name 'step-*-state.json' | sort)
+          test "${#snapshots[@]}" -ge 1
+          for snapshot in "${snapshots[@]}"; do
+            step="$(basename "$snapshot" -state.json)"
+            graph_dir="reports/counterfactual-graph-scale/${{ matrix.label }}/graphs/$step"
+            mkdir -p "$graph_dir"
+            python scripts/build_counterfactual_graph.py \
+              --snapshot "$snapshot" \
+              --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
+              --case "m-${{ matrix.scenario }}" \
+              --split development \
+              --horizon 3 \
+              --branch-factor 2 \
+              --attempt-budget 256 \
+              --max-nodes 15 \
+              --max-edges 14 \
+              --output "$graph_dir/graph.json"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -144,14 +141,14 @@ jobs:
         run: >-
           python scripts/summarize_counterfactual_graph_matrix.py
           --root reports/counterfactual-graph-scale/downloads
-          --expected-graphs 8
+          --expected-graphs 16
           --json-output reports/counterfactual-graph-scale/aggregate/summary.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/summary.md
       - name: Audit bounded-H3 teacher signal
         run: >-
           python scripts/summarize_counterfactual_graph_signal.py
           --root reports/counterfactual-graph-scale/downloads
-          --expected-graphs 8
+          --expected-graphs 16
           --run-id ${{ github.run_id }}
           --json-output reports/counterfactual-graph-scale/aggregate/signal.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/signal.md

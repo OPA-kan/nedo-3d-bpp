@@ -1111,7 +1111,7 @@ def dataset_problems(case: dict[str, Any]) -> tuple[list[str], list[int]]:
     empty = [
         int(entry["step"])
         for entry in case.get("steps") or []
-        if int(entry["sampling"]["sampled"]) == 0
+        if entry["sampling"].get("sampled") == 0
     ]
     if empty:
         problems.append(f"empty samples at steps {empty}")
@@ -1139,6 +1139,7 @@ def run_case(
     swap_rounds: int = DEFAULT_SWAP_ROUNDS,
     swap_acceptance: str = DEFAULT_SWAP_ACCEPTANCE,
     max_seconds: float = 0.0,
+    snapshot_only: bool = False,
     on_progress=None,
 ) -> dict[str, Any]:
     if str(SIMULATOR) not in sys.path:
@@ -1210,6 +1211,7 @@ def run_case(
                         preview_limit=preview_limit,
                         scenario=scenario,
                         action_prefix=action_prefix,
+                        snapshot_only=snapshot_only,
                     )
                 )
                 # Persist after every completed step so an interrupted run
@@ -1285,6 +1287,7 @@ def collect_step(
     preview_limit: int,
     scenario: dict[str, Any],
     action_prefix: list[dict[str, Any]],
+    snapshot_only: bool = False,
 ) -> dict[str, Any]:
     step_label = f"step-{step:03d}"
     snapshot_id = f"{dataset_id}:{case_id}:{step_label}"
@@ -1305,6 +1308,22 @@ def collect_step(
         json.dumps(snapshot, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+    if snapshot_only:
+        return {
+            "step": int(step),
+            "status": "ok",
+            "snapshot_id": snapshot_id,
+            "snapshot_path": snapshot_path.name,
+            "board_fingerprint": snapshot["board_fingerprint"],
+            "future_stream_id": snapshot["replay_contract"][
+                "future_stream_id"
+            ],
+            "action_prefix_id": snapshot["replay_contract"][
+                "action_prefix_id"
+            ],
+            "sampling": {"mode": "snapshot_only", "sampled": None},
+        }
 
     # The population must be the item set the policy itself searched. Under
     # the default class_aware coverage that is NOT the legacy ordered prefix:
@@ -1774,6 +1793,14 @@ def main() -> int:
     )
     parser.add_argument("--skip-optimize", action="store_true")
     parser.add_argument(
+        "--snapshot-only",
+        action="store_true",
+        help=(
+            "Capture replay-contract state files at the requested steps "
+            "without enumerating or physically sampling one-step candidates."
+        ),
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help=(
@@ -1856,6 +1883,7 @@ def main() -> int:
         "seed": int(args.seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
+        "snapshot_only": bool(args.snapshot_only),
         # Enough to reproduce the run without the original workspace: an
         # absolute path from an Actions runner is not reproducible on its own.
         "provenance": {
@@ -1924,6 +1952,7 @@ def main() -> int:
             swap_rounds=int(args.observed_swap_rounds),
             swap_acceptance=str(args.observed_swap_acceptance),
             max_seconds=float(args.max_seconds),
+            snapshot_only=bool(args.snapshot_only),
             on_progress=on_progress,
         )
     except BaseException as exc:
