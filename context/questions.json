@@ -95,9 +95,9 @@
         "scripts/run_task_a_rollout.py"
       ],
       "missing_instrument": "none -- it needs a new arm, not a new instrument",
-      "status": "open",
+      "status": "closed",
       "priority": "medium",
-      "rationale": "ADR-003 decided to keep the split, on the grounds that the dry run is a proposal oracle and need not match the executor. That is a decision about what to require, not a measurement of which proposes better. Running it moves E_theta and stales every Task A number, so it must be designed as an experiment.",
+      "rationale": "Closed by Actions run 31569837492: default versus risk_on, both bundled Task A cases, three repeats per arm. Risk-on improved a001 by +1 placed but regressed a000 by 6 placed and 7.35 fill on the means. It also evaluated fewer orders (42.0 versus 53.7 on a000; 76.3 versus 91.0 on a001) at comparable optimization time. The proposal-recall loss dominates; keep ADR-003 risk-off default.",
       "closure_criteria": [
         "paired arms on >= 2 cases",
         "fingerprint re-stamped and Task A numbers re-measured"

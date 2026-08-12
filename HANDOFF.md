@@ -195,8 +195,11 @@ and SHA-256. Do not reuse hashes in old prose.
   `(placed_count, placed_volume)` for most comparisons. The apparent fill and
   stability weights feed an unused `weighted_score()` and do not change
   behavior.
-- The offline proposal oracle still does not use the same risk-adjusted
-  placement policy as online execution. This is the open F8 contract gap.
+- F8 is now measured rather than assumed. Run `31569837492`, two bundled
+  cases x two arms x three repeats, found risk-on proposal ranking regressed
+  a000 from 28.67 to 22.67 placed and improved a001 only 19 to 20. It also
+  evaluated fewer orders under the same budget. Keep the ADR-003 risk-off
+  proposal oracle; `OFFLINE_RISK_RERANK=1` remains an experimental arm.
 
 ### Task B
 
@@ -568,9 +571,9 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 4. **Completed:** `submission22` is behaviourally reconstructed and added as
    the fourth calibration point in run `31568295912`. It did not identify an
    exchange rate; it exposed partial proxy ordering and left fill unresolved.
-5. Fix Task A F8 behind a flag: make the offline proposal oracle evaluate the
-   same risk-on placement policy as execution, then rerun the paired Task A
-   order experiment. Revise ADR-003 before adopting.
+5. **Completed and rejected:** Task A F8 risk-on proposal arm, run
+   `31569837492`. It loses badly on a000 despite +1 placed on a001; do not
+   adopt. ADR-003 remains risk-off by design.
 6. Only after calibration, design an attribute-aware support policy that preserves
    plain support earlier without the placed collapse of the hard attribute
    guard. Do not begin with another weighted sum.

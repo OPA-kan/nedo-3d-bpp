@@ -82,6 +82,13 @@ Adoption requires a paired physical comparison against the unconfigured
 same 150 second offline and 180 second external budgets. A proxy-only win is
 insufficient. Until that experiment passes, risk-off remains shipped.
 
+That comparison completed in Actions run `31569837492`. On case a000,
+risk-on fell from 28.67 to 22.67 placed and from 39.23 to 31.88 fill. On
+a001 it improved from 19 to 20 placed and 25.40 to 26.07 fill. Both arms used
+comparable optimization time, while risk-on evaluated fewer orders on both
+cases. The result is mixed and dominated by the large a000 regression, so
+the arm is rejected for adoption. Risk-off remains the accepted default.
+
 ## Consequences
 
 - `E_proposal(pi) != E_execution(pi)` を明示的に許容する。二段階探索として

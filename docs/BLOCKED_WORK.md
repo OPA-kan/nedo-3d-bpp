@@ -86,7 +86,7 @@ partialになった。`fill` は全シナリオで untested のままである�
 | `ranker-form-never-swept` | candidate_rank | 重みが切替可能、episode 水準で最低1回 sweep | **重みが定数でノブ化されていない。** §5.1 的に最も弱い箇所(`RANKER_WEIGHTS` は役割のみ文書化、値の根拠なし)。ノブ化は数行 |
 | `protocol-fallback-never-varied` | fallback | 切替可能な fallback 方策が存在、現行と episode 比較 | **部分的に外れた。** death-band gate が「選べないとき」の代替として実装済み(既定オフ)。ただし毒座標 `[0,0,0.25]` 自体の代替は未実装 |
 | `task-a-second-case` | order | 実在の非合成 Task A ケース1本、腕あたり3反復以上 | **ケースが無い。** 配布は 000/001 のみで、両方とも既に使用済み |
-| `risk-on-proposal-oracle` | order | 2ケース以上のペア腕、fingerprint 再押印 | **F8 と同根**(下記) |
+| `risk-on-proposal-oracle` | order | 2ケース以上のペア腕、fingerprint 再押印 | **決着済み・不採用。** run `31569837492`: a000 −6 placed、a001 +1。探索order数も両ケースで減少 |
 | `taskb-guard-can-detect-anything` | timing | config 別分散を3反復以上で推定し、最小検出可能効果量を明記 | **CI が使えるようになったので今すぐ実施可能。** 2026-08-04 に default branch が変更され、workflow_dispatch が通るようになった。`base` と `base_null` の対を全 run に入れる仕組みも実装済み |
 | `item-cap-omits-useful-items` | item | 適応的 cap として追うなら、オンラインで測れる難易度信号が必要 | 固定 cap としては決着済み。適応形は信号待ち |
 
@@ -98,11 +98,14 @@ partialになった。`fill` は全シナリオで untested のままである�
 - **F2**: 51件の主張のうち、反復数に言及があるのは6件、実行マシンの明記は7件。
   **精度を記録する欄が台帳に無い。** 鮮度(status)は管理できるが信頼度が
   分からない。
-- **F8(未修正)**: オフライン評価器(`DryRunEvaluator`)は `PlacementCore.choose` /
+- **F8(比較完了・既定維持)**: オフライン評価器(`DryRunEvaluator`)は既定では `PlacementCore.choose` /
   `rescue_choose` を **`risk_lambda` なしで呼ぶ**(`agent.py:6311`, `:6322`)。
   出荷実行器は risk-on、オフラインが模擬するのは pre-risk greedy。
   **Task A の順序決定は、実際に走る方策と別の方策を最適化している。**
-  ADR-001 §2 違反として記録済み、未修正。
+  `OFFLINE_RISK_RERANK=1` 比較armを実装し、run `31569837492` で2ケース×3反復。
+  a000は placed 28.67→22.67、fill 39.23→31.88へ悪化。a001は placed 19→20。
+  同時間で評価order数が両ケースとも減ったため、proposal recall損失が支配的。
+  ADR-003のrisk-off既定を維持する。
 
 ## 4. 私(L3/L4担当)の側で止まっているもの
 
@@ -121,8 +124,7 @@ partialになった。`fill` は全シナリオで untested のままである�
 2. **`taskb-guard-can-detect-anything`**(§2)。CI が通るようになった今、
    最小検出可能効果量を出すのは機械的作業であり、以後すべての ablation の
    読み方が決まる
-3. **F8 の修正**(§3)。オフラインが別方策を最適化している状態は、Task A の
-   全結果の解釈を曇らせる
+3. **F8 は決着済み・不採用**(§3)。risk-on proposalはa000で大幅退行した
 4. **`RANKER_WEIGHTS` のノブ化**(§2)。§5.1 的に最も弱い定数で、ノブ化自体は
    小さい
 
