@@ -18,6 +18,7 @@ class TaskARiskOnWorkflowTests(unittest.TestCase):
         self.assertIn("repeat: [0, 1, 2]", text)
         self.assertIn("--offline-seconds 150", text)
         self.assertIn("--optimization-timeout 180", text)
+        self.assertIn('--source-case "a${{ matrix.source_case }}"', text)
 
 
 if __name__ == "__main__":
