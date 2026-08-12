@@ -52,8 +52,7 @@ Nodes are settled residual states; edges are commanded placements with
 separate physical and multi-axis labels. Sibling branches must share the same
 future stream and fixed attempt budget.
 
-The first two slices are implemented but there is not yet a Linux physical H3
-artifact:
+The first two slices and one Linux physical H3 pilot are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,
   DAG state convergence, branch/node/edge budgets, atomic JSON output and an
@@ -64,17 +63,23 @@ artifact:
   fingerprint matches. PyBullet `saveState` alone is explicitly insufficient
   because it omits Python stream/container state.
 - `scripts/build_counterfactual_graph.py` now performs bounded breadth-first
-  physical expansion. It uses fixed-attempt `PlacementCore.top_candidates` as
-  a scanner, then retains the best candidate per stable item so graph width is
-  not consumed by near-duplicate poses of one item. It reconstructs every
+  physical expansion. It runs fixed-attempt `PlacementCore.top_candidates`
+  separately per visible item, then retains the best candidate per stable item
+  so graph width is not consumed by either the first easy item or its
+  near-duplicate poses. It reconstructs every
   candidate path in a fresh env, records multi-axis node totals and edge
   deltas, merges equal same-depth states, and stops terminal branches. It does
   not use a wall-clock deadline.
 - no ranker, policy default, simulator rule or final holdout was changed.
 
-Next: run that executor with branch factor 2 and horizon 3 on at least three
-development/validation roots; verify independent-env prefix identity and
-runtime in Linux CI before expanding to horizon 5. Raw graphs remain artifacts,
+The validated pilot is `reports/counterfactual-graph/summary.md`: b000-k20
+step 3, H3/B2, 15 nodes and 14 edges, five stable items, all 14 edges physically
+safe. Runs 31551011083 and 31551141292 produced byte-identical JSON and IDs in
+76–77 seconds. This validates the instrument on one early root; it does NOT
+establish learnability or failure-label coverage.
+
+Next: run the executor with branch factor 2 and horizon 3 on at least three
+mid/late development/validation roots before expanding to horizon 5. Raw graphs remain artifacts,
 while compact manifests and aggregate evidence are committed.
 
 ## Official score history
