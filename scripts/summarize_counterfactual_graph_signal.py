@@ -250,6 +250,13 @@ def summarize_paths(
         "readiness_gates": readiness_gates,
         "root_step_partitions": partitions,
         "graph_count": len(graphs),
+        "condition_count": len({
+            (
+                graph["case_id"],
+                json.dumps(graph["scenario_axes"], sort_keys=True),
+            )
+            for graph in graphs
+        }),
         "graphs_with_edges": sum(graph["edges"] > 0 for graph in graphs),
         "total_edges": sum(graph["edges"] for graph in graphs),
         "physically_failed_edges": sum(
@@ -301,6 +308,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         "",
         f"- Graphs / graphs with edges: {summary['graph_count']} / "
         f"{summary['graphs_with_edges']}",
+        f"- Conditions: {summary['condition_count']}",
         f"- Edges / failed physical edges: {summary['total_edges']} / "
         f"{summary['physically_failed_edges']}",
         f"- Terminal trajectories: {summary['terminal_trajectory_count']} "
@@ -350,6 +358,8 @@ def main() -> int:
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
     parser.add_argument("--expected-graphs", type=int)
+    parser.add_argument("--minimum-graphs", type=int)
+    parser.add_argument("--expected-conditions", type=int)
     parser.add_argument("--run-id")
     args = parser.parse_args()
     paths = list(args.root.rglob("graph.json"))
@@ -361,6 +371,20 @@ def main() -> int:
             "refusing to audit a partial matrix"
         )
     summary = summarize_paths(paths, run_id=args.run_id)
+    if args.minimum_graphs is not None and len(paths) < args.minimum_graphs:
+        raise SystemExit(
+            f"expected at least {args.minimum_graphs} graphs, found "
+            f"{len(paths)}; refusing to audit an undersized matrix"
+        )
+    if (
+        args.expected_conditions is not None
+        and summary["condition_count"] != args.expected_conditions
+    ):
+        raise SystemExit(
+            f"expected {args.expected_conditions} conditions, found "
+            f"{summary['condition_count']}; refusing to audit a partial "
+            "condition matrix"
+        )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(

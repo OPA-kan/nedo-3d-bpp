@@ -64,6 +64,7 @@ class CounterfactualMatrixSummaryTests(unittest.TestCase):
         self.assertEqual(row["ranges"]["settle_angle_deg"]["max"], 35.0)
         self.assertIn("CoG", render_markdown({
             "graph_count": 1,
+            "condition_count": 1,
             "total_edges": 1,
             "physically_safe_edges": 0,
             "physically_failed_edges": 1,

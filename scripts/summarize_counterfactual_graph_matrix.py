@@ -115,6 +115,13 @@ def summarize_paths(paths: Iterable[pathlib.Path]) -> dict[str, Any]:
         "schema_version": 1,
         "status": "complete" if rows else "empty",
         "graph_count": len(rows),
+        "condition_count": len({
+            (
+                row["case_id"],
+                json.dumps(row["scenario_axes"], sort_keys=True),
+            )
+            for row in rows
+        }),
         "condition_coverage": axes,
         "total_edges": sum(row["edges"] for row in rows),
         "physically_safe_edges": sum(
@@ -132,6 +139,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         "# Counterfactual graph condition matrix",
         "",
         f"- Graphs: {summary['graph_count']}",
+        f"- Conditions: {summary['condition_count']}",
         f"- Edges: {summary['total_edges']}",
         f"- Physical safe / failed: {summary['physically_safe_edges']} / "
         f"{summary['physically_failed_edges']}",
@@ -175,6 +183,8 @@ def main() -> int:
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
     parser.add_argument("--expected-graphs", type=int)
+    parser.add_argument("--minimum-graphs", type=int)
+    parser.add_argument("--expected-conditions", type=int)
     args = parser.parse_args()
     paths = list(args.root.rglob("graph.json"))
     if not paths:
@@ -185,6 +195,20 @@ def main() -> int:
             "refusing to publish a partial matrix"
         )
     summary = summarize_paths(paths)
+    if args.minimum_graphs is not None and len(paths) < args.minimum_graphs:
+        raise SystemExit(
+            f"expected at least {args.minimum_graphs} graphs, found "
+            f"{len(paths)}; refusing to publish an undersized matrix"
+        )
+    if (
+        args.expected_conditions is not None
+        and summary["condition_count"] != args.expected_conditions
+    ):
+        raise SystemExit(
+            f"expected {args.expected_conditions} conditions, found "
+            f"{summary['condition_count']}; refusing to publish a partial "
+            "condition matrix"
+        )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(

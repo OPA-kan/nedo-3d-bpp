@@ -1905,6 +1905,10 @@ def main() -> int:
             "transport": "official_check_transport_path",
             "settle": "official_place_item",
             "note": (
+                "Snapshot-only capture; no candidate population was sampled "
+                "or labelled."
+                if args.snapshot_only
+                else
                 "Rows are an unequal-probability sample. Re-weight by "
                 "sampling.sampling_weight before reading any rate as a "
                 "population rate."
