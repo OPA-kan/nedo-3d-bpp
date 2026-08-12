@@ -28,6 +28,12 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         pair["source_state_tensor"] = {
             "contract": "observed_set_tensors_no_step_no_future_labels"
         }
+        pair["lower_action_tensor"] = {
+            "contract": "observed_candidate_action_no_future_labels"
+        }
+        pair["higher_action_tensor"] = {
+            "contract": "observed_candidate_action_no_future_labels"
+        }
         signal = {"run_id": "1", "commits": ["abc"], "graphs": [
             {
                 "graph_id": "g-discovery", "case_id": "case",
@@ -46,6 +52,7 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         self.assertEqual(manifest["late_holdout_rows"], 1)
         self.assertEqual(manifest["discovery_rows"], 1)
         self.assertTrue(manifest["model_training_ready"])
+        self.assertEqual(manifest["rows_with_paired_action_tensors"], 2)
         labels = buckets["late_holdout"][0]["labels"]
         self.assertEqual(
             labels["fill_score_proxy"]["relation"],

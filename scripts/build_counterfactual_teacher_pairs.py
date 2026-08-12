@@ -60,6 +60,8 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "source_node_id": pair["source_node_id"],
         "source_depth": int(pair["source_depth"]),
         "source_state_tensor": pair.get("source_state_tensor"),
+        "lower_action_tensor": pair.get("lower_action_tensor"),
+        "higher_action_tensor": pair.get("higher_action_tensor"),
         "scenario_axes": graph.get("scenario_axes", {}),
         "lower_stable_item_index": pair["lower_stable_item_index"],
         "higher_stable_item_index": pair["higher_stable_item_index"],
@@ -103,8 +105,21 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         for row in informative
         if isinstance(row.get("source_state_tensor"), dict)
     })
+    action_tensor_rows = sum(
+        isinstance(row.get("lower_action_tensor"), dict)
+        and isinstance(row.get("higher_action_tensor"), dict)
+        for row in informative
+    )
+    action_tensor_contracts = sorted({
+        action.get("contract")
+        for row in informative
+        for action in (
+            row.get("lower_action_tensor"), row.get("higher_action_tensor")
+        )
+        if isinstance(action, dict)
+    })
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_run_id": signal.get("run_id"),
         "source_commits": signal.get("commits", []),
         "label_contract": (
@@ -116,8 +131,12 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             buckets["discovery"]
             and buckets["late_holdout"]
             and tensor_rows == len(informative)
+            and action_tensor_rows == len(informative)
             and tensor_contracts == [
                 "observed_set_tensors_no_step_no_future_labels"
+            ]
+            and action_tensor_contracts == [
+                "observed_candidate_action_no_future_labels"
             ]
         ),
         "informative_pair_rows": (
@@ -128,6 +147,8 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         "uninformative_control_rows": len(buckets["controls"]),
         "rows_with_source_state_tensor": tensor_rows,
         "source_state_tensor_contracts": tensor_contracts,
+        "rows_with_paired_action_tensors": action_tensor_rows,
+        "action_tensor_contracts": action_tensor_contracts,
         "axis_relation_counts_on_training_rows": relations,
         "limitations": [
             "Synthetic condition matrix, not official-score calibration.",
@@ -135,6 +156,7 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             "Best reachable leaf is existence under bounded search, not probability or expected value.",
             "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
             "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
+            "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
         ],
     }
     return manifest, buckets

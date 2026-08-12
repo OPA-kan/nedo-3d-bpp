@@ -17,7 +17,11 @@ def graph_fixture():
         "budget": {"horizon": 1},
         "provenance": {"scenario_axes": {"container_count": 2}},
         "nodes": [
-            {"node_id": "root", "depth": 0, "cumulative_outcomes": {
+            {"node_id": "root", "depth": 0, "state_tensor": {
+                "visible_item_features": ["mass"],
+                "visible_item_indices": [1, 2],
+                "visible_item_values": [[1.5], [2.5]],
+            }, "cumulative_outcomes": {
                 "placed_count": 12, "fill_score_proxy": 10.0,
                 "com_z": 0.6, "surface_total_variation": 0.02,
                 "priority_misrouted": 0, "soft_covered_by_other": 0,
@@ -34,11 +38,19 @@ def graph_fixture():
             }, "terminal_reason": "physical_failure"},
         ],
         "edges": [
-            {"source": "root", "target": "low", "selection": {
+            {"source": "root", "target": "low", "command_action": {
+                "item_idx": 0, "container_idx": 0,
+                "place_pos": [0.1, 0.2, 0.3], "orientation": 0,
+            }, "selection": {
                 "score": 1.0, "stable_item_index": 1,
+                "candidate_kind": "settled_candidate",
             }, "immediate_outcomes": {"is_placed_safe": True}},
-            {"source": "root", "target": "high", "selection": {
+            {"source": "root", "target": "high", "command_action": {
+                "item_idx": 1, "container_idx": 0,
+                "place_pos": [0.4, 0.5, 0.6], "orientation": 2,
+            }, "selection": {
                 "score": 2.0, "stable_item_index": 2,
+                "candidate_kind": "release_candidate",
             }, "immediate_outcomes": {"is_placed_safe": False}},
         ],
     }
@@ -63,6 +75,13 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
             summary["unequal_score_pairs_with_different_downstream_ranges"],
             1,
         )
+        pair = summary["sibling_pairs"][0]
+        self.assertEqual(
+            pair["lower_action_tensor"]["contract"],
+            "observed_candidate_action_no_future_labels",
+        )
+        self.assertEqual(pair["lower_action_tensor"]["values"][-1], 1.5)
+        self.assertEqual(pair["higher_action_tensor"]["values"][5], 1.0)
 
     def test_equal_score_separation_is_counted_without_a_threshold(self):
         graph = graph_fixture()

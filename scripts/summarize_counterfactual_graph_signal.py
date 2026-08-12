@@ -18,6 +18,48 @@ METRIC_DIRECTIONS = {
     "soft_covered_by_other": -1,
 }
 
+ACTION_TENSOR_FEATURES = (
+    "container_index", "command_x", "command_y", "command_z",
+    "orientation", "is_release_candidate", "immediate_score",
+)
+
+
+def _action_tensor(
+    edge: dict[str, Any], source_state_tensor: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Join a replayable candidate action to its observed item features."""
+    if not isinstance(source_state_tensor, dict):
+        return None
+    stable_item_index = edge.get("selection", {}).get("stable_item_index")
+    visible_indices = source_state_tensor.get("visible_item_indices", [])
+    visible_values = source_state_tensor.get("visible_item_values", [])
+    try:
+        item_offset = visible_indices.index(stable_item_index)
+        item_values = [float(value) for value in visible_values[item_offset]]
+    except (ValueError, IndexError, TypeError):
+        return None
+    action = edge.get("command_action", {})
+    place_pos = action.get("place_pos")
+    if not isinstance(place_pos, list) or len(place_pos) != 3:
+        return None
+    selection = edge.get("selection", {})
+    return {
+        "schema_version": 1,
+        "contract": "observed_candidate_action_no_future_labels",
+        "coordinate_frame": "official_command",
+        "feature_names": list(ACTION_TENSOR_FEATURES)
+        + list(source_state_tensor.get("visible_item_features", [])),
+        "values": [
+            float(action["container_idx"]),
+            *[float(value) for value in place_pos],
+            float(action["orientation"]),
+            float(selection.get("candidate_kind") == "release_candidate"),
+            float(selection["score"]),
+            *item_values,
+        ],
+        "stable_item_index": int(stable_item_index),
+    }
+
 
 def _graph_index(graph: dict[str, Any]):
     nodes = {node["node_id"]: node for node in graph.get("nodes", [])}
@@ -110,10 +152,13 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
             }
             if better:
                 lower_score_better[metric] += 1
+        source_state_tensor = nodes[source_id].get("state_tensor")
         sibling_rows.append({
             "source_node_id": source_id,
             "source_depth": int(nodes[source_id]["depth"]),
-            "source_state_tensor": nodes[source_id].get("state_tensor"),
+            "source_state_tensor": source_state_tensor,
+            "lower_action_tensor": _action_tensor(lower, source_state_tensor),
+            "higher_action_tensor": _action_tensor(higher, source_state_tensor),
             "score_gap": score_gap,
             "equal_immediate_score": score_gap == 0.0,
             "downstream_ranges_differ": _ranges_differ(comparisons),

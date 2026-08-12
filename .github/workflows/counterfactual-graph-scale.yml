@@ -12,6 +12,7 @@ on:
       - scripts/summarize_counterfactual_graph_matrix.py
       - scripts/summarize_counterfactual_graph_signal.py
       - scripts/build_counterfactual_teacher_pairs.py
+      - scripts/evaluate_counterfactual_teacher_baseline.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -160,8 +161,15 @@ jobs:
           python scripts/build_counterfactual_teacher_pairs.py
           --signal reports/counterfactual-graph-scale/aggregate/signal.json
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
+      - name: Evaluate the first late-root learning baseline
+        run: >-
+          python scripts/evaluate_counterfactual_teacher_baseline.py
+          --teacher-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
+          --json-output reports/counterfactual-graph-scale/aggregate/baseline.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/baseline.md
       - run: cat reports/counterfactual-graph-scale/aggregate/summary.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/signal.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/baseline.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: counterfactual-graph-scale-aggregate
