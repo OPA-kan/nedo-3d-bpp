@@ -1,0 +1,82 @@
+name: Task A risk-on proposal oracle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-a-risk-on-proposal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: a${{ matrix.source_case }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        source_case: ["000", "001"]
+        arm: [default, risk_on]
+        repeat: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build Task A config
+        run: >-
+          python scripts/build_task_a_config.py
+          --source simulator/configs/sample_config.json
+          --source-case "${{ matrix.source_case }}"
+          --optimization-timeout 180
+          --policy-timeout 8
+          --output "reports/task-a-risk-on/config-${{ matrix.source_case }}.json"
+      - name: Run paired episode
+        run: >-
+          python scripts/run_task_a_rollout.py
+          --config "reports/task-a-risk-on/config-${{ matrix.source_case }}.json"
+          --source-case "${{ matrix.source_case }}"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.repeat }}"
+          --offline-seconds 150
+          --macro-seconds 0.5
+          --output-dir reports/task-a-risk-on
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task-a-risk-on-${{ matrix.source_case }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+          path: reports/task-a-risk-on/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: task-a-risk-on-*
+          path: reports/task-a-risk-on/artifacts
+          merge-multiple: true
+      - name: Aggregate result
+        run: >-
+          python scripts/run_task_a_rollout.py
+          --summarize-root reports/task-a-risk-on/artifacts
+          --summary-output reports/task-a-risk-on/summary
+      - run: cat reports/task-a-risk-on/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-a-risk-on-summary
+          path: |
+            reports/task-a-risk-on/summary.md
+            reports/task-a-risk-on/summary.json
