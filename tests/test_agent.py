@@ -4076,6 +4076,7 @@ class OfflineOptimizationTests(unittest.TestCase):
         """
         self.assertEqual(agent.OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM, 128)
         self.assertEqual(agent.OFFLINE_PAIR_MACRO_BUDGET_SECONDS, 0.5)
+        self.assertFalse(agent.OFFLINE_RISK_RERANK)
 
     def test_unconfigured_dry_run_uses_the_shipped_attempt_budget(self):
         container = sample_container(
@@ -4122,6 +4123,22 @@ class OfflineOptimizationTests(unittest.TestCase):
 
         bounded_choose.assert_not_called()
         unbounded.assert_called_once()
+
+    def test_dry_run_forwards_explicit_risk_lambda_to_both_scan_paths(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        for attempts, method_name in ((0, "choose"), (37, "rescue_choose")):
+            with self.subTest(attempts=attempts):
+                evaluator = agent.DryRunEvaluator(
+                    [container], attempts_per_item=attempts, risk_lambda=1.25
+                )
+                with mock.patch.object(
+                    agent.PlacementCore, method_name, return_value=None
+                ) as choose:
+                    evaluator.evaluate([sample_item(0)])
+
+                self.assertEqual(choose.call_args.kwargs["risk_lambda"], 1.25)
 
     def test_bounded_dry_run_uses_deterministic_attempt_budget(self):
         container = sample_container(

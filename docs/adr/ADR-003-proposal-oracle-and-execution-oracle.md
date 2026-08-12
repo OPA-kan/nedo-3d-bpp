@@ -68,6 +68,20 @@ proposal oracle の失敗であって、許容できない。
 現状 risk 補正が非共有であることは、**この分類における設計判断として承認する**。
 バグとして修正しない。
 
+### 2026-08-12 experimental amendment
+
+The default decision above remains unchanged, but the previously promised
+comparison arm now exists. `OFFLINE_RISK_RERANK=1` constructs
+`DryRunEvaluator` with the shipped rotation-risk lambda; the existing slide
+lambda is then applied by the same `risk_adjusted_score` path used online.
+The flag is read only by `Agent.optimize`, defaults off, and therefore does
+not alter Task B/C or the shipped Task A proposal oracle.
+
+Adoption requires a paired physical comparison against the unconfigured
+`default` arm on both bundled Task A cases, three repeats each, under the
+same 150 second offline and 180 second external budgets. A proxy-only win is
+insufficient. Until that experiment passes, risk-off remains shipped.
+
 ## Consequences
 
 - `E_proposal(pi) != E_execution(pi)` を明示的に許容する。二段階探索として
@@ -99,7 +113,8 @@ proposal oracle の失敗であって、許容できない。
 ## Implementation
 
 - `agent/agent.py`: `Agent.policy` の `live_lambda`、
-  `DryRunEvaluator.evaluate` の呼び出し（`risk_lambda` を渡さない）
+  `DryRunEvaluator.evaluate` の既定呼び出し（`risk_lambda` を渡さない）、
+  比較arm `OFFLINE_RISK_RERANK=1`
 - `context/optimizer_fingerprint.json`: `live_ranking_sha256` を
   `behaviour_sha256` と別に保持し、乖離を可視化する
 - `tests/test_optimizer_fingerprint.py`: 無断でこの分担が変わったら落ちる

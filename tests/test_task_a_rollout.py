@@ -103,6 +103,14 @@ class TaskARolloutTests(unittest.TestCase):
 
         self.assertEqual(env, {})
 
+    def test_risk_on_arm_changes_only_the_proposal_oracle_ranking(self):
+        env = dict(OFFLINE_RISK_RERANK="stale")
+        configure_task_a_arm(
+            env, "risk_on", offline_seconds=150.0, macro_seconds=0.5
+        )
+
+        self.assertEqual(env, {"OFFLINE_RISK_RERANK": "1"})
+
     def test_unknown_arm_is_rejected(self):
         for arm in ("bounded0", "bounded-8", "shipped"):
             with self.subTest(arm=arm), self.assertRaises(ValueError):

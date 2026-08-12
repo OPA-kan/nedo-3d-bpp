@@ -97,6 +97,7 @@ def unit_test_environment() -> dict[str, str]:
         "TEMPORAL_CHUNK_STRIDE",
         "TEMPORAL_CHUNK_CELL_SIZE",
         "RELEASE_RISK_GATE_MODE",
+        "OFFLINE_RISK_RERANK",
     ):
         env.pop(name, None)
     return env

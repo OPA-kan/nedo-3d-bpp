@@ -44,9 +44,13 @@ def configure_task_a_arm(
         "OFFLINE_SEARCH_BUDGET_SECONDS",
         "OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM",
         "OFFLINE_PAIR_MACRO_BUDGET_SECONDS",
+        "OFFLINE_RISK_RERANK",
     ):
         env.pop(name, None)
     if arm == "default":
+        return
+    if arm == "risk_on":
+        env["OFFLINE_RISK_RERANK"] = "1"
         return
     env["OFFLINE_SEARCH_BUDGET_SECONDS"] = str(float(offline_seconds))
     if arm == "base":

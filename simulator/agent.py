@@ -293,6 +293,12 @@ OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM = max(
 OFFLINE_PAIR_MACRO_BUDGET_SECONDS = float(
     os.environ.get("OFFLINE_PAIR_MACRO_BUDGET_SECONDS", "0.5")
 )
+# Experimental Task A proposal-oracle arm. The shipped default remains the
+# ADR-003 risk-off oracle; setting this makes offline candidate ranking use
+# the same release-risk penalties as online execution.
+OFFLINE_RISK_RERANK = os.environ.get(
+    "OFFLINE_RISK_RERANK", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 OFFLINE_RANDOM_SEED = 20260723
 OFFLINE_FILL_WEIGHT = float(
     os.environ.get("OFFLINE_FILL_WEIGHT", "0.65")
@@ -7634,6 +7640,7 @@ class DryRunEvaluator:
         self,
         container_templates,
         attempts_per_item=OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+        risk_lambda=None,
     ):
         self.container_templates = [
             normalize_container(container) for container in container_templates
@@ -7643,6 +7650,7 @@ class DryRunEvaluator:
         self.evaluations = 0
         self.last_trace = []
         self.attempts_per_item = max(0, int(attempts_per_item))
+        self.risk_lambda = risk_lambda
 
     def evaluate(self, ordered_items, deadline=None):
         key = tuple(int(item["index"]) for item in ordered_items)
@@ -7689,12 +7697,14 @@ class DryRunEvaluator:
                         else float("inf")
                     ),
                     attempt_budget=self.attempts_per_item,
+                    risk_lambda=self.risk_lambda,
                 )
             else:
                 decision = PlacementCore.choose(
                     observation,
                     [(0, item)],
                     deadline=deadline,
+                    risk_lambda=self.risk_lambda,
                 )
             if decision is None:
                 failed_index = int(item["index"])
@@ -8025,6 +8035,11 @@ class Agent:
         evaluator = DryRunEvaluator(
             self._container_templates,
             attempts_per_item=OFFLINE_DRY_RUN_ATTEMPTS_PER_ITEM,
+            risk_lambda=(
+                RELEASE_RISK_RERANK_LAMBDA
+                if OFFLINE_RISK_RERANK
+                else None
+            ),
         )
         started = time.perf_counter()
         deadline = started + max(0.0, self._offline_search_budget_seconds)
