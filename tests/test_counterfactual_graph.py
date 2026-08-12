@@ -12,6 +12,7 @@ from scripts.counterfactual_graph import (
     GraphBudget,
     board_difference,
     board_fingerprint,
+    boards_equivalent,
     capture_replay_contract,
     replay_action_prefix,
     write_graph,
@@ -254,6 +255,48 @@ class CounterfactualGraphTests(unittest.TestCase):
         self.assertFalse(result.matched)
         self.assertEqual(result.error, "reconstruction_mismatch")
 
+    def test_prefix_replay_accepts_submicron_solver_jitter(self):
+        class Env:
+            def reset_settings(self):
+                pass
+
+            def set_item_order(self, _order):
+                return True
+
+            def reset_item_stream(self):
+                pass
+
+            def reset(self, seed):
+                return {}, {}
+
+        expected_snapshot = {
+            "observation": {"pool_list": []},
+            "physics": {"packed_items": [{
+                "container_index": 0,
+                "item_index": 1,
+                "position": [0.0, 0.0, 0.50000049],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }]},
+        }
+        observed_snapshot = json.loads(json.dumps(expected_snapshot))
+        observed_snapshot["physics"]["packed_items"][0]["position"][2] += (
+            3e-7
+        )
+
+        result = replay_action_prefix(
+            Env(),
+            {"seed": 42, "item_order": [], "action_prefix": []},
+            expected_fingerprint=board_fingerprint(expected_snapshot),
+            expected_snapshot=expected_snapshot,
+            snapshot_factory=lambda _env, _observation: observed_snapshot,
+        )
+
+        self.assertNotEqual(
+            result.expected_fingerprint, result.observed_fingerprint
+        )
+        self.assertTrue(result.matched)
+        self.assertIsNone(result.error)
+
     def test_replay_contract_captures_python_stream_and_action_prefix(self):
         class Item:
             def __init__(self, index):
@@ -336,6 +379,27 @@ class CounterfactualGraphTests(unittest.TestCase):
         )
         self.assertEqual(difference["expected_pool"], [2])
         self.assertEqual(difference["observed_pool"], [3])
+
+    def test_board_equivalence_accepts_only_submicron_pose_jitter(self):
+        expected = {
+            "physics": {"packed_items": [{
+                "container_index": 0,
+                "item_index": 7,
+                "position": [1.0, 2.0, 3.0],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }]},
+            "observation": {"pool_list": [{"index": 2}]},
+        }
+        jittered = json.loads(json.dumps(expected))
+        jittered["physics"]["packed_items"][0]["position"][0] += 3e-7
+        changed_pool = json.loads(json.dumps(jittered))
+        changed_pool["observation"]["pool_list"] = [{"index": 3}]
+        moved = json.loads(json.dumps(expected))
+        moved["physics"]["packed_items"][0]["position"][0] += 2e-6
+
+        self.assertTrue(boards_equivalent(expected, jittered))
+        self.assertFalse(boards_equivalent(expected, changed_pool))
+        self.assertFalse(boards_equivalent(expected, moved))
 
     def test_horizon_is_explicitly_limited_to_three_through_five(self):
         for invalid in (0, 2, 6):

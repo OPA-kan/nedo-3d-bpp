@@ -186,6 +186,24 @@ def board_difference(
     }
 
 
+def boards_equivalent(
+    expected: dict[str, Any],
+    observed: dict[str, Any],
+    *,
+    pose_tolerance: float = 1e-6,
+) -> bool:
+    """Require identical contents and pool, allowing only solver jitter."""
+    difference = board_difference(expected, observed)
+    return bool(
+        not difference["expected_only_items"]
+        and not difference["observed_only_items"]
+        and difference["expected_pool"] == difference["observed_pool"]
+        and difference["max_position_abs_delta"] <= pose_tolerance
+        and difference["max_quaternion_abs_delta_sign_invariant"]
+        <= pose_tolerance
+    )
+
+
 @dataclass(frozen=True)
 class GraphBudget:
     horizon: int = 3
@@ -245,6 +263,7 @@ def replay_action_prefix(
     *,
     expected_fingerprint: str,
     snapshot_factory,
+    expected_snapshot: dict[str, Any] | None = None,
 ) -> PrefixReplayResult:
     """Rebuild one root in an independent env and verify state identity.
 
@@ -270,12 +289,17 @@ def replay_action_prefix(
                 raise RuntimeError(
                     "episode ended before the recorded prefix was replayed"
                 )
-        observed = board_fingerprint(snapshot_factory(env, observation))
+        observed_snapshot = snapshot_factory(env, observation)
+        observed = board_fingerprint(observed_snapshot)
+        matched = observed == expected_fingerprint or (
+            expected_snapshot is not None
+            and boards_equivalent(expected_snapshot, observed_snapshot)
+        )
         error = None
-        if observed != expected_fingerprint:
+        if not matched:
             error = "reconstruction_mismatch"
         return PrefixReplayResult(
-            matched=observed == expected_fingerprint,
+            matched=matched,
             expected_fingerprint=expected_fingerprint,
             observed_fingerprint=observed,
             actions_replayed=actions_replayed,
@@ -326,6 +350,7 @@ class BoundedGraphExecutor:
         contract: dict[str, Any],
         path: list[dict[str, Any]],
         expected_fingerprint: str,
+        expected_snapshot: dict[str, Any] | None = None,
     ) -> tuple[Any, PrefixReplayResult]:
         env = self.env_factory()
         branch_contract = copy.deepcopy(contract)
@@ -337,6 +362,7 @@ class BoundedGraphExecutor:
             branch_contract,
             expected_fingerprint=expected_fingerprint,
             snapshot_factory=self.snapshot_factory,
+            expected_snapshot=expected_snapshot,
         )
         return env, result
 
@@ -350,9 +376,14 @@ class BoundedGraphExecutor:
         self,
         graph: "CounterfactualGraph",
         root_contract: dict[str, Any],
+        *,
+        root_snapshot: dict[str, Any] | None = None,
     ) -> "CounterfactualGraph":
         """Breadth-first expansion with deterministic provider ordering."""
         paths: dict[str, list[dict[str, Any]]] = {graph.root_id: []}
+        expected_snapshots: dict[str, dict[str, Any]] = {}
+        if root_snapshot is not None:
+            expected_snapshots[graph.root_id] = copy.deepcopy(root_snapshot)
         frontier = [graph.root_id]
         while frontier:
             parent_id = frontier.pop(0)
@@ -364,6 +395,7 @@ class BoundedGraphExecutor:
                 root_contract,
                 paths[parent_id],
                 parent.board_fingerprint,
+                expected_snapshots.get(parent_id),
             )
             try:
                 if not rebuilt.matched or rebuilt.observation is None:
@@ -386,6 +418,7 @@ class BoundedGraphExecutor:
                     root_contract,
                     paths[parent_id],
                     parent.board_fingerprint,
+                    expected_snapshots.get(parent_id),
                 )
                 try:
                     if not rebuilt.matched or rebuilt.observation is None:
@@ -437,6 +470,9 @@ class BoundedGraphExecutor:
                         cumulative_outcomes=cumulative,
                         selection=candidate.selection,
                         terminal_reason=terminal_reason,
+                    )
+                    expected_snapshots.setdefault(
+                        child.node_id, copy.deepcopy(snapshot)
                     )
                     if child.node_id not in paths:
                         paths[child.node_id] = paths[parent_id] + [

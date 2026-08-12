@@ -336,6 +336,7 @@ def main() -> int:
             contract,
             expected_fingerprint=expected,
             snapshot_factory=snapshot_factory,
+            expected_snapshot=snapshot,
         )
         if not rebuilt.matched:
             difference = None
@@ -395,7 +396,7 @@ def main() -> int:
         ),
         outcome_provider=transition_outcomes,
     )
-    executor.expand(graph, contract)
+    executor.expand(graph, contract, root_snapshot=snapshot)
     write_graph(args.output, graph)
     print(
         json.dumps(
