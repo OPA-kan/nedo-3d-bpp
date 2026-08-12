@@ -190,17 +190,25 @@ def boards_equivalent(
     expected: dict[str, Any],
     observed: dict[str, Any],
     *,
-    pose_tolerance: float = 1e-6,
+    position_tolerance_m: float = 1e-3,
+    quaternion_tolerance: float = 1e-3,
 ) -> bool:
-    """Require identical contents and pool, allowing only solver jitter."""
+    """Require identical contents/pool and millimetre-bounded settle agreement.
+
+    The simulator declares a preloaded scene asleep below 1 mm/s linear and
+    angular velocity. Reconstructing that scene in a fresh PyBullet process
+    can therefore stop at a nearby pose; shelf run 31557852822 measured
+    0.110 mm position and 0.000400 quaternion-component drift. The identity
+    and pool checks remain exact, while both pose limits are capped at 0.001.
+    """
     difference = board_difference(expected, observed)
     return bool(
         not difference["expected_only_items"]
         and not difference["observed_only_items"]
         and difference["expected_pool"] == difference["observed_pool"]
-        and difference["max_position_abs_delta"] <= pose_tolerance
+        and difference["max_position_abs_delta"] <= position_tolerance_m
         and difference["max_quaternion_abs_delta_sign_invariant"]
-        <= pose_tolerance
+        <= quaternion_tolerance
     )
 
 

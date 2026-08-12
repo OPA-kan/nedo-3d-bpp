@@ -380,7 +380,7 @@ class CounterfactualGraphTests(unittest.TestCase):
         self.assertEqual(difference["expected_pool"], [2])
         self.assertEqual(difference["observed_pool"], [3])
 
-    def test_board_equivalence_accepts_only_submicron_pose_jitter(self):
+    def test_board_equivalence_accepts_only_millimetre_bounded_pose_jitter(self):
         expected = {
             "physics": {"packed_items": [{
                 "container_index": 0,
@@ -391,15 +391,19 @@ class CounterfactualGraphTests(unittest.TestCase):
             "observation": {"pool_list": [{"index": 2}]},
         }
         jittered = json.loads(json.dumps(expected))
-        jittered["physics"]["packed_items"][0]["position"][0] += 3e-7
+        jittered["physics"]["packed_items"][0]["position"][0] += 8e-4
+        jittered["physics"]["packed_items"][0]["quaternion"][0] += 8e-4
         changed_pool = json.loads(json.dumps(jittered))
         changed_pool["observation"]["pool_list"] = [{"index": 3}]
         moved = json.loads(json.dumps(expected))
-        moved["physics"]["packed_items"][0]["position"][0] += 2e-6
+        moved["physics"]["packed_items"][0]["position"][0] += 2e-3
+        rotated = json.loads(json.dumps(expected))
+        rotated["physics"]["packed_items"][0]["quaternion"][0] += 2e-3
 
         self.assertTrue(boards_equivalent(expected, jittered))
         self.assertFalse(boards_equivalent(expected, changed_pool))
         self.assertFalse(boards_equivalent(expected, moved))
+        self.assertFalse(boards_equivalent(expected, rotated))
 
     def test_horizon_is_explicitly_limited_to_three_through_five(self):
         for invalid in (0, 2, 6):
