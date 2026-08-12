@@ -25,15 +25,27 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
                 },
             },
         }
-        signal = {"run_id": "1", "commits": ["abc"], "graphs": [{
-            "graph_id": "g", "case_id": "case", "root_step": 15,
-            "scenario_axes": {}, "sibling_pairs": [pair],
-        }]}
+        pair["source_state_tensor"] = {
+            "contract": "observed_set_tensors_no_step_no_future_labels"
+        }
+        signal = {"run_id": "1", "commits": ["abc"], "graphs": [
+            {
+                "graph_id": "g-discovery", "case_id": "case",
+                "root_step": 6, "scenario_axes": {},
+                "sibling_pairs": [pair],
+            },
+            {
+                "graph_id": "g-holdout", "case_id": "case",
+                "root_step": 15, "scenario_axes": {},
+                "sibling_pairs": [pair],
+            },
+        ]}
 
         manifest, buckets = build_teacher_corpus(signal)
 
         self.assertEqual(manifest["late_holdout_rows"], 1)
-        self.assertEqual(buckets["discovery"], [])
+        self.assertEqual(manifest["discovery_rows"], 1)
+        self.assertTrue(manifest["model_training_ready"])
         labels = buckets["late_holdout"][0]["labels"]
         self.assertEqual(
             labels["fill_score_proxy"]["relation"],

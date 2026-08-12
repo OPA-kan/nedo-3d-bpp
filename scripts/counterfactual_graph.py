@@ -16,9 +16,119 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Iterable
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MIN_HORIZON = 3
 MAX_HORIZON = 5
+
+CONTAINER_TENSOR_FEATURES = (
+    "length", "width", "height", "cut_x", "cut_y", "thickness",
+    "buffer", "has_shelf", "is_priority_dedicated",
+)
+ITEM_TENSOR_FEATURES = (
+    "length", "width", "height", "mass", "is_prioritized", "is_soft",
+    "lateralFriction", "rollingFriction", "spinningFriction",
+    "restitution", "angularDamping", "contactStiffness",
+    "contactDamping", "linearDamping",
+)
+PACKED_TENSOR_FEATURES = (
+    "container_index", "local_x", "local_y", "local_z",
+    "quaternion_x", "quaternion_y", "quaternion_z", "quaternion_w",
+) + ITEM_TENSOR_FEATURES
+
+
+def _item_tensor_row(item: dict[str, Any]) -> list[float]:
+    return [
+        float(bool(item.get(name)))
+        if name in ("is_prioritized", "is_soft")
+        else float(item.get(name, 0.0) or 0.0)
+        for name in ITEM_TENSOR_FEATURES
+    ]
+
+
+def state_tensor_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Encode observed state as permutation-ready numeric set tensors.
+
+    The representation preserves exact settled poses, physical item fields,
+    container geometry and the visible pool. It deliberately excludes the
+    step index and every future/outcome label so a learner cannot recover the
+    trajectory clock or its target through leakage. Variable-length sets are
+    padded only by the downstream batch loader; counts serve as masks.
+    """
+    observation = snapshot.get("observation", {})
+    containers = sorted(
+        observation.get("container_list", []),
+        key=lambda row: int(row.get("index", -1)),
+    )
+    container_centres = {
+        int(container.get("index", -1)): [
+            float(value) for value in container.get("center", [0.0, 0.0, 0.0])
+        ]
+        for container in containers
+    }
+    item_records = {}
+    for container in containers:
+        container_index = int(container.get("index", -1))
+        for item in container.get("packed_items", []):
+            item_records[(container_index, int(item["index"]))] = item
+
+    packed_rows = []
+    packed_indices = []
+    for physical in sorted(
+        snapshot.get("physics", {}).get("packed_items", []),
+        key=lambda row: (
+            int(row.get("container_index", -1)),
+            int(row.get("item_index", -1)),
+        ),
+    ):
+        container_index = int(physical["container_index"])
+        item_index = int(physical["item_index"])
+        centre = container_centres.get(container_index, [0.0, 0.0, 0.0])
+        position = [float(value) for value in physical["position"]]
+        quaternion = [float(value) for value in physical["quaternion"]]
+        item = item_records.get((container_index, item_index), {})
+        packed_rows.append(
+            [float(container_index)]
+            + [position[index] - centre[index] for index in range(3)]
+            + quaternion
+            + _item_tensor_row(item)
+        )
+        packed_indices.append(item_index)
+
+    pool = sorted(
+        observation.get("pool_list", []),
+        key=lambda row: int(row.get("index", -1)),
+    )
+    container_rows = [
+        [
+            float(container.get("length", 0.0) or 0.0),
+            float(container.get("width", 0.0) or 0.0),
+            float(container.get("height", 0.0) or 0.0),
+            float(container.get("cut_x", 0.0) or 0.0),
+            float(container.get("cut_y", 0.0) or 0.0),
+            float(container.get("thickness", 0.0) or 0.0),
+            float(container.get("buffer", 0.0) or 0.0),
+            float(bool(container.get("shelf"))),
+            float(bool(container.get("is_prioritized"))),
+        ]
+        for container in containers
+    ]
+
+    return {
+        "schema_version": 1,
+        "contract": "observed_set_tensors_no_step_no_future_labels",
+        "coordinate_frame": "container_local",
+        "container_features": list(CONTAINER_TENSOR_FEATURES),
+        "container_values": container_rows,
+        "container_count": len(container_rows),
+        "packed_item_features": list(PACKED_TENSOR_FEATURES),
+        "packed_item_values": packed_rows,
+        "packed_item_indices": packed_indices,
+        "packed_item_count": len(packed_rows),
+        "visible_item_features": list(ITEM_TENSOR_FEATURES),
+        "visible_item_values": [_item_tensor_row(item) for item in pool],
+        "visible_item_indices": [int(item["index"]) for item in pool],
+        "visible_item_count": len(pool),
+    }
 
 
 def _canonical(value: Any) -> str:
@@ -237,6 +347,7 @@ class GraphNode:
     pool_item_indices: list[int]
     future_stream_offset: int
     cumulative_outcomes: dict[str, float | int | bool | None]
+    state_tensor: dict[str, Any] | None = None
     terminal_reason: str | None = None
 
 
@@ -347,11 +458,15 @@ class BoundedGraphExecutor:
             [Any, dict[str, Any], dict[str, Any]],
             tuple[dict[str, Any], dict[str, Any]],
         ],
+        state_tensor_factory: Callable[
+            [dict[str, Any]], dict[str, Any] | None
+        ] | None = None,
     ) -> None:
         self.env_factory = env_factory
         self.snapshot_factory = snapshot_factory
         self.candidate_provider = candidate_provider
         self.outcome_provider = outcome_provider
+        self.state_tensor_factory = state_tensor_factory
 
     def _reconstruct(
         self,
@@ -476,6 +591,11 @@ class BoundedGraphExecutor:
                         child_pool_item_indices=pool_indices,
                         immediate_outcomes=immediate,
                         cumulative_outcomes=cumulative,
+                        child_state_tensor=(
+                            self.state_tensor_factory(snapshot)
+                            if self.state_tensor_factory is not None
+                            else None
+                        ),
                         selection=candidate.selection,
                         terminal_reason=terminal_reason,
                     )
@@ -528,6 +648,7 @@ class CounterfactualGraph:
         state_ref: str | None,
         pool_item_indices: Iterable[int],
         cumulative_outcomes: dict[str, Any] | None = None,
+        state_tensor: dict[str, Any] | None = None,
     ) -> "CounterfactualGraph":
         identity = {
             "root_snapshot_id": root_snapshot_id,
@@ -553,6 +674,7 @@ class CounterfactualGraph:
             pool_item_indices=pool_item_indices,
             future_stream_offset=0,
             cumulative_outcomes=cumulative_outcomes or {},
+            state_tensor=state_tensor,
             terminal_reason=None,
         )
         return graph
@@ -574,6 +696,7 @@ class CounterfactualGraph:
         pool_item_indices: Iterable[int],
         future_stream_offset: int,
         cumulative_outcomes: dict[str, Any],
+        state_tensor: dict[str, Any] | None = None,
         terminal_reason: str | None,
     ) -> GraphNode:
         key = (int(depth), str(board_fingerprint))
@@ -598,6 +721,7 @@ class CounterfactualGraph:
             pool_item_indices=[int(value) for value in pool_item_indices],
             future_stream_offset=int(future_stream_offset),
             cumulative_outcomes=dict(cumulative_outcomes),
+            state_tensor=copy.deepcopy(state_tensor),
             terminal_reason=terminal_reason,
         )
         self.nodes[node_id] = node
@@ -615,6 +739,7 @@ class CounterfactualGraph:
         child_pool_item_indices: Iterable[int],
         immediate_outcomes: dict[str, Any],
         cumulative_outcomes: dict[str, Any],
+        child_state_tensor: dict[str, Any] | None = None,
         selection: dict[str, Any],
         terminal_reason: str | None = None,
     ) -> tuple[GraphNode, GraphEdge]:
@@ -636,6 +761,7 @@ class CounterfactualGraph:
             pool_item_indices=child_pool_item_indices,
             future_stream_offset=parent.future_stream_offset + 1,
             cumulative_outcomes=cumulative_outcomes,
+            state_tensor=child_state_tensor,
             terminal_reason=terminal_reason,
         )
         edge_id = stable_id(

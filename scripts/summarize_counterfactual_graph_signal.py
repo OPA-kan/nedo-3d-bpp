@@ -113,6 +113,7 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
         sibling_rows.append({
             "source_node_id": source_id,
             "source_depth": int(nodes[source_id]["depth"]),
+            "source_state_tensor": nodes[source_id].get("state_tensor"),
             "score_gap": score_gap,
             "equal_immediate_score": score_gap == 0.0,
             "downstream_ranges_differ": _ranges_differ(comparisons),

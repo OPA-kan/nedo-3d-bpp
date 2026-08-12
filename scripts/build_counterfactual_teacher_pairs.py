@@ -59,6 +59,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "root_step": int(graph["root_step"]),
         "source_node_id": pair["source_node_id"],
         "source_depth": int(pair["source_depth"]),
+        "source_state_tensor": pair.get("source_state_tensor"),
         "scenario_axes": graph.get("scenario_axes", {}),
         "lower_stable_item_index": pair["lower_stable_item_index"],
         "higher_stable_item_index": pair["higher_stable_item_index"],
@@ -92,6 +93,16 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         for row in buckets[split]:
             for metric, label in row["labels"].items():
                 relations[metric][label["relation"]] += 1
+    informative = buckets["discovery"] + buckets["late_holdout"]
+    tensor_rows = sum(
+        isinstance(row.get("source_state_tensor"), dict)
+        for row in informative
+    )
+    tensor_contracts = sorted({
+        row["source_state_tensor"].get("contract")
+        for row in informative
+        if isinstance(row.get("source_state_tensor"), dict)
+    })
     manifest = {
         "schema_version": 1,
         "source_run_id": signal.get("run_id"),
@@ -101,20 +112,29 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             "a label compares each sibling subtree's best recorded leaf."
         ),
         "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
-        "model_training_ready": False,
+        "model_training_ready": bool(
+            buckets["discovery"]
+            and buckets["late_holdout"]
+            and tensor_rows == len(informative)
+            and tensor_contracts == [
+                "observed_set_tensors_no_step_no_future_labels"
+            ]
+        ),
         "informative_pair_rows": (
             len(buckets["discovery"]) + len(buckets["late_holdout"])
         ),
         "discovery_rows": len(buckets["discovery"]),
         "late_holdout_rows": len(buckets["late_holdout"]),
         "uninformative_control_rows": len(buckets["controls"]),
+        "rows_with_source_state_tensor": tensor_rows,
+        "source_state_tensor_contracts": tensor_contracts,
         "axis_relation_counts_on_training_rows": relations,
         "limitations": [
             "Synthetic condition matrix, not official-score calibration.",
             "Sibling rows from one graph share a root trajectory and are not independent.",
             "Best reachable leaf is existence under bounded search, not probability or expected value.",
             "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
-            "Rows contain supervision and provenance, not a complete model input tensor; source-state feature extraction remains required.",
+            "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
         ],
     }
     return manifest, buckets

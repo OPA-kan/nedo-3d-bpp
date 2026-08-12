@@ -15,6 +15,7 @@ from scripts.counterfactual_graph import (
     boards_equivalent,
     capture_replay_contract,
     replay_action_prefix,
+    state_tensor_from_snapshot,
     write_graph,
 )
 
@@ -35,6 +36,43 @@ def make_graph(**budget_overrides):
 
 
 class CounterfactualGraphTests(unittest.TestCase):
+    def test_state_tensor_preserves_sets_in_container_frame_without_clock(self):
+        snapshot = {
+            "step": 15,
+            "observation": {
+                "container_list": [{
+                    "index": 0, "length": 2.0, "width": 1.0,
+                    "height": 1.5, "center": [2.5, 0.0, 0.75],
+                    "shelf": True, "is_prioritized": False,
+                    "packed_items": [{
+                        "index": 7, "length": 0.4, "width": 0.3,
+                        "height": 0.2, "mass": 5, "is_soft": True,
+                    }],
+                }],
+                "pool_list": [{
+                    "index": 9, "length": 0.5, "width": 0.2,
+                    "height": 0.1, "mass": 3, "is_prioritized": True,
+                }],
+            },
+            "physics": {"packed_items": [{
+                "container_index": 0, "item_index": 7,
+                "position": [2.6, 0.2, 0.9],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }]},
+        }
+
+        tensor = state_tensor_from_snapshot(snapshot)
+
+        self.assertNotIn("step", tensor)
+        self.assertEqual(tensor["container_count"], 1)
+        self.assertEqual(tensor["packed_item_indices"], [7])
+        self.assertEqual(tensor["visible_item_indices"], [9])
+        features = tensor["packed_item_features"]
+        row = tensor["packed_item_values"][0]
+        self.assertAlmostEqual(row[features.index("local_x")], 0.1)
+        self.assertAlmostEqual(row[features.index("local_z")], 0.15)
+        self.assertEqual(row[features.index("is_soft")], 1.0)
+
     def test_executor_builds_three_step_physical_dag_from_fresh_envs(self):
         created = []
 

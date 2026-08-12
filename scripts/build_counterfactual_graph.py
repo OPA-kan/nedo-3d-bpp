@@ -29,6 +29,7 @@ from scripts.counterfactual_graph import (  # noqa: E402
     board_fingerprint,
     canonical_action,
     replay_action_prefix,
+    state_tensor_from_snapshot,
     stable_id,
     write_graph,
 )
@@ -386,6 +387,7 @@ def main() -> int:
         state_ref=str(args.snapshot),
         pool_item_indices=contract["visible_pool_item_indices"],
         cumulative_outcomes=root_metrics,
+        state_tensor=state_tensor_from_snapshot(snapshot),
     )
     executor = BoundedGraphExecutor(
         env_factory=env_factory,
@@ -395,6 +397,7 @@ def main() -> int:
             attempt_budget=args.attempt_budget,
         ),
         outcome_provider=transition_outcomes,
+        state_tensor_factory=state_tensor_from_snapshot,
     )
     executor.expand(graph, contract, root_snapshot=snapshot)
     write_graph(args.output, graph)
