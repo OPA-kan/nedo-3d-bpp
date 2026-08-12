@@ -75,6 +75,64 @@ class PhysicalOutcomeTests(unittest.TestCase):
             )
         )
 
+    def test_release_from_another_item_fills_unused_graph_width(self):
+        def selected(pool_index, item_index, score, name):
+            return (
+                pool_index,
+                {"index": item_index},
+                SimpleNamespace(
+                    action={
+                        "item_idx": pool_index,
+                        "container_idx": 0,
+                        "place_pos": [0, 0, 0.5],
+                        "orientation": 0,
+                    },
+                    candidate=SimpleNamespace(name=name),
+                    score=score,
+                ),
+            )
+
+        emitted = [
+            selected(0, 10, 5.0, None),
+            selected(1, 11, 8.0, "release_candidate"),
+        ]
+
+        class PlacementCore:
+            @staticmethod
+            def top_candidates(_obs, _items, _k, **kwargs):
+                for pool_index, item, decision in emitted:
+                    kwargs["candidate_observer"](
+                        pool_index, item, 0, 0, decision
+                    )
+                return []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=PlacementCore,
+        )
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value={},
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[],
+            ),
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=64
+            )(object(), {}, 2)
+        self.assertEqual(
+            [candidate.selection["stable_item_index"] for candidate in candidates],
+            [10, 11],
+        )
+        self.assertEqual(
+            [candidate.selection["candidate_kind"] for candidate in candidates],
+            ["settled_candidate", "release_candidate"],
+        )
+
     def test_records_all_score_proxies_without_collapsing_them(self):
         class Container:
             packed_items = [object(), object()]

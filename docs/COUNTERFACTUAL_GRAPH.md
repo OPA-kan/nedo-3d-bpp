@@ -74,7 +74,9 @@ nodeにはそれらの累積値とterminal reasonを保存する。公式に存�
 2. board fingerprintがnodeと一致しなければ即時停止する。
 3. deadlineを使わず、固定attempt budgetの`PlacementCore.top_candidates`を
    走査器として使う。settled優先を保ったまま荷物ごとの最良候補を残し、異なる
-   荷物から上位B件を得る。同一荷物の近接poseだけで幅を消費しない。
+   荷物から上位B件を得る。同一荷物の近接poseだけで幅を消費しない。settledを
+   先に並べるが、幅が余れば別荷物のreleaseで補う。releaseの危険性は事前に
+   消さず、物理edgeの失敗ラベルとして残す。
 4. 各候補をさらに別の新しいenvで再構築してから1回だけ実行する。
 5. settle後のfingerprintをchild node、commandと物理結果をedgeとして記録する。
 6. 同じdepth・同じfingerprintは合流し、終了枝は展開しない。

@@ -164,11 +164,24 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
             candidate_observer=retain_item_best,
             attempt_budget=int(attempt_budget),
         )
-        source = settled_by_item or release_by_item
-        decisions = sorted(
-            source.items(),
+        settled = sorted(
+            settled_by_item.items(),
             key=lambda pair: (-float(pair[1].score), int(pair[0])),
-        )[: int(limit)]
+        )
+        release = sorted(
+            (
+                pair
+                for pair in release_by_item.items()
+                if pair[0] not in settled_by_item
+            ),
+            key=lambda pair: (-float(pair[1].score), int(pair[0])),
+        )
+        # Settled-first is an ordering, not a population filter here. A live
+        # action should prefer settled, but an offline training graph must not
+        # collapse to width one merely because one item has a settled action.
+        # Fill unused width with distinct-item release actions and let the
+        # physical replay provide their failure labels.
+        decisions = (settled + release)[: int(limit)]
         result = []
         for rank, (stable_item_index, decision) in enumerate(decisions):
             action = canonical_action(decision.action)
