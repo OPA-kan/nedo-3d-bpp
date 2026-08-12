@@ -201,3 +201,16 @@ does not transfer: afterstate scored 13/26 and was worse than immediate score
 state-value teachers and isolates a promising fill-only hypothesis, but
 incremental value is not established at 5%. Do not build a live selector or
 scale H5 from this result.
+
+A fill-only selective policy is frozen in
+`reports/counterfactual-afterstate-value/fill-policy.json`. Discovery-only
+ablation showed that container summaries carry little signal (59/111), while
+packed state alone reached 102/111 and packed+visible matched the full summary
+at 108/111. The frozen policy emits a fill preference only when fixed-L2
+packed-only and packed+visible models agree. It retrospectively scores 101/103
+on discovery and 20/20 on the already-inspected late rows at 20/22 coverage.
+Because the consensus was designed after examining those late errors, neither
+number is confirmation evidence. Its first valid test is the complete late
+split of the next physical matrix after the policy commit; it must cover at
+least 75%, make zero errors, and not underperform either constituent or action
+geometry on covered rows.

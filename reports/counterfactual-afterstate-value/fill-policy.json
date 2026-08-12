@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "axis": "fill_score_proxy",
+  "status": "frozen_awaiting_new_physical_run",
+  "model": "consensus_of_two_fixed_l2_no_intercept_ridges",
+  "l2": 1.0,
+  "feature_blocks": [
+    "packed_afterstate_summary_delta",
+    "packed_plus_visible_afterstate_summary_delta"
+  ],
+  "decision": "predict only when both models agree; otherwise abstain",
+  "selection_provenance": "Designed after inspecting errors on all five existing late splits. Their 20/20 at 20/22 coverage is retrospective and must not be used as confirmation.",
+  "discovery_retrospective": {
+    "correct": 101,
+    "covered": 103,
+    "total": 111
+  },
+  "late_retrospective": {
+    "correct": 20,
+    "covered": 20,
+    "total": 22
+  },
+  "confirmation_gate": {
+    "data": "the complete late split of the first physical matrix generated after this policy commit",
+    "minimum_coverage": 0.75,
+    "maximum_errors": 0,
+    "comparison": "must not make more errors than packed+visible afterstate or action geometry on covered rows"
+  },
+  "forbidden_uses": [
+    "live selection",
+    "H5 scale-up",
+    "retuning from the confirmation run"
+  ]
+}

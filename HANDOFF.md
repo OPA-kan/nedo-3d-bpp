@@ -172,6 +172,15 @@ physical afterstate teacher and a promising fill-only hypothesis, not a live
 policy. Keep H5 and live selection closed; the next representation experiment
 must preregister fill only and increase discordant held-out roots.
 
+The fill-only follow-up is frozen before new physics in
+`reports/counterfactual-afterstate-value/fill-policy.json`. Container summaries
+were unhelpful on discovery (59/111); packed-only scored 102/111 and
+packed+visible 108/111. Their agreement gate retrospectively gives 101/103 on
+discovery and 20/20 at 20/22 coverage on the already-inspected late rows. Do
+not call that confirmation: the rule was designed after viewing those errors.
+Its preregistered next-run gate is >=75% late coverage, zero errors, and no
+covered-row regression versus either constituent or action geometry.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

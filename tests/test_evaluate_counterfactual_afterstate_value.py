@@ -5,6 +5,7 @@ import unittest
 from scripts.evaluate_counterfactual_afterstate_value import (
     _exact_two_sided_sign_p,
     _state_delta,
+    _state_block_delta,
     evaluate,
 )
 from tests.test_evaluate_counterfactual_teacher_discovery import action, state
@@ -54,6 +55,12 @@ class CounterfactualAfterstateValueTests(unittest.TestCase):
         )
         self.assertEqual(_state_delta(example, pair), [-value for value in forward])
 
+    def test_named_state_blocks_are_strict_subsets(self) -> None:
+        example = row("x", "g", 0.2, "higher_afterstate_better")
+
+        self.assertEqual(len(_state_block_delta(example, "packed")), 37)
+        self.assertEqual(len(_state_block_delta(example, "packed_visible")), 62)
+
     def test_holds_out_each_complete_physical_run(self) -> None:
         report = evaluate([run("1"), run("2")])
 
@@ -65,6 +72,9 @@ class CounterfactualAfterstateValueTests(unittest.TestCase):
             report["permuted_afterstate_negative_control"]["placed_count"]["total"],
             2,
         )
+        selective = report["fill_selective_consensus"]
+        self.assertIn("retrospective", selective["selection_warning"])
+        self.assertEqual(selective["late_retrospective"]["total"], 2)
 
     def test_rejects_duplicate_run_ids(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):

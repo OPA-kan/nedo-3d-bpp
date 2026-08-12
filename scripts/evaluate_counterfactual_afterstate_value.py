@@ -60,6 +60,40 @@ def _state_delta(
     return [right - left for left, right in zip(lower_values, higher_values)]
 
 
+def _state_block_delta(row: dict[str, Any], block: str) -> list[float]:
+    lower = row["lower_afterstate_tensor"]
+    higher = row["higher_afterstate_tensor"]
+
+    def block_summary(state: dict[str, Any], prefix: str) -> list[float]:
+        names = state[f"{prefix}_features"]
+        values = [
+            [float(value) for value in item]
+            for item in state[f"{prefix}_values"]
+        ]
+        summary = [float(len(values))]
+        if values:
+            columns = list(zip(*values))
+            summary.extend(statistics.fmean(column) for column in columns)
+            summary.extend(statistics.pstdev(column) for column in columns)
+            summary.extend(min(column) for column in columns)
+            summary.extend(max(column) for column in columns)
+        else:
+            summary.extend([0.0] * (4 * len(names)))
+        return summary
+
+    prefixes = {
+        "packed": ("packed_item",),
+        "packed_visible": ("packed_item", "visible_item"),
+    }[block]
+    lower_values = [
+        value for prefix in prefixes for value in block_summary(lower, prefix)
+    ]
+    higher_values = [
+        value for prefix in prefixes for value in block_summary(higher, prefix)
+    ]
+    return [right - left for left, right in zip(lower_values, higher_values)]
+
+
 def _features(
     row: dict[str, Any], *, include_action: bool, include_afterstate: bool,
     pair: tuple[dict[str, Any], dict[str, Any]] | None = None,
@@ -175,6 +209,10 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         for metric in METRICS
     }
     targets = []
+    fill_selective = {
+        "discovery_retrospective": {"correct": 0, "covered": 0, "total": 0},
+        "late_retrospective": {"correct": 0, "covered": 0, "total": 0},
+    }
     for target_run in runs:
         train = [
             row for run in runs if run is not target_run
@@ -278,6 +316,32 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             "target_late_rows": len(target_run["late"]),
             "axes": axes,
         })
+        for split, report_key in (
+            ("discovery", "discovery_retrospective"),
+            ("late", "late_retrospective"),
+        ):
+            test = _eligible(target_run[split], "fill_score_proxy")
+            packed = _predict_ridge(
+                train, test, "fill_score_proxy",
+                lambda row: _state_block_delta(row, "packed"),
+            )
+            packed_visible = _predict_ridge(
+                train, test, "fill_score_proxy",
+                lambda row: _state_block_delta(row, "packed_visible"),
+            )
+            for row in test:
+                left = packed[row["teacher_id"]]
+                right = packed_visible[row["teacher_id"]]
+                fill_selective[report_key]["total"] += 1
+                if left != right:
+                    continue
+                fill_selective[report_key]["covered"] += 1
+                fill_selective[report_key]["correct"] += (
+                    left
+                    == row["continuation_labels"]["fill_score_proxy"][
+                        "relation"
+                    ]
+                )
     permutation_summary = {}
     for metric, values in permutation_totals.items():
         correct = [value["correct"] for value in values]
@@ -310,6 +374,18 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "pooled_exact_counts": totals,
         "paired_exact_comparisons": paired_comparisons,
         "permuted_afterstate_negative_control": permutation_summary,
+        "fill_selective_consensus": {
+            "contract": (
+                "predict only when fixed-L2 packed-only and packed+visible "
+                "afterstate models agree"
+            ),
+            "selection_warning": (
+                "This consensus was designed after inspecting the five-run "
+                "late errors. Both existing splits are retrospective; only a "
+                "subsequent physical run can confirm it."
+            ),
+            **fill_selective,
+        },
         "claim": (
             "Synthetic run-held-out diagnostic. It tests learnable continuation "
             "value in H3 states, not episode-level policy improvement."
@@ -362,6 +438,17 @@ def render_markdown(report: dict[str, Any]) -> str:
             ])
         lines.append(f"| {metric} | " + " | ".join(cells) + " |")
     lines.extend([
+        "", "## Fill-only selective consensus", "",
+    ])
+    selective = report["fill_selective_consensus"]
+    for name in ("discovery_retrospective", "late_retrospective"):
+        row = selective[name]
+        lines.append(
+            f"- {name}: {row['correct']}/{row['covered']} correct at "
+            f"{row['covered']}/{row['total']} coverage"
+        )
+    lines.extend([
+        "", f"> {selective['selection_warning']}",
         "", "The afterstate model is a fixed-L2 no-intercept ridge over the "
         "difference of permutation-invariant physical child-state summaries. "
         "Each target run is excluded in full from training. Seven deterministic "

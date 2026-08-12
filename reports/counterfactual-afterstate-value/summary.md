@@ -24,6 +24,13 @@ Each `W/T/L` is for the model named first. The exact two-sided sign test uses on
 | priority_misrouted | 0/0/0 | 1 | 0/0/0 | 1 | 0/0/0 | 1 |
 | soft_covered_by_other | 0/4/0 | 1 | 0/4/0 | 1 | 4/0/0 | 0.125 |
 
+## Fill-only selective consensus
+
+- discovery_retrospective: 101/103 correct at 103/111 coverage
+- late_retrospective: 20/20 correct at 20/22 coverage
+
+> This consensus was designed after inspecting the five-run late errors. Both existing splits are retrospective; only a subsequent physical run can confirm it.
+
 The afterstate model is a fixed-L2 no-intercept ridge over the difference of permutation-invariant physical child-state summaries. Each target run is excluded in full from training. Seven deterministic training-state rotations are reported as a negative control.
 
 > Synthetic run-held-out diagnostic. It tests learnable continuation value in H3 states, not episode-level policy improvement.
