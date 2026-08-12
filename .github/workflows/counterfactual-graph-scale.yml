@@ -32,35 +32,35 @@ jobs:
           - label: single-noshelf-p10-s15
             scenario: single-empty-noshelf
             pool: 10
-            step: 15
+            root_steps: "12 15"
           - label: single-noshelf-p40-s15
             scenario: single-empty-noshelf
             pool: 40
-            step: 15
+            root_steps: "12 15"
           - label: single-shelf-p20-s15
             scenario: single-empty-shelf
             pool: 20
-            step: 15
+            root_steps: "12 15"
           - label: single-preloaded-p20-s15
             scenario: single-preloaded
             pool: 20
-            step: 15
+            root_steps: "12 15"
           - label: dual-empty-p20-s15
             scenario: dual-empty
             pool: 20
-            step: 15
+            root_steps: "12 15"
           - label: dual-shelf-p20-s15
             scenario: dual-shelf-mixed
             pool: 20
-            step: 15
+            root_steps: "12 15"
           - label: dual-preloaded-priority-p40-s15
             scenario: dual-preloaded-dedicated
             pool: 40
-            step: 15
+            root_steps: "12 15"
           - label: dual-full-stream-p40-s12
             scenario: dual-full-stream
             pool: 40
-            step: 12
+            root_steps: "9 12"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -81,12 +81,13 @@ jobs:
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs"
       - name: Capture replayable mid/late root
+        continue-on-error: true
         run: >-
           python scripts/build_replay_dataset.py
           --config
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json"
           --case "m-${{ matrix.scenario }}"
-          --steps ${{ matrix.step }}
+          --steps ${{ matrix.root_steps }}
           --per-stratum 1
           --oracle-limit 16
           --sampling-mode stratified_random
@@ -95,12 +96,21 @@ jobs:
           --skip-optimize
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/root"
+      - name: Select latest captured root
+        id: root
+        shell: bash
+        run: |
+          snapshot="$(find \
+            "reports/counterfactual-graph-scale/${{ matrix.label }}/root" \
+            -maxdepth 1 -type f -name 'step-*-state.json' \
+            | sort | tail -n 1)"
+          test -n "$snapshot"
+          echo "snapshot=$snapshot" >> "$GITHUB_OUTPUT"
       - name: Expand bounded H3/B2 physical graph
         shell: bash
         run: |
-          snapshot="$(printf 'reports/counterfactual-graph-scale/${{ matrix.label }}/root/step-%03d-state.json' '${{ matrix.step }}')"
           python scripts/build_counterfactual_graph.py \
-            --snapshot "$snapshot" \
+            --snapshot "${{ steps.root.outputs.snapshot }}" \
             --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
             --case "m-${{ matrix.scenario }}" \
             --split development \

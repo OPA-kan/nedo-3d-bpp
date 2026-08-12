@@ -10,6 +10,7 @@ from scripts.counterfactual_graph import (
     BranchCandidate,
     CounterfactualGraph,
     GraphBudget,
+    board_difference,
     board_fingerprint,
     capture_replay_contract,
     replay_action_prefix,
@@ -307,6 +308,34 @@ class CounterfactualGraphTests(unittest.TestCase):
         self.assertNotEqual(
             board_fingerprint(snapshot), board_fingerprint(changed)
         )
+
+    def test_board_difference_reports_pose_and_pool_mismatch(self):
+        expected = {
+            "physics": {"packed_items": [{
+                "container_index": 0,
+                "item_index": 7,
+                "position": [1.0, 2.0, 3.0],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }]},
+            "observation": {"pool_list": [{"index": 2}]},
+        }
+        observed = json.loads(json.dumps(expected))
+        observed["physics"]["packed_items"][0]["position"][2] = 3.002
+        observed["physics"]["packed_items"][0]["quaternion"] = [
+            0.0, 0.0, 0.0, -1.0
+        ]
+        observed["observation"]["pool_list"] = [{"index": 3}]
+
+        difference = board_difference(expected, observed)
+
+        self.assertAlmostEqual(
+            difference["max_position_abs_delta"], 0.002
+        )
+        self.assertEqual(
+            difference["max_quaternion_abs_delta_sign_invariant"], 0.0
+        )
+        self.assertEqual(difference["expected_pool"], [2])
+        self.assertEqual(difference["observed_pool"], [3])
 
     def test_horizon_is_explicitly_limited_to_three_through_five(self):
         for invalid in (0, 2, 6):

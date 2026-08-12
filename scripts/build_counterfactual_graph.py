@@ -25,6 +25,7 @@ from scripts.counterfactual_graph import (  # noqa: E402
     BranchCandidate,
     CounterfactualGraph,
     GraphBudget,
+    board_difference,
     board_fingerprint,
     canonical_action,
     replay_action_prefix,
@@ -337,10 +338,17 @@ def main() -> int:
             snapshot_factory=snapshot_factory,
         )
         if not rebuilt.matched:
+            difference = None
+            if rebuilt.observation is not None:
+                observed_snapshot = snapshot_factory(
+                    root_env, rebuilt.observation
+                )
+                difference = board_difference(snapshot, observed_snapshot)
             raise SystemExit(
                 "root reconstruction failed: "
                 f"expected={expected} observed={rebuilt.observed_fingerprint} "
-                f"error={rebuilt.error}"
+                f"error={rebuilt.error} difference="
+                f"{json.dumps(difference, sort_keys=True)}"
             )
         root_metrics = cumulative_metrics(root_env)
     finally:

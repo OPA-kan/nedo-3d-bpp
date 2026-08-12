@@ -107,6 +107,85 @@ def board_fingerprint(snapshot: dict[str, Any], *, digits: int = 6) -> str:
     )
 
 
+def board_difference(
+    expected: dict[str, Any], observed: dict[str, Any]
+) -> dict[str, Any]:
+    """Describe why two board fingerprints differ without hiding the gap."""
+
+    def packed_by_key(
+        snapshot: dict[str, Any],
+    ) -> dict[tuple[int, int], dict[str, Any]]:
+        return {
+            (int(item["container_index"]), int(item["item_index"])): item
+            for item in snapshot.get("physics", {}).get("packed_items", [])
+        }
+
+    expected_items = packed_by_key(expected)
+    observed_items = packed_by_key(observed)
+    common = sorted(expected_items.keys() & observed_items.keys())
+    position_differences = []
+    quaternion_differences = []
+    for key in common:
+        expected_item = expected_items[key]
+        observed_item = observed_items[key]
+        position_differences.extend(
+            abs(float(left) - float(right))
+            for left, right in zip(
+                expected_item.get("position", []),
+                observed_item.get("position", []),
+            )
+        )
+        expected_quaternion = [
+            float(value) for value in expected_item.get("quaternion", [])
+        ]
+        observed_quaternion = [
+            float(value) for value in observed_item.get("quaternion", [])
+        ]
+        if len(expected_quaternion) == len(observed_quaternion):
+            direct = max(
+                (
+                    abs(left - right)
+                    for left, right in zip(
+                        expected_quaternion, observed_quaternion
+                    )
+                ),
+                default=0.0,
+            )
+            negated = max(
+                (
+                    abs(left + right)
+                    for left, right in zip(
+                        expected_quaternion, observed_quaternion
+                    )
+                ),
+                default=0.0,
+            )
+            quaternion_differences.append(min(direct, negated))
+
+    def pool(snapshot: dict[str, Any]) -> list[int]:
+        return [
+            int(item["index"])
+            for item in snapshot.get("observation", {}).get("pool_list", [])
+        ]
+
+    return {
+        "expected_only_items": [
+            list(key)
+            for key in sorted(expected_items.keys() - observed_items.keys())
+        ],
+        "observed_only_items": [
+            list(key)
+            for key in sorted(observed_items.keys() - expected_items.keys())
+        ],
+        "expected_pool": pool(expected),
+        "observed_pool": pool(observed),
+        "max_position_abs_delta": max(position_differences, default=0.0),
+        "max_quaternion_abs_delta_sign_invariant": max(
+            quaternion_differences, default=0.0
+        ),
+    }
+
+
 @dataclass(frozen=True)
 class GraphBudget:
     horizon: int = 3
