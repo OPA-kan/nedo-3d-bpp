@@ -163,3 +163,18 @@ gate: candidate-local versus action-only was CoG 3/8 versus 5/8 and surface
 6/8 versus 5/8, pooled 9 versus 10. Do not tune or scale this hand-designed
 local representation. The negative result does not invalidate the teacher
 contract or the action-only signal.
+
+## Jointly attainable Pareto teachers
+
+Per-axis best leaves may come from different futures and cannot be combined as
+if one trajectory attained them all. Schema v3 therefore stores each sibling
+subtree's complete attainable outcome vectors, removes internally dominated
+vectors, and compares the two Pareto frontiers by set coverage. The relation is
+lower-dominates, higher-dominates, equivalent or incomparable; no axis weight
+is introduced.
+
+The latest matrix had 15 strict dominance and 51 incomparable informative
+pairs. In three-run held-out late evaluation, strict dominance appeared only
+six times; immediate score was correct 6/6 and the geometry utility delta 4/6.
+This is too sparse to justify a learned live selector. See
+`reports/counterfactual-teacher-cross-run/summary.md`.

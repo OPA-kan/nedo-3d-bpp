@@ -1,16 +1,16 @@
 {
-  "schema_version": 2,
-  "source_run_id": "31563973521",
+  "schema_version": 3,
+  "source_run_id": "31566153353",
   "source_commits": [
-    "95bf36fa2647026351dc7663cc56e46471dacb85"
+    "278c07df98bcfd160c107f1f1a22378eb1c46eee"
   ],
-  "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf.",
+  "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf. Joint Pareto labels separately compare attainable leaf vectors.",
   "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
   "model_training_ready": true,
   "informative_pair_rows": 66,
-  "discovery_rows": 58,
-  "late_holdout_rows": 8,
-  "uninformative_control_rows": 42,
+  "discovery_rows": 54,
+  "late_holdout_rows": 12,
+  "uninformative_control_rows": 43,
   "rows_with_source_state_tensor": 66,
   "source_state_tensor_contracts": [
     "observed_set_tensors_no_step_no_future_labels"
@@ -21,23 +21,23 @@
   ],
   "axis_relation_counts_on_training_rows": {
     "placed_count": {
-      "lower_immediate_score_better": 0,
-      "higher_immediate_score_better": 0,
-      "equal": 66
+      "lower_immediate_score_better": 1,
+      "higher_immediate_score_better": 2,
+      "equal": 63
     },
     "fill_score_proxy": {
-      "lower_immediate_score_better": 36,
-      "higher_immediate_score_better": 25,
-      "equal": 5
+      "lower_immediate_score_better": 35,
+      "higher_immediate_score_better": 22,
+      "equal": 9
     },
     "com_z": {
-      "lower_immediate_score_better": 32,
-      "higher_immediate_score_better": 34,
+      "lower_immediate_score_better": 25,
+      "higher_immediate_score_better": 41,
       "equal": 0
     },
     "surface_total_variation": {
-      "lower_immediate_score_better": 21,
-      "higher_immediate_score_better": 45,
+      "lower_immediate_score_better": 22,
+      "higher_immediate_score_better": 44,
       "equal": 0
     },
     "priority_misrouted": {
@@ -46,10 +46,16 @@
       "equal": 66
     },
     "soft_covered_by_other": {
-      "lower_immediate_score_better": 4,
+      "lower_immediate_score_better": 3,
       "higher_immediate_score_better": 0,
-      "equal": 62
+      "equal": 63
     }
+  },
+  "joint_pareto_relation_counts_on_training_rows": {
+    "lower_reachable_set_dominates": 4,
+    "higher_reachable_set_dominates": 11,
+    "equivalent_reachable_sets": 0,
+    "incomparable_reachable_sets": 51
   },
   "limitations": [
     "Synthetic condition matrix, not official-score calibration.",
@@ -57,6 +63,7 @@
     "Best reachable leaf is existence under bounded search, not probability or expected value.",
     "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
     "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
-    "Action tensors retain the official command coordinate frame and join only item fields visible at the source node."
+    "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
+    "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights."
   ]
 }

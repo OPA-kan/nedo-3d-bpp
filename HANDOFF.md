@@ -141,6 +141,23 @@ failed: **do not scale the current hand-designed candidate-local state
 representation into a larger model**. This closes that representation, not the
 H3 teacher corpus or the replicated candidate-action signal.
 
+The remaining action signal was then tested across three independent physical
+runs: train on the other runs' discovery roots, test a whole target run's late
+roots. A no-intercept geometry-utility difference (candidate swap negates the
+prediction) scored fill 19/24 versus immediate score 11/24 and surface 22/30
+versus 18/30; it lost badly on CoG (17/30 versus 26/30). This is an axis-level
+diagnostic, not a selector. Requiring fill and surface to agree proposed on
+10/30 late pairs and still contradicted an attained axis on 4/10.
+
+Schema-v3 teachers therefore retain every jointly attainable leaf outcome
+vector and label Pareto-frontier coverage without a weighted sum. On latest run
+31566153353, 15/66 informative pairs had a strict reachable-set dominance and
+51/66 were incomparable. Across three run-held-out late splits only six strict
+dominance rows appeared; immediate score classified 6/6 and geometry utility
+4/6. **Do not ship an action-value shadow or invent an axis weight from this
+corpus.** The usable result is the H3 teacher/instrument plus an offline
+fill/surface signal; the safe live decision rule remains unestablished.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |

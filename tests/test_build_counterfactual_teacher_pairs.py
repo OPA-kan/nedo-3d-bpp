@@ -34,6 +34,16 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         pair["higher_action_tensor"] = {
             "contract": "observed_candidate_action_no_future_labels"
         }
+        pair["lower_reachable_outcome_vectors"] = [{
+            "placed_count": 3, "fill_score_proxy": 12.0, "com_z": 0.5,
+            "surface_total_variation": 0.01, "priority_misrouted": 0,
+            "soft_covered_by_other": 0,
+        }]
+        pair["higher_reachable_outcome_vectors"] = [{
+            "placed_count": 3, "fill_score_proxy": 11.0, "com_z": 0.6,
+            "surface_total_variation": 0.02, "priority_misrouted": 0,
+            "soft_covered_by_other": 0,
+        }]
         signal = {"run_id": "1", "commits": ["abc"], "graphs": [
             {
                 "graph_id": "g-discovery", "case_id": "case",
@@ -52,6 +62,12 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         self.assertEqual(manifest["late_holdout_rows"], 1)
         self.assertEqual(manifest["discovery_rows"], 1)
         self.assertTrue(manifest["model_training_ready"])
+        self.assertEqual(manifest["schema_version"], 3)
+        self.assertEqual(
+            manifest["joint_pareto_relation_counts_on_training_rows"]
+            ["lower_reachable_set_dominates"],
+            2,
+        )
         self.assertEqual(manifest["rows_with_paired_action_tensors"], 2)
         labels = buckets["late_holdout"][0]["labels"]
         self.assertEqual(

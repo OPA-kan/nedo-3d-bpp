@@ -18,6 +18,66 @@ def _best(metric: str, value_range: list[float | int]) -> float | int:
     return value_range[1] if METRIC_DIRECTIONS[metric] > 0 else value_range[0]
 
 
+def _weakly_dominates(
+    left: dict[str, float | int], right: dict[str, float | int],
+) -> bool:
+    return all(
+        METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) >= 0
+        for metric in METRIC_DIRECTIONS
+    )
+
+
+def _strictly_dominates(
+    left: dict[str, float | int], right: dict[str, float | int],
+) -> bool:
+    return _weakly_dominates(left, right) and any(
+        METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) > 0
+        for metric in METRIC_DIRECTIONS
+    )
+
+
+def _pareto_frontier(
+    vectors: list[dict[str, float | int]],
+) -> list[dict[str, float | int]]:
+    return [
+        vector for index, vector in enumerate(vectors)
+        if not any(
+            _strictly_dominates(other, vector)
+            for other_index, other in enumerate(vectors)
+            if other_index != index
+        )
+    ]
+
+
+def joint_pareto_label(pair: dict[str, Any]) -> dict[str, Any]:
+    """Compare jointly attainable leaf vectors without an axis-weighted sum."""
+    lower = _pareto_frontier(pair.get("lower_reachable_outcome_vectors", []))
+    higher = _pareto_frontier(pair.get("higher_reachable_outcome_vectors", []))
+    lower_covers = bool(lower and higher) and all(
+        any(_weakly_dominates(candidate, target) for candidate in lower)
+        for target in higher
+    )
+    higher_covers = bool(lower and higher) and all(
+        any(_weakly_dominates(candidate, target) for candidate in higher)
+        for target in lower
+    )
+    if lower_covers and not higher_covers:
+        relation = "lower_reachable_set_dominates"
+    elif higher_covers and not lower_covers:
+        relation = "higher_reachable_set_dominates"
+    elif lower_covers and higher_covers:
+        relation = "equivalent_reachable_sets"
+    else:
+        relation = "incomparable_reachable_sets"
+    return {
+        "relation": relation,
+        "lower_pareto_frontier": lower,
+        "higher_pareto_frontier": higher,
+        "lower_frontier_covers_higher": lower_covers,
+        "higher_frontier_covers_lower": higher_covers,
+    }
+
+
 def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     labels = {}
     for metric, comparison in pair["comparisons"].items():
@@ -69,6 +129,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "equal_immediate_score": bool(pair["equal_immediate_score"]),
         "informative_on_recorded_axes": informative,
         "labels": labels,
+        "joint_pareto": joint_pareto_label(pair),
     }
 
 
@@ -91,10 +152,19 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         )}
         for metric in METRIC_DIRECTIONS
     }
+    joint_relations = {
+        relation: 0 for relation in (
+            "lower_reachable_set_dominates",
+            "higher_reachable_set_dominates",
+            "equivalent_reachable_sets",
+            "incomparable_reachable_sets",
+        )
+    }
     for split in ("discovery", "late_holdout"):
         for row in buckets[split]:
             for metric, label in row["labels"].items():
                 relations[metric][label["relation"]] += 1
+            joint_relations[row["joint_pareto"]["relation"]] += 1
     informative = buckets["discovery"] + buckets["late_holdout"]
     tensor_rows = sum(
         isinstance(row.get("source_state_tensor"), dict)
@@ -119,12 +189,13 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         if isinstance(action, dict)
     })
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source_run_id": signal.get("run_id"),
         "source_commits": signal.get("commits", []),
         "label_contract": (
             "Per-axis optimistic bounded reachability. No axes are summed; "
-            "a label compares each sibling subtree's best recorded leaf."
+            "a label compares each sibling subtree's best recorded leaf. "
+            "Joint Pareto labels separately compare attainable leaf vectors."
         ),
         "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
         "model_training_ready": bool(
@@ -150,6 +221,7 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         "rows_with_paired_action_tensors": action_tensor_rows,
         "action_tensor_contracts": action_tensor_contracts,
         "axis_relation_counts_on_training_rows": relations,
+        "joint_pareto_relation_counts_on_training_rows": joint_relations,
         "limitations": [
             "Synthetic condition matrix, not official-score calibration.",
             "Sibling rows from one graph share a root trajectory and are not independent.",
@@ -157,6 +229,7 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
             "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
             "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
+            "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights.",
         ],
     }
     return manifest, buckets

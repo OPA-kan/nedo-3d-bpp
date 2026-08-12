@@ -106,6 +106,25 @@ def _metric_ranges(
     return ranges
 
 
+def _outcome_vectors(
+    paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
+) -> list[dict[str, float | int]]:
+    vectors = []
+    seen = set()
+    for _edges, leaf in paths:
+        outcomes = leaf.get("cumulative_outcomes", {})
+        if not all(metric in outcomes for metric in METRIC_DIRECTIONS):
+            continue
+        vector = {
+            metric: outcomes[metric] for metric in METRIC_DIRECTIONS
+        }
+        identity = tuple(vector.items())
+        if identity not in seen:
+            seen.add(identity)
+            vectors.append(vector)
+    return vectors
+
+
 def _ranges_differ(comparisons: dict[str, Any]) -> bool:
     return any(
         row["lower_range"] != row["higher_range"]
@@ -129,6 +148,8 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
         higher_paths = _leaf_paths(higher["target"], nodes, outgoing)
         lower_ranges = _metric_ranges(lower_paths)
         higher_ranges = _metric_ranges(higher_paths)
+        lower_vectors = _outcome_vectors(lower_paths)
+        higher_vectors = _outcome_vectors(higher_paths)
         score_gap = float(higher["selection"]["score"]) - float(
             lower["selection"]["score"]
         )
@@ -159,6 +180,8 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
             "source_state_tensor": source_state_tensor,
             "lower_action_tensor": _action_tensor(lower, source_state_tensor),
             "higher_action_tensor": _action_tensor(higher, source_state_tensor),
+            "lower_reachable_outcome_vectors": lower_vectors,
+            "higher_reachable_outcome_vectors": higher_vectors,
             "score_gap": score_gap,
             "equal_immediate_score": score_gap == 0.0,
             "downstream_ranges_differ": _ranges_differ(comparisons),
