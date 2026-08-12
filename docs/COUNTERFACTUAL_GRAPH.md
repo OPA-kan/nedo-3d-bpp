@@ -116,3 +116,16 @@ near-tie threshold. The committed audit is
 `reports/counterfactual-graph-scale/signal.md`; its training-readiness verdict
 remains negative until a larger replicated H3 set demonstrates held-out
 separation. H5 is gated on that evidence.
+
+## Pairwise teacher export
+
+`scripts/build_counterfactual_teacher_pairs.py` converts audited sibling
+subtrees into one label per outcome axis. It never combines placed, fill, CoG,
+surface, priority or soft labels into a weighted target. The discovery/late
+split is inherited from the preregistered root-step boundary. Exact-score or
+otherwise outcome-identical pairs are retained separately as controls.
+
+The export is supervision plus graph provenance, not a complete training
+example: it intentionally reports `model_training_ready=false` until a
+source-state feature tensor can be joined without losing residual geometry,
+visible-pool content or scenario context.

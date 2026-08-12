@@ -95,6 +95,15 @@ Do not train a value model yet. A narrowly scoped H5 diagnostic is now allowed
 only on roots whose first H3 sibling pair was an exact tie, to distinguish an
 H3 horizon limit from an uninformative tie. This is not permission for broad
 H5 corpus generation or live-policy changes.
+
+That diagnostic is complete in Actions run 31559232452 and
+`reports/counterfactual-tie-h5/`: three H5/B2 graphs, 186 safe edges and 96
+horizon leaves. Exact-score pairs still separated 0/39, so exact ties are not
+an H3 horizon artifact on these roots. `scripts/build_counterfactual_teacher_pairs.py`
+exports the informative H3 sibling supervision without inventing a total:
+52 discovery rows, 9 late-holdout rows and 42 uninformative controls in
+`reports/counterfactual-teacher-pairs/`. This is a label/provenance corpus,
+not yet a model-input tensor; source-state feature extraction is the next gate.
 Raw graphs remain Actions artifacts; compact aggregate evidence is committed.
 
 ## Official score history

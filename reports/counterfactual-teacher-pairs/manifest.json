@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "source_run_id": "31558667741",
+  "source_commits": [
+    "f2c9b27be38d65e784a5bcb169daf6269705d1aa"
+  ],
+  "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf.",
+  "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
+  "model_training_ready": false,
+  "informative_pair_rows": 61,
+  "discovery_rows": 52,
+  "late_holdout_rows": 9,
+  "uninformative_control_rows": 42,
+  "axis_relation_counts_on_training_rows": {
+    "placed_count": {
+      "lower_immediate_score_better": 0,
+      "higher_immediate_score_better": 2,
+      "equal": 59
+    },
+    "fill_score_proxy": {
+      "lower_immediate_score_better": 35,
+      "higher_immediate_score_better": 22,
+      "equal": 4
+    },
+    "com_z": {
+      "lower_immediate_score_better": 25,
+      "higher_immediate_score_better": 36,
+      "equal": 0
+    },
+    "surface_total_variation": {
+      "lower_immediate_score_better": 16,
+      "higher_immediate_score_better": 45,
+      "equal": 0
+    },
+    "priority_misrouted": {
+      "lower_immediate_score_better": 0,
+      "higher_immediate_score_better": 0,
+      "equal": 61
+    },
+    "soft_covered_by_other": {
+      "lower_immediate_score_better": 1,
+      "higher_immediate_score_better": 0,
+      "equal": 60
+    }
+  },
+  "limitations": [
+    "Synthetic condition matrix, not official-score calibration.",
+    "Sibling rows from one graph share a root trajectory and are not independent.",
+    "Best reachable leaf is existence under bounded search, not probability or expected value.",
+    "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
+    "Rows contain supervision and provenance, not a complete model input tensor; source-state feature extraction remains required."
+  ]
+}

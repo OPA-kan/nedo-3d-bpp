@@ -2592,6 +2592,27 @@
         "targeted_tie_h5_diagnostic": true,
         "broad_h5_generation": false
       }
+    },
+    {
+      "id": "counterfactual-exact-ties-remain-flat-at-h5",
+      "topic": "learning_data",
+      "date": "2026-08-12",
+      "status": "active",
+      "claim": "Exact immediate-score ties did not become informative when three root-level H3 ties were selectively extended to H5/B2. Run 31559232452 completed all three graphs at the full 63-node/62-edge bound: 186 safe edges and 96 horizon leaves. Across 39 exact-score sibling pairs, zero differed on the recorded downstream ranges. This rejects the narrow hypothesis that H3 alone hid the tie signal on these roots. The informative H3 supervision is therefore exported as 52 discovery plus 9 late-holdout multi-axis pair rows, while 42 exact/outcome-identical pairs remain separate controls. The export is not model-ready because source-state feature tensors are not yet attached.",
+      "source": "reports/counterfactual-tie-h5/signal.json; reports/counterfactual-teacher-pairs/manifest.json; Actions run 31559232452",
+      "values": {
+        "horizon": 5,
+        "graphs": 3,
+        "edges": 186,
+        "safe_edges": 186,
+        "horizon_leaves": 96,
+        "exact_score_pairs": 39,
+        "exact_score_pairs_separated": 0,
+        "informative_h3_discovery_pairs": 52,
+        "informative_h3_late_holdout_pairs": 9,
+        "uninformative_controls": 42,
+        "model_training_ready": false
+      }
     }
   ]
 }
