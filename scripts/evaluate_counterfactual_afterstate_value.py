@@ -39,10 +39,26 @@ def load_run(path: pathlib.Path) -> dict[str, Any]:
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
     if int(manifest.get("schema_version", 0)) < 4:
         raise ValueError(f"afterstate tensors require schema v4: {path}")
+    discovery = _read_jsonl(path / "discovery.jsonl")
+    late = _read_jsonl(path / "late_holdout.jsonl")
+    for row in discovery + late:
+        for metric, label in row.get("continuation_labels", {}).items():
+            if metric in (
+                "placed_count", "priority_misrouted",
+                "soft_covered_by_other",
+            ):
+                continue
+            if math.isclose(
+                float(label["lower_best_continuation"]),
+                float(label["higher_best_continuation"]),
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                label["relation"] = "equal"
     return {
         "run_id": str(manifest["source_run_id"]),
-        "discovery": _read_jsonl(path / "discovery.jsonl"),
-        "late": _read_jsonl(path / "late_holdout.jsonl"),
+        "discovery": discovery,
+        "late": late,
     }
 
 

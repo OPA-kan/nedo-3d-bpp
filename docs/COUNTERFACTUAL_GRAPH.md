@@ -192,10 +192,11 @@ value scalar is introduced.
 from four physical runs and holds out the fifth run, rotating training
 afterstates as a negative control. The fresh schema-v4 matrix in Actions run
 31595519595 completed all eight conditions and joined both physical child
-states on 67/67 informative pairs. Across five runs, afterstate summaries
-scored 21/22 on fill continuation versus action geometry at 17/22 and a
-permuted maximum of 13/22. The paired result is four wins, 18 ties and zero
-losses, but only four discordant rows leave exact two-sided p=0.125. Surface
+states on 67/67 informative pairs. With continuous differences below 1e-12
+treated as equal, across five runs afterstate summaries scored 15/16 on fill
+continuation versus action geometry at 10/16 and a permuted maximum of 10/16.
+The paired result is six wins, nine ties and one loss, with exact two-sided
+p=0.125. Surface
 does not transfer: afterstate scored 13/26 and was worse than immediate score
 (2 wins, 13 ties, 11 losses; p=0.02246). The corpus now directly represents
 state-value teachers and isolates a promising fill-only hypothesis, but
@@ -203,12 +204,11 @@ incremental value is not established at 5%. Do not build a live selector or
 scale H5 from this result.
 
 A fill-only selective policy is frozen in
-`reports/counterfactual-afterstate-value/fill-policy.json`. Discovery-only
-ablation showed that container summaries carry little signal (59/111), while
-packed state alone reached 102/111 and packed+visible matched the full summary
-at 108/111. The frozen policy emits a fill preference only when fixed-L2
-packed-only and packed+visible models agree. It retrospectively scores 101/103
-on discovery and 20/20 on the already-inspected late rows at 20/22 coverage.
+`reports/counterfactual-afterstate-value/fill-policy.json`. The frozen policy
+emits a fill preference only when fixed-L2 packed-only and packed+visible
+models agree. Under the corrected numeric label contract, it retrospectively
+scores 66/67 on discovery and 15/15 on the already-inspected late rows at 15/16
+coverage.
 Because the consensus was designed after examining those late errors, neither
 number is confirmation evidence. Its first valid test is the complete late
 split of the next physical matrix after the policy commit; it must cover at
@@ -217,8 +217,15 @@ geometry on covered rows.
 
 That confirmation completed in Actions run `31598349094`, generated from the
 frozen-policy commit. All eight physical conditions and the aggregate passed.
-The late split contained five directional fill rows; consensus covered 5/5 and
-was correct 5/5, versus action geometry at 4/5. The preregistered gate passed.
-This is the first genuinely new-run confirmation of incremental afterstate
-fill signal, but it contains only one discordant improvement over action. It
-licenses another offline replication, not H5, live shadowing or enforcement.
+Under the corrected numeric label contract (absolute tolerance 1e-12 for
+continuous outcomes), consensus covered 4/4 directional fill rows and was
+correct 4/4, versus action geometry at 2/4. The preregistered gate passed.
+
+The unchanged policy then ran on a second independent physical matrix, Actions
+`31600369286`; all eight conditions and aggregate again succeeded. It covered
+3/3 directional late rows but was correct only 2/3, versus action geometry at
+1/3, so the preregistered zero-error gate failed. Although the corrected pooled
+counts are descriptively favorable (consensus 6/7, action 3/7), pooling cannot
+erase a failed replication. The policy status is
+`replication_failed_not_shadow_ready`; neither run may be used for retuning,
+and H5, live shadowing, and enforcement remain closed.

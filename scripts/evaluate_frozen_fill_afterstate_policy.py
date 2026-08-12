@@ -32,6 +32,7 @@ def evaluate_frozen(
     if policy["status"] not in (
         "frozen_awaiting_new_physical_run",
         "confirmed_once_offline_not_live_ready",
+        "replication_failed_not_shadow_ready",
     ):
         raise ValueError("policy was not frozen for confirmation")
     training_ids = [run["run_id"] for run in training_runs]
@@ -99,8 +100,9 @@ def evaluate_frozen(
         "gate_passed": passed,
         "rows": rows,
         "claim": (
-            "One preregistered synthetic physical confirmation. Passing this "
-            "gate supports another offline replication, not live selection."
+            "A fixed-policy synthetic physical evaluation. Each run must pass "
+            "its preregistered gate; pooled accuracy does not override a "
+            "failed replication or license live selection."
         ),
     }
 

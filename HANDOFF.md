@@ -163,10 +163,11 @@ matrix, Actions run `31595519595`, completed all eight conditions and verified
 both child tensors on 67/67 informative pairs.
 Every informative sibling row joins both physical child-state tensors and
 labels per-axis H3 continuation gain after subtracting each child's cumulative
-H0 outcome. Five-run held-out evaluation found afterstate fill 21/22 versus
-action geometry 17/22 and every state permutation at no more than 13/22. The
-paired result is 4 wins / 18 ties / 0 losses, but exact two-sided p=0.125 due to
-only four discordant rows. Surface fails to transfer: afterstate is 13/26 and
+H0 outcome. With continuous differences below 1e-12 treated as equal, five-run
+held-out evaluation found afterstate fill 15/16 versus action geometry 10/16
+and every state permutation at no more than 10/16. The paired result is 6 wins
+/ 9 ties / 1 loss, with exact two-sided p=0.125. Surface fails to transfer:
+afterstate is 13/26 and
 worse than immediate score (2/13/11, p=0.02246). This establishes a direct
 physical afterstate teacher and a promising fill-only hypothesis, not a live
 policy. Keep H5 and live selection closed; the next representation experiment
@@ -174,18 +175,27 @@ must preregister fill only and increase discordant held-out roots.
 
 The fill-only follow-up is frozen before new physics in
 `reports/counterfactual-afterstate-value/fill-policy.json`. Container summaries
-were unhelpful on discovery (59/111); packed-only scored 102/111 and
-packed+visible 108/111. Their agreement gate retrospectively gives 101/103 on
-discovery and 20/20 at 20/22 coverage on the already-inspected late rows. Do
+was designed after inspecting the same five runs. Under the corrected numeric
+contract, its agreement gate retrospectively gives 66/67 on discovery and
+15/15 at 15/16 coverage on the already-inspected late rows. Do
 not call that confirmation: the rule was designed after viewing those errors.
 Its preregistered next-run gate is >=75% late coverage, zero errors, and no
 covered-row regression versus either constituent or action geometry.
 
-The preregistered confirmation then passed on new physical Actions run
-`31598349094`: 5/5 directional late fill rows covered, 5/5 correct, versus
-action geometry 4/5. All eight matrix conditions and aggregate succeeded. This
-is a real held-out confirmation, but only one row is discordant versus action;
-keep the policy offline and replicate once more before considering a shadow.
+The preregistered confirmation passed on new physical Actions run
+`31598349094`. After applying the corrected numeric label contract (continuous
+outcomes within absolute tolerance 1e-12 are equal), it covered 4/4 directional
+late fill rows and was correct 4/4, versus action geometry 2/4. All eight matrix
+conditions and aggregate succeeded.
+
+The fixed-policy independent replication in Actions run `31600369286` also
+completed all eight conditions and aggregate, but failed the same gate: 3/3
+coverage, 2/3 correct, versus action geometry 1/3. Across both corrected new
+runs the consensus is descriptively 6/7 versus action 3/7, but pooled accuracy
+does not override the preregistered per-run zero-error gate. Status is
+`replication_failed_not_shadow_ready`: do not retune on these runs, start H5,
+or enable a shadow/live selector. The tolerance correction also removed a
+spurious directional label caused only by a roughly 3.6e-15 float difference.
 
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is

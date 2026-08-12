@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "axis": "fill_score_proxy",
-  "status": "confirmed_once_offline_not_live_ready",
+  "status": "replication_failed_not_shadow_ready",
   "model": "consensus_of_two_fixed_l2_no_intercept_ridges",
   "l2": 1.0,
   "feature_blocks": [
@@ -9,16 +9,16 @@
     "packed_plus_visible_afterstate_summary_delta"
   ],
   "decision": "predict only when both models agree; otherwise abstain",
-  "selection_provenance": "Designed after inspecting errors on all five existing late splits. Their 20/20 at 20/22 coverage is retrospective and must not be used as confirmation.",
+  "selection_provenance": "Designed after inspecting errors on all five existing late splits. Under the corrected numeric label contract, their 15/15 at 15/16 coverage is retrospective and must not be used as confirmation.",
   "discovery_retrospective": {
-    "correct": 101,
-    "covered": 103,
-    "total": 111
+    "correct": 66,
+    "covered": 67,
+    "total": 70
   },
   "late_retrospective": {
-    "correct": 20,
-    "covered": 20,
-    "total": 22
+    "correct": 15,
+    "covered": 15,
+    "total": 16
   },
   "confirmation_gate": {
     "data": "the complete late split of the first physical matrix generated after this policy commit",
@@ -26,15 +26,30 @@
     "maximum_errors": 0,
     "comparison": "must not make more errors than packed+visible afterstate or action geometry on covered rows"
   },
-  "confirmation_result": {
-    "run_id": "31598349094",
-    "status": "pass",
-    "covered": 5,
-    "total": 5,
-    "correct": 5,
-    "errors": 0,
-    "action_geometry_correct_on_covered": 4
-  },
+  "numeric_label_contract": "Continuous outcomes within absolute tolerance 1e-12 are equal; discrete outcomes require exact equality.",
+  "physical_evaluations": [
+    {
+      "run_id": "31598349094",
+      "role": "first_confirmation",
+      "status": "pass",
+      "covered": 4,
+      "total": 4,
+      "correct": 4,
+      "errors": 0,
+      "action_geometry_correct_on_covered": 2
+    },
+    {
+      "run_id": "31600369286",
+      "role": "independent_replication",
+      "status": "fail",
+      "covered": 3,
+      "total": 3,
+      "correct": 2,
+      "errors": 1,
+      "action_geometry_correct_on_covered": 1
+    }
+  ],
+  "replication_conclusion": "The model is descriptively better than action geometry across the two corrected evaluations (6/7 versus 3/7), but the second run violated the preregistered zero-error gate. Do not retune on either evaluation run.",
   "forbidden_uses": [
     "live selection",
     "H5 scale-up",

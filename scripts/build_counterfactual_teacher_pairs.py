@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import pathlib
 import collections
 from typing import Any
@@ -17,6 +18,12 @@ except ModuleNotFoundError:  # direct `python scripts/...py` execution
 
 def _best(metric: str, value_range: list[float | int]) -> float | int:
     return value_range[1] if METRIC_DIRECTIONS[metric] > 0 else value_range[0]
+
+
+def _outcome_equal(metric: str, left: float | int, right: float | int) -> bool:
+    if metric in ("placed_count", "priority_misrouted", "soft_covered_by_other"):
+        return left == right
+    return math.isclose(float(left), float(right), rel_tol=0.0, abs_tol=1e-12)
 
 
 def _weakly_dominates(
@@ -91,7 +98,7 @@ def continuation_labels(pair: dict[str, Any]) -> dict[str, dict[str, Any]]:
             continue
         lower_best = max(lower_values) if direction > 0 else min(lower_values)
         higher_best = max(higher_values) if direction > 0 else min(higher_values)
-        if lower_best == higher_best:
+        if _outcome_equal(metric, lower_best, higher_best):
             relation = "equal"
         elif direction * (lower_best - higher_best) > 0:
             relation = "lower_afterstate_better"
@@ -149,7 +156,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         lower = _best(metric, comparison["lower_range"])
         higher = _best(metric, comparison["higher_range"])
         direction = METRIC_DIRECTIONS[metric]
-        if lower == higher:
+        if _outcome_equal(metric, lower, higher):
             relation = "equal"
         elif (lower > higher and direction > 0) or (
             lower < higher and direction < 0
@@ -278,7 +285,9 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             "a label compares each sibling subtree's best recorded leaf. "
             "Joint Pareto labels separately compare attainable leaf vectors. "
             "Continuation labels compare future gains from physical child "
-            "states after subtracting each first action's H0 outcome."
+            "states after subtracting each first action's H0 outcome. "
+            "Continuous outcomes within absolute tolerance 1e-12 are equal; "
+            "discrete outcomes require exact equality."
         ),
         "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
         "model_training_ready": bool(

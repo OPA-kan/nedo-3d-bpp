@@ -7,11 +7,30 @@ import unittest
 
 from scripts.build_counterfactual_teacher_pairs import (
     build_teacher_corpus,
+    continuation_labels,
     join_afterstate_tensors,
 )
 
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
+    def test_continuation_label_ignores_float_roundoff(self):
+        metrics = {
+            "placed_count": 0,
+            "fill_score_proxy": 1.8249423006277077,
+            "com_z": 0.0,
+            "surface_total_variation": 0.0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0,
+        }
+        higher = dict(metrics, fill_score_proxy=1.8249423006277041)
+
+        labels = continuation_labels({
+            "lower_continuation_outcome_vectors": [metrics],
+            "higher_continuation_outcome_vectors": [higher],
+        })
+
+        self.assertEqual(labels["fill_score_proxy"]["relation"], "equal")
+
     def test_joins_child_tensors_from_raw_graph(self):
         signal = {"graphs": [{
             "graph_id": "g", "sibling_pairs": [{"source_node_id": "root"}],

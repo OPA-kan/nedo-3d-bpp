@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import unittest
+import json
+import pathlib
+import tempfile
 
 from scripts.evaluate_counterfactual_afterstate_value import (
     _exact_two_sided_sign_p,
     _state_delta,
     _state_block_delta,
     evaluate,
+    load_run,
 )
 from tests.test_evaluate_counterfactual_teacher_discovery import action, state
 
@@ -46,6 +50,33 @@ def run(run_id: str) -> dict:
 
 
 class CounterfactualAfterstateValueTests(unittest.TestCase):
+    def test_loader_normalizes_legacy_float_roundoff_label(self) -> None:
+        example = row("x", "g", 0.2, "lower_afterstate_better")
+        label = example["continuation_labels"]["fill_score_proxy"]
+        label.update({
+            "lower_best_continuation": 1.8249423006277077,
+            "higher_best_continuation": 1.8249423006277041,
+        })
+        for metric, other in example["continuation_labels"].items():
+            other.setdefault("lower_best_continuation", 0)
+            other.setdefault("higher_best_continuation", 1)
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "manifest.json").write_text(
+                json.dumps({"schema_version": 4, "source_run_id": "r"}),
+                encoding="utf-8",
+            )
+            payload = json.dumps(example) + "\n"
+            (root / "discovery.jsonl").write_text(payload, encoding="utf-8")
+            (root / "late_holdout.jsonl").write_text(payload, encoding="utf-8")
+            loaded = load_run(root)
+
+        self.assertEqual(
+            loaded["late"][0]["continuation_labels"]["fill_score_proxy"]
+            ["relation"],
+            "equal",
+        )
+
     def test_state_delta_negates_when_afterstates_are_swapped(self) -> None:
         example = row("x", "g", 0.2, "higher_afterstate_better")
         forward = _state_delta(example)

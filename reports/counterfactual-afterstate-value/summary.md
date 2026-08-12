@@ -5,7 +5,7 @@ Targets are best remaining H3 gains after subtracting each child state's immedia
 | Axis | Rows | Immediate | Action geometry | Afterstate | Action + afterstate | Permuted afterstate min/median/max |
 |---|---:|---:|---:|---:|---:|---:|
 | placed_count | 4 | 1/4 | 2/4 | 0/4 | 0/4 | 1/4/4 |
-| fill_score_proxy | 22 | 16/22 | 17/22 | 21/22 | 21/22 | 6/9/13 |
+| fill_score_proxy | 16 | 12/16 | 10/16 | 15/16 | 15/16 | 4/7/10 |
 | com_z | 26 | 14/26 | 15/26 | 16/26 | 13/26 | 9/13/17 |
 | surface_total_variation | 26 | 22/26 | 16/26 | 13/26 | 12/26 | 12/16/17 |
 | priority_misrouted | 0 | 0/0 | 0/0 | 0/0 | 0/0 | 0/0/0 |
@@ -18,7 +18,7 @@ Each `W/T/L` is for the model named first. The exact two-sided sign test uses on
 | Axis | Afterstate vs action | p | Action+state vs action | p | Afterstate vs immediate | p |
 |---|---:|---:|---:|---:|---:|---:|
 | placed_count | 0/2/2 | 0.5 | 0/2/2 | 0.5 | 0/3/1 | 1 |
-| fill_score_proxy | 4/18/0 | 0.125 | 4/18/0 | 0.125 | 6/15/1 | 0.125 |
+| fill_score_proxy | 6/9/1 | 0.125 | 6/9/1 | 0.125 | 4/11/1 | 0.375 |
 | com_z | 4/19/3 | 1 | 1/22/3 | 0.625 | 6/16/4 | 0.7539 |
 | surface_total_variation | 6/11/9 | 0.6072 | 5/12/9 | 0.424 | 2/13/11 | 0.02246 |
 | priority_misrouted | 0/0/0 | 1 | 0/0/0 | 1 | 0/0/0 | 1 |
@@ -26,8 +26,8 @@ Each `W/T/L` is for the model named first. The exact two-sided sign test uses on
 
 ## Fill-only selective consensus
 
-- discovery_retrospective: 101/103 correct at 103/111 coverage
-- late_retrospective: 20/20 correct at 20/22 coverage
+- discovery_retrospective: 66/67 correct at 67/70 coverage
+- late_retrospective: 15/15 correct at 15/16 coverage
 
 > This consensus was designed after inspecting the five-run late errors. Both existing splits are retrospective; only a subsequent physical run can confirm it.
 
