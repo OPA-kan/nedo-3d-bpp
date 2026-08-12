@@ -137,6 +137,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
       - uses: actions/download-artifact@v4
         with:
           pattern: counterfactual-graph-scale-*
@@ -179,7 +182,7 @@ jobs:
       - name: Evaluate the frozen policy once on this run's late roots
         run: >-
           python scripts/evaluate_counterfactual_teacher_frozen_policy.py
-          --policy reports/counterfactual-graph-scale/aggregate/discovery-policy.json
+          --policy reports/counterfactual-teacher-discovery/policy.json
           --discovery reports/counterfactual-graph-scale/aggregate/teacher-pairs/discovery.jsonl
           --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/late_holdout.jsonl
           --json-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.json

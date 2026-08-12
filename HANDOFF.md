@@ -133,6 +133,14 @@ Retrospective application to the already-observed run 31563973521 late rows
 fails that gate (CoG 3/8 versus action 5/8; surface 5/8 tied; pooled 8 versus
 10). This was recorded, not used to alter the policy.
 
+The preregistered new-late evaluation is complete on physical run 31565624982.
+The policy was committed before the run. Fill's frozen action-only model scored
+6/7. Candidate-local state beat action-only on surface (6/8 versus 5/8) but
+lost on CoG (3/8 versus 5/8), for a pooled 9 versus 10. The gate therefore
+failed: **do not scale the current hand-designed candidate-local state
+representation into a larger model**. This closes that representation, not the
+H3 teacher corpus or the replicated candidate-action signal.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |

@@ -157,3 +157,9 @@ inside each training fold as a negative control. The fixed policy is selected
 per axis before a new physical matrix: action-only ridge for fill,
 candidate-local ridge for CoG and surface variation, and abstention elsewhere.
 The next new late split is a one-shot confirmation, not another tuning set.
+
+That one-shot confirmation ran as Actions 31565624982 and failed its frozen
+gate: candidate-local versus action-only was CoG 3/8 versus 5/8 and surface
+6/8 versus 5/8, pooled 9 versus 10. Do not tune or scale this hand-designed
+local representation. The negative result does not invalidate the teacher
+contract or the action-only signal.

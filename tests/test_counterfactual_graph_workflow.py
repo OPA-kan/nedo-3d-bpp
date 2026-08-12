@@ -34,6 +34,11 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
             "evaluate_counterfactual_teacher_frozen_policy.py", text
         )
         self.assertIn("aggregate/teacher-pairs", text)
+        self.assertIn("pip install -r requirements.txt", text)
+        self.assertIn(
+            "--policy reports/counterfactual-teacher-discovery/policy.json",
+            text,
+        )
 
     def test_h5_is_limited_to_three_known_root_level_ties(self):
         text = TIE_H5_WORKFLOW.read_text(encoding="utf-8")
