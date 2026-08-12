@@ -136,6 +136,7 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
         "graph_id": graph.get("graph_id"),
         "case_id": graph.get("case_id"),
         "root_step": graph.get("root_step"),
+        "horizon": horizon,
         "commit": graph.get("provenance", {}).get("commit"),
         "scenario_axes": graph.get("provenance", {}).get(
             "scenario_axes", {}
@@ -242,6 +243,11 @@ def summarize_paths(
             graph["commit"] for graph in graphs if graph["commit"]
         }),
         "status": "bounded_h3_signal_measured" if graphs else "empty",
+        "horizons": sorted({
+            int(graph.get("horizon", 0))
+            for graph in graphs
+            if graph.get("horizon") is not None
+        }),
         "training_readiness": (
             "h3_teacher_baseline_ready"
             if ready
@@ -304,7 +310,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
         if value
     ) or "none"
     lines = [
-        "# Bounded H3 teacher-signal audit",
+        "# Bounded counterfactual teacher-signal audit",
         "",
         f"- Graphs / graphs with edges: {summary['graph_count']} / "
         f"{summary['graphs_with_edges']}",

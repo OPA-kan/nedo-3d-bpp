@@ -4,6 +4,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "counterfactual-graph-scale.yml"
+TIE_H5_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "counterfactual-graph-tie-depth.yml"
+)
 
 
 class CounterfactualGraphWorkflowTests(unittest.TestCase):
@@ -24,6 +27,15 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
 
         self.assertEqual(text.count("--minimum-graphs 16"), 2)
         self.assertEqual(text.count("--expected-conditions 8"), 2)
+
+    def test_h5_is_limited_to_three_known_root_level_ties(self):
+        text = TIE_H5_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertEqual(text.count("root_steps:"), 2)
+        self.assertIn('root_steps: "6"', text)
+        self.assertIn('root_steps: "6 9"', text)
+        self.assertIn("--horizon 5", text)
+        self.assertEqual(text.count("--expected-graphs 3"), 2)
 
 
 if __name__ == "__main__":

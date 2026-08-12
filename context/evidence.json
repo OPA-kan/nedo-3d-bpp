@@ -2565,6 +2565,33 @@
         "expand_to_h5": false,
         "aggregate_counts_replicated": true
       }
+    },
+    {
+      "id": "counterfactual-h3-heldout-signal-and-tie-limit",
+      "topic": "learning_data",
+      "date": "2026-08-12",
+      "status": "active",
+      "claim": "The expanded H3/B2 matrix preserved immediate-score-order counterexamples across a preregistered root-step split, but exact-score ties remained uninformative at H3. Run 31558667741 completed 24 roots across all 8 conditions with 207 edges and 127 terminal trajectories. Both discovery step<15 and late holdout step>=15 contain lower-score branches with better reachable leaves. None of 42 exact-score sibling pairs differed on recorded downstream ranges; raw-graph inspection also found no difference in leaf count, maximum depth, or terminal-reason multiset. Training remains gated. Only a targeted H5 diagnostic on root-level exact ties is justified; broad H5 generation and value-model training are not.",
+      "source": "reports/counterfactual-graph-scale/summary.json; reports/counterfactual-graph-scale/signal.json; Actions run 31558667741",
+      "values": {
+        "graphs": 24,
+        "conditions": 8,
+        "graphs_with_edges": 16,
+        "edges": 207,
+        "physical_failures": 7,
+        "terminal_trajectories": 127,
+        "sibling_pairs": 103,
+        "discovery_graphs": 18,
+        "late_holdout_graphs": 6,
+        "discovery_score_order_counterexample": true,
+        "late_holdout_score_order_counterexample": true,
+        "exact_score_pairs": 42,
+        "exact_score_pairs_separated": 0,
+        "exact_score_topology_pairs_separated": 0,
+        "training_readiness": false,
+        "targeted_tie_h5_diagnostic": true,
+        "broad_h5_generation": false
+      }
     }
   ]
 }

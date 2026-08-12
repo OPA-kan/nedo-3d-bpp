@@ -84,9 +84,17 @@ leaf on fill (2 pairs), CoG (2), surface variation (4), or soft coverage (2).
 The 15 exact-score ties did not separate on the recorded outcome axes.
 
 This establishes a bounded residual/failure signal, not training readiness.
-Do not expand to H5 or train a value model yet. Next enlarge and replicate the
-H3 root/condition set, especially conditions that create exact-score ties and
-candidate survival, then require held-out score-order separation before H5.
+Run 31558667741 enlarged the matrix to 24 roots, 207 edges and 127 terminal
+trajectories. Immediate-score order counterexamples now reproduce in both the
+18-root discovery split and the 6-root step-15 late holdout. The lower-score
+branch reached a better leaf on fill/CoG/surface/soft in 35/25/16/1 pairs.
+However, all 42 exact-score pairs remained identical on recorded outcome
+ranges and graph topology. Training readiness therefore remains false.
+
+Do not train a value model yet. A narrowly scoped H5 diagnostic is now allowed
+only on roots whose first H3 sibling pair was an exact tie, to distinguish an
+H3 horizon limit from an uninformative tie. This is not permission for broad
+H5 corpus generation or live-policy changes.
 Raw graphs remain Actions artifacts; compact aggregate evidence is committed.
 
 ## Official score history
