@@ -58,7 +58,7 @@ class PhysicalOutcomeTests(unittest.TestCase):
             ),
             mock.patch(
                 "scripts.build_counterfactual_graph.policy_indexed_items",
-                return_value=[],
+                return_value=[(0, {"index": 10})],
             ),
         ):
             candidates = provider(object(), {}, 2)
@@ -118,7 +118,7 @@ class PhysicalOutcomeTests(unittest.TestCase):
             ),
             mock.patch(
                 "scripts.build_counterfactual_graph.policy_indexed_items",
-                return_value=[],
+                return_value=[(0, {"index": 10})],
             ),
         ):
             candidates = build_candidate_provider(

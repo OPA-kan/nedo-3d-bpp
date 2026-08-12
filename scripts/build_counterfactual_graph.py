@@ -149,21 +149,21 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
             ):
                 target[stable_item_index] = decision
 
-        # The return value is intentionally ignored. Its bounded heap can be
-        # filled by near-duplicate poses of one item. The observer sees the
-        # same fixed-attempt scan and retains the best action PER ITEM, which
-        # makes graph width mean different decisions rather than millimetre
-        # variants of one command.
-        agent_module.PlacementCore.top_candidates(
-            observation,
-            indexed_items,
-            max(1, int(limit)),
-            deadline=None,
-            diagnostics=None,
-            risk_lambda=risk_lambda,
-            candidate_observer=retain_item_best,
-            attempt_budget=int(attempt_budget),
-        )
+        # Run an equal fixed-attempt scan PER ITEM. A single shared scan still
+        # spent all 512 pilot attempts on one easy item and produced a graph
+        # of width one. This is offline state-coverage sampling, so the extra
+        # cost is intentional and recorded; live policy timing is untouched.
+        for indexed_item in indexed_items:
+            agent_module.PlacementCore.top_candidates(
+                observation,
+                [indexed_item],
+                1,
+                deadline=None,
+                diagnostics=None,
+                risk_lambda=risk_lambda,
+                candidate_observer=retain_item_best,
+                attempt_budget=int(attempt_budget),
+            )
         settled = sorted(
             settled_by_item.items(),
             key=lambda pair: (-float(pair[1].score), int(pair[0])),
@@ -203,7 +203,7 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
                     command_action=action,
                     selection={
                         "provider": (
-                            "placement_core_item_diverse_fixed_attempts"
+                            "placement_core_item_stratified_fixed_attempts"
                         ),
                         "rank": int(rank),
                         "pool_index": int(action["item_idx"]),
@@ -211,6 +211,7 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
                         "score": float(decision.score),
                         "candidate_kind": candidate_kind,
                         "attempt_budget": int(attempt_budget),
+                        "attempt_budget_scope": "per_item",
                         "risk_lambda": (
                             None
                             if risk_lambda is None
@@ -337,9 +338,10 @@ def main() -> int:
             "config_case": str(args.case),
             "split": str(args.split),
             "candidate_provider": (
-                "placement_core_item_diverse_fixed_attempts"
+                "placement_core_item_stratified_fixed_attempts"
             ),
             "attempt_budget": int(args.attempt_budget),
+            "attempt_budget_scope": "per_item",
             "root_action_prefix_id": contract.get("action_prefix_id"),
         },
         board_fingerprint=expected,

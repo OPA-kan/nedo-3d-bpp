@@ -72,9 +72,10 @@ nodeにはそれらの累積値とterminal reasonを保存する。公式に存�
 
 1. nodeのaction pathを、毎回新しいenvでepisode先頭から再生する。
 2. board fingerprintがnodeと一致しなければ即時停止する。
-3. deadlineを使わず、固定attempt budgetの`PlacementCore.top_candidates`を
-   走査器として使う。settled優先を保ったまま荷物ごとの最良候補を残し、異なる
-   荷物から上位B件を得る。同一荷物の近接poseだけで幅を消費しない。settledを
+3. deadlineを使わず、可視itemごとに同じ固定attempt budgetで
+   `PlacementCore.top_candidates`を走査器として使う。settled優先を保ったまま
+   荷物ごとの最良候補を残し、異なる荷物から上位B件を得る。同一荷物の近接pose
+   だけで幅を消費せず、置きやすい先頭itemが全budgetを消費することも防ぐ。settledを
    先に並べるが、幅が余れば別荷物のreleaseで補う。releaseの危険性は事前に
    消さず、物理edgeの失敗ラベルとして残す。
 4. 各候補をさらに別の新しいenvで再構築してから1回だけ実行する。
@@ -92,7 +93,7 @@ python3 scripts/build_counterfactual_graph.py `
   --snapshot reports/replay-dataset/<run>/step-009-state.json `
   --config simulator/configs/sample_config.json --case 000 `
   --split development --horizon 3 --branch-factor 2 `
-  --attempt-budget 512 --output reports/raw/graph-b000-step9.json
+  --attempt-budget 256 --output reports/raw/graph-b000-step9.json
 ```
 
 branch factor 2・horizon 3でも最大14 edge、horizon 5では最大62 edgeになる。
