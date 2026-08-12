@@ -74,8 +74,9 @@ The instrument and the first Linux physical H3 condition matrix are complete:
 
 The original pilot remains in `reports/counterfactual-graph/summary.md`.
 The scaled H3/B2 matrix is recorded in
-`reports/counterfactual-graph-scale/{summary,signal}.{json,md}` and Actions run
-31556144806. All 8 requested conditions completed: 51 edges, 47 safe edges,
+`reports/counterfactual-graph-scale/{summary,signal}.{json,md}` and Actions runs
+31556144806 and 31557059281. Both runs reproduced the aggregate counts. All 8
+requested conditions completed: 51 edges, 47 safe edges,
 4 physical failures and 32 terminal trajectories (23 horizon, 5 no-candidate,
 4 physical-failure). Of 24 sibling pairs, 8 unequal-score pairs had different
 downstream ranges. A lower immediate-score branch still had a better reachable
