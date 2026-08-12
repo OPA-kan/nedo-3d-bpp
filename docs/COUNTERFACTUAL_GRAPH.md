@@ -173,8 +173,8 @@ vectors, and compares the two Pareto frontiers by set coverage. The relation is
 lower-dominates, higher-dominates, equivalent or incomparable; no axis weight
 is introduced.
 
-The latest matrix had 15 strict dominance and 51 incomparable informative
-pairs. In three-run held-out late evaluation, strict dominance appeared only
-six times; immediate score was correct 6/6 and the geometry utility delta 4/6.
+The latest matrix had 10 strict dominance and 52 incomparable informative
+pairs. In four-run held-out late evaluation, strict dominance appeared only
+nine times; immediate score was correct 9/9 and the geometry utility delta 6/9.
 This is too sparse to justify a learned live selector. See
 `reports/counterfactual-teacher-cross-run/summary.md`.
