@@ -142,3 +142,8 @@ from directional accuracy, and compares immediate score, discovery majority,
 action-only 1-NN and state+action 1-NN. The committed result is
 `reports/counterfactual-teacher-baseline/summary.md`. It is a small-sample
 diagnostic and must not be described as generalization or policy improvement.
+The consecutive-run comparison is in
+`reports/counterfactual-teacher-baseline/replication.md`: candidate-action signal
+against immediate score replicated on fill and surface, while the incremental
+benefit of the current source-state summary did not. Treat residual-state value
+as an open modelling question, not an established result.

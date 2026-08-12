@@ -94,23 +94,27 @@ graph topology. A narrowly scoped H5 diagnostic then completed in Actions run
 horizon leaves. Exact-score pairs still separated 0/39, so exact ties are not
 an H3 horizon artifact on these roots and remain excluded controls.
 
-The first model-input corpus is now complete. Actions run 31563029977 produced
-24 H3 roots and 112 sibling pairs. `scripts/build_counterfactual_teacher_pairs.py`
-exports 56 discovery rows, 10 late-holdout rows and 46 controls without
-combining outcome axes. Every informative row has an observed source-state set
-tensor and both candidate-action tensors (66/66 for each contract). Inputs
-exclude the step index and future/outcome labels. The action vector retains
-the official command, immediate score and source-visible item fields.
+The first model-input corpus is now complete. Final Actions run 31563973521
+produced 25 H3 roots and 108 sibling pairs. `scripts/build_counterfactual_teacher_pairs.py`
+exports 58 discovery rows, 8 late-holdout rows and 42 controls without combining
+outcome axes. Every informative row has an observed source-state set tensor and
+both candidate-action tensors (66/66 for each contract). Inputs exclude the
+step index and future/outcome labels. The action vector retains the official
+command, immediate score and source-visible item fields.
 
 `scripts/evaluate_counterfactual_teacher_baseline.py` freezes discovery-only
 normalization and 1-NN labels, then evaluates late roots once. The state+action
-ranker scored fill 6/7, surface variation 9/10 and CoG 7/10, versus immediate
-score at 4/7, 5/10 and 8/10. Placed and soft each have only one directional
-holdout row and priority has none, so they establish nothing. This is a small
-diagnostic, not generalization or official-score evidence. Compact evidence is
-in `reports/counterfactual-teacher-{pairs,baseline}/`; raw graphs remain Actions
-artifacts. No live ranker, policy default, simulator rule or final holdout was
-changed.
+ranker scored fill 6/7, surface variation 7/8 and CoG 5/8, versus immediate
+score at 5/7, 4/8 and 6/8. Run 31563029977 returned 6/7, 9/10 and 7/10 for the
+same axes. Candidate-action 1-NN beat immediate score on fill and surface in
+both runs. Source-state features improved isolated cells by one decision but
+not consistently over action-only 1-NN, so incremental residual-state value is
+not established yet. Placed/priority have no directional rows in the final
+holdout and soft has two. This is a small diagnostic, not generalization or
+official-score evidence. Compact evidence, including the two-run comparison,
+is in `reports/counterfactual-teacher-{pairs,baseline}/`; raw graphs remain
+Actions artifacts. No live ranker, policy default, simulator rule or final
+holdout was changed.
 
 ## Official score history
 
