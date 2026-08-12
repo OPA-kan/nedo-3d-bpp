@@ -83,28 +83,34 @@ downstream ranges. A lower immediate-score branch still had a better reachable
 leaf on fill (2 pairs), CoG (2), surface variation (4), or soft coverage (2).
 The 15 exact-score ties did not separate on the recorded outcome axes.
 
-This establishes a bounded residual/failure signal, not training readiness.
 Run 31558667741 enlarged the matrix to 24 roots, 207 edges and 127 terminal
-trajectories. Immediate-score order counterexamples now reproduce in both the
+trajectories. Immediate-score order counterexamples reproduced in both the
 18-root discovery split and the 6-root step-15 late holdout. The lower-score
 branch reached a better leaf on fill/CoG/surface/soft in 35/25/16/1 pairs.
-However, all 42 exact-score pairs remained identical on recorded outcome
-ranges and graph topology. Training readiness therefore remains false.
-
-Do not train a value model yet. A narrowly scoped H5 diagnostic is now allowed
-only on roots whose first H3 sibling pair was an exact tie, to distinguish an
-H3 horizon limit from an uninformative tie. This is not permission for broad
-H5 corpus generation or live-policy changes.
-
-That diagnostic is complete in Actions run 31559232452 and
+All 42 exact-score pairs remained identical on recorded outcome ranges and
+graph topology. A narrowly scoped H5 diagnostic then completed in Actions run
+31559232452 and
 `reports/counterfactual-tie-h5/`: three H5/B2 graphs, 186 safe edges and 96
 horizon leaves. Exact-score pairs still separated 0/39, so exact ties are not
-an H3 horizon artifact on these roots. `scripts/build_counterfactual_teacher_pairs.py`
-exports the informative H3 sibling supervision without inventing a total:
-52 discovery rows, 9 late-holdout rows and 42 uninformative controls in
-`reports/counterfactual-teacher-pairs/`. This is a label/provenance corpus,
-not yet a model-input tensor; source-state feature extraction is the next gate.
-Raw graphs remain Actions artifacts; compact aggregate evidence is committed.
+an H3 horizon artifact on these roots and remain excluded controls.
+
+The first model-input corpus is now complete. Actions run 31563029977 produced
+24 H3 roots and 112 sibling pairs. `scripts/build_counterfactual_teacher_pairs.py`
+exports 56 discovery rows, 10 late-holdout rows and 46 controls without
+combining outcome axes. Every informative row has an observed source-state set
+tensor and both candidate-action tensors (66/66 for each contract). Inputs
+exclude the step index and future/outcome labels. The action vector retains
+the official command, immediate score and source-visible item fields.
+
+`scripts/evaluate_counterfactual_teacher_baseline.py` freezes discovery-only
+normalization and 1-NN labels, then evaluates late roots once. The state+action
+ranker scored fill 6/7, surface variation 9/10 and CoG 7/10, versus immediate
+score at 4/7, 5/10 and 8/10. Placed and soft each have only one directional
+holdout row and priority has none, so they establish nothing. This is a small
+diagnostic, not generalization or official-score evidence. Compact evidence is
+in `reports/counterfactual-teacher-{pairs,baseline}/`; raw graphs remain Actions
+artifacts. No live ranker, policy default, simulator rule or final holdout was
+changed.
 
 ## Official score history
 

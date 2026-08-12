@@ -125,7 +125,20 @@ surface, priority or soft labels into a weighted target. The discovery/late
 split is inherited from the preregistered root-step boundary. Exact-score or
 otherwise outcome-identical pairs are retained separately as controls.
 
-The export is supervision plus graph provenance, not a complete training
-example: it intentionally reports `model_training_ready=false` until a
-source-state feature tensor can be joined without losing residual geometry,
-visible-pool content or scenario context.
+The export is now a complete pairwise model input. Each informative row joins
+permutation-ready container, settled-item and visible-pool sets from the
+source node with both candidate actions. Settled poses are container-local;
+the action keeps the official command frame. Step index and future/outcome
+labels are excluded. `model_training_ready=true` means only that this structural
+contract and both preregistered splits are present; it does not claim adequate
+sample size or official-score validity.
+
+## First late-root baseline
+
+`scripts/evaluate_counterfactual_teacher_baseline.py` fits feature scaling and
+1-NN labels on discovery roots only, then evaluates directional labels on the
+late-root split once. It reports exact per-axis counts, excludes equal labels
+from directional accuracy, and compares immediate score, discovery majority,
+action-only 1-NN and state+action 1-NN. The committed result is
+`reports/counterfactual-teacher-baseline/summary.md`. It is a small-sample
+diagnostic and must not be described as generalization or policy improvement.

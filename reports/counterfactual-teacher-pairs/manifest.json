@@ -1,46 +1,54 @@
 {
-  "schema_version": 1,
-  "source_run_id": "31558667741",
+  "schema_version": 2,
+  "source_run_id": "31563029977",
   "source_commits": [
-    "f2c9b27be38d65e784a5bcb169daf6269705d1aa"
+    "d285abd7538d441a9b87b2d692fac33cc624560d"
   ],
   "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf.",
   "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
-  "model_training_ready": false,
-  "informative_pair_rows": 61,
-  "discovery_rows": 52,
-  "late_holdout_rows": 9,
-  "uninformative_control_rows": 42,
+  "model_training_ready": true,
+  "informative_pair_rows": 66,
+  "discovery_rows": 56,
+  "late_holdout_rows": 10,
+  "uninformative_control_rows": 46,
+  "rows_with_source_state_tensor": 66,
+  "source_state_tensor_contracts": [
+    "observed_set_tensors_no_step_no_future_labels"
+  ],
+  "rows_with_paired_action_tensors": 66,
+  "action_tensor_contracts": [
+    "observed_candidate_action_no_future_labels"
+  ],
   "axis_relation_counts_on_training_rows": {
     "placed_count": {
-      "lower_immediate_score_better": 0,
-      "higher_immediate_score_better": 2,
-      "equal": 59
+      "lower_immediate_score_better": 1,
+      "higher_immediate_score_better": 0,
+      "equal": 65
     },
     "fill_score_proxy": {
-      "lower_immediate_score_better": 35,
-      "higher_immediate_score_better": 22,
-      "equal": 4
+      "lower_immediate_score_better": 33,
+      "higher_immediate_score_better": 25,
+      "equal": 8
     },
     "com_z": {
-      "lower_immediate_score_better": 25,
-      "higher_immediate_score_better": 36,
+      "lower_immediate_score_better": 29,
+      "higher_immediate_score_better": 37,
       "equal": 0
     },
     "surface_total_variation": {
-      "lower_immediate_score_better": 16,
-      "higher_immediate_score_better": 45,
+      "lower_immediate_score_better": 24,
+      "higher_immediate_score_better": 42,
       "equal": 0
     },
     "priority_misrouted": {
       "lower_immediate_score_better": 0,
       "higher_immediate_score_better": 0,
-      "equal": 61
+      "equal": 66
     },
     "soft_covered_by_other": {
-      "lower_immediate_score_better": 1,
+      "lower_immediate_score_better": 3,
       "higher_immediate_score_better": 0,
-      "equal": 60
+      "equal": 63
     }
   },
   "limitations": [
@@ -48,6 +56,7 @@
     "Sibling rows from one graph share a root trajectory and are not independent.",
     "Best reachable leaf is existence under bounded search, not probability or expected value.",
     "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
-    "Rows contain supervision and provenance, not a complete model input tensor; source-state feature extraction remains required."
+    "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
+    "Action tensors retain the official command coordinate frame and join only item fields visible at the source node."
   ]
 }

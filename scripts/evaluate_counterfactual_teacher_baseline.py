@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
+import statistics
 from typing import Any
-
-import numpy as np
 
 
 DIRECTIONAL = (
@@ -32,22 +32,28 @@ def _set_summary(state: dict[str, Any]) -> list[float]:
     result: list[float] = []
     for prefix in ("container", "packed_item", "visible_item"):
         names = state[f"{prefix}_features"]
-        values = np.asarray(state[f"{prefix}_values"], dtype=float)
+        values = [
+            [float(value) for value in row]
+            for row in state[f"{prefix}_values"]
+        ]
         result.append(float(len(values)))
-        if len(values):
-            for operation in (np.mean, np.std, np.min, np.max):
-                result.extend(operation(values, axis=0).tolist())
+        if values:
+            columns = list(zip(*values))
+            result.extend(statistics.fmean(column) for column in columns)
+            result.extend(statistics.pstdev(column) for column in columns)
+            result.extend(min(column) for column in columns)
+            result.extend(max(column) for column in columns)
         else:
             result.extend([0.0] * (4 * len(names)))
     return result
 
 
 def _action_pair(row: dict[str, Any]) -> list[float]:
-    lower = np.asarray(row["lower_action_tensor"]["values"], dtype=float)
-    higher = np.asarray(row["higher_action_tensor"]["values"], dtype=float)
-    if lower.shape != higher.shape:
+    lower = [float(value) for value in row["lower_action_tensor"]["values"]]
+    higher = [float(value) for value in row["higher_action_tensor"]["values"]]
+    if len(lower) != len(higher):
         raise ValueError(f"action tensor shape mismatch in {row['teacher_id']}")
-    return np.concatenate((lower, higher, higher - lower)).tolist()
+    return lower + higher + [right - left for left, right in zip(lower, higher)]
 
 
 def feature_vector(row: dict[str, Any], *, include_state: bool) -> list[float]:
@@ -58,12 +64,19 @@ def feature_vector(row: dict[str, Any], *, include_state: bool) -> list[float]:
 
 
 def _standardize(
-    train: np.ndarray, test: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    mean = np.mean(train, axis=0)
-    scale = np.std(train, axis=0)
-    scale[scale == 0.0] = 1.0
-    return (train - mean) / scale, (test - mean) / scale
+    train: list[list[float]], test: list[list[float]],
+) -> tuple[list[list[float]], list[list[float]]]:
+    columns = list(zip(*train))
+    means = [statistics.fmean(column) for column in columns]
+    scales = [statistics.pstdev(column) or 1.0 for column in columns]
+
+    def transform(rows: list[list[float]]) -> list[list[float]]:
+        return [
+            [(value - means[index]) / scales[index] for index, value in enumerate(row)]
+            for row in rows
+        ]
+
+    return transform(train), transform(test)
 
 
 def _majority(rows: list[dict[str, Any]], metric: str) -> str | None:
@@ -87,16 +100,19 @@ def _nearest_predictions(
     ]
     if not eligible:
         return {}
-    train = np.asarray([
+    train = [
         feature_vector(row, include_state=include_state) for row in eligible
-    ])
-    test = np.asarray([
+    ]
+    test = [
         feature_vector(row, include_state=include_state) for row in holdout
-    ])
+    ]
     train, test = _standardize(train, test)
     predictions = {}
     for row, vector in zip(holdout, test):
-        distances = np.sum((train - vector) ** 2, axis=1)
+        distances = [
+            math.fsum((left - right) ** 2 for left, right in zip(candidate, vector))
+            for candidate in train
+        ]
         nearest = min(
             range(len(eligible)),
             key=lambda index: (float(distances[index]), eligible[index]["teacher_id"]),
