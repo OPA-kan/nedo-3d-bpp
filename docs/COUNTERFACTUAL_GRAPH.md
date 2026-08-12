@@ -189,12 +189,15 @@ obtainable *from the settled afterstate*. Axes remain separate and no weighted
 value scalar is introduced.
 
 `scripts/evaluate_counterfactual_afterstate_value.py` trains on discovery roots
-from three physical runs and holds out the fourth run, rotating training
-afterstates as a negative control. Across four runs, afterstate summaries scored
-15/18 on fill continuation against a permuted median 7/18, but action geometry
-scored 16/18 and action+afterstate remained 15/18. Surface was 15/21 versus
-action 11/21, but the paired advantage was not established (9 wins, 5 losses,
-7 ties; exact two-sided p=0.424) and the best permutation also reached 15/21.
-The corpus now directly represents state-value teachers, but incremental state
-value beyond candidate action remains unestablished. Do not build a live
-selector or scale H5 from this result.
+from four physical runs and holds out the fifth run, rotating training
+afterstates as a negative control. The fresh schema-v4 matrix in Actions run
+31595519595 completed all eight conditions and joined both physical child
+states on 67/67 informative pairs. Across five runs, afterstate summaries
+scored 21/22 on fill continuation versus action geometry at 17/22 and a
+permuted maximum of 13/22. The paired result is four wins, 18 ties and zero
+losses, but only four discordant rows leave exact two-sided p=0.125. Surface
+does not transfer: afterstate scored 13/26 and was worse than immediate score
+(2 wins, 13 ties, 11 losses; p=0.02246). The corpus now directly represents
+state-value teachers and isolates a promising fill-only hypothesis, but
+incremental value is not established at 5%. Do not build a live selector or
+scale H5 from this result.

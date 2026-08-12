@@ -158,16 +158,19 @@ dominance rows appeared; immediate score classified 9/9 and geometry utility
 corpus.** The usable result is the H3 teacher/instrument plus an offline
 fill/surface signal; the safe live decision rule remains unestablished.
 
-Schema v4 now exposes the missing state-value target without rerunning physics.
+Schema v4 now exposes the missing state-value target. A fresh Linux physical
+matrix, Actions run `31595519595`, completed all eight conditions and verified
+both child tensors on 67/67 informative pairs.
 Every informative sibling row joins both physical child-state tensors and
 labels per-axis H3 continuation gain after subtracting each child's cumulative
-H0 outcome. Four-run held-out evaluation found afterstate fill 15/18 versus a
-permuted median 7/18, but action geometry was 16/18 and action+afterstate stayed
-15/18. Surface afterstate was 15/21 versus action 11/21, yet the paired result
-was 9 wins / 7 ties / 5 losses (exact two-sided p=0.424) and the best state
-permutation also reached 15/21. This establishes a direct physical afterstate
-teacher contract, not incremental policy value. Keep H5 and live selection
-closed until a representation beats action-only across held-out physical runs.
+H0 outcome. Five-run held-out evaluation found afterstate fill 21/22 versus
+action geometry 17/22 and every state permutation at no more than 13/22. The
+paired result is 4 wins / 18 ties / 0 losses, but exact two-sided p=0.125 due to
+only four discordant rows. Surface fails to transfer: afterstate is 13/26 and
+worse than immediate score (2/13/11, p=0.02246). This establishes a direct
+physical afterstate teacher and a promising fill-only hypothesis, not a live
+policy. Keep H5 and live selection closed; the next representation experiment
+must preregister fill only and increase discordant held-out roots.
 
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
