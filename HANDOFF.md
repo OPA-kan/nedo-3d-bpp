@@ -52,7 +52,7 @@ Nodes are settled residual states; edges are commanded placements with
 separate physical and multi-axis labels. Sibling branches must share the same
 future stream and fixed attempt budget.
 
-The first two slices and one Linux physical H3 pilot are complete:
+The instrument and the first Linux physical H3 condition matrix are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,
   DAG state convergence, branch/node/edge budgets, atomic JSON output and an
@@ -72,15 +72,21 @@ The first two slices and one Linux physical H3 pilot are complete:
   not use a wall-clock deadline.
 - no ranker, policy default, simulator rule or final holdout was changed.
 
-The validated pilot is `reports/counterfactual-graph/summary.md`: b000-k20
-step 3, H3/B2, 15 nodes and 14 edges, five stable items, all 14 edges physically
-safe. Runs 31551011083 and 31551141292 produced byte-identical JSON and IDs in
-76–77 seconds. This validates the instrument on one early root; it does NOT
-establish learnability or failure-label coverage.
+The original pilot remains in `reports/counterfactual-graph/summary.md`.
+The scaled H3/B2 matrix is recorded in
+`reports/counterfactual-graph-scale/{summary,signal}.{json,md}` and Actions run
+31556144806. All 8 requested conditions completed: 51 edges, 47 safe edges,
+4 physical failures and 32 terminal trajectories (23 horizon, 5 no-candidate,
+4 physical-failure). Of 24 sibling pairs, 8 unequal-score pairs had different
+downstream ranges. A lower immediate-score branch still had a better reachable
+leaf on fill (2 pairs), CoG (2), surface variation (4), or soft coverage (2).
+The 15 exact-score ties did not separate on the recorded outcome axes.
 
-Next: run the executor with branch factor 2 and horizon 3 on at least three
-mid/late development/validation roots before expanding to horizon 5. Raw graphs remain artifacts,
-while compact manifests and aggregate evidence are committed.
+This establishes a bounded residual/failure signal, not training readiness.
+Do not expand to H5 or train a value model yet. Next enlarge and replicate the
+H3 root/condition set, especially conditions that create exact-score ties and
+candidate survival, then require held-out score-order separation before H5.
+Raw graphs remain Actions artifacts; compact aggregate evidence is committed.
 
 ## Official score history
 

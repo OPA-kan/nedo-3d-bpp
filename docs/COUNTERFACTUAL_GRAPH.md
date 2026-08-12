@@ -99,3 +99,20 @@ python3 scripts/build_counterfactual_graph.py `
 branch factor 2・horizon 3でも最大14 edge、horizon 5では最大62 edgeになる。
 各edgeがrootからの物理再生を伴うため、まずH3でroot一致率と実時間を測ってからH5へ
 広げる。
+
+## H3 condition-matrix gate
+
+`.github/workflows/counterfactual-graph-scale.yml` runs eight bounded H3/B2
+conditions spanning one/two containers, shelf presence, preloading, dedicated
+containers, pool widths 10/20/40 and multiple stream lengths. Aggregation
+refuses a partial matrix. `scripts/summarize_counterfactual_graph_signal.py`
+then compares every sibling's descendant-leaf ranges while keeping placed,
+fill, CoG, surface variation, priority and soft-item outcomes separate.
+
+A lower-score branch having a better reachable leaf is only an existence claim
+inside the bounded graph. It is not a probability, competition-score total or
+learned value. Exact immediate-score ties are counted without an arbitrary
+near-tie threshold. The committed audit is
+`reports/counterfactual-graph-scale/signal.md`; its training-readiness verdict
+remains negative until a larger replicated H3 set demonstrates held-out
+separation. H5 is gated on that evidence.

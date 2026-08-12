@@ -9,6 +9,7 @@ on:
       - scripts/counterfactual_graph.py
       - scripts/build_counterfactual_graph.py
       - scripts/summarize_counterfactual_graph_matrix.py
+      - scripts/summarize_counterfactual_graph_signal.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -146,7 +147,16 @@ jobs:
           --expected-graphs 8
           --json-output reports/counterfactual-graph-scale/aggregate/summary.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/summary.md
+      - name: Audit bounded-H3 teacher signal
+        run: >-
+          python scripts/summarize_counterfactual_graph_signal.py
+          --root reports/counterfactual-graph-scale/downloads
+          --expected-graphs 8
+          --run-id ${{ github.run_id }}
+          --json-output reports/counterfactual-graph-scale/aggregate/signal.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/signal.md
       - run: cat reports/counterfactual-graph-scale/aggregate/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/signal.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: counterfactual-graph-scale-aggregate
