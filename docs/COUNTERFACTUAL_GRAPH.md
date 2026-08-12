@@ -178,3 +178,23 @@ pairs. In four-run held-out late evaluation, strict dominance appeared only
 nine times; immediate score was correct 9/9 and the geometry utility delta 6/9.
 This is too sparse to justify a learned live selector. See
 `reports/counterfactual-teacher-cross-run/summary.md`.
+
+## Physical afterstate continuation teachers
+
+Schema v4 joins each sibling edge to the physical tensor of its target node.
+For every outcome axis it defines continuation value as the best reachable H3
+leaf outcome minus that child state's cumulative H0 outcome. This subtraction
+removes the first action's immediate contribution: the target is what remains
+obtainable *from the settled afterstate*. Axes remain separate and no weighted
+value scalar is introduced.
+
+`scripts/evaluate_counterfactual_afterstate_value.py` trains on discovery roots
+from three physical runs and holds out the fourth run, rotating training
+afterstates as a negative control. Across four runs, afterstate summaries scored
+15/18 on fill continuation against a permuted median 7/18, but action geometry
+scored 16/18 and action+afterstate remained 15/18. Surface was 15/21 versus
+action 11/21, but the paired advantage was not established (9 wins, 5 losses,
+7 ties; exact two-sided p=0.424) and the best permutation also reached 15/21.
+The corpus now directly represents state-value teachers, but incremental state
+value beyond candidate action remains unestablished. Do not build a live
+selector or scale H5 from this result.

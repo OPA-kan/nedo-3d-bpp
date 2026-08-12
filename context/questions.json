@@ -37,10 +37,10 @@
       "existing_instruments": [
         "scripts/measure_residual_capacity.py"
       ],
-      "missing_instrument": "measure_residual_capacity is observational; it predicts placed-to-go from descriptors but nothing acts on them. No instrument evaluates a state value used as a policy.",
+      "missing_instrument": "Schema-v4 H3 teachers now provide per-axis physical afterstate continuation targets and a run-held-out offline estimator audit. What remains missing is a representation that beats action-only and a switchable episode policy; the current afterstate summary does neither.",
       "status": "open",
       "priority": "high",
-      "rationale": "HANDOFF's leading Not-established item sits on the axis with zero knobs and zero positive findings. Every result so far is a negative about descriptors or a degeneracy of proxies, which is what an axis with no intervention produces.",
+      "rationale": "Schema-v4 closes the teacher-target gap: continuation gain subtracts the child state's H0 outcome from its reachable H3 leaves. Across four run-held-out splits, afterstate fill was 15/18 versus permuted median 7/18, but action-only was 16/18 and action+afterstate 15/18. Surface was 15/21 versus action 11/21, but paired exact p=0.424 and the best permutation also reached 15/21. There is learnable-looking state signal, but no established incremental value or acting intervention.",
       "closure_criteria": [
         "a graded estimator exists and is switchable",
         "an episode-level arm measured with repeats that exceed the config variance"

@@ -26,12 +26,12 @@ def graph_fixture():
                 "com_z": 0.6, "surface_total_variation": 0.02,
                 "priority_misrouted": 0, "soft_covered_by_other": 0,
             }, "terminal_reason": None},
-            {"node_id": "low", "depth": 1, "cumulative_outcomes": {
+            {"node_id": "low", "depth": 1, "state_tensor": {"kind": "low"}, "cumulative_outcomes": {
                 "placed_count": 13, "fill_score_proxy": 12.0,
                 "com_z": 0.55, "surface_total_variation": 0.019,
                 "priority_misrouted": 0, "soft_covered_by_other": 0,
             }, "terminal_reason": None},
-            {"node_id": "high", "depth": 1, "cumulative_outcomes": {
+            {"node_id": "high", "depth": 1, "state_tensor": {"kind": "high"}, "cumulative_outcomes": {
                 "placed_count": 13, "fill_score_proxy": 11.0,
                 "com_z": 0.58, "surface_total_variation": 0.021,
                 "priority_misrouted": 0, "soft_covered_by_other": 1,
@@ -58,7 +58,9 @@ def graph_fixture():
 
 class CounterfactualGraphSignalTests(unittest.TestCase):
     def test_finds_lower_score_reachable_leaf_and_failure_label(self):
-        summary = summarize_graph_signal(graph_fixture(), source="graph.json")
+        summary = summarize_graph_signal(
+            graph_fixture(), source="graph.json", include_afterstate_tensors=True
+        )
 
         self.assertEqual(summary["terminal_trajectory_count"], 2)
         self.assertEqual(summary["terminal_reasons"], {
@@ -86,6 +88,11 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
         self.assertEqual(
             pair["lower_reachable_outcome_vectors"][0]["fill_score_proxy"],
             12.0,
+        )
+        self.assertEqual(pair["lower_afterstate_tensor"], {"kind": "low"})
+        self.assertEqual(
+            pair["lower_continuation_outcome_vectors"][0]["fill_score_proxy"],
+            0.0,
         )
 
     def test_equal_score_separation_is_counted_without_a_threshold(self):

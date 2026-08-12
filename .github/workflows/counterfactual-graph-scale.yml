@@ -15,6 +15,7 @@ on:
       - scripts/evaluate_counterfactual_teacher_baseline.py
       - scripts/evaluate_counterfactual_teacher_discovery.py
       - scripts/evaluate_counterfactual_teacher_frozen_policy.py
+      - scripts/evaluate_counterfactual_afterstate_value.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -165,6 +166,7 @@ jobs:
         run: >-
           python scripts/build_counterfactual_teacher_pairs.py
           --signal reports/counterfactual-graph-scale/aggregate/signal.json
+          --graph-root reports/counterfactual-graph-scale/downloads
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
       - name: Evaluate the first late-root learning baseline
         run: >-
@@ -187,6 +189,13 @@ jobs:
           --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/late_holdout.jsonl
           --json-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md
+      - name: Validate physical afterstate teacher contract
+        run: >-
+          python -c "import json,pathlib;
+          p=pathlib.Path('reports/counterfactual-graph-scale/aggregate/teacher-pairs/manifest.json');
+          m=json.loads(p.read_text());
+          assert m['schema_version'] >= 4;
+          assert m['rows_with_paired_afterstate_tensors'] == m['informative_pair_rows']"
       - run: cat reports/counterfactual-graph-scale/aggregate/summary.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/signal.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/baseline.md >> "$GITHUB_STEP_SUMMARY"

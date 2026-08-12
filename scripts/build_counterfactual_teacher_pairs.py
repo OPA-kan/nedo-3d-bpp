@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import collections
 from typing import Any
 
 try:
@@ -78,6 +79,70 @@ def joint_pareto_label(pair: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def continuation_labels(pair: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Compare future gains from physical child states, excluding action H0."""
+    lower_vectors = pair.get("lower_continuation_outcome_vectors", [])
+    higher_vectors = pair.get("higher_continuation_outcome_vectors", [])
+    labels = {}
+    for metric, direction in METRIC_DIRECTIONS.items():
+        lower_values = [vector[metric] for vector in lower_vectors]
+        higher_values = [vector[metric] for vector in higher_vectors]
+        if not lower_values or not higher_values:
+            continue
+        lower_best = max(lower_values) if direction > 0 else min(lower_values)
+        higher_best = max(higher_values) if direction > 0 else min(higher_values)
+        if lower_best == higher_best:
+            relation = "equal"
+        elif direction * (lower_best - higher_best) > 0:
+            relation = "lower_afterstate_better"
+        else:
+            relation = "higher_afterstate_better"
+        labels[metric] = {
+            "relation": relation,
+            "lower_best_continuation": lower_best,
+            "higher_best_continuation": higher_best,
+            "lower_continuation_values": lower_values,
+            "higher_continuation_values": higher_values,
+        }
+    return labels
+
+
+def join_afterstate_tensors(
+    signal: dict[str, Any], graph_paths: list[pathlib.Path],
+) -> None:
+    """Join child tensors from raw graphs without duplicating them in signal."""
+    raw_graphs = {}
+    for path in graph_paths:
+        graph = json.loads(path.read_text(encoding="utf-8"))
+        graph_id = graph["graph_id"]
+        if graph_id in raw_graphs:
+            raise ValueError(f"duplicate raw graph ID: {graph_id}")
+        raw_graphs[graph_id] = graph
+    for graph in signal["graphs"]:
+        raw = raw_graphs.get(graph["graph_id"])
+        if raw is None:
+            raise ValueError(f"missing raw graph: {graph['graph_id']}")
+        nodes = {node["node_id"]: node for node in raw["nodes"]}
+        outgoing: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+        for edge in raw["edges"]:
+            outgoing[edge["source"]].append(edge)
+        for pair in graph["sibling_pairs"]:
+            edges = outgoing[pair["source_node_id"]]
+            if len(edges) != 2:
+                raise ValueError(
+                    f"expected two raw sibling edges: {pair['source_node_id']}"
+                )
+            lower, higher = sorted(
+                edges, key=lambda edge: float(edge["selection"]["score"])
+            )
+            pair["lower_afterstate_tensor"] = nodes[lower["target"]].get(
+                "state_tensor"
+            )
+            pair["higher_afterstate_tensor"] = nodes[higher["target"]].get(
+                "state_tensor"
+            )
+
+
 def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     labels = {}
     for metric, comparison in pair["comparisons"].items():
@@ -122,6 +187,8 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "source_state_tensor": pair.get("source_state_tensor"),
         "lower_action_tensor": pair.get("lower_action_tensor"),
         "higher_action_tensor": pair.get("higher_action_tensor"),
+        "lower_afterstate_tensor": pair.get("lower_afterstate_tensor"),
+        "higher_afterstate_tensor": pair.get("higher_afterstate_tensor"),
         "scenario_axes": graph.get("scenario_axes", {}),
         "lower_stable_item_index": pair["lower_stable_item_index"],
         "higher_stable_item_index": pair["higher_stable_item_index"],
@@ -129,6 +196,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "equal_immediate_score": bool(pair["equal_immediate_score"]),
         "informative_on_recorded_axes": informative,
         "labels": labels,
+        "continuation_labels": continuation_labels(pair),
         "joint_pareto": joint_pareto_label(pair),
     }
 
@@ -188,14 +256,29 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         )
         if isinstance(action, dict)
     })
+    afterstate_tensor_rows = sum(
+        isinstance(row.get("lower_afterstate_tensor"), dict)
+        and isinstance(row.get("higher_afterstate_tensor"), dict)
+        for row in informative
+    )
+    continuation_directional_counts = {
+        metric: sum(
+            row.get("continuation_labels", {}).get(metric, {}).get("relation")
+            in ("lower_afterstate_better", "higher_afterstate_better")
+            for row in informative
+        )
+        for metric in METRIC_DIRECTIONS
+    }
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "source_run_id": signal.get("run_id"),
         "source_commits": signal.get("commits", []),
         "label_contract": (
             "Per-axis optimistic bounded reachability. No axes are summed; "
             "a label compares each sibling subtree's best recorded leaf. "
-            "Joint Pareto labels separately compare attainable leaf vectors."
+            "Joint Pareto labels separately compare attainable leaf vectors. "
+            "Continuation labels compare future gains from physical child "
+            "states after subtracting each first action's H0 outcome."
         ),
         "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
         "model_training_ready": bool(
@@ -203,6 +286,7 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             and buckets["late_holdout"]
             and tensor_rows == len(informative)
             and action_tensor_rows == len(informative)
+            and afterstate_tensor_rows == len(informative)
             and tensor_contracts == [
                 "observed_set_tensors_no_step_no_future_labels"
             ]
@@ -220,6 +304,8 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         "source_state_tensor_contracts": tensor_contracts,
         "rows_with_paired_action_tensors": action_tensor_rows,
         "action_tensor_contracts": action_tensor_contracts,
+        "rows_with_paired_afterstate_tensors": afterstate_tensor_rows,
+        "continuation_directional_counts": continuation_directional_counts,
         "axis_relation_counts_on_training_rows": relations,
         "joint_pareto_relation_counts_on_training_rows": joint_relations,
         "limitations": [
@@ -230,6 +316,7 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
             "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
             "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
             "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights.",
+            "Continuation labels subtract each physical child state's H0 outcomes from its leaves, so they supervise future value rather than the immediate action effect.",
         ],
     }
     return manifest, buckets
@@ -246,8 +333,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--signal", type=pathlib.Path, required=True)
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
+    parser.add_argument("--graph-root", type=pathlib.Path)
     args = parser.parse_args()
     signal = json.loads(args.signal.read_text(encoding="utf-8"))
+    if args.graph_root is not None:
+        paths = list(args.graph_root.rglob("graph.json"))
+        if not paths:
+            raise SystemExit(f"no graph.json files below {args.graph_root}")
+        join_afterstate_tensors(signal, paths)
     manifest, buckets = build_teacher_corpus(signal)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, rows in buckets.items():

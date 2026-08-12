@@ -1,10 +1,10 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "source_run_id": "31566975749",
   "source_commits": [
     "74ac9465c449eab96322b9b137a3d564f6a49bbd"
   ],
-  "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf. Joint Pareto labels separately compare attainable leaf vectors.",
+  "label_contract": "Per-axis optimistic bounded reachability. No axes are summed; a label compares each sibling subtree's best recorded leaf. Joint Pareto labels separately compare attainable leaf vectors. Continuation labels compare future gains from physical child states after subtracting each first action's H0 outcome.",
   "split_contract": "root_step < 15 discovery; root_step >= 15 late_holdout",
   "model_training_ready": true,
   "informative_pair_rows": 62,
@@ -19,6 +19,15 @@
   "action_tensor_contracts": [
     "observed_candidate_action_no_future_labels"
   ],
+  "rows_with_paired_afterstate_tensors": 62,
+  "continuation_directional_counts": {
+    "placed_count": 2,
+    "fill_score_proxy": 25,
+    "com_z": 31,
+    "surface_total_variation": 31,
+    "priority_misrouted": 0,
+    "soft_covered_by_other": 2
+  },
   "axis_relation_counts_on_training_rows": {
     "placed_count": {
       "lower_immediate_score_better": 1,
@@ -64,6 +73,7 @@
     "Exact immediate-score controls have no recorded H3/H5 separation and are excluded from informative pairs.",
     "Variable-length set tensors require padding and masks in the batch loader; stored counts define the valid rows.",
     "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
-    "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights."
+    "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights.",
+    "Continuation labels subtract each physical child state's H0 outcomes from its leaves, so they supervise future value rather than the immediate action effect."
   ]
 }

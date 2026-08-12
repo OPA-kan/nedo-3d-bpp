@@ -125,6 +125,32 @@ def _outcome_vectors(
     return vectors
 
 
+def _continuation_outcome_vectors(
+    paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
+    afterstate: dict[str, Any],
+) -> list[dict[str, float | int]]:
+    """Return leaf gains after the first action, excluding its immediate effect."""
+    baseline = afterstate.get("cumulative_outcomes", {})
+    vectors = []
+    seen = set()
+    for _edges, leaf in paths:
+        outcomes = leaf.get("cumulative_outcomes", {})
+        if not all(
+            metric in outcomes and metric in baseline
+            for metric in METRIC_DIRECTIONS
+        ):
+            continue
+        vector = {
+            metric: outcomes[metric] - baseline[metric]
+            for metric in METRIC_DIRECTIONS
+        }
+        identity = tuple(vector.items())
+        if identity not in seen:
+            seen.add(identity)
+            vectors.append(vector)
+    return vectors
+
+
 def _ranges_differ(comparisons: dict[str, Any]) -> bool:
     return any(
         row["lower_range"] != row["higher_range"]
@@ -132,7 +158,10 @@ def _ranges_differ(comparisons: dict[str, Any]) -> bool:
     )
 
 
-def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, Any]:
+def summarize_graph_signal(
+    graph: dict[str, Any], *, source: str,
+    include_afterstate_tensors: bool = False,
+) -> dict[str, Any]:
     nodes, outgoing, root_id = _graph_index(graph)
     paths = _leaf_paths(root_id, nodes, outgoing)
     horizon = int(graph.get("budget", {}).get("horizon", 3))
@@ -150,6 +179,14 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
         higher_ranges = _metric_ranges(higher_paths)
         lower_vectors = _outcome_vectors(lower_paths)
         higher_vectors = _outcome_vectors(higher_paths)
+        lower_afterstate = nodes[lower["target"]]
+        higher_afterstate = nodes[higher["target"]]
+        lower_continuation_vectors = _continuation_outcome_vectors(
+            lower_paths, lower_afterstate
+        )
+        higher_continuation_vectors = _continuation_outcome_vectors(
+            higher_paths, higher_afterstate
+        )
         score_gap = float(higher["selection"]["score"]) - float(
             lower["selection"]["score"]
         )
@@ -174,7 +211,7 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
             if better:
                 lower_score_better[metric] += 1
         source_state_tensor = nodes[source_id].get("state_tensor")
-        sibling_rows.append({
+        sibling_row = {
             "source_node_id": source_id,
             "source_depth": int(nodes[source_id]["depth"]),
             "source_state_tensor": source_state_tensor,
@@ -182,6 +219,8 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
             "higher_action_tensor": _action_tensor(higher, source_state_tensor),
             "lower_reachable_outcome_vectors": lower_vectors,
             "higher_reachable_outcome_vectors": higher_vectors,
+            "lower_continuation_outcome_vectors": lower_continuation_vectors,
+            "higher_continuation_outcome_vectors": higher_continuation_vectors,
             "score_gap": score_gap,
             "equal_immediate_score": score_gap == 0.0,
             "downstream_ranges_differ": _ranges_differ(comparisons),
@@ -192,7 +231,15 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
                 "stable_item_index"
             ),
             "comparisons": comparisons,
-        })
+        }
+        if include_afterstate_tensors:
+            sibling_row["lower_afterstate_tensor"] = lower_afterstate.get(
+                "state_tensor"
+            )
+            sibling_row["higher_afterstate_tensor"] = higher_afterstate.get(
+                "state_tensor"
+            )
+        sibling_rows.append(sibling_row)
     terminal_reasons = collections.Counter(
         leaf.get("terminal_reason")
         or ("horizon" if int(leaf["depth"]) >= horizon else "open_leaf")
@@ -235,12 +282,14 @@ def summarize_graph_signal(graph: dict[str, Any], *, source: str) -> dict[str, A
 
 
 def summarize_paths(
-    paths: Iterable[pathlib.Path], *, run_id: str | None = None
+    paths: Iterable[pathlib.Path], *, run_id: str | None = None,
+    include_afterstate_tensors: bool = False,
 ) -> dict[str, Any]:
     graphs = [
         summarize_graph_signal(
             json.loads(path.read_text(encoding="utf-8")),
             source=path.as_posix(),
+            include_afterstate_tensors=include_afterstate_tensors,
         )
         for path in sorted(paths)
     ]
@@ -436,6 +485,7 @@ def main() -> int:
     parser.add_argument("--minimum-graphs", type=int)
     parser.add_argument("--expected-conditions", type=int)
     parser.add_argument("--run-id")
+    parser.add_argument("--include-afterstate-tensors", action="store_true")
     args = parser.parse_args()
     paths = list(args.root.rglob("graph.json"))
     if not paths:
@@ -445,7 +495,10 @@ def main() -> int:
             f"expected {args.expected_graphs} graphs, found {len(paths)}; "
             "refusing to audit a partial matrix"
         )
-    summary = summarize_paths(paths, run_id=args.run_id)
+    summary = summarize_paths(
+        paths, run_id=args.run_id,
+        include_afterstate_tensors=args.include_afterstate_tensors,
+    )
     if args.minimum_graphs is not None and len(paths) < args.minimum_graphs:
         raise SystemExit(
             f"expected at least {args.minimum_graphs} graphs, found "

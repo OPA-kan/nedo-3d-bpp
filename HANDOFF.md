@@ -158,6 +158,17 @@ dominance rows appeared; immediate score classified 9/9 and geometry utility
 corpus.** The usable result is the H3 teacher/instrument plus an offline
 fill/surface signal; the safe live decision rule remains unestablished.
 
+Schema v4 now exposes the missing state-value target without rerunning physics.
+Every informative sibling row joins both physical child-state tensors and
+labels per-axis H3 continuation gain after subtracting each child's cumulative
+H0 outcome. Four-run held-out evaluation found afterstate fill 15/18 versus a
+permuted median 7/18, but action geometry was 16/18 and action+afterstate stayed
+15/18. Surface afterstate was 15/21 versus action 11/21, yet the paired result
+was 9 wins / 7 ties / 5 losses (exact two-sided p=0.424) and the best state
+permutation also reached 15/21. This establishes a direct physical afterstate
+teacher contract, not incremental policy value. Keep H5 and live selection
+closed until a representation beats action-only across held-out physical runs.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;
