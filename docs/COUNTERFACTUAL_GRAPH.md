@@ -147,3 +147,13 @@ The consecutive-run comparison is in
 against immediate score replicated on fill and surface, while the incremental
 benefit of the current source-state summary did not. Treat residual-state value
 as an open modelling question, not an established result.
+
+## Discovery-only representation gate
+
+`scripts/evaluate_counterfactual_teacher_discovery.py` never accepts a late
+file. It holds out complete physical graphs inside discovery, compares action,
+global-set summary and candidate-local geometry, and rotates source states only
+inside each training fold as a negative control. The fixed policy is selected
+per axis before a new physical matrix: action-only ridge for fill,
+candidate-local ridge for CoG and surface variation, and abstention elsewhere.
+The next new late split is a one-shot confirmation, not another tuning set.

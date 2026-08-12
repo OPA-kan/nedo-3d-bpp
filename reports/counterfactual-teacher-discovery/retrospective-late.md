@@ -1,0 +1,11 @@
+# Frozen counterfactual representation late evaluation
+
+Discovery / new late rows: **58 / 8**
+
+| Axis | Frozen model | Selected | Action ridge | Candidate-local ridge |
+|---|---|---:|---:|---:|
+| fill_score_proxy | action_only_ridge | 6/7 | 6/7 | 5/7 |
+| com_z | candidate_local_state_ridge | 3/8 | 5/8 | 3/8 |
+| surface_total_variation | candidate_local_state_ridge | 5/8 | 5/8 | 5/8 |
+
+Candidate-local gate: **FAIL** (do_not_scale_current_state_representation; pooled 8 vs action 10).

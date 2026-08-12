@@ -116,6 +116,23 @@ is in `reports/counterfactual-teacher-{pairs,baseline}/`; raw graphs remain
 Actions artifacts. No live ranker, policy default, simulator rule or final
 holdout was changed.
 
+The next representation gate has been selected without reopening late roots.
+`scripts/evaluate_counterfactual_teacher_discovery.py` performs leave-one-
+physical-graph-out evaluation on the 58 discovery rows only. Candidate-local
+geometry (container margins, nearest settled neighbours, overlap/support gaps,
+relative occupancy and visible-pool summaries) with a fixed-L2 linear ranker
+reached CoG 44/58 versus action-only 34/58 and seven within-fold state
+permutations at 30--36/58. Surface variation reached 46/58 versus action-only
+29/58 and permutations at 25--41/58. It did not transfer to fill (36/54 versus
+44/54), so the frozen policy uses action-only for fill, candidate-local state
+only for CoG/surface, and abstains on the under-supported axes. The complete
+pre-late policy and its one-run acceptance gate are in
+`reports/counterfactual-teacher-discovery/policy.json`. Do not retune it on the
+next late result.
+Retrospective application to the already-observed run 31563973521 late rows
+fails that gate (CoG 3/8 versus action 5/8; surface 5/8 tied; pooled 8 versus
+10). This was recorded, not used to alter the policy.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |

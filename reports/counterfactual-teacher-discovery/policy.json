@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "selection_source": "discovery_only_leave_one_physical_graph_out",
+  "late_holdout_accessed_for_selection": false,
+  "axes": {
+    "fill_score_proxy": "action_only_ridge",
+    "com_z": "candidate_local_state_ridge",
+    "surface_total_variation": "candidate_local_state_ridge",
+    "placed_count": "abstain_no_directional_discovery_rows",
+    "priority_misrouted": "abstain_no_directional_discovery_rows",
+    "soft_covered_by_other": "abstain_insufficient_directional_discovery_rows"
+  },
+  "discovery_evidence": {
+    "fill_score_proxy": {
+      "directional_rows": 54,
+      "action_only_ridge": {
+        "correct": 44,
+        "total": 54
+      },
+      "candidate_local_state_ridge": {
+        "correct": 36,
+        "total": 54
+      },
+      "permuted_local_ridge_correct": {
+        "values": [
+          29,
+          33,
+          41,
+          41,
+          37,
+          30,
+          43
+        ],
+        "minimum": 29,
+        "median": 37,
+        "maximum": 43
+      }
+    },
+    "com_z": {
+      "directional_rows": 58,
+      "action_only_ridge": {
+        "correct": 34,
+        "total": 58
+      },
+      "candidate_local_state_ridge": {
+        "correct": 44,
+        "total": 58
+      },
+      "permuted_local_ridge_correct": {
+        "values": [
+          34,
+          30,
+          35,
+          33,
+          36,
+          36,
+          36
+        ],
+        "minimum": 30,
+        "median": 35,
+        "maximum": 36
+      }
+    },
+    "surface_total_variation": {
+      "directional_rows": 58,
+      "action_only_ridge": {
+        "correct": 29,
+        "total": 58
+      },
+      "candidate_local_state_ridge": {
+        "correct": 46,
+        "total": 58
+      },
+      "permuted_local_ridge_correct": {
+        "values": [
+          41,
+          39,
+          25,
+          38,
+          38,
+          30,
+          28
+        ],
+        "minimum": 25,
+        "median": 38,
+        "maximum": 41
+      }
+    }
+  },
+  "acceptance_gate_for_one_new_late_run": "Report exact per-axis counts once. Do not retune. Candidate-local must beat action-only on at least one of com_z/surface and be no worse in their pooled correct count to justify a larger model."
+}

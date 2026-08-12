@@ -29,6 +29,10 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertEqual(text.count("--expected-conditions 8"), 2)
         self.assertIn("build_counterfactual_teacher_pairs.py", text)
         self.assertIn("evaluate_counterfactual_teacher_baseline.py", text)
+        self.assertIn("evaluate_counterfactual_teacher_discovery.py", text)
+        self.assertIn(
+            "evaluate_counterfactual_teacher_frozen_policy.py", text
+        )
         self.assertIn("aggregate/teacher-pairs", text)
 
     def test_h5_is_limited_to_three_known_root_level_ties(self):

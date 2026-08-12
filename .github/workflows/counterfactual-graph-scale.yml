@@ -13,6 +13,8 @@ on:
       - scripts/summarize_counterfactual_graph_signal.py
       - scripts/build_counterfactual_teacher_pairs.py
       - scripts/evaluate_counterfactual_teacher_baseline.py
+      - scripts/evaluate_counterfactual_teacher_discovery.py
+      - scripts/evaluate_counterfactual_teacher_frozen_policy.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -167,9 +169,26 @@ jobs:
           --teacher-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
           --json-output reports/counterfactual-graph-scale/aggregate/baseline.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/baseline.md
+      - name: Audit and freeze discovery-only state representations
+        run: >-
+          python scripts/evaluate_counterfactual_teacher_discovery.py
+          --discovery reports/counterfactual-graph-scale/aggregate/teacher-pairs/discovery.jsonl
+          --json-output reports/counterfactual-graph-scale/aggregate/discovery-audit.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/discovery-audit.md
+          --policy-output reports/counterfactual-graph-scale/aggregate/discovery-policy.json
+      - name: Evaluate the frozen policy once on this run's late roots
+        run: >-
+          python scripts/evaluate_counterfactual_teacher_frozen_policy.py
+          --policy reports/counterfactual-graph-scale/aggregate/discovery-policy.json
+          --discovery reports/counterfactual-graph-scale/aggregate/teacher-pairs/discovery.jsonl
+          --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/late_holdout.jsonl
+          --json-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md
       - run: cat reports/counterfactual-graph-scale/aggregate/summary.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/signal.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/baseline.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/discovery-audit.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: counterfactual-graph-scale-aggregate
