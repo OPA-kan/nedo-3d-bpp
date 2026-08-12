@@ -105,6 +105,7 @@ def configure_arm_environment(
         "anchor_fallback",
         "true_envelope",
         "box_envelope",
+        "submission22",
         "tilt_margin2",
         "tilt_margin4",
         "l3_prefer_empty",
@@ -216,6 +217,14 @@ def configure_arm_environment(
             # shipped behaviour has to stay measurable rather than become
             # unreachable, and the Task B guard for the flip has not run.
             env["ANCHOR_TRUE_ENVELOPE"] = "0"
+        elif arm == "submission22":
+            # Behavioural reconstruction of the 2026-08-02 submission:
+            # bounded128 was already the Task A default, while the anchor
+            # search still used the box envelope and first-pass depth 64.
+            # Keep the two live-policy differences composed in one arm so
+            # the fourth official calibration point cannot silently drift.
+            env["ANCHOR_TRUE_ENVELOPE"] = "0"
+            env["ANCHOR_FIRST_PASS_ATTEMPTS"] = "64"
         elif arm == "rescue":
             env["RESCUE_SCAN_ENABLED"] = "1"
         elif arm == "cross_step_shadow":

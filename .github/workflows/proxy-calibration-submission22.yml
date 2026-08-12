@@ -1,0 +1,80 @@
+name: Proxy calibration submission22
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy-calibration-submission22-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.scenario }}-r${{ matrix.replicate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          - dual-full-stream
+          - dual-shelf-mixed
+          - single-empty-noshelf
+          - single-empty-shelf
+        replicate: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build scenario matrix
+        run: python scripts/build_scenario_matrix.py --output-dir reports/scenario-matrix
+      - name: Run reconstructed submission22
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/scenario-matrix/${{ matrix.scenario }}.json"
+          --arm submission22
+          --repeat "${{ matrix.replicate }}"
+          --output-dir
+          "reports/submission22/${{ matrix.scenario }}-submission22-r${{ matrix.replicate }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: submission22-${{ matrix.scenario }}-r${{ matrix.replicate }}
+          path: >-
+            reports/submission22/${{ matrix.scenario }}-submission22-r${{ matrix.replicate }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: submission22-*
+          path: reports/stowage/calibration
+      - name: Recompute four-point calibration
+        run: |
+          python scripts/calibrate_proxies.py \
+            --root reports/stowage/calibration \
+            --output reports/stowage/proxy-calibration.json \
+            --require-all \
+            | tee reports/stowage/proxy-calibration.txt
+          cat reports/stowage/proxy-calibration.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: submission22-calibration
+          path: |
+            reports/stowage/calibration/submission22-*/
+            reports/stowage/proxy-calibration.json
+            reports/stowage/proxy-calibration.txt

@@ -860,6 +860,19 @@ if __name__ == "__main__":
 
 
 class TrueEnvelopeArmTests(unittest.TestCase):
+    def test_submission22_composes_the_two_historical_live_knobs(self):
+        env = {
+            "ANCHOR_TRUE_ENVELOPE": "1",
+            "ANCHOR_FIRST_PASS_ATTEMPTS": "256",
+            "LIVE_SEARCH_INTERLEAVE": "8",
+        }
+
+        configure_arm_environment(env, "submission22", 2.0, 0.0)
+
+        self.assertEqual(env.pop("ANCHOR_TRUE_ENVELOPE"), "0")
+        self.assertEqual(env.pop("ANCHOR_FIRST_PASS_ATTEMPTS"), "64")
+        self.assertNotIn("LIVE_SEARCH_INTERLEAVE", env)
+
     def test_true_envelope_is_the_shipped_baseline_plus_the_flag(self):
         base: dict[str, str] = {}
         arm: dict[str, str] = {}

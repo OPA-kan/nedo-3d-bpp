@@ -13,17 +13,19 @@ That gap is what stops adoption. The attribute guard measured on this branch
 loses placements and drives priority violations to zero: a clean trade, and
 nothing local can say which side is worth more.
 
-`docs/BLOCKED_WORK.md` section 0 states the way out, and this is it. Three
-of the four scored submissions are reconstructible as knob settings on the
-current agent, all with published six-component breakdowns:
+`docs/BLOCKED_WORK.md` section 0 states the way out, and this is it. All four
+scored submissions are reconstructible as knob settings on the current
+agent, with published six-component breakdowns:
 
     base           submissiontrueenvelope   total 35.375
     death_band     submissiondeathband      total 29.959
     box_envelope   submission3334 level     total 23.246
+    submission22   box envelope + depth 64  total 17.581
 
-Run all three locally, read the raw proxies, and check whether each proxy
-orders the three configurations the same way its official component does.
-Three points cannot fit coefficients. They can refute a direction, and a
+Run all four locally, read the raw proxies, and check whether each proxy
+orders the configurations the same way its official component does. Four
+points still do not identify the unpublished score function. They can refute
+a direction and expose nonlinear or configuration-dependent relationships; a
 proxy that points the wrong way across a 12-point official spread is not
 evidence about anything.
 """
@@ -61,6 +63,12 @@ OFFICIAL = {
         "total": 23.246, "fill": 31.413, "cog": 21.505,
         "stability": 29.424, "placement": 10.85, "soft": 12.65,
         "placed": 0.4524,
+    },
+    "submission22": {
+        "submission": "22",
+        "total": 17.581, "fill": 29.276, "cog": 14.224,
+        "stability": 20.721, "placement": 4.45, "soft": 7.65,
+        "placed": 0.4341,
     },
 }
 
@@ -125,7 +133,7 @@ def collect(root: pathlib.Path):
 
 
 def concordant(pairs):
-    """Kendall-style agreement over the three ordered configurations."""
+    """Kendall-style agreement over the available ordered configurations."""
     agree = 0
     total = 0
     for i in range(len(pairs)):
@@ -143,9 +151,19 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path)
+    parser.add_argument(
+        "--require-all", action="store_true",
+        help="fail unless every official calibration arm is present",
+    )
     args = parser.parse_args()
 
     per_arm = collect(args.root)
+    present_arms = {arm for _, arm in per_arm if arm in OFFICIAL}
+    missing_arms = sorted(set(OFFICIAL) - present_arms)
+    if missing_arms:
+        print(f"missing official calibration arms: {missing_arms}", file=sys.stderr)
+        if args.require_all:
+            return 2
     scenarios = sorted({key[0] for key in per_arm})
     report = {}
 
@@ -199,7 +217,8 @@ def main() -> int:
         }
 
     print(
-        "Three points cannot fit weights. They can refute a direction: a "
+        "Four points do not identify the unpublished score function. They "
+        "can refute a direction: a "
         "proxy that DISAGREES across a 12-point official spread is not "
         "evidence about its component, and one whose local spread sits "
         "inside the noise floor has not been tested at all."
