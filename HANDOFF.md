@@ -293,6 +293,18 @@ holdout is generated, the next unit is fixed as one consistent exact
 signature, with no multiplicity weighting. A new `rotate-000-7` stream is
 reserved as whole-stream H3/B3 holdout; it must not be used for model choice.
 
+The signature-unit whole-stream leave-one-out audit is now reproducible in
+`h3-b3-signature-policy-audit`. Of 11 declared representations,
+`height_grid_4_plus_action` is the unique best at 17/18, but the preregistered
+zero-error development gate fails. The sole error has asymmetric optimistic
+continuation support. Requiring at least two continuation values on both
+afterstates removes that error (12/12), but retains only 12/18 signatures
+(66.7%), below the unchanged 75% coverage gate. Therefore no agent candidate
+is frozen. Actions run `31676609549` for the reserved `rotate-000-7` holdout
+was cancelled before aggregation or teacher-label inspection; one condition
+had already failed strict root reconstruction. Its labels remain sealed and
+must not be opened after this failed development gate.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

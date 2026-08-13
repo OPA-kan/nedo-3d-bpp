@@ -157,7 +157,7 @@
     }
   },
   "signature_unit_holdout": {
-    "status": "preregistered_before_holdout_generation",
+    "status": "development_gate_failed_holdout_cancelled_unscored",
     "development_runs": ["31672407187", "31672410385", "31672413055"],
     "unit": "One exact packed plus packed-visible afterstate-delta signature with one directional fill relation.",
     "deduplication_rule": "Collapse repeated signatures to one unit only when every row has the same relation. Any conflicting relation fails the experiment. Do not weight a signature by its row multiplicity.",
@@ -165,7 +165,28 @@
     "holdout_generation": "Rotate bundled case 000 item order left by seven while preserving stable item identities; environment seed 42; eight-condition H3/B3 matrix.",
     "model_selection": "Choose among the already-declared representation audit families using whole-development-stream leave-one-out accuracy on signature units only.",
     "acceptance": "Freeze only a unique best representation with zero development signature errors. The new rotate-000-7 holdout must then have at least 12 directional late signatures, zero signature conflicts, at least 75% supported coverage, zero supported errors, and outperform action geometry on covered units.",
-    "score_claim": "Passing this gate creates an agent candidate worth physical trajectory testing; it does not itself establish competition-score gain."
+    "score_claim": "Passing this gate creates an agent candidate worth physical trajectory testing; it does not itself establish competition-score gain.",
+    "development_result": {
+      "directional_signature_units": 18,
+      "unique_best_representation": "height_grid_4_plus_action",
+      "correct": 17,
+      "zero_error_gate": "fail",
+      "symmetric_continuation_support": {
+        "rule": "At least two continuation values must exist for each afterstate.",
+        "retained_units": 12,
+        "coverage": 0.6666666666666666,
+        "correct": 12,
+        "coverage_gate": "fail"
+      },
+      "candidate_frozen": false
+    },
+    "holdout_result": {
+      "actions_run_id": "31676609549",
+      "status": "cancelled_before_aggregate_after_development_gate_failed",
+      "teacher_labels_inspected": false,
+      "known_execution_status_only": "single-preloaded failed strict root reconstruction before cancellation",
+      "decision": "Keep rotate-000-7 sealed; do not score it or repurpose it for development."
+    }
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [
