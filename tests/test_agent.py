@@ -1958,6 +1958,17 @@ class LookaheadSelectionTests(unittest.TestCase):
             list(range(10)),
         )
 
+    def test_late_item_cap_activates_only_after_minimum_placed(self):
+        before = {"container_list": [{"packed_items": [1, 2, 3, 4, 5]}]}
+        after = {"container_list": [{"packed_items": [1, 2, 3, 4, 5, 6]}]}
+        with (
+            mock.patch.object(agent, "MAX_POOL_ITEMS_EVALUATED", 10),
+            mock.patch.object(agent, "LATE_POOL_ITEMS_EVALUATED", 20),
+            mock.patch.object(agent, "LATE_POOL_MIN_PLACED", 6),
+        ):
+            self.assertEqual(agent.effective_online_item_cap(before), 10)
+            self.assertEqual(agent.effective_online_item_cap(after), 20)
+
     def test_class_aware_units_start_each_item_before_remaining_units(self):
         observation = {
             "pool_list": [sample_item(index) for index in range(3)],

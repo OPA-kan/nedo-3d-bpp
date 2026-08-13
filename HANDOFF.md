@@ -780,6 +780,20 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Verification and operating rules
 
+### Current agent candidate (2026-08-13)
+
+Run `31700909383` paired live-cap and all-visible scans on identical physical
+roots. Every pool-over-10 condition had safe cap-excluded items (7/7, gains
++10 to +19), while the pool-10 control was unchanged. Feasible count itself
+nearly equals pool size and is rejected as a state-value teacher. The useful
+signal is acting-side: cap 20 changes the score-ordered best safe candidate in
+all seven affected conditions. The opt-in `late_item_cap20` arm now preserves
+cap 10 before six placed items and expands to 20 only in the measured mid/late
+band. This is the first current candidate with a direct expected selection-
+score mechanism; it still requires a fresh paired episode experiment before
+claiming episode or competition-score gain. See
+`reports/counterfactual-afterstate-value/paired-feasible-31700909383.md`.
+
 ```powershell
 python -m unittest discover -s tests
 python scripts/run_checks.py       # required after agent changes

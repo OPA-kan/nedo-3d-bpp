@@ -196,6 +196,12 @@ def effective_attempt_budget(attempt_budget):
 MAX_POOL_ITEMS_EVALUATED = max(
     1, int(os.environ.get("MAX_POOL_ITEMS_EVALUATED", "10"))
 )
+LATE_POOL_ITEMS_EVALUATED = max(
+    0, int(os.environ.get("LATE_POOL_ITEMS_EVALUATED", "0"))
+)
+LATE_POOL_MIN_PLACED = max(
+    0, int(os.environ.get("LATE_POOL_MIN_PLACED", "6"))
+)
 RESCUE_SCAN_ENABLED = os.environ.get(
     "RESCUE_SCAN_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -4667,6 +4673,20 @@ def capped_online_items(pool_list, limit, mode=ITEM_COVERAGE_MODE):
     return selected
 
 
+def effective_online_item_cap(observation):
+    """Expand item breadth only in the measured mid/late intervention band."""
+    placed = sum(
+        len(container.get("packed_items", []))
+        for container in observation.get("container_list", [])
+    )
+    if (
+        LATE_POOL_ITEMS_EVALUATED > MAX_POOL_ITEMS_EVALUATED
+        and placed >= LATE_POOL_MIN_PLACED
+    ):
+        return LATE_POOL_ITEMS_EVALUATED
+    return MAX_POOL_ITEMS_EVALUATED
+
+
 def rescue_online_items(pool_list):
     """Return every visible item in deterministic class round-robin order."""
     grouped = {class_id: [] for class_id in (0, 1, 2)}
@@ -8561,7 +8581,7 @@ class Agent:
         containers = observation.get("container_list", [])
         ordered_items = capped_online_items(
             pool_list,
-            MAX_POOL_ITEMS_EVALUATED,
+            effective_online_item_cap(observation),
             mode=ITEM_COVERAGE_MODE,
         )
         cross_step_collector = None

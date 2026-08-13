@@ -273,12 +273,23 @@
     }
   },
   "uncapped_feasible_item_followup": {
-    "status": "hypothesis_selected_before_extractor_implementation",
+    "status": "teacher_rejected_agent_intervention_supported",
     "hypothesis": "The count and volume of visible items having at least one physically feasible placement is a depth-independent residual-space value target.",
     "reason": "Top-three child count saturates at either zero or three, while late H4 states show meaningful candidate-loss risk (41 of 186 non-leaf states have zero children).",
     "required_measurement": "For every admitted afterstate, enumerate each visible stable item through the unchanged physical candidate provider and record whether any candidate survives; do not cap the number of items at branch width.",
     "target_axes": ["feasible_visible_item_count", "feasible_visible_item_volume", "feasible_priority_count", "feasible_soft_count"],
-    "stop_rule": "Do not call this an agent or score improvement until an independently frozen selector improves fresh physical trajectories."
+    "stop_rule": "Do not call this an established episode or competition-score improvement until an independently frozen selector improves fresh physical trajectories.",
+    "result": {
+      "actions_run_id": "31700909383",
+      "same_root_pairs": 8,
+      "pool_over_10_conditions_with_safe_items_outside_cap": "7/7",
+      "feasible_item_gain_range": [10, 19],
+      "pool_10_negative_control_gain": 0,
+      "teacher_decision": "Reject feasible count because it nearly saturates at visible pool size.",
+      "acting_intervention": "late_item_cap20: cap 10 before six placed items, cap 20 afterward",
+      "selection_evidence": "The score-ordered best safe candidate changes in all seven pool-over-10 conditions; cap 20 exactly recovers the all-visible best in four.",
+      "candidate_status": "implemented, requires fresh paired episode validation"
+    }
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [
