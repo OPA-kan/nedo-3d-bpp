@@ -305,6 +305,14 @@ was cancelled before aggregation or teacher-label inspection; one condition
 had already failed strict root reconstruction. Its labels remain sealed and
 must not be opened after this failed development gate.
 
+The next collection is preregistered as development stream `rotate-001-5`
+(case 001 rotated left five, identities preserved), seed 42, unchanged H3/B3
+eight-condition matrix. It must add at least six new late signature units with
+two or more continuation values on both sides. Four-stream whole-stream LOO
+must then be uniquely zero-error with at least 75% supported coverage; neither
+threshold may move. Exploratory continuation aggregation, nonlinear feature,
+and ridge-strength variants did not exceed the 17/18 result and are closed.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;
