@@ -268,6 +268,17 @@ and sibling items into the B3 set, and fills the remaining width by normal
 ranking. A missing provider item fails the graph. All four relations must be
 directly comparable and stable before agent-model work resumes.
 
+Forced-pair Actions run `31671441984` completed all four graphs and made all
+four pairs directly comparable. Two relations remained
+`lower_afterstate_better`; two changed from that directional B2 label to
+`equal` under B3 (source-001 dual-empty and reverse-000 dual-shelf). There was
+no direction reversal. Thus half of the apparent four representation errors
+were B2 search-width label noise, while reverse dual-empty and interleave
+dual-preloaded remain genuine B3 model errors. Retire B2 directional labels
+as the training standard; do not edit them post hoc or mix them with B3. The
+next corpus must be generated directly at H3/B3 and evaluated with entire
+stream variants held out before any agent can be called promising.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

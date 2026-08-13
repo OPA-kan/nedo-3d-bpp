@@ -292,3 +292,12 @@ root sibling pair were absent after widening because the top-B candidate set
 changed. Consequently, these B2 errors are not stable supervised examples
 under a wider search. A valid next collector must force the preregistered
 parent path and sibling pair, then widen only their continuation subtrees.
+
+The forced-pair rerun `31671441984` completed 4/4 physical graphs and compared
+all four intended pairs. Reverse dual-empty and interleave dual-preloaded kept
+their directional relation. Source dual-empty and reverse dual-shelf changed
+from `lower_afterstate_better` at B2 to `equal` at B3; neither reversed. This
+proves that B2 optimistic continuation can manufacture directional training
+labels from insufficient branch coverage. New state-value training data must
+therefore be generated directly at H3/B3, kept separate from B2 targets, and
+validated by whole-stream holdout before policy integration.
