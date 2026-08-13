@@ -251,6 +251,16 @@ confirm. The next preregistered question keeps H3 fixed and widens only the
 erroneous roots from B2 to B3, testing whether optimistic continuation labels
 are stable before spending capacity on a richer model or opening H5.
 
+That B3 test ran as Actions `31670257775`; all four physical graphs completed.
+Only one of four preregistered error pairs remained directly comparable and it
+kept the B2 relation. Two required depth-1 parent paths were absent from the
+B3 graph and one root sibling pair was absent because widening changed the
+selected candidate set. This fails the stability gate: three rows are not
+fixed-label examples across branch widths. Do not train an agent to imitate
+those B2 labels. The next teacher design must preserve the target candidate
+paths explicitly (forced-pair continuation expansion) rather than equating
+top-B candidate selection with ground-truth state value.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

@@ -85,12 +85,23 @@
     "decision": "Do not refreeze, confirm, shadow, or move to H5. Test teacher-label stability under wider H3 branching before adding model capacity."
   },
   "branch_width_followup": {
-    "status": "preregistered_not_run",
+    "status": "failed_candidate_set_instability",
     "hypothesis": "Some residual representation errors are caused by B2 optimistic continuation labels being under-sampled, rather than by an insufficient state representation alone.",
     "intervention": "Rebuild the erroneous stream-variant roots at H3/B3 while holding stream, root snapshot, environment seed, simulator, score axes, and reconstruction tolerance fixed.",
     "primary_measure": "Whether the directional fill_score_proxy relation for each matched sibling pair agrees between B2 and B3.",
     "admission": "Every B3 graph must pass the existing strict root reconstruction and graph validation contracts; no tolerance changes and no label-conditioned exclusions.",
-    "decision_rule": "If any tested directional relation changes, treat B2 label stability as unresolved and expand branch-width coverage before model work. If all relations are stable, retain H3/B2 labels and investigate richer state interactions without opening sealed confirmation data."
+    "decision_rule": "If any tested directional relation changes, treat B2 label stability as unresolved and expand branch-width coverage before model work. If all relations are stable, retain H3/B2 labels and investigate richer state interactions without opening sealed confirmation data.",
+    "result": {
+      "actions_run_id": "31670257775",
+      "physical_graphs_completed": 4,
+      "stable_relations": 1,
+      "targets": 4,
+      "directly_comparable": 1,
+      "parent_path_absent": 2,
+      "sibling_pair_absent": 1,
+      "model_work_may_resume": false,
+      "interpretation": "Widening B2 to B3 changed which candidate paths survive selection, so three error rows cannot be treated as fixed-label examples under the wider search. The one directly comparable pair retained its lower-afterstate-better relation."
+    }
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

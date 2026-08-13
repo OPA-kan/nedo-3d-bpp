@@ -46,7 +46,28 @@ def _relation(
 
 def compare_graph(graph: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
     nodes, outgoing, root_id = _graph_index(graph)
-    root_edges = outgoing[root_id]
+    source_id = root_id
+    for item_index in expected.get("parent_path_item_indices", []):
+        matches = [
+            edge for edge in outgoing.get(source_id, [])
+            if int(edge["selection"]["stable_item_index"]) == int(item_index)
+        ]
+        if len(matches) != 1:
+            return {
+                "target_id": expected["target_id"],
+                "case_id": graph["case_id"],
+                "root_step": graph["root_step"],
+                "stream_variant": graph["provenance"]["scenario_axes"]["stream_variant"],
+                "status": "parent_path_absent",
+                "stable": False,
+                "required_parent_item_index": int(item_index),
+                "available_item_indices": sorted(
+                    int(edge["selection"]["stable_item_index"])
+                    for edge in outgoing.get(source_id, [])
+                ),
+            }
+        source_id = matches[0]["target"]
+    root_edges = outgoing.get(source_id, [])
     by_item = {
         int(edge["selection"]["stable_item_index"]): edge
         for edge in root_edges
@@ -54,9 +75,16 @@ def compare_graph(graph: dict[str, Any], expected: dict[str, Any]) -> dict[str, 
     lower_id = int(expected["lower_stable_item_index"])
     higher_id = int(expected["higher_stable_item_index"])
     if lower_id not in by_item or higher_id not in by_item:
-        raise ValueError(
-            f"preregistered pair absent from B3 root: {lower_id}, {higher_id}"
-        )
+        return {
+            "target_id": expected["target_id"],
+            "case_id": graph["case_id"],
+            "root_step": graph["root_step"],
+            "stream_variant": graph["provenance"]["scenario_axes"]["stream_variant"],
+            "status": "sibling_pair_absent",
+            "stable": False,
+            "required_item_indices": [lower_id, higher_id],
+            "available_item_indices": sorted(by_item),
+        }
     lower_edge, higher_edge = by_item[lower_id], by_item[higher_id]
     lower_node = nodes[lower_edge["target"]]
     higher_node = nodes[higher_edge["target"]]
@@ -77,6 +105,7 @@ def compare_graph(graph: dict[str, Any], expected: dict[str, Any]) -> dict[str, 
         "stream_variant": graph["provenance"]["scenario_axes"]["stream_variant"],
         "b2_relation": expected_relation,
         "b3_relation": relation,
+        "status": "compared",
         "stable": relation == expected_relation,
         "lower_best_continuation": lower_best,
         "higher_best_continuation": higher_best,
@@ -120,6 +149,12 @@ def render_markdown(report: dict[str, Any]) -> str:
         "", "| Target | Variant | Case | B2 | B3 | Stable |", "|---|---|---|---|---|---|",
     ]
     for row in report["targets"]:
+        if row["status"] != "compared":
+            lines.append(
+                f"| {row['target_id']} | {row['stream_variant']} | {row['case_id']} | "
+                f"unavailable | {row['status']} | no |"
+            )
+            continue
         lines.append(
             f"| {row['target_id']} | {row['stream_variant']} | {row['case_id']} | "
             f"{row['b2_relation']} | {row['b3_relation']} | "

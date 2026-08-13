@@ -62,7 +62,8 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("--branch-factor 3", text)
         self.assertIn("--max-nodes 40", text)
         self.assertIn("compare_counterfactual_branch_width.py", text)
-        self.assertNotIn("continue-on-error: true", text)
+        self.assertIn("Enforce the preregistered stability gate", text)
+        self.assertIn("if: steps.compare.outcome != 'success'", text)
 
 
 if __name__ == "__main__":

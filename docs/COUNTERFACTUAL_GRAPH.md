@@ -284,3 +284,11 @@ rebuilds the erroneous roots at H3/B3. It asks whether B2's optimistic
 continuation relation is stable when branch coverage grows. Roots, streams,
 seed, axes, simulator, and strict reconstruction tolerances remain fixed; any
 direction change makes branch-width label stability unresolved.
+
+Actions run `31670257775` completed all four H3/B3 physical graphs but failed
+that gate for a more fundamental reason: only one target pair was directly
+comparable and retained its relation. Two B2 depth-1 parent paths and one B2
+root sibling pair were absent after widening because the top-B candidate set
+changed. Consequently, these B2 errors are not stable supervised examples
+under a wider search. A valid next collector must force the preregistered
+parent path and sibling pair, then widen only their continuation subtrees.

@@ -106,6 +106,8 @@ jobs:
           pattern: branch-width-*
           path: reports/branch-width/downloads
       - name: Compare B2 and B3 continuation relations
+        id: compare
+        continue-on-error: true
         run: >-
           python scripts/compare_counterfactual_branch_width.py
           --root reports/branch-width/downloads
@@ -118,3 +120,6 @@ jobs:
         with:
           name: branch-width-stability
           path: reports/branch-width/aggregate/
+      - name: Enforce the preregistered stability gate
+        if: steps.compare.outcome != 'success'
+        run: exit 1
