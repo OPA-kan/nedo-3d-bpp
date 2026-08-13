@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "stream_variant_collection_preregistered_not_run",
+  "status": "stream_variant_independence_passed_model_gate_failed",
   "hypothesis": "The replication error is associated with sparse support in physical afterstate feature space within a known scenario, rather than an unseen scenario axis.",
   "sealed_evaluation_run_ids": [
     "31598349094",
@@ -43,6 +43,29 @@
     },
     "decision": "Run the collection independence audit before any model evaluation. If the gate fails, do not add these rows to training or alter the threshold."
   },
+  "partial_collection_recovery_contract": {
+    "status": "preregistered_before_teacher_label_inspection",
+    "admission_unit": "An individual graph artifact that completed strict root reconstruction and graph validation.",
+    "exclusion_rule": "Exclude only missing or failed graphs by workflow step status; never inspect continuation labels to select a graph.",
+    "coverage_rule": "The union must include all eight base scenario labels and report every missing variant-scenario cell.",
+    "independence_gate": {
+      "minimum_unique_late_signatures": 12,
+      "minimum_unique_fraction": 0.75
+    },
+    "model_rule": "Do not fit or score a model unless graph-level recovery passes coverage and independence gates. A recovered collection does not change the FAIL status of either source workflow run."
+  },
+  "stream_variant_result": {
+    "workflow_runs": {
+      "source-001": {"run_id": "31658418482", "workflow_status": "fail", "admitted_graph_conditions": 7, "excluded": ["dual-full-stream: strict root reconstruction mismatch"]},
+      "reverse-000": {"run_id": "31658420380", "workflow_status": "success", "admitted_graph_conditions": 8, "excluded": []},
+      "interleave": {"run_id": "31658422923", "workflow_status": "fail", "admitted_graph_conditions": 8, "excluded": ["dual-empty step 15: strict root reconstruction mismatch"]}
+    },
+    "recovery_note": "Only graph artifacts that had already completed strict root reconstruction and graph validation were admitted. Labels were not used for admission, and failed workflow runs remain failed.",
+    "scenario_union_coverage": "all eight base scenario labels",
+    "discovery": {"directional_rows": 30, "unique_afterstate_signatures": 28, "unique_fraction": 0.9333333333333333, "cross_run_duplicate_groups": 0},
+    "late": {"directional_rows": 14, "unique_afterstate_signatures": 14, "unique_fraction": 1.0, "cross_run_duplicate_groups": 0},
+    "independence_gate": "pass"
+  },
   "model_contract": {
     "axis": "fill_score_proxy",
     "predictor": "unchanged consensus of fixed-L2 packed-only and packed-plus-visible no-intercept ridges",
@@ -55,6 +78,19 @@
     "minimum_supported_fraction": 0.75,
     "maximum_supported_errors": 0,
     "comparison": "must not make more supported-row errors than the unchanged ungated consensus or action geometry"
+  },
+  "development_model_result": {
+    "unchanged_support_gated_consensus": {"directional_rows": 14, "covered_rows": 9, "coverage": 0.6428571428571429, "correct_on_covered": 6, "errors_on_covered": 3, "gate": "fail"},
+    "representation_audit": {"attempted_representations": 11, "best_correct": 10, "directional_rows": 14, "zero_error_representation_found": false, "gate": "fail"},
+    "decision": "Do not refreeze, confirm, shadow, or move to H5. Test teacher-label stability under wider H3 branching before adding model capacity."
+  },
+  "branch_width_followup": {
+    "status": "preregistered_not_run",
+    "hypothesis": "Some residual representation errors are caused by B2 optimistic continuation labels being under-sampled, rather than by an insufficient state representation alone.",
+    "intervention": "Rebuild the erroneous stream-variant roots at H3/B3 while holding stream, root snapshot, environment seed, simulator, score axes, and reconstruction tolerance fixed.",
+    "primary_measure": "Whether the directional fill_score_proxy relation for each matched sibling pair agrees between B2 and B3.",
+    "admission": "Every B3 graph must pass the existing strict root reconstruction and graph validation contracts; no tolerance changes and no label-conditioned exclusions.",
+    "decision_rule": "If any tested directional relation changes, treat B2 label stability as unresolved and expand branch-width coverage before model work. If all relations are stable, retain H3/B2 labels and investigate richer state interactions without opening sealed confirmation data."
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

@@ -232,6 +232,25 @@ H3/B2. Admission requires at least 12 unique directional late signatures and
 at least 75% unique fraction. The default `original` builder remains exactly
 backward compatible. Run the independence audit before fitting anything.
 
+That collection now passes independence but not the model gate. Actions runs
+`31658418482`, `31658420380`, and `31658422923` supplied 30 directional
+discovery rows with 28 unique signatures (93.3%) and 14/14 unique directional
+late signatures, with no cross-run duplicate groups. The source-001 and
+interleave workflows remain FAIL because one root reconstruction failed in
+each; only already validated graph artifacts were recovered under the
+preregistered graph-level rule, without looking at labels, and their union
+still covers all eight scenario labels. Do not describe those workflows as
+passing.
+
+The unchanged support-gated consensus then covered only 9/14 variant-held-out
+late rows (64.3%) and made three errors, so it failed both coverage and
+zero-error requirements. Eleven declared alternatives were audited without
+sealed confirmation data. Height grids and their kNN variants reached at most
+10/14; no zero-error representation exists in this audit. Do not refreeze or
+confirm. The next preregistered question keeps H3 fixed and widens only the
+erroneous roots from B2 to B3, testing whether optimistic continuation labels
+are stable before spending capacity on a richer model or opening H5.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

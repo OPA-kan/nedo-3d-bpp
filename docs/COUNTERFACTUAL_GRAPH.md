@@ -262,3 +262,25 @@ variant remains byte-compatible. Variant provenance is carried through config,
 graph scenario axes, and teacher rows. No model evaluation is allowed unless
 the collection first supplies at least 12 unique directional late signatures
 at a unique fraction of at least 75%.
+
+The stream intervention passed that admission gate. Across source-001,
+reverse-000, and interleave, the graph-level recovered corpus has 28/30 unique
+discovery signatures and 14/14 unique late signatures, with no cross-run
+duplicate groups. Recovery admitted only graph artifacts that had already
+passed strict reconstruction and validation; source-001 run `31658418482` and
+interleave run `31658422923` still have failed workflow status, while
+reverse-000 run `31658420380` passed completely.
+
+Independence did not rescue the predictor. Holding out each stream variant in
+full, the unchanged support-gated consensus covered 9/14 directional late
+rows and was correct on 6/9. A declared audit of pooled summaries,
+per-container summaries, 4x4 and 8x8 height grids, feature combinations, and
+grid kNN variants found a best result of 10/14 and no zero-error
+representation. Results are in `stream-variant-development.md` and
+`spatial-representation-development.md`. The policy therefore remains closed.
+
+Before changing the model or expanding to H5, the next preregistered test
+rebuilds the erroneous roots at H3/B3. It asks whether B2's optimistic
+continuation relation is stable when branch coverage grows. Roots, streams,
+seed, axes, simulator, and strict reconstruction tolerances remain fixed; any
+direction change makes branch-width label stability unresolved.
