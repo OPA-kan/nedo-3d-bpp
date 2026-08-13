@@ -236,7 +236,7 @@
     }
   },
   "h4_b3_teacher_pilot": {
-    "status": "preregistered_before_collection",
+    "status": "failed_symmetric_support_gate",
     "hypothesis": "H4/B3 supplies enough continuation support and removes depth-three label censoring to justify a new teacher standard.",
     "stream_variant": "reverse-000",
     "environment_seed": 42,
@@ -244,7 +244,41 @@
     "graph_contract": "Horizon 4, branch factor 3, maximum 121 nodes and 120 edges, attempt budget 1536, unchanged strict replay tolerance.",
     "admission": "All individually completed graphs that pass strict root reconstruction and graph validation; no label-conditioned exclusions.",
     "acceptance": "At least 12 unique directional late signatures, zero conflicting signatures, and at least 75% of late signatures with two or more continuation values on both afterstates.",
-    "decision": "Passing only permits multi-stream H4 development collection. It is not an agent or a score-gain claim."
+    "decision": "Passing only permits multi-stream H4 development collection. It is not an agent or a score-gain claim.",
+    "result": {
+      "actions_run_id": "31688879334",
+      "workflow_status": "success",
+      "conditions_completed": 8,
+      "graphs_completed": 21,
+      "unique_directional_late_signatures": 16,
+      "conflicting_signature_groups": 0,
+      "symmetric_support_signatures": 9,
+      "symmetric_support_coverage": 0.5625,
+      "gate": "fail",
+      "decision": "Do not expand the H4 optimistic-max corpus or freeze an agent."
+    },
+    "matched_continuation_negative_control": {
+      "matched_pairs": 400,
+      "unique_signatures": 81,
+      "equal_signatures": 78,
+      "directional_signatures": 3,
+      "directional_signatures_with_two_or_more_common_paths": 0,
+      "decision": "Matching identical continuation item sequences removes opportunity bias but collapses the directional teacher signal."
+    },
+    "h3_h4_overlap": {
+      "discovery_overlapping_signatures": 16,
+      "changed_relations": 1,
+      "late_overlapping_signatures": 0,
+      "interpretation": "H4 adds new support but does not make optimistic-max labels depth-invariant."
+    }
+  },
+  "uncapped_feasible_item_followup": {
+    "status": "hypothesis_selected_before_extractor_implementation",
+    "hypothesis": "The count and volume of visible items having at least one physically feasible placement is a depth-independent residual-space value target.",
+    "reason": "Top-three child count saturates at either zero or three, while late H4 states show meaningful candidate-loss risk (41 of 186 non-leaf states have zero children).",
+    "required_measurement": "For every admitted afterstate, enumerate each visible stable item through the unchanged physical candidate provider and record whether any candidate survives; do not cap the number of items at branch width.",
+    "target_axes": ["feasible_visible_item_count", "feasible_visible_item_volume", "feasible_priority_count", "feasible_soft_count"],
+    "stop_rule": "Do not call this an agent or score improvement until an independently frozen selector improves fresh physical trajectories."
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

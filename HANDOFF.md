@@ -333,6 +333,19 @@ preregistered step is one reverse-000 H4/B3 eight-condition pilot; it must
 produce at least 12 unique directional late signatures, no conflicts, and
 75% symmetric continuation support before broader H4 collection.
 
+The reverse-000 H4/B3 pilot completed all eight conditions and 21 graphs as
+Actions `31688879334`. It passed count and consistency (16 unique directional
+late signatures, zero conflicts) but failed symmetric continuation support at
+9/16 (56.2%). Do not expand optimistic-max H4 teachers. Matching identical
+continuation item sequences removed opportunity bias but collapsed signal:
+78 of 81 unique signatures were equal and the three directional signatures
+each had only one common path. H3/H4 also changed one of 16 overlapping
+discovery signatures. The selected next target is therefore depth-independent:
+for each afterstate, exhaust visible items and count/volume those with at least
+one physical candidate, without the graph's top-three item cap. Existing H4
+states show candidate-loss signal (41 of 186 late non-leaf states have zero
+children), while ordinary child count otherwise saturates at three.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;
