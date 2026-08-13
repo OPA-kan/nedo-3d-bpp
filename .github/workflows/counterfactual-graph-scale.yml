@@ -24,7 +24,7 @@ on:
         options:
           - "2"
           - "3"
-        default: "2"
+        default: "3"
       graph_horizon:
         description: "Physical graph horizon (H4 is pilot-only)"
         type: choice
@@ -140,7 +140,7 @@ jobs:
         if: ${{ inputs.measurement_only != true }}
         shell: bash
         run: |
-          branch_factor="${{ inputs.graph_branch_factor || '2' }}"
+          branch_factor="${{ inputs.graph_branch_factor || '3' }}"
           horizon="${{ inputs.graph_horizon || '3' }}"
           if [[ "$horizon" == "4" ]]; then
             test "$branch_factor" == "3"
@@ -247,7 +247,7 @@ jobs:
           --signal reports/counterfactual-graph-scale/aggregate/signal.json
           --graph-root reports/counterfactual-graph-scale/downloads
           --expected-horizon ${{ inputs.graph_horizon || '3' }}
-          --expected-branch-factor ${{ inputs.graph_branch_factor || '2' }}
+          --expected-branch-factor ${{ inputs.graph_branch_factor || '3' }}
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
       - name: Evaluate the first late-root learning baseline
         run: >-
@@ -275,8 +275,11 @@ jobs:
           python -c "import json,pathlib;
           p=pathlib.Path('reports/counterfactual-graph-scale/aggregate/teacher-pairs/manifest.json');
           m=json.loads(p.read_text());
-          assert m['schema_version'] >= 4;
-          assert m['rows_with_paired_afterstate_tensors'] == m['informative_pair_rows']"
+          assert m['schema_version'] >= 5;
+          assert m['rows_with_paired_afterstate_tensors'] == m['informative_pair_rows'];
+          assert m['rows_with_paired_continuation_distributions'] > 0;
+          assert m['distributional_rows_with_paired_afterstate_tensors'] == m['rows_with_paired_continuation_distributions'];
+          assert m['distributional_training_ready']"
       - run: cat reports/counterfactual-graph-scale/aggregate/summary.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/signal.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/baseline.md >> "$GITHUB_STEP_SUMMARY"

@@ -28,13 +28,17 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("graph_branch_factor:", text)
         self.assertIn("graph_horizon:", text)
         self.assertIn("measurement_only:", text)
-        self.assertIn('branch_factor="${{ inputs.graph_branch_factor || \'2\' }}"', text)
+        self.assertIn('branch_factor="${{ inputs.graph_branch_factor || \'3\' }}"', text)
         self.assertIn('horizon="${{ inputs.graph_horizon || \'3\' }}"', text)
         self.assertIn('if [[ "$horizon" == "4" ]]', text)
         self.assertIn("max_nodes=121", text)
         self.assertIn('--horizon "$horizon"', text)
         self.assertIn("--expected-horizon ${{ inputs.graph_horizon || '3' }}", text)
         self.assertIn("--expected-branch-factor", text)
+        self.assertIn(
+            "--expected-branch-factor ${{ inputs.graph_branch_factor || '3' }}",
+            text,
+        )
         self.assertIn("scripts/measure_uncapped_feasible_items.py", text)
         self.assertIn("--item-scope all-visible", text)
         self.assertIn("--item-scope live-cap", text)
@@ -53,6 +57,7 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
             "evaluate_counterfactual_teacher_frozen_policy.py", text
         )
         self.assertIn("aggregate/teacher-pairs", text)
+        self.assertIn("distributional_training_ready", text)
         self.assertIn("pip install -r requirements.txt", text)
         self.assertIn(
             "--policy reports/counterfactual-teacher-discovery/policy.json",

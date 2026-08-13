@@ -21,11 +21,20 @@ def row(name: str, graph: str, delta: float, relation: str) -> dict:
     return {
         "teacher_id": name,
         "graph_id": graph,
+        "equal_immediate_score": False,
         "lower_action_tensor": action(-0.3, 1.0),
         "higher_action_tensor": action(0.3, 2.0),
         "lower_afterstate_tensor": lower,
         "higher_afterstate_tensor": higher,
         "continuation_labels": {
+            metric: {"relation": relation}
+            for metric in (
+                "placed_count", "fill_score_proxy", "com_z",
+                "surface_total_variation", "priority_misrouted",
+                "soft_covered_by_other",
+            )
+        },
+        "distributional_continuation_labels": {
             metric: {"relation": relation}
             for metric in (
                 "placed_count", "fill_score_proxy", "com_z",
@@ -77,6 +86,31 @@ class CounterfactualAfterstateValueTests(unittest.TestCase):
             "equal",
         )
 
+    def test_loader_uses_dedicated_distributional_splits(self) -> None:
+        optimistic = row("old", "g", 0.2, "lower_afterstate_better")
+        distributional = row("new", "g", 0.2, "higher_afterstate_better")
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "manifest.json").write_text(
+                json.dumps({"schema_version": 5, "source_run_id": "r"}),
+                encoding="utf-8",
+            )
+            for name, value in (
+                ("discovery", optimistic), ("late_holdout", optimistic),
+                ("distributional_discovery", distributional),
+                ("distributional_late_holdout", distributional),
+            ):
+                (root / f"{name}.jsonl").write_text(
+                    json.dumps(value) + "\n", encoding="utf-8"
+                )
+
+            loaded = load_run(
+                root, label_family="distributional_continuation_labels"
+            )
+
+        self.assertEqual(loaded["discovery"][0]["teacher_id"], "new")
+        self.assertEqual(loaded["late"][0]["teacher_id"], "new")
+
     def test_state_delta_negates_when_afterstates_are_swapped(self) -> None:
         example = row("x", "g", 0.2, "higher_afterstate_better")
         forward = _state_delta(example)
@@ -106,6 +140,37 @@ class CounterfactualAfterstateValueTests(unittest.TestCase):
         selective = report["fill_selective_consensus"]
         self.assertIn("retrospective", selective["selection_warning"])
         self.assertEqual(selective["late_retrospective"]["total"], 2)
+
+    def test_can_evaluate_distributional_pessimistic_label_family(self) -> None:
+        report = evaluate(
+            [run("1"), run("2")],
+            label_family="distributional_continuation_labels",
+        )
+
+        self.assertEqual(
+            report["label_family"], "distributional_continuation_labels"
+        )
+        self.assertIn("uniform-searched-action", report["target"])
+        self.assertEqual(
+            report["pooled_exact_counts"]["fill_score_proxy"]["afterstate"],
+            {"correct": 2, "total": 2},
+        )
+
+    def test_equal_immediate_score_abstains_in_distributional_baseline(self) -> None:
+        runs = [run("1"), run("2")]
+        for item in runs:
+            item["late"][0]["equal_immediate_score"] = True
+        report = evaluate(
+            runs, label_family="distributional_continuation_labels"
+        )
+
+        immediate = report["pooled_exact_counts"]["fill_score_proxy"][
+            "immediate_score"
+        ]
+        self.assertEqual(immediate, {"correct": 0, "total": 2})
+        self.assertEqual(
+            report["immediate_score_abstentions"]["fill_score_proxy"], 2
+        )
 
     def test_rejects_duplicate_run_ids(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):

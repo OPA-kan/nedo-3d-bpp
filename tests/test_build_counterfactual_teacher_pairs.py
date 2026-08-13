@@ -8,11 +8,69 @@ import unittest
 from scripts.build_counterfactual_teacher_pairs import (
     build_teacher_corpus,
     continuation_labels,
+    distributional_continuation_labels,
     join_afterstate_tensors,
 )
 
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
+    def test_distributional_labels_use_search_policy_pessimistic_quantile(self):
+        def sample(fill, reason=None):
+            return {
+                "outcomes": {
+                    "placed_count": 1,
+                    "fill_score_proxy": fill,
+                    "com_z": 0.0,
+                    "surface_total_variation": 0.0,
+                    "priority_misrouted": 0,
+                    "soft_covered_by_other": 0,
+                },
+                "terminal_reason": reason,
+            }
+
+        labels = distributional_continuation_labels({
+            "lower_continuation_samples": [
+                sample(0.0, "physical_failure"), sample(4.0), sample(4.0),
+            ],
+            "higher_continuation_samples": [
+                sample(2.0), sample(2.0), sample(2.0),
+            ],
+        })
+
+        fill = labels["fill_score_proxy"]
+        self.assertEqual(fill["relation"], "higher_afterstate_better")
+        self.assertEqual(fill["lower_mean"], 8.0 / 3.0)
+        self.assertEqual(fill["lower_pessimistic_quantile"], 0.0)
+        self.assertEqual(fill["higher_pessimistic_quantile"], 2.0)
+        self.assertEqual(fill["lower_physical_failure_rate"], 1.0 / 3.0)
+        self.assertEqual(fill["higher_physical_failure_rate"], 0.0)
+
+    def test_distributional_labels_respect_nonuniform_path_weights(self):
+        def sample(fill, weight, reason="horizon"):
+            return {
+                "outcomes": {
+                    "placed_count": 1, "fill_score_proxy": fill,
+                    "com_z": 0.0, "surface_total_variation": 0.0,
+                    "priority_misrouted": 0, "soft_covered_by_other": 0,
+                },
+                "terminal_reason": reason,
+                "search_policy_weight": weight,
+            }
+
+        labels = distributional_continuation_labels({
+            "lower_continuation_samples": [
+                sample(0.0, 0.75, "physical_failure"),
+                sample(8.0, 0.25),
+            ],
+            "higher_continuation_samples": [sample(3.0, 1.0)],
+        })
+
+        fill = labels["fill_score_proxy"]
+        self.assertEqual(fill["lower_mean"], 2.0)
+        self.assertEqual(fill["lower_pessimistic_quantile"], 0.0)
+        self.assertEqual(fill["lower_physical_failure_rate"], 0.75)
+        self.assertEqual(fill["relation"], "higher_afterstate_better")
+
     def test_rejects_mixed_or_wrong_branch_width_teacher_sources(self):
         signal = {"horizons": [3], "branch_factors": [2, 3], "graphs": []}
         with self.assertRaisesRegex(ValueError, "branch factor 3"):
@@ -115,6 +173,14 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
             "surface_total_variation": 0.0, "priority_misrouted": 0,
             "soft_covered_by_other": 0,
         }]
+        pair["lower_continuation_samples"] = [{
+            "outcomes": pair["lower_continuation_outcome_vectors"][0],
+            "terminal_reason": "horizon",
+        }]
+        pair["higher_continuation_samples"] = [{
+            "outcomes": pair["higher_continuation_outcome_vectors"][0],
+            "terminal_reason": "horizon",
+        }]
         pair["lower_reachable_outcome_vectors"] = [{
             "placed_count": 3, "fill_score_proxy": 12.0, "com_z": 0.5,
             "surface_total_variation": 0.01, "priority_misrouted": 0,
@@ -143,7 +209,7 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         self.assertEqual(manifest["late_holdout_rows"], 1)
         self.assertEqual(manifest["discovery_rows"], 1)
         self.assertTrue(manifest["model_training_ready"])
-        self.assertEqual(manifest["schema_version"], 4)
+        self.assertEqual(manifest["schema_version"], 5)
         self.assertEqual(
             manifest["joint_pareto_relation_counts_on_training_rows"]
             ["lower_reachable_set_dominates"],
@@ -151,6 +217,10 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         )
         self.assertEqual(manifest["rows_with_paired_action_tensors"], 2)
         self.assertEqual(manifest["rows_with_paired_afterstate_tensors"], 2)
+        self.assertTrue(manifest["distributional_training_ready"])
+        self.assertEqual(
+            manifest["rows_with_paired_continuation_distributions"], 2
+        )
         self.assertEqual(
             manifest["continuation_directional_counts"]["placed_count"], 2
         )
@@ -188,6 +258,41 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         self.assertEqual(manifest["informative_pair_rows"], 0)
         self.assertFalse(manifest["model_training_ready"])
         self.assertEqual(len(buckets["controls"]), 1)
+
+    def test_distributional_split_keeps_signal_hidden_by_equal_maximum(self):
+        metrics = {
+            "placed_count": 0, "fill_score_proxy": 0.0, "com_z": 0.0,
+            "surface_total_variation": 0.0, "priority_misrouted": 0,
+            "soft_covered_by_other": 0,
+        }
+        pair = {
+            "source_node_id": "n", "source_depth": 0, "score_gap": 0.0,
+            "equal_immediate_score": True, "lower_stable_item_index": 1,
+            "higher_stable_item_index": 2,
+            "comparisons": {
+                metric: {"lower_range": [0, 1], "higher_range": [0, 1]}
+                for metric in metrics
+            },
+            "lower_continuation_samples": [
+                {"outcomes": metrics, "terminal_reason": "physical_failure"}
+            ],
+            "higher_continuation_samples": [{
+                "outcomes": {**metrics, "fill_score_proxy": 1.0},
+                "terminal_reason": "horizon",
+            }],
+            "lower_reachable_outcome_vectors": [metrics],
+            "higher_reachable_outcome_vectors": [metrics],
+        }
+        signal = {"graphs": [{
+            "graph_id": "g", "case_id": "c", "root_step": 6,
+            "scenario_axes": {}, "sibling_pairs": [pair],
+        }]}
+
+        manifest, buckets = build_teacher_corpus(signal)
+
+        self.assertEqual(len(buckets["controls"]), 1)
+        self.assertEqual(len(buckets["distributional_discovery"]), 1)
+        self.assertEqual(manifest["distributional_discovery_rows"], 1)
 
 
 if __name__ == "__main__":

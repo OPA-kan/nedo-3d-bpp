@@ -152,6 +152,53 @@ def _continuation_outcome_vectors(
     return vectors
 
 
+def _continuation_samples(
+    paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
+    afterstate: dict[str, Any],
+    outgoing: dict[str, list[dict[str, Any]]],
+    *,
+    horizon: int,
+) -> list[dict[str, Any]]:
+    """Preserve one continuation sample per searched leaf, including failures.
+
+    Unlike ``_continuation_outcome_vectors``, this intentionally retains
+    duplicate outcomes. Each sample carries the probability induced by
+    choosing uniformly among the searched children at every future node.
+    This is a declared search policy, not an environment probability.
+    """
+    baseline = afterstate.get("cumulative_outcomes", {})
+    samples = []
+    for edges, leaf in paths:
+        outcomes = leaf.get("cumulative_outcomes", {})
+        if not all(
+            metric in outcomes and metric in baseline
+            for metric in METRIC_DIRECTIONS
+        ):
+            continue
+        reason = leaf.get("terminal_reason")
+        if reason is None and int(leaf.get("depth", 0)) >= horizon:
+            reason = "horizon"
+        search_policy_weight = 1.0
+        for edge in edges:
+            branch_count = len(outgoing.get(edge["source"], []))
+            if branch_count:
+                search_policy_weight /= branch_count
+        samples.append({
+            "leaf_node_id": leaf.get("node_id"),
+            "terminal_reason": reason or "open_leaf",
+            "path_stable_item_indices": [
+                edge.get("selection", {}).get("stable_item_index")
+                for edge in edges
+            ],
+            "search_policy_weight": search_policy_weight,
+            "outcomes": {
+                metric: outcomes[metric] - baseline[metric]
+                for metric in METRIC_DIRECTIONS
+            },
+        })
+    return samples
+
+
 def _ranges_differ(comparisons: dict[str, Any]) -> bool:
     return any(
         row["lower_range"] != row["higher_range"]
@@ -164,6 +211,7 @@ def _summarize_sibling_pair(
     nodes: dict[str, dict[str, Any]],
     outgoing: dict[str, list[dict[str, Any]]], *,
     include_afterstate_tensors: bool,
+    horizon: int,
 ) -> dict[str, Any]:
         lower_paths = _leaf_paths(lower["target"], nodes, outgoing)
         higher_paths = _leaf_paths(higher["target"], nodes, outgoing)
@@ -178,6 +226,12 @@ def _summarize_sibling_pair(
         )
         higher_continuation_vectors = _continuation_outcome_vectors(
             higher_paths, higher_afterstate
+        )
+        lower_continuation_samples = _continuation_samples(
+            lower_paths, lower_afterstate, outgoing, horizon=horizon
+        )
+        higher_continuation_samples = _continuation_samples(
+            higher_paths, higher_afterstate, outgoing, horizon=horizon
         )
         score_gap = float(higher["selection"]["score"]) - float(
             lower["selection"]["score"]
@@ -211,6 +265,8 @@ def _summarize_sibling_pair(
             "higher_reachable_outcome_vectors": higher_vectors,
             "lower_continuation_outcome_vectors": lower_continuation_vectors,
             "higher_continuation_outcome_vectors": higher_continuation_vectors,
+            "lower_continuation_samples": lower_continuation_samples,
+            "higher_continuation_samples": higher_continuation_samples,
             "score_gap": score_gap,
             "equal_immediate_score": score_gap == 0.0,
             "downstream_ranges_differ": _ranges_differ(comparisons),
@@ -255,6 +311,7 @@ def summarize_graph_signal(
             sibling_row = _summarize_sibling_pair(
                 source_id, lower, higher, nodes, outgoing,
                 include_afterstate_tensors=include_afterstate_tensors,
+                horizon=horizon,
             )
             sibling_rows.append(sibling_row)
             for metric, comparison in sibling_row["comparisons"].items():

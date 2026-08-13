@@ -301,3 +301,46 @@ proves that B2 optimistic continuation can manufacture directional training
 labels from insufficient branch coverage. New state-value training data must
 therefore be generated directly at H3/B3, kept separate from B2 targets, and
 validated by whole-stream holdout before policy integration.
+
+## Distributional afterstate teachers
+
+Schema v5 replaces the optimistic maximum as the new experimental teacher
+without deleting the schema-v4 label. Every physical continuation leaf is
+retained, including duplicate outcomes and its terminal reason. A declared
+search policy chooses uniformly among the searched actions at each future
+node; path weights are the product of those conditional probabilities. These
+weights describe the bounded search only and must not be interpreted as
+calibrated arrival-stream or environment probabilities.
+
+For each outcome axis, `distributional_continuation_labels` records the
+search-policy-weighted mean, a pessimistic quantile (q25 for maximized axes and
+q75 for minimized axes), and physical-failure rates for both sibling
+afterstates. The comparison is lexicographic: pessimistic quantile, then lower
+physical-failure rate, then mean. Axes remain separate. This removes the
+single lucky-leaf target that changed under B2/B3 coverage while preserving
+the existing optimistic label as a negative control.
+
+The scale workflow now defaults to H3/B3. Export is rejected unless every
+informative pair has both physical afterstate tensors and both continuation
+distributions. Cross-run evaluation uses the existing whole-run holdout and
+permuted-afterstate control:
+
+The dedicated `distributional_discovery.jsonl` and
+`distributional_late_holdout.jsonl` splits include directional distribution
+comparisons even when the old optimistic maxima or immediate scores are tied.
+The schema-v4-compatible `discovery.jsonl`, `late_holdout.jsonl`, and
+`controls.jsonl` retain their previous membership.
+
+```bash
+python scripts/evaluate_counterfactual_afterstate_value.py \
+  --teacher-dir <run-a>/teacher-pairs \
+  --teacher-dir <run-b>/teacher-pairs \
+  --label-family distributional_continuation_labels \
+  --json-output reports/counterfactual-afterstate-value/distributional.json \
+  --markdown-output reports/counterfactual-afterstate-value/distributional.md
+```
+
+This is a dataset and learnability gate, not a live selector. Cap 10, physical
+feasibility, and the final holdout remain unchanged. A model may advance only
+after whole-stream held-out improvement over immediate score and action
+geometry; episode-level confirmation is a later, separate gate.

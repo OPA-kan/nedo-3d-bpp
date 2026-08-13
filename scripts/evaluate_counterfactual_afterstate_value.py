@@ -25,6 +25,10 @@ except ModuleNotFoundError:  # direct script execution
 
 
 DIRECTIONAL = ("lower_afterstate_better", "higher_afterstate_better")
+LABEL_FAMILIES = (
+    "continuation_labels",
+    "distributional_continuation_labels",
+)
 METRICS = (
     "placed_count",
     "fill_score_proxy",
@@ -35,18 +39,34 @@ METRICS = (
 )
 
 
-def load_run(path: pathlib.Path) -> dict[str, Any]:
+def load_run(
+    path: pathlib.Path, *, label_family: str = "continuation_labels",
+) -> dict[str, Any]:
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
     if int(manifest.get("schema_version", 0)) < 4:
         raise ValueError(f"afterstate tensors require schema v4: {path}")
-    discovery = _read_jsonl(path / "discovery.jsonl")
-    late = _read_jsonl(path / "late_holdout.jsonl")
+    if label_family not in LABEL_FAMILIES:
+        raise ValueError(f"unsupported label family: {label_family}")
+    if label_family == "distributional_continuation_labels":
+        if int(manifest.get("schema_version", 0)) < 5:
+            raise ValueError(f"distributional splits require schema v5: {path}")
+        discovery_name = "distributional_discovery.jsonl"
+        late_name = "distributional_late_holdout.jsonl"
+    else:
+        discovery_name = "discovery.jsonl"
+        late_name = "late_holdout.jsonl"
+    discovery = _read_jsonl(path / discovery_name)
+    late = _read_jsonl(path / late_name)
     for row in discovery + late:
         for metric, label in row.get("continuation_labels", {}).items():
             if metric in (
                 "placed_count", "priority_misrouted",
                 "soft_covered_by_other",
             ):
+                continue
+            if not {
+                "lower_best_continuation", "higher_best_continuation"
+            }.issubset(label):
                 continue
             if math.isclose(
                 float(label["lower_best_continuation"]),
@@ -122,10 +142,13 @@ def _features(
     return values
 
 
-def _eligible(rows: list[dict[str, Any]], metric: str) -> list[dict[str, Any]]:
+def _eligible(
+    rows: list[dict[str, Any]], metric: str, *,
+    label_family: str = "continuation_labels",
+) -> list[dict[str, Any]]:
     return [
         row for row in rows
-        if row.get("continuation_labels", {}).get(metric, {}).get("relation")
+        if row.get(label_family, {}).get(metric, {}).get("relation")
         in DIRECTIONAL
     ]
 
@@ -133,8 +156,9 @@ def _eligible(rows: list[dict[str, Any]], metric: str) -> list[dict[str, Any]]:
 def _predict_ridge(
     train: list[dict[str, Any]], test: list[dict[str, Any]], metric: str,
     features: Callable[[dict[str, Any]], list[float]],
+    *, label_family: str = "continuation_labels",
 ) -> dict[str, str]:
-    eligible = _eligible(train, metric)
+    eligible = _eligible(train, metric, label_family=label_family)
     if not eligible:
         return {}
     train_values = [features(row) for row in eligible]
@@ -150,7 +174,7 @@ def _predict_ridge(
     ])
     target = np.asarray([
         1.0
-        if row["continuation_labels"][metric]["relation"]
+        if row[label_family][metric]["relation"]
         == "higher_afterstate_better"
         else -1.0
         for row in eligible
@@ -193,7 +217,12 @@ def _exact_two_sided_sign_p(wins: int, losses: int) -> float:
     return min(1.0, 2.0 * tail)
 
 
-def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
+def evaluate(
+    runs: list[dict[str, Any]], *,
+    label_family: str = "continuation_labels",
+) -> dict[str, Any]:
+    if label_family not in LABEL_FAMILIES:
+        raise ValueError(f"unsupported label family: {label_family}")
     if len(runs) < 2:
         raise ValueError("cross-run evaluation requires at least two runs")
     run_ids = [run["run_id"] for run in runs]
@@ -224,6 +253,7 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         }
         for metric in METRICS
     }
+    immediate_score_abstentions = {metric: 0 for metric in METRICS}
     targets = []
     fill_selective = {
         "discovery_retrospective": {"correct": 0, "covered": 0, "total": 0},
@@ -236,7 +266,9 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
         ]
         axes = {}
         for metric in METRICS:
-            test = _eligible(target_run["late"], metric)
+            test = _eligible(
+                target_run["late"], metric, label_family=label_family
+            )
             feature_sets = {
                 "action_geometry": lambda row: _features(
                     row, include_action=True, include_afterstate=False
@@ -249,20 +281,28 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 ),
             }
             predictions = {
-                name: _predict_ridge(train, test, metric, features)
+                name: _predict_ridge(
+                    train, test, metric, features,
+                    label_family=label_family,
+                )
                 for name, features in feature_sets.items()
             }
             correct = {
                 "immediate_score": sum(
-                    row["continuation_labels"][metric]["relation"]
+                    not row.get("equal_immediate_score", False)
+                    and row[label_family][metric]["relation"]
                     == "higher_afterstate_better"
                     for row in test
                 )
             }
+            abstained = sum(
+                row.get("equal_immediate_score", False) for row in test
+            )
+            immediate_score_abstentions[metric] += abstained
             correct.update({
                 name: sum(
                     prediction.get(row["teacher_id"])
-                    == row["continuation_labels"][metric]["relation"]
+                    == row[label_family][metric]["relation"]
                     for row in test
                 )
                 for name, prediction in predictions.items()
@@ -270,9 +310,12 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             row_correct = {}
             for row in test:
                 teacher_id = row["teacher_id"]
-                actual = row["continuation_labels"][metric]["relation"]
+                actual = row[label_family][metric]["relation"]
                 row_correct[teacher_id] = {
-                    "immediate_score": actual == "higher_afterstate_better",
+                    "immediate_score": (
+                        not row.get("equal_immediate_score", False)
+                        and actual == "higher_afterstate_better"
+                    ),
                     **{
                         name: prediction.get(teacher_id) == actual
                         for name, prediction in predictions.items()
@@ -306,10 +349,11 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
                         row, include_action=False, include_afterstate=True,
                         pair=state_map.get(row["teacher_id"]),
                     ),
+                    label_family=label_family,
                 )
                 value = sum(
                     prediction.get(row["teacher_id"])
-                    == row["continuation_labels"][metric]["relation"]
+                    == row[label_family][metric]["relation"]
                     for row in test
                 )
                 permutation_correct.append(value)
@@ -321,6 +365,7 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             axes[metric] = {
                 "directional_rows": len(test),
                 "correct": correct,
+                "immediate_score_abstained": abstained,
                 "permuted_afterstate_correct": permutation_correct,
             }
         targets.append({
@@ -336,14 +381,19 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             ("discovery", "discovery_retrospective"),
             ("late", "late_retrospective"),
         ):
-            test = _eligible(target_run[split], "fill_score_proxy")
+            test = _eligible(
+                target_run[split], "fill_score_proxy",
+                label_family=label_family,
+            )
             packed = _predict_ridge(
                 train, test, "fill_score_proxy",
                 lambda row: _state_block_delta(row, "packed"),
+                label_family=label_family,
             )
             packed_visible = _predict_ridge(
                 train, test, "fill_score_proxy",
                 lambda row: _state_block_delta(row, "packed_visible"),
+                label_family=label_family,
             )
             for row in test:
                 left = packed[row["teacher_id"]]
@@ -354,7 +404,7 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 fill_selective[report_key]["covered"] += 1
                 fill_selective[report_key]["correct"] += (
                     left
-                    == row["continuation_labels"]["fill_score_proxy"][
+                    == row[label_family]["fill_score_proxy"][
                         "relation"
                     ]
                 )
@@ -380,14 +430,19 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
             }
     return {
         "schema_version": 1,
+        "label_family": label_family,
         "protocol": "train_other_runs_discovery_test_whole_target_run_late",
         "target": (
-            "best bounded-H3 continuation gain from each physical afterstate; "
-            "the first action's H0 outcome is subtracted per axis"
+            "uniform-searched-action pessimistic continuation relation (q25/q75, "
+            "physical-failure rate, then mean) from each physical afterstate"
+            if label_family == "distributional_continuation_labels"
+            else "best bounded-H3 continuation gain from each physical "
+            "afterstate; the first action's H0 outcome is subtracted per axis"
         ),
         "run_ids": run_ids,
         "targets": targets,
         "pooled_exact_counts": totals,
+        "immediate_score_abstentions": immediate_score_abstentions,
         "paired_exact_comparisons": paired_comparisons,
         "permuted_afterstate_negative_control": permutation_summary,
         "fill_selective_consensus": {
@@ -412,8 +467,7 @@ def evaluate(runs: list[dict[str, Any]]) -> dict[str, Any]:
 def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Cross-run physical afterstate-value audit", "",
-        "Targets are best remaining H3 gains after subtracting each child "
-        "state's immediate H0 outcome. Outcome axes remain separate.", "",
+        report["target"] + ". Outcome axes remain separate.", "",
         "| Axis | Rows | Immediate | Action geometry | Afterstate | "
         "Action + afterstate | Permuted afterstate min/median/max |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -431,6 +485,15 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"{permuted['minimum']}/{permuted['median']:g}/"
             f"{permuted['maximum']} |"
         )
+    if any(report.get("immediate_score_abstentions", {}).values()):
+        lines.extend([
+            "", "Immediate-score ties are abstentions, not higher-side "
+            "predictions. They remain in the row denominator; abstentions by "
+            "axis: " + ", ".join(
+                f"{metric}={count}" for metric, count in
+                report["immediate_score_abstentions"].items() if count
+            ) + ".",
+        ])
     lines.extend([
         "", "## Paired exact comparisons", "",
         "Each `W/T/L` is for the model named first. The exact two-sided sign "
@@ -479,8 +542,18 @@ def main() -> int:
     parser.add_argument("--teacher-dir", action="append", type=pathlib.Path, required=True)
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--label-family", choices=LABEL_FAMILIES,
+        default="continuation_labels",
+    )
     args = parser.parse_args()
-    report = evaluate([load_run(path) for path in args.teacher_dir])
+    report = evaluate(
+        [
+            load_run(path, label_family=args.label_family)
+            for path in args.teacher_dir
+        ],
+        label_family=args.label_family,
+    )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

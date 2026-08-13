@@ -114,6 +114,130 @@ def continuation_labels(pair: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return labels
 
 
+def _weighted_quantile(
+    values: list[float], weights: list[float], probability: float,
+) -> float:
+    """Return the left-continuous inverse CDF of a weighted sample."""
+    if not values or len(values) != len(weights):
+        raise ValueError("quantile requires at least one value")
+    ordered = sorted(zip(values, weights), key=lambda pair: pair[0])
+    total = sum(weight for _value, weight in ordered)
+    if total <= 0.0:
+        raise ValueError("quantile weights must have positive sum")
+    threshold = probability * total
+    cumulative = 0.0
+    for value, weight in ordered:
+        cumulative += weight
+        if cumulative + 1e-15 >= threshold:
+            return float(value)
+    return float(ordered[-1][0])
+
+
+def distributional_continuation_labels(
+    pair: dict[str, Any], *, pessimistic_probability: float = 0.25,
+) -> dict[str, dict[str, Any]]:
+    """Compare uniform-searched-action distributions from each afterstate.
+
+    Maximized axes use q25 and minimized axes use q75.  Equal pessimistic
+    values are broken by physical-failure rate and then mean outcome.  These
+    are searched-leaf distributions, not calibrated environment likelihoods.
+    """
+    if not 0.0 <= pessimistic_probability <= 0.5:
+        raise ValueError("pessimistic_probability must be between 0 and 0.5")
+    lower_samples = pair.get("lower_continuation_samples", [])
+    higher_samples = pair.get("higher_continuation_samples", [])
+    if not lower_samples or not higher_samples:
+        return {}
+
+    def normalized_weights(samples: list[dict[str, Any]]) -> list[float]:
+        weights = [float(sample.get("search_policy_weight", 1.0)) for sample in samples]
+        total = sum(weights)
+        if total <= 0.0:
+            raise ValueError("search policy weights must have positive sum")
+        return [weight / total for weight in weights]
+
+    lower_weights = normalized_weights(lower_samples)
+    higher_weights = normalized_weights(higher_samples)
+
+    def failure_rate(
+        samples: list[dict[str, Any]], weights: list[float], reason: str,
+    ) -> float:
+        return sum(
+            weight for sample, weight in zip(samples, weights)
+            if sample.get("terminal_reason") == reason
+        )
+
+    lower_failure = failure_rate(
+        lower_samples, lower_weights, "physical_failure"
+    )
+    higher_failure = failure_rate(
+        higher_samples, higher_weights, "physical_failure"
+    )
+    labels = {}
+    for metric, direction in METRIC_DIRECTIONS.items():
+        lower_values = [
+            float(sample["outcomes"][metric]) for sample in lower_samples
+            if metric in sample.get("outcomes", {})
+        ]
+        higher_values = [
+            float(sample["outcomes"][metric]) for sample in higher_samples
+            if metric in sample.get("outcomes", {})
+        ]
+        if not lower_values or not higher_values:
+            continue
+        probability = (
+            pessimistic_probability if direction > 0
+            else 1.0 - pessimistic_probability
+        )
+        lower_quantile = _weighted_quantile(
+            lower_values, lower_weights, probability
+        )
+        higher_quantile = _weighted_quantile(
+            higher_values, higher_weights, probability
+        )
+        lower_mean = sum(
+            value * weight
+            for value, weight in zip(lower_values, lower_weights)
+        )
+        higher_mean = sum(
+            value * weight
+            for value, weight in zip(higher_values, higher_weights)
+        )
+
+        comparison = direction * (lower_quantile - higher_quantile)
+        if math.isclose(comparison, 0.0, rel_tol=0.0, abs_tol=1e-12):
+            comparison = higher_failure - lower_failure
+        if math.isclose(comparison, 0.0, rel_tol=0.0, abs_tol=1e-12):
+            comparison = direction * (lower_mean - higher_mean)
+        relation = (
+            "equal" if math.isclose(
+                comparison, 0.0, rel_tol=0.0, abs_tol=1e-12
+            )
+            else "lower_afterstate_better" if comparison > 0.0
+            else "higher_afterstate_better"
+        )
+        labels[metric] = {
+            "relation": relation,
+            "pessimistic_probability": pessimistic_probability,
+            "lower_sample_count": len(lower_values),
+            "higher_sample_count": len(higher_values),
+            "search_policy": "uniform_over_searched_actions_at_each_node",
+            "lower_mean": lower_mean,
+            "higher_mean": higher_mean,
+            "lower_pessimistic_quantile": lower_quantile,
+            "higher_pessimistic_quantile": higher_quantile,
+            "lower_physical_failure_rate": lower_failure,
+            "higher_physical_failure_rate": higher_failure,
+            "lower_terminal_reason_counts": dict(collections.Counter(
+                sample.get("terminal_reason") for sample in lower_samples
+            )),
+            "higher_terminal_reason_counts": dict(collections.Counter(
+                sample.get("terminal_reason") for sample in higher_samples
+            )),
+        }
+    return labels
+
+
 def join_afterstate_tensors(
     signal: dict[str, Any], graph_paths: list[pathlib.Path],
 ) -> None:
@@ -188,6 +312,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     teacher_id = "teacher-" + hashlib.sha256(
         json.dumps(identity, sort_keys=True).encode("utf-8")
     ).hexdigest()[:20]
+    distributional_labels = distributional_continuation_labels(pair)
     return {
         "teacher_id": teacher_id,
         "split": (
@@ -211,6 +336,13 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
         "informative_on_recorded_axes": informative,
         "labels": labels,
         "continuation_labels": continuation_labels(pair),
+        "distributional_continuation_labels": distributional_labels,
+        "distributionally_informative_on_recorded_axes": any(
+            label["relation"] in (
+                "lower_afterstate_better", "higher_afterstate_better"
+            )
+            for label in distributional_labels.values()
+        ),
         "joint_pareto": joint_pareto_label(pair),
     }
 
@@ -235,10 +367,16 @@ def build_teacher_corpus(
             "expected only branch factor "
             f"{expected_branch_factor}, found {branch_factors}"
         )
-    buckets = {"discovery": [], "late_holdout": [], "controls": []}
+    buckets = {
+        "discovery": [], "late_holdout": [], "controls": [],
+        "distributional_discovery": [],
+        "distributional_late_holdout": [],
+    }
     for graph in signal["graphs"]:
         for pair in graph["sibling_pairs"]:
             row = teacher_row(graph, pair)
+            if row["distributionally_informative_on_recorded_axes"]:
+                buckets[f"distributional_{row['split']}"].append(row)
             if row["equal_immediate_score"] or not row[
                 "informative_on_recorded_axes"
             ]:
@@ -302,8 +440,27 @@ def build_teacher_corpus(
         )
         for metric in METRIC_DIRECTIONS
     }
+    distributional = (
+        buckets["distributional_discovery"]
+        + buckets["distributional_late_holdout"]
+    )
+    distributional_rows = len(distributional)
+    distributional_afterstate_tensor_rows = sum(
+        isinstance(row.get("lower_afterstate_tensor"), dict)
+        and isinstance(row.get("higher_afterstate_tensor"), dict)
+        for row in distributional
+    )
+    distributional_directional_counts = {
+        metric: sum(
+            row.get("distributional_continuation_labels", {})
+            .get(metric, {}).get("relation")
+            in ("lower_afterstate_better", "higher_afterstate_better")
+            for row in distributional
+        )
+        for metric in METRIC_DIRECTIONS
+    }
     manifest = {
-        "schema_version": 4,
+        "schema_version": 5,
         "source_run_id": signal.get("run_id"),
         "source_commits": signal.get("commits", []),
         "source_horizons": horizons,
@@ -314,6 +471,8 @@ def build_teacher_corpus(
             "Joint Pareto labels separately compare attainable leaf vectors. "
             "Continuation labels compare future gains from physical child "
             "states after subtracting each first action's H0 outcome. "
+            "Distributional continuation labels compare uniform-searched-action q25 "
+            "(or q75 for minimized axes), physical-failure rate, then mean. "
             "Continuous outcomes within absolute tolerance 1e-12 are equal; "
             "discrete outcomes require exact equality."
         ),
@@ -343,6 +502,24 @@ def build_teacher_corpus(
         "action_tensor_contracts": action_tensor_contracts,
         "rows_with_paired_afterstate_tensors": afterstate_tensor_rows,
         "continuation_directional_counts": continuation_directional_counts,
+        "rows_with_paired_continuation_distributions": distributional_rows,
+        "distributional_discovery_rows": len(
+            buckets["distributional_discovery"]
+        ),
+        "distributional_late_holdout_rows": len(
+            buckets["distributional_late_holdout"]
+        ),
+        "distributional_rows_with_paired_afterstate_tensors": (
+            distributional_afterstate_tensor_rows
+        ),
+        "distributional_training_ready": bool(
+            buckets["distributional_discovery"]
+            and buckets["distributional_late_holdout"]
+            and distributional_afterstate_tensor_rows == distributional_rows
+        ),
+        "distributional_continuation_directional_counts": (
+            distributional_directional_counts
+        ),
         "axis_relation_counts_on_training_rows": relations,
         "joint_pareto_relation_counts_on_training_rows": joint_relations,
         "limitations": [
@@ -354,6 +531,7 @@ def build_teacher_corpus(
             "Action tensors retain the official command coordinate frame and join only item fields visible at the source node.",
             "Joint Pareto labels preserve attainable multi-axis leaf vectors and do not combine axes with weights.",
             "Continuation labels subtract each physical child state's H0 outcomes from its leaves, so they supervise future value rather than the immediate action effect.",
+            "Distributional sample weights come from choosing uniformly among searched actions at each future node. They are not calibrated probabilities of future environment outcomes.",
         ],
     }
     return manifest, buckets

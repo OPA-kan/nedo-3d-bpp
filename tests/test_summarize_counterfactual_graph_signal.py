@@ -94,6 +94,16 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
             pair["lower_continuation_outcome_vectors"][0]["fill_score_proxy"],
             0.0,
         )
+        self.assertEqual(
+            pair["higher_continuation_samples"][0]["terminal_reason"],
+            "physical_failure",
+        )
+        self.assertEqual(
+            pair["higher_continuation_samples"][0]["outcomes"][
+                "fill_score_proxy"
+            ],
+            0.0,
+        )
 
     def test_equal_score_separation_is_counted_without_a_threshold(self):
         graph = graph_fixture()
