@@ -211,6 +211,43 @@ class PhysicalOutcomeTests(unittest.TestCase):
             ["settled_candidate", "release_candidate"],
         )
 
+    def test_measurement_provider_can_scan_beyond_live_item_cap(self):
+        def selected(pool_index):
+            return SimpleNamespace(
+                action={"item_idx": pool_index, "container_idx": 0,
+                        "place_pos": [0, 0, 0.5], "orientation": 0},
+                candidate=SimpleNamespace(name=None), score=1.0,
+            )
+
+        class PlacementCore:
+            @staticmethod
+            def top_candidates(_obs, items, _k, **kwargs):
+                pool_index, item = items[0]
+                kwargs["candidate_observer"](
+                    pool_index, item, 0, 0, selected(pool_index),
+                )
+                return []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=PlacementCore,
+            online_item_order=lambda pool: list(enumerate(pool)),
+        )
+        pool = [{"index": index} for index in range(12)]
+        with mock.patch(
+            "scripts.build_counterfactual_graph.policy_observation",
+            return_value={"pool_list": pool},
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=64, scan_all_visible_items=True,
+            )(object(), {}, 100)
+        self.assertEqual(len(candidates), 12)
+        self.assertTrue(all(
+            candidate.selection["all_visible_items_scanned"]
+            for candidate in candidates
+        ))
+
     def test_records_all_score_proxies_without_collapsing_them(self):
         class Container:
             packed_items = [object(), object()]

@@ -122,6 +122,7 @@ def transition_outcomes(
 def build_candidate_provider(
     agent_module, *, attempt_budget: int,
     include_release_fallbacks: bool = False,
+    scan_all_visible_items: bool = False,
 ):
     risk_lambda = (
         agent_module.RELEASE_RISK_RERANK_LAMBDA
@@ -131,7 +132,11 @@ def build_candidate_provider(
 
     def provide(env, raw_observation, limit: int) -> list[BranchCandidate]:
         observation = policy_observation(env, raw_observation)
-        indexed_items = policy_indexed_items(agent_module, observation)
+        indexed_items = (
+            agent_module.online_item_order(observation.get("pool_list", []))
+            if scan_all_visible_items
+            else policy_indexed_items(agent_module, observation)
+        )
         settled_by_item = {}
         release_by_item = {}
 
@@ -224,6 +229,9 @@ def build_candidate_provider(
                         ),
                         "release_fallbacks_included": bool(
                             include_release_fallbacks
+                        ),
+                        "all_visible_items_scanned": bool(
+                            scan_all_visible_items
                         ),
                     },
                 )

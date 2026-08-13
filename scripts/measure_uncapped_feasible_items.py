@@ -128,6 +128,7 @@ def main() -> int:
         provider = build_candidate_provider(
             agent_module, attempt_budget=args.attempt_budget,
             include_release_fallbacks=True,
+            scan_all_visible_items=True,
         )
         candidates = provider(env, raw_observation, 1_000_000)
     finally:
