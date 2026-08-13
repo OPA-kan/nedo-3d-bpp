@@ -65,6 +65,10 @@ def main() -> int:
     parser.add_argument("--config", type=pathlib.Path, default=DEFAULT_CONFIG)
     parser.add_argument("--case", required=True)
     parser.add_argument("--attempt-budget", type=int, default=512)
+    parser.add_argument(
+        "--item-scope", choices=("live-cap", "all-visible"),
+        default="all-visible",
+    )
     parser.add_argument("--split", choices=("development", "validation"), required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
@@ -128,7 +132,7 @@ def main() -> int:
         provider = build_candidate_provider(
             agent_module, attempt_budget=args.attempt_budget,
             include_release_fallbacks=True,
-            scan_all_visible_items=True,
+            scan_all_visible_items=args.item_scope == "all-visible",
         )
         candidates = provider(env, raw_observation, 1_000_000)
     finally:
@@ -169,6 +173,7 @@ def main() -> int:
         "split": args.split,
         "board_fingerprint": expected,
         "attempt_budget_per_item": int(args.attempt_budget),
+        "item_scope": args.item_scope,
         "scenario_axes": scenario_axes(task_config),
         **summarize_results(visible_items, results),
         "candidate_results": results,

@@ -36,6 +36,8 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("--expected-horizon ${{ inputs.graph_horizon || '3' }}", text)
         self.assertIn("--expected-branch-factor", text)
         self.assertIn("scripts/measure_uncapped_feasible_items.py", text)
+        self.assertIn("--item-scope all-visible", text)
+        self.assertIn("--item-scope live-cap", text)
         self.assertIn("inputs.measurement_only == true", text)
         self.assertIn("inputs.measurement_only != true", text)
 

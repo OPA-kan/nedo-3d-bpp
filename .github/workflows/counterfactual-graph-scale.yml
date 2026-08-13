@@ -189,8 +189,17 @@ jobs:
             --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
             --case "m-${{ matrix.scenario }}" \
             --attempt-budget 512 \
+            --item-scope all-visible \
             --split development \
-            --output "reports/counterfactual-graph-scale/${{ matrix.label }}/feasible-items/latest.json"
+            --output "reports/counterfactual-graph-scale/${{ matrix.label }}/feasible-items/all-visible.json"
+          python scripts/measure_uncapped_feasible_items.py \
+            --snapshot "$snapshot" \
+            --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
+            --case "m-${{ matrix.scenario }}" \
+            --attempt-budget 512 \
+            --item-scope live-cap \
+            --split development \
+            --output "reports/counterfactual-graph-scale/${{ matrix.label }}/feasible-items/live-cap.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
