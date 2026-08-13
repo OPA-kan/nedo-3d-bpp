@@ -197,6 +197,24 @@ does not override the preregistered per-run zero-error gate. Status is
 or enable a shadow/live selector. The tolerance correction also removed a
 spurious directional label caused only by a roughly 3.6e-15 float difference.
 
+Post-failure diagnosis is committed in
+`reports/counterfactual-afterstate-value/diagnosis-31600369286.md`. It never
+trains on either confirmation run. The single replication error had 15 exact
+scenario-axis training rows, so this is not an unseen matrix condition, but
+its standardized nearest-training distance was 6.380 for packed and 7.986 for
+packed+visible, versus training-only leave-one-out p95 values 2.556 and 2.559.
+All four first-confirmation rows were inside both p95 thresholds. A posthoc
+support gate would remove the error but cover only 2/3 rows (66.7%), so it still
+fails the original 75% gate and cannot rescue the policy. The next experiment
+is preregistered in `next-support-experiment.json`: keep both evaluation runs
+sealed, increase independent mid/late H3 roots in the same eight conditions,
+require at least 12 directional late rows before refreezing, and only then use
+a later physical matrix for confirmation. Do not deepen to H5 yet.
+`build_replay_dataset.py --environment-seed` now exposes and records the
+simulator reset seed (default 42 remains backward compatible); repeated seeds
+are deterministic replications, while declared distinct seeds supply the new
+root trajectories required by this experiment.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

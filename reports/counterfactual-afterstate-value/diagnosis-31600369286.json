@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "training_run_ids": [
+    "31563029977",
+    "31565624982",
+    "31566153353",
+    "31566975749",
+    "31595519595"
+  ],
+  "target_run_id": "31600369286",
+  "training_split": "discovery only",
+  "target_split": "complete late_holdout",
+  "evaluation_rows_are_training_data": false,
+  "directional_rows": 3,
+  "errors": 1,
+  "error_classification_counts": {
+    "afterstate_extrapolation": 0,
+    "low_density_afterstate": 1,
+    "bounded_teacher_support": 0,
+    "in_envelope_model_error": 0
+  },
+  "posthoc_training_support_gate": {
+    "contract": "cover only when both fixed feature blocks are no farther than their training-only leave-one-out p95",
+    "covered": 2,
+    "total": 3,
+    "coverage": 0.6666666666666666,
+    "correct": 2,
+    "passes_original_minimum_coverage": false,
+    "status": "diagnostic_only_not_preregistered"
+  },
+  "rows": [
+    {
+      "teacher_id": "teacher-0bb3261709dee70f43aa",
+      "case_id": "m-dual-empty",
+      "root_step": 15,
+      "actual": "higher_afterstate_better",
+      "consensus_correct": true,
+      "classification": "correct",
+      "exact_scenario_training_rows": 15,
+      "continuation_alternatives": {
+        "lower": 1,
+        "higher": 1
+      },
+      "continuation_value_gap": 0.005927163027678262,
+      "afterstate_distance": {
+        "packed": {
+          "standardized_nearest_training_distance": 1.2200343406279868,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.556212269459304,
+          "training_leave_one_out_maximum": 23.762078951852057,
+          "outside_training_envelope": false
+        },
+        "packed_visible": {
+          "standardized_nearest_training_distance": 1.9348591888242002,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.5585800935834233,
+          "training_leave_one_out_maximum": 25.268812029244597,
+          "outside_training_envelope": false
+        }
+      }
+    },
+    {
+      "teacher_id": "teacher-ca724fdb228750dacfca",
+      "case_id": "m-dual-preloaded-dedicated",
+      "root_step": 15,
+      "actual": "lower_afterstate_better",
+      "consensus_correct": false,
+      "classification": "low_density_afterstate",
+      "exact_scenario_training_rows": 15,
+      "continuation_alternatives": {
+        "lower": 2,
+        "higher": 2
+      },
+      "continuation_value_gap": 0.5755587255825869,
+      "afterstate_distance": {
+        "packed": {
+          "standardized_nearest_training_distance": 6.380132886144121,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.556212269459304,
+          "training_leave_one_out_maximum": 23.762078951852057,
+          "outside_training_envelope": false
+        },
+        "packed_visible": {
+          "standardized_nearest_training_distance": 7.986275996996877,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.5585800935834233,
+          "training_leave_one_out_maximum": 25.268812029244597,
+          "outside_training_envelope": false
+        }
+      }
+    },
+    {
+      "teacher_id": "teacher-442ec5f565f156ed407f",
+      "case_id": "m-dual-shelf-mixed",
+      "root_step": 15,
+      "actual": "lower_afterstate_better",
+      "consensus_correct": true,
+      "classification": "correct",
+      "exact_scenario_training_rows": 14,
+      "continuation_alternatives": {
+        "lower": 2,
+        "higher": 2
+      },
+      "continuation_value_gap": 0.9078013937870502,
+      "afterstate_distance": {
+        "packed": {
+          "standardized_nearest_training_distance": 0.8864040725347518,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.556212269459304,
+          "training_leave_one_out_maximum": 23.762078951852057,
+          "outside_training_envelope": false
+        },
+        "packed_visible": {
+          "standardized_nearest_training_distance": 0.8864040725347518,
+          "training_leave_one_out_median": 0.0,
+          "training_leave_one_out_p95": 2.5585800935834233,
+          "training_leave_one_out_maximum": 25.268812029244597,
+          "outside_training_envelope": false
+        }
+      }
+    }
+  ],
+  "next_experiment": "Increase independent mid/late roots within the existing scenario matrix and preregister an afterstate-support gate. Do not train on either confirmation run or increase H3 depth yet.",
+  "claim": "Post-failure diagnosis, not confirmation evidence. Distances use only the original discovery training rows."
+}

@@ -2,6 +2,11 @@ name: Counterfactual graph condition matrix
 
 on:
   workflow_dispatch:
+    inputs:
+      environment_seed:
+        description: "Simulator reset seed for an independent root trajectory"
+        required: false
+        default: "42"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -94,6 +99,7 @@ jobs:
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json"
           --case "m-${{ matrix.scenario }}"
           --steps ${{ matrix.root_steps }}
+          --environment-seed ${{ inputs.environment_seed || '42' }}
           --snapshot-only
           --risk-gate-mode shadow
           --split development

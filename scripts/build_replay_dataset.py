@@ -1131,6 +1131,7 @@ def run_case(
     output_dir: pathlib.Path,
     per_stratum: int,
     seed: int,
+    environment_seed: int = 42,
     oracle_limit: int | None,
     preview_limit: int,
     skip_optimize: bool,
@@ -1159,7 +1160,7 @@ def run_case(
             if not env.set_item_order(optimized_order):
                 raise RuntimeError("agent returned an invalid optimized order")
         env.reset_item_stream()
-        raw_observation, _info = env.reset(seed=42)
+        raw_observation, _info = env.reset(seed=environment_seed)
         terminated = False
         truncated = False
         last_info: dict[str, Any] | None = None
@@ -1207,6 +1208,7 @@ def run_case(
                         swap_rounds=swap_rounds,
                         swap_acceptance=swap_acceptance,
                         seed=seed,
+                        environment_seed=environment_seed,
                         oracle_limit=oracle_limit,
                         preview_limit=preview_limit,
                         scenario=scenario,
@@ -1256,6 +1258,7 @@ def run_case(
         "episode_steps_executed": step,
         "episode_terminated": bool(terminated),
         "episode_truncated": bool(truncated),
+        "environment_seed": int(environment_seed),
         "final_status": json_safe((last_info or {}).get("status")),
         "trajectory": (
             "skip_optimize"
@@ -1283,6 +1286,7 @@ def collect_step(
     swap_rounds: int,
     swap_acceptance: str,
     seed: int,
+    environment_seed: int,
     oracle_limit: int | None,
     preview_limit: int,
     scenario: dict[str, Any],
@@ -1301,7 +1305,7 @@ def collect_step(
     snapshot["replay_contract"] = capture_replay_contract(
         env,
         action_prefix,
-        seed=42,
+        seed=environment_seed,
     )
     snapshot["board_fingerprint"] = board_fingerprint(snapshot)
     snapshot_path.write_text(
@@ -1735,6 +1739,16 @@ def main() -> int:
     )
     parser.add_argument("--seed", type=int, default=20260730)
     parser.add_argument(
+        "--environment-seed",
+        type=int,
+        default=42,
+        help=(
+            "Simulator reset seed recorded in every replay contract. The "
+            "default preserves existing trajectories; use a declared new "
+            "seed only to collect an independent physical root trajectory."
+        ),
+    )
+    parser.add_argument(
         "--overdraw-factor",
         type=int,
         default=2,
@@ -1881,6 +1895,7 @@ def main() -> int:
         "observed_swap_acceptance": str(args.observed_swap_acceptance),
         "max_seconds": float(args.max_seconds),
         "seed": int(args.seed),
+        "environment_seed": int(args.environment_seed),
         "oracle_limit": args.oracle_limit,
         "preview_limit": int(args.preview_limit),
         "snapshot_only": bool(args.snapshot_only),
@@ -1896,6 +1911,7 @@ def main() -> int:
             "platform": platform.platform(),
             "case_id": case_id,
             "target_steps": sorted(target_steps),
+            "environment_seed": int(args.environment_seed),
             "sampling_mode": str(args.sampling_mode),
             "overdraw_factor": int(args.overdraw_factor),
             "observed_swap_rounds": int(args.observed_swap_rounds),
@@ -1949,6 +1965,7 @@ def main() -> int:
             per_stratum=int(args.per_stratum),
             sampling_mode=str(args.sampling_mode),
             seed=int(args.seed),
+            environment_seed=int(args.environment_seed),
             oracle_limit=args.oracle_limit,
             preview_limit=int(args.preview_limit),
             skip_optimize=args.skip_optimize,

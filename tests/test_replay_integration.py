@@ -205,6 +205,7 @@ class ReplayTrajectoryTests(unittest.TestCase):
                     output_dir=pathlib.Path(directory),
                     per_stratum=1,
                     seed=1,
+                    environment_seed=42,
                     oracle_limit=8,
                     preview_limit=0,
                     skip_optimize=True,

@@ -229,3 +229,18 @@ counts are descriptively favorable (consensus 6/7, action 3/7), pooling cannot
 erase a failed replication. The policy status is
 `replication_failed_not_shadow_ready`; neither run may be used for retuning,
 and H5, live shadowing, and enforcement remain closed.
+
+The failure diagnosis uses only the original five discovery-training runs for
+feature scaling and nearest-neighbor reference distances. The failed
+`dual-preloaded-dedicated` row is not an unseen scenario (15 exact-axis
+training rows exist), but it lies above the training leave-one-out p95 in both
+fixed feature blocks: packed 6.380 versus 2.556, and packed+visible 7.986 versus
+2.559. Every row in the first passing confirmation is within both p95 values.
+This supports a sparse-afterstate-support hypothesis, not a retrospective pass:
+abstaining on that row leaves only 2/3 coverage, below the original 75% gate.
+The sealed-run-safe follow-up and stop conditions are fixed in
+`reports/counterfactual-afterstate-value/next-support-experiment.json`.
+The scale workflow accepts a declared `environment_seed`; it is recorded in
+both the dataset manifest and each replay contract. Seed 42 remains the default
+for backward compatibility, and repeating a seed is replication rather than
+new trajectory support.
