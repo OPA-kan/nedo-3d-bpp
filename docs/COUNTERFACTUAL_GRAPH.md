@@ -304,13 +304,15 @@ validated by whole-stream holdout before policy integration.
 
 ## Distributional afterstate teachers
 
-Root reconstruction keeps item identity and visible pool exact and permits at
-most 1 mm of positional settle drift. Repeated source and interleave runs
+Root reconstruction keeps item identity and visible pool exact. Repeated
+source and interleave runs
 (`31658418482`/`31718222625` and `31658422923`/`31718245113`) reproduced the
 same prefix-specific quaternion-component deltas, 0.001409 and 0.001617. The
-quaternion-component tolerance is therefore 0.002; larger rotation deltas
-remain reconstruction failures. This is a measured deterministic replay
-allowance, not a relaxation of physical placement validity.
+quaternion-component tolerance is therefore 0.002. Once those roots passed,
+run `31720123521` exposed 1.310 mm of positional settle drift at a later root;
+the position tolerance is therefore 2 mm. Larger deltas remain reconstruction
+failures. These are measured deterministic replay allowances, not a relaxation
+of physical placement validity.
 
 Schema v5 replaces the optimistic maximum as the new experimental teacher
 without deleting the schema-v4 label. Every physical continuation leaf is

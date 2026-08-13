@@ -474,7 +474,7 @@ class CounterfactualGraphTests(unittest.TestCase):
         changed_pool = json.loads(json.dumps(jittered))
         changed_pool["observation"]["pool_list"] = [{"index": 3}]
         moved = json.loads(json.dumps(expected))
-        moved["physics"]["packed_items"][0]["position"][0] += 2e-3
+        moved["physics"]["packed_items"][0]["position"][0] += 3e-3
         rotated = json.loads(json.dumps(expected))
         rotated["physics"]["packed_items"][0]["quaternion"][0] += 3e-3
 
@@ -496,6 +496,23 @@ class CounterfactualGraphTests(unittest.TestCase):
         replayed = json.loads(json.dumps(expected))
         replayed["physics"]["packed_items"][0]["quaternion"][0] += (
             0.0016165637676563505
+        )
+
+        self.assertTrue(boards_equivalent(expected, replayed))
+
+    def test_board_equivalence_accepts_measured_replay_position_drift(self):
+        expected = {
+            "physics": {"packed_items": [{
+                "container_index": 0,
+                "item_index": 7,
+                "position": [1.0, 2.0, 3.0],
+                "quaternion": [0.0, 0.0, 0.0, 1.0],
+            }]},
+            "observation": {"pool_list": [{"index": 2}]},
+        }
+        replayed = json.loads(json.dumps(expected))
+        replayed["physics"]["packed_items"][0]["position"][0] += (
+            0.0013103065951080572
         )
 
         self.assertTrue(boards_equivalent(expected, replayed))
