@@ -7,6 +7,10 @@ WORKFLOW = ROOT / ".github" / "workflows" / "counterfactual-graph-scale.yml"
 TIE_H5_WORKFLOW = (
     ROOT / ".github" / "workflows" / "counterfactual-graph-tie-depth.yml"
 )
+BRANCH_WIDTH_WORKFLOW = (
+    ROOT / ".github" / "workflows" /
+    "counterfactual-graph-branch-width.yml"
+)
 
 
 class CounterfactualGraphWorkflowTests(unittest.TestCase):
@@ -48,6 +52,17 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn('root_steps: "6 9"', text)
         self.assertIn("--horizon 5", text)
         self.assertEqual(text.count("--expected-graphs 3"), 2)
+
+    def test_branch_width_audit_is_limited_to_preregistered_h3_roots(self):
+        text = BRANCH_WIDTH_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertEqual(text.count("target:"), 4)
+        self.assertIn("--steps 15", text)
+        self.assertIn("--horizon 3", text)
+        self.assertIn("--branch-factor 3", text)
+        self.assertIn("--max-nodes 40", text)
+        self.assertIn("compare_counterfactual_branch_width.py", text)
+        self.assertNotIn("continue-on-error: true", text)
 
 
 if __name__ == "__main__":

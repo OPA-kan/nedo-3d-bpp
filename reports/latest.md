@@ -1,15 +1,15 @@
 # CPU verification report
 
-- Timestamp: `2026-08-13T14:11:40+09:00`
-- Git SHA: `b73693670c75b1ce9efa8cc28f913784d36da9b1`
+- Timestamp: `2026-08-13T14:22:30+09:00`
+- Git SHA: `65360e51d958e033310dae944640689e5bbb4574`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
 
 ## Unit tests
 
-- Status: `FAIL`
-- Runtime: `75.978 s`
+- Status: `PASS`
+- Runtime: `73.243 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -21,35 +21,35 @@
 <details><summary>unit tests (tail; full log: reports/raw/unit-tests.log)</summary>
 
 ```text
+Only the CENTRE shelf is flag-controlled; conflating the two is ... ok
+test_outside_the_band_the_official_drop_height_returns (test_transport_plane_contract.TransportPlaneContractTests.test_outside_the_band_the_official_drop_height_returns)
+Beyond 50 mm above the plane the 80 mm lift applies again, which ... ok
+test_resting_planes_match_the_small_shelf_faces (test_transport_plane_contract.TransportPlaneContractTests.test_resting_planes_match_the_small_shelf_faces)
+The official reason for the planes: the small shelf always ... ok
+test_shelf_plane_suppresses_the_lift_without_a_shelf (test_transport_plane_contract.TransportPlaneContractTests.test_shelf_plane_suppresses_the_lift_without_a_shelf)
+A bottom just above the shelf plane is a direct approach even ... ok
+test_the_floor_plane_is_also_unconditional (test_transport_plane_contract.TransportPlaneContractTests.test_the_floor_plane_is_also_unconditional) ... ok
+test_the_same_pose_behaves_identically_with_a_shelf (test_transport_plane_contract.TransportPlaneContractTests.test_the_same_pose_behaves_identically_with_a_shelf) ... ok
+test_transport_samples_use_the_same_plane_logic (test_transport_plane_contract.TransportPlaneContractTests.test_transport_samples_use_the_same_plane_logic)
+Both transport builders must agree; the sampled path is the one ... ok
+test_enforce_matrix_covers_requested_eight_cases_and_three_repeats (test_visible_pool_rollout_workflow.VisiblePoolRolloutWorkflowTests.test_enforce_matrix_covers_requested_eight_cases_and_three_repeats) ... ok
+test_a_shelf_container_has_no_deep_floor_zone (test_zone_order.ZoneClassificationTests.test_a_shelf_container_has_no_deep_floor_zone) ... ok
+test_a_shelfless_container_has_only_deep_and_centre (test_zone_order.ZoneClassificationTests.test_a_shelfless_container_has_only_deep_and_centre) ... ok
+test_a_tall_floor_pose_by_the_door_is_not_shelf_top (test_zone_order.ZoneClassificationTests.test_a_tall_floor_pose_by_the_door_is_not_shelf_top)
+The defect this exists for. Classifying on the pose's TOP made a tall ... ok
+test_resting_on_the_shelf_is_shelf_top (test_zone_order.ZoneClassificationTests.test_resting_on_the_shelf_is_shelf_top) ... ok
+test_under_the_shelf_is_its_own_zone (test_zone_order.ZoneClassificationTests.test_under_the_shelf_is_its_own_zone) ... ok
+test_an_unknown_mode_is_refused_at_import (test_zone_order.ZoneScoreTests.test_an_unknown_mode_is_refused_at_import) ... ok
+test_doctrine_ranks_the_shelf_top_above_under_the_shelf (test_zone_order.ZoneScoreTests.test_doctrine_ranks_the_shelf_top_above_under_the_shelf) ... ok
+test_off_by_default_leaves_the_score_untouched (test_zone_order.ZoneScoreTests.test_off_by_default_leaves_the_score_untouched) ... ok
+test_reversed_inverts_it (test_zone_order.ZoneScoreTests.test_reversed_inverts_it) ... ok
 test_the_bonus_span_is_three_units (test_zone_order.ZoneScoreTests.test_the_bonus_span_is_three_units) ... ok
 test_the_span_must_clear_the_support_term (test_zone_order.ZoneScoreTests.test_the_span_must_clear_the_support_term)
 Why the default bonus is 1.0 and not 0.5. ... ok
 
-======================================================================
-ERROR: test_queue_runs_records_and_resumes (test_run_queue.QueueExecutionTests.test_queue_runs_records_and_resumes)
 ----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "C:\Users\�哈���Y\Documents\Codex\2026-07-28\ne\work\nedo-counterfactual-graph\tests\test_run_queue.py", line 83, in test_queue_runs_records_and_resumes
-    (queue_root / "test-plan" / "state.json").read_text()
-  File "C:\Users\�哈���Y\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\pathlib.py", line 1028, in read_text
-    return f.read()
-           ^^^^^^^^
-UnicodeDecodeError: 'cp932' codec can't decode byte 0x8e in position 297: illegal multibyte sequence
+Ran 835 tests in 72.199s
 
-======================================================================
-ERROR: test_timeout_is_recorded (test_run_queue.QueueExecutionTests.test_timeout_is_recorded)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "C:\Users\�哈���Y\Documents\Codex\2026-07-28\ne\work\nedo-counterfactual-graph\tests\test_run_queue.py", line 119, in test_timeout_is_recorded
-    (queue_root / "test-plan" / "state.json").read_text()
-  File "C:\Users\�哈���Y\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\pathlib.py", line 1028, in read_text
-    return f.read()
-           ^^^^^^^^
-UnicodeDecodeError: 'cp932' codec can't decode byte 0x8e in position 315: illegal multibyte sequence
-
-----------------------------------------------------------------------
-Ran 832 tests in 74.562s
-
-FAILED (errors=2, skipped=5)
+OK (skipped=5)
 ```
 </details>

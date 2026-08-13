@@ -1,0 +1,113 @@
+name: Counterfactual graph H3 branch-width stability
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: counterfactual-graph-branch-width-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  graph:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: source-dual-empty-s15
+            variant: source-001
+            scenario: dual-empty
+            pool: 20
+          - target: reverse-dual-empty-s15
+            variant: reverse-000
+            scenario: dual-empty
+            pool: 20
+          - target: reverse-dual-shelf-s15
+            variant: reverse-000
+            scenario: dual-shelf-mixed
+            pool: 20
+          - target: interleave-dual-preloaded-s15
+            variant: interleave
+            scenario: dual-preloaded-dedicated
+            pool: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify physical replay contract
+        run: python -m unittest tests.test_replay_integration -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build the preregistered scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead ${{ matrix.pool }}
+          --policy-timeout 8
+          --stream-variant ${{ matrix.variant }}
+          --output-dir reports/branch-width/${{ matrix.target }}/configs
+      - name: Capture only the preregistered late root
+        run: >-
+          python scripts/build_replay_dataset.py
+          --config reports/branch-width/${{ matrix.target }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }}
+          --steps 15
+          --environment-seed 42
+          --snapshot-only
+          --risk-gate-mode shadow
+          --split development
+          --skip-optimize
+          --output-dir reports/branch-width/${{ matrix.target }}/root
+      - name: Expand the root as H3/B3
+        run: >-
+          python scripts/build_counterfactual_graph.py
+          --snapshot reports/branch-width/${{ matrix.target }}/root/step-015-state.json
+          --config reports/branch-width/${{ matrix.target }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }}
+          --split development
+          --horizon 3
+          --branch-factor 3
+          --attempt-budget 512
+          --max-nodes 40
+          --max-edges 39
+          --output reports/branch-width/${{ matrix.target }}/graph.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: branch-width-${{ matrix.target }}
+          path: reports/branch-width/${{ matrix.target }}/
+
+  compare:
+    needs: graph
+    if: always() && needs.graph.result != 'skipped'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: branch-width-*
+          path: reports/branch-width/downloads
+      - name: Compare B2 and B3 continuation relations
+        run: >-
+          python scripts/compare_counterfactual_branch_width.py
+          --root reports/branch-width/downloads
+          --specification reports/counterfactual-afterstate-value/branch-width-stability-spec.json
+          --json-output reports/branch-width/aggregate/stability.json
+          --markdown-output reports/branch-width/aggregate/stability.md
+      - run: cat reports/branch-width/aggregate/stability.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: branch-width-stability
+          path: reports/branch-width/aggregate/
