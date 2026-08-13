@@ -261,6 +261,13 @@ those B2 labels. The next teacher design must preserve the target candidate
 paths explicitly (forced-pair continuation expansion) rather than equating
 top-B candidate selection with ground-truth state value.
 
+The forced-pair follow-up is preregistered before execution. It does not replay
+stored B2 coordinates. At each target path it asks the unchanged provider for
+its current best physical action per item, forces the specified parent item
+and sibling items into the B3 set, and fills the remaining width by normal
+ranking. A missing provider item fails the graph. All four relations must be
+directly comparable and stable before agent-model work resumes.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

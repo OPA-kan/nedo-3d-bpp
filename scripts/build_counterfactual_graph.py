@@ -281,6 +281,8 @@ def main() -> int:
     parser.add_argument("--attempt-budget", type=int, default=512)
     parser.add_argument("--max-nodes", type=int, default=128)
     parser.add_argument("--max-edges", type=int, default=256)
+    parser.add_argument("--forced-candidate-spec", type=pathlib.Path)
+    parser.add_argument("--forced-target-id")
     parser.add_argument(
         "--split",
         choices=("development", "validation"),
@@ -307,6 +309,36 @@ def main() -> int:
     if args.case not in configs:
         raise SystemExit(f"unknown config case: {args.case}")
     task_config = configs[args.case]
+    forced_candidates: dict[tuple[int, ...], list[int]] = {}
+    forced_target = None
+    if bool(args.forced_candidate_spec) != bool(args.forced_target_id):
+        raise SystemExit(
+            "--forced-candidate-spec and --forced-target-id are required together"
+        )
+    if args.forced_candidate_spec:
+        forced_spec = json.loads(
+            args.forced_candidate_spec.read_text(encoding="utf-8")
+        )
+        matches = [
+            row for row in forced_spec.get("targets", [])
+            if row.get("target_id") == args.forced_target_id
+        ]
+        if len(matches) != 1:
+            raise SystemExit(
+                f"forced target must match exactly once: {args.forced_target_id}"
+            )
+        forced_target = matches[0]
+        parent_path = tuple(
+            int(value) for value in forced_target.get(
+                "parent_path_item_indices", []
+            )
+        )
+        for offset, item_index in enumerate(parent_path):
+            forced_candidates[parent_path[:offset]] = [int(item_index)]
+        forced_candidates[parent_path] = [
+            int(forced_target["lower_stable_item_index"]),
+            int(forced_target["higher_stable_item_index"]),
+        ]
 
     if str(SIMULATOR) not in sys.path:
         sys.path.insert(0, str(SIMULATOR))
@@ -385,6 +417,13 @@ def main() -> int:
             "attempt_budget_scope": "per_item",
             "root_action_prefix_id": contract.get("action_prefix_id"),
             "scenario_axes": scenario_axes(task_config),
+            "forced_candidate_target_id": (
+                None if forced_target is None else forced_target["target_id"]
+            ),
+            "forced_candidate_paths": [
+                {"path": list(path), "required_item_indices": indices}
+                for path, indices in forced_candidates.items()
+            ],
         },
         board_fingerprint=expected,
         state_ref=str(args.snapshot),
@@ -401,6 +440,7 @@ def main() -> int:
         ),
         outcome_provider=transition_outcomes,
         state_tensor_factory=state_tensor_from_snapshot,
+        forced_candidate_indices_by_path=forced_candidates,
     )
     executor.expand(graph, contract, root_snapshot=snapshot)
     write_graph(args.output, graph)

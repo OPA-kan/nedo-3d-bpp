@@ -103,6 +103,18 @@
       "interpretation": "Widening B2 to B3 changed which candidate paths survive selection, so three error rows cannot be treated as fixed-label examples under the wider search. The one directly comparable pair retained its lower-afterstate-better relation."
     }
   },
+  "forced_pair_followup": {
+    "status": "preregistered_not_run",
+    "hypothesis": "The four representation errors can be evaluated as stable state-value teachers when their original parent item path and sibling item pair are preserved while only the continuation width is expanded.",
+    "intervention": "At each specified path, retain the current provider's best physical candidate for each preregistered item, force those items into the H3/B3 branch set, and fill remaining width by the unchanged provider ranking.",
+    "invariants": [
+      "The current provider still generates each forced candidate; a missing item fails the graph.",
+      "Horizon remains 3, branch factor remains 3, environment seed remains 42, and strict replay tolerance is unchanged.",
+      "No stored B2 command coordinates are injected and no continuation label is inspected during graph construction."
+    ],
+    "primary_gate": "All four matched sibling relations must be directly comparable and stable between B2 and forced-pair B3 before model development resumes.",
+    "agent_gate": "Even a passing teacher-stability result is not a score-improving agent. A candidate must later beat the incumbent on a fresh physical trajectory experiment under a frozen selection rule."
+  },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [
     "Do not reinterpret either sealed run as confirmation after feature or threshold changes.",

@@ -85,6 +85,8 @@ jobs:
           --attempt-budget 512
           --max-nodes 40
           --max-edges 39
+          --forced-candidate-spec reports/counterfactual-afterstate-value/branch-width-stability-spec.json
+          --forced-target-id ${{ matrix.target }}
           --output reports/branch-width/${{ matrix.target }}/graph.json
       - uses: actions/upload-artifact@v4
         if: always()

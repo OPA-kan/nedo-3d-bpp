@@ -168,7 +168,10 @@ class CounterfactualGraphTests(unittest.TestCase):
                         "place_pos": [item["index"] / 10, 0, 0.5],
                         "orientation": 0,
                     },
-                    selection={"rank": pool_index},
+                    selection={
+                        "rank": pool_index,
+                        "stable_item_index": int(item["index"]),
+                    },
                 )
                 for pool_index, item in enumerate(
                     observation["pool_list"][:limit]
@@ -216,6 +219,43 @@ class CounterfactualGraphTests(unittest.TestCase):
         depth_two = [node for node in graph.nodes.values() if node.depth == 2]
         self.assertLess(len(depth_two), 4, "equivalent orderings should merge")
         graph.validate()
+
+    def test_forced_candidates_preserve_path_and_pair(self):
+        def candidate(index):
+            return BranchCandidate(
+                candidate_id=f"item-{index}", command_action={"item_idx": index},
+                selection={"stable_item_index": index},
+            )
+
+        executor = BoundedGraphExecutor(
+            env_factory=lambda: None,
+            snapshot_factory=lambda _env, _observation: {},
+            candidate_provider=lambda _env, _observation, _limit: [
+                candidate(1), candidate(2), candidate(3), candidate(4),
+            ],
+            outcome_provider=lambda _env, _info, _parent: ({}, {}),
+            forced_candidate_indices_by_path={(): [4], (4,): [3, 2]},
+        )
+
+        root = executor._candidates_for_path(None, {}, (), 3)
+        child = executor._candidates_for_path(None, {}, (4,), 3)
+        self.assertEqual(
+            [row.selection["stable_item_index"] for row in root], [4, 1, 2]
+        )
+        self.assertEqual(
+            [row.selection["stable_item_index"] for row in child], [3, 2, 1]
+        )
+
+    def test_forced_candidate_must_exist_in_provider_population(self):
+        executor = BoundedGraphExecutor(
+            env_factory=lambda: None,
+            snapshot_factory=lambda _env, _observation: {},
+            candidate_provider=lambda _env, _observation, _limit: [],
+            outcome_provider=lambda _env, _info, _parent: ({}, {}),
+            forced_candidate_indices_by_path={(): [9]},
+        )
+        with self.assertRaisesRegex(RuntimeError, "forced candidate item"):
+            executor._candidates_for_path(None, {}, (), 3)
 
     def test_prefix_replay_rebuilds_an_independent_root(self):
         class Env:

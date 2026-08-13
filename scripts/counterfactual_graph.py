@@ -461,12 +461,45 @@ class BoundedGraphExecutor:
         state_tensor_factory: Callable[
             [dict[str, Any]], dict[str, Any] | None
         ] | None = None,
+        forced_candidate_indices_by_path: dict[
+            tuple[int, ...], list[int]
+        ] | None = None,
     ) -> None:
         self.env_factory = env_factory
         self.snapshot_factory = snapshot_factory
         self.candidate_provider = candidate_provider
         self.outcome_provider = outcome_provider
         self.state_tensor_factory = state_tensor_factory
+        self.forced_candidate_indices_by_path = {
+            tuple(int(value) for value in path): [
+                int(value) for value in indices
+            ]
+            for path, indices in (forced_candidate_indices_by_path or {}).items()
+        }
+
+    def _candidates_for_path(
+        self, env, observation: dict[str, Any], path: tuple[int, ...], limit: int,
+    ) -> list[BranchCandidate]:
+        required = self.forced_candidate_indices_by_path.get(path, [])
+        scan_limit = 1_000_000 if required else limit
+        population = self.candidate_provider(env, observation, scan_limit)
+        if not required:
+            return population[:limit]
+        by_item = {
+            int(candidate.selection["stable_item_index"]): candidate
+            for candidate in population
+        }
+        missing = [item for item in required if item not in by_item]
+        if missing:
+            raise RuntimeError(
+                f"forced candidate item unavailable at path {path}: {missing}"
+            )
+        selected = [by_item[item] for item in required]
+        selected.extend(
+            candidate for candidate in population
+            if int(candidate.selection["stable_item_index"]) not in required
+        )
+        return selected[:limit]
 
     def _reconstruct(
         self,
@@ -504,6 +537,7 @@ class BoundedGraphExecutor:
     ) -> "CounterfactualGraph":
         """Breadth-first expansion with deterministic provider ordering."""
         paths: dict[str, list[dict[str, Any]]] = {graph.root_id: []}
+        item_paths: dict[str, tuple[int, ...]] = {graph.root_id: ()}
         expected_snapshots: dict[str, dict[str, Any]] = {}
         if root_snapshot is not None:
             expected_snapshots[graph.root_id] = copy.deepcopy(root_snapshot)
@@ -525,11 +559,10 @@ class BoundedGraphExecutor:
                     raise RuntimeError(
                         rebuilt.error or "reconstruction_mismatch"
                     )
-                candidates = self.candidate_provider(
-                    env,
-                    rebuilt.observation,
+                candidates = self._candidates_for_path(
+                    env, rebuilt.observation, item_paths[parent_id],
                     graph.budget.branch_factor,
-                )[: graph.budget.branch_factor]
+                )
             finally:
                 self._close(env)
             if not candidates:
@@ -606,6 +639,9 @@ class BoundedGraphExecutor:
                         paths[child.node_id] = paths[parent_id] + [
                             canonical_action(candidate.command_action)
                         ]
+                        item_paths[child.node_id] = item_paths[parent_id] + (
+                            int(candidate.selection["stable_item_index"]),
+                        )
                     if (
                         terminal_reason is None
                         and child.depth < graph.budget.horizon
