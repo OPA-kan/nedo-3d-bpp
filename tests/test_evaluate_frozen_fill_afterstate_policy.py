@@ -21,6 +21,9 @@ class FrozenFillAfterstatePolicyTests(unittest.TestCase):
         self.assertEqual(report["training_run_ids"], ["1", "2"])
         self.assertEqual(report["target_run_id"], "3")
         self.assertTrue(report["gate_passed"])
+        self.assertEqual(
+            report["paired_consensus_vs_action_geometry"]["ties"], 1
+        )
 
     def test_rejects_target_leakage(self) -> None:
         policy = {
@@ -31,6 +34,23 @@ class FrozenFillAfterstatePolicyTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "must not occur"):
             evaluate_frozen(policy, [run("same")], run("same"))
+
+    def test_evaluates_distributional_label_family(self) -> None:
+        policy = {
+            "status": "frozen_awaiting_new_physical_run",
+            "confirmation_gate": {
+                "minimum_coverage": 0.75,
+                "maximum_errors": 1,
+            },
+        }
+        report = evaluate_frozen(
+            policy, [run("1"), run("2")], run("3"),
+            label_family="distributional_continuation_labels",
+        )
+
+        self.assertEqual(
+            report["label_family"], "distributional_continuation_labels"
+        )
 
 
 if __name__ == "__main__":

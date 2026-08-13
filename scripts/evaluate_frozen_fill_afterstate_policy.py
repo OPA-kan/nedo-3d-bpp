@@ -9,7 +9,9 @@ from typing import Any
 
 try:
     from scripts.evaluate_counterfactual_afterstate_value import (
+        LABEL_FAMILIES,
         _eligible,
+        _exact_two_sided_sign_p,
         _features,
         _predict_ridge,
         _state_block_delta,
@@ -17,7 +19,9 @@ try:
     )
 except ModuleNotFoundError:
     from evaluate_counterfactual_afterstate_value import (
+        LABEL_FAMILIES,
         _eligible,
+        _exact_two_sided_sign_p,
         _features,
         _predict_ridge,
         _state_block_delta,
@@ -27,7 +31,7 @@ except ModuleNotFoundError:
 
 def evaluate_frozen(
     policy: dict[str, Any], training_runs: list[dict[str, Any]],
-    target: dict[str, Any],
+    target: dict[str, Any], *, label_family: str = "continuation_labels",
 ) -> dict[str, Any]:
     if policy["status"] not in (
         "frozen_awaiting_new_physical_run",
@@ -39,27 +43,32 @@ def evaluate_frozen(
     if target["run_id"] in training_ids:
         raise ValueError("target run must not occur in training runs")
     train = [row for run in training_runs for row in run["discovery"]]
-    test = _eligible(target["late"], "fill_score_proxy")
+    test = _eligible(
+        target["late"], "fill_score_proxy", label_family=label_family
+    )
     predictions = {
         "packed": _predict_ridge(
             train, test, "fill_score_proxy",
             lambda row: _state_block_delta(row, "packed"),
+            label_family=label_family,
         ),
         "packed_visible": _predict_ridge(
             train, test, "fill_score_proxy",
             lambda row: _state_block_delta(row, "packed_visible"),
+            label_family=label_family,
         ),
         "action_geometry": _predict_ridge(
             train, test, "fill_score_proxy",
             lambda row: _features(
                 row, include_action=True, include_afterstate=False
             ),
+            label_family=label_family,
         ),
     }
     rows = []
     for row in test:
         teacher_id = row["teacher_id"]
-        actual = row["continuation_labels"]["fill_score_proxy"]["relation"]
+        actual = row[label_family]["fill_score_proxy"]["relation"]
         packed = predictions["packed"][teacher_id]
         packed_visible = predictions["packed_visible"][teacher_id]
         rows.append({
@@ -78,6 +87,19 @@ def evaluate_frozen(
         name: sum(row[name] == row["actual"] for row in covered)
         for name in ("packed", "packed_visible", "action_geometry")
     }
+    paired_vs_action = {"wins": 0, "ties": 0, "losses": 0}
+    for row in covered:
+        consensus = row["consensus_correct"]
+        action = row["action_geometry"] == row["actual"]
+        outcome = (
+            "wins" if consensus and not action
+            else "losses" if action and not consensus
+            else "ties"
+        )
+        paired_vs_action[outcome] += 1
+    paired_vs_action["exact_two_sided_sign_p"] = _exact_two_sided_sign_p(
+        paired_vs_action["wins"], paired_vs_action["losses"]
+    )
     gate = policy["confirmation_gate"]
     passed = (
         coverage >= float(gate["minimum_coverage"])
@@ -86,6 +108,7 @@ def evaluate_frozen(
     )
     return {
         "schema_version": 1,
+        "label_family": label_family,
         "policy_status_at_evaluation": policy["status"],
         "training_run_ids": training_ids,
         "target_run_id": target["run_id"],
@@ -96,6 +119,7 @@ def evaluate_frozen(
         "consensus_correct": correct,
         "consensus_errors": len(covered) - correct,
         "covered_row_baseline_correct": baselines,
+        "paired_consensus_vs_action_geometry": paired_vs_action,
         "confirmation_gate": gate,
         "gate_passed": passed,
         "rows": rows,
@@ -121,6 +145,12 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"{name}={value}/{report['covered_rows']}"
             for name, value in report["covered_row_baseline_correct"].items()
         ),
+        "- Consensus vs action geometry W/T/L: "
+        f"{report['paired_consensus_vs_action_geometry']['wins']}/"
+        f"{report['paired_consensus_vs_action_geometry']['ties']}/"
+        f"{report['paired_consensus_vs_action_geometry']['losses']} "
+        "(exact two-sided p="
+        f"{report['paired_consensus_vs_action_geometry']['exact_two_sided_sign_p']:.4g})",
         f"- Preregistered gate: **{'PASS' if report['gate_passed'] else 'FAIL'}**",
         "", f"> {report['claim']}", "",
     ])
@@ -133,11 +163,19 @@ def main() -> int:
     parser.add_argument("--target-dir", type=pathlib.Path, required=True)
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--label-family", choices=LABEL_FAMILIES,
+        default="continuation_labels",
+    )
     args = parser.parse_args()
     policy = json.loads(args.policy.read_text(encoding="utf-8"))
     report = evaluate_frozen(
-        policy, [load_run(path) for path in args.training_dir],
-        load_run(args.target_dir),
+        policy, [
+            load_run(path, label_family=args.label_family)
+            for path in args.training_dir
+        ],
+        load_run(args.target_dir, label_family=args.label_family),
+        label_family=args.label_family,
     )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
