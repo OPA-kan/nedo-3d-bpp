@@ -215,6 +215,18 @@ simulator reset seed (default 42 remains backward compatible); repeated seeds
 are deterministic replications, while declared distinct seeds supply the new
 root trajectories required by this experiment.
 
+That assumption was tested and rejected. Four successful eight-condition
+matrices used seeds 314159, 271828, 161803 and 141421 (Actions runs
+`31655945368`, `31656259168`, `31656261414`, `31656617967`). They produced 14
+raw directional late fill rows, but only six unique exact model-visible
+afterstate-delta signatures (42.9%); 13/14 rows belonged to cross-run duplicate
+groups. Discovery was similarly duplicated: 25 unique signatures from 53 rows.
+Therefore different seeds are necessary but not sufficient for independent
+support. The collection independence gate failed; do not fold these runs into
+training or refreeze. The next generator change must vary the actual scenario,
+item stream/order, or root trajectory policy and pass
+`audit_counterfactual_afterstate_collection.py` before model evaluation.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

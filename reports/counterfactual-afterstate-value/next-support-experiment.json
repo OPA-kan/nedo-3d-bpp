@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "preregistered_not_run",
+  "status": "development_collection_failed_independence_gate",
   "hypothesis": "The replication error is associated with sparse support in physical afterstate feature space within a known scenario, rather than an unseen scenario axis.",
   "sealed_evaluation_run_ids": [
     "31598349094",
@@ -8,7 +8,26 @@
   ],
   "forbidden_training_data": "Every discovery and late row from both sealed evaluation runs.",
   "development_change": "Collect additional independent mid/late H3 roots under the existing eight-condition matrix with declared simulator environment seeds, emphasizing distinct afterstates rather than increasing H3 depth.",
-  "trajectory_independence_contract": "Every collection records its simulator environment seed in both the dataset manifest and replay contract. A repeated seed is a deterministic replication, not an independent root trajectory.",
+  "trajectory_independence_contract": "Every collection records its simulator environment seed in both the dataset manifest and replay contract. Different seeds are necessary but not sufficient: model-visible packed and packed-plus-visible afterstate delta signatures must also be unique.",
+  "development_collection_result": {
+    "run_ids": [
+      "31655945368",
+      "31656259168",
+      "31656261414",
+      "31656617967"
+    ],
+    "environment_seeds": [
+      314159,
+      271828,
+      161803,
+      141421
+    ],
+    "raw_late_directional_rows": 14,
+    "unique_late_afterstate_signatures": 6,
+    "unique_late_fraction": 0.42857142857142855,
+    "independence_gate": "fail",
+    "reason": "Different environment seeds produced many byte-distinct teacher rows but repeated the exact model-visible afterstate deltas across runs."
+  },
   "model_contract": {
     "axis": "fill_score_proxy",
     "predictor": "unchanged consensus of fixed-L2 packed-only and packed-plus-visible no-intercept ridges",

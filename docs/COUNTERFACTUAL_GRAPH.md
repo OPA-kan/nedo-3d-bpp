@@ -244,3 +244,13 @@ The scale workflow accepts a declared `environment_seed`; it is recorded in
 both the dataset manifest and each replay contract. Seed 42 remains the default
 for backward compatibility, and repeating a seed is replication rather than
 new trajectory support.
+
+Four distinct-seed development matrices disproved that seed variation alone
+creates independent model support. Runs `31655945368`, `31656259168`,
+`31656261414`, and `31656617967` yielded 14 directional late fill rows but only
+six unique exact packed/packed+visible afterstate-delta signatures; 13 rows
+were in cross-run duplicate groups. The independence gate therefore fails and
+these runs are not admitted to training. Future collection must vary the
+model-visible trajectory through scenario/item-stream/order or policy changes,
+then pass `scripts/audit_counterfactual_afterstate_collection.py` before any
+refreeze or confirmation.
