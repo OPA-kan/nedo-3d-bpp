@@ -216,11 +216,35 @@
     }
   },
   "h3_h4_error_stability_followup": {
-    "status": "preregistered_before_h4_execution",
+    "status": "failed_two_of_three_h3_relations_changed",
     "hypothesis": "The three remaining H3/B3 model errors may be unstable optimistic-continuation labels at depth three.",
     "targets": ["reverse-dual-empty-supported-s15", "interleave-dual-shelf-asymmetric-s15", "interleave-single-preloaded-asymmetric-s15"],
     "intervention": "Rebuild the exact parent paths and sibling pairs at H4/B3 with seed 42, unchanged scenarios, candidate provider, physical replay tolerance, and score axis.",
-    "decision_rule": "All three relations must remain directional and unchanged. Any equality, reversal, absent path, or physical failure blocks agent freezing."
+    "decision_rule": "All three relations must remain directional and unchanged. Any equality, reversal, absent path, or physical failure blocks agent freezing.",
+    "result": {
+      "actions_run_id": "31687012973",
+      "physical_graphs_completed": 3,
+      "stable_relations": 1,
+      "changed_relations": 2,
+      "changes": [
+        "interleave-dual-shelf-asymmetric-s15: higher_afterstate_better -> lower_afterstate_better",
+        "interleave-single-preloaded-asymmetric-s15: higher_afterstate_better -> equal"
+      ],
+      "stable_error": "reverse-dual-empty-supported-s15: higher_afterstate_better",
+      "model_work_may_resume": false,
+      "decision": "Do not freeze an H3-trained agent. Pilot H4/B3 teachers before any broader H4 migration."
+    }
+  },
+  "h4_b3_teacher_pilot": {
+    "status": "preregistered_before_collection",
+    "hypothesis": "H4/B3 supplies enough continuation support and removes depth-three label censoring to justify a new teacher standard.",
+    "stream_variant": "reverse-000",
+    "environment_seed": 42,
+    "matrix": "unchanged eight-condition mid/late matrix",
+    "graph_contract": "Horizon 4, branch factor 3, maximum 121 nodes and 120 edges, attempt budget 1536, unchanged strict replay tolerance.",
+    "admission": "All individually completed graphs that pass strict root reconstruction and graph validation; no label-conditioned exclusions.",
+    "acceptance": "At least 12 unique directional late signatures, zero conflicting signatures, and at least 75% of late signatures with two or more continuation values on both afterstates.",
+    "decision": "Passing only permits multi-stream H4 development collection. It is not an agent or a score-gain claim."
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

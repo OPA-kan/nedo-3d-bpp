@@ -323,6 +323,16 @@ and one symmetric-support unit, below the required six. Four-stream LOO is
 preregistered test reconstructs those exact three pairs at H4/B3. Every
 relation must remain directional and unchanged before model work can resume.
 
+The H4/B3 test completed all three physical graphs as Actions `31687012973`.
+Only reverse dual-empty remained stable. Interleave dual-shelf reversed from
+higher to lower afterstate, and interleave single-preloaded became equal.
+Thus two of the three H3 model errors were depth-three teacher noise; the
+supported reverse error is genuine at H4. Polynomial height transforms did
+not improve 18/21. H3-trained agent freezing remains blocked. The next
+preregistered step is one reverse-000 H4/B3 eight-condition pilot; it must
+produce at least 12 unique directional late signatures, no conflicts, and
+75% symmetric continuation support before broader H4 collection.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

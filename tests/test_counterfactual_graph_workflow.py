@@ -26,7 +26,13 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn('for snapshot in "${snapshots[@]}"', text)
         self.assertIn('"$graph_dir/graph.json"', text)
         self.assertIn("graph_branch_factor:", text)
+        self.assertIn("graph_horizon:", text)
         self.assertIn('branch_factor="${{ inputs.graph_branch_factor || \'2\' }}"', text)
+        self.assertIn('horizon="${{ inputs.graph_horizon || \'3\' }}"', text)
+        self.assertIn('if [[ "$horizon" == "4" ]]', text)
+        self.assertIn("max_nodes=121", text)
+        self.assertIn('--horizon "$horizon"', text)
+        self.assertIn("--expected-horizon ${{ inputs.graph_horizon || '3' }}", text)
         self.assertIn("--expected-branch-factor", text)
 
     def test_partial_condition_matrix_cannot_be_published(self):

@@ -25,6 +25,13 @@ on:
           - "2"
           - "3"
         default: "2"
+      graph_horizon:
+        description: "Physical graph horizon (H4 is pilot-only)"
+        type: choice
+        options:
+          - "3"
+          - "4"
+        default: "3"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -129,7 +136,13 @@ jobs:
         shell: bash
         run: |
           branch_factor="${{ inputs.graph_branch_factor || '2' }}"
-          if [[ "$branch_factor" == "3" ]]; then
+          horizon="${{ inputs.graph_horizon || '3' }}"
+          if [[ "$horizon" == "4" ]]; then
+            test "$branch_factor" == "3"
+            attempt_budget=1536
+            max_nodes=121
+            max_edges=120
+          elif [[ "$branch_factor" == "3" ]]; then
             attempt_budget=512
             max_nodes=40
             max_edges=39
@@ -151,7 +164,7 @@ jobs:
               --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
               --case "m-${{ matrix.scenario }}" \
               --split development \
-              --horizon 3 \
+              --horizon "$horizon" \
               --branch-factor "$branch_factor" \
               --attempt-budget "$attempt_budget" \
               --max-nodes "$max_nodes" \
@@ -202,7 +215,7 @@ jobs:
           python scripts/build_counterfactual_teacher_pairs.py
           --signal reports/counterfactual-graph-scale/aggregate/signal.json
           --graph-root reports/counterfactual-graph-scale/downloads
-          --expected-horizon 3
+          --expected-horizon ${{ inputs.graph_horizon || '3' }}
           --expected-branch-factor ${{ inputs.graph_branch_factor || '2' }}
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
       - name: Evaluate the first late-root learning baseline
