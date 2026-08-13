@@ -2,6 +2,13 @@ name: Counterfactual graph H3 branch-width stability
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/counterfactual-graph-branch-width.yml
+      - scripts/compare_counterfactual_branch_width.py
+      - reports/counterfactual-afterstate-value/branch-width-stability-spec.json
 
 permissions:
   contents: read
