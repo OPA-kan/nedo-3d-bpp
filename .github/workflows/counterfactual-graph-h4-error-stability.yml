@@ -2,6 +2,13 @@ name: Counterfactual graph H3 H4 error stability
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/counterfactual-graph-h4-error-stability.yml
+      - reports/counterfactual-afterstate-value/h3-h4-error-stability-spec.json
+      - scripts/compare_counterfactual_branch_width.py
 
 permissions:
   contents: read
