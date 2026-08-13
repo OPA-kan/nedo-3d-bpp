@@ -79,6 +79,37 @@ class ScenarioMatrixContractTests(unittest.TestCase):
             with self.subTest(scenario=name):
                 self.assertEqual(case["item_stream"]["max_space"], 1)
 
+    def test_default_stream_variant_preserves_original_order(self) -> None:
+        case = next(iter(MATRIX["dual-empty"].values()))
+        expected = SOURCE["000"]["item_stream"]["item_list"]
+        self.assertEqual(case["item_stream"]["item_list"], expected)
+        self.assertEqual(
+            case["item_stream"]["development_stream_variant"], "original"
+        )
+
+    def test_declared_stream_variants_change_model_input_and_keep_ids_unique(self) -> None:
+        variants = {
+            name: builder.build_all(
+                SOURCE, look_ahead=10, policy_timeout=8.0,
+                stream_variant=name,
+            )["dual-empty"]["m-dual-empty"]["item_stream"]["item_list"]
+            for name in ("source-001", "reverse-000", "interleave")
+        }
+        original = SOURCE["000"]["item_stream"]["item_list"]
+        for name, items in variants.items():
+            with self.subTest(variant=name):
+                self.assertNotEqual(items, original)
+                indices = [int(item["index"]) for item in items]
+                self.assertEqual(len(indices), len(set(indices)))
+        self.assertEqual(
+            variants["reverse-000"][0]["index"], original[-1]["index"]
+        )
+        self.assertEqual(
+            len(variants["interleave"]),
+            len(SOURCE["000"]["item_stream"]["item_list"])
+            + len(SOURCE["001"]["item_stream"]["item_list"]),
+        )
+
     def test_every_scenario_yields_a_wellformed_action(self) -> None:
         for name, config in MATRIX.items():
             case = next(iter(config.values()))

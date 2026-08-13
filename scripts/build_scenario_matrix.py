@@ -70,6 +70,43 @@ SCENARIOS = (
                               dedicated=True, stream="both")),
 )
 
+STREAM_VARIANTS = ("original", "source-001", "reverse-000", "interleave")
+
+
+def _stream_items(source: dict, spec: dict, variant: str) -> list[dict]:
+    """Build a declared development stream while preserving item identity."""
+    if variant not in STREAM_VARIANTS:
+        raise ValueError(
+            f"unknown stream variant {variant!r}; expected one of "
+            + ", ".join(STREAM_VARIANTS)
+        )
+    base = copy.deepcopy(source["000"]["item_stream"]["item_list"])
+    shelf = copy.deepcopy(source["001"]["item_stream"]["item_list"])
+    if variant == "source-001":
+        items = shelf
+    elif variant == "reverse-000":
+        items = list(reversed(base))
+    elif variant == "interleave":
+        items = [
+            item
+            for position in range(max(len(base), len(shelf)))
+            for stream in (base, shelf)
+            for item in stream[position:position + 1]
+        ]
+    elif spec.get("stream") == "both":
+        items = base + shelf
+    else:
+        return base
+    # A combined stream contains overlapping source indices. The action
+    # protocol requires identity to be globally unique, while reordering a
+    # single source must keep its original identities.
+    if variant == "interleave" or (
+        variant == "original" and spec.get("stream") == "both"
+    ):
+        for position, item in enumerate(items):
+            item["index"] = position
+    return items
+
 
 def _preloaded_items(items: list[dict], count: int, container: dict) -> list[dict]:
     """
@@ -103,20 +140,11 @@ def _preloaded_items(items: list[dict], count: int, container: dict) -> list[dic
 
 
 def build_scenario(source: dict, name: str, spec: dict,
-                   *, look_ahead: int, policy_timeout: float) -> dict:
+                   *, look_ahead: int, policy_timeout: float,
+                   stream_variant: str = "original") -> dict:
     base = copy.deepcopy(source["000"])
     shelf_source = copy.deepcopy(source["001"])
-    items = base["item_stream"]["item_list"]
-    if spec.get("stream") == "both":
-        items = items + copy.deepcopy(
-            shelf_source["item_stream"]["item_list"]
-        )
-        # index is the identity the action protocol uses (env.py:62,210
-        # treats action item_idx as a POOL position, but item["index"] is
-        # the stream identity), so the concatenated stream must renumber
-        # or two items share an index.
-        for position, item in enumerate(items):
-            item["index"] = position
+    items = _stream_items(source, spec, stream_variant)
 
     template = copy.deepcopy(base["containers"]["container_list"][0])
     shelf_template = copy.deepcopy(
@@ -157,6 +185,7 @@ def build_scenario(source: dict, name: str, spec: dict,
     # matrix this builder exists to isolate.
     case["item_stream"]["max_space"] = 1
     case["item_stream"]["visible_pool"] = []
+    case["item_stream"]["development_stream_variant"] = stream_variant
     case["agent"]["optimize"] = False
     case["agent"]["policy_timeout"] = float(policy_timeout)
     # camera.num_containers sizes the simulator's shared depth-map array
@@ -195,11 +224,13 @@ def observation_containers(case: dict) -> list[dict]:
 
 
 def build_all(source: dict, *, look_ahead: int,
-              policy_timeout: float) -> dict[str, dict]:
+              policy_timeout: float,
+              stream_variant: str = "original") -> dict[str, dict]:
     return {
         name: build_scenario(
             source, name, spec,
             look_ahead=look_ahead, policy_timeout=policy_timeout,
+            stream_variant=stream_variant,
         )
         for name, spec in SCENARIOS
     }
@@ -210,6 +241,14 @@ def main() -> int:
     parser.add_argument("--source", type=pathlib.Path, default=DEFAULT_SOURCE)
     parser.add_argument("--look-ahead", type=int, default=10)
     parser.add_argument("--policy-timeout", type=float, default=8.0)
+    parser.add_argument(
+        "--stream-variant", choices=STREAM_VARIANTS, default="original",
+        help=(
+            "Declared synthetic development stream. original preserves the "
+            "existing matrix exactly; other variants test model-visible "
+            "trajectory support and are not score-comparable."
+        ),
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
 
@@ -219,6 +258,7 @@ def main() -> int:
     for name, config in build_all(
         source, look_ahead=args.look_ahead,
         policy_timeout=args.policy_timeout,
+        stream_variant=args.stream_variant,
     ).items():
         path = args.output_dir / f"{name}.json"
         path.write_text(
@@ -249,6 +289,7 @@ def main() -> int:
             ),
             "source": str(args.source.relative_to(ROOT)),
             "look_ahead": args.look_ahead,
+            "stream_variant": args.stream_variant,
             "scenarios": manifest,
         }, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

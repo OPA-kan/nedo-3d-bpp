@@ -43,6 +43,7 @@ class PhysicalOutcomeTests(unittest.TestCase):
                 "preloaded_item_count": 3,
                 "pool_width": 40,
                 "stream_item_count": 3,
+                "stream_variant": "original",
             },
         )
 

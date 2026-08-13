@@ -7,6 +7,15 @@ on:
         description: "Simulator reset seed for an independent root trajectory"
         required: false
         default: "42"
+      stream_variant:
+        description: "Synthetic development item-stream variant"
+        type: choice
+        options:
+          - original
+          - source-001
+          - reverse-000
+          - interleave
+        default: original
   push:
     branches:
       - experiment/counterfactual-graph
@@ -90,6 +99,7 @@ jobs:
           python scripts/build_scenario_matrix.py
           --look-ahead ${{ matrix.pool }}
           --policy-timeout 8
+          --stream-variant ${{ inputs.stream_variant || 'original' }}
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/configs"
       - name: Capture replayable mid/late root

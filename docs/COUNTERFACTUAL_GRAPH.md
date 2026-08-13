@@ -254,3 +254,11 @@ these runs are not admitted to training. Future collection must vary the
 model-visible trajectory through scenario/item-stream/order or policy changes,
 then pass `scripts/audit_counterfactual_afterstate_collection.py` before any
 refreeze or confirmation.
+
+The next data-only intervention is preregistered before execution: use the
+bundled case 001 stream, the reversed case 000 stream, and an interleaving of
+both, with environment seed 42 and unchanged H3/B2 physics. The original
+variant remains byte-compatible. Variant provenance is carried through config,
+graph scenario axes, and teacher rows. No model evaluation is allowed unless
+the collection first supplies at least 12 unique directional late signatures
+at a unique fraction of at least 75%.

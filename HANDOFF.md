@@ -226,6 +226,11 @@ support. The collection independence gate failed; do not fold these runs into
 training or refreeze. The next generator change must vary the actual scenario,
 item stream/order, or root trajectory policy and pass
 `audit_counterfactual_afterstate_collection.py` before model evaluation.
+The next collection is frozen before physics: stream variants `source-001`,
+`reverse-000`, and `interleave`, all at environment seed 42 and unchanged
+H3/B2. Admission requires at least 12 unique directional late signatures and
+at least 75% unique fraction. The default `original` builder remains exactly
+backward compatible. Run the independence audit before fitting anything.
 
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is

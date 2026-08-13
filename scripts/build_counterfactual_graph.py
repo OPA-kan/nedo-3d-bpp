@@ -239,7 +239,7 @@ def git_commit() -> str:
         return "unknown"
 
 
-def scenario_axes(task_config: dict[str, Any]) -> dict[str, int]:
+def scenario_axes(task_config: dict[str, Any]) -> dict[str, Any]:
     """Record the competition-condition axes represented by one root."""
     containers = task_config.get("containers", {}).get(
         "container_list", []
@@ -263,6 +263,9 @@ def scenario_axes(task_config: dict[str, Any]) -> dict[str, int]:
         ),
         "stream_item_count": len(
             task_config.get("item_stream", {}).get("item_list", [])
+        ),
+        "stream_variant": task_config.get("item_stream", {}).get(
+            "development_stream_variant", "original"
         ),
     }
 

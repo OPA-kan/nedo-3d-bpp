@@ -108,6 +108,7 @@ def summarize_paths(paths: Iterable[pathlib.Path]) -> dict[str, Any]:
             "preloaded_item_count",
             "pool_width",
             "stream_item_count",
+            "stream_variant",
         )
         if any(key in row["scenario_axes"] for row in rows)
     }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "development_collection_failed_independence_gate",
+  "status": "stream_variant_collection_preregistered_not_run",
   "hypothesis": "The replication error is associated with sparse support in physical afterstate feature space within a known scenario, rather than an unseen scenario axis.",
   "sealed_evaluation_run_ids": [
     "31598349094",
@@ -27,6 +27,21 @@
     "unique_late_fraction": 0.42857142857142855,
     "independence_gate": "fail",
     "reason": "Different environment seeds produced many byte-distinct teacher rows but repeated the exact model-visible afterstate deltas across runs."
+  },
+  "stream_variant_followup": {
+    "variants": [
+      "source-001",
+      "reverse-000",
+      "interleave"
+    ],
+    "environment_seed": 42,
+    "rationale": "Change the item stream visible to the policy while holding the simulator seed, scenario matrix, H3 depth, branch factor, and model fixed.",
+    "admission_gate": {
+      "minimum_unique_late_signatures": 12,
+      "minimum_unique_fraction": 0.75,
+      "signature": "exact concatenation of packed and packed-plus-visible model feature deltas"
+    },
+    "decision": "Run the collection independence audit before any model evaluation. If the gate fails, do not add these rows to training or alter the threshold."
   },
   "model_contract": {
     "axis": "fill_score_proxy",
