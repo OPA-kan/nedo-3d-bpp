@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "axis": "fill_score_proxy",
+  "label_family": "distributional_continuation_labels",
+  "status": "frozen_awaiting_new_physical_run",
+  "model": "consensus_of_two_fixed_l2_no_intercept_ridges_with_action_fallback",
+  "l2": 1.0,
+  "training_run_ids": [
+    "31722131035",
+    "31720120600",
+    "31718231518",
+    "31722145273"
+  ],
+  "feature_blocks": [
+    "packed_afterstate_summary_delta",
+    "packed_plus_visible_afterstate_summary_delta",
+    "action_geometry_delta"
+  ],
+  "decision": "Use the afterstate prediction when packed-only and packed-plus-visible models agree; otherwise use action geometry.",
+  "development_provenance": "The fallback rule was frozen after inspecting complete seed-43--45 evaluations. Those runs are development evidence and cannot confirm this policy.",
+  "development_run_ids": [
+    "31724977409",
+    "31726615939",
+    "31726618901"
+  ],
+  "development_results": {
+    "rows": 148,
+    "afterstate_rows": 116,
+    "correct": 118,
+    "action_geometry_correct": 103,
+    "paired_wins_ties_losses": [19, 125, 4],
+    "exact_two_sided_sign_p": 0.002599477767944336
+  },
+  "fallback_confirmation_gate": {
+    "data": "complete late splits of original-stream H3/B3 physical matrices at unopened seeds 46, 47, and 48",
+    "minimum_target_runs": 3,
+    "require_no_target_run_regression": true,
+    "maximum_pooled_exact_sign_p": 0.05
+  },
+  "forbidden_confirmation_run_ids": [
+    "31724977409",
+    "31726615939",
+    "31726618901"
+  ],
+  "claim_limit": "Passing licenses an offline shadow-policy integration experiment only. It does not establish live episode-score improvement."
+}

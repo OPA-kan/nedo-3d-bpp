@@ -2,11 +2,59 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.evaluate_frozen_fill_afterstate_policy import evaluate_frozen
+from scripts.evaluate_frozen_fill_afterstate_policy import (
+    aggregate_fallback_reports,
+    evaluate_frozen,
+)
 from tests.test_evaluate_counterfactual_afterstate_value import run
 
 
 class FrozenFillAfterstatePolicyTests(unittest.TestCase):
+    def test_aggregates_preregistered_fallback_gate(self) -> None:
+        policy = {
+            "status": "frozen_awaiting_new_physical_run",
+            "fallback_confirmation_gate": {
+                "minimum_target_runs": 2,
+                "require_no_target_run_regression": True,
+                "maximum_pooled_exact_sign_p": 0.05,
+            }
+        }
+        reports = [
+            {
+                "target_run_id": "a",
+                "consensus_with_action_fallback": {
+                    "rows": 10, "afterstate_rows": 8, "correct": 8,
+                    "action_geometry_correct": 6,
+                    "paired_vs_action_geometry": {
+                        "wins": 4, "ties": 6, "losses": 0,
+                    },
+                },
+            },
+            {
+                "target_run_id": "b",
+                "consensus_with_action_fallback": {
+                    "rows": 10, "afterstate_rows": 7, "correct": 8,
+                    "action_geometry_correct": 6,
+                    "paired_vs_action_geometry": {
+                        "wins": 4, "ties": 6, "losses": 0,
+                    },
+                },
+            },
+        ]
+
+        result = aggregate_fallback_reports(policy, reports)
+
+        self.assertEqual(result["paired_vs_action_geometry"]["wins"], 8)
+        self.assertEqual(result["paired_vs_action_geometry"]["losses"], 0)
+        self.assertTrue(result["gate_passed"])
+
+        policy["forbidden_confirmation_run_ids"] = ["a"]
+        rejected = aggregate_fallback_reports(policy, reports)
+        self.assertFalse(rejected["gate_passed"])
+        self.assertFalse(
+            rejected["gate_checks"]["eligible_confirmation_targets"]
+        )
+
     def test_evaluates_new_run_without_training_on_it(self) -> None:
         policy = {
             "status": "frozen_awaiting_new_physical_run",
@@ -50,6 +98,18 @@ class FrozenFillAfterstatePolicyTests(unittest.TestCase):
 
         self.assertEqual(
             report["label_family"], "distributional_continuation_labels"
+        )
+        fallback = report["consensus_with_action_fallback"]
+        self.assertEqual(fallback["rows"], 1)
+        self.assertEqual(fallback["afterstate_rows"], 1)
+        self.assertEqual(fallback["correct"], 1)
+        self.assertEqual(
+            fallback["paired_vs_action_geometry"], {
+                "wins": 0,
+                "ties": 1,
+                "losses": 0,
+                "exact_two_sided_sign_p": 1.0,
+            },
         )
 
 
