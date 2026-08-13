@@ -208,7 +208,26 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+def build_teacher_corpus(
+    signal: dict[str, Any], *, expected_horizon: int | None = None,
+    expected_branch_factor: int | None = None,
+) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
+    horizons = [int(value) for value in signal.get("horizons", [])]
+    branch_factors = [
+        int(value) for value in signal.get("branch_factors", [])
+    ]
+    if expected_horizon is not None and horizons != [expected_horizon]:
+        raise ValueError(
+            f"expected only H{expected_horizon} graphs, found {horizons}"
+        )
+    if (
+        expected_branch_factor is not None
+        and branch_factors != [expected_branch_factor]
+    ):
+        raise ValueError(
+            "expected only branch factor "
+            f"{expected_branch_factor}, found {branch_factors}"
+        )
     buckets = {"discovery": [], "late_holdout": [], "controls": []}
     for graph in signal["graphs"]:
         for pair in graph["sibling_pairs"]:
@@ -280,6 +299,8 @@ def build_teacher_corpus(signal: dict[str, Any]) -> tuple[dict[str, Any], dict[s
         "schema_version": 4,
         "source_run_id": signal.get("run_id"),
         "source_commits": signal.get("commits", []),
+        "source_horizons": horizons,
+        "source_branch_factors": branch_factors,
         "label_contract": (
             "Per-axis optimistic bounded reachability. No axes are summed; "
             "a label compares each sibling subtree's best recorded leaf. "
@@ -343,6 +364,8 @@ def main() -> int:
     parser.add_argument("--signal", type=pathlib.Path, required=True)
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     parser.add_argument("--graph-root", type=pathlib.Path)
+    parser.add_argument("--expected-horizon", type=int)
+    parser.add_argument("--expected-branch-factor", type=int)
     args = parser.parse_args()
     signal = json.loads(args.signal.read_text(encoding="utf-8"))
     if args.graph_root is not None:
@@ -350,7 +373,11 @@ def main() -> int:
         if not paths:
             raise SystemExit(f"no graph.json files below {args.graph_root}")
         join_afterstate_tensors(signal, paths)
-    manifest, buckets = build_teacher_corpus(signal)
+    manifest, buckets = build_teacher_corpus(
+        signal,
+        expected_horizon=args.expected_horizon,
+        expected_branch_factor=args.expected_branch_factor,
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, rows in buckets.items():
         _write_jsonl(args.output_dir / f"{name}.jsonl", rows)

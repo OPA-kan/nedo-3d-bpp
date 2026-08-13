@@ -253,6 +253,7 @@ def summarize_graph_signal(
         "case_id": graph.get("case_id"),
         "root_step": graph.get("root_step"),
         "horizon": horizon,
+        "branch_factor": int(graph.get("budget", {}).get("branch_factor", 0)),
         "commit": graph.get("provenance", {}).get("commit"),
         "scenario_axes": graph.get("provenance", {}).get(
             "scenario_axes", {}
@@ -365,6 +366,11 @@ def summarize_paths(
             int(graph.get("horizon", 0))
             for graph in graphs
             if graph.get("horizon") is not None
+        }),
+        "branch_factors": sorted({
+            int(graph.get("branch_factor", 0))
+            for graph in graphs
+            if graph.get("branch_factor") is not None
         }),
         "training_readiness": (
             "h3_teacher_baseline_ready"

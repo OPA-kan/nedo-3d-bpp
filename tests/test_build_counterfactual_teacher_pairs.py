@@ -13,6 +13,13 @@ from scripts.build_counterfactual_teacher_pairs import (
 
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
+    def test_rejects_mixed_or_wrong_branch_width_teacher_sources(self):
+        signal = {"horizons": [3], "branch_factors": [2, 3], "graphs": []}
+        with self.assertRaisesRegex(ValueError, "branch factor 3"):
+            build_teacher_corpus(
+                signal, expected_horizon=3, expected_branch_factor=3
+            )
+
     def test_continuation_label_ignores_float_roundoff(self):
         metrics = {
             "placed_count": 0,

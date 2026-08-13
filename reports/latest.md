@@ -1,7 +1,7 @@
 # CPU verification report
 
-- Timestamp: `2026-08-13T14:43:50+09:00`
-- Git SHA: `ed2ed6d94f8220d5e6c0884065ba3eb4a1805606`
+- Timestamp: `2026-08-13T15:00:30+09:00`
+- Git SHA: `26d1e61fa96b30c74038d50819850674765be90e`
 - Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
 - Platform: `Windows-11-10.0.26200-SP0`
 - Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
@@ -9,7 +9,7 @@
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `81.339 s`
+- Runtime: `84.048 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -48,7 +48,7 @@ test_the_span_must_clear_the_support_term (test_zone_order.ZoneScoreTests.test_t
 Why the default bonus is 1.0 and not 0.5. ... ok
 
 ----------------------------------------------------------------------
-Ran 837 tests in 79.674s
+Ran 838 tests in 82.369s
 
 OK (skipped=5)
 ```

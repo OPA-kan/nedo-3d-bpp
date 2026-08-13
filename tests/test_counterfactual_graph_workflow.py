@@ -25,6 +25,9 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("-name 'step-*-state.json'", text)
         self.assertIn('for snapshot in "${snapshots[@]}"', text)
         self.assertIn('"$graph_dir/graph.json"', text)
+        self.assertIn("graph_branch_factor:", text)
+        self.assertIn('branch_factor="${{ inputs.graph_branch_factor || \'2\' }}"', text)
+        self.assertIn("--expected-branch-factor", text)
 
     def test_partial_condition_matrix_cannot_be_published(self):
         text = WORKFLOW.read_text(encoding="utf-8")

@@ -16,6 +16,13 @@ on:
           - reverse-000
           - interleave
         default: original
+      graph_branch_factor:
+        description: "Physical H3 branch width (B3 is the new teacher standard)"
+        type: choice
+        options:
+          - "2"
+          - "3"
+        default: "2"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -116,9 +123,19 @@ jobs:
           --skip-optimize
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/root"
-      - name: Expand every captured root as a bounded H3/B2 physical graph
+      - name: Expand every captured root as a bounded H3 physical graph
         shell: bash
         run: |
+          branch_factor="${{ inputs.graph_branch_factor || '2' }}"
+          if [[ "$branch_factor" == "3" ]]; then
+            attempt_budget=512
+            max_nodes=40
+            max_edges=39
+          else
+            attempt_budget=256
+            max_nodes=15
+            max_edges=14
+          fi
           mapfile -t snapshots < <(find \
             "reports/counterfactual-graph-scale/${{ matrix.label }}/root" \
             -maxdepth 1 -type f -name 'step-*-state.json' | sort)
@@ -133,10 +150,10 @@ jobs:
               --case "m-${{ matrix.scenario }}" \
               --split development \
               --horizon 3 \
-              --branch-factor 2 \
-              --attempt-budget 256 \
-              --max-nodes 15 \
-              --max-edges 14 \
+              --branch-factor "$branch_factor" \
+              --attempt-budget "$attempt_budget" \
+              --max-nodes "$max_nodes" \
+              --max-edges "$max_edges" \
               --output "$graph_dir/graph.json"
           done
       - uses: actions/upload-artifact@v4
@@ -183,6 +200,8 @@ jobs:
           python scripts/build_counterfactual_teacher_pairs.py
           --signal reports/counterfactual-graph-scale/aggregate/signal.json
           --graph-root reports/counterfactual-graph-scale/downloads
+          --expected-horizon 3
+          --expected-branch-factor ${{ inputs.graph_branch_factor || '2' }}
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
       - name: Evaluate the first late-root learning baseline
         run: >-
