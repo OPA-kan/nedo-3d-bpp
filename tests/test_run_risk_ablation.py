@@ -515,6 +515,13 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["LATE_POOL_MIN_PLACED"], "6")
         self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
 
+    def test_late_item_cap16_is_a_smaller_mid_late_intervention(self):
+        env: dict[str, str] = {}
+        configure_arm_environment(env, "late_item_cap16", 2.0, 0.0)
+        self.assertEqual(env["LATE_POOL_ITEMS_EVALUATED"], "16")
+        self.assertEqual(env["LATE_POOL_MIN_PLACED"], "6")
+        self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
+
     def test_rollout_shadow_stride4_stays_telemetry_only(self):
         env: dict[str, str] = {}
 
