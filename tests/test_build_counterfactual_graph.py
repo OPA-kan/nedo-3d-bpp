@@ -168,6 +168,49 @@ class PhysicalOutcomeTests(unittest.TestCase):
             ["settled_candidate", "release_candidate"],
         )
 
+    def test_measurement_provider_keeps_same_item_release_fallback(self):
+        def selected(name, score):
+            return SimpleNamespace(
+                action={"item_idx": 0, "container_idx": 0,
+                        "place_pos": [0, 0, 0.5], "orientation": 0},
+                candidate=SimpleNamespace(name=name), score=score,
+            )
+
+        class PlacementCore:
+            @staticmethod
+            def top_candidates(_obs, _items, _k, **kwargs):
+                observer = kwargs["candidate_observer"]
+                observer(0, {"index": 10}, 0, 0, selected(None, 5.0))
+                observer(
+                    0, {"index": 10}, 0, 0,
+                    selected("release_candidate", 4.0),
+                )
+                return []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=PlacementCore,
+        )
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value={},
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[(0, {"index": 10})],
+            ),
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=64, include_release_fallbacks=True,
+            )(object(), {}, 10)
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual(
+            [candidate.selection["candidate_kind"] for candidate in candidates],
+            ["settled_candidate", "release_candidate"],
+        )
+
     def test_records_all_score_proxies_without_collapsing_them(self):
         class Container:
             packed_items = [object(), object()]

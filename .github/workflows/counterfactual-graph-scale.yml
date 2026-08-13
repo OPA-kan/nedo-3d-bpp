@@ -32,6 +32,10 @@ on:
           - "3"
           - "4"
         default: "3"
+      measurement_only:
+        description: "Measure uncapped feasible visible items at the latest root"
+        type: boolean
+        default: false
   push:
     branches:
       - experiment/counterfactual-graph
@@ -133,6 +137,7 @@ jobs:
           --output-dir
           "reports/counterfactual-graph-scale/${{ matrix.label }}/root"
       - name: Expand every captured root as a bounded H3 physical graph
+        if: ${{ inputs.measurement_only != true }}
         shell: bash
         run: |
           branch_factor="${{ inputs.graph_branch_factor || '2' }}"
@@ -171,6 +176,21 @@ jobs:
               --max-edges "$max_edges" \
               --output "$graph_dir/graph.json"
           done
+      - name: Measure uncapped feasible visible items at the latest root
+        if: ${{ inputs.measurement_only == true }}
+        shell: bash
+        run: |
+          root="reports/counterfactual-graph-scale/${{ matrix.label }}/root"
+          snapshot="$(find "$root" -maxdepth 1 -type f -name 'step-*-state.json' | sort | tail -n 1)"
+          test -n "$snapshot"
+          mkdir -p "reports/counterfactual-graph-scale/${{ matrix.label }}/feasible-items"
+          python scripts/measure_uncapped_feasible_items.py \
+            --snapshot "$snapshot" \
+            --config "reports/counterfactual-graph-scale/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
+            --case "m-${{ matrix.scenario }}" \
+            --attempt-budget 512 \
+            --split development \
+            --output "reports/counterfactual-graph-scale/${{ matrix.label }}/feasible-items/latest.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -179,7 +199,9 @@ jobs:
 
   aggregate:
     needs: graph
-    if: always() && needs.graph.result != 'skipped'
+    if: >-
+      ${{ always() && needs.graph.result != 'skipped' &&
+          inputs.measurement_only != true }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

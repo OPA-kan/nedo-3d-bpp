@@ -27,6 +27,7 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn('"$graph_dir/graph.json"', text)
         self.assertIn("graph_branch_factor:", text)
         self.assertIn("graph_horizon:", text)
+        self.assertIn("measurement_only:", text)
         self.assertIn('branch_factor="${{ inputs.graph_branch_factor || \'2\' }}"', text)
         self.assertIn('horizon="${{ inputs.graph_horizon || \'3\' }}"', text)
         self.assertIn('if [[ "$horizon" == "4" ]]', text)
@@ -34,6 +35,9 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn('--horizon "$horizon"', text)
         self.assertIn("--expected-horizon ${{ inputs.graph_horizon || '3' }}", text)
         self.assertIn("--expected-branch-factor", text)
+        self.assertIn("scripts/measure_uncapped_feasible_items.py", text)
+        self.assertIn("inputs.measurement_only == true", text)
+        self.assertIn("inputs.measurement_only != true", text)
 
     def test_partial_condition_matrix_cannot_be_published(self):
         text = WORKFLOW.read_text(encoding="utf-8")

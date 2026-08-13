@@ -119,7 +119,10 @@ def transition_outcomes(
     return immediate, cumulative
 
 
-def build_candidate_provider(agent_module, *, attempt_budget: int):
+def build_candidate_provider(
+    agent_module, *, attempt_budget: int,
+    include_release_fallbacks: bool = False,
+):
     risk_lambda = (
         agent_module.RELEASE_RISK_RERANK_LAMBDA
         if agent_module.RELEASE_RISK_LIVE_RERANK
@@ -174,7 +177,7 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
             (
                 pair
                 for pair in release_by_item.items()
-                if pair[0] not in settled_by_item
+                if include_release_fallbacks or pair[0] not in settled_by_item
             ),
             key=lambda pair: (-float(pair[1].score), int(pair[0])),
         )
@@ -218,6 +221,9 @@ def build_candidate_provider(agent_module, *, attempt_budget: int):
                             None
                             if risk_lambda is None
                             else float(risk_lambda)
+                        ),
+                        "release_fallbacks_included": bool(
+                            include_release_fallbacks
                         ),
                     },
                 )
