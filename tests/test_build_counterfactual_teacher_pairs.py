@@ -40,7 +40,11 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
 
     def test_joins_child_tensors_from_raw_graph(self):
         signal = {"graphs": [{
-            "graph_id": "g", "sibling_pairs": [{"source_node_id": "root"}],
+            "graph_id": "g", "sibling_pairs": [{
+                "source_node_id": "root",
+                "lower_stable_item_index": 1,
+                "higher_stable_item_index": 2,
+            }],
         }]}
         raw = {
             "graph_id": "g",
@@ -50,8 +54,12 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
                 {"node_id": "high", "state_tensor": {"side": "high"}},
             ],
             "edges": [
-                {"source": "root", "target": "high", "selection": {"score": 2}},
-                {"source": "root", "target": "low", "selection": {"score": 1}},
+                {"source": "root", "target": "high", "selection": {
+                    "score": 2, "stable_item_index": 2,
+                }},
+                {"source": "root", "target": "low", "selection": {
+                    "score": 1, "stable_item_index": 1,
+                }},
             ],
         }
         with tempfile.TemporaryDirectory() as directory:

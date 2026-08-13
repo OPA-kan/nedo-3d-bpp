@@ -70,7 +70,9 @@ SCENARIOS = (
                               dedicated=True, stream="both")),
 )
 
-STREAM_VARIANTS = ("original", "source-001", "reverse-000", "interleave")
+STREAM_VARIANTS = (
+    "original", "source-001", "reverse-000", "interleave", "rotate-000-7",
+)
 
 
 def _stream_items(source: dict, spec: dict, variant: str) -> list[dict]:
@@ -86,6 +88,8 @@ def _stream_items(source: dict, spec: dict, variant: str) -> list[dict]:
         items = shelf
     elif variant == "reverse-000":
         items = list(reversed(base))
+    elif variant == "rotate-000-7":
+        items = base[7:] + base[:7]
     elif variant == "interleave":
         items = [
             item

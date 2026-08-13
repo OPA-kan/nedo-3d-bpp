@@ -109,6 +109,29 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
             any(summary["lower_score_better_reachable_leaf_counts"].values())
         )
 
+    def test_b3_exports_all_three_unordered_sibling_pairs(self):
+        graph = graph_fixture()
+        graph["budget"]["branch_factor"] = 3
+        graph["nodes"].append({
+            **graph["nodes"][2], "node_id": "third",
+            "cumulative_outcomes": {
+                **graph["nodes"][2]["cumulative_outcomes"],
+                "fill_score_proxy": 10.5,
+            },
+        })
+        graph["edges"].append({
+            **graph["edges"][1], "target": "third",
+            "selection": {
+                **graph["edges"][1]["selection"],
+                "score": 1.5, "stable_item_index": 3,
+            },
+        })
+
+        summary = summarize_graph_signal(graph, source="graph.json")
+
+        self.assertEqual(summary["branch_factor"], 3)
+        self.assertEqual(summary["sibling_pair_count"], 3)
+
     def test_matrix_summary_does_not_claim_training_readiness(self):
         class Path:
             def read_text(self, encoding):

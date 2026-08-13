@@ -133,7 +133,7 @@
     }
   },
   "h3_b3_teacher_migration": {
-    "status": "preregistered_not_run",
+    "status": "three_variant_collection_complete_raw_independence_failed",
     "label_standard": "H3/B3 optimistic continuation from physically reconstructed afterstates",
     "reason": "Forced-pair evidence shows that two of four apparent B2 model errors become equal when continuation width grows.",
     "collection_order": [
@@ -143,7 +143,29 @@
       "Freeze a candidate only if directional coverage is at least 75%, errors are zero, and it beats action geometry.",
       "Only then run a fresh physical trajectory comparison against the incumbent."
     ],
-    "stop_rule": "Do not relabel B2 rows post hoc, mix B2 and B3 directional targets, or describe a teacher-classification improvement as expected competition-score gain."
+    "stop_rule": "Do not relabel B2 rows post hoc, mix B2 and B3 directional targets, or describe a teacher-classification improvement as expected competition-score gain.",
+    "result": {
+      "run_ids": ["31672407187", "31672410385", "31672413055"],
+      "training_ready_corpora": 3,
+      "fill_directional_discovery_rows": 90,
+      "unique_discovery_signatures": 60,
+      "fill_directional_late_rows": 34,
+      "unique_late_signatures": 18,
+      "conflicting_signature_groups": 0,
+      "original_independence_gate": "fail",
+      "reason": "B3 produces multiple pair rows per parent; repeated model-visible signatures reduce the raw unique fraction even though no signature has conflicting labels."
+    }
+  },
+  "signature_unit_holdout": {
+    "status": "preregistered_before_holdout_generation",
+    "development_runs": ["31672407187", "31672410385", "31672413055"],
+    "unit": "One exact packed plus packed-visible afterstate-delta signature with one directional fill relation.",
+    "deduplication_rule": "Collapse repeated signatures to one unit only when every row has the same relation. Any conflicting relation fails the experiment. Do not weight a signature by its row multiplicity.",
+    "new_holdout_stream": "rotate-000-7",
+    "holdout_generation": "Rotate bundled case 000 item order left by seven while preserving stable item identities; environment seed 42; eight-condition H3/B3 matrix.",
+    "model_selection": "Choose among the already-declared representation audit families using whole-development-stream leave-one-out accuracy on signature units only.",
+    "acceptance": "Freeze only a unique best representation with zero development signature errors. The new rotate-000-7 holdout must then have at least 12 directional late signatures, zero signature conflicts, at least 75% supported coverage, zero supported errors, and outperform action geometry on covered units.",
+    "score_claim": "Passing this gate creates an agent candidate worth physical trajectory testing; it does not itself establish competition-score gain."
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

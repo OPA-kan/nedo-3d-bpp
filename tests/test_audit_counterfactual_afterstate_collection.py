@@ -8,6 +8,17 @@ from tests.test_evaluate_counterfactual_afterstate_value import run
 
 
 class CounterfactualAfterstateCollectionAuditTests(unittest.TestCase):
+    def test_reports_same_signature_with_conflicting_labels(self) -> None:
+        first = run("one")
+        second = run("two")
+        second["late"][0]["continuation_labels"]["fill_score_proxy"][
+            "relation"
+        ] = "lower_afterstate_better"
+
+        report = audit([first, second])
+
+        self.assertEqual(report["splits"]["late"]["conflicting_signature_groups"], 1)
+
     def test_counts_model_visible_duplicates_across_runs(self) -> None:
         first = run("1")
         second = copy.deepcopy(first)

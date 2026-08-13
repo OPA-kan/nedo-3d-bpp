@@ -135,13 +135,18 @@ def join_afterstate_tensors(
             outgoing[edge["source"]].append(edge)
         for pair in graph["sibling_pairs"]:
             edges = outgoing[pair["source_node_id"]]
-            if len(edges) != 2:
+            by_item = {
+                int(edge["selection"]["stable_item_index"]): edge
+                for edge in edges
+            }
+            lower_id = int(pair["lower_stable_item_index"])
+            higher_id = int(pair["higher_stable_item_index"])
+            if lower_id not in by_item or higher_id not in by_item:
                 raise ValueError(
-                    f"expected two raw sibling edges: {pair['source_node_id']}"
+                    "missing raw sibling edge pair: "
+                    f"{pair['source_node_id']} {lower_id}/{higher_id}"
                 )
-            lower, higher = sorted(
-                edges, key=lambda edge: float(edge["selection"]["score"])
-            )
+            lower, higher = by_item[lower_id], by_item[higher_id]
             pair["lower_afterstate_tensor"] = nodes[lower["target"]].get(
                 "state_tensor"
             )
@@ -177,6 +182,8 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     identity = {
         "graph_id": graph["graph_id"],
         "source_node_id": pair["source_node_id"],
+        "lower_stable_item_index": pair["lower_stable_item_index"],
+        "higher_stable_item_index": pair["higher_stable_item_index"],
     }
     teacher_id = "teacher-" + hashlib.sha256(
         json.dumps(identity, sort_keys=True).encode("utf-8")

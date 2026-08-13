@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import itertools
 import json
 import pathlib
 from typing import Any, Iterable
@@ -158,21 +159,12 @@ def _ranges_differ(comparisons: dict[str, Any]) -> bool:
     )
 
 
-def summarize_graph_signal(
-    graph: dict[str, Any], *, source: str,
-    include_afterstate_tensors: bool = False,
+def _summarize_sibling_pair(
+    source_id: str, lower: dict[str, Any], higher: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    outgoing: dict[str, list[dict[str, Any]]], *,
+    include_afterstate_tensors: bool,
 ) -> dict[str, Any]:
-    nodes, outgoing, root_id = _graph_index(graph)
-    paths = _leaf_paths(root_id, nodes, outgoing)
-    horizon = int(graph.get("budget", {}).get("horizon", 3))
-    sibling_rows = []
-    lower_score_better = collections.Counter()
-    for source_id, edges in outgoing.items():
-        if len(edges) != 2:
-            continue
-        lower, higher = sorted(
-            edges, key=lambda edge: float(edge["selection"]["score"])
-        )
         lower_paths = _leaf_paths(lower["target"], nodes, outgoing)
         higher_paths = _leaf_paths(higher["target"], nodes, outgoing)
         lower_ranges = _metric_ranges(lower_paths)
@@ -208,8 +200,6 @@ def summarize_graph_signal(
                 "higher_range": higher_range,
                 "lower_score_has_better_reachable_leaf": better,
             }
-            if better:
-                lower_score_better[metric] += 1
         source_state_tensor = nodes[source_id].get("state_tensor")
         sibling_row = {
             "source_node_id": source_id,
@@ -239,7 +229,37 @@ def summarize_graph_signal(
             sibling_row["higher_afterstate_tensor"] = higher_afterstate.get(
                 "state_tensor"
             )
-        sibling_rows.append(sibling_row)
+        return sibling_row
+
+
+def summarize_graph_signal(
+    graph: dict[str, Any], *, source: str,
+    include_afterstate_tensors: bool = False,
+) -> dict[str, Any]:
+    nodes, outgoing, root_id = _graph_index(graph)
+    paths = _leaf_paths(root_id, nodes, outgoing)
+    horizon = int(graph.get("budget", {}).get("horizon", 3))
+    sibling_rows = []
+    lower_score_better = collections.Counter()
+    for source_id, edges in outgoing.items():
+        if len(edges) < 2:
+            continue
+        ordered_edges = sorted(
+            edges,
+            key=lambda edge: (
+                float(edge["selection"]["score"]),
+                int(edge["selection"].get("stable_item_index", -1)),
+            ),
+        )
+        for lower, higher in itertools.combinations(ordered_edges, 2):
+            sibling_row = _summarize_sibling_pair(
+                source_id, lower, higher, nodes, outgoing,
+                include_afterstate_tensors=include_afterstate_tensors,
+            )
+            sibling_rows.append(sibling_row)
+            for metric, comparison in sibling_row["comparisons"].items():
+                if comparison["lower_score_has_better_reachable_leaf"]:
+                    lower_score_better[metric] += 1
     terminal_reasons = collections.Counter(
         leaf.get("terminal_reason")
         or ("horizon" if int(leaf["depth"]) >= horizon else "open_leaf")

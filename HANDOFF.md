@@ -279,6 +279,20 @@ as the training standard; do not edit them post hoc or mix them with B3. The
 next corpus must be generated directly at H3/B3 and evaluated with entire
 stream variants held out before any agent can be called promising.
 
+The first H3/B3 corpus collection ran as `31672407187`, `31672410385`, and
+`31672413055`. Reverse completed all eight conditions; source-001 and
+interleave retained their known single-condition strict reconstruction
+failures, and only validated graphs were recovered. After fixing the B3
+exporter to enumerate all three unordered pairs per width-three parent, all
+three corpora are schema-v4 training-ready. Together they contain 90
+directional fill discovery rows (60 exact model-visible signatures) and 34
+late rows (18 signatures). The original 75% raw-row uniqueness gate therefore
+fails at 66.7%/52.9%; do not reinterpret it as a pass. Crucially, repeated
+signatures have zero conflicting labels and none cross streams. Before a new
+holdout is generated, the next unit is fixed as one consistent exact
+signature, with no multiplicity weighting. A new `rotate-000-7` stream is
+reserved as whole-stream H3/B3 holdout; it must not be used for model choice.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

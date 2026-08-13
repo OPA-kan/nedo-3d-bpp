@@ -56,6 +56,10 @@ def audit(runs: list[dict[str, Any]]) -> dict[str, Any]:
             values for values in groups.values()
             if len({value["run_id"] for value in values}) > 1
         ]
+        conflicting = [
+            values for values in groups.values()
+            if len({value["relation"] for value in values}) > 1
+        ]
         splits[split] = {
             "directional_rows": len(rows),
             "unique_afterstate_signatures": len(groups),
@@ -63,6 +67,11 @@ def audit(runs: list[dict[str, Any]]) -> dict[str, Any]:
             "rows_in_cross_run_duplicate_groups": sum(map(len, cross)),
             "effective_unique_fraction": len(groups) / len(rows) if rows else 0.0,
             "cross_run_duplicate_groups_detail": cross,
+            "conflicting_signature_groups": len(conflicting),
+            "rows_in_conflicting_signature_groups": sum(
+                map(len, conflicting)
+            ),
+            "conflicting_signature_groups_detail": conflicting,
         }
     late = splits["late"]
     passes = (
@@ -98,7 +107,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Independence gate: **{'PASS' if report['development_independence_gate']['passed'] else 'FAIL'}**",
         "",
         "| Split | Directional rows | Unique signatures | Unique fraction | "
-        "Cross-run duplicate groups | Rows in duplicate groups |",
+        "Cross-run duplicate groups | Conflicting signatures |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for split in ("discovery", "late"):
@@ -108,7 +117,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"{row['unique_afterstate_signatures']} | "
             f"{row['effective_unique_fraction']:.1%} | "
             f"{row['cross_run_duplicate_groups']} | "
-            f"{row['rows_in_cross_run_duplicate_groups']} |"
+            f"{row['conflicting_signature_groups']} |"
         )
     lines.extend(["", f"> {report['claim']}", ""])
     return "\n".join(lines)

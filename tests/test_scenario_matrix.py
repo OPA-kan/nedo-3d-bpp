@@ -93,7 +93,9 @@ class ScenarioMatrixContractTests(unittest.TestCase):
                 SOURCE, look_ahead=10, policy_timeout=8.0,
                 stream_variant=name,
             )["dual-empty"]["m-dual-empty"]["item_stream"]["item_list"]
-            for name in ("source-001", "reverse-000", "interleave")
+            for name in (
+                "source-001", "reverse-000", "interleave", "rotate-000-7",
+            )
         }
         original = SOURCE["000"]["item_stream"]["item_list"]
         for name, items in variants.items():
@@ -104,6 +106,7 @@ class ScenarioMatrixContractTests(unittest.TestCase):
         self.assertEqual(
             variants["reverse-000"][0]["index"], original[-1]["index"]
         )
+        self.assertEqual(variants["rotate-000-7"][0]["index"], original[7]["index"])
         self.assertEqual(
             len(variants["interleave"]),
             len(SOURCE["000"]["item_stream"]["item_list"])
