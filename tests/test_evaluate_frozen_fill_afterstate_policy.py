@@ -55,6 +55,16 @@ class FrozenFillAfterstatePolicyTests(unittest.TestCase):
             rejected["gate_checks"]["eligible_confirmation_targets"]
         )
 
+        policy["forbidden_confirmation_run_ids"] = []
+        policy["fallback_confirmation_gate"]["required_target_run_ids"] = [
+            "a", "c"
+        ]
+        wrong_targets = aggregate_fallback_reports(policy, reports)
+        self.assertFalse(wrong_targets["gate_passed"])
+        self.assertFalse(
+            wrong_targets["gate_checks"]["exact_required_target_set"]
+        )
+
     def test_evaluates_new_run_without_training_on_it(self) -> None:
         policy = {
             "status": "frozen_awaiting_new_physical_run",

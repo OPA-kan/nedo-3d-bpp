@@ -45,6 +45,10 @@ def aggregate_fallback_reports(
         policy.get("status") == "frozen_awaiting_new_physical_run"
     )
     eligible_targets = not bool(set(target_ids) & forbidden_ids)
+    required_ids = {
+        str(value) for value in gate.get("required_target_run_ids", [])
+    }
+    exact_target_set = not required_ids or set(target_ids) == required_ids
     totals = {
         "rows": 0, "afterstate_rows": 0, "correct": 0,
         "action_geometry_correct": 0,
@@ -82,6 +86,7 @@ def aggregate_fallback_reports(
     passed = (
         eligible_policy_status
         and eligible_targets
+        and exact_target_set
         and enough_runs
         and (
             no_regression
@@ -101,6 +106,7 @@ def aggregate_fallback_reports(
         "gate_checks": {
             "eligible_policy_status": eligible_policy_status,
             "eligible_confirmation_targets": eligible_targets,
+            "exact_required_target_set": exact_target_set,
             "enough_target_runs": enough_runs,
             "no_target_run_regression": no_regression,
             "pooled_exact_significant_advantage": significant,
