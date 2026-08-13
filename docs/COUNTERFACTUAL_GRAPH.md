@@ -346,9 +346,15 @@ python scripts/evaluate_counterfactual_afterstate_value.py \
   --teacher-dir <run-a>/teacher-pairs \
   --teacher-dir <run-b>/teacher-pairs \
   --label-family distributional_continuation_labels \
+  --target-run-id <prospective-run-id> \
   --json-output reports/counterfactual-afterstate-value/distributional.json \
   --markdown-output reports/counterfactual-afterstate-value/distributional.md
 ```
+
+Omit `--target-run-id` for leave-one-run-out evaluation of every loaded run.
+For a preregistered prospective stream, supply it once so the evaluator trains
+on every other loaded discovery split and computes only that unopened target
+fold.
 
 This is a dataset and learnability gate, not a live selector. Cap 10, physical
 feasibility, and the final holdout remain unchanged. A model may advance only

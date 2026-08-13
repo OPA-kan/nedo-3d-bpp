@@ -220,6 +220,7 @@ def _exact_two_sided_sign_p(wins: int, losses: int) -> float:
 def evaluate(
     runs: list[dict[str, Any]], *,
     label_family: str = "continuation_labels",
+    target_run_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     if label_family not in LABEL_FAMILIES:
         raise ValueError(f"unsupported label family: {label_family}")
@@ -228,6 +229,15 @@ def evaluate(
     run_ids = [run["run_id"] for run in runs]
     if len(set(run_ids)) != len(run_ids):
         raise ValueError("source run IDs must be unique")
+    selected_target_ids = set(run_ids) if target_run_ids is None else target_run_ids
+    unknown_target_ids = selected_target_ids - set(run_ids)
+    if unknown_target_ids:
+        raise ValueError(
+            "target run IDs are not loaded: "
+            + ", ".join(sorted(unknown_target_ids))
+        )
+    if not selected_target_ids:
+        raise ValueError("at least one target run ID is required")
     totals = {
         metric: {
             name: {"correct": 0, "total": 0}
@@ -259,7 +269,9 @@ def evaluate(
         "discovery_retrospective": {"correct": 0, "covered": 0, "total": 0},
         "late_retrospective": {"correct": 0, "covered": 0, "total": 0},
     }
-    for target_run in runs:
+    for target_run in (
+        run for run in runs if run["run_id"] in selected_target_ids
+    ):
         train = [
             row for run in runs if run is not target_run
             for row in run["discovery"]
@@ -440,6 +452,9 @@ def evaluate(
             "afterstate; the first action's H0 outcome is subtracted per axis"
         ),
         "run_ids": run_ids,
+        "evaluated_target_run_ids": [
+            run_id for run_id in run_ids if run_id in selected_target_ids
+        ],
         "targets": targets,
         "pooled_exact_counts": totals,
         "immediate_score_abstentions": immediate_score_abstentions,
@@ -546,6 +561,10 @@ def main() -> int:
         "--label-family", choices=LABEL_FAMILIES,
         default="continuation_labels",
     )
+    parser.add_argument(
+        "--target-run-id", action="append",
+        help="Evaluate only this loaded run as holdout; may be repeated.",
+    )
     args = parser.parse_args()
     report = evaluate(
         [
@@ -553,6 +572,9 @@ def main() -> int:
             for path in args.teacher_dir
         ],
         label_family=args.label_family,
+        target_run_ids=(
+            set(args.target_run_id) if args.target_run_id else None
+        ),
     )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.markdown_output.parent.mkdir(parents=True, exist_ok=True)

@@ -141,6 +141,19 @@ class CounterfactualAfterstateValueTests(unittest.TestCase):
         self.assertIn("retrospective", selective["selection_warning"])
         self.assertEqual(selective["late_retrospective"]["total"], 2)
 
+    def test_can_evaluate_only_a_preregistered_target_run(self) -> None:
+        report = evaluate(
+            [run("1"), run("2"), run("3")], target_run_ids={"3"}
+        )
+
+        self.assertEqual(report["evaluated_target_run_ids"], ["3"])
+        self.assertEqual(len(report["targets"]), 1)
+        self.assertEqual(report["targets"][0]["training_run_ids"], ["1", "2"])
+        self.assertEqual(
+            report["pooled_exact_counts"]["fill_score_proxy"]["afterstate"],
+            {"correct": 1, "total": 1},
+        )
+
     def test_can_evaluate_distributional_pessimistic_label_family(self) -> None:
         report = evaluate(
             [run("1"), run("2")],
