@@ -38,7 +38,7 @@ jobs:
         run: >-
           python scripts/build_stream_variants.py
           --source-case "${{ matrix.source_case }}"
-          --look-ahead 20
+          --look-ahead 15
           --variants 8
           --mode permute
           --seed 20260813
@@ -50,7 +50,7 @@ jobs:
           python scripts/run_stream_paired.py
           --streams-dir
           "reports/late-item-cap-confirmation/source-${{ matrix.source_case }}/streams"
-          --arm late_item_cap16
+          --arm late_narrow_pool_cap16
           --run-dir
           "reports/late-item-cap-confirmation/source-${{ matrix.source_case }}/runs"
           --output

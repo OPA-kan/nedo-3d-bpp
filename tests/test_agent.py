@@ -1969,6 +1969,20 @@ class LookaheadSelectionTests(unittest.TestCase):
             self.assertEqual(agent.effective_online_item_cap(before), 10)
             self.assertEqual(agent.effective_online_item_cap(after), 20)
 
+    def test_late_item_cap_can_be_limited_to_narrow_visible_pools(self):
+        narrow = {"container_list": [{"packed_items": [1] * 6}],
+                  "pool_list": [object()] * 15}
+        wide = {"container_list": [{"packed_items": [1] * 6}],
+                "pool_list": [object()] * 20}
+        with (
+            mock.patch.object(agent, "MAX_POOL_ITEMS_EVALUATED", 10),
+            mock.patch.object(agent, "LATE_POOL_ITEMS_EVALUATED", 16),
+            mock.patch.object(agent, "LATE_POOL_MIN_PLACED", 6),
+            mock.patch.object(agent, "LATE_POOL_MAX_VISIBLE", 16),
+        ):
+            self.assertEqual(agent.effective_online_item_cap(narrow), 16)
+            self.assertEqual(agent.effective_online_item_cap(wide), 10)
+
     def test_class_aware_units_start_each_item_before_remaining_units(self):
         observation = {
             "pool_list": [sample_item(index) for index in range(3)],

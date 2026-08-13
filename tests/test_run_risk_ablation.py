@@ -522,6 +522,14 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["LATE_POOL_MIN_PLACED"], "6")
         self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
 
+    def test_narrow_pool_arm_adds_only_a_visible_pool_guard(self):
+        env: dict[str, str] = {}
+        configure_arm_environment(env, "late_narrow_pool_cap16", 2.0, 0.0)
+        self.assertEqual(env["LATE_POOL_ITEMS_EVALUATED"], "16")
+        self.assertEqual(env["LATE_POOL_MIN_PLACED"], "6")
+        self.assertEqual(env["LATE_POOL_MAX_VISIBLE"], "16")
+        self.assertNotIn("MAX_POOL_ITEMS_EVALUATED", env)
+
     def test_rollout_shadow_stride4_stays_telemetry_only(self):
         env: dict[str, str] = {}
 

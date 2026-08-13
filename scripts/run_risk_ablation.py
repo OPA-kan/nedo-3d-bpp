@@ -65,6 +65,7 @@ def configure_arm_environment(
         "MAX_POOL_ITEMS_EVALUATED",
         "LATE_POOL_ITEMS_EVALUATED",
         "LATE_POOL_MIN_PLACED",
+        "LATE_POOL_MAX_VISIBLE",
         "VISIBLE_POOL_ROLLOUT_Q_BAND",
         "LOOKAHEAD_SELECTION_MODE",
         "ANCHOR_FIRST_PASS_ATTEMPTS",
@@ -129,6 +130,7 @@ def configure_arm_environment(
         "item_cap20",
         "late_item_cap20",
         "late_item_cap16",
+        "late_narrow_pool_cap16",
         "board_k3",
         "board_k8",
         "board_k16",
@@ -270,6 +272,10 @@ def configure_arm_environment(
         elif arm == "late_item_cap16":
             env["LATE_POOL_ITEMS_EVALUATED"] = "16"
             env["LATE_POOL_MIN_PLACED"] = "6"
+        elif arm == "late_narrow_pool_cap16":
+            env["LATE_POOL_ITEMS_EVALUATED"] = "16"
+            env["LATE_POOL_MIN_PLACED"] = "6"
+            env["LATE_POOL_MAX_VISIBLE"] = "16"
         elif arm.startswith("board_k"):
             # The ranker proposes, the board disposes: keep the same top-K
             # search and reorder it by acceptance breadth, alternativity and

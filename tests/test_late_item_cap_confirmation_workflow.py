@@ -17,7 +17,8 @@ class LateItemCapConfirmationWorkflowTests(unittest.TestCase):
         self.assertIn("--seed 20260813", text)
         self.assertIn("--variants 8", text)
         self.assertIn("--mode permute", text)
-        self.assertIn("--arm late_item_cap16", text)
+        self.assertIn("--look-ahead 15", text)
+        self.assertIn("--arm late_narrow_pool_cap16", text)
         self.assertIn("scripts/run_stream_paired.py", text)
         self.assertNotIn("--open-final-holdout", text)
 

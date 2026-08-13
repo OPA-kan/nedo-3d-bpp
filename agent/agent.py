@@ -202,6 +202,9 @@ LATE_POOL_ITEMS_EVALUATED = max(
 LATE_POOL_MIN_PLACED = max(
     0, int(os.environ.get("LATE_POOL_MIN_PLACED", "6"))
 )
+LATE_POOL_MAX_VISIBLE = max(
+    0, int(os.environ.get("LATE_POOL_MAX_VISIBLE", "0"))
+)
 RESCUE_SCAN_ENABLED = os.environ.get(
     "RESCUE_SCAN_ENABLED", "0"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -4682,6 +4685,10 @@ def effective_online_item_cap(observation):
     if (
         LATE_POOL_ITEMS_EVALUATED > MAX_POOL_ITEMS_EVALUATED
         and placed >= LATE_POOL_MIN_PLACED
+        and (
+            LATE_POOL_MAX_VISIBLE <= 0
+            or len(observation.get("pool_list", [])) <= LATE_POOL_MAX_VISIBLE
+        )
     ):
         return LATE_POOL_ITEMS_EVALUATED
     return MAX_POOL_ITEMS_EVALUATED
