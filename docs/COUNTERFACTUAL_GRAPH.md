@@ -360,3 +360,10 @@ This is a dataset and learnability gate, not a live selector. Cap 10, physical
 feasibility, and the final holdout remain unchanged. A model may advance only
 after whole-stream held-out improvement over immediate score and action
 geometry; episode-level confirmation is a later, separate gate.
+
+The prospective seed-43--45 audit is recorded in
+`reports/counterfactual-afterstate-value/distributional-fill-prospective-seeds.md`.
+The frozen fill consensus beat action geometry on covered rows (92/116 versus
+77/116; paired 19/93/4, exact p=0.00259948), but seed 44 coverage was 68.4%
+against the preregistered 75% per-run floor. It is therefore a promising shadow
+candidate, not a live agent or an episode-score improvement claim.
