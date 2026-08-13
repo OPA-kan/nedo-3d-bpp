@@ -1,0 +1,94 @@
+name: Counterfactual graph H3 H4 error stability
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: reverse-dual-empty-supported-s15
+            variant: reverse-000
+            scenario: dual-empty
+            pool: 20
+          - target: interleave-dual-shelf-asymmetric-s15
+            variant: interleave
+            scenario: dual-shelf-mixed
+            pool: 20
+          - target: interleave-single-preloaded-asymmetric-s15
+            variant: interleave
+            scenario: single-preloaded
+            pool: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify physical replay contract
+        run: python -m unittest tests.test_replay_integration -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build preregistered scenario
+        run: >-
+          python scripts/build_scenario_matrix.py --look-ahead ${{ matrix.pool }}
+          --policy-timeout 8 --stream-variant ${{ matrix.variant }}
+          --output-dir reports/h3-h4/${{ matrix.target }}/configs
+      - name: Capture preregistered root
+        run: >-
+          python scripts/build_replay_dataset.py
+          --config reports/h3-h4/${{ matrix.target }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }} --steps 15 --environment-seed 42
+          --snapshot-only --risk-gate-mode shadow --split development
+          --skip-optimize --output-dir reports/h3-h4/${{ matrix.target }}/root
+      - name: Expand matched pair as H4 B3
+        run: >-
+          python scripts/build_counterfactual_graph.py
+          --snapshot reports/h3-h4/${{ matrix.target }}/root/step-015-state.json
+          --config reports/h3-h4/${{ matrix.target }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }} --split development --horizon 4
+          --branch-factor 3 --attempt-budget 1536 --max-nodes 121 --max-edges 120
+          --forced-candidate-spec reports/counterfactual-afterstate-value/h3-h4-error-stability-spec.json
+          --forced-target-id ${{ matrix.target }}
+          --output reports/h3-h4/${{ matrix.target }}/graph.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h3-h4-${{ matrix.target }}
+          path: reports/h3-h4/${{ matrix.target }}/
+
+  compare:
+    needs: graph
+    if: always() && needs.graph.result != 'skipped'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: h3-h4-*
+          path: reports/h3-h4/downloads
+      - name: Compare H3 and H4 relations
+        run: >-
+          python scripts/compare_counterfactual_branch_width.py
+          --root reports/h3-h4/downloads
+          --specification reports/counterfactual-afterstate-value/h3-h4-error-stability-spec.json
+          --json-output reports/h3-h4/aggregate/stability.json
+          --markdown-output reports/h3-h4/aggregate/stability.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h3-h4-error-stability
+          path: reports/h3-h4/aggregate/

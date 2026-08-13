@@ -189,7 +189,7 @@
     }
   },
   "continuation_support_followup": {
-    "status": "preregistered_before_collection",
+    "status": "failed_minimum_new_support_and_model_gates",
     "hypothesis": "The 17/18 development result is limited by sparse and asymmetric optimistic-continuation support, not by a missing generic nonlinear interaction.",
     "new_development_stream": "rotate-001-5",
     "stream_definition": "Rotate bundled case 001 left by five while preserving stable item identities; environment seed 42; unchanged eight-condition H3/B3 matrix.",
@@ -197,7 +197,30 @@
     "minimum_new_support": "At least six new directional late signature units with at least two continuation values on both afterstates.",
     "model_rule": "Re-run whole-stream leave-one-out across all four development streams using the already-declared representations. Do not add representations after labels are inspected.",
     "acceptance": "Freeze only a unique best model with zero errors, at least 12 supported late units, and at least 75% symmetric-continuation-support coverage. Do not lower either threshold.",
-    "negative_controls": "The exploratory outer-product, grid-by-action-summary, squared-grid, squared-action, and ridge-strength changes did not exceed 17/18 and are not new declared candidates. Mean, median, and minimum continuation aggregation also failed to produce a zero-error consistent target."
+    "negative_controls": "The exploratory outer-product, grid-by-action-summary, squared-grid, squared-action, ridge-strength, and representation-consensus changes did not satisfy both zero-error and 75% coverage gates. Mean, median, and minimum continuation aggregation also failed to produce a zero-error consistent target.",
+    "result": {
+      "actions_run_id": "31678079848",
+      "workflow_status": "failure",
+      "admitted_graphs": 16,
+      "admitted_conditions": 6,
+      "failed_or_incomplete_conditions": ["single-preloaded", "dual-full-stream", "dual-empty after step 6"],
+      "new_directional_late_signature_units": 3,
+      "new_symmetric_support_units": 1,
+      "four_stream_directional_units": 21,
+      "unique_best_representation": "height_grid_4_plus_action",
+      "correct": 18,
+      "symmetric_support_units": 13,
+      "symmetric_support_coverage": 0.6190476190476191,
+      "correct_on_symmetric_support": 12,
+      "candidate_frozen": false
+    }
+  },
+  "h3_h4_error_stability_followup": {
+    "status": "preregistered_before_h4_execution",
+    "hypothesis": "The three remaining H3/B3 model errors may be unstable optimistic-continuation labels at depth three.",
+    "targets": ["reverse-dual-empty-supported-s15", "interleave-dual-shelf-asymmetric-s15", "interleave-single-preloaded-asymmetric-s15"],
+    "intervention": "Rebuild the exact parent paths and sibling pairs at H4/B3 with seed 42, unchanged scenarios, candidate provider, physical replay tolerance, and score axis.",
+    "decision_rule": "All three relations must remain directional and unchanged. Any equality, reversal, absent path, or physical failure blocks agent freezing."
   },
   "confirmation_contract": "After development acceptance, freeze once and evaluate on one later physical matrix generated after the freeze commit. The new confirmation must independently meet at least 75% coverage and zero errors.",
   "stop_conditions": [

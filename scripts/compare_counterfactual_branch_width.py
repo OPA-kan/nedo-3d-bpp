@@ -97,12 +97,17 @@ def compare_graph(graph: dict[str, Any], expected: dict[str, Any]) -> dict[str, 
     relation, lower_best, higher_best = _relation(
         expected.get("metric", "fill_score_proxy"), lower, higher
     )
-    expected_relation = expected["b2_relation"]
+    expected_relation = expected.get("baseline_relation", expected.get("b2_relation"))
+    if expected_relation is None:
+        raise ValueError(f"target has no baseline relation: {expected['target_id']}")
     return {
         "target_id": expected["target_id"],
         "case_id": graph["case_id"],
         "root_step": graph["root_step"],
         "stream_variant": graph["provenance"]["scenario_axes"]["stream_variant"],
+        "baseline_relation": expected_relation,
+        "comparison_relation": relation,
+        # Retained for schema-v1 B2/B3 consumers.
         "b2_relation": expected_relation,
         "b3_relation": relation,
         "status": "compared",
@@ -131,7 +136,11 @@ def evaluate(root: pathlib.Path, specification: dict[str, Any]) -> dict[str, Any
     stable = sum(row["stable"] for row in rows)
     return {
         "schema_version": 1,
-        "comparison_contract": "matched root sibling pair; H3 fixed; B2 versus B3",
+        "comparison_contract": specification.get(
+            "comparison_contract", "matched root sibling pair; H3 fixed; B2 versus B3"
+        ),
+        "baseline_label": specification.get("baseline_label", "B2"),
+        "comparison_label": specification.get("comparison_label", "B3"),
         "target_count": len(rows),
         "stable_count": stable,
         "changed_count": len(rows) - stable,
@@ -146,7 +155,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "# H3 branch-width label stability", "",
         f"- Stable: {report['stable_count']}/{report['target_count']}",
         f"- Model work may resume: {'yes' if report['model_work_may_resume'] else 'no'}",
-        "", "| Target | Variant | Case | B2 | B3 | Stable |", "|---|---|---|---|---|---|",
+        "", f"| Target | Variant | Case | {report['baseline_label']} | "
+        f"{report['comparison_label']} | Stable |", "|---|---|---|---|---|---|",
     ]
     for row in report["targets"]:
         if row["status"] != "compared":
@@ -157,7 +167,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             continue
         lines.append(
             f"| {row['target_id']} | {row['stream_variant']} | {row['case_id']} | "
-            f"{row['b2_relation']} | {row['b3_relation']} | "
+            f"{row['baseline_relation']} | {row['comparison_relation']} | "
             f"{'yes' if row['stable'] else 'no'} |"
         )
     lines.append("")

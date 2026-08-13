@@ -313,6 +313,16 @@ must then be uniquely zero-error with at least 75% supported coverage; neither
 threshold may move. Exploratory continuation aggregation, nonlinear feature,
 and ridge-strength variants did not exceed the 17/18 result and are closed.
 
+That collection ran as Actions `31678079848`. Six conditions contributed 16
+completed graphs under the preregistered graph-level recovery rule; the run
+itself remains failed. It added only three unique directional late signatures
+and one symmetric-support unit, below the required six. Four-stream LOO is
+18/21 for `height_grid_4_plus_action`; symmetric support is 13/21 (61.9%) and
+12/13 correct. No candidate is frozen. The remaining errors are one supported
+2-vs-2 continuation and two asymmetric 1-vs-many continuations. The next
+preregistered test reconstructs those exact three pairs at H4/B3. Every
+relation must remain directional and unchanged before model work can resume.
+
 The unchanged candidate-local gate subsequently returned FAIL on 31566153353
 and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;

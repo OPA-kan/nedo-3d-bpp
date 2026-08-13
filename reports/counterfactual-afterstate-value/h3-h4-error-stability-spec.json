@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_h4_execution",
+  "comparison_contract": "matched root sibling pair; branch factor 3 fixed; H3 optimistic continuation versus H4",
+  "baseline_label": "H3/B3",
+  "comparison_label": "H4/B3",
+  "metric": "fill_score_proxy",
+  "targets": [
+    {
+      "target_id": "reverse-dual-empty-supported-s15",
+      "stream_variant": "reverse-000",
+      "case_id": "m-dual-empty",
+      "scenario": "dual-empty",
+      "pool_width": 20,
+      "root_step": 15,
+      "parent_path_item_indices": [13],
+      "lower_stable_item_index": 8,
+      "higher_stable_item_index": 27,
+      "baseline_relation": "higher_afterstate_better"
+    },
+    {
+      "target_id": "interleave-dual-shelf-asymmetric-s15",
+      "stream_variant": "interleave",
+      "case_id": "m-dual-shelf-mixed",
+      "scenario": "dual-shelf-mixed",
+      "pool_width": 20,
+      "root_step": 15,
+      "parent_path_item_indices": [],
+      "lower_stable_item_index": 28,
+      "higher_stable_item_index": 33,
+      "baseline_relation": "higher_afterstate_better"
+    },
+    {
+      "target_id": "interleave-single-preloaded-asymmetric-s15",
+      "stream_variant": "interleave",
+      "case_id": "m-single-preloaded",
+      "scenario": "single-preloaded",
+      "pool_width": 20,
+      "root_step": 15,
+      "parent_path_item_indices": [2],
+      "lower_stable_item_index": 11,
+      "higher_stable_item_index": 16,
+      "baseline_relation": "higher_afterstate_better"
+    }
+  ],
+  "decision_rule": "All three matched relations must remain directional and unchanged at H4/B3 before H3 labels can be treated as depth-stable. Any equality, reversal, absent path, or physical failure blocks agent freezing."
+}

@@ -26,6 +26,21 @@ class BranchWidthComparisonTests(unittest.TestCase):
             "equal", "lower_afterstate_better", "higher_afterstate_better",
         })
 
+    def test_accepts_generic_baseline_relation(self) -> None:
+        graph = graph_fixture()
+        graph["provenance"]["scenario_axes"]["stream_variant"] = "fixture"
+        root = graph["nodes"][0]["node_id"]
+        edges = [edge for edge in graph["edges"] if edge["source"] == root]
+        expected = {
+            "target_id": "h4", "metric": "fill_score_proxy",
+            "lower_stable_item_index": edges[0]["selection"]["stable_item_index"],
+            "higher_stable_item_index": edges[1]["selection"]["stable_item_index"],
+            "baseline_relation": "equal",
+        }
+        row = compare_graph(graph, expected)
+        self.assertEqual(row["baseline_relation"], "equal")
+        self.assertEqual(row["comparison_relation"], row["b3_relation"])
+
     def test_rejects_pair_missing_from_b3_root(self) -> None:
         graph = graph_fixture()
         graph["provenance"]["scenario_axes"]["stream_variant"] = "fixture"
