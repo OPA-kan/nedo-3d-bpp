@@ -794,6 +794,17 @@ score mechanism; it still requires a fresh paired episode experiment before
 claiming episode or competition-score gain. See
 `reports/counterfactual-afterstate-value/paired-feasible-31700909383.md`.
 
+**Final result (2026-08-14): no candidate survived independent arrival-order
+confirmation.** Late cap 20 failed the development regression/safety gate
+despite pooled placed +0.666. Late cap 16 passed its 30-episode development
+gate at placed +2.134 and fill +1.469 with no per-case placed regression, but
+fresh k20 permutations reduced it to pooled placed +0.250 with 4 wins / 5
+losses. Scoping cap 16 to pools of at most 16 also failed fresh k15
+permutations: pooled placed 0.000, 6 wins / 7 losses, and source-001 fill
+-0.384. Keep cap 10. The opt-in arms reproduce negative experiments only;
+do not describe them as score-improving agents. See
+`late-narrow-pool-cap16-confirmation-31706701682.md` in the same report folder.
+
 ```powershell
 python -m unittest discover -s tests
 python scripts/run_checks.py       # required after agent changes
