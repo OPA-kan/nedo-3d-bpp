@@ -52,3 +52,11 @@ Before any label run, expand the label-blind cohort with `permute-000-41`,
 least four of all eight declared variants complete every matrix condition.
 The two previously complete variants remain unopened; root availability is the
 only admission criterion.
+
+The expansion screen ran as `31772304481`, `31772303043`, `31772303592`, and
+`31772300707`. `permute-001-43` and `permute-001-59` completed all conditions;
+`permute-000-41` missed single-preloaded and `permute-000-53` missed
+dual-empty. The fixed four-variant admitted set is therefore
+`permute-000-17`, `permute-001-31`, `permute-001-43`, and `permute-001-59`.
+This meets the expanded four-of-eight availability gate without opening H3
+labels.
