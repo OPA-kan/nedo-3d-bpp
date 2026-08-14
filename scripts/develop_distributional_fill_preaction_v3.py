@@ -321,9 +321,30 @@ def build_v3(
     }
 
 
+def confirmation_gate(evaluation: dict[str, Any]) -> dict[str, Any]:
+    support = evaluation["support"]
+    paired = evaluation["paired_candidate_vs_action"]
+    checks = {
+        "at_least_four_complete_streams": len(evaluation["per_stream"]) >= 4,
+        "at_least_30_unique_late_signatures": support["unique_rows"] >= 30,
+        "at_least_50_percent_unique_support": support["unique_fraction"] >= 0.5,
+        "every_stream_nonregressing": all(
+            row["candidate_correct"] >= row["action_geometry_correct"]
+            for row in evaluation["per_stream"]
+        ),
+        "pooled_wins_exceed_losses": paired["wins"] > paired["losses"],
+        "exact_sign_p_at_most_0_05": paired["exact_two_sided_sign_p"] <= 0.05,
+    }
+    return {
+        "checks": checks,
+        "passed": all(checks.values()),
+        "contract": "predeclared in distributional-fill-preaction-v3.md",
+    }
+
+
 def evaluate_unique(
     model: dict[str, Any], v1: dict[str, Any], shadow: dict[str, Any],
-    runs: list[dict[str, Any]],
+    runs: list[dict[str, Any]], *, evaluation_kind: str = "development",
 ) -> dict[str, Any]:
     raw = [
         row for run in runs
@@ -413,9 +434,13 @@ def evaluate_unique(
             ),
             "per_stream": stream_rows,
         })
-    return {
+    evaluation = {
         "schema_version": 1,
-        "evaluation_kind": "inspected_development_unique_signatures",
+        "evaluation_kind": (
+            "prospective_confirmation_unique_signatures"
+            if evaluation_kind == "prospective_confirmation"
+            else "inspected_development_unique_signatures"
+        ),
         "target_run_ids": [run["run_id"] for run in runs],
         "support": {name: value for name, value in support.items() if name != "rows"},
         "correct": correct,
@@ -424,12 +449,22 @@ def evaluate_unique(
             "exact_two_sided_sign_p": _exact_two_sided_sign_p(wins, losses),
         },
         "per_stream": per_stream,
-        "development_threshold_audit": threshold_audit,
-        "claim": (
+        "diagnostic_only_posthoc_threshold_audit": threshold_audit,
+    }
+    if evaluation_kind == "prospective_confirmation":
+        evaluation["predeclared_confirmation_gate"] = confirmation_gate(evaluation)
+        evaluation["claim"] = (
+            "Prospective confirmation passed; this establishes an offline "
+            "branch-direction candidate, not an episode-score improvement."
+            if evaluation["predeclared_confirmation_gate"]["passed"] else
+            "Prospective confirmation failed; the frozen candidate is rejected."
+        )
+    else:
+        evaluation["claim"] = (
             "Development evidence only; target runs are inspected and cannot "
             "confirm the frozen candidate."
-        ),
-    }
+        )
+    return evaluation
 
 
 def main() -> int:
@@ -441,6 +476,10 @@ def main() -> int:
     parser.add_argument("--shadow-model", type=pathlib.Path, required=True)
     parser.add_argument("--model-output", type=pathlib.Path)
     parser.add_argument("--evaluation-output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--evaluation-kind", default="development",
+        choices=("development", "prospective_confirmation"),
+    )
     parser.add_argument(
         "--status", default="development_local_geometry_student",
         choices=(
@@ -476,7 +515,9 @@ def main() -> int:
         )
     else:
         parser.error("provide --model or --training-dir with --model-output")
-    evaluation = evaluate_unique(model, v1, shadow, runs)
+    evaluation = evaluate_unique(
+        model, v1, shadow, runs, evaluation_kind=args.evaluation_kind
+    )
     args.evaluation_output.parent.mkdir(parents=True, exist_ok=True)
     args.evaluation_output.write_text(
         json.dumps(evaluation, indent=2) + "\n", encoding="utf-8"

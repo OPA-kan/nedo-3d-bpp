@@ -77,3 +77,24 @@ evidence distinguishes them, both are admitted. The prospective set is the
 three sealed complete runs plus these two replacements. At least four must pass
 strict H3 graph construction, and every admitted stream that completes must be
 included in the unique-signature evaluation.
+
+## Prospective confirmation result
+
+Both replacement full-H3 runs completed all eight conditions and aggregation:
+`permute-000-61` in run `31774779919` and `permute-001-67` in run
+`31774777400`. The frozen artifact was then evaluated once on all five complete
+admitted runs, including runs `31772903807`, `31772905024`, and `31772905325`.
+No model refit or threshold change was made.
+
+The 92 eligible late rows reduced to 43 exact pre-action signatures (46.7%
+unique support). V3 scored 29/43, action geometry 30/43, and v1 22/43. The
+paired v3/action result was 2 wins, 38 ties, and 3 losses (two-sided exact sign
+test `p=1.0`). Per-stream v3/action scores were 10/11 (`permute-000-61`), 1/1
+(`permute-001-31`), 5/4 (`permute-001-43`), 12/13 (`permute-001-59`), and 1/1
+(`permute-001-67`).
+
+The predeclared gate **failed**: the unique-support fraction was below 50%, two
+streams regressed, pooled wins did not exceed losses, and the sign test was not
+significant. V3 is therefore rejected as a confirmed branch-direction agent.
+The threshold sweep retained in the confirmation JSON is diagnostic-only and
+must not be used to rescue or retune this candidate after labels were opened.
