@@ -70,3 +70,10 @@ has been opened. Before scoring the three sealed complete runs, screen
 `permute-000-61` and `permute-001-67` as label-blind replacements; at least one
 must subsequently complete the full H3 matrix to restore the fixed four-run
 confirmation set.
+
+Both replacement screens completed all eight conditions: `permute-000-61` in
+run `31774260860` and `permute-001-67` in run `31774266120`. Because no label
+evidence distinguishes them, both are admitted. The prospective set is the
+three sealed complete runs plus these two replacements. At least four must pass
+strict H3 graph construction, and every admitted stream that completes must be
+included in the unique-signature evaluation.
