@@ -153,24 +153,19 @@ def _eligible(
     ]
 
 
-def _predict_ridge(
-    train: list[dict[str, Any]], test: list[dict[str, Any]], metric: str,
+def fit_ridge_model(
+    train: list[dict[str, Any]], metric: str,
     features: Callable[[dict[str, Any]], list[float]],
     *, label_family: str = "continuation_labels",
-) -> dict[str, str]:
+) -> dict[str, Any]:
     eligible = _eligible(train, metric, label_family=label_family)
     if not eligible:
-        return {}
+        raise ValueError(f"no directional training rows for {metric}")
     train_values = [features(row) for row in eligible]
-    test_values = [features(row) for row in test]
     scales = [statistics.pstdev(column) or 1.0 for column in zip(*train_values)]
     design = np.asarray([
         [value / scales[index] for index, value in enumerate(row)]
         for row in train_values
-    ])
-    test_design = np.asarray([
-        [value / scales[index] for index, value in enumerate(row)]
-        for row in test_values
     ])
     target = np.asarray([
         1.0
@@ -183,13 +178,51 @@ def _predict_ridge(
         design.T @ design + np.eye(design.shape[1]), design.T @ target
     )
     return {
+        "model": "fixed_l2_no_intercept_ridge",
+        "l2": 1.0,
+        "metric": metric,
+        "label_family": label_family,
+        "training_rows": len(eligible),
+        "feature_count": len(scales),
+        "scales": [float(value) for value in scales],
+        "weights": [float(value) for value in weights],
+    }
+
+
+def predict_ridge_model(
+    model: dict[str, Any], rows: list[dict[str, Any]],
+    features: Callable[[dict[str, Any]], list[float]],
+) -> dict[str, str]:
+    scales = [float(value) for value in model["scales"]]
+    weights = np.asarray(model["weights"], dtype=float)
+    values = [features(row) for row in rows]
+    if any(len(row) != len(scales) for row in values):
+        raise ValueError("ridge feature count does not match model artifact")
+    design = np.asarray([
+        [value / scales[index] for index, value in enumerate(row)]
+        for row in values
+    ])
+    return {
         row["teacher_id"]: (
             "higher_afterstate_better"
             if float(np.dot(values, weights)) >= 0.0
             else "lower_afterstate_better"
         )
-        for row, values in zip(test, test_design)
+        for row, values in zip(rows, design)
     }
+
+
+def _predict_ridge(
+    train: list[dict[str, Any]], test: list[dict[str, Any]], metric: str,
+    features: Callable[[dict[str, Any]], list[float]],
+    *, label_family: str = "continuation_labels",
+) -> dict[str, str]:
+    if not _eligible(train, metric, label_family=label_family):
+        return {}
+    model = fit_ridge_model(
+        train, metric, features, label_family=label_family
+    )
+    return predict_ridge_model(model, test, features)
 
 
 def _rotated_afterstates(

@@ -7,10 +7,14 @@ import tempfile
 
 from scripts.evaluate_counterfactual_afterstate_value import (
     _exact_two_sided_sign_p,
+    _features,
+    _predict_ridge,
     _state_delta,
     _state_block_delta,
     evaluate,
+    fit_ridge_model,
     load_run,
+    predict_ridge_model,
 )
 from tests.test_evaluate_counterfactual_teacher_discovery import action, state
 
@@ -59,6 +63,27 @@ def run(run_id: str) -> dict:
 
 
 class CounterfactualAfterstateValueTests(unittest.TestCase):
+    def test_serializable_ridge_model_reproduces_direct_predictions(self) -> None:
+        training = run("train")["discovery"]
+        target = run("target")["late"]
+        features = lambda item: _features(
+            item, include_action=True, include_afterstate=True
+        )
+
+        model = fit_ridge_model(
+            training, "fill_score_proxy", features,
+            label_family="distributional_continuation_labels",
+        )
+
+        self.assertEqual(
+            predict_ridge_model(model, target, features),
+            _predict_ridge(
+                training, target, "fill_score_proxy", features,
+                label_family="distributional_continuation_labels",
+            ),
+        )
+        self.assertEqual(model["feature_count"], len(features(target[0])))
+
     def test_loader_normalizes_legacy_float_roundoff_label(self) -> None:
         example = row("x", "g", 0.2, "lower_afterstate_better")
         label = example["continuation_labels"]["fill_score_proxy"]

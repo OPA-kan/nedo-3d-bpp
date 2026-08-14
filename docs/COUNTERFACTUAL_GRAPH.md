@@ -367,3 +367,17 @@ The frozen fill consensus beat action geometry on covered rows (92/116 versus
 77/116; paired 19/93/4, exact p=0.00259948), but seed 44 coverage was 68.4%
 against the preregistered 75% per-run floor. It is therefore a promising shadow
 candidate, not a live agent or an episode-score improvement claim.
+
+The frozen consensus-plus-action-fallback policy subsequently passed its
+unopened seed-46--48 gate: 94/114 correct versus 79/114 for action geometry,
+paired 16/97/1 with exact p=0.000274658, and no target-run regression. See
+`reports/counterfactual-afterstate-value/distributional-fill-fallback-confirmation.md`.
+This licenses offline shadow integration only; the physical afterstate tensors
+are post-settle information and cannot be consumed directly by live ranking.
+
+The confirmed coefficients and label-free application path are documented in
+`reports/counterfactual-afterstate-value/distributional-fill-shadow-model.md`.
+They reproduced all 114 confirmation decisions and changed 17 choices relative
+to action geometry (16 improvements, one regression after labels were rejoined).
+The next live-feasibility gate is a pre-action student that predicts the needed
+child-state features without consuming post-settle information.
