@@ -37,3 +37,18 @@ action geometry on unique signatures, pooled paired wins exceed losses, and
 the two-sided exact sign-test is at most 0.05. Passing establishes an offline
 branch-direction agent candidate only; an actual episode-score A/B is the next
 separate gate.
+
+## Label-blind root screen
+
+The initial screen used Actions runs `31771576478`, `31771577234`,
+`31771574718`, and `31771576168` with graph expansion disabled. Only
+`permute-000-17` and `permute-001-31` completed all eight conditions.
+`permute-000-29` missed single-preloaded; `permute-001-23` missed
+single-preloaded and dual-empty. No H3 labels were generated or scored, and the
+initial minimum-three admission gate was inconclusive.
+
+Before any label run, expand the label-blind cohort with `permute-000-41`,
+`permute-000-53`, `permute-001-43`, and `permute-001-59`. Continue only if at
+least four of all eight declared variants complete every matrix condition.
+The two previously complete variants remain unopened; root availability is the
+only admission criterion.
