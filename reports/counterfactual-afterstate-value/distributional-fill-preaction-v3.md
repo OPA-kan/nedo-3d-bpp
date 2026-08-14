@@ -60,3 +60,13 @@ dual-empty. The fixed four-variant admitted set is therefore
 `permute-000-17`, `permute-001-31`, `permute-001-43`, and `permute-001-59`.
 This meets the expanded four-of-eight availability gate without opening H3
 labels.
+
+Full H3 collection then completed for `permute-001-31`, `permute-001-43`,
+and `permute-001-59` in runs `31772903807`, `31772905024`, and `31772905325`.
+Run `31772905671` (`permute-000-17`) failed strict root reconstruction in
+dual-shelf: quaternion-component drift was `0.0022308429`, above the fixed
+`0.002` tolerance. The tolerance is unchanged and no completed label artifact
+has been opened. Before scoring the three sealed complete runs, screen
+`permute-000-61` and `permute-001-67` as label-blind replacements; at least one
+must subsequently complete the full H3 matrix to restore the fixed four-run
+confirmation set.
