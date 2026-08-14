@@ -95,7 +95,8 @@ class ScenarioMatrixContractTests(unittest.TestCase):
             )["dual-empty"]["m-dual-empty"]["item_stream"]["item_list"]
             for name in (
                 "source-001", "reverse-000", "interleave", "rotate-000-7",
-                "rotate-001-5",
+                "rotate-001-5", "permute-000-17", "permute-000-29",
+                "permute-001-23", "permute-001-31",
             )
         }
         original = SOURCE["000"]["item_stream"]["item_list"]
@@ -112,6 +113,8 @@ class ScenarioMatrixContractTests(unittest.TestCase):
             variants["rotate-001-5"][0]["index"],
             SOURCE["001"]["item_stream"]["item_list"][5]["index"],
         )
+        self.assertNotEqual(variants["permute-000-17"], variants["permute-000-29"])
+        self.assertNotEqual(variants["permute-001-23"], variants["permute-001-31"])
         self.assertEqual(
             len(variants["interleave"]),
             len(SOURCE["000"]["item_stream"]["item_list"])

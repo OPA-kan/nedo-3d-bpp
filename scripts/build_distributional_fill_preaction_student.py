@@ -111,7 +111,7 @@ def _fit_pairwise(rows: list[dict[str, Any]], l2: float) -> dict[str, Any]:
     }
 
 
-def _predict_pairwise(model: dict[str, Any], rows: list[dict[str, Any]]) -> list[str]:
+def _score_pairwise(model: dict[str, Any], rows: list[dict[str, Any]]) -> list[float]:
     if not rows:
         return []
     design = _pairwise_design(
@@ -120,7 +120,11 @@ def _predict_pairwise(model: dict[str, Any], rows: list[dict[str, Any]]) -> list
         source_scales=np.asarray(model["source_scales"], dtype=float),
         action_scales=np.asarray(model["action_scales"], dtype=float),
     )
-    scores = design @ np.asarray(model["weights"], dtype=float)
+    return (design @ np.asarray(model["weights"], dtype=float)).tolist()
+
+
+def _predict_pairwise(model: dict[str, Any], rows: list[dict[str, Any]]) -> list[str]:
+    scores = _score_pairwise(model, rows)
     return [
         "higher_afterstate_better" if score >= 0.0 else "lower_afterstate_better"
         for score in scores

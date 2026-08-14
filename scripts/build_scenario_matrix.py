@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import pathlib
 
@@ -73,7 +74,17 @@ SCENARIOS = (
 STREAM_VARIANTS = (
     "original", "source-001", "reverse-000", "interleave", "rotate-000-7",
     "rotate-001-5",
+    "permute-000-17", "permute-000-29", "permute-001-23", "permute-001-31",
 )
+
+
+def _hashed_permutation(items: list[dict], salt: int) -> list[dict]:
+    return sorted(
+        items,
+        key=lambda item: hashlib.sha256(
+            f"{salt}:{int(item['index'])}".encode()
+        ).digest(),
+    )
 
 
 def _stream_items(source: dict, spec: dict, variant: str) -> list[dict]:
@@ -93,6 +104,10 @@ def _stream_items(source: dict, spec: dict, variant: str) -> list[dict]:
         items = base[7:] + base[:7]
     elif variant == "rotate-001-5":
         items = shelf[5:] + shelf[:5]
+    elif variant.startswith("permute-000-"):
+        items = _hashed_permutation(base, int(variant.rsplit("-", 1)[1]))
+    elif variant.startswith("permute-001-"):
+        items = _hashed_permutation(shelf, int(variant.rsplit("-", 1)[1]))
     elif variant == "interleave":
         items = [
             item

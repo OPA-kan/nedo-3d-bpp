@@ -388,3 +388,13 @@ It replaces unavailable post-settle features with a pairwise bilinear model of
 the observed source state and candidate action geometry. Its seed-46--48
 development audit and the predeclared seed-49--51 prospective gate are recorded
 in `reports/counterfactual-afterstate-value/distributional-fill-preaction-student.md`.
+
+The seed-only v1 replication failed and exposed extensive duplicate pre-action
+support. A strict signature-deduplicated v2 audit then rejected an apparent
+gain as cross-stream exact-signature leakage; no v2 candidate was frozen. See
+`reports/counterfactual-afterstate-value/distributional-fill-preaction-v2.md`.
+
+A local-geometry v3 then passed strict exact-signature leave-one-stream-out
+development CV and was frozen for new-stream confirmation. Its inference
+contract, artifact hash, inspected-late limitations, and prospective gate are
+in `reports/counterfactual-afterstate-value/distributional-fill-preaction-v3.md`.
