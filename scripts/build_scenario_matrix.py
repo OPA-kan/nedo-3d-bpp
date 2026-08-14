@@ -79,6 +79,8 @@ STREAM_VARIANTS = (
     "permute-000-61", "permute-001-67",
     "permute-000-71", "permute-000-79", "permute-000-89", "permute-000-97",
     "permute-001-73", "permute-001-83", "permute-001-101", "permute-001-107",
+    "permute-000-103", "permute-000-109", "permute-000-127", "permute-000-137",
+    "permute-001-113", "permute-001-127", "permute-001-139", "permute-001-149",
 )
 
 

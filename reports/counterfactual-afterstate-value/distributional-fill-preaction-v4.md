@@ -48,3 +48,19 @@ and a two-sided exact sign-test at most 0.05.
 
 Passing establishes an offline branch-direction candidate only. Episode-score
 A/B remains a separate required gate before claiming a scoring agent.
+
+## Label-blind root screen
+
+The initial seed-59 cohort declared eight variants with salts 71--107 before
+any v4 confirmation labels were generated. `permute-000-71` (run
+`31790644495`), `permute-000-79` (`31790654024`), and `permute-001-107`
+(`31790697596`) completed all eight root conditions. Runs `31790661364`,
+`31790668105`, `31790675495`, `31790683209`, and `31790690540` failed one or
+more root conditions. The initial cohort therefore supplies only three
+admitted streams, and full-H3 generation remains closed.
+
+Before opening labels, expand the root-only cohort with `permute-000-103`,
+`permute-000-109`, `permute-000-127`, `permute-000-137`,
+`permute-001-113`, `permute-001-127`, `permute-001-139`, and
+`permute-001-149`. Root availability remains the sole admission criterion.
+Every admitted stream that later completes strict H3 must be evaluated.
