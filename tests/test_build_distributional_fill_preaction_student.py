@@ -5,6 +5,7 @@ import unittest
 from scripts.build_distributional_fill_preaction_student import (
     _action_delta,
     build_student,
+    evaluate_student,
     student_predictions,
 )
 from scripts.build_distributional_fill_shadow_model import build_model
@@ -46,6 +47,28 @@ class DistributionalFillPreactionStudentTests(unittest.TestCase):
             predictions[0]["student_relation"],
             ("lower_afterstate_better", "higher_afterstate_better"),
         )
+
+    def test_prospective_report_is_labeled_without_changing_model(self) -> None:
+        training = [run("one"), run("two")]
+        for physical_run in training:
+            for row in physical_run["discovery"]:
+                row["source_node_id"] = "source-" + row["teacher_id"]
+                row["source_state_tensor"] = row["lower_afterstate_tensor"]
+                row["lower_stable_item_index"] = 1
+                row["higher_stable_item_index"] = 2
+        shadow = build_model(training)
+        student = build_student(training, shadow)
+        target = run("target")
+        target["late"][0]["source_state_tensor"] = target["late"][0][
+            "lower_afterstate_tensor"
+        ]
+
+        report = evaluate_student(
+            student, shadow, [target], evaluation_kind="prospective"
+        )
+
+        self.assertEqual(report["evaluation_kind"], "prospective")
+        self.assertIn("Prospective audit", report["claim"])
 
 
 if __name__ == "__main__":

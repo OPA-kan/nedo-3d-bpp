@@ -226,7 +226,7 @@ def student_predictions(
 
 def evaluate_student(
     student: dict[str, Any], shadow_model: dict[str, Any],
-    targets: list[dict[str, Any]],
+    targets: list[dict[str, Any]], *, evaluation_kind: str = "development",
 ) -> dict[str, Any]:
     totals = {
         "rows": 0, "student_correct": 0, "action_geometry_correct": 0,
@@ -283,12 +283,16 @@ def evaluate_student(
     )
     return {
         "schema_version": 1,
+        "evaluation_kind": evaluation_kind,
         "training_run_ids": student["training_run_ids"],
         "target_run_ids": [target["run_id"] for target in targets],
         **totals,
         "paired_student_vs_action_geometry": paired,
         "per_run": per_run,
         "claim": (
+            "Prospective audit of the unchanged frozen pre-action student; "
+            "apply the separately preregistered gate to determine confirmation."
+            if evaluation_kind == "prospective" else
             "Development audit of a pre-action student. Target runs inspected "
             "during student development cannot confirm a frozen policy."
         ),
@@ -297,11 +301,16 @@ def evaluate_student(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--training-dir", action="append", type=pathlib.Path, required=True)
+    parser.add_argument("--training-dir", action="append", type=pathlib.Path)
     parser.add_argument("--target-dir", action="append", type=pathlib.Path)
     parser.add_argument("--shadow-model", type=pathlib.Path, required=True)
-    parser.add_argument("--student-output", type=pathlib.Path, required=True)
+    parser.add_argument("--student-model", type=pathlib.Path)
+    parser.add_argument("--student-output", type=pathlib.Path)
     parser.add_argument("--evaluation-output", type=pathlib.Path)
+    parser.add_argument(
+        "--evaluation-kind", choices=("development", "prospective"),
+        default="development",
+    )
     parser.add_argument(
         "--status", default="development_preaction_student",
         choices=(
@@ -311,27 +320,40 @@ def main() -> int:
     )
     args = parser.parse_args()
     shadow_model = json.loads(args.shadow_model.read_text(encoding="utf-8"))
-    training_runs = [
-        load_run(path, label_family=LABEL_FAMILY) for path in args.training_dir
-    ]
-    student = build_student(training_runs, shadow_model)
-    student["status"] = args.status
-    args.student_output.parent.mkdir(parents=True, exist_ok=True)
-    args.student_output.write_text(
-        json.dumps(student, indent=2) + "\n", encoding="utf-8"
-    )
+    if args.student_model:
+        if args.training_dir or args.student_output:
+            parser.error(
+                "--student-model forbids --training-dir and --student-output"
+            )
+        student = json.loads(args.student_model.read_text(encoding="utf-8"))
+    elif args.training_dir and args.student_output:
+        training_runs = [
+            load_run(path, label_family=LABEL_FAMILY)
+            for path in args.training_dir
+        ]
+        student = build_student(training_runs, shadow_model)
+        student["status"] = args.status
+        args.student_output.parent.mkdir(parents=True, exist_ok=True)
+        args.student_output.write_text(
+            json.dumps(student, indent=2) + "\n", encoding="utf-8"
+        )
+    else:
+        parser.error(
+            "provide --student-model or both --training-dir and --student-output"
+        )
     if args.target_dir:
         if not args.evaluation_output:
             parser.error("--target-dir requires --evaluation-output")
         report = evaluate_student(
             student, shadow_model,
             [load_run(path, label_family=LABEL_FAMILY) for path in args.target_dir],
+            evaluation_kind=args.evaluation_kind,
         )
         args.evaluation_output.parent.mkdir(parents=True, exist_ok=True)
         args.evaluation_output.write_text(
             json.dumps(report, indent=2) + "\n", encoding="utf-8"
         )
-    print(args.student_output)
+    print(args.student_output or args.evaluation_output or args.student_model)
     return 0
 
 

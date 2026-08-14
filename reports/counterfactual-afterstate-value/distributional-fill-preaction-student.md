@@ -34,3 +34,24 @@ passes only if it beats action geometry in every run, has more pooled paired
 wins than losses, and the prospective-only two-sided exact sign test is at most
 0.05. Any change to features, coefficients, L2, or decision threshold after
 opening those runs creates a new candidate and requires new seeds.
+
+## Seed-49--51 result
+
+The frozen candidate was correct on 88/110 rows (80.0%) versus 77/110 (70.0%)
+for action geometry. It improved all three runs: 40/45 versus 32/45, 19/24
+versus 18/24, and 29/41 versus 27/41. The paired result was 30 wins, 61 ties,
+and 19 losses, but its exact `p=0.15240777196147803` missed the fixed 0.05
+threshold. The first prospective gate therefore **did not pass**, despite the
+consistent positive direction. The raw audit is
+`distributional-fill-preaction-student-prospective-49-51.json`.
+
+## Independent replication block fixed after the failed gate
+
+Do not refit or otherwise alter the candidate. Collect original-stream H3/B3
+seeds 52--57 as one fixed, independent six-seed block. This second block passes
+only if its prospective-only pooled accuracy exceeds action geometry, its
+paired wins exceed losses with a two-sided exact sign-test `p <= 0.05`, at
+least five of six runs are non-regressing, and no run trails action geometry by
+more than two correct rows. Seeds 49--51 are not pooled into that significance
+test. Passing still licenses only an offline branch-direction agent candidate;
+episode-score testing remains a separate gate.
