@@ -381,3 +381,10 @@ They reproduced all 114 confirmation decisions and changed 17 choices relative
 to action geometry (16 improvements, one regression after labels were rejoined).
 The next live-feasibility gate is a pre-action student that predicts the needed
 child-state features without consuming post-settle information.
+
+The first inference-time-compatible value candidate is frozen in
+`reports/counterfactual-afterstate-value/distributional-fill-preaction-student.json`.
+It replaces unavailable post-settle features with a pairwise bilinear model of
+the observed source state and candidate action geometry. Its seed-46--48
+development audit and the predeclared seed-49--51 prospective gate are recorded
+in `reports/counterfactual-afterstate-value/distributional-fill-preaction-student.md`.
