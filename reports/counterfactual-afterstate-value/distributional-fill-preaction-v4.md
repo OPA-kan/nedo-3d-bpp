@@ -64,3 +64,12 @@ Before opening labels, expand the root-only cohort with `permute-000-103`,
 `permute-001-113`, `permute-001-127`, `permute-001-139`, and
 `permute-001-149`. Root availability remains the sole admission criterion.
 Every admitted stream that later completes strict H3 must be evaluated.
+
+The expansion screen admitted `permute-000-127` (run `31791810930`) and
+`permute-001-113` (`31791827294`). Runs `31791793349`, `31791802445`,
+`31791818078`, `31791834604`, `31791841302`, and `31791848127` failed at
+least one root condition. The fixed prospective H3 set is therefore the three
+initial successes plus these two expansion successes: `permute-000-71`,
+`permute-000-79`, `permute-001-107`, `permute-000-127`, and
+`permute-001-113`. No H3 label evidence was available when this five-stream
+set was fixed.
