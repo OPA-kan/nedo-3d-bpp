@@ -321,7 +321,10 @@ def build_v3(
     }
 
 
-def confirmation_gate(evaluation: dict[str, Any]) -> dict[str, Any]:
+def confirmation_gate(
+    evaluation: dict[str, Any], *,
+    contract: str = "predeclared in distributional-fill-preaction-v3.md",
+) -> dict[str, Any]:
     support = evaluation["support"]
     paired = evaluation["paired_candidate_vs_action"]
     checks = {
@@ -338,7 +341,7 @@ def confirmation_gate(evaluation: dict[str, Any]) -> dict[str, Any]:
     return {
         "checks": checks,
         "passed": all(checks.values()),
-        "contract": "predeclared in distributional-fill-preaction-v3.md",
+        "contract": contract,
     }
 
 

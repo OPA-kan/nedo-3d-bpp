@@ -73,3 +73,24 @@ initial successes plus these two expansion successes: `permute-000-71`,
 `permute-000-79`, `permute-001-107`, `permute-000-127`, and
 `permute-001-113`. No H3 label evidence was available when this five-stream
 set was fixed.
+
+## Prospective confirmation result
+
+All five fixed streams completed the strict eight-condition H3 matrix and
+aggregation in runs `31792888335`, `31792896104`, `31792902312`,
+`31792908669`, and `31792914747`. The frozen artifact was then evaluated once
+without refitting or changing its thresholds.
+
+The 143 eligible late rows reduced to 74 exact pre-action signatures (51.7%
+unique support), all within the frozen support threshold. V4 scored 40/74
+versus 39/74 for action geometry: 2 wins, 71 ties, and 1 loss (two-sided exact
+sign test `p=1.0`). Per-stream v4/action scores were 1/1
+(`permute-000-127`), 11/10 (`permute-000-71`), 25/24
+(`permute-000-79`), 3/3 (`permute-001-107`), and 0/1
+(`permute-001-113`).
+
+The candidate improved pooled correctness by one, but the predeclared gate
+**failed**: one stream regressed and the paired sign test was not significant.
+V4 is rejected as a confirmed branch-direction agent. These seed-59 labels may
+support a future development candidate but cannot be reused as its prospective
+confirmation.

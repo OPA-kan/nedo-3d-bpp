@@ -386,7 +386,9 @@ def evaluate_v4(
         "per_stream": scored["per_stream"],
     }
     if prospective:
-        result["predeclared_confirmation_gate"] = confirmation_gate(result)
+        result["predeclared_confirmation_gate"] = confirmation_gate(
+            result, contract="predeclared in distributional-fill-preaction-v4.md"
+        )
         result["claim"] = (
             "Prospective confirmation passed; offline branch-direction candidate only."
             if result["predeclared_confirmation_gate"]["passed"] else
