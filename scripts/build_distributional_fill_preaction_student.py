@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import collections
+import hashlib
 import json
 import pathlib
 from typing import Any
@@ -43,6 +45,14 @@ def _action_delta(row: dict[str, Any]) -> list[float]:
         for index, name in enumerate(names)
         if name != "immediate_score"
     ]
+
+
+def _preaction_signature(row: dict[str, Any]) -> str:
+    payload = json.dumps(
+        [_set_summary(row["source_state_tensor"]), _action_delta(row)],
+        separators=(",", ":"), allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def _pairwise_design(
@@ -235,6 +245,7 @@ def evaluate_student(
     }
     paired = {"wins": 0, "ties": 0, "losses": 0}
     per_run = []
+    signature_groups: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
     for target in targets:
         rows = _eligible(
             target["late"], METRIC, label_family=LABEL_FAMILY
@@ -246,6 +257,11 @@ def evaluate_student(
         for prediction in predictions:
             row = by_id[prediction["teacher_id"]]
             actual = row[LABEL_FAMILY][METRIC]["relation"]
+            signature_groups[_preaction_signature(row)].append({
+                "run_id": str(target["run_id"]),
+                "teacher_id": str(row["teacher_id"]),
+                "relation": str(actual),
+            })
             oracle_blocks = {
                 block: _relation(
                     shadow_model["models"][block],
@@ -281,6 +297,14 @@ def evaluate_student(
     paired["exact_two_sided_sign_p"] = _exact_two_sided_sign_p(
         paired["wins"], paired["losses"]
     )
+    cross_run_groups = [
+        group for group in signature_groups.values()
+        if len({row["run_id"] for row in group}) > 1
+    ]
+    conflicting_groups = [
+        group for group in signature_groups.values()
+        if len({row["relation"] for row in group}) > 1
+    ]
     return {
         "schema_version": 1,
         "evaluation_kind": evaluation_kind,
@@ -288,6 +312,16 @@ def evaluate_student(
         "target_run_ids": [target["run_id"] for target in targets],
         **totals,
         "paired_student_vs_action_geometry": paired,
+        "preaction_support_audit": {
+            "signature": "exact source-state summary plus action-geometry delta",
+            "unique_signatures": len(signature_groups),
+            "unique_fraction": len(signature_groups) / totals["rows"],
+            "cross_run_duplicate_groups": len(cross_run_groups),
+            "rows_in_cross_run_duplicate_groups": sum(
+                len(group) for group in cross_run_groups
+            ),
+            "conflicting_signature_groups": len(conflicting_groups),
+        },
         "per_run": per_run,
         "claim": (
             "Prospective audit of the unchanged frozen pre-action student; "

@@ -69,6 +69,9 @@ class DistributionalFillPreactionStudentTests(unittest.TestCase):
 
         self.assertEqual(report["evaluation_kind"], "prospective")
         self.assertIn("Prospective audit", report["claim"])
+        self.assertEqual(
+            report["preaction_support_audit"]["unique_fraction"], 1.0
+        )
 
 
 if __name__ == "__main__":

@@ -44,6 +44,8 @@ and 19 losses, but its exact `p=0.15240777196147803` missed the fixed 0.05
 threshold. The first prospective gate therefore **did not pass**, despite the
 consistent positive direction. The raw audit is
 `distributional-fill-preaction-student-prospective-49-51.json`.
+Only 48/110 pre-action input signatures were unique (43.6%), so changing the
+physics seed did not create 110 independent model-visible decisions.
 
 ## Independent replication block fixed after the failed gate
 
@@ -55,3 +57,24 @@ least five of six runs are non-regressing, and no run trails action geometry by
 more than two correct rows. Seeds 49--51 are not pooled into that significance
 test. Passing still licenses only an offline branch-direction agent candidate;
 episode-score testing remains a separate gate.
+
+## Seed-52--57 replication result
+
+The unchanged student was correct on 172/216 rows (79.6%) versus 164/216
+(75.9%) for action geometry. The paired result was 47 wins, 130 ties, and 39
+losses (`p=0.45054757600159`). Four of six runs were non-regressing; the other
+two each trailed by three rows. The block failed both its significance and
+run-stability conditions.
+
+The input-support audit also failed: only 60/216 exact source-state plus action
+delta signatures were unique (27.8%), and 159 rows belonged to cross-run
+duplicate groups. There were no conflicting labels within an exact signature,
+but additional original-stream physics seeds mostly replicated existing model
+inputs. The full audit is
+`distributional-fill-preaction-student-replication-52-57.json`.
+
+The v1 student is therefore not confirmed and must not advance to episode-score
+claims. Do not spend more original-stream seeds on this candidate. A v2 may use
+these now-inspected runs only as development evidence, must deduplicate or
+group-weight model-visible signatures, and must be confirmed on newly declared
+item-stream support rather than seed-only replications.
