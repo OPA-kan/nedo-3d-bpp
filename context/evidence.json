@@ -2714,7 +2714,7 @@
       "id": "live-ranker-ordering-not-anti-predictive-at-five-config-scale",
       "topic": "candidate_rank",
       "date": "2026-08-16",
-      "status": "active",
+      "status": "superseded",
       "claim": "The one-episode suggestion that the live immediate-Q ordering is actively wrong over long horizons (concordance 0.267 on 15 decided pairs) does not replicate at five-config scale and the sign reverses. Actions run 31931772512 ran the branch-label instrument on b000-k15/k20/k40 and b001-k20/k30 at six branch steps with class-diverse top-3 siblings and schema-2 per-sibling RankEvaluation components; 25 valid states and 59 usable branches survived the prefix/parent-fingerprint filters. Live-q concordance with final fill is 27/39 (0.692, exact two-sided p=0.0237) and with final placed 19/30 (p=0.20); the top-q sibling reaches the best outcome in 15/25 and 15/23 states. A leave-one-config-out ridge reweighting of the same components loses held-out (19/39 fill, 10/30 placed), so the shipped scalar is not beatable by re-mixing its own terms on this corpus. Do not launch an episode-level weight sweep on the old 0.267 signal; the full-data fit's negative support weight is hypothesis-generating only. Pairs within a state share history; the per-state top-pick rows are the conservative reading.",
       "source": "reports/branch-labels/scale-31931772512/summary.md; reports/branch-labels/scale-31931772512/concordance.json; scripts/analyze_ranker_concordance.py; Actions run 31931772512",
       "values": {
@@ -2755,6 +2755,72 @@
           "concordance": 0.267,
           "pairs": 15,
           "episodes": 1
+        }
+      },
+      "superseded_by": "ranker-ordering-regime-dependent-fatal-case-inverted"
+    },
+    {
+      "id": "ranker-ordering-regime-dependent-fatal-case-inverted",
+      "topic": "candidate_rank",
+      "date": "2026-08-16",
+      "status": "active",
+      "supersedes_reason": "the b-config replication weakened the single-run concordance claim and the fatal-case extension found a significantly inverted regime",
+      "claim": "The live immediate-Q ordering is regime-dependent, and the regime where it is significantly anti-predictive is exactly the certified-fatal pool-1 case with large avoidable losses. Run 31938388838 extended branch labels to c000-k1/c001-k1 at steps 2-20 with same-item top-candidate siblings and a per-sibling support-surface ledger, and re-ran the five b-configs as an independent replication. c001-k1 is intrinsic: in 0/9 measurable states does any sibling beat the policy on final placed, extending the step-18 choice-invariant ceiling back to step 2 -- not suicide. c000-k1 is avoidable: 6/8 states had a strictly better sibling (a single different placement at step 8 ends 6 placements higher; step 16, 5 higher) and the higher-q sibling reaches the better ending in only 3/17 pairs on placed (p=0.0127) and 3/18 on fill (p=0.0075) -- the q tiebreak among the policy's own top-3 candidates is systematically wrong there. The b replication gave fill 24/41 and placed 13/32 versus the prior run's 27/39 and 19/30; pooled over both runs fill is 51/80 (p=0.0183) and placed 32/62 (p=0.90), so the earlier single-run refutation is rescoped: mildly concordant on fill, no signal on placed, deadline-sensitive instrument. The support ledger is directional only (usable-support delta 4/4 comparable fill pairs, p=0.125). This licenses a scoped pool-1 selection experiment and a mechanism-first look at the inverted pairs; it does not license touching the live ranker globally.",
+      "source": "reports/branch-labels/fatal-31938388838/summary.md; reports/branch-labels/fatal-31938388838/commitment.json; reports/branch-labels/fatal-31938388838/b-replication.json; scripts/analyze_commitment_point.py; Actions run 31938388838",
+      "values": {
+        "c001_k1": {
+          "avoidable_states_placed": [
+            0,
+            9
+          ],
+          "verdict": "intrinsic_ceiling"
+        },
+        "c000_k1": {
+          "avoidable_states_placed": [
+            6,
+            8
+          ],
+          "max_single_choice_gap_items": 6,
+          "q_concordant_placed": [
+            3,
+            17
+          ],
+          "p_placed": 0.0127,
+          "q_concordant_fill": [
+            3,
+            18
+          ],
+          "p_fill": 0.0075
+        },
+        "b_replication": {
+          "fill": [
+            24,
+            41
+          ],
+          "placed": [
+            13,
+            32
+          ]
+        },
+        "pooled_two_runs": {
+          "fill": [
+            51,
+            80
+          ],
+          "p_fill": 0.0183,
+          "placed": [
+            32,
+            62
+          ],
+          "p_placed": 0.8991
+        },
+        "support_ledger": {
+          "fill_delta_usable_support": [
+            4,
+            4
+          ],
+          "p": 0.125,
+          "verdict": "directional_only"
         }
       }
     }

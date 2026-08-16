@@ -374,16 +374,28 @@ interleave/reverse orders. Nothing was frozen and no confirmation stream was
 spent; see `distributional-fill-preaction-v6.md`. The next pre-action
 candidate must model arrival-order structure or change the label target.
 
-The long-standing worry that the live Ranker ordering is actively wrong
-over long horizons is now refuted at five-config scale. The branch-label
-instrument (schema 2, with per-sibling RankEvaluation components) ran on
-all five development configs in Actions run 31931772512: live-q
-concordance with final fill is 27/39 (exact p=0.0237) with the top-q
-sibling best in 15/25 states, and a leave-one-config-out reweighting of
-the Ranker's own components loses held-out. The one-episode 0.267 signal
-was small-sample noise. Do not spend an episode-level weight sweep on it;
-`ranker-form-never-swept` is downgraded to low priority. See
-`reports/branch-labels/scale-31931772512/summary.md`.
+The long-horizon ranker-ordering question is now measured and
+regime-dependent. Run 31931772512 (branch labels with per-sibling
+RankEvaluation components on five b-configs) first suggested the live
+ordering is mildly concordant with final fill; the independent
+replication in run 31938388838 weakened that to fill-only (pooled over
+both runs 51/80, p=0.018; placed 32/62, no signal — the instrument is
+deadline-sensitive, never quote one run alone), and a leave-one-config-out
+reweighting of the Ranker's own components still loses held-out. The same
+run extended labels to the certified-fatal pool-1 cases at steps 2-20
+with same-item top-candidate siblings and a support-surface ledger:
+c001-k1 is intrinsic (0/9 states have a better sibling; the 21-placed
+ceiling reaches back to step 2 — not suicide), while c000-k1 is
+avoidable suicide territory: 6/8 states had a strictly better sibling
+(one alternative placement at step 8 is worth 6 placements) and the
+higher-q sibling wins only 3/17 decided pairs on final placed (p=0.013)
+— the q tiebreak among the policy's own top candidates is inverted
+exactly in the fatal regime, echoing the settled_share regime split. The
+support ledger is directional only (4/4 comparable fill pairs, p=0.125).
+Licensed next steps: a scoped pool-1 selection experiment among retained
+top candidates and a mechanism-first audit of the inverted pairs; not a
+global weight sweep. See
+`reports/branch-labels/fatal-31938388838/summary.md`.
 
 ## Official score history
 
