@@ -105,6 +105,10 @@ class ScenarioMatrixContractTests(unittest.TestCase):
                 "permute-000-103", "permute-000-109", "permute-000-127",
                 "permute-000-137", "permute-001-113", "permute-001-127",
                 "permute-001-139", "permute-001-149",
+                "permute-000-151", "permute-000-157", "permute-000-163",
+                "permute-000-167", "permute-000-173", "permute-000-179",
+                "permute-001-151", "permute-001-157", "permute-001-163",
+                "permute-001-167", "permute-001-173", "permute-001-179",
             )
         }
         original = SOURCE["000"]["item_stream"]["item_list"]
