@@ -3114,6 +3114,26 @@
           "parity": 8.8e-06
         }
       }
+    },
+    {
+      "id": "safety-shadow-live-contact-verified",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The learned safety ranker survives live contact: the log-only SAFETY_RERANK_SHADOW scored all 23 decisions of a paired local c000-k1 episode from live-computed phi (the agent's own release_risk.features) with the trajectory bit-identical to the shadow-off arm, confirming zero behavioral footprint. The logit sequence tracks the feasibility phase structure: +12 to +25 on the open board, declining through +3-4 as the board crowds, and negative (-0.13, -0.47) at steps 16-17 where the policy executed actions the model scores below 50% safe -- the concrete targets a reranker would address. One episode is a contract check, not calibration; the next shadow deliverable is the calibration study (logit versus actual settle outcome across episodes, split by step band and regime) obtained by running existing ablation workflows with the knob set. Regime answer recorded: perception needs no per-regime training (LOCO already validates cross-scenario transfer; physics is regime-invariant), while the pricing of a given safety probability is regime-dependent (endgame-penalty postmortem) -- one perception model, one hazard-priced decision rule.",
+      "source": "reports/state-model/live-shadow-first-contact.md; reports/state-model/live-shadow-first-contact.jsonl; agent/agent.py safety_shadow_logit",
+      "values": {
+        "paired_parity": "identical 24-step trajectories",
+        "decisions_scored": 23,
+        "logit_range": [
+          -0.465,
+          25.234
+        ],
+        "sub50_steps": [
+          16,
+          17
+        ]
+      }
     }
   ]
 }
