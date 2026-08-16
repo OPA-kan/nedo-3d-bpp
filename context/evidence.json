@@ -3041,6 +3041,47 @@
           ]
         }
       }
+    },
+    {
+      "id": "last-resort-relaxation-dev-pass-confirmation-fail",
+      "topic": "fallback",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The first true variation of the fixed protocol fallback was built, measured at episode level, and not adopted: development gates passed, fresh-permutation confirmation failed on pooled placed. LAST_RESORT_RELAXATION_SECONDS rescans down a clearance ladder (official transport clearance, half, zero) only when the deadline search accepted nothing, exchanging the certainly-dead fixed coordinate for a candidate with positive survival probability. Development run 31947384483 passed all four preregistered gates (transport_invalid endings 10->7, paired 8W/6L, pooled 387 vs 386, every config inside its measured floor) and broke c001-k1's certified policy-conditional 21-placed ceiling to 22 in all three replicates. Confirmation run 31947832632 on six never-used seed-20260816 k20 permutations failed gate 1 (pooled 200 vs 206; four of six streams bit-identical because the rescue never fired; the whole deficit is one early-topple replicate) while passing the other four gates. Per protocol the knob stays 0 and the arm is closed. This closes protocol-fallback-never-varied: a switchable fallback policy exists and was measured; the fixed fallback remains default by measurement. A future variant must target regimes where fallback deaths carry mass (pool-1/late boards) and carry its own preregistration.",
+      "source": "docs/LAST_RESORT_RELAXATION.md; reports/last-resort/development-verdict.md; reports/last-resort/confirmation-verdict.md; Actions runs 31947384483 and 31947832632",
+      "values": {
+        "development": {
+          "gates": "4/4 pass",
+          "transport_invalid": [
+            10,
+            7
+          ],
+          "paired": [
+            8,
+            6
+          ],
+          "pooled_placed": [
+            387,
+            386
+          ],
+          "c001_ceiling": [
+            21,
+            22
+          ]
+        },
+        "confirmation": {
+          "gates": "4/5 pass, gate1 fail",
+          "pooled_placed": [
+            200,
+            206
+          ],
+          "identical_streams": 4,
+          "paired": [
+            2,
+            2
+          ]
+        }
+      }
     }
   ]
 }

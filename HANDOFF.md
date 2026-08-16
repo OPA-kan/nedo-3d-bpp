@@ -430,6 +430,20 @@ false-fire cost, and full settled exhaustion is already handled by
 anchor_fallback. The knob stays registered at default 0 only to
 reproduce the negative; see `reports/vacuum-cutoff/verdict.md`.
 
+The fixed protocol fallback finally has a measured variation, and the
+fixed version survives by measurement rather than neglect.
+`LAST_RESORT_RELAXATION_SECONDS` (default 0) rescans down a clearance
+ladder only when the deadline search accepted nothing, exchanging the
+certainly-dead fixed coordinate for a candidate with positive survival
+probability. Development run 31947384483 passed all four preregistered
+gates and broke c001-k1's certified policy-conditional 21-placed
+ceiling to 22 in every replicate; fresh-permutation confirmation run
+31947832632 failed pooled placed (200 vs 206, the rescue inert on four
+of six k20 streams), so the knob stays 0 and the arm is closed. The
+algorithm and both experiments are in `docs/LAST_RESORT_RELAXATION.md`
+and `reports/last-resort/`; `protocol-fallback-never-varied` is closed.
+A future variant must target regimes where fallback deaths carry mass.
+
 The deviation line is likewise closed pending a new representation.
 Twelve permuted pool-1 streams (run 31941899714) pooled with the fatal
 cases give 14 streams and 77 branch states: 36% have a sibling of the

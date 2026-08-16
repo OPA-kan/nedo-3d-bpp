@@ -133,9 +133,9 @@
         "scripts/analyze_terminal_failures.py"
       ],
       "missing_instrument": "analyze_terminal_failures is a post-mortem over deaths; it has no counterfactual and its denominator is deaths, not attempts. Two designed replacements (deadline-reserved rescue, cross-step incumbent) were both rejected, and neither was a variation of the fallback itself.",
-      "status": "open",
+      "status": "closed",
       "priority": "high",
-      "rationale": "transport_invalid is the leading death channel at 45% of endings and the audited fatal actions fail the agent's own static check, i.e. they are the fallback firing, not the search failing.",
+      "rationale": "transport_invalid is the leading death channel at 45% of endings and the audited fatal actions fail the agent's own static check, i.e. they are the fallback firing, not the search failing. [2026-08-16 closed: LAST_RESORT_RELAXATION_SECONDS is the first switchable fallback policy and was measured at episode level. Development gates passed (run 31947384483, transport_invalid 10->7, c001-k1 ceiling 21->22); fresh-permutation confirmation failed pooled placed (run 31947832632, 200 vs 206, rescue inert on 4/6 streams). The fixed fallback stays default by measurement; both closure criteria are met.]",
       "closure_criteria": [
         "a switchable fallback policy exists",
         "measured against the current one at episode level"
