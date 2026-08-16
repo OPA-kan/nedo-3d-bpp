@@ -51,6 +51,55 @@ FEATURE_NAMES = (
 )
 
 
+BOARD_FEATURE_NAMES = (
+    "packed_count",
+    "pool_volume",
+    "pool_soft",
+    "pool_priority",
+    "grid_max",
+    "grid_mean",
+    "grid_std",
+    "grid_occupied_share",
+    "grid_container_imbalance",
+    "grid_roughness",
+)
+
+
+def board_feature_vector(state: dict[str, Any]) -> list[float] | None:
+    """Whole-board summary plus the raw height cells, decision-time only."""
+    board = state.get("board")
+    if not board:
+        return None
+    grids = board.get("height_grids") or []
+    cells = [cell for grid in grids for cell in grid]
+    if not cells:
+        return None
+    per_container_mean = [
+        statistics.fmean(grid) if grid else 0.0 for grid in grids
+    ]
+    roughness = statistics.fmean(
+        abs(a - b)
+        for grid in grids
+        for a, b in zip(grid, grid[1:])
+    )
+    summary = [
+        float(board.get("packed_count", 0)),
+        float(board.get("pool_volume", 0.0)),
+        float(board.get("pool_soft", 0)),
+        float(board.get("pool_priority", 0)),
+        max(cells),
+        statistics.fmean(cells),
+        statistics.pstdev(cells),
+        statistics.fmean(1.0 if cell > 0.0 else 0.0 for cell in cells),
+        (
+            max(per_container_mean) - min(per_container_mean)
+            if len(per_container_mean) > 1 else 0.0
+        ),
+        roughness,
+    ]
+    return summary + [float(cell) for cell in cells]
+
+
 def state_features(state: dict[str, Any]) -> list[float] | None:
     branches = state["branches"]
     ledgers = [b["support_ledger"] for b in branches if b.get("support_ledger")]
@@ -94,14 +143,26 @@ def state_label(state: dict[str, Any], outcome: str) -> tuple[bool, float] | Non
     return best > control[outcome], best - control[outcome]
 
 
-def build_rows(dirs: list[pathlib.Path], outcome: str) -> list[dict[str, Any]]:
+def build_rows(
+    dirs: list[pathlib.Path], outcome: str, *, feature_set: str = "sibling",
+) -> list[dict[str, Any]]:
     rows = []
     for path in dirs:
         config = load_config(path)
         for state in config["states"]:
             if len(state["branches"]) < 2:
                 continue
-            features = state_features(state)
+            sibling = state_features(state)
+            board = board_feature_vector(state)
+            if feature_set == "sibling":
+                features = sibling
+            elif feature_set == "board":
+                features = board
+            else:
+                features = (
+                    sibling + board
+                    if sibling is not None and board is not None else None
+                )
             labeled = state_label(state, outcome)
             if features is None or labeled is None:
                 continue
@@ -198,14 +259,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--labels-dir", action="append", type=pathlib.Path,
                         required=True)
+    parser.add_argument(
+        "--feature-set", default="sibling",
+        choices=("sibling", "board", "both"),
+    )
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path)
     args = parser.parse_args()
     result = {
         "schema_version": 1,
+        "feature_set": args.feature_set,
         "feature_names": list(FEATURE_NAMES),
+        "board_feature_names": list(BOARD_FEATURE_NAMES) + ["grid_cells..."],
         "per_outcome": {
-            outcome: evaluate(build_rows(args.labels_dir, outcome))
+            outcome: evaluate(build_rows(
+                args.labels_dir, outcome, feature_set=args.feature_set
+            ))
             for outcome in ("placed", "fill")
         },
     }

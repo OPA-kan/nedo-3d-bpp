@@ -74,7 +74,11 @@ def load_config(path: pathlib.Path) -> dict[str, Any]:
                 "fill": float(run["evaluation"].get("fill_score", 0.0)),
             })
         if usable:
-            states.append({"step": int(state["step"]), "branches": usable})
+            states.append({
+                "step": int(state["step"]),
+                "board": state.get("board"),
+                "branches": usable,
+            })
     return {"task_id": data["task_id"], "states": sorted(states, key=lambda s: s["step"])}
 
 

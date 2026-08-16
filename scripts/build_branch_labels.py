@@ -64,7 +64,7 @@ from scripts.measure_anchor_recall import (  # noqa: E402
 )
 from scripts.measurement_budget import record_from_env  # noqa: E402
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def _packed_world_aabb(packed: dict) -> tuple:
@@ -135,6 +135,66 @@ def support_ledger(observation, container_idx, item, world_center, size):
         "on_floor": on_floor,
         "supporter_overlap": overlap,
         "delta_usable_support": gained_usable - consumed_usable,
+    }
+
+
+BOARD_GRID_SIZE = 4
+
+
+def board_features(observation) -> dict:
+    """Whole-board decision-time features for the branch state.
+
+    A per-container max-height grid in the container's local frame plus
+    the visible-pool composition. Everything here is observable before the
+    action is chosen; the deviation-trigger audit needs it because the
+    sibling-set statistics alone scored chance on final placed.
+    """
+    grids = []
+    heights = []
+    for container in observation.get("container_list", []):
+        length = float(container["length"])
+        width = float(container["width"])
+        center = [float(v) for v in container.get("center", (0.0, 0.0, 0.0))]
+        grid = [[0.0] * BOARD_GRID_SIZE for _ in range(BOARD_GRID_SIZE)]
+        for packed in container.get("packed_items", []):
+            low, high = _packed_world_aabb(packed)
+            x0, x1 = low[0] - center[0], high[0] - center[0]
+            y0, y1 = low[1] - center[1], high[1] - center[1]
+            for row in range(BOARD_GRID_SIZE):
+                cell_x0 = -length / 2 + row * length / BOARD_GRID_SIZE
+                cell_x1 = -length / 2 + (row + 1) * length / BOARD_GRID_SIZE
+                for column in range(BOARD_GRID_SIZE):
+                    cell_y0 = -width / 2 + column * width / BOARD_GRID_SIZE
+                    cell_y1 = (
+                        -width / 2 + (column + 1) * width / BOARD_GRID_SIZE
+                    )
+                    if (
+                        x1 > cell_x0 and x0 < cell_x1
+                        and y1 > cell_y0 and y0 < cell_y1
+                    ):
+                        grid[row][column] = max(
+                            grid[row][column], float(high[2])
+                        )
+        grids.append([cell for row in grid for cell in row])
+        heights.append(float(container.get("height", 0.0)))
+    pool = observation.get("pool_list", [])
+    return {
+        "grid_size": BOARD_GRID_SIZE,
+        "height_grids": grids,
+        "container_heights": heights,
+        "packed_count": sum(
+            len(c.get("packed_items", []))
+            for c in observation.get("container_list", [])
+        ),
+        "pool_count": len(pool),
+        "pool_soft": sum(1 for p in pool if p.get("is_soft", False)),
+        "pool_priority": sum(
+            1 for p in pool if p.get("is_prioritized", False)
+        ),
+        "pool_volume": sum(
+            float(p.get("length", 0.0)) * float(p.get("width", 0.0))
+            * float(p.get("height", 0.0)) for p in pool
+        ),
     }
 
 
@@ -481,6 +541,7 @@ def main() -> int:
         states.append({
             "step": step,
             "parent_fingerprint": parent,
+            "board": board_features(observation),
             "branches": branches,
         })
 
