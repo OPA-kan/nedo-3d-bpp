@@ -104,3 +104,21 @@ all eight root conditions: `permute-000-157` (run `31922206907`),
 (`31922226138`, dual-empty), and `permute-001-179` (`31922227127`,
 dual-empty). The fixed prospective H3 set is therefore these eight admitted
 streams at environment seed 60.
+
+## First power audit: expand before evaluating
+
+All eight admitted streams completed the strict eight-condition H3 matrix
+and aggregation in runs `31922956917`, `31922959491`, `31922962709`,
+`31922965559`, `31922968969`, `31922972142`, `31922975070`, and
+`31922977895`. The label-blind power audit over their 311 eligible late rows
+(145 unique pre-action signatures, 46.6% unique support) counted 27
+prediction disagreements, below the frozen minimum of 37. Following the
+predeclared protocol, no direction label was opened and no confirmation was
+evaluated.
+
+The cohort is expanded with eight further fresh salts, declared with no v5
+direction-label evidence in existence: `permute-000-181`, `permute-000-191`,
+`permute-000-193`, `permute-000-197`, `permute-001-181`, `permute-001-191`,
+`permute-001-193`, and `permute-001-197`, all at environment seed 60 and
+unchanged H3/B3. Root availability remains the sole admission criterion, and
+every admitted stream that completes strict H3 joins the audit population.
