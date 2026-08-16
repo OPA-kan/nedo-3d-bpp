@@ -61,10 +61,22 @@ class SafetyRerankRecordTests(unittest.TestCase):
 
     def test_score_conservation_excludes_expensive_swaps(self) -> None:
         incumbent = _FakeDecision(0, (0, 0, 0), 10.0)
-        cheap = _FakeDecision(1, (1, 0, 0), 8.4)  # loses 16% > 15%
+        cheap = _FakeDecision(1, (1, 0, 0), 8.9)  # loses 1.1 > 1.0 abs
         record = _rerank([-0.5, -0.5, 9.0], [incumbent, cheap], incumbent)
         self.assertTrue(record["triggered"])
         self.assertFalse(record["would_swap"])
+
+    def test_absolute_bound_rescues_near_zero_score_states(self) -> None:
+        # The Gate 2 inertness case: incumbent score near zero, safe
+        # alternative one score unit below. The relative rule blocked
+        # every such rescue; the absolute rule licenses it.
+        incumbent = _FakeDecision(0, (0, 0, 0), -0.023)
+        rescue = _FakeDecision(1, (1, 0, 0), -0.658)
+        record = _rerank(
+            [-2.0, -2.0, 6.2], [incumbent, rescue], incumbent
+        )
+        self.assertTrue(record["would_swap"])
+        self.assertEqual(record["proposed_rank"], 1)
 
     def test_margin_requires_real_escape(self) -> None:
         incumbent = _FakeDecision(0, (0, 0, 0), 5.0)
@@ -94,7 +106,7 @@ class SafetyRerankRecordTests(unittest.TestCase):
         self.assertEqual(agent.SAFETY_RERANK_MODE, "off")
         self.assertEqual(agent.SAFETY_RERANK_TRIGGER_LOGIT, 2.0)
         self.assertEqual(agent.SAFETY_RERANK_MARGIN_LOGIT, 2.0)
-        self.assertEqual(agent.SAFETY_RERANK_MAX_SCORE_LOSS_FRAC, 0.15)
+        self.assertEqual(agent.SAFETY_RERANK_MAX_SCORE_LOSS_ABS, 1.0)
 
 
 if __name__ == "__main__":

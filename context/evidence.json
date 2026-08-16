@@ -3151,6 +3151,21 @@
         "late_band_auc": 0.7384,
         "verdict": "calibration_pass_gate2_licensed"
       }
+    },
+    {
+      "id": "safety-rerank-gate2-inert-and-rescuability",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "Gate 2 development wave (run 31953466842, 63/63 episodes, negative control within every config floor) closed inert_arm_closed: the trigger fired 85 times across 21 enforce episodes at the expected danger states and the swap fired zero times. The offline rescuability audit over the committed 7764-row/189-board corpus locates the block precisely: 54 boards trigger (highest-Q candidate below logit 2), the incumbent is physically unsafe at 27, an escape-eligible alternative (logit >= max(2, incumbent+2)) exists at 34/54 and at 20/27 unsafe-incumbent boards with 19/20 of the picks physically safe -- but the shipped RELATIVE Q-conservation bound (15% of |score|) rescues 0/27 because danger-state incumbent scores sit near zero (-0.02 to -2), so a relative budget vanishes exactly where the model has value. Pricing failure, not perception or candidate-set failure. The committed sweep puts the knee at an absolute bound of 1.0 score units (18/27 rescued safely, 1 unsafe pick, 11 needless swaps at mean cost 0.34); Gate 2b amends exactly that one clause (SAFETY_RERANK_MAX_SCORE_LOSS_ABS=1.0) with trigger, margin, seam, arms and all five episode gates unchanged. The audit also discharges the hazard-pricing entry gate of HANDOFF task 3 at corpus scale: at 20 of 27 fatal-choice boards a materially lower-P alternative existed and was safe.",
+      "source": "reports/state-model/gate2/adjudication.md; reports/state-model/rescuability-audit.json; reports/state-model/gate2b-amendment.md; scripts/audit_safety_rescuability.py; run 31953466842",
+      "values": {
+        "wave": "63/63 episodes, verdict inert_arm_closed",
+        "triggered_vs_enforced": "85 triggers, 0 swaps",
+        "rescuable_relative_rule": "0/27",
+        "rescuable_abs_1.0": "18/27, 1 unsafe pick, needless mean cost 0.34",
+        "alternative_pick_precision": "19/20 safe at unsafe-incumbent boards"
+      }
     }
   ]
 }

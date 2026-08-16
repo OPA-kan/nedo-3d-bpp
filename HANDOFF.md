@@ -847,13 +847,19 @@ suggestion to re-run a closed line.
    defaults (best-known behaviour; every new knob is default-off and
    `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
    commit lands after `ab198d7`.
-2. **Safety-reranker Gate 2 (licensed 2026-08-16).** Gate 1 calibration
-   passed (`safety-shadow-calibration-pass`: pooled AUC 0.933, monotone
-   bands, all deaths release_candidates). Gate 2 is a rerank arm among
-   retained top-K candidates — swap only, never refuse — with its own
-   preregistration, a physical negative control, and a paired A/B
-   against the baseline.json floors; Gate 3 is fresh-permutation
-   confirmation under the same gates before any default flips.
+2. **Safety-reranker campaign (Gate 2b in flight 2026-08-16).** Gate 1
+   calibration passed (`safety-shadow-calibration-pass`: pooled AUC
+   0.933, monotone bands, all deaths release_candidates). The first
+   Gate 2 wave closed `inert_arm_closed`: 85 triggers, zero swaps,
+   negative control clean. The offline rescuability audit
+   (`rescuability-audit.json`) showed why — safe alternatives exist at
+   20/27 fatal-choice boards (19/20 picks physically safe) but the
+   relative 15% Q-bound vanishes at danger states where incumbent
+   scores sit near zero. Gate 2b (`gate2b-amendment.md`) replaces that
+   one clause with an absolute bound of 1.0 score units and reruns the
+   identical wave; Gate 3 fresh-permutation confirmation still stands
+   before any default flips. The audit also discharges task 3's
+   hazard-pricing entry gate at corpus scale.
 3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry

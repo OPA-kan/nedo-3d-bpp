@@ -79,14 +79,18 @@ LAST_RESORT_RELAXATION_SECONDS = float(
 # the offline AUC?) that must precede any reranking experiment. Empty
 # disables.
 SAFETY_RERANK_SHADOW = os.environ.get("SAFETY_RERANK_SHADOW", "")
-# Gate 2 reranker (reports/state-model/gate2-rerank-protocol.md). Requires
-# SAFETY_RERANK_SHADOW for the weights. "shadow" runs the full incumbent-
-# plus-retained-top-K scoring on the hot path and logs the would-swap
-# verdict without touching the action (the physical negative control);
-# "enforce" executes the swap. The rule constants below are preregistered
-# from the Gate 1 calibration table and are not tuning knobs: trigger and
-# escape sit where measured empirical survival reaches 1.0, and the
-# Q-conservation bound prices the min-q collapse lesson.
+# Gate 2 reranker (reports/state-model/gate2-rerank-protocol.md, amended
+# by gate2b-amendment.md). Requires SAFETY_RERANK_SHADOW for the weights.
+# "shadow" runs the full incumbent-plus-retained-top-K scoring on the hot
+# path and logs the would-swap verdict without touching the action (the
+# physical negative control); "enforce" executes the swap. The rule
+# constants below come from the Gate 1 calibration table and the offline
+# rescuability audit, not from any episode wave: trigger and escape sit
+# where measured empirical survival reaches 1.0, and the score-loss bound
+# is ABSOLUTE because the audit showed danger states have incumbent
+# scores near zero, where the original relative bound blocked every
+# rescue (0/27) that an absolute unit of score would have bought (18/27,
+# with one bad pick and mean needless-swap cost 0.34).
 SAFETY_RERANK_MODES = frozenset({"off", "shadow", "enforce"})
 SAFETY_RERANK_MODE = os.environ.get("SAFETY_RERANK_MODE", "off")
 if SAFETY_RERANK_MODE not in SAFETY_RERANK_MODES:
@@ -96,7 +100,7 @@ if SAFETY_RERANK_MODE not in SAFETY_RERANK_MODES:
     )
 SAFETY_RERANK_TRIGGER_LOGIT = 2.0
 SAFETY_RERANK_MARGIN_LOGIT = 2.0
-SAFETY_RERANK_MAX_SCORE_LOSS_FRAC = 0.15
+SAFETY_RERANK_MAX_SCORE_LOSS_ABS = 1.0
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -5694,12 +5698,12 @@ def _safety_rerank_action_key(decision):
 def safety_rerank_record(observation, top_candidates, decision):
     """Score the incumbent and retained top-K; propose a swap or stand.
 
-    The rule is fixed in reports/state-model/gate2-rerank-protocol.md:
-    act only below the trigger logit, swap only to an alternative that
-    escapes the danger band by the preregistered margin while giving up
-    at most the Q-conservation fraction of the incumbent's immediate
-    score, and never refuse to act — with no eligible alternative the
-    incumbent stands untouched.
+    The rule is fixed in reports/state-model/gate2-rerank-protocol.md
+    as amended by gate2b-amendment.md: act only below the trigger
+    logit, swap only to an alternative that escapes the danger band by
+    the preregistered margin while giving up at most an absolute unit
+    of immediate score, and never refuse to act — with no eligible
+    alternative the incumbent stands untouched.
     """
     incumbent_logit = safety_shadow_logit(observation, decision)
     if incumbent_logit is None:
@@ -5734,9 +5738,7 @@ def safety_rerank_record(observation, top_candidates, decision):
     }
     if not record["triggered"]:
         return record
-    score_floor = float(decision.score) - (
-        SAFETY_RERANK_MAX_SCORE_LOSS_FRAC * abs(float(decision.score))
-    )
+    score_floor = float(decision.score) - SAFETY_RERANK_MAX_SCORE_LOSS_ABS
     best = None
     for candidate in candidates:
         if candidate["is_incumbent"] or candidate["logit"] is None:
