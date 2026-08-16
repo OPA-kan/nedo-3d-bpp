@@ -93,6 +93,7 @@ def configure_arm_environment(
         "TEMPORAL_CHUNK_CELL_SIZE",
         "PLACEMENT_SELECTOR_MODE",
         "MULTI_AXIS_SELECTOR_MODE",
+        "VACUUM_SETTLED_CUTOFF",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -144,6 +145,7 @@ def configure_arm_environment(
         "structured_retained",
         "multi_axis_shadow",
         "multi_axis_enforce",
+        "vacuum_cutoff",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -167,6 +169,14 @@ def configure_arm_environment(
             # the explicit proposal/evaluation/selector/command contracts.
             # This is the physical negative control for abstraction cost.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_noop"
+        elif arm == "vacuum_cutoff":
+            # Feasibility-phase reallocation. When enough settled scan units
+            # exhaust without one settled candidate, the settled phase has
+            # measured itself empty (reports/anchor-recall/phase-structure.md:
+            # precision 1.0, recall 7/8 at completion >= 1/3), so the rest of
+            # the deadline goes to release units, whose choice quality
+            # decides survival at such boards.
+            env["VACUUM_SETTLED_CUTOFF"] = "0.34"
         elif arm == "structured_retained":
             # Preserve the scalar generator/ranker hot path and materialize
             # named terms only for decisions retained by final selection.

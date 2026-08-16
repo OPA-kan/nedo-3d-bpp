@@ -423,6 +423,20 @@ ANCHOR_FIRST_PASS_ATTEMPTS = int(
 ANCHOR_DEEP_PASS_ATTEMPTS = int(
     os.environ.get("ANCHOR_DEEP_PASS_ATTEMPTS", "256")
 )
+# Vacuum cutoff. Crossing the committed anchor-recall oracles with their
+# decision-time telemetry (reports/anchor-recall/phase-structure.md) sorted
+# every zero-settled search into two phases: truly empty boards let the scan
+# finish because the candidate space implodes near the collapse, while
+# drowning boards never complete a third of their units. When the fraction
+# of settled units exhausted without one settled candidate reaches this
+# threshold, the remaining settled units are skipped and the rest of the
+# deadline goes to release units, whose choice quality decides survival at
+# such boards (460-1014 physically safe releases existed at the
+# certified-empty boards). 0 disables. The measured detector operating
+# point is 0.34: precision 1.0, recall 7/8 on the raw oracle states.
+VACUUM_SETTLED_CUTOFF = float(
+    os.environ.get("VACUUM_SETTLED_CUTOFF", "0") or "0"
+)
 # Anchor-space fallback. The shipped support_plane generator can exhaust its
 # entire anchor space inside the policy budget and accept nothing while the
 # cartesian space at the same state holds physically safe placements
@@ -5339,6 +5353,9 @@ def iter_prioritized_candidates(
 
     attempts_used = 0
     attempts_per_unit = max(1, ANCHOR_FIRST_PASS_ATTEMPTS)
+    settled_units_total = sum(1 for unit in units if unit[8] == "settled")
+    settled_units_exhausted = 0
+    settled_candidate_seen = False
     while states:
         if search_stats is not None:
             search_stats["rounds_started"] += 1
@@ -5351,6 +5368,25 @@ def iter_prioritized_candidates(
                 if search_stats is not None:
                     search_stats["deadline_reached"] = True
                 return
+            if (
+                VACUUM_SETTLED_CUTOFF > 0.0
+                and not settled_candidate_seen
+                and settled_units_total
+                and state["unit"][8] == "settled"
+                and settled_units_exhausted / settled_units_total
+                >= VACUUM_SETTLED_CUTOFF
+            ):
+                # The settled phase measured itself empty: enough settled
+                # units exhausted without one candidate. Skip the remaining
+                # settled units so release units get the rest of the
+                # deadline.
+                if search_stats is not None:
+                    search_stats["vacuum_cutoff_fired"] = True
+                    search_stats["vacuum_settled_units_skipped"] = (
+                        search_stats.get("vacuum_settled_units_skipped", 0)
+                        + 1
+                    )
+                continue
 
             (
                 _item_rank,
@@ -5413,6 +5449,8 @@ def iter_prioritized_candidates(
                     candidate = next(state["iterator"])
                 except StopIteration:
                     exhausted = True
+                    if attempt_kind == "settled":
+                        settled_units_exhausted += 1
                     if search_stats is not None:
                         search_stats["units_completed"] += 1
                     if unit_audit is not None:
@@ -5437,6 +5475,8 @@ def iter_prioritized_candidates(
                             attempts_used
                         )
                 if candidate is not None:
+                    if candidate.name != "release_candidate":
+                        settled_candidate_seen = True
                     if record_item_lifecycle:
                         item_index = int(item.get("index", item_idx))
                         if (
