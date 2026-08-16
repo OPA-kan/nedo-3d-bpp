@@ -2663,6 +2663,52 @@
         },
         "artifact_sha256": "52494cddfc5a5d486f7e753e7ff408982540f2edb48f1b37f18e576f13ae2590"
       }
+    },
+    {
+      "id": "stamped-grid-preaction-rejected-in-development",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The stamped-height-grid pre-action representation is rejected in development without spending a confirmation stream. On all 41 opened runs (26 streams, 5338 rows, 1751 exact signatures) under the unchanged v4/v5 protocol, no policy in the 288-point kNN grid was non-regressing across all streams. The pooled-best policy scored 1191/1751 versus action geometry 1121/1751 (203 wins/133 losses, p=1.6e-4) but regressed five streams, worst on the structured variants interleave (48 vs 55) and reverse-000 (61 vs 66), and its 0.604 win fraction would demand 92 discordant pairs for a powered confirmation. A pooled sign test that hides stream-level regressions is exactly what the non-regression precondition exists to catch. The pre-action branch-direction question stays open with no live candidate; the next attempt must model arrival-order structure or change the label target, not re-tune this grid.",
+      "source": "reports/counterfactual-afterstate-value/distributional-fill-preaction-v6.md; reports/counterfactual-afterstate-value/distributional-fill-preaction-v6-development.json; scripts/develop_distributional_fill_preaction_v6.py",
+      "values": {
+        "runs": 41,
+        "streams": 26,
+        "raw_rows": 5338,
+        "unique_rows": 1751,
+        "pooled_best": {
+          "candidate": 1191,
+          "action": 1121,
+          "wins": 203,
+          "losses": 133,
+          "p": 0.00015889153348173452,
+          "all_streams_nonregressing": false
+        },
+        "regressing_streams": {
+          "interleave": [
+            48,
+            55
+          ],
+          "reverse-000": [
+            61,
+            66
+          ],
+          "permute-001-157": [
+            53,
+            55
+          ],
+          "permute-001-167": [
+            9,
+            12
+          ],
+          "permute-001-31": [
+            31,
+            33
+          ]
+        },
+        "win_fraction": 0.6041666666666666,
+        "minimum_discordant_if_frozen": 92
+      }
     }
   ]
 }

@@ -367,6 +367,12 @@ retune these features into a v6; the powered-gate protocol itself is sound
 and should be reused by any future candidate. See
 `reports/counterfactual-afterstate-value/distributional-fill-preaction-v5.md`
 and ledger entry `preaction-local-geometry-family-rejected-with-power`.
+The first replacement hypothesis, a physics-free stamped height grid, was
+then rejected in development on all 41 opened runs: no policy achieved
+26-stream non-regression, and its pooled advantage regressed the structured
+interleave/reverse orders. Nothing was frozen and no confirmation stream was
+spent; see `distributional-fill-preaction-v6.md`. The next pre-action
+candidate must model arrival-order structure or change the label target.
 
 ## Official score history
 
