@@ -3166,6 +3166,19 @@
         "rescuable_abs_1.0": "18/27, 1 unsafe pick, needless mean cost 0.34",
         "alternative_pick_precision": "19/20 safe at unsafe-incumbent boards"
       }
+    },
+    {
+      "id": "safety-rerank-gate2b-inert-pool-bottleneck",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The Gate 2b wave (run 31954296967, 63/63 episodes, negative control within every config floor) stayed inert_arm_closed under the absolute score-loss bound: 78 triggers, zero swaps. The top-K restriction audit reproduces both inert waves exactly and locates the second independent block: with the amended rule fixed, rescued-safely counts over the 27 unsafe-incumbent trigger boards are 0 through the score-ordered top 3 (the live retained top-K), 3 through top 8, 10 through top 16, and 18 through the full candidate set -- at danger boards safety and immediate score are strongly anti-correlated, so safe alternatives sit deep in the score ordering the retained list is built from. Pricing (2b) and pool selection (2c) were two independent blocks; perception was never the problem. Gate 2c amends the pool: a bounded candidate observer (cap 4096, the same hook the cross-step and rollout collectors use) retains every legal candidate the search materializes, logits are computed over the pool only at triggered steps (~4/episode), the diagnostics keep only the top-12 entries by logit, and shadow mode runs identical collection+scoring so the negative control prices the added compute. Trigger, margin, absolute bound, never-refuse, seam, arms and all five episode gates unchanged.",
+      "source": "reports/state-model/gate2/adjudication.md (wave 2); reports/state-model/rescuability-audit.json pool_restriction_sweep; reports/state-model/gate2c-amendment.md",
+      "values": {
+        "wave2": "78 triggers, 0 swaps, verdict inert_arm_closed",
+        "rescued_by_pool": "top3: 0/27, top8: 3/27, top16: 10/27, full: 18/27",
+        "mechanism": "safety-score anti-correlation at danger boards"
+      }
     }
   ]
 }

@@ -847,19 +847,23 @@ suggestion to re-run a closed line.
    defaults (best-known behaviour; every new knob is default-off and
    `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
    commit lands after `ab198d7`.
-2. **Safety-reranker campaign (Gate 2b in flight 2026-08-16).** Gate 1
+2. **Safety-reranker campaign (Gate 2c in flight 2026-08-16).** Gate 1
    calibration passed (`safety-shadow-calibration-pass`: pooled AUC
-   0.933, monotone bands, all deaths release_candidates). The first
-   Gate 2 wave closed `inert_arm_closed`: 85 triggers, zero swaps,
-   negative control clean. The offline rescuability audit
-   (`rescuability-audit.json`) showed why — safe alternatives exist at
-   20/27 fatal-choice boards (19/20 picks physically safe) but the
-   relative 15% Q-bound vanishes at danger states where incumbent
-   scores sit near zero. Gate 2b (`gate2b-amendment.md`) replaces that
-   one clause with an absolute bound of 1.0 score units and reruns the
-   identical wave; Gate 3 fresh-permutation confirmation still stands
-   before any default flips. The audit also discharges task 3's
-   hazard-pricing entry gate at corpus scale.
+   0.933, monotone bands, all deaths release_candidates). Two Gate 2
+   waves then closed `inert_arm_closed` with clean negative controls,
+   and the offline audits located two independent blocks: the relative
+   15% Q-bound vanishes at danger states where incumbent scores sit
+   near zero (fixed by `gate2b-amendment.md`: absolute bound 1.0), and
+   the score-ordered retained top-3 structurally contains no safe
+   alternative — rescuability is 0/27 through top-3 versus 18/27
+   through the full candidate set, because safety and score are
+   anti-correlated at danger boards (fixed by `gate2c-amendment.md`:
+   the swap pool is every observed legal candidate of the step,
+   bounded collector, logits only at triggered steps). Perception was
+   never the problem (19/20 full-set picks physically safe). Gate 3
+   fresh-permutation confirmation still stands before any default
+   flips. The 2b audit also discharges task 3's hazard-pricing entry
+   gate at corpus scale.
 3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry

@@ -104,6 +104,57 @@ def apply_bound(
     }
 
 
+def pool_restriction_sweep(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Rescuability as a function of the swap-pool selection rule.
+
+    This is the Gate 2b post-mortem: the absolute bound fixed the
+    pricing, but the live pool was the score-ordered retained top 3,
+    and safe alternatives live deep in the score ordering. Numbers are
+    rescued-safely counts over the unsafe-incumbent trigger boards.
+    """
+    states: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        states.setdefault(row["state"], []).append(row)
+
+    def rescued(pool_rule) -> int:
+        count = 0
+        for cands in states.values():
+            if len(cands) < 2:
+                continue
+            ordered = sorted(
+                cands, key=lambda r: r["score"], reverse=True
+            )
+            incumbent = ordered[0]
+            if incumbent["logit"] >= TRIGGER_LOGIT:
+                continue
+            if incumbent["safe"] >= 0.5:
+                continue
+            bar = max(
+                TRIGGER_LOGIT, incumbent["logit"] + MARGIN_LOGIT
+            )
+            floor = incumbent["score"] - 1.0
+            eligible = [
+                c
+                for c in pool_rule(ordered)
+                if c is not incumbent
+                and c["logit"] >= bar
+                and c["score"] >= floor
+            ]
+            if eligible:
+                best = max(
+                    eligible, key=lambda r: (r["logit"], r["score"])
+                )
+                count += int(best["safe"] > 0.5)
+        return count
+
+    return {
+        "top3_by_score": rescued(lambda ordered: ordered[:3]),
+        "top8_by_score": rescued(lambda ordered: ordered[:8]),
+        "top16_by_score": rescued(lambda ordered: ordered[:16]),
+        "full_candidate_set": rescued(lambda ordered: ordered),
+    }
+
+
 def audit(rows: list[dict[str, Any]]) -> dict[str, Any]:
     boards = trigger_boards(rows)
     result = {
@@ -120,6 +171,7 @@ def audit(rows: list[dict[str, Any]]) -> dict[str, Any]:
             str(bound): apply_bound(boards, absolute=bound)
             for bound in ABSOLUTE_BOUNDS
         },
+        "pool_restriction_sweep": pool_restriction_sweep(rows),
     }
     return result
 

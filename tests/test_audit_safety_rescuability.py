@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.audit_safety_rescuability import apply_bound, trigger_boards
+from scripts.audit_safety_rescuability import (
+    apply_bound,
+    pool_restriction_sweep,
+    trigger_boards,
+)
 
 
 def _row(state: str, score: float, logit: float, safe: float) -> dict:
@@ -47,6 +51,21 @@ class RescuabilityAuditTests(unittest.TestCase):
         self.assertAlmostEqual(
             result["needless_swap_mean_cost"], 0.4, places=6
         )
+
+    def test_pool_restriction_finds_deep_rescues_only_in_full_set(self):
+        # Rescue candidate sits at score rank 4: invisible to a top-3
+        # pool, visible to the full set. This is the Gate 2b inertness
+        # mechanism in miniature.
+        rows = [
+            _row("s1", 0.9, -1.0, 0.0),   # incumbent, unsafe
+            _row("s1", 0.8, -0.5, 0.0),
+            _row("s1", 0.7, -0.8, 0.0),
+            _row("s1", 0.6, 1.0, 0.0),
+            _row("s1", 0.5, 7.0, 1.0),    # the deep safe rescue
+        ]
+        sweep = pool_restriction_sweep(rows)
+        self.assertEqual(sweep["top3_by_score"], 0)
+        self.assertEqual(sweep["full_candidate_set"], 1)
 
     def test_escape_margin_is_respected(self) -> None:
         # Logit 2.5 clears the trigger but not incumbent+2.
