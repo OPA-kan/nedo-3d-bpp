@@ -1,8 +1,11 @@
 # Handoff — current state
 
-Updated: 2026-08-10 JST. Repository state was re-audited after fetching every
-remote branch. The live branch at the time of this audit is
-`experiment/anchor-recall-oracle` after the temporal stride-4 shadow run.
+Updated: 2026-08-16 JST. The most advanced line is now
+`claude/v5-hypothesis-validation-cyna2c` (continues
+`experiment/counterfactual-graph` from `f3bd29e` through the regime
+expedition: powered v5/v6 rejections, phase structure, freezing points,
+guard recalibration, and two preregistered live-mechanism trials). The
+2026-08-10 audit text below is retained for the older branches.
 
 ## Start here
 
@@ -476,9 +479,14 @@ is now present on the live branch: commit `3b1635c` is an ancestor and
 `ANCHOR_TRUE_ENVELOPE` defaults to 1. The old active ledger claim that the
 trunk lacked this code has been superseded.
 
-There is no checked-in `dist/submission.zip` in the current worktree. Build a
-new artifact only from a freshly fetched live branch and record both commit
-and SHA-256. Do not reuse hashes in old prose.
+A submission artifact was built on 2026-08-16 from commit `ab198d7`
+(repository defaults, every new knob default-off, `behaviour_sha256`
+unchanged from the trueenvelope-lineage agent): `dist/submission.zip`,
+SHA-256
+`6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`,
+containing `submit/agent.py` byte-identical to `agent/agent.py`. The zip
+itself stays uncommitted; rebuild with `python scripts/build_submission.py`
+from a fresh fetch and re-record both values if any commit lands later.
 
 ## Established by evidence
 
@@ -799,95 +807,46 @@ Exact ancestry counts and rationale are in `docs/BRANCH_INVENTORY.md`.
 
 ## Next engineering task
 
-1. The four-condition guard now passes (`31388832646`), so the sampler
-   question is closed and the data question is open. In order:
-   (a) the ablation arm is done (`31389892147`) and showed the guard verdict
-   is runner-variable for the greedy arm, so any further arm comparison needs
-   repeated runs and per-step deltas, not one verdict; (b) retention is decided and
-   implemented -- rows and snapshots are committed under
-   `reports/residual-diversity-scale/history/<run_id>/dataset/` and indexed by
-   `scripts/index_replay_corpus.py`; (c) the learnability audit has now run
-   once and returned `no_established_signal`
-   (`reports/learnability/summary.md`). The next move is more distinct
-   STATES, not more rows per state. Repeating the matrix is the cheapest
-   axis: a widened run lands ~46 fresh boards in ~25 CI minutes. But the
-   state model now beats the incumbent at ranking (0.851 against 0.725 mean
-   within-state AUC, `reports/state-model/summary.md`), so the open question
-   is no longer "is there signal" but "does it survive contact with the live
-   policy". That needs a physical negative control, not another dataset run:
-   this project has rejected selectors that looked better statically and lost
-   on trajectories (multi-axis Pareto enforce v1), and the incumbent is
-   consumed inside a deadline-bounded search, so latency is a live
-   constraint. Two gaps remain regardless: settled candidates carry no
-   feature vector at all, and there is no board-value label whose noise is
-   smaller than its effect (`sigma-branch-is-the-size-of-the-effects`). Do
-   not open final holdout data.
-2. Fix the residual metric before spending more runs optimizing against it.
-   Two defects are now measured, not suspected. (a) It spans two coordinate
-   frames: commands are container-local, settled `x_plus` is world, and the
-   containers sit 2.5 m apart against item extents of tens of centimetres, so
-   a cross-container pair saturates the position term and container
-   membership is counted twice. `settled_proxy_record` must emit
-   container-local coordinates in the live pipeline; the offline measurement
-   in `scripts/measure_residual_metric_defect.py` shows what changes when it
-   does. **(a) is now fixed at the source** -- `settled_proxy_record` takes
-   `container_offsets` and `build_replay_dataset` passes them, so the search,
-   the guard and the coverage report read one frame. Guard deltas from runs
-   before commit `2ccb262` are in the old frame and must not be compared
-   directly against later ones on multi-container boards. (b) It averages two
-   different questions into one sum -- where the item landed, and which item
-   left the pool -- and the discrete half carries most of the ordering: four
-   of eleven terms are categorical, and identity alone reaches 0.747 mean
-   within-board rank agreement against the full metric's 0.844.
-   `occupancy_distance` and `consumption_distance` are now reported beside
-   the sum, and **the search no longer maximises the sum alone**: the
-   `pareto_gate` rule refuses a swap that degrades either component, adopted
-   on paired within-board evidence and replicated with the arms in opposite
-   slots (runs `31491047020` and `31492719115`, 90 boards). It raises
-   consumption diversity (+0.030 and +0.034, sign-test p=0.0001 and
-   p=0.0009) and does NOT measurably move occupancy (p=0.0989 and p=0.1081)
-   -- that second one is not a win, do not quote its positive mean as one.
-   The sum still ORDERS the admissible moves, so the weighting nobody chose
-   is reduced rather than gone. `--observed-swap-acceptance sum` restores
-   the old rule, and whichever is chosen the other runs as a shadow so the
-   comparison keeps being measured. Neither defect explains the optimizer's
-   margin: it survives collapsing the frames (+0.0742 to +0.0718 over 454
-   boards) and is positive on both components independently. Do NOT read the
-   residual-space result (`reports/residual-space/summary.md`) as "a learned
-   space is not worth building". That comparison has now been redone on equal
-   terms and the caveat is retired: scored against the OCCUPANCY half of the
-   truth alone -- the part physics decides, with no field the proxy carries
-   verbatim -- command_proxy 0.709 against set_attention 0.502 and
-   candidate_mlp 0.491, over 162978 pairs from 182 boards. The unfair
-   advantage was real but small; the gap only falls from 0.344 to 0.207. Even
-   commanded geometry alone reaches 0.667. What the result does NOT say, and
-   must not be cited as saying: those arms were trained on safety
-   classification and settle regression and had their embeddings read out.
-   **No model has ever been trained directly on the residual-distance
-   target.** So embeddings trained for safety ranking do not transfer to
-   ordering residual difference; that is not the same claim as a learned
-   residual space being unreachable.
-3. Replay the 57 multi-axis substitutions from run `31362302154` as paired
-   selected/proposed physical trials. Determine which static dominance axes
-   fail to predict settle angle, displacement and placement safety before
-   designing v2. Do not tune another weighted sum from episode aggregates.
-4. **Completed:** `submission22` is behaviourally reconstructed and added as
-   the fourth calibration point in run `31568295912`. It did not identify an
-   exchange rate; it exposed partial proxy ordering and left fill unresolved.
-5. **Completed and rejected:** Task A F8 risk-on proposal arm, run
-   `31569837492`. It loses badly on a000 despite +1 placed on a001; do not
-   adopt. Exact stratified permutation testing finds placed delta -2.5 and
-   p=0.9525 for improvement (400 allocations); the n=3/arm two-sided floor is
-   0.10. ADR-003 remains risk-off by design.
-6. Only after calibration, design an attribute-aware support policy that preserves
-   plain support earlier without the placed collapse of the hard attribute
-   guard. Do not begin with another weighted sum.
-7. Review the exclusive `task-bottleneck` L1/L2 commits individually. Port an
-   instrument only if its question is still open and its negative control can
-   be reproduced on current trunk.
-8. Treat temporal chunking as closed for plain voting.  Reopen only with an
-   explicit proposal-quality target and a negative control that can show why
-   one delayed origin should outrank another.
+Rewritten 2026-08-16 after the expedition that closed most of the old
+list. Everything below is stated with its entry gate; nothing here is a
+suggestion to re-run a closed line.
+
+1. **Submission readiness is done — submit when a slot exists.**
+   `dist/submission.zip` built from commit `ab198d7` (SHA-256
+   `6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`),
+   `submit/agent.py` byte-identical to the repository agent, repository
+   defaults (best-known behaviour; every new knob is default-off and
+   `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
+   commit lands after `ab198d7`.
+2. **State-dependent risk pricing** is the ledger's own named lever for
+   the topple channel (`terminal-failure-channels`: most fatal topples
+   sat in the ambiguous P band, "insufficient endgame penalty"). Entry
+   gate before designing any lambda form: re-derive the 57-death
+   postmortem with candidate alternatives and show that at fatal steps a
+   materially lower-P accepted alternative existed. Without that, the
+   lever is empty; a global lambda raise is already refuted (lambda=2
+   loses everywhere).
+3. **Pre-action branch direction** needs a new representation. The bar
+   is offline and committed: beat pooled placed AUC 0.561 on the
+   two-collection deviation corpus (`reports/deviation-corpus/`,
+   avoidable label stability kappa 0.86, so the target is real). The
+   powered-gate protocol (v5) is the confirmation machinery to reuse.
+4. **Fallback v2**: the last-resort clearance ladder passed development
+   but failed fresh-permutation confirmation because the rescue is
+   inert on ordinary streams (`reports/last-resort/`). A variant must
+   target regimes where fallback deaths carry mass and carry its own
+   preregistration.
+5. **Adjudication discipline** (applies to all of the above): paired
+   same-run A/B only, floors from `reports/benchmarks/baseline.json`
+   (3v3 resolves 2.2-7.1 placements), never quote a single-run AUC or a
+   single-episode delta, and never turn a post-hoc classifier into an
+   in-flight controller without measuring its false-fire cost
+   (`vacuum-cutoff`).
+6. Standing items from the previous list that remain live: the residual
+   metric second defect (weighting inside the sum), the untrained
+   residual-distance target, and the second real Task A case (external
+   data). The 57-substitution multi-axis replay and temporal chunking
+   remain closed on their previous terms.
 
 ## Verification and operating rules
 
