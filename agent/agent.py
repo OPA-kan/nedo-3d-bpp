@@ -79,6 +79,24 @@ LAST_RESORT_RELAXATION_SECONDS = float(
 # the offline AUC?) that must precede any reranking experiment. Empty
 # disables.
 SAFETY_RERANK_SHADOW = os.environ.get("SAFETY_RERANK_SHADOW", "")
+# Gate 2 reranker (reports/state-model/gate2-rerank-protocol.md). Requires
+# SAFETY_RERANK_SHADOW for the weights. "shadow" runs the full incumbent-
+# plus-retained-top-K scoring on the hot path and logs the would-swap
+# verdict without touching the action (the physical negative control);
+# "enforce" executes the swap. The rule constants below are preregistered
+# from the Gate 1 calibration table and are not tuning knobs: trigger and
+# escape sit where measured empirical survival reaches 1.0, and the
+# Q-conservation bound prices the min-q collapse lesson.
+SAFETY_RERANK_MODES = frozenset({"off", "shadow", "enforce"})
+SAFETY_RERANK_MODE = os.environ.get("SAFETY_RERANK_MODE", "off")
+if SAFETY_RERANK_MODE not in SAFETY_RERANK_MODES:
+    raise ValueError(
+        f"unknown SAFETY_RERANK_MODE {SAFETY_RERANK_MODE!r}; "
+        f"expected one of {sorted(SAFETY_RERANK_MODES)}"
+    )
+SAFETY_RERANK_TRIGGER_LOGIT = 2.0
+SAFETY_RERANK_MARGIN_LOGIT = 2.0
+SAFETY_RERANK_MAX_SCORE_LOSS_FRAC = 0.15
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -5661,6 +5679,88 @@ def safety_shadow_logit(observation, decision):
     return float(x[0])
 
 
+def _safety_rerank_action_key(decision):
+    return (
+        int(decision.action["item_idx"]),
+        int(decision.action["container_idx"]),
+        tuple(
+            round(float(value), 6)
+            for value in decision.action["place_pos"]
+        ),
+        int(decision.action["orientation"]),
+    )
+
+
+def safety_rerank_record(observation, top_candidates, decision):
+    """Score the incumbent and retained top-K; propose a swap or stand.
+
+    The rule is fixed in reports/state-model/gate2-rerank-protocol.md:
+    act only below the trigger logit, swap only to an alternative that
+    escapes the danger band by the preregistered margin while giving up
+    at most the Q-conservation fraction of the incumbent's immediate
+    score, and never refuse to act — with no eligible alternative the
+    incumbent stands untouched.
+    """
+    incumbent_logit = safety_shadow_logit(observation, decision)
+    if incumbent_logit is None:
+        return None
+    incumbent_key = _safety_rerank_action_key(decision)
+    candidates = []
+    for rank, candidate in enumerate(top_candidates):
+        try:
+            logit = safety_shadow_logit(observation, candidate)
+        except Exception:
+            logit = None
+        candidates.append(
+            {
+                "rank": rank,
+                "logit": logit,
+                "score": float(candidate.score),
+                "is_incumbent": (
+                    _safety_rerank_action_key(candidate) == incumbent_key
+                ),
+            }
+        )
+    record = {
+        "mode": SAFETY_RERANK_MODE,
+        "incumbent_logit": float(incumbent_logit),
+        "incumbent_score": float(decision.score),
+        "candidates": candidates,
+        "triggered": bool(incumbent_logit < SAFETY_RERANK_TRIGGER_LOGIT),
+        "would_swap": False,
+        "proposed_rank": None,
+        "proposed_logit": None,
+        "enforced": False,
+    }
+    if not record["triggered"]:
+        return record
+    score_floor = float(decision.score) - (
+        SAFETY_RERANK_MAX_SCORE_LOSS_FRAC * abs(float(decision.score))
+    )
+    best = None
+    for candidate in candidates:
+        if candidate["is_incumbent"] or candidate["logit"] is None:
+            continue
+        if candidate["logit"] < SAFETY_RERANK_TRIGGER_LOGIT:
+            continue
+        if candidate["logit"] < (
+            incumbent_logit + SAFETY_RERANK_MARGIN_LOGIT
+        ):
+            continue
+        if candidate["score"] < score_floor:
+            continue
+        if best is None or (
+            (candidate["logit"], candidate["score"])
+            > (best["logit"], best["score"])
+        ):
+            best = candidate
+    if best is not None:
+        record["would_swap"] = True
+        record["proposed_rank"] = int(best["rank"])
+        record["proposed_logit"] = float(best["logit"])
+    return record
+
+
 def last_resort_relaxed_action(
     observation, indexed_items, *, seconds, attempt_budget=4096,
 ):
@@ -9192,6 +9292,47 @@ class Agent:
                 decision = self.last_top_candidates[proposed_rank]
                 action_source = "multi_axis_enforce"
                 self.last_multi_axis_shadow["enforced"] = True
+        if (
+            SAFETY_RERANK_MODE != "off"
+            and decision is not None
+            and action_source == "placement_core"
+            and self.last_top_candidates
+        ):
+            # Same discipline as the multi-axis selector: score only after
+            # every live selection decision is frozen, so shadow mode is a
+            # true physical negative control for the enforce arm.
+            try:
+                rerank_record = safety_rerank_record(
+                    observation, self.last_top_candidates, decision
+                )
+            except Exception:
+                rerank_record = None
+            if rerank_record is not None:
+                if (
+                    SAFETY_RERANK_MODE == "enforce"
+                    and rerank_record["would_swap"]
+                ):
+                    decision = self.last_top_candidates[
+                        int(rerank_record["proposed_rank"])
+                    ]
+                    action_source = "safety_rerank"
+                    rerank_record["enforced"] = True
+                self.last_candidate_diagnostics["safety_rerank"] = (
+                    rerank_record
+                )
+                self._append_policy_trace(
+                    {
+                        "event": "safety_rerank",
+                        "step": self._policy_step,
+                        "mode": rerank_record["mode"],
+                        "incumbent_logit": rerank_record["incumbent_logit"],
+                        "triggered": rerank_record["triggered"],
+                        "would_swap": rerank_record["would_swap"],
+                        "proposed_rank": rerank_record["proposed_rank"],
+                        "proposed_logit": rerank_record["proposed_logit"],
+                        "enforced": rerank_record["enforced"],
+                    }
+                )
         if decision is not None:
             self.last_action_source = action_source
             self.last_candidate_kind = (

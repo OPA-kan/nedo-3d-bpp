@@ -95,6 +95,7 @@ def configure_arm_environment(
         "MULTI_AXIS_SELECTOR_MODE",
         "VACUUM_SETTLED_CUTOFF",
         "LAST_RESORT_RELAXATION_SECONDS",
+        "SAFETY_RERANK_MODE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -148,6 +149,8 @@ def configure_arm_environment(
         "multi_axis_enforce",
         "vacuum_cutoff",
         "last_resort",
+        "safety_null",
+        "safety_rerank",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -171,6 +174,18 @@ def configure_arm_environment(
             # the explicit proposal/evaluation/selector/command contracts.
             # This is the physical negative control for abstraction cost.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_noop"
+        elif arm in {"safety_null", "safety_rerank"}:
+            # Gate 2 (reports/state-model/gate2-rerank-protocol.md).
+            # safety_null is the physical negative control: identical
+            # scoring compute on the hot path, zero behavioral effect.
+            # safety_rerank executes the preregistered swap rule.
+            env["SAFETY_RERANK_SHADOW"] = str(
+                ROOT / "reports" / "state-model"
+                / "candidate-mlp-safety-v1.json"
+            )
+            env["SAFETY_RERANK_MODE"] = (
+                "shadow" if arm == "safety_null" else "enforce"
+            )
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder
@@ -505,6 +520,10 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "rescue_trigger_count": 0,
         "rescue_action_count": 0,
         "protocol_fallback_count": 0,
+        "safety_rerank_observed_steps": 0,
+        "safety_rerank_triggered_count": 0,
+        "safety_rerank_would_swap_count": 0,
+        "safety_rerank_enforced_count": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -570,6 +589,18 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
             if not line:
                 continue
             record = json.loads(line)
+            if record.get("event") == "safety_rerank":
+                summary["safety_rerank_observed_steps"] += 1
+                summary["safety_rerank_triggered_count"] += int(
+                    record.get("triggered") is True
+                )
+                summary["safety_rerank_would_swap_count"] += int(
+                    record.get("would_swap") is True
+                )
+                summary["safety_rerank_enforced_count"] += int(
+                    record.get("enforced") is True
+                )
+                continue
             if record.get("event") != "decision":
                 continue
             summary["decision_count"] += 1
