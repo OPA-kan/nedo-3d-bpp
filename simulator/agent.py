@@ -70,6 +70,15 @@ SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
 LAST_RESORT_RELAXATION_SECONDS = float(
     os.environ.get("LAST_RESORT_RELAXATION_SECONDS", "0") or "0"
 )
+# Log-only safety shadow. Points at a numpy weight artifact exported by
+# scripts/export_state_model.py (candidate-mlp-safety-v1). When set, the
+# policy scores the action it ALREADY chose with the learned safety ranker
+# and records the logit in the policy trace: one 64-wide forward per step,
+# after selection, nothing on the per-candidate hot path, nothing reranked.
+# This is the live-contact contract check (does live-computed phi reproduce
+# the offline AUC?) that must precede any reranking experiment. Empty
+# disables.
+SAFETY_RERANK_SHADOW = os.environ.get("SAFETY_RERANK_SHADOW", "")
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -5536,6 +5545,122 @@ def iter_prioritized_candidates(
         attempts_per_unit = max(1, ANCHOR_DEEP_PASS_ATTEMPTS)
 
 
+_SAFETY_SHADOW_CACHE = {"path": None, "model": None}
+
+
+def _safety_shadow_model():
+    path = SAFETY_RERANK_SHADOW
+    if not path:
+        return None
+    if _SAFETY_SHADOW_CACHE["path"] != path:
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                artifact = json.load(handle)
+            normalization = artifact["normalization"]
+            _SAFETY_SHADOW_CACHE["model"] = {
+                "phi_mean": np.asarray(
+                    normalization["phi_mean"], dtype=float
+                ),
+                "phi_scale": np.asarray(
+                    normalization["phi_scale"], dtype=float
+                ),
+                "cand_mean": np.asarray(
+                    normalization["candidate_mean"], dtype=float
+                ),
+                "cand_scale": np.asarray(
+                    normalization["candidate_scale"], dtype=float
+                ),
+                "layers": [
+                    {
+                        "kind": layer["kind"],
+                        "weight": (
+                            np.asarray(layer["weight"], dtype=float)
+                            if "weight" in layer else None
+                        ),
+                        "bias": (
+                            np.asarray(layer["bias"], dtype=float)
+                            if "bias" in layer else None
+                        ),
+                    }
+                    for layer in artifact["layers"]
+                ],
+                "phi_features": list(
+                    artifact["input_contract"]["phi_features"]
+                ),
+            }
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            _SAFETY_SHADOW_CACHE["model"] = None
+        _SAFETY_SHADOW_CACHE["path"] = path
+    return _SAFETY_SHADOW_CACHE["model"]
+
+
+def safety_shadow_logit(observation, decision):
+    """Score the chosen action with the exported safety ranker, log only.
+
+    Replicates the training feature contract exactly: phi is the agent's
+    own release-risk feature vector on the chosen candidate, the candidate
+    block is candidate-frame center/size, volume, one-hot orientation, the
+    release flag and the target container's shape, and the forward pass is
+    the standardized linear-GELU stack from the exported artifact.
+    """
+    model = _safety_shadow_model()
+    if model is None or decision.candidate is None:
+        return None
+    containers = observation.get("container_list", [])
+    pool_list = observation.get("pool_list", [])
+    container_idx = int(decision.action["container_idx"])
+    item_idx = int(decision.action["item_idx"])
+    if not 0 <= container_idx < len(containers):
+        return None
+    if not 0 <= item_idx < len(pool_list):
+        return None
+    container = containers[container_idx]
+    orientation = int(decision.action["orientation"])
+    features = release_risk_features(
+        decision.candidate, pool_list[item_idx], container, orientation
+    ).as_dict()
+    phi = np.asarray(
+        [float(features[name]) for name in model["phi_features"]],
+        dtype=float,
+    )
+    center = [float(value) for value in decision.candidate.center]
+    size = [float(value) for value in decision.candidate.size]
+    candidate_block = np.asarray(
+        [
+            *center[:3],
+            *size[:3],
+            float(size[0] * size[1] * size[2]),
+            *[
+                1.0 if orientation == index else 0.0
+                for index in range(6)
+            ],
+            1.0
+            if (decision.candidate.name or "") == "release_candidate"
+            else 0.0,
+            float(container.get("length", 0.0)),
+            float(container.get("width", 0.0)),
+            float(container.get("height", 0.0)),
+            1.0 if container.get("shelf") else 0.0,
+            1.0 if container.get("is_prioritized") else 0.0,
+            float(len(container.get("packed_items") or [])),
+        ],
+        dtype=float,
+    )
+    x = np.concatenate([
+        (phi - model["phi_mean"]) / model["phi_scale"],
+        (candidate_block - model["cand_mean"]) / model["cand_scale"],
+    ])
+    for layer in model["layers"]:
+        if layer["kind"] == "linear":
+            x = layer["weight"] @ x + layer["bias"]
+        elif layer["kind"] == "gelu":
+            x = np.asarray([
+                0.5 * value * (1.0 + math.erf(value / math.sqrt(2.0)))
+                for value in x
+            ])
+    return float(x[0])
+
+
 def last_resort_relaxed_action(
     observation, indexed_items, *, seconds, attempt_budget=4096,
 ):
@@ -9190,6 +9315,22 @@ class Agent:
                     "item_lifecycle": item_lifecycle,
                 }
             )
+            if SAFETY_RERANK_SHADOW:
+                try:
+                    shadow_logit = safety_shadow_logit(observation, decision)
+                except Exception:
+                    shadow_logit = None
+                if shadow_logit is not None:
+                    self._append_policy_trace(
+                        {
+                            "event": "safety_shadow",
+                            "step": self._policy_step,
+                            "logit": float(shadow_logit),
+                            "candidate_kind": str(
+                                decision.candidate.name or "candidate"
+                            ),
+                        }
+                    )
             self._policy_step += 1
             return action_for_execution(decision)
 
