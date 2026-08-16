@@ -122,3 +122,12 @@ direction-label evidence in existence: `permute-000-181`, `permute-000-191`,
 `permute-001-193`, and `permute-001-197`, all at environment seed 60 and
 unchanged H3/B3. Root availability remains the sole admission criterion, and
 every admitted stream that completes strict H3 joins the audit population.
+
+The second screen also completed label-blind. Admitted with all eight root
+conditions: `permute-000-181` (run `31924378093`), `permute-000-193`
+(`31924385051`), `permute-001-181` (`31924393295`), `permute-001-193`
+(`31924400471`), and `permute-001-197` (`31924403151`). Rejected:
+`permute-000-191` (`31924381636`, dual-empty), `permute-000-197`
+(`31924389044`, dual-empty), and `permute-001-191` (`31924397063`,
+single-preloaded). The admitted prospective set is therefore thirteen
+streams: the eight first-wave streams plus these five.
