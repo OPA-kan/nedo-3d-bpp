@@ -374,6 +374,17 @@ interleave/reverse orders. Nothing was frozen and no confirmation stream was
 spent; see `distributional-fill-preaction-v6.md`. The next pre-action
 candidate must model arrival-order structure or change the label target.
 
+The long-standing worry that the live Ranker ordering is actively wrong
+over long horizons is now refuted at five-config scale. The branch-label
+instrument (schema 2, with per-sibling RankEvaluation components) ran on
+all five development configs in Actions run 31931772512: live-q
+concordance with final fill is 27/39 (exact p=0.0237) with the top-q
+sibling best in 15/25 states, and a leave-one-config-out reweighting of
+the Ranker's own components loses held-out. The one-episode 0.267 signal
+was small-sample noise. Do not spend an episode-level weight sweep on it;
+`ranker-form-never-swept` is downgraded to low priority. See
+`reports/branch-labels/scale-31931772512/summary.md`.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |

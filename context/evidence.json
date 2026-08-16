@@ -2709,6 +2709,54 @@
         "win_fraction": 0.6041666666666666,
         "minimum_discordant_if_frozen": 92
       }
+    },
+    {
+      "id": "live-ranker-ordering-not-anti-predictive-at-five-config-scale",
+      "topic": "candidate_rank",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The one-episode suggestion that the live immediate-Q ordering is actively wrong over long horizons (concordance 0.267 on 15 decided pairs) does not replicate at five-config scale and the sign reverses. Actions run 31931772512 ran the branch-label instrument on b000-k15/k20/k40 and b001-k20/k30 at six branch steps with class-diverse top-3 siblings and schema-2 per-sibling RankEvaluation components; 25 valid states and 59 usable branches survived the prefix/parent-fingerprint filters. Live-q concordance with final fill is 27/39 (0.692, exact two-sided p=0.0237) and with final placed 19/30 (p=0.20); the top-q sibling reaches the best outcome in 15/25 and 15/23 states. A leave-one-config-out ridge reweighting of the same components loses held-out (19/39 fill, 10/30 placed), so the shipped scalar is not beatable by re-mixing its own terms on this corpus. Do not launch an episode-level weight sweep on the old 0.267 signal; the full-data fit's negative support weight is hypothesis-generating only. Pairs within a state share history; the per-state top-pick rows are the conservative reading.",
+      "source": "reports/branch-labels/scale-31931772512/summary.md; reports/branch-labels/scale-31931772512/concordance.json; scripts/analyze_ranker_concordance.py; Actions run 31931772512",
+      "values": {
+        "configs": 5,
+        "valid_states": 25,
+        "usable_branches": 59,
+        "fill": {
+          "live_q": [
+            27,
+            39
+          ],
+          "p": 0.0237,
+          "top_pick": [
+            15,
+            25
+          ],
+          "held_out_refit": [
+            19,
+            39
+          ]
+        },
+        "placed": {
+          "live_q": [
+            19,
+            30
+          ],
+          "p": 0.2005,
+          "top_pick": [
+            15,
+            23
+          ],
+          "held_out_refit": [
+            10,
+            30
+          ]
+        },
+        "superseded_suggestion": {
+          "concordance": 0.267,
+          "pairs": 15,
+          "episodes": 1
+        }
+      }
     }
   ]
 }
