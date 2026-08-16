@@ -64,7 +64,7 @@ from scripts.measure_anchor_recall import (  # noqa: E402
 )
 from scripts.measurement_budget import record_from_env  # noqa: E402
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def reconstruct_siblings(agent, observation, *, budget, limit):
@@ -88,11 +88,15 @@ def reconstruct_siblings(agent, observation, *, budget, limit):
     stream = agent.iter_prioritized_candidates(
         observation, indexed, attempt_budget=int(budget)
     )
+    components_by_key = {}
     for item_idx, item, container_idx, orientation, candidate in stream:
         container = containers[container_idx]
         score = agent.Ranker.score(candidate, item, container, has_priority)
         score, _p = agent.risk_adjusted_score(
             score, candidate, item, container, orientation, risk_lambda
+        )
+        immediate = agent.Ranker.evaluate(
+            candidate, item, container, has_priority
         )
         decision = agent.PlacementDecision(
             action={
@@ -107,8 +111,22 @@ def reconstruct_siblings(agent, observation, *, budget, limit):
             candidate=candidate,
             score=float(score),
         )
+        components_by_key[
+            json.dumps(action_signature(decision.action), sort_keys=True)
+        ] = {
+            **immediate.components(),
+            "immediate_total": float(immediate.total),
+            "risk_penalty": float(immediate.total) - float(score),
+        }
         collector.observe(item_idx, item, container_idx, orientation, decision)
-    return collector.snapshot(max(1, int(limit)))
+    selected = collector.snapshot(max(1, int(limit)))
+    return selected, {
+        json.dumps(action_signature(decision.action), sort_keys=True):
+        components_by_key.get(
+            json.dumps(action_signature(decision.action), sort_keys=True)
+        )
+        for decision in selected
+    }
 
 
 def state_fingerprint(observation):
@@ -253,7 +271,7 @@ def main() -> int:
             print(f"  step {step} unreached", file=sys.stderr)
             continue
         parent = state_fingerprint(observation)
-        siblings = reconstruct_siblings(
+        siblings, sibling_components = reconstruct_siblings(
             agent, observation,
             budget=args.sibling_budget, limit=args.siblings,
         )
@@ -306,6 +324,9 @@ def main() -> int:
                 ),
                 "action": action_signature(forced),
                 "q": float(decision.score),
+                "q_components": sibling_components.get(
+                    json.dumps(action_signature(forced), sort_keys=True)
+                ),
                 "kind": str(decision.candidate.name),
                 "runs": runs,
                 "reproducibility": {
