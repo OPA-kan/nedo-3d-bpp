@@ -2862,6 +2862,47 @@
           ]
         }
       }
+    },
+    {
+      "id": "feasibility-phase-structure-and-true-empty-detector",
+      "topic": "search",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "Crossing all 51 schema-2 anchor-recall oracle states with their decision-time policy telemetry yields a four-phase feasibility structure and a first in-search phase detector. Phases: P0 found (26 states / 9 distinct boards), P1 deadline-miss (17/8: live-generator-reachable settled candidates exist, none accepted), P3 true-empty (8/2), and P2 generator-hole occurs zero times -- the support-plane generator always covers part of any nonempty settled set, so live settled failure is either drowning or vacuum, never coverage. Two properties of the transition: it is trajectory-endogenous (the same case-step coordinate spans oracle 0 to 798 settled across agent generations, so the cliff moves with policy quality and is not a fixed property of the case), and near the cliff the candidate space implodes, which makes the scan finish. That yields the detector: zero settled accepted AND scan-unit completion >= 1/3 calls true-empty with precision 1.0 and recall 7/8 on raw states (1.0 and 1/2 on distinct boards; the single miss is the oldest pre-improvement run's board at 2/120 units). Drowning states never complete a third of their units (max 16/120) because their spaces are huge (support-plane-reachable 72-962). All quantities in the rule are in policy_log at decision time. Caveats: two cases only, heavy replicate structure (19 distinct boards), the board-level recall rests on two true-empty boards. This is the instrument-validated seed of a regime detector, not an adopted policy input.",
+      "source": "reports/anchor-recall/phase-structure.json; reports/anchor-recall/phase-structure.md; scripts/analyze_phase_structure.py",
+      "values": {
+        "raw_states": {
+          "P0": 26,
+          "P1": 17,
+          "P2": 0,
+          "P3": 8
+        },
+        "distinct_boards": {
+          "P0": 9,
+          "P1": 8,
+          "P2": 0,
+          "P3": 2
+        },
+        "detector": {
+          "rule": "accepted_settled==0 and units_completed/units_total>=1/3",
+          "raw": {
+            "precision": 1.0,
+            "recall": 0.875
+          },
+          "boards": {
+            "precision": 1.0,
+            "recall": 0.5
+          }
+        },
+        "trajectory_endogenous_example": {
+          "case": "000",
+          "step": 14,
+          "oracle_range": [
+            0,
+            798
+          ]
+        }
+      }
     }
   ]
 }

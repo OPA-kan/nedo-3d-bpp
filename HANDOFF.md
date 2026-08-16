@@ -395,7 +395,28 @@ support ledger is directional only (4/4 comparable fill pairs, p=0.125).
 Licensed next steps: a scoped pool-1 selection experiment among retained
 top candidates and a mechanism-first audit of the inverted pairs; not a
 global weight sweep. See
-`reports/branch-labels/fatal-31938388838/summary.md`.
+`reports/branch-labels/fatal-31938388838/summary.md`. The follow-up
+causality probe already closed the obvious move: per-step inversion of
+the tiebreak collapses the episode (10 placed versus 23), so the
+observational advantage is single-deviation only, and any offline
+reconstruction selector must carry the top-q control arm
+(`scripts/run_tiebreak_probe.py`).
+
+The feasibility side of the regime question now has a measured phase
+structure. Crossing all 51 schema-2 anchor-recall oracle states with
+their decision-time telemetry: P0 found 26 states, P1 deadline-miss 17
+(reachable settled candidates exist, none accepted), P3 true-empty 8,
+and P2 generator-hole zero — the support-plane generator always covers
+part of any nonempty settled set. The transition is
+trajectory-endogenous (the same case-step coordinate spans 0 to 798
+settled candidates across agent generations), and near the cliff the
+candidate space implodes so the scan finishes, which yields a
+decision-time detector: zero settled accepted plus scan-unit completion
+of at least one third calls true-empty at precision 1.0, recall 7/8 raw
+(1/2 on the two distinct true-empty boards). See
+`reports/anchor-recall/phase-structure.md`, ledger entry
+`feasibility-phase-structure-and-true-empty-detector`, and
+`scripts/analyze_phase_structure.py`.
 
 ## Official score history
 
