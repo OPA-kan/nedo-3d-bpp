@@ -94,6 +94,7 @@ def configure_arm_environment(
         "PLACEMENT_SELECTOR_MODE",
         "MULTI_AXIS_SELECTOR_MODE",
         "VACUUM_SETTLED_CUTOFF",
+        "LAST_RESORT_RELAXATION_SECONDS",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -146,6 +147,7 @@ def configure_arm_environment(
         "multi_axis_shadow",
         "multi_axis_enforce",
         "vacuum_cutoff",
+        "last_resort",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -169,6 +171,13 @@ def configure_arm_environment(
             # the explicit proposal/evaluation/selector/command contracts.
             # This is the physical negative control for abstraction cost.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_noop"
+        elif arm == "last_resort":
+            # Fallback replacement, not a search change: when the deadline
+            # scan accepts nothing, rescan briefly down a clearance ladder
+            # and emit the best candidate instead of the known-invalid
+            # fixed coordinate. Certain episode death is exchanged for a
+            # positive survival probability; no other decision changes.
+            env["LAST_RESORT_RELAXATION_SECONDS"] = "2.4"
         elif arm == "vacuum_cutoff":
             # Feasibility-phase reallocation. When enough settled scan units
             # exhaust without one settled candidate, the settled phase has

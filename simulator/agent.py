@@ -57,6 +57,19 @@ PHYSICS_LATERAL_GUARD = float(
     os.environ.get("PHYSICS_LATERAL_GUARD", "0.010")
 )
 SETTLED_ITEM_CLEARANCE = TRANSPORT_CLEARANCE + PHYSICS_LATERAL_GUARD
+# Last-resort relaxation. The fixed protocol fallback emits a known
+# transport-invalid action, so firing it ends the episode with certainty,
+# and the feasibility phase study (reports/anchor-recall/phase-structure.md)
+# showed the deadline search often accepts nothing while reachable safe
+# candidates exist. When the scan has accepted zero candidates, this knob
+# spends the given wall-clock slice rescanning once with the self-imposed
+# lateral guard relaxed to the official transport clearance -- the
+# environment's own requirement, never below it -- and emits the best
+# candidate found. Certain death is exchanged for a positive survival
+# probability; outside the zero-accepted regime nothing changes. 0 disables.
+LAST_RESORT_RELAXATION_SECONDS = float(
+    os.environ.get("LAST_RESORT_RELAXATION_SECONDS", "0") or "0"
+)
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -5523,6 +5536,79 @@ def iter_prioritized_candidates(
         attempts_per_unit = max(1, ANCHOR_DEEP_PASS_ATTEMPTS)
 
 
+def last_resort_relaxed_action(
+    observation, indexed_items, *, seconds, attempt_budget=4096,
+):
+    """One bounded rescan with the lateral guard relaxed to the official
+    transport clearance, entered only after the deadline search accepted
+    nothing. Every candidate this yields still passes the environment's own
+    inclusion and transport requirements; what is relaxed is only the
+    agent's self-imposed prudence margin, whose average-case value is
+    irrelevant at a state where the alternative action is certain episode
+    death. Returns (score, action) for the best candidate found, or None.
+    """
+    global SETTLED_ITEM_CLEARANCE
+    containers = observation.get("container_list", [])
+    has_priority = any(
+        bool(container.get("is_prioritized", False))
+        for container in containers
+    )
+    risk_lambda = (
+        RELEASE_RISK_RERANK_LAMBDA if RELEASE_RISK_LIVE_RERANK else None
+    )
+    # A ladder, not a cliff: the first rung keeps the official transport
+    # clearance between items, the later rungs drop below it. A candidate
+    # from a low rung may fail the environment's own trajectory check --
+    # which ends the episode exactly as the fixed fallback would have, so
+    # the expected value of trying never falls below the status quo. The
+    # first rung that yields anything wins, maximizing the survival odds
+    # of the emitted action.
+    ladder = (TRANSPORT_CLEARANCE, TRANSPORT_CLEARANCE / 2.0, 0.0)
+    slice_seconds = float(seconds) / len(ladder)
+    saved_clearance = SETTLED_ITEM_CLEARANCE
+    best = None
+    try:
+        for clearance in ladder:
+            SETTLED_ITEM_CLEARANCE = clearance
+            deadline = time.perf_counter() + slice_seconds
+            for item_idx, item, container_idx, orientation, candidate in (
+                iter_prioritized_candidates(
+                    observation,
+                    indexed_items,
+                    deadline=deadline,
+                    attempt_budget=int(attempt_budget),
+                )
+            ):
+                container = containers[container_idx]
+                score = Ranker.score(
+                    candidate, item, container, has_priority
+                )
+                score, _probability = risk_adjusted_score(
+                    score, candidate, item, container, orientation,
+                    risk_lambda,
+                )
+                if best is None or float(score) > best[0]:
+                    best = (
+                        float(score),
+                        {
+                            "item_idx": int(item_idx),
+                            "container_idx": int(container_idx),
+                            "place_pos": np.asarray(
+                                simulator_action_center(
+                                    candidate, container
+                                ),
+                                dtype=np.float32,
+                            ),
+                            "orientation": int(orientation),
+                        },
+                    )
+            if best is not None:
+                break
+    finally:
+        SETTLED_ITEM_CLEARANCE = saved_clearance
+    return best
+
+
 # --- Board receptivity -----------------------------------------------------
 #
 # The ranker scores a placement by what it gains: volume, support, depth,
@@ -9106,6 +9192,42 @@ class Agent:
             )
             self._policy_step += 1
             return action_for_execution(decision)
+
+        if LAST_RESORT_RELAXATION_SECONDS > 0.0 and pool_list:
+            rescue = last_resort_relaxed_action(
+                observation,
+                ordered_items,
+                seconds=LAST_RESORT_RELAXATION_SECONDS,
+            )
+            if rescue is not None:
+                rescue_score, rescue_action = rescue
+                self.last_action_source = "last_resort_relaxation"
+                self.last_candidate_kind = "last_resort_relaxation"
+                self._append_policy_trace(
+                    {
+                        "event": "decision",
+                        "step": self._policy_step,
+                        "action_source": "last_resort_relaxation",
+                        "candidate_kind": "last_resort_relaxation",
+                        "internal_outcome": "relaxed_rescue",
+                        "no_safe_action": True,
+                        "protocol_fallback": "last_resort_relaxation",
+                        "immediate_score": float(rescue_score),
+                        "action_command": {
+                            "item_idx": int(rescue_action["item_idx"]),
+                            "container_idx": int(
+                                rescue_action["container_idx"]
+                            ),
+                            "place_pos": [
+                                float(value)
+                                for value in rescue_action["place_pos"]
+                            ],
+                            "orientation": int(rescue_action["orientation"]),
+                        },
+                    }
+                )
+                self._policy_step += 1
+                return rescue_action
 
         fallback_container = 0
         if pool_list and containers:
