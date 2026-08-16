@@ -1,33 +1,316 @@
 {
-  "policy": "risk-on rot lambda=1 (mech-dev-v1) + slide lambda=0.5 (slide-dev-v1), shipped defaults",
-  "date": "2026-08-01",
-  "source": "reports/risk-ablation rows, repeat 41 (slide05 arm, cached search)",
-  "contract": "Regression guard: rerun these configs with run_risk_ablation --arm base after any algorithm change; a drop in placed_count or fill_score must be explained or the change rejected. Timing-sensitive nondeterminism exists on b001 configs; judge direction across configs, not single-config noise.",
+  "schema_version": 2,
+  "policy": "shipped defaults (risk-on rot lambda=1, slide lambda=0.5)",
+  "environment": {
+    "runner": "GitHub-hosted ubuntu-24.04, python 3.12",
+    "protocol": "run_risk_ablation base arm / branch-label capture-free reference, policy_timeout 8"
+  },
+  "contract": "Adjudicate changes with a paired same-run A/B (both arms in one workflow, >=3 replicates per arm); the per-config minimum_resolvable_placed.paired_3v3_same_run is the smallest mean difference that test can attribute. The stored means are coarse sanity only: a single fresh episode is unremarkable anywhere inside ~2 sd. Never compare a local run on other hardware against these numbers.",
   "cases": {
     "b000-k15": {
-      "placed_count": 17,
-      "fill_score": 23.119,
-      "steps": 18
+      "episodes": 3,
+      "placed_mean": 19.667,
+      "placed_sd": 2.309,
+      "placed_range": [
+        17,
+        21
+      ],
+      "fill_mean": 22.389,
+      "fill_sd": 2.667,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": 4.62,
+        "paired_3v3_same_run": 5.23
+      },
+      "samples": [
+        {
+          "case": "b000-k15",
+          "source": "31931772512:capture_free_reference",
+          "placed_count": 21,
+          "fill_score": 23.92889301058952
+        },
+        {
+          "case": "b000-k15",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 17,
+          "fill_score": 19.30944932038524
+        },
+        {
+          "case": "b000-k15",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 21,
+          "fill_score": 23.92889301058952
+        }
+      ]
     },
     "b000-k20": {
-      "placed_count": 15,
-      "fill_score": 16.347,
-      "steps": 16
+      "episodes": 6,
+      "placed_mean": 19.833,
+      "placed_sd": 0.983,
+      "placed_range": [
+        18,
+        21
+      ],
+      "fill_mean": 21.153,
+      "fill_sd": 2.796,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": 1.97,
+        "paired_3v3_same_run": 2.23
+      },
+      "samples": [
+        {
+          "case": "b000-k20",
+          "source": "31931772512:capture_free_reference",
+          "placed_count": 21,
+          "fill_score": 19.0654997684039
+        },
+        {
+          "case": "b000-k20",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 20,
+          "fill_score": 23.66435436598572
+        },
+        {
+          "case": "b000-k20",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 20,
+          "fill_score": 23.66435436598572
+        },
+        {
+          "case": "b000-k20",
+          "source": "31941364445:base-r2",
+          "placed_count": 20,
+          "fill_score": 23.66435436598572
+        },
+        {
+          "case": "b000-k20",
+          "source": "31941364445:base-r1",
+          "placed_count": 18,
+          "fill_score": 19.126019222476003
+        },
+        {
+          "case": "b000-k20",
+          "source": "31941364445:base-r0",
+          "placed_count": 20,
+          "fill_score": 17.731576131227136
+        }
+      ]
     },
     "b000-k40": {
-      "placed_count": 21,
-      "fill_score": 29.22,
-      "steps": 22
+      "episodes": 3,
+      "placed_mean": 16.0,
+      "placed_sd": 1.732,
+      "placed_range": [
+        15,
+        18
+      ],
+      "fill_mean": 21.108,
+      "fill_sd": 2.742,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": 3.46,
+        "paired_3v3_same_run": 3.93
+      },
+      "samples": [
+        {
+          "case": "b000-k40",
+          "source": "31931772512:capture_free_reference",
+          "placed_count": 15,
+          "fill_score": 19.524698925074667
+        },
+        {
+          "case": "b000-k40",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 18,
+          "fill_score": 24.27391628999025
+        },
+        {
+          "case": "b000-k40",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 15,
+          "fill_score": 19.524698925074667
+        }
+      ]
     },
     "b001-k20": {
-      "placed_count": 18,
-      "fill_score": 22.818,
-      "steps": 19
+      "episodes": 6,
+      "placed_mean": 15.333,
+      "placed_sd": 1.862,
+      "placed_range": [
+        14,
+        19
+      ],
+      "fill_mean": 15.681,
+      "fill_sd": 3.312,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": 3.72,
+        "paired_3v3_same_run": 4.22
+      },
+      "samples": [
+        {
+          "case": "b001-k20",
+          "source": "31931772512:capture_free_reference",
+          "placed_count": 14,
+          "fill_score": 15.81814139617608
+        },
+        {
+          "case": "b001-k20",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 15,
+          "fill_score": 12.695766019465443
+        },
+        {
+          "case": "b001-k20",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 15,
+          "fill_score": 12.695766019465443
+        },
+        {
+          "case": "b001-k20",
+          "source": "31941364445:base-r0",
+          "placed_count": 19,
+          "fill_score": 21.751025146978904
+        },
+        {
+          "case": "b001-k20",
+          "source": "31941364445:base-r1",
+          "placed_count": 15,
+          "fill_score": 15.304332789881922
+        },
+        {
+          "case": "b001-k20",
+          "source": "31941364445:base-r2",
+          "placed_count": 14,
+          "fill_score": 15.81814139617608
+        }
+      ]
     },
     "b001-k30": {
-      "placed_count": 17,
-      "fill_score": 23.166,
-      "steps": 18
+      "episodes": 3,
+      "placed_mean": 17.0,
+      "placed_sd": 0.0,
+      "placed_range": [
+        17,
+        17
+      ],
+      "fill_mean": 20.914,
+      "fill_sd": 0.0,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": null,
+        "paired_3v3_same_run": null
+      },
+      "samples": [
+        {
+          "case": "b001-k30",
+          "source": "31931772512:capture_free_reference",
+          "placed_count": 17,
+          "fill_score": 20.913615928066797
+        },
+        {
+          "case": "b001-k30",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 17,
+          "fill_score": 20.913615928066797
+        },
+        {
+          "case": "b001-k30",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 17,
+          "fill_score": 20.913615928066797
+        }
+      ]
+    },
+    "c000-k1": {
+      "episodes": 5,
+      "placed_mean": 17.4,
+      "placed_sd": 3.13,
+      "placed_range": [
+        16,
+        23
+      ],
+      "fill_mean": 13.944,
+      "fill_sd": 6.795,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": 6.26,
+        "paired_3v3_same_run": 7.1
+      },
+      "samples": [
+        {
+          "case": "c000-k1",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 16,
+          "fill_score": 10.905356059033046
+        },
+        {
+          "case": "c000-k1",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 16,
+          "fill_score": 10.905356059033046
+        },
+        {
+          "case": "c000-k1",
+          "source": "31941364445:base-r0",
+          "placed_count": 16,
+          "fill_score": 10.905356059033046
+        },
+        {
+          "case": "c000-k1",
+          "source": "31941364445:base-r1",
+          "placed_count": 16,
+          "fill_score": 10.905356059033046
+        },
+        {
+          "case": "c000-k1",
+          "source": "31941364445:base-r2",
+          "placed_count": 23,
+          "fill_score": 26.09948250251561
+        }
+      ]
+    },
+    "c001-k1": {
+      "episodes": 5,
+      "placed_mean": 21.0,
+      "placed_sd": 0.0,
+      "placed_range": [
+        21,
+        21
+      ],
+      "fill_mean": 25.065,
+      "fill_sd": 0.275,
+      "minimum_resolvable_placed": {
+        "single_episode_vs_stored": null,
+        "paired_3v3_same_run": null
+      },
+      "samples": [
+        {
+          "case": "c001-k1",
+          "source": "31938388838:capture_free_reference",
+          "placed_count": 21,
+          "fill_score": 25.366212143668793
+        },
+        {
+          "case": "c001-k1",
+          "source": "31944374285:capture_free_reference",
+          "placed_count": 21,
+          "fill_score": 25.366212143668793
+        },
+        {
+          "case": "c001-k1",
+          "source": "31941364445:base-r0",
+          "placed_count": 21,
+          "fill_score": 24.86413714737414
+        },
+        {
+          "case": "c001-k1",
+          "source": "31941364445:base-r1",
+          "placed_count": 21,
+          "fill_score": 24.86413714737414
+        },
+        {
+          "case": "c001-k1",
+          "source": "31941364445:base-r2",
+          "placed_count": 21,
+          "fill_score": 24.86413714737414
+        }
+      ]
     }
   }
 }

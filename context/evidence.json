@@ -2975,6 +2975,34 @@
           "fill_gap_concentration": 1.9
         }
       }
+    },
+    {
+      "id": "task-b-guard-resolution-quantified-and-baseline-rebuilt",
+      "topic": "measurement",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The Task B regression guard's resolution is now quantified and its baseline rebuilt from across-runner repeats, closing taskb-guard-can-detect-anything. Thirty-one base-protocol episodes harvested from four Actions runs (branch-label capture-free references in 31931772512/31938388838/31944374285 and the base arm of paired run 31941364445, all GitHub ubuntu-24.04, shipped defaults, policy_timeout 8) give every one of seven configs n>=3. Per-config placed sd spans 0 (b001-k30 17/17/17, c001-k1 five times 21) to 3.13 (c000-k1, bimodal 16-or-23); a paired same-run 3v3 A/B resolves mean differences of only 2.2 (b000-k20) to 7.1 (c000-k1) placements, and a single fresh episode against a stored constant is unremarkable anywhere inside ~2 sd (up to 6 placements). This retroactively explains the string of 1-2 placement development effects that died in confirmation: they were below the instrument's floor. baseline.json schema 2 stores the samples, run IDs, environment fingerprint and the per-config minimum resolvable effects, and its contract now names paired same-run A/B as the only adjudication procedure and forbids cross-hardware comparison. Caveat: two protocols contribute (instrument reference and ablation base); both are shipped-default episodes and their per-config values interleave.",
+      "source": "reports/benchmarks/baseline.json; scripts/rebuild_benchmark_baseline.py; context/questions.json taskb-guard-can-detect-anything",
+      "values": {
+        "episodes": 31,
+        "configs": 7,
+        "placed_sd": {
+          "b000-k15": 2.309,
+          "b000-k20": 0.983,
+          "b000-k40": 1.732,
+          "b001-k20": 1.862,
+          "b001-k30": 0.0,
+          "c000-k1": 3.13,
+          "c001-k1": 0.0
+        },
+        "paired_3v3_resolvable": {
+          "b000-k15": 5.23,
+          "b000-k20": 2.23,
+          "b000-k40": 3.93,
+          "b001-k20": 4.22,
+          "c000-k1": 7.1
+        }
+      }
     }
   ]
 }

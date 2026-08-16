@@ -75,9 +75,9 @@
         "scripts/run_risk_ablation.py"
       ],
       "missing_instrument": "none structurally; the baseline itself is the defective part (n=1, foreign machine, no fingerprint)",
-      "status": "open",
+      "status": "closed",
       "priority": "high",
-      "rationale": "Measured 2026-08-02: an identical binary on an identical box returns 13, 17, 18 placed on b000-k40. The guard's own contract asks for unexplained drops to be rejected, which it cannot support. Three of five configs were perfectly stable, so this is config-specific, and the two volatile ones are exactly those carrying the aabb-cache-guard-mixed conclusion.",
+      "rationale": "Measured 2026-08-02: an identical binary on an identical box returns 13, 17, 18 placed on b000-k40. The guard's own contract asks for unexplained drops to be rejected, which it cannot support. Three of five configs were perfectly stable, so this is config-specific, and the two volatile ones are exactly those carrying the aabb-cache-guard-mixed conclusion. [2026-08-16 closed: reports/benchmarks/baseline.json rebuilt at schema 2 from 31 across-runner base episodes (runs 31931772512, 31938388838, 31944374285, 31941364445) on GitHub ubuntu-24.04. Per-config placed sd runs 0 (b001-k30, c001-k1) to 3.13 (c000-k1); a paired 3v3 same-run A/B resolves only 2.2-7.1 placements depending on config, and a single episode against a stored constant is unremarkable inside ~2 sd. The contract now names paired same-run A/B as the procedure and forbids cross-hardware comparison. All three closure criteria are met.]",
       "closure_criteria": [
         "per-config variance estimated from >= 3 repeats",
         "the guard states a minimum resolvable effect size",
