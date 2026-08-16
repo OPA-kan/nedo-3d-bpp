@@ -3179,6 +3179,20 @@
         "rescued_by_pool": "top3: 0/27, top8: 3/27, top16: 10/27, full: 18/27",
         "mechanism": "safety-score anti-correlation at danger boards"
       }
+    },
+    {
+      "id": "safety-rerank-gate2c-fail-campaign-closed",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "Gate 2c finally made the rerank arm act -- 35 enforced swaps across 21 episodes from observed-candidate pools of about 200-300 -- and the preregistered gates closed it decisively (run 31955129725, verdict development_fail_arm_closed): pooled placed 404 base versus 367 rerank (-1.76/episode), paired 7 wins/13 losses, no-harm floors breached on b000-k20 (-3.33 vs floor 1.97) and c001-k1 (21 -> 17 on the certified-ceiling config), and the mechanism gate failed outright -- topple+slide endings were 11 under rerank versus 10 under base, so the swaps did not even buy the safety they paid placed for. The negative control was within every floor in all three waves, so the instrument is clean and the result is real. The reranker campaign is closed with SAFETY_RERANK_MODE default off; the knob remains as a reproduced negative experiment. What stands: Gate 1 live calibration (perception AUC 0.933) and the audits (two independent blocks: relative-Q pricing, score-selected pools; safety-score anti-correlation at danger boards). The new fact wave 3 adds: converting ONE-STEP settle safety into episode value fails even with correct pricing and a full pool -- safety-selected placements are bad board moves whose costs compound, the min-q collapse at pool scale. The binding constraint on the topple channel is therefore afterstate VALUE, not afterstate safety perception: the successor is the selfplay-scale V(s) line against the committed AUC 0.561 bar, feeding the hazard-pricing lever, not another swap-rule variant.",
+      "source": "reports/state-model/gate2/adjudication-wave3.md; runs 31953466842/31954296967/31955129725; reports/state-model/gate2c-amendment.md",
+      "values": {
+        "wave3": "35 swaps, pooled placed -37, paired 7W/13L, topple+slide 10->11",
+        "no_harm_breaches": "b000-k20 -3.33 (floor 1.97), c001-k1 -4.0 (floor 1.0)",
+        "negative_control": "clean in all three waves",
+        "verdict": "development_fail_arm_closed; campaign closed, knob stays off"
+      }
     }
   ]
 }

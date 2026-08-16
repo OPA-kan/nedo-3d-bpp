@@ -847,23 +847,27 @@ suggestion to re-run a closed line.
    defaults (best-known behaviour; every new knob is default-off and
    `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
    commit lands after `ab198d7`.
-2. **Safety-reranker campaign (Gate 2c in flight 2026-08-16).** Gate 1
-   calibration passed (`safety-shadow-calibration-pass`: pooled AUC
-   0.933, monotone bands, all deaths release_candidates). Two Gate 2
-   waves then closed `inert_arm_closed` with clean negative controls,
-   and the offline audits located two independent blocks: the relative
-   15% Q-bound vanishes at danger states where incumbent scores sit
-   near zero (fixed by `gate2b-amendment.md`: absolute bound 1.0), and
-   the score-ordered retained top-3 structurally contains no safe
-   alternative — rescuability is 0/27 through top-3 versus 18/27
-   through the full candidate set, because safety and score are
-   anti-correlated at danger boards (fixed by `gate2c-amendment.md`:
-   the swap pool is every observed legal candidate of the step,
-   bounded collector, logits only at triggered steps). Perception was
-   never the problem (19/20 full-set picks physically safe). Gate 3
-   fresh-permutation confirmation still stands before any default
-   flips. The 2b audit also discharges task 3's hazard-pricing entry
-   gate at corpus scale.
+2. **Safety-reranker campaign: CLOSED 2026-08-16, and what it proved.**
+   Gate 1 calibration passed (`safety-shadow-calibration-pass`: live
+   perception AUC 0.933, monotone bands, all deaths
+   release_candidates). Three Gate 2 waves then ran with clean
+   negative controls throughout. Waves 1-2 were inert and the audits
+   located two independent blocks (relative-Q pricing vanishes at
+   near-zero danger-state scores → absolute bound 1.0; score-selected
+   top-3 pools contain no safe alternative, 0/27 versus 18/27 for the
+   full set → observed-candidate pool). Wave 3 made the arm act — 35
+   swaps — and the gates closed it decisively
+   (`development_fail_arm_closed`, run 31955129725): pooled placed
+   -37, paired 7W/13L, two no-harm floors breached, and topple+slide
+   went 10 → 11, so the swaps did not even buy the safety they paid
+   placed for. SAFETY_RERANK_MODE stays default off as a reproduced
+   negative experiment. The durable finding: one-step settle safety
+   does NOT convert to episode value even with correct pricing and a
+   full pool — safety-selected placements are bad board moves whose
+   costs compound (the min-q collapse at pool scale). The binding
+   constraint on the topple channel is afterstate VALUE, not safety
+   perception; the successor is the selfplay-scale V(s) line (task 4's
+   AUC 0.561 bar) feeding hazard pricing, not another swap rule.
 3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry
