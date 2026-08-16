@@ -2903,6 +2903,54 @@
           ]
         }
       }
+    },
+    {
+      "id": "vacuum-cutoff-rejected-classifier-is-not-a-controller",
+      "topic": "search",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The vacuum cutoff is rejected at its preregistered development gates, and the failure mode is general: a post-hoc phase classifier does not survive being used as an in-flight stopping rule. VACUUM_SETTLED_CUTOFF=0.34 skipped remaining settled units once a third exhausted with zero settled candidates, reallocating the deadline to release units. Paired run 31941364445 (4 cases x 2 arms x 3 replicates): c000-k1 tied at 18.33 mean placed (same outcome multiset, runner timing shuffles which replicate reaches 23); c001-k1 collapsed uniformly 21->16, every replicate trading a late transport_invalid ending for an earlier topple; paired placed 2 wins/7 losses. The predicted benefit did appear -- transport_invalid endings fell 5->1 and bundled valid rate rose 0.583->0.917 -- but it was bought by abandoning settled placements the shipped policy was still finding, which is the wrong exchange everywhere the rule fired. The classifier's precision 1.0 was measured on finished searches; an early-stop rule's false-fire cost is invisible to that metric, and full settled exhaustion, the sound version of this trigger, is already handled by anchor_fallback. The knob stays registered at default 0 (behaviour_sha256 unchanged) solely to reproduce this result. Any future in-flight regime controller must measure its false-fire cost in-flight and carry these paired no-harm controls from the start.",
+      "source": "reports/vacuum-cutoff/protocol.md; reports/vacuum-cutoff/verdict.md; reports/vacuum-cutoff/summary-31941364445.md; Actions run 31941364445",
+      "values": {
+        "gates_failed": [
+          "targeted_effect",
+          "no_harm",
+          "safety",
+          "paired_direction"
+        ],
+        "c000_k1_mean_placed": [
+          18.33,
+          18.33
+        ],
+        "c001_k1_placed": {
+          "base": [
+            21,
+            21,
+            21
+          ],
+          "vacuum": [
+            16,
+            16,
+            16
+          ]
+        },
+        "paired_wins_losses": [
+          2,
+          7
+        ],
+        "transport_invalid_endings": [
+          5,
+          1
+        ],
+        "topple_endings": [
+          4,
+          7
+        ],
+        "bundled_valid_rate": [
+          0.583,
+          0.917
+        ]
+      }
     }
   ]
 }

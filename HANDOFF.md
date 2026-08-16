@@ -418,6 +418,18 @@ of at least one third calls true-empty at precision 1.0, recall 7/8 raw
 `feasibility-phase-structure-and-true-empty-detector`, and
 `scripts/analyze_phase_structure.py`.
 
+Its first live use is already measured and rejected: turning that
+classifier into an in-flight early-stop (`VACUUM_SETTLED_CUTOFF=0.34`,
+skip remaining settled units and hand the deadline to releases) failed
+all four preregistered gates in paired run 31941364445 — c001-k1
+collapsed 21 to 16 placed in every replicate by trading a late
+transport_invalid for an earlier topple, paired placed 2 wins/7 losses,
+even though transport_invalid endings did fall 5 to 1. A post-hoc
+classifier's precision says nothing about an early-stop rule's
+false-fire cost, and full settled exhaustion is already handled by
+anchor_fallback. The knob stays registered at default 0 only to
+reproduce the negative; see `reports/vacuum-cutoff/verdict.md`.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |
