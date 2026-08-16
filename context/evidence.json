@@ -2823,6 +2823,45 @@
           "verdict": "directional_only"
         }
       }
+    },
+    {
+      "id": "near-tie-inversion-is-single-deviation-only",
+      "topic": "candidate_rank",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The c000-k1 q-ordering inversion is a single-deviation property and does not compose into a policy. The mechanism audit found no single axis behind the inverted pairs: the micro q-differences (mostly |dq|<=0.055) point the wrong way through different components at different steps (lateral at steps 2/8, depth at 4/10, lift at 6). A driver-side causality probe on c000-k1 (agent untouched) forced, at every step, either the highest-q or lowest-q member of the deterministic budget-4096 spatially-distinct top-3: live policy 23 placed/26.10 fill in 24 steps; per-step top-q 18/16.16 in 19 steps; per-step min-q collapsed to 10/6.96 in 11 steps. Wholesale inversion is catastrophic, and even the top-q arm loses five placements to the live deadline search while agreeing with it on 16/19 steps, so offline-reconstruction selectors carry a built-in handicap that any future experiment must control with exactly this arm. Harvesting the real avoidable losses requires a selective state-conditional deviation, which needs the still-missing regime detector; the q-margin alone does not transfer (b-case small-gap pairs are concordant 17/22 while c-case small-gap pairs are 11/29). Single local Linux machine, one episode per arm, no repeats: directional development evidence.",
+      "source": "reports/branch-labels/fatal-31938388838/summary.md; reports/branch-labels/fatal-31938388838/tiebreak-probe.json; scripts/run_tiebreak_probe.py",
+      "values": {
+        "live_base": {
+          "steps": 24,
+          "placed": 23,
+          "fill": 26.1
+        },
+        "offline_top_q": {
+          "steps": 19,
+          "placed": 18,
+          "fill": 16.16,
+          "agreements": [
+            16,
+            19
+          ]
+        },
+        "offline_min_q": {
+          "steps": 11,
+          "placed": 10,
+          "fill": 6.96
+        },
+        "margin_transfer": {
+          "b_small_gap": [
+            17,
+            22
+          ],
+          "c_small_gap": [
+            11,
+            29
+          ]
+        }
+      }
     }
   ]
 }

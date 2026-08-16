@@ -67,3 +67,38 @@ pool-1 fatal regime (e.g. deviate from the q tiebreak among retained
 top candidates only there), preregistered at episode level; and a
 mechanism-first look at what the 3/17 pairs share before proposing any
 new score term. It does not license touching the live ranker globally.
+
+## Causality probe: the inversion does not compose sequentially
+
+The mechanism audit found no single axis behind the inverted pairs — the
+micro q-differences (mostly |dq| <= 0.055) point the wrong way through
+different components at different steps. `scripts/run_tiebreak_probe.py`
+therefore tested the naive causal reading directly on c000-k1, with the
+shipped agent untouched: at every step, deterministically reconstruct
+the spatially distinct top-3 candidates (budget 4096) and force either
+the highest-q member (control for the reconstruction itself) or the
+lowest-q member (the inversion), against the unmodified live policy.
+
+| arm | steps | final placed | final fill |
+|---|---:|---:|---:|
+| live_base | 24 | 0.561 (23) | 26.10 |
+| offline_top_q | 19 | 0.439 (18) | 16.16 |
+| offline_min_q | 11 | 0.244 (10) | 6.96 |
+
+Two conclusions, both negative and both load-bearing. First, wholesale
+inversion is catastrophic: taking the low-q member at every step ends the
+episode at 11 steps with 10 placements. The observational advantage of
+lower-q siblings is a **single-deviation** property — each better branch
+was completed by the shipped policy — and it does not survive being made
+the policy. Second, even the top-q arm loses five placements to the live
+policy despite agreeing with it on 16 of 19 steps: the deterministic
+budget-4096 reconstruction is not the live deadline search, so any
+selector experiment built on offline reconstruction has a built-in
+handicap that must be controlled exactly this way.
+
+Single local Linux machine, one episode per arm, no repeats —
+directional development evidence. What survives: the avoidable losses
+on c000-k1 are real but harvesting them requires a *selective*, 
+state-conditional deviation at the right decision points, which returns
+the problem to the still-missing regime detector. Do not implement a
+global or per-step q-inversion; this probe is the evidence.
