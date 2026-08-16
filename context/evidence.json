@@ -3134,6 +3134,23 @@
           17
         ]
       }
+    },
+    {
+      "id": "safety-shadow-calibration-pass",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "Gate 1 of the reranker campaign passes on all four preregistered gates: across 21/21 completed shadow-instrumented base episodes (7 guard configs x 3 replicates, run 31952503520), the live safety logit separates the 14 physically-fatal final placements from the 378 surviving decisions at pooled rank AUC 0.933 (bar 0.70), median fatal logit -0.16 versus surviving +8.93, and the calibration table is monotone (empirical survival 0.73 below logit 0, 0.88 at 0-2, 1.00 above 2). Structure: every fatal event is a release_candidate (within-release AUC 0.864; settled-candidate placements never killed an episode); the late band (step >= 16) carries 11 of 14 deaths and is the hardest split at AUC 0.738; the model is conservative in the useful direction (predicted 0.31 survival in the below-0 band versus empirical 0.73), so avoiding low-logit actions forgoes little. 13 of 14 fatal logits sit below +1.9 while plenty of surviving decisions also score low, confirming the classifier-not-controller lesson: the licensed shape is rerank-to-best-retained, not refusal. transport_invalid endings (7 episodes) die through the fixed fallback which has no shadow event and contribute no fatal label. Gate 2 (rerank among retained top-K with physical negative control and paired A/B against baseline floors) is licensed under its own preregistration.",
+      "source": "reports/state-model/calibration-protocol.md; reports/state-model/calibration/calibration.md; scripts/analyze_safety_shadow.py; run 31952503520",
+      "values": {
+        "episodes": "21/21 completed with shadow",
+        "events": "378 surviving / 14 fatal",
+        "pooled_auc": 0.9333,
+        "median_logits": "surviving +8.93, fatal -0.16",
+        "release_candidate_auc": 0.8644,
+        "late_band_auc": 0.7384,
+        "verdict": "calibration_pass_gate2_licensed"
+      }
     }
   ]
 }

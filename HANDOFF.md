@@ -460,10 +460,20 @@ The winning arm's full-corpus final fit is exported to numpy weights in
 parity 8.8e-6; phi is the agent's own `release_risk.features`, so the
 live agent can score it without torch;
 `scripts/export_state_model.py::numpy_forward` is the reference
-inference). The remaining sequence before any live use: a log-only
-shadow of the reranker's hypothetical top-1 over retained candidates,
-a physical negative control, then a paired episode A/B under the
-powered-gate discipline with the baseline.json floors. See
+inference). The live campaign runs through three preregistered gates.
+Gate 1 (calibration) has PASSED: the log-only `SAFETY_RERANK_SHADOW`
+first verified bit-identical trajectories on one paired episode, then
+the calibration wave (7 guard configs x 3 replicates, run 31952503520)
+showed the live logit separates the 14 physically-fatal final
+placements from 378 surviving decisions at pooled AUC 0.933 (bar
+0.70), monotone calibration, every death a release_candidate, and the
+model conservative in the useful direction below logit 0
+(`reports/state-model/calibration-protocol.md`, `calibration/`,
+evidence `safety-shadow-calibration-pass`). Gate 2 is therefore
+licensed: a rerank arm among retained top-K candidates (no refusal —
+the vacuum-cutoff lesson stands), with a physical negative control and
+a paired episode A/B under the powered-gate discipline with the
+baseline.json floors. Gate 3 is a fresh-permutation confirmation. See
 `reports/state-model/replication-20260816.md`.
 
 The deviation line is likewise closed pending a new representation.
@@ -837,7 +847,14 @@ suggestion to re-run a closed line.
    defaults (best-known behaviour; every new knob is default-off and
    `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
    commit lands after `ab198d7`.
-2. **State-dependent risk pricing** is the ledger's own named lever for
+2. **Safety-reranker Gate 2 (licensed 2026-08-16).** Gate 1 calibration
+   passed (`safety-shadow-calibration-pass`: pooled AUC 0.933, monotone
+   bands, all deaths release_candidates). Gate 2 is a rerank arm among
+   retained top-K candidates — swap only, never refuse — with its own
+   preregistration, a physical negative control, and a paired A/B
+   against the baseline.json floors; Gate 3 is fresh-permutation
+   confirmation under the same gates before any default flips.
+3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry
    gate before designing any lambda form: re-derive the 57-death
@@ -845,23 +862,23 @@ suggestion to re-run a closed line.
    materially lower-P accepted alternative existed. Without that, the
    lever is empty; a global lambda raise is already refuted (lambda=2
    loses everywhere).
-3. **Pre-action branch direction** needs a new representation. The bar
+4. **Pre-action branch direction** needs a new representation. The bar
    is offline and committed: beat pooled placed AUC 0.561 on the
    two-collection deviation corpus (`reports/deviation-corpus/`,
    avoidable label stability kappa 0.86, so the target is real). The
    powered-gate protocol (v5) is the confirmation machinery to reuse.
-4. **Fallback v2**: the last-resort clearance ladder passed development
+5. **Fallback v2**: the last-resort clearance ladder passed development
    but failed fresh-permutation confirmation because the rescue is
    inert on ordinary streams (`reports/last-resort/`). A variant must
    target regimes where fallback deaths carry mass and carry its own
    preregistration.
-5. **Adjudication discipline** (applies to all of the above): paired
+6. **Adjudication discipline** (applies to all of the above): paired
    same-run A/B only, floors from `reports/benchmarks/baseline.json`
    (3v3 resolves 2.2-7.1 placements), never quote a single-run AUC or a
    single-episode delta, and never turn a post-hoc classifier into an
    in-flight controller without measuring its false-fire cost
    (`vacuum-cutoff`).
-6. Standing items from the previous list that remain live: the residual
+7. Standing items from the previous list that remain live: the residual
    metric second defect (weighting inside the sum), the untrained
    residual-distance target, and the second real Task A case (external
    data). The 57-substitution multi-axis replay and temporal chunking
