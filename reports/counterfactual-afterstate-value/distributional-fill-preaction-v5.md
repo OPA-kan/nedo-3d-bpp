@@ -92,3 +92,15 @@ availability remains the sole admission criterion. Every admitted stream
 that later completes strict H3 must be evaluated. If the label-blind power
 audit over admitted completed streams stays below 37 discordant pairs, the
 cohort is expanded with further fresh salts under the same rule.
+
+The screen completed with no H3 label evidence in existence. Admitted with
+all eight root conditions: `permute-000-157` (run `31922206907`),
+`permute-000-163` (`31922208084`), `permute-000-167` (`31922213297`),
+`permute-000-173` (`31922214137`), `permute-000-179` (`31922215300`),
+`permute-001-151` (`31922219161`), `permute-001-157` (`31922220380`), and
+`permute-001-167` (`31922224805`). Rejected on failed root conditions:
+`permute-000-151` (`31922202291`, dual-empty), `permute-001-163`
+(`31922221445`, dual-empty and single-shelf), `permute-001-173`
+(`31922226138`, dual-empty), and `permute-001-179` (`31922227127`,
+dual-empty). The fixed prospective H3 set is therefore these eight admitted
+streams at environment seed 60.
