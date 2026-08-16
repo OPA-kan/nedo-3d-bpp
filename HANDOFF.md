@@ -430,6 +430,18 @@ false-fire cost, and full settled exhaustion is already handled by
 anchor_fallback. The knob stays registered at default 0 only to
 reproduce the negative; see `reports/vacuum-cutoff/verdict.md`.
 
+The deviation line is likewise closed pending a new representation.
+Twelve permuted pool-1 streams (run 31941899714) pooled with the fatal
+cases give 14 streams and 77 branch states: 36% have a sibling of the
+policy's own top-3 that strictly beats its choice on final placed
+(mean one placement, tails to six) — avoidable value is common — but a
+leave-one-stream-out trigger over sibling-set and surface-ledger
+features scores rank AUC 0.512 on placed (chance) and 0.603 on fill
+(weak). Value exists, wholesale harvesting collapses episodes, and the
+trigger is not in these features. The offline bar for any future
+attempt is committed with the corpus: beat AUC 0.512 on placed against
+`reports/deviation-corpus/` before spending physics.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |
