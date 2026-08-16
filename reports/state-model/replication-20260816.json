@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "corpus": {
+    "rows": 7764,
+    "states": 189,
+    "cases": [
+      "m-dual-dedicated-priority",
+      "m-dual-empty",
+      "m-dual-full-stream",
+      "m-dual-preloaded-dedicated",
+      "m-dual-shelf-mixed",
+      "m-single-empty-noshelf",
+      "m-single-empty-shelf",
+      "m-single-preloaded"
+    ],
+    "safe_rows": 4878
+  },
+  "design": {
+    "split": "leave_one_case_out",
+    "positive_source": "all",
+    "seeds": 2,
+    "epochs": 200,
+    "arms": [
+      "phi_mlp",
+      "candidate_mlp",
+      "set_attention"
+    ],
+    "max_placed_tokens": 24,
+    "max_pool_tokens": 16
+  },
+  "classification": {
+    "incumbent": {
+      "pooled_auc": 0.6906627035778328,
+      "states": 186,
+      "mean_state_auc": 0.7045672643539673,
+      "top1_safe_rate": 0.8494623655913979
+    },
+    "phi_mlp": {
+      "pooled_auc": 0.7464634305040209,
+      "states": 186,
+      "mean_state_auc": 0.731365881856317,
+      "top1_safe_rate": 0.787011435398532
+    },
+    "candidate_mlp": {
+      "pooled_auc": 0.8241767526822877,
+      "states": 186,
+      "mean_state_auc": 0.8247488554593153,
+      "top1_safe_rate": 0.967741935483871
+    },
+    "set_attention": {
+      "pooled_auc": 0.8233157937954986,
+      "states": 186,
+      "mean_state_auc": 0.8178120145462073,
+      "top1_safe_rate": 0.967741935483871
+    }
+  },
+  "regression": {
+    "delta_theta_deg": {
+      "phi_mlp": 0.24297123783021557,
+      "candidate_mlp": 0.26503496716414543,
+      "set_attention": 0.31863431645730733
+    },
+    "d_norm": {
+      "phi_mlp": 0.18673418125667074,
+      "candidate_mlp": 0.3029351321504178,
+      "set_attention": 0.3632543612734841
+    }
+  },
+  "verdict": "state_model_beats_incumbent",
+  "interpretation": "Same protocol as scripts/audit_learnability.py, so these numbers sit beside its linear and lookup arms. phi_mlp isolates model capacity on the eight scalars; candidate_mlp adds the action's own geometry and its container; set_attention adds attention over the placed items and the pool and is the only arm that can see a neighbour. A win by candidate_mlp over phi_mlp means the features were the constraint; a win by set_attention over candidate_mlp means the board is. The corpus is small, so read the ordering of the arms, not the third decimal."
+}

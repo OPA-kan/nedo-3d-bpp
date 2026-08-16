@@ -3082,6 +3082,38 @@
           ]
         }
       }
+    },
+    {
+      "id": "state-model-verdict-replicates-on-grown-corpus-and-numpy-bridge-exists",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "Codex's learning mainline survives independent replication at larger n, and its winning arm now has a live-compatible export. Rerunning scripts/train_state_model.py under the identical LOCO protocol on the grown committed corpus (7764 rows / 189 boards, +57% over the original 4955/130) reproduces state_model_beats_incumbent and widens the gap: candidate_mlp within-state safety AUC 0.825 versus incumbent 0.705 (was 0.842 vs 0.733), and top-1 safe rate 0.968 versus 0.849 -- the incumbent's safety ranking degrades as boards accumulate while the learned model holds. set_attention again ties candidate_mlp (0.818/0.968), so board attention still buys nothing at this scale. The winning arm is a plain MLP, and candidate-mlp-safety-v1.json now carries its full-corpus final fit as numpy weights with the feature contract (phi = the agent's own release_risk.features plus candidate geometry) and a verified torch-vs-numpy parity of 8.8e-6, so a live shadow needs no torch. Remaining before any live use, in order: a shadow that logs the reranker's hypothetical top-1 on retained candidates (zero behavior change), a physical negative control, then a paired episode A/B under the powered-gate discipline with floors from baseline.json.",
+      "source": "reports/state-model/replication-20260816.md; reports/state-model/candidate-mlp-safety-v1.json; scripts/export_state_model.py; reports/state-model/summary.md",
+      "values": {
+        "corpus": {
+          "rows": 7764,
+          "boards": 189,
+          "growth": "+57%"
+        },
+        "candidate_mlp": {
+          "state_auc": 0.825,
+          "top1_safe": 0.968
+        },
+        "incumbent": {
+          "state_auc": 0.705,
+          "top1_safe": 0.849
+        },
+        "set_attention": {
+          "state_auc": 0.818,
+          "top1_safe": 0.968
+        },
+        "export": {
+          "artifact": "candidate-mlp-safety-v1.json",
+          "sha256": "064d0f970e2cc0b05a9880e020f7c1ebb1e4d7fcc4c9942be79c052e40bfafd2",
+          "parity": 8.8e-06
+        }
+      }
     }
   ]
 }

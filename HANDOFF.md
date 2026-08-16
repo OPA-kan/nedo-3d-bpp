@@ -447,6 +447,25 @@ algorithm and both experiments are in `docs/LAST_RESORT_RELAXATION.md`
 and `reports/last-resort/`; `protocol-fallback-never-varied` is closed.
 A future variant must target regimes where fallback deaths carry mass.
 
+The learning mainline is alive, replicated, and one bridge short of live
+contact. Rerunning the state-model trainer under the identical LOCO
+protocol on the grown committed corpus (7764 rows / 189 boards, +57%)
+reproduces `state_model_beats_incumbent` and widens it: candidate_mlp
+within-state safety AUC 0.825 versus the incumbent 0.705, top-1 safe
+rate 0.968 versus 0.849 — the incumbent's safety ranking degrades as
+boards accumulate while the learned model holds, and set_attention
+still only ties the MLP, so board attention buys nothing at this scale.
+The winning arm's full-corpus final fit is exported to numpy weights in
+`reports/state-model/candidate-mlp-safety-v1.json` (torch-vs-numpy
+parity 8.8e-6; phi is the agent's own `release_risk.features`, so the
+live agent can score it without torch;
+`scripts/export_state_model.py::numpy_forward` is the reference
+inference). The remaining sequence before any live use: a log-only
+shadow of the reranker's hypothetical top-1 over retained candidates,
+a physical negative control, then a paired episode A/B under the
+powered-gate discipline with the baseline.json floors. See
+`reports/state-model/replication-20260816.md`.
+
 The deviation line is likewise closed pending a new representation.
 Twelve permuted pool-1 streams (run 31941899714) pooled with the fatal
 cases give 14 streams and 77 branch states: 36% have a sibling of the
