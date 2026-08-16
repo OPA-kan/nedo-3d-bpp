@@ -36,18 +36,40 @@ jobs:
           - case_id: b000-k15
             source_case: "000"
             look_ahead: 15
+            steps: "4 6 8 10 12 14"
+            sibling_mode: class_diverse
           - case_id: b000-k20
             source_case: "000"
             look_ahead: 20
+            steps: "4 6 8 10 12 14"
+            sibling_mode: class_diverse
           - case_id: b000-k40
             source_case: "000"
             look_ahead: 40
+            steps: "4 6 8 10 12 14"
+            sibling_mode: class_diverse
           - case_id: b001-k20
             source_case: "001"
             look_ahead: 20
+            steps: "4 6 8 10 12 14"
+            sibling_mode: class_diverse
           - case_id: b001-k30
             source_case: "001"
             look_ahead: 30
+            steps: "4 6 8 10 12 14"
+            sibling_mode: class_diverse
+          # Certified-fatal pool-1 cases: the only choice axis is where the
+          # single visible item goes, so siblings are top candidates.
+          - case_id: c000-k1
+            source_case: "000"
+            look_ahead: 1
+            steps: "2 4 6 8 10 12 14 16 18 20"
+            sibling_mode: top_candidates
+          - case_id: c001-k1
+            source_case: "001"
+            look_ahead: 1
+            steps: "2 4 6 8 10 12 14 16 18 20"
+            sibling_mode: top_candidates
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,13 +87,19 @@ jobs:
           --policy-timeout 8
           --output "reports/branch-labels/${{ matrix.case.case_id }}.json"
       - name: Run each sibling branch to the end of the episode
-        run: >-
-          python scripts/build_branch_labels.py
-          --config "reports/branch-labels/${{ matrix.case.case_id }}.json"
-          --step 4 --step 6 --step 8 --step 10 --step 12 --step 14
-          --siblings "${{ inputs.siblings || '3' }}"
-          --sibling-budget "${{ inputs.sibling_budget || '4096' }}"
-          --output-dir "reports/branch-labels/${{ matrix.case.case_id }}"
+        shell: bash
+        run: |
+          step_flags=""
+          for step in ${{ matrix.case.steps }}; do
+            step_flags="$step_flags --step $step"
+          done
+          python scripts/build_branch_labels.py \
+            --config "reports/branch-labels/${{ matrix.case.case_id }}.json" \
+            $step_flags \
+            --siblings "${{ inputs.siblings || '3' }}" \
+            --sibling-budget "${{ inputs.sibling_budget || '4096' }}" \
+            --sibling-mode "${{ matrix.case.sibling_mode }}" \
+            --output-dir "reports/branch-labels/${{ matrix.case.case_id }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

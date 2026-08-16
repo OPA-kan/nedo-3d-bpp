@@ -64,15 +64,123 @@ from scripts.measure_anchor_recall import (  # noqa: E402
 )
 from scripts.measurement_budget import record_from_env  # noqa: E402
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
-def reconstruct_siblings(agent, observation, *, budget, limit):
+def _packed_world_aabb(packed: dict) -> tuple:
+    """World AABB of a packed item from its observed pose and quaternion."""
+    x, y, z, w = (float(v) for v in packed["orn"])
+    rotation = np.asarray([
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+    ])
+    dims = np.asarray([
+        float(packed["length"]), float(packed["width"]), float(packed["height"])
+    ])
+    extent = np.abs(rotation) @ dims / 2.0
+    center = np.asarray([float(v) for v in packed["pos"]])
+    return center - extent, center + extent
+
+
+def support_ledger(observation, container_idx, item, world_center, size):
+    """Book the usable-support surface an action consumes and creates.
+
+    Settled anchors exclude every soft/priority top, so a soft or
+    prioritized item's own top is forbidden future support while a plain
+    item's top is usable. Supporters are packed items in the same container
+    whose top plane sits within the vertical window under the commanded
+    base; their overlapped top area is booked by attribute. The commanded
+    base is the release center for release candidates, so base heights are
+    upper bounds there; `kind` is recorded beside this ledger for that
+    reason.
     """
-    Class-diverse Top-K from a fixed attempt budget.
+    base_z = float(world_center[2]) - float(size[2]) / 2.0
+    x0 = float(world_center[0]) - float(size[0]) / 2.0
+    x1 = float(world_center[0]) + float(size[0]) / 2.0
+    y0 = float(world_center[1]) - float(size[1]) / 2.0
+    y1 = float(world_center[1]) + float(size[1]) / 2.0
+    footprint_area = (x1 - x0) * (y1 - y0)
+    overlap = {"plain": 0.0, "soft": 0.0, "priority": 0.0}
+    containers = observation.get("container_list", [])
+    packed_items = (
+        containers[container_idx].get("packed_items", [])
+        if 0 <= container_idx < len(containers) else []
+    )
+    for packed in packed_items:
+        low, high = _packed_world_aabb(packed)
+        if not (base_z - 0.03 <= high[2] <= base_z + 0.01):
+            continue
+        width = min(x1, high[0]) - max(x0, low[0])
+        depth = min(y1, high[1]) - max(y0, low[1])
+        if width <= 0.0 or depth <= 0.0:
+            continue
+        if packed.get("is_soft", False):
+            overlap["soft"] += width * depth
+        elif packed.get("is_prioritized", False):
+            overlap["priority"] += width * depth
+        else:
+            overlap["plain"] += width * depth
+    item_is_plain = not (
+        bool(item.get("is_soft", False)) or bool(item.get("is_prioritized", False))
+    )
+    on_floor = base_z <= 0.03
+    consumed_usable = overlap["plain"] + (footprint_area if on_floor else 0.0)
+    gained_usable = footprint_area if item_is_plain else 0.0
+    return {
+        "item_is_soft": bool(item.get("is_soft", False)),
+        "item_is_prioritized": bool(item.get("is_prioritized", False)),
+        "footprint_area": footprint_area,
+        "base_z": base_z,
+        "on_floor": on_floor,
+        "supporter_overlap": overlap,
+        "delta_usable_support": gained_usable - consumed_usable,
+    }
 
-    Deterministic by construction: no deadline is involved, so the sibling
-    set does not depend on how fast this machine happens to be.
+
+def _top_candidate_decisions(decisions, limit, *, min_center_distance=0.05):
+    """Greedy score-ordered pick with a spatial-diversity guard.
+
+    A pool of one item offers no cross-item choice, so siblings must be
+    alternative placements of the same item; near-duplicate poses would
+    only produce tied pairs, hence the minimum center separation unless
+    the container or orientation differs.
+    """
+    ordered = sorted(decisions, key=lambda d: -float(d.score))
+    selected = []
+    for decision in ordered:
+        if len(selected) >= limit:
+            break
+        distinct = True
+        for kept in selected:
+            same_container = (
+                kept.action["container_idx"] == decision.action["container_idx"]
+            )
+            same_orientation = (
+                kept.action["orientation"] == decision.action["orientation"]
+            )
+            gap = float(np.linalg.norm(
+                np.asarray(kept.action["place_pos"], dtype=float)
+                - np.asarray(decision.action["place_pos"], dtype=float)
+            ))
+            if same_container and same_orientation and gap < min_center_distance:
+                distinct = False
+                break
+        if distinct:
+            selected.append(decision)
+    return selected
+
+
+def reconstruct_siblings(agent, observation, *, budget, limit,
+                         mode="class_diverse"):
+    """
+    Deterministic sibling set from a fixed attempt budget.
+
+    ``class_diverse`` keeps the rollout Top-K rule (best candidate per item
+    class); ``top_candidates`` keeps the best-scored spatially distinct
+    candidates regardless of item, which is the only informative axis when
+    the visible pool holds a single item. No deadline is involved, so the
+    sibling set does not depend on how fast this machine happens to be.
     """
     containers = observation.get("container_list", [])
     has_priority = any(
@@ -89,6 +197,7 @@ def reconstruct_siblings(agent, observation, *, budget, limit):
         observation, indexed, attempt_budget=int(budget)
     )
     components_by_key = {}
+    all_decisions = []
     for item_idx, item, container_idx, orientation, candidate in stream:
         container = containers[container_idx]
         score = agent.Ranker.score(candidate, item, container, has_priority)
@@ -114,12 +223,22 @@ def reconstruct_siblings(agent, observation, *, budget, limit):
         components_by_key[
             json.dumps(action_signature(decision.action), sort_keys=True)
         ] = {
-            **immediate.components(),
-            "immediate_total": float(immediate.total),
-            "risk_penalty": float(immediate.total) - float(score),
+            "components": {
+                **immediate.components(),
+                "immediate_total": float(immediate.total),
+                "risk_penalty": float(immediate.total) - float(score),
+            },
+            "support_ledger": support_ledger(
+                observation, int(container_idx), item,
+                decision.action["place_pos"], candidate.size,
+            ),
         }
         collector.observe(item_idx, item, container_idx, orientation, decision)
-    selected = collector.snapshot(max(1, int(limit)))
+        all_decisions.append(decision)
+    if mode == "top_candidates":
+        selected = _top_candidate_decisions(all_decisions, max(1, int(limit)))
+    else:
+        selected = collector.snapshot(max(1, int(limit)))
     return selected, {
         json.dumps(action_signature(decision.action), sort_keys=True):
         components_by_key.get(
@@ -241,6 +360,12 @@ def main() -> int:
     parser.add_argument("--siblings", type=int, default=3)
     parser.add_argument("--sibling-budget", type=int, default=4096)
     parser.add_argument(
+        "--sibling-mode", default="class_diverse",
+        choices=("class_diverse", "top_candidates"),
+        help="top_candidates is for pool-1 cases where the only choice axis "
+             "is where to place the single visible item",
+    )
+    parser.add_argument(
         "--repeats", type=int, default=1,
         help="re-runs of each forced branch; >1 measures sigma_branch",
     )
@@ -274,6 +399,7 @@ def main() -> int:
         siblings, sibling_components = reconstruct_siblings(
             agent, observation,
             budget=args.sibling_budget, limit=args.siblings,
+            mode=args.sibling_mode,
         )
         branches = []
         for index, decision in enumerate(siblings):
@@ -324,9 +450,12 @@ def main() -> int:
                 ),
                 "action": action_signature(forced),
                 "q": float(decision.score),
-                "q_components": sibling_components.get(
+                "q_components": (sibling_components.get(
                     json.dumps(action_signature(forced), sort_keys=True)
-                ),
+                ) or {}).get("components"),
+                "support_ledger": (sibling_components.get(
+                    json.dumps(action_signature(forced), sort_keys=True)
+                ) or {}).get("support_ledger"),
                 "kind": str(decision.candidate.name),
                 "runs": runs,
                 "reproducibility": {
@@ -409,6 +538,7 @@ def main() -> int:
         },
         "branch_steps": steps,
         "siblings_per_step": args.siblings,
+        "sibling_mode": args.sibling_mode,
         "repeats": args.repeats,
         "states": states,
         "state_level_outcomes": state_outcomes,
