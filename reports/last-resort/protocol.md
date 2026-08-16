@@ -32,3 +32,25 @@ All four must hold to advance. Passing is development evidence only;
 adoption additionally requires an independent confirmation on fresh
 arrival-order permutations under the same gates. Failing any gate
 closes the arm and the result is recorded either way.
+
+## Confirmation stage (preregistered before any confirmation result)
+
+The development gates passed on run `31947384483` with a pooled margin
+at the instrument's edge, so the confirmation is decisive.
+`last-resort-confirmation.yml` runs six never-before-used permuted
+streams (three per source case, seed 20260816, look-ahead 20, same item
+multisets) x {base, last_resort} x 2 replicates. Gates on the fresh
+set, all required:
+
+1. Pooled placed strictly higher under `last_resort`.
+2. Paired placed wins >= losses across stream-replicate pairs.
+3. Pooled transport_invalid endings non-increasing.
+4. Pooled topple+slide rise no larger than the transport_invalid fall.
+5. No stream's mean placed lower by more than three placements
+   (the largest measured 2-sd floor among the k15-k40 configs is 4.6;
+   three is stricter).
+
+Pass: adopt `LAST_RESORT_RELAXATION_SECONDS=2.4` as the shipped
+default and record the adoption. Fail: the knob stays 0, the arm is
+closed, and the result is recorded. No retuning on these streams in
+either case.
