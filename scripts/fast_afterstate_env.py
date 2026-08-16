@@ -197,6 +197,52 @@ class AfterstateBoard:
 SLOT_CELL = 0.25
 
 
+def board_grid(board, gx=16, gy=12):
+    """Max-pooled relative-height grid: the raw learnable substrate.
+
+    The six scalar descriptors collapsed onto the fullness axis and the
+    hand-built receptivity scan costs 1.2 s per call, which prices it out
+    of per-row self-play labelling. This is the alternative: hand the
+    model the height field itself (0.6 ms) and let it learn what
+    receptivity looks like. Max pooling, not mean: a single tall column
+    inside a cell blocks a landing exactly like a full cell does.
+    """
+    h = np.where(board.inside, board.heights, board.floor)
+    interior = max(board.height - board.floor, 1e-9)
+    rel = (h - board.floor) / interior
+    nx, ny = rel.shape
+    grid = []
+    for i in range(gx):
+        lo_x = int(i * nx / gx)
+        hi_x = max(int((i + 1) * nx / gx), lo_x + 1)
+        row = []
+        for j in range(gy):
+            lo_y = int(j * ny / gy)
+            hi_y = max(int((j + 1) * ny / gy), lo_y + 1)
+            row.append(float(rel[lo_x:hi_x, lo_y:hi_y].max()))
+        grid.append(row)
+    return grid
+
+
+def largest_free_span(board):
+    """Widest run of floor-level cells along x, as a length fraction.
+
+    The original inline version iterated heightmap ROWS, which are runs
+    along y, and then normalised by container LENGTH — an axis mismatch
+    that reported 0.7 for an empty container. Fixed here: runs along x
+    (the container's long axis, where big items need room), normalised
+    by length, so an empty container reads ~1 minus the wall clearance.
+    """
+    floor_cells = board.inside & (board.heights <= board.floor + 1e-9)
+    best_run = 0
+    for column in floor_cells.T:
+        run = 0
+        for cell in column:
+            run = run + 1 if cell else 0
+            best_run = max(best_run, run)
+    return float(best_run) * CELL / board.length
+
+
 def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
     """
     Board quality at CONSTANT fullness.
@@ -268,14 +314,6 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
         features[f"R_{entry['name']}"] = float(len(slots))
         total_slots |= slots
 
-    floor_cells = board.inside & (board.heights <= board.floor + 1e-9)
-    best_run = 0
-    for row in floor_cells:
-        run = 0
-        for cell in row:
-            run = run + 1 if cell else 0
-            best_run = max(best_run, run)
-
     features["R_total_slots"] = float(len(total_slots))
     features["R_min_type"] = float(
         min(v for k, v in features.items() if k.startswith("R_") and k != "R_total_slots")
@@ -290,7 +328,7 @@ def fullness_orthogonal_features(agent_module, board, *, stride=0.15):
     total, by_items = sealed_void_fraction(agent_module, board)
     features["covered_void"] = total
     features["covered_void_by_items"] = by_items
-    features["largest_free_span"] = float(best_run) * CELL / board.length
+    features["largest_free_span"] = largest_free_span(board)
     return features
 
 

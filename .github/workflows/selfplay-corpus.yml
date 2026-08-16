@@ -1,0 +1,94 @@
+name: Selfplay hazard corpus
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/v5-hypothesis-validation-cyna2c
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/selfplay-corpus.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selfplay-corpus-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: ${{ matrix.source.case_id }}-block${{ matrix.block }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        block: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        source:
+          - case_id: c000-k1
+            source_case: "000"
+          - case_id: c001-k1
+            source_case: "001"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build config for container geometry
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.source.source_case }}"
+          --task-id "${{ matrix.source.case_id }}"
+          --look-ahead 1
+          --policy-timeout 8
+          --output "reports/hazard/selfplay/${{ matrix.source.case_id }}.json"
+      - name: Generate selfplay block (250 episodes)
+        run: >-
+          python scripts/generate_selfplay.py
+          --config "reports/hazard/selfplay/${{ matrix.source.case_id }}.json"
+          --episodes 250
+          --seed $(( ${{ matrix.block }} * 10000 ))
+          --output
+          "reports/hazard/selfplay/${{ matrix.source.case_id }}-block${{ matrix.block }}.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: >-
+            selfplay-${{ matrix.source.case_id }}-block${{ matrix.block }}
+          path: reports/hazard/selfplay/*.jsonl
+          compression-level: 9
+
+  manifest:
+    needs: generate
+    if: always() && needs.generate.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: selfplay-*
+          path: corpus
+      - name: Corpus manifest
+        run: |
+          {
+            echo '{"blocks": ['
+            first=1
+            for f in $(find corpus -name '*.jsonl' | sort); do
+              rows=$(wc -l < "$f")
+              sha=$(sha256sum "$f" | cut -d' ' -f1)
+              [ $first -eq 1 ] || echo ','
+              first=0
+              printf '{"file": "%s", "rows": %s, "sha256": "%s"}' \
+                "$(basename "$f")" "$rows" "$sha"
+            done
+            echo '], "total_rows": '"$(cat $(find corpus -name '*.jsonl') | wc -l)"'}'
+          } > manifest.json
+          cat manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: selfplay-manifest
+          path: manifest.json

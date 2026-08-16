@@ -47,7 +47,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.fast_afterstate_env import AfterstateBoard  # noqa: E402
+from scripts.fast_afterstate_env import (  # noqa: E402
+    AfterstateBoard,
+    board_grid,
+    largest_free_span,
+    sealed_void_fraction,
+)
 from scripts.measure_board_value import BAGGAGE_TYPES, type_representative  # noqa: E402
 
 
@@ -117,12 +122,37 @@ def rollout(agent_module, container, *, seed, stride, cap, max_steps, risk_gate)
             options, key=lambda o: (o[0].features()["occupancy_max"], rng.random())
         )
         child, candidate, orientation = best
+        # Schema 2: the raw substrate rides along so the representation
+        # question (can a model learn receptivity the hand features
+        # missed?) is answerable without regenerating. Sealed void is the
+        # one quantity a heightmap cannot express; the scalar six all
+        # collapse onto the fullness axis.
+        sealed_total, sealed_by_items = sealed_void_fraction(
+            agent_module, child
+        )
         rows.append(
             {
+                "schema_version": 2,
                 "step": step,
                 "type_index": int(item["type_index"]),
                 "features": board.features(),
                 "afterstate": child.features(),
+                "afterstate_grid": board_grid(child),
+                "afterstate_sealed_void": float(sealed_total),
+                "afterstate_sealed_void_by_items": float(sealed_by_items),
+                "afterstate_largest_free_span": float(
+                    largest_free_span(child)
+                ),
+                "candidate": {
+                    "center": [float(v) for v in candidate.center],
+                    "size": [float(v) for v in candidate.size],
+                    "orientation": int(orientation),
+                },
+                "container": {
+                    "length": float(container["length"]),
+                    "width": float(container["width"]),
+                    "height": float(container["height"]),
+                },
                 "options": len(options),
             }
         )
