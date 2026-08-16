@@ -351,6 +351,23 @@ and PASS on 31566975749 after its preregistered FAIL on 31565624982. This is
 runner-variable, not a reason to reopen selection. The policy remains closed;
 the exact replication table is committed beside the discovery audit.
 
+The distributional-fill pre-action student line is closed with power. After
+v3 (linear ridge, seed-58) and v4 (kNN, seed-59, underpowered at three
+discordant pairs) failed their new-stream confirmations, v5 refit the same
+116-feature label-blind local-geometry family on all 29 opened runs and
+looked strong in strict cross-fit (719/1053 versus 657/1053, 127/65,
+p=9.05e-6, 14/14 streams non-regressing). Its frozen power gate — the
+prospective sign test may only be opened at 37 or more discordant pairs,
+countable label-blind from prediction disagreement — rejected the first
+seed-60 cohort as underpowered without opening labels, and the expanded
+twelve-stream cohort (42 discordant) then delivered a powered verdict:
+161/229 versus 157/229, 23 wins/19 losses, p=0.644, three streams
+regressing. The cross-fit advantage does not transfer to new streams. Do not
+retune these features into a v6; the powered-gate protocol itself is sound
+and should be reused by any future candidate. See
+`reports/counterfactual-afterstate-value/distributional-fill-preaction-v5.md`
+and ledger entry `preaction-local-geometry-family-rejected-with-power`.
+
 ## Official score history
 
 | submission | total | fill | cog | stability | placement | soft | placed fraction |

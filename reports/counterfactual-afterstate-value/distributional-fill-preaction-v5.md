@@ -131,3 +131,42 @@ conditions: `permute-000-181` (run `31924378093`), `permute-000-193`
 (`31924389044`, dual-empty), and `permute-001-191` (`31924397063`,
 single-preloaded). The admitted prospective set is therefore thirteen
 streams: the eight first-wave streams plus these five.
+
+Wave-2 strict H3 completed for `permute-000-181` (run `31924933160`),
+`permute-000-193` (`31924935917`), `permute-001-181` (`31924939279`), and
+`permute-001-193` (`31924942234`). `permute-001-197` (`31924945370`) failed
+its dual-empty condition and is excluded as an incomplete strict matrix; its
+labels were never opened. The second label-blind power audit over the twelve
+completed streams counted 452 eligible late rows, 229 unique signatures
+(50.7% unique support, all within the frozen support threshold), and 42
+prediction disagreements, at or above the frozen minimum of 37. The
+confirmation was therefore opened.
+
+## Prospective confirmation result
+
+The frozen artifact was evaluated exactly once, without refitting or
+changing any threshold. V5 scored 161/229 versus 157/229 for action
+geometry: 23 wins, 187 ties, and 19 losses (two-sided exact sign test
+`p=0.644`). Three completed streams regressed: `permute-000-167` (27 versus
+28), `permute-001-151` (12 versus 14), and `permute-001-157` (9 versus 10).
+Full results are in `distributional-fill-preaction-v5-confirmation-60.json`.
+
+The predeclared gate **failed** on both the non-regression and significance
+checks, and this time the test was powered: 42 discordant pairs could have
+detected the development-sized effect with even odds. The out-of-development
+win fraction was 23/42 = 0.548 against 0.661 in cross-fit. V5 is rejected as
+a confirmed branch-direction agent.
+
+## Verdict on the representation line
+
+This is the third consecutive candidate from the 116-feature label-blind
+local-geometry family to fail a new-stream confirmation: v3 (linear ridge,
+seed 58), v4 (kNN, seed 59, underpowered), and v5 (kNN on all opened
+streams, seed 60, powered). With adequate power the family's strict
+cross-fit advantage did not transfer to genuinely new streams. Do not
+develop a v6 by re-tuning the same features on the enlarged corpus; the next
+candidate requires a new representation hypothesis or a different label
+target. The seed-60 labels are now opened development data. The powered-gate
+protocol itself worked as designed and carries forward: the first cohort's
+underpowered state was detected label-blind and no confirmation was wasted
+on it.

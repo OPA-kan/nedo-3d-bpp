@@ -2613,6 +2613,56 @@
         "uninformative_controls": 42,
         "model_training_ready": false
       }
+    },
+    {
+      "id": "preaction-local-geometry-family-rejected-with-power",
+      "topic": "learning_data",
+      "date": "2026-08-16",
+      "status": "active",
+      "claim": "The 116-feature label-blind local-geometry pre-action family is rejected with adequate power. V5 refit the v4 kNN protocol on all 29 opened runs (14 streams, 1053 exact signatures) and scored 719/1053 versus 657/1053 in strict group-complement cross-fit (127 wins/65 losses, p=9.05e-6, 14/14 streams non-regressing), then carried a frozen power gate: the prospective sign test may only be opened at 37+ discordant pairs, countable label-blind because differing binary directional predictions make exactly one system correct. The first seed-60 cohort (8 completed streams, 27 disagreements) was detected as underpowered without opening labels; after a second label-blind wave, 12 completed streams reached 42 disagreements and the single evaluation opened: 161/229 versus 157/229, 23 wins/19 losses, p=0.644, three streams regressing. The development cross-fit advantage (0.661 win fraction) did not transfer (0.548). Third consecutive new-stream failure for this representation (v3 linear seed-58, v4 kNN seed-59 underpowered, v5 kNN seed-60 powered); do not retune the same features into a v6. The powered-gate protocol worked and carries forward.",
+      "source": "reports/counterfactual-afterstate-value/distributional-fill-preaction-v5.md; reports/counterfactual-afterstate-value/distributional-fill-preaction-v5-confirmation-60.json; scripts/develop_distributional_fill_preaction_v5.py",
+      "values": {
+        "crossfit": {
+          "candidate": 719,
+          "action": 657,
+          "rows": 1053,
+          "wins": 127,
+          "losses": 65,
+          "p": 9.047629392044938e-06
+        },
+        "power_gate": {
+          "minimum_discordant": 37,
+          "target_power": 0.5,
+          "alpha": 0.05,
+          "development_win_fraction": 0.6614583333333334
+        },
+        "first_audit": {
+          "streams": 8,
+          "unique_late": 145,
+          "disagreements": 27,
+          "powered": false
+        },
+        "second_audit": {
+          "streams": 12,
+          "unique_late": 229,
+          "disagreements": 42,
+          "powered": true
+        },
+        "confirmation": {
+          "candidate": 161,
+          "action": 157,
+          "rows": 229,
+          "wins": 23,
+          "losses": 19,
+          "p": 0.6439689563703723,
+          "regressing_streams": [
+            "permute-000-167",
+            "permute-001-151",
+            "permute-001-157"
+          ]
+        },
+        "artifact_sha256": "52494cddfc5a5d486f7e753e7ff408982540f2edb48f1b37f18e576f13ae2590"
+      }
     }
   ]
 }
