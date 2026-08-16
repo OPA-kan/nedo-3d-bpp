@@ -2956,7 +2956,7 @@
       "id": "deviation-trigger-not-detectable-on-placed",
       "topic": "candidate_rank",
       "date": "2026-08-16",
-      "status": "active",
+      "status": "superseded",
       "claim": "Avoidable single-deviation losses are common across pool-1 arrival orders but not recognizable at decision time from sibling-set and surface-ledger features, which closes the deviation line pending a new representation. Run 31941899714 collected branch labels on twelve permuted k1 streams (same item multiset, arrival order varied); pooled with c000-k1/c001-k1 this gives 14 streams and 77 states. In 28/77 (36%) a sibling of the policy's own top-3 strictly beats its choice on final placed, mean gap about one placement, tails to six -- c000 was not an outlier. Leave-one-stream-out ridge over 13 decision-time features scores held-out rank AUC 0.512 on final placed (chance; top-quartile trigger precision 0.32 versus base 0.36) and 0.603 on final fill (weak: top-quartile precision 0.68 versus base 0.44, 1.9x gap concentration). The chain is now: value exists and is common; wholesale harvesting collapses episodes (tiebreak probe); selective harvesting needs a trigger the present features do not carry. Any future attempt must beat AUC 0.512 on placed offline against this committed corpus before spending physics; the missing information is either in whole-board structure or genuinely in the future, matching the temporal-chunk zero-consensus phenomenology.",
       "source": "reports/deviation-corpus/summary.md; reports/deviation-corpus/trigger-detectability.json; scripts/analyze_deviation_trigger.py; Actions run 31941899714",
       "values": {
@@ -2974,7 +2974,8 @@
           "fill_precision": 0.68,
           "fill_gap_concentration": 1.9
         }
-      }
+      },
+      "superseded_by": "deviation-trigger-representation-bounded"
     },
     {
       "id": "task-b-guard-resolution-quantified-and-baseline-rebuilt",
@@ -3001,6 +3002,43 @@
           "b000-k40": 3.93,
           "b001-k20": 4.22,
           "c000-k1": 7.1
+        }
+      }
+    },
+    {
+      "id": "deviation-trigger-representation-bounded",
+      "topic": "candidate_rank",
+      "date": "2026-08-16",
+      "status": "active",
+      "supersedes_reason": "a second independent schema-4 collection added board features, pooled AUCs, and a label-stability measurement that changes the closing interpretation",
+      "claim": "The deviation trigger is representation-bounded, not unknowable. A second independent collection of all 14 pool-1 streams (runs 31944370582/31944374285, schema 4 with per-container 4x4 height grids and pool composition) shows: board features are uninformative at this resolution (placed AUC 0.532, fill 0.428; combined 0.548/0.453); single-collection sibling AUCs swing between collections (placed 0.512 to 0.620, fill 0.603 to 0.514), so only pooled numbers may be quoted; pooled over both collections (155 states) the definitive trigger performance is placed AUC 0.561 with top-quartile precision 0.32 against base 0.35 -- no usable trigger in any tested feature set. Crucially, the avoidable label itself is stable: across the 77 matched (stream, step) states of the two independent collections it agrees 72/77 (94%, kappa 0.86), so avoidability is a near-deterministic function of the decision-time state. The information exists; sibling statistics and a 4x4 grid do not resolve it. The offline bar for reopening this line is pooled placed AUC 0.561 on the committed two-collection corpus with a richer state representation; the 36% avoidable-state rate and ~1-placement mean gap replicate across collections.",
+      "source": "reports/deviation-corpus/summary.md; reports/deviation-corpus/trigger-pooled-sibling.json; reports/deviation-corpus/schema4/; Actions runs 31944370582 and 31944374285",
+      "values": {
+        "pooled": {
+          "states": 155,
+          "auc_placed": 0.561,
+          "auc_fill": 0.554,
+          "topq_precision_placed": 0.32,
+          "base_rate_placed": 0.35
+        },
+        "board_only": {
+          "auc_placed": 0.532,
+          "auc_fill": 0.428
+        },
+        "label_stability": {
+          "matched_states": 77,
+          "agreement": 72,
+          "kappa": 0.86
+        },
+        "collection_swing": {
+          "sibling_placed": [
+            0.512,
+            0.62
+          ],
+          "sibling_fill": [
+            0.603,
+            0.514
+          ]
         }
       }
     }

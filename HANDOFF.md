@@ -434,13 +434,19 @@ The deviation line is likewise closed pending a new representation.
 Twelve permuted pool-1 streams (run 31941899714) pooled with the fatal
 cases give 14 streams and 77 branch states: 36% have a sibling of the
 policy's own top-3 that strictly beats its choice on final placed
-(mean one placement, tails to six) — avoidable value is common — but a
-leave-one-stream-out trigger over sibling-set and surface-ledger
-features scores rank AUC 0.512 on placed (chance) and 0.603 on fill
-(weak). Value exists, wholesale harvesting collapses episodes, and the
-trigger is not in these features. The offline bar for any future
-attempt is committed with the corpus: beat AUC 0.512 on placed against
-`reports/deviation-corpus/` before spending physics.
+(mean one placement, tails to six) — avoidable value is common — but no
+tested feature set carries a usable trigger. A second independent
+schema-4 collection added 4x4 board grids and pool composition: board
+features are uninformative (placed AUC 0.532), single-collection AUCs
+swing (0.512 to 0.620), and the pooled two-collection number is placed
+AUC 0.561 with top-quartile precision at the base rate. The decisive
+extra finding: the avoidable label itself agrees 72/77 (kappa 0.86)
+across the independent collections, so the target is a near-
+deterministic function of the decision-time state — the line is
+representation-bounded, not unknowable. Reopening requires beating
+pooled placed AUC 0.561 offline on the committed two-collection corpus
+(`reports/deviation-corpus/`, including `schema4/`) with a richer state
+representation before any physics is spent.
 
 ## Official score history
 
