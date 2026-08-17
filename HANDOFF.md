@@ -510,7 +510,7 @@ is now present on the live branch: commit `3b1635c` is an ancestor and
 trunk lacked this code has been superseded.
 
 A submission artifact was rebuilt on 2026-08-17 from the quiet-guard
-adoption commit (repository defaults, now including
+adoption commit `d63bace` (repository defaults, now including
 `PHYSICS_PROBE_MODE=guard_quiet` with the safety artifact embedded — the
 campaign's first shipped-behavior change; the offline optimizer's
 `behaviour_sha256` is unchanged because the guard sits in `Agent.policy`,
@@ -849,7 +849,7 @@ suggestion to re-run a closed line.
 
 1. **Submission readiness is done — submit when a slot exists.**
    `dist/submission.zip` built from the 2026-08-17 quiet-guard adoption
-   commit (SHA-256
+   commit `d63bace` (SHA-256
    `6ce23e7013149908cf13d3eb0848305b9430166a6d51e7e54e30a20b1d62ca9a`),
    `submit/agent.py` byte-identical to the repository agent, repository
    defaults — which now include `PHYSICS_PROBE_MODE=guard_quiet` with
