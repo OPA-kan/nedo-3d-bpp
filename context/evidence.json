@@ -3321,6 +3321,20 @@
         "shake_under_guard": "shift/shifted/toppled improve; peak KE +24%",
         "verdict": "soft = blind axis (post-shake timing or official noise); all other instruments cross-validated"
       }
+    },
+    {
+      "id": "post-shake-instrument-fails-on-reconstruction",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The post-shake instrument was built to the protocol (official shake driven through the Evaluator's own code by import, container cup meshes via MultiContainerManager, coverage as a drift-guarded reimplementation of the official contract) and FAILS its fidelity gate honestly, with the gap localized to RECONSTRUCTION, not the shake: per-item poses are recorded only at each item's own placement step, later placements disturb them without record, so 31/63 rebuilt episodes drift >0.3 m on re-settle and the precarious late boards that carry the guard's KE excess collapse before the clone can shake them (Spearman max_shift 0.256 vs gate 0.8; toppled-within-1 79.4% vs 80%; direction check sign-flipped, recorded +23.9% vs cloned -32.6%; items_shifted 0.820 did pass). Verdict per the protocol's fail branch: the instrument is not trusted, official submissions remain the only soft readout, and no rung-3 training labels may be generated from settle-only physics. The named fix is a harness-side end-of-episode per-item pose snapshot; until it exists and the gate passes, the learning phase stays blocked on its objective function -- by design.",
+      "source": "reports/hazard/post-shake/verdict.md; scripts/measure_post_shake.py; run 32019553323 artifacts (63 episodes)",
+      "values": {
+        "gates": "max_shift rho 0.256 FAIL, shifted 0.820 pass, toppled 79.4% FAIL, direction sign-flip FAIL",
+        "cause": "pose record is per-placement-step; 31/63 episodes drift >0.3m on rebuild",
+        "fix": "end-of-episode pose snapshot",
+        "consequence": "rung-3 labels blocked until instrument passes"
+      }
     }
   ]
 }
