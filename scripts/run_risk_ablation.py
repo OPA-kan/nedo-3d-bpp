@@ -96,6 +96,7 @@ def configure_arm_environment(
         "VACUUM_SETTLED_CUTOFF",
         "LAST_RESORT_RELAXATION_SECONDS",
         "SAFETY_RERANK_MODE",
+        "VISIBLE_TREE_SEARCH",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -151,6 +152,9 @@ def configure_arm_environment(
         "last_resort",
         "safety_null",
         "safety_rerank",
+        "tree_shadow",
+        "tree_null",
+        "tree_search",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -186,6 +190,17 @@ def configure_arm_environment(
             env["SAFETY_RERANK_MODE"] = (
                 "shadow" if arm == "safety_null" else "enforce"
             )
+        elif arm in {"tree_shadow", "tree_null"}:
+            # Visible-pool tree search
+            # (reports/hazard/visible-tree-search-protocol.md). tree_null
+            # is the stage-1 name for the identical arm: shadow mode IS
+            # the physical negative control -- full search compute on the
+            # hot path, zero behavioral effect.
+            env["VISIBLE_TREE_SEARCH"] = "shadow"
+        elif arm == "tree_search":
+            # Enforce arm: swap the played action to the best root under
+            # the preregistered tie-band rule.
+            env["VISIBLE_TREE_SEARCH"] = "enforce"
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder
@@ -524,6 +539,10 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "safety_rerank_triggered_count": 0,
         "safety_rerank_would_swap_count": 0,
         "safety_rerank_enforced_count": 0,
+        "visible_tree_observed_steps": 0,
+        "visible_tree_would_change_count": 0,
+        "visible_tree_enforced_count": 0,
+        "visible_tree_budget_exhausted_count": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -599,6 +618,18 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 summary["safety_rerank_enforced_count"] += int(
                     record.get("enforced") is True
+                )
+                continue
+            if record.get("event") == "visible_tree_search":
+                summary["visible_tree_observed_steps"] += 1
+                summary["visible_tree_would_change_count"] += int(
+                    record.get("would_change") is True
+                )
+                summary["visible_tree_enforced_count"] += int(
+                    record.get("enforced") is True
+                )
+                summary["visible_tree_budget_exhausted_count"] += int(
+                    record.get("budget_exhausted") is True
                 )
                 continue
             if record.get("event") != "decision":

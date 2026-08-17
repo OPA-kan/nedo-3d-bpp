@@ -103,6 +103,54 @@ SAFETY_RERANK_MARGIN_LOGIT = 2.0
 SAFETY_RERANK_MAX_SCORE_LOSS_ABS = 1.0
 SAFETY_RERANK_POOL_CAP = 4096
 SAFETY_RERANK_RECORDED_CANDIDATES = 12
+# Visible-pool tree search (reports/hazard/visible-tree-search-protocol.md;
+# rationale docs/theory/LITERATURE_SEARCH_DIRECTION.md). Runs strictly
+# after every live selection decision is frozen. "shadow" performs the
+# full search and logs the would-change verdict without touching the
+# action (the physical negative control); "enforce" swaps the played
+# action to the best root under the preregistered tie-band rule; the
+# incumbent always stands otherwise -- never refuse, never fall through.
+VISIBLE_TREE_SEARCH_MODES = frozenset({"off", "shadow", "enforce"})
+VISIBLE_TREE_SEARCH = os.environ.get("VISIBLE_TREE_SEARCH", "off")
+if VISIBLE_TREE_SEARCH not in VISIBLE_TREE_SEARCH_MODES:
+    raise ValueError(
+        f"unknown VISIBLE_TREE_SEARCH {VISIBLE_TREE_SEARCH!r}; "
+        f"expected one of {sorted(VISIBLE_TREE_SEARCH_MODES)}"
+    )
+# The constants below are fixed by the frozen protocol and are therefore
+# source literals, not environment knobs.
+# Roots: the incumbent plus up to BRANCH-1 retained alternatives.
+VISIBLE_TREE_SEARCH_BRANCH = 4
+# Further greedy placements expanded beyond each root.
+VISIBLE_TREE_SEARCH_DEPTH = 2
+# Wall-clock slice for the whole search; on exhaustion the incumbent
+# stands and the record notes budget_exhausted.
+VISIBLE_TREE_SEARCH_SECONDS = 2.0
+# A non-incumbent root must beat the incumbent's path score by MORE than
+# this band to swap. 0.05 is a third of the L3 prefer-empty band (0.15),
+# the smallest scalar-score difference this codebase already treats as a
+# tie on the same Ranker scale, so proxy jitter alone cannot swap.
+VISIBLE_TREE_SEARCH_TIE_BAND = 0.05
+# Coarse expansion scan stride in metres (~2 board cells at the default
+# 0.05 m cell size).
+VISIBLE_TREE_SEARCH_STRIDE = 0.10
+# Receptivity cap per remaining item at a leaf, and the fixed weight
+# converting summed landing-site counts into path-score units. At 0.01
+# per site the capped per-item term is at most 0.24 (below one L3 band)
+# and a 5-site swing is needed to cross the tie band, so receptivity
+# breaks ties between similar-Q paths without outranking a clear Q gap
+# on any single item.
+VISIBLE_TREE_SEARCH_SITE_CAP = 24
+VISIBLE_TREE_SEARCH_RECEPTIVITY_WEIGHT = 0.01
+# Per item and expansion step, the scan prescreens positions with the
+# analytic Ranker terms, keeping the best position of every depth row
+# per (container, footprint) -- row-diverse, because the shipped checks
+# refuse whole regions (corridor, lateral clearance) the heightmap
+# cannot see, and a shortlist drawn from one region dies with it.
+# Leaders are re-scored with the shipped Ranker and validated down that
+# ordering with the shipped release checks, at most this many
+# validations, while the budget affords them.
+VISIBLE_TREE_SEARCH_CHECKS_PER_ITEM = 24
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -6189,6 +6237,506 @@ def board_rank_key(decision, containers, shapes):
     return features, features.rank_key() + (float(decision.score),)
 
 
+class VisibleTreeBudgetExhausted(Exception):
+    """The wall-clock slice for the visible-pool tree search ran out."""
+
+
+def visible_tree_should_swap(
+    incumbent_path_score,
+    best_path_score,
+    best_is_incumbent,
+    tie_band=None,
+):
+    """Preregistered decision rule, isolated from the search so it is
+    testable without a simulator. The played action moves to the best
+    root ONLY when that root is not the incumbent and its path score
+    exceeds the incumbent root's by MORE than the tie band; in every
+    other case -- including missing scores -- the incumbent stands.
+    """
+    band = (
+        VISIBLE_TREE_SEARCH_TIE_BAND if tie_band is None else float(tie_band)
+    )
+    if best_is_incumbent:
+        return False
+    if incumbent_path_score is None or best_path_score is None:
+        return False
+    return float(best_path_score) > float(incumbent_path_score) + band
+
+
+def _visible_tree_guard_inflation(grid):
+    # Half a cell on top of the clearance absorbs the quantization of
+    # stamping by cell centres, erring toward over-avoidance.
+    return float(SETTLED_ITEM_CLEARANCE) + max(grid.cell_x, grid.cell_y) / 2.0
+
+
+def _visible_tree_inflated(box, inflate):
+    return AABB(
+        center=box.center,
+        size=(
+            float(box.size[0]) + 2.0 * inflate,
+            float(box.size[1]) + 2.0 * inflate,
+            float(box.size[2]),
+        ),
+        name=box.name,
+    )
+
+
+def _visible_tree_guard_surface(grid, container):
+    """Surface with every obstacle inflated by the lateral guard.
+
+    A drop height read from this surface yields commanded poses that
+    clear Geometry.clears_static_geometry against the REAL cargo by
+    construction (to cell resolution): the shipped guard refuses poses
+    within SETTLED_ITEM_CLEARANCE laterally of any obstacle, so the
+    score elite of a bare-surface scan -- packed tight against cargo --
+    would be rejected wholesale by the shipped checks.
+    """
+    guard = grid.floor.copy()
+    filled = np.zeros_like(guard)
+    inflate = _visible_tree_guard_inflation(grid)
+    for shelf in shelf_aabbs(container):
+        _board_stamp(
+            grid,
+            guard,
+            filled,
+            _visible_tree_inflated(shelf, inflate),
+            from_floor=True,
+        )
+    for box, _is_soft, _is_prioritized in packed_aabbs_local(container):
+        _board_stamp(grid, guard, filled, _visible_tree_inflated(box, inflate))
+    return guard
+
+
+def visible_tree_heightmaps(containers):
+    """Mutable per-container heightmap state seeded from the settled board.
+
+    Each entry is (grid, top, guard): the exact surface for stamping and
+    receptivity, and the clearance-inflated surface the placement scan
+    reads drop heights from. The grid and base occupancy are the cached
+    board_k machinery; only the surface copies are private to one root's
+    path, so stamping never leaks into the live caches.
+    """
+    state = {}
+    for index, container in enumerate(containers):
+        grid = board_grid(container)
+        top, _filled = board_occupancy(container, grid)
+        state[index] = (
+            grid,
+            top.copy(),
+            _visible_tree_guard_surface(grid, container),
+        )
+    return state
+
+
+def _visible_tree_apply(grid, top, guard, box):
+    """Stamp one path placement: exact surface and guard surface."""
+    filled = np.zeros_like(top)
+    _board_stamp(grid, top, filled, box)
+    _board_stamp(
+        grid,
+        guard,
+        filled,
+        _visible_tree_inflated(box, _visible_tree_guard_inflation(grid)),
+    )
+
+
+def visible_tree_stamp(grid, top, candidate, container):
+    """Stamp one candidate's settled-proxy AABB onto a heightmap copy.
+
+    The settled proxy consults the REAL container only, so it is correct
+    for the root (depth 0). Deeper path placements are already computed
+    at the heightmap drop height and must be stamped as-is via
+    _board_stamp, or the proxy would sink them through hypothetical
+    cargo the real container does not contain.
+    """
+    filled = np.zeros_like(top)
+    _board_stamp(
+        grid, top, filled, settled_proxy_candidate(candidate, container)
+    )
+    return top
+
+
+def _visible_tree_footprint_window(grid, x, y, dx, dy):
+    i0 = int(np.searchsorted(grid.xs, x - dx / 2.0, side="left"))
+    i1 = int(np.searchsorted(grid.xs, x + dx / 2.0, side="right"))
+    j0 = int(np.searchsorted(grid.ys, y - dy / 2.0, side="left"))
+    j1 = int(np.searchsorted(grid.ys, y + dy / 2.0, side="right"))
+    if i1 <= i0 or j1 <= j0:
+        return None
+    return (slice(i0, i1), slice(j0, j1))
+
+
+def visible_tree_drop_height(grid, top, x, y, dx, dy):
+    """Drop height under one footprint: the highest surface column.
+
+    Returns None when the footprint covers no usable column or leaves
+    the usable interior, i.e. the heightmap cannot say where the item
+    would land.
+    """
+    window = _visible_tree_footprint_window(grid, x, y, dx, dy)
+    if window is None:
+        return None
+    if not bool(grid.usable[window].all()):
+        return None
+    return float(top[window].max())
+
+
+def _visible_tree_item_footprints(item):
+    """Distinct (dx, dy) footprints of one item, each with its lowest dz."""
+    footprints = {}
+    for orientation in unique_orientations(item):
+        dx, dy, dz = get_rotated_dimensions(
+            item["length"], item["width"], item["height"], orientation
+        )
+        key = (round(float(dx), 6), round(float(dy), 6))
+        previous = footprints.get(key)
+        if previous is None or float(dz) < previous[3]:
+            footprints[key] = (
+                int(orientation), float(dx), float(dy), float(dz)
+            )
+    return list(footprints.values())
+
+
+def _visible_tree_scan_item(
+    item, state, containers, has_priority, deadline
+):
+    """Best placement of one item on the current path heightmaps.
+
+    Positions are window-aligned at a coarse stride
+    (VISIBLE_TREE_SEARCH_STRIDE); z is the drop height on the
+    clearance-inflated guard surface (_visible_tree_guard_surface). The
+    prescreen ranks positions by the analytic Ranker terms (everything
+    but support, and zone when a zone order is active -- both bounded),
+    the leaders are re-scored with the shipped Ranker, and the winner
+    is the best-by-shipped-score candidate that passes the shipped
+    release checks while the budget affords them. CAVEAT: the shipped
+    checks and Geometry.support_ratio consult the REAL container only;
+    hypothetical path cargo exists solely in the heightmap, so support
+    for stacking on it is under-reported and its corridor shadow is
+    invisible -- a known proxy mismatch, priced by the paired A/B, not
+    fixed here. Returns (score, container_idx, orientation, AABB) or
+    None; raises VisibleTreeBudgetExhausted past the deadline.
+    """
+    mass = float(item.get("mass", 1.0))
+    is_priority_item = bool(item.get("is_prioritized", False))
+    shortlist = []
+    for container_idx in eligible_container_indices(item, containers):
+        entry = state.get(container_idx)
+        if entry is None:
+            continue
+        grid, _top, guard = entry
+        container = containers[container_idx]
+        is_priority_container = bool(
+            container.get("is_prioritized", False)
+        )
+        routing = 0.0
+        if has_priority:
+            if is_priority_item and is_priority_container:
+                routing = 8.0
+            elif not is_priority_item and is_priority_container:
+                routing = -2.5
+        step_i = max(
+            1, int(round(VISIBLE_TREE_SEARCH_STRIDE / grid.cell_x))
+        )
+        step_j = max(
+            1, int(round(VISIBLE_TREE_SEARCH_STRIDE / grid.cell_y))
+        )
+        for orientation, dx, dy, dz in _visible_tree_item_footprints(item):
+            if time.perf_counter() >= deadline:
+                raise VisibleTreeBudgetExhausted
+            nx, ny = guard.shape
+            wx = min(max(1, int(math.ceil(dx / grid.cell_x - EPS))), nx)
+            wy = min(max(1, int(math.ceil(dy / grid.cell_y - EPS))), ny)
+            if nx < wx or ny < wy:
+                continue
+            axes = (-2, -1)
+            windows_top = np.lib.stride_tricks.sliding_window_view(
+                guard, (wx, wy)
+            ).max(axis=axes)
+            windows_ceiling = np.lib.stride_tricks.sliding_window_view(
+                grid.ceiling, (wx, wy)
+            ).min(axis=axes)
+            windows_usable = np.lib.stride_tricks.sliding_window_view(
+                grid.usable, (wx, wy)
+            ).all(axis=axes)
+            feasible = windows_usable & (
+                windows_ceiling - windows_top >= dz - EPS
+            )
+            feasible = feasible[::step_i, ::step_j]
+            if not feasible.any():
+                continue
+            z_bottom = windows_top[::step_i, ::step_j]
+            xs_c = (grid.xs[: nx - wx + 1] + (wx - 1) * grid.cell_x / 2.0)[
+                ::step_i
+            ]
+            ys_c = (grid.ys[: ny - wy + 1] + (wy - 1) * grid.cell_y / 2.0)[
+                ::step_j
+            ]
+            volume = dx * dy * dz
+            depth_weight = -0.55 if is_priority_item else 0.35
+            analytic = (
+                12.0 * volume
+                + routing
+                + depth_weight * ys_c[np.newaxis, :]
+                - 0.12 * np.abs(xs_c)[:, np.newaxis]
+                - 0.18 * (z_bottom + dz / 2.0) * mass
+            )
+            analytic = np.where(feasible, analytic, -np.inf)
+            # Row-diverse leaders: the analytic best of every depth row.
+            # A score-ordered top-K would concentrate in the deepest
+            # region, and when the shipped checks refuse that whole
+            # region every leader dies with it while legal positions at
+            # other depths go unexamined; the validation cap below is
+            # what bounds the shipped-check spend, not the shortlist.
+            best_i = np.argmax(analytic, axis=0)
+            columns = np.arange(analytic.shape[1])
+            row_best = analytic[best_i, columns]
+            for j in columns:
+                if not math.isfinite(float(row_best[j])):
+                    continue
+                i = int(best_i[j])
+                shortlist.append(
+                    (
+                        container_idx,
+                        int(orientation),
+                        float(xs_c[i]),
+                        float(ys_c[int(j)]),
+                        float(z_bottom[i, int(j)]),
+                        (dx, dy, dz),
+                    )
+                )
+    if not shortlist:
+        return None
+    scored = []
+    for container_idx, orientation, x, y, z_bottom, dims in shortlist:
+        candidate = AABB(
+            center=(x, y, z_bottom + dims[2] / 2.0),
+            size=dims,
+            name="release_candidate",
+        )
+        scored.append(
+            (
+                float(
+                    Ranker.score(
+                        candidate,
+                        item,
+                        containers[container_idx],
+                        has_priority,
+                    )
+                ),
+                container_idx,
+                orientation,
+                candidate,
+            )
+        )
+    scored.sort(key=lambda entry: -entry[0])
+    # The shipped checks are affordable while at least a quarter of the
+    # slice remains and the per-item validation cap is unspent; when
+    # either runs out, the heightmap-level feasibility above stands
+    # alone (the proxy caveat documented in the docstring).
+    validations = 0
+    for score, container_idx, orientation, candidate in scored:
+        now = time.perf_counter()
+        if now >= deadline:
+            raise VisibleTreeBudgetExhausted
+        if now >= deadline - VISIBLE_TREE_SEARCH_SECONDS * 0.25:
+            return score, container_idx, orientation, candidate
+        if validations >= VISIBLE_TREE_SEARCH_CHECKS_PER_ITEM:
+            return None
+        validations += 1
+        if (
+            Geometry.release_rejection_reason(
+                candidate, containers[container_idx], item
+            )
+            is None
+        ):
+            return score, container_idx, orientation, candidate
+    return None
+
+
+def visible_tree_item_receptivity(
+    item, state, containers, cap=None, deadline=None
+):
+    """Measured receptivity of one remaining item on a leaf heightmap.
+
+    Landing sites are counted with the board_k machinery. CAVEAT
+    (evidence ledger: board-receptivity-is-not-a-feasibility-predictor):
+    a landing-cell count is a receptivity PROXY, never a feasibility
+    claim -- the flatness/headroom test knows nothing of the transport
+    corridor, and the soft/priority support contract is unmodelled, so
+    a site over soft or priority cargo counts even where the release
+    contract would refuse to rest on it.
+    """
+    cap = VISIBLE_TREE_SEARCH_SITE_CAP if cap is None else int(cap)
+    sites = 0
+    footprints = _visible_tree_item_footprints(item)
+    for container_idx in eligible_container_indices(item, containers):
+        entry = state.get(container_idx)
+        if entry is None:
+            continue
+        grid, top, _guard = entry
+        headroom = grid.ceiling - top
+        for _orientation, dx, dy, dz in footprints:
+            if deadline is not None and time.perf_counter() >= deadline:
+                raise VisibleTreeBudgetExhausted
+            sites += _board_site_count(grid, top, headroom, (dx, dy, dz))
+            if sites >= cap:
+                return cap
+    return min(sites, cap)
+
+
+def _visible_tree_expand_root(
+    root, pool_list, containers, has_priority, deadline
+):
+    """Greedy depth-limited path below one root, then the measured leaf.
+
+    Enumeration is approximated: at each depth step every remaining
+    visible item's best placement is computed and the single best by
+    shipped score is committed, i.e. items are placed greedily in
+    shipped-score order rather than enumerating item permutations.
+    Returns (path_score, leaf_receptivity, expanded_depth).
+    """
+    state = visible_tree_heightmaps(containers)
+    root_container_idx = int(root.action["container_idx"])
+    grid, top, guard = state[root_container_idx]
+    _visible_tree_apply(
+        grid,
+        top,
+        guard,
+        settled_proxy_candidate(
+            root.candidate, containers[root_container_idx]
+        ),
+    )
+    consumed = {int(root.action["item_idx"])}
+    path_scores = [float(root.score)]
+    for _depth in range(VISIBLE_TREE_SEARCH_DEPTH):
+        best = None
+        for pool_index, item in enumerate(pool_list):
+            if pool_index in consumed:
+                continue
+            placement = _visible_tree_scan_item(
+                item, state, containers, has_priority, deadline
+            )
+            if placement is None:
+                continue
+            if best is None or placement[0] > best[1][0]:
+                best = (pool_index, placement)
+        if best is None:
+            break
+        pool_index, (score, container_idx, _orientation, candidate) = best
+        grid, top, guard = state[container_idx]
+        # Already at the guard-surface drop height: stamp as-is (see
+        # visible_tree_stamp on why the settled proxy must not rerun).
+        _visible_tree_apply(grid, top, guard, candidate)
+        consumed.add(pool_index)
+        path_scores.append(float(score))
+    receptivity = 0
+    for pool_index, item in enumerate(pool_list):
+        if pool_index in consumed:
+            continue
+        receptivity += visible_tree_item_receptivity(
+            item, state, containers, deadline=deadline
+        )
+    path_score = (
+        float(sum(path_scores))
+        + VISIBLE_TREE_SEARCH_RECEPTIVITY_WEIGHT * float(receptivity)
+    )
+    return path_score, int(receptivity), len(path_scores) - 1
+
+
+def visible_tree_search_record(
+    observation, top_candidates, decision, *, deadline=None
+):
+    """Expand incumbent + retained alternatives, score measured leaves.
+
+    Returns (record, proposed_decision). proposed_decision is non-None
+    only when the preregistered rule (visible_tree_should_swap) fires;
+    on deadline exhaustion the comparison is skipped entirely -- a
+    partial comparison would favor whichever roots were scored first --
+    so the incumbent stands and the record notes budget_exhausted.
+    """
+    started = time.perf_counter()
+    if deadline is None:
+        deadline = started + VISIBLE_TREE_SEARCH_SECONDS
+    record = {
+        "mode": VISIBLE_TREE_SEARCH,
+        "branch": int(VISIBLE_TREE_SEARCH_BRANCH),
+        "depth": int(VISIBLE_TREE_SEARCH_DEPTH),
+        "tie_band": float(VISIBLE_TREE_SEARCH_TIE_BAND),
+        "roots_considered": 0,
+        "roots_expanded": 0,
+        "leaves_scored": 0,
+        "incumbent_path_score": None,
+        "best_path_score": None,
+        "best_root_rank": None,
+        "would_change": False,
+        "enforced": False,
+        "budget_exhausted": False,
+        "elapsed_seconds": 0.0,
+        "roots": [],
+    }
+    pool_list = observation.get("pool_list", [])
+    containers = observation.get("container_list", [])
+    has_priority = any(
+        bool(container.get("is_prioritized", False))
+        for container in containers
+    )
+    incumbent_key = _safety_rerank_action_key(decision)
+    roots = [decision]
+    seen = {incumbent_key}
+    for candidate in top_candidates:
+        if len(roots) >= VISIBLE_TREE_SEARCH_BRANCH:
+            break
+        key = _safety_rerank_action_key(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        roots.append(candidate)
+    record["roots_considered"] = len(roots)
+    results = []
+    try:
+        for rank, root in enumerate(roots):
+            if time.perf_counter() >= deadline:
+                raise VisibleTreeBudgetExhausted
+            path_score, receptivity, expanded_depth = (
+                _visible_tree_expand_root(
+                    root, pool_list, containers, has_priority, deadline
+                )
+            )
+            results.append((rank, root, path_score))
+            record["roots_expanded"] += 1
+            record["leaves_scored"] += 1
+            record["roots"].append(
+                {
+                    "rank": rank,
+                    "is_incumbent": rank == 0,
+                    "root_score": float(root.score),
+                    "path_score": float(path_score),
+                    "leaf_receptivity": int(receptivity),
+                    "expanded_depth": int(expanded_depth),
+                }
+            )
+    except VisibleTreeBudgetExhausted:
+        record["budget_exhausted"] = True
+    proposed = None
+    if results:
+        incumbent_path_score = float(results[0][2])
+        best_rank, best_root, best_path_score = max(
+            results, key=lambda entry: (entry[2], -entry[0])
+        )
+        record["incumbent_path_score"] = incumbent_path_score
+        record["best_path_score"] = float(best_path_score)
+        record["best_root_rank"] = int(best_rank)
+        if not record["budget_exhausted"]:
+            record["would_change"] = visible_tree_should_swap(
+                incumbent_path_score, best_path_score, best_rank == 0
+            )
+            if record["would_change"]:
+                proposed = best_root
+    record["elapsed_seconds"] = float(time.perf_counter() - started)
+    return record, proposed
+
+
 class SettledFirstSelector:
     """Current live selection doctrine, isolated from candidate search."""
 
@@ -9378,6 +9926,60 @@ class Agent:
                         "proposed_rank": rerank_record["proposed_rank"],
                         "proposed_logit": rerank_record["proposed_logit"],
                         "enforced": rerank_record["enforced"],
+                    }
+                )
+        if (
+            VISIBLE_TREE_SEARCH != "off"
+            and decision is not None
+            and action_source == "placement_core"
+            and self.last_top_candidates
+        ):
+            # Same discipline as the selectors above: the search runs only
+            # after every live selection decision is frozen, so shadow mode
+            # is a true physical negative control for the enforce arm. The
+            # slice is clamped to the shipped policy deadline: the search
+            # must never extend a step past the budget the shipped agent
+            # already honors -- a step that arrives here exhausted gets an
+            # immediate budget_exhausted record and the incumbent stands.
+            try:
+                tree_record, tree_proposed = visible_tree_search_record(
+                    observation,
+                    self.last_top_candidates,
+                    decision,
+                    deadline=min(
+                        time.perf_counter() + VISIBLE_TREE_SEARCH_SECONDS,
+                        deadline,
+                    ),
+                )
+            except Exception:
+                tree_record, tree_proposed = None, None
+            if tree_record is not None:
+                if (
+                    VISIBLE_TREE_SEARCH == "enforce"
+                    and tree_record["would_change"]
+                    and tree_proposed is not None
+                ):
+                    decision = tree_proposed
+                    action_source = "visible_tree_search"
+                    tree_record["enforced"] = True
+                self.last_candidate_diagnostics["visible_tree_search"] = (
+                    tree_record
+                )
+                self._append_policy_trace(
+                    {
+                        "event": "visible_tree_search",
+                        "step": self._policy_step,
+                        "mode": tree_record["mode"],
+                        "roots_expanded": tree_record["roots_expanded"],
+                        "leaves_scored": tree_record["leaves_scored"],
+                        "incumbent_path_score": tree_record[
+                            "incumbent_path_score"
+                        ],
+                        "best_path_score": tree_record["best_path_score"],
+                        "would_change": tree_record["would_change"],
+                        "enforced": tree_record["enforced"],
+                        "budget_exhausted": tree_record["budget_exhausted"],
+                        "elapsed_seconds": tree_record["elapsed_seconds"],
                     }
                 )
         if decision is not None:
