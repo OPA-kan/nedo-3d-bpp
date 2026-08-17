@@ -654,6 +654,10 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "physics_probe_observed_steps": 0,
                 "physics_probe_failed_steps": 0,
                 "physics_probe_unsafe_predictions": 0,
+                "probe_guard_observed_steps": 0,
+                "probe_guard_unsafe_incumbent_count": 0,
+                "probe_guard_swapped_count": 0,
+                "probe_guard_budget_exhausted_count": 0,
                 "cross_step_observed_steps": 1,
                 "cross_step_previous_count": 4,
                 "cross_step_pool_survivor_count": 3,
@@ -766,6 +770,80 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         base = {"PHYSICS_PROBE_SHADOW": "stale"}
         configure_arm_environment(base, "base", 2.0, 0.0)
         self.assertNotIn("PHYSICS_PROBE_SHADOW", base)
+
+    def test_probe_null_is_the_log_only_timing_control(self):
+        env = {"PHYSICS_PROBE_MODE": "stale"}
+        configure_arm_environment(env, "probe_null", 2.0, 0.0)
+        self.assertEqual(env["PHYSICS_PROBE_SHADOW"], "1")
+        self.assertNotIn("PHYSICS_PROBE_MODE", env)
+
+    def test_probe_guard_sets_only_the_guard_mode(self):
+        env = {"PHYSICS_PROBE_SHADOW": "stale"}
+        configure_arm_environment(env, "probe_guard", 2.0, 0.0)
+        self.assertEqual(env["PHYSICS_PROBE_MODE"], "guard")
+        self.assertNotIn("PHYSICS_PROBE_SHADOW", env)
+
+        base = {"PHYSICS_PROBE_MODE": "guard"}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        self.assertNotIn("PHYSICS_PROBE_MODE", base)
+
+    def test_probe_guard_summary_counts_unsafe_swaps_and_budget(self):
+        records = [
+            {
+                "event": "physics_probe_guard",
+                "step": 0,
+                "probes_used": 1,
+                "incumbent_safe": True,
+                "swapped": False,
+                "swap_rank": None,
+                "elapsed_seconds": 0.05,
+                "budget_exhausted": False,
+            },
+            {
+                "event": "physics_probe_guard",
+                "step": 1,
+                "probes_used": 3,
+                "incumbent_safe": False,
+                "swapped": True,
+                "swap_rank": 1,
+                "elapsed_seconds": 0.2,
+                "budget_exhausted": False,
+            },
+            {
+                "event": "physics_probe_guard",
+                "step": 2,
+                "probes_used": 6,
+                "incumbent_safe": False,
+                "swapped": False,
+                "swap_rank": None,
+                "elapsed_seconds": 1.5,
+                "budget_exhausted": True,
+            },
+            {
+                "event": "physics_probe_guard",
+                "step": 3,
+                "probes_used": 1,
+                "incumbent_safe": None,
+                "swapped": False,
+                "swap_rank": None,
+                "elapsed_seconds": 0.03,
+                "budget_exhausted": False,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["probe_guard_observed_steps"], 4)
+        self.assertEqual(summary["probe_guard_unsafe_incumbent_count"], 2)
+        self.assertEqual(summary["probe_guard_swapped_count"], 1)
+        self.assertEqual(summary["probe_guard_budget_exhausted_count"], 1)
+        self.assertEqual(summary["decision_count"], 0)
 
     def test_multi_axis_shadow_summary_counts_proposals(self):
         record = {

@@ -159,6 +159,24 @@ VISIBLE_TREE_SEARCH_CHECKS_PER_ITEM = 24
 # pybullet is not importable the probe disables itself permanently and
 # the agent behaves exactly as shipped. Empty disables.
 PHYSICS_PROBE_SHADOW = os.environ.get("PHYSICS_PROBE_SHADOW", "")
+# Behavioral probe guard (reports/hazard/probe-guard-protocol.md). "guard"
+# probes the frozen placement-core choice with the same settle clone and,
+# only when it predicts unsafe, probes alternatives in shipped-score order
+# and plays the first that predicts safe; the incumbent stands otherwise --
+# never refuse, never fall through. The probe physics is
+# physics_probe_settle, reused verbatim.
+PHYSICS_PROBE_MODES = frozenset({"off", "guard"})
+PHYSICS_PROBE_MODE = os.environ.get("PHYSICS_PROBE_MODE", "off")
+if PHYSICS_PROBE_MODE not in PHYSICS_PROBE_MODES:
+    raise ValueError(
+        f"unknown PHYSICS_PROBE_MODE {PHYSICS_PROBE_MODE!r}; "
+        f"expected one of {sorted(PHYSICS_PROBE_MODES)}"
+    )
+# Fixed by the frozen protocol, so source literals rather than knobs: at
+# most this many probes per step (the incumbent's included) and this
+# wall-clock slice, clamped to the shipped policy deadline.
+PHYSICS_PROBE_GUARD_MAX_PROBES = 6
+PHYSICS_PROBE_GUARD_SECONDS = 1.5
 # The official settle horizon (settle_wait_step: 300 in the development
 # configs, simulator/configs/sample_config.json). The observation does
 # not carry the validator config, so the probe cannot read it live.
@@ -7086,6 +7104,61 @@ def physics_probe_settle(observation, decision):
                 pass
 
 
+def probe_guard_choose(
+    incumbent,
+    alternatives,
+    probe_fn,
+    deadline_fn,
+    max_probes=PHYSICS_PROBE_GUARD_MAX_PROBES,
+):
+    """The guard's decision rule, pure so it is testable with stubs.
+
+    probe_fn(decision) returns a physics_probe_settle-shaped dict or
+    None on probe failure; deadline_fn() returns True once the budget
+    slice is spent. The rule (probe-guard-protocol.md): a probe failure
+    or a safe verdict plays the incumbent unchanged; an unsafe verdict
+    walks `alternatives` in the given order and returns the FIRST whose
+    probe predicts safe, within max_probes total probes (the
+    incumbent's included) and the deadline. Never refuse: with no safe
+    alternative, or on budget exhaustion, the incumbent stands.
+    Returns (chosen, record).
+    """
+    record = {
+        "probes_used": 0,
+        "incumbent_safe": None,
+        "swapped": False,
+        "swap_rank": None,
+        "budget_exhausted": False,
+    }
+    if deadline_fn():
+        record["budget_exhausted"] = True
+        return incumbent, record
+    incumbent_result = probe_fn(incumbent)
+    record["probes_used"] = 1
+    if incumbent_result is None:
+        return incumbent, record
+    predicted_safe = incumbent_result.get("predicted_safe")
+    record["incumbent_safe"] = (
+        None if predicted_safe is None else bool(predicted_safe)
+    )
+    if predicted_safe is not False:
+        return incumbent, record
+    for rank, alternative in enumerate(alternatives):
+        if record["probes_used"] >= max_probes or deadline_fn():
+            record["budget_exhausted"] = True
+            return incumbent, record
+        alternative_result = probe_fn(alternative)
+        record["probes_used"] += 1
+        if (
+            alternative_result is not None
+            and alternative_result.get("predicted_safe") is True
+        ):
+            record["swapped"] = True
+            record["swap_rank"] = int(rank)
+            return alternative, record
+    return incumbent, record
+
+
 class SettledFirstSelector:
     """Current live selection doctrine, isolated from candidate search."""
 
@@ -10360,6 +10433,81 @@ class Agent:
                             "elapsed_seconds": probe_record.get(
                                 "elapsed_seconds"
                             ),
+                        }
+                    )
+            except Exception:
+                pass
+        if (
+            PHYSICS_PROBE_MODE == "guard"
+            and decision is not None
+            and action_source == "placement_core"
+        ):
+            # Same discipline as the seams above: the guard runs only after
+            # every live selection decision is frozen. Its slice is clamped
+            # to the shipped policy deadline, so it can never extend a step
+            # past the budget the shipped agent already honors. On any
+            # exception the incumbent plays -- never refuse, never fall
+            # through.
+            try:
+                if physics_probe_available():
+                    guard_started = time.perf_counter()
+                    guard_deadline = min(
+                        guard_started + PHYSICS_PROBE_GUARD_SECONDS,
+                        deadline,
+                    )
+                    # Alternatives in shipped-score order: the retained
+                    # top candidates first, then -- when the safety-rerank
+                    # machinery has its mode on and so materialized the
+                    # observed legal pool in this scope -- that pool,
+                    # sorted by shipped score descending. With the guard
+                    # alone only last_top_candidates is materialized,
+                    # which the protocol accepts. Deduplicated by action
+                    # key; the incumbent is skipped.
+                    incumbent_key = _safety_rerank_action_key(decision)
+                    seen_keys = {incumbent_key}
+                    guard_alternatives = []
+                    guard_pool = list(self.last_top_candidates or [])
+                    if safety_pool:
+                        guard_pool += sorted(
+                            safety_pool,
+                            key=lambda entry: float(entry.score),
+                            reverse=True,
+                        )
+                    for candidate in guard_pool:
+                        key = _safety_rerank_action_key(candidate)
+                        if key in seen_keys:
+                            continue
+                        seen_keys.add(key)
+                        guard_alternatives.append(candidate)
+                    guard_chosen, guard_record = probe_guard_choose(
+                        decision,
+                        guard_alternatives,
+                        lambda candidate: physics_probe_settle(
+                            observation, candidate
+                        ),
+                        lambda: time.perf_counter() >= guard_deadline,
+                    )
+                    if guard_record["swapped"] and (
+                        guard_chosen is not decision
+                    ):
+                        decision = guard_chosen
+                        action_source = "physics_probe_guard"
+                    self._append_policy_trace(
+                        {
+                            "event": "physics_probe_guard",
+                            "step": self._policy_step,
+                            "probes_used": guard_record["probes_used"],
+                            "incumbent_safe": guard_record[
+                                "incumbent_safe"
+                            ],
+                            "swapped": guard_record["swapped"],
+                            "swap_rank": guard_record["swap_rank"],
+                            "elapsed_seconds": float(
+                                time.perf_counter() - guard_started
+                            ),
+                            "budget_exhausted": guard_record[
+                                "budget_exhausted"
+                            ],
                         }
                     )
             except Exception:

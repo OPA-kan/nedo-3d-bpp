@@ -1,4 +1,4 @@
-# fidelity wave (physics-probe-protocol.md)
+# guard wave (probe-guard-protocol.md)
 name: Physics probe fidelity
 
 on:
@@ -25,8 +25,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, physics_probe]
-        replicate: [0, 1]
+        arm: [base, probe_null, probe_guard]
+        replicate: [0, 1, 2]
         case:
           - case_id: b000-k15
             source_case: "000"
@@ -105,6 +105,15 @@ jobs:
           python scripts/run_risk_ablation.py \
             --summarize \
             --output-dir reports/hazard/probe-fidelity/aggregate
+          python scripts/adjudicate_safety_rerank.py \
+            --rows reports/hazard/probe-fidelity/aggregate/rows.jsonl \
+            --baseline reports/benchmarks/baseline.json \
+            --null-arm probe_null \
+            --enforce-arm probe_guard \
+            --output reports/hazard/probe-fidelity/aggregate/adjudication.json \
+            --markdown reports/hazard/probe-fidelity/aggregate/adjudication.md
+          cat reports/hazard/probe-fidelity/aggregate/adjudication.md \
+            >> "$GITHUB_STEP_SUMMARY"
           python scripts/analyze_physics_probe.py \
             --input-dir reports/hazard/probe-fidelity/downloads \
             --output reports/hazard/probe-fidelity/aggregate/fidelity.json \

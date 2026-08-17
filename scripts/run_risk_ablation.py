@@ -98,6 +98,7 @@ def configure_arm_environment(
         "SAFETY_RERANK_MODE",
         "VISIBLE_TREE_SEARCH",
         "PHYSICS_PROBE_SHADOW",
+        "PHYSICS_PROBE_MODE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -157,6 +158,8 @@ def configure_arm_environment(
         "tree_null",
         "tree_search",
         "physics_probe",
+        "probe_null",
+        "probe_guard",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -209,6 +212,18 @@ def configure_arm_environment(
             # played action never changes; every placement-core step gains
             # a physics_probe trace event with the predicted settle.
             env["PHYSICS_PROBE_SHADOW"] = "1"
+        elif arm == "probe_null":
+            # Guard wave null (reports/hazard/probe-guard-protocol.md):
+            # the log-only shadow probe carries the guard's timing
+            # footprint onto the hot path with zero behavioral effect, so
+            # the footprint is priced instead of assumed away.
+            env["PHYSICS_PROBE_SHADOW"] = "1"
+        elif arm == "probe_guard":
+            # Guard wave enforce arm: probe the frozen choice; only on a
+            # predicted-unsafe verdict probe shipped-score-ordered
+            # alternatives and play the first predicted safe. The
+            # incumbent stands otherwise.
+            env["PHYSICS_PROBE_MODE"] = "guard"
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder
@@ -554,6 +569,10 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "physics_probe_observed_steps": 0,
         "physics_probe_failed_steps": 0,
         "physics_probe_unsafe_predictions": 0,
+        "probe_guard_observed_steps": 0,
+        "probe_guard_unsafe_incumbent_count": 0,
+        "probe_guard_swapped_count": 0,
+        "probe_guard_budget_exhausted_count": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -654,6 +673,18 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                     summary["physics_probe_failed_steps"] += 1
                 elif record.get("predicted_safe") is False:
                     summary["physics_probe_unsafe_predictions"] += 1
+                continue
+            if record.get("event") == "physics_probe_guard":
+                summary["probe_guard_observed_steps"] += 1
+                summary["probe_guard_unsafe_incumbent_count"] += int(
+                    record.get("incumbent_safe") is False
+                )
+                summary["probe_guard_swapped_count"] += int(
+                    record.get("swapped") is True
+                )
+                summary["probe_guard_budget_exhausted_count"] += int(
+                    record.get("budget_exhausted") is True
+                )
                 continue
             if record.get("event") != "decision":
                 continue

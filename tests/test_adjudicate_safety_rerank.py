@@ -118,6 +118,64 @@ class AdjudicateSafetyRerankTests(unittest.TestCase):
             result["verdict"], "development_fail_arm_closed"
         )
 
+    def test_arm_names_are_overridable_for_the_probe_guard_wave(self) -> None:
+        rows = []
+        for repeat in range(3):
+            rows.append(_row("b000-k20", "base", repeat, 20, "safe_end"))
+            rows.append(_row("c000-k1", "base", repeat, 16, "topple"))
+            rows.append(_row("b000-k20", "probe_null", repeat, 20, "safe_end"))
+            rows.append(_row("c000-k1", "probe_null", repeat, 16, "topple"))
+            for case_id, placed, channel in (
+                ("b000-k20", 20, "safe_end"),
+                ("c000-k1", 19, "safe_end"),
+            ):
+                row = _row(case_id, "probe_guard", repeat, placed, channel)
+                row["policy_trace"] = {
+                    "probe_guard_observed_steps": placed,
+                    "probe_guard_unsafe_incumbent_count": 1,
+                    "probe_guard_swapped_count": 1,
+                    "probe_guard_budget_exhausted_count": 0,
+                }
+                rows.append(row)
+        result = adjudicate(
+            rows,
+            BASELINE,
+            null_arm="probe_null",
+            enforce_arm="probe_guard",
+        )
+        self.assertEqual(result["null_arm"], "probe_null")
+        self.assertEqual(result["enforce_arm"], "probe_guard")
+        self.assertTrue(all(result["gates"].values()))
+        self.assertEqual(
+            result["verdict"], "development_pass_gate3_required"
+        )
+        self.assertEqual(
+            result["swap_activity"]["probe_guard"]["enforced"], 6
+        )
+
+    def test_inert_guard_arm_closes_under_renamed_arms(self) -> None:
+        rows = []
+        for repeat in range(3):
+            rows.append(_row("b000-k20", "base", repeat, 20, "safe_end"))
+            rows.append(
+                _row("b000-k20", "probe_null", repeat, 20, "safe_end")
+            )
+            row = _row("b000-k20", "probe_guard", repeat, 20, "safe_end")
+            row["policy_trace"] = {
+                "probe_guard_observed_steps": 20,
+                "probe_guard_unsafe_incumbent_count": 0,
+                "probe_guard_swapped_count": 0,
+                "probe_guard_budget_exhausted_count": 0,
+            }
+            rows.append(row)
+        result = adjudicate(
+            rows,
+            BASELINE,
+            null_arm="probe_null",
+            enforce_arm="probe_guard",
+        )
+        self.assertEqual(result["verdict"], "inert_arm_closed")
+
     def test_failed_processes_are_excluded_by_loader_contract(self) -> None:
         # adjudicate() receives already-filtered rows; collect() must
         # still ignore rows without exactly one case.

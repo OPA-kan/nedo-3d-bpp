@@ -7,6 +7,11 @@ with per-config no-harm floors taken from the committed benchmark
 baseline (2 sd where sd > 0, one placement where sd = 0). The verdict
 comes out of this script, not out of a narrative reading of the
 tables; anything not gated here is descriptive.
+
+Later waves reuse the same five gates over differently named arms
+(reports/hazard/probe-guard-protocol.md: {base, probe_null,
+probe_guard}); --null-arm/--enforce-arm rename the arms without
+changing any gate, and default to the Gate 2 names.
 """
 
 from __future__ import annotations
@@ -48,25 +53,38 @@ def collect(rows: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         case_id, case = next(iter(cases.items()))
         trace = row.get("policy_trace") or {}
+        # Exactly one swap machinery is active per arm (safety rerank OR
+        # the probe guard), so summing the two families reads whichever
+        # fired; rows predating the guard simply lack its counters. The
+        # guard's swap IS its enforcement, which keeps the inert-arm
+        # verdict meaningful under renamed arms.
         episodes[(case_id, str(row["arm"]), int(row["repeat"]))] = {
             "placed": int(case.get("placed_count") or 0),
             "fill": float(case.get("fill_score") or 0.0),
             "channel": str(case.get("terminal_channel") or "unknown"),
-            "triggered": int(
-                trace.get("safety_rerank_triggered_count") or 0
+            "triggered": (
+                int(trace.get("safety_rerank_triggered_count") or 0)
+                + int(
+                    trace.get("probe_guard_unsafe_incumbent_count") or 0
+                )
             ),
-            "would_swap": int(
-                trace.get("safety_rerank_would_swap_count") or 0
+            "would_swap": (
+                int(trace.get("safety_rerank_would_swap_count") or 0)
+                + int(trace.get("probe_guard_swapped_count") or 0)
             ),
-            "enforced": int(
-                trace.get("safety_rerank_enforced_count") or 0
+            "enforced": (
+                int(trace.get("safety_rerank_enforced_count") or 0)
+                + int(trace.get("probe_guard_swapped_count") or 0)
             ),
         }
     return episodes
 
 
 def adjudicate(
-    rows: list[dict[str, Any]], baseline: dict[str, Any]
+    rows: list[dict[str, Any]],
+    baseline: dict[str, Any],
+    null_arm: str = NULL_ARM,
+    enforce_arm: str = ENFORCE_ARM,
 ) -> dict[str, Any]:
     episodes = collect(rows)
     case_ids = sorted({key[0] for key in episodes})
@@ -106,7 +124,7 @@ def adjudicate(
         )
         for replicate in replicates:
             base = episodes.get((case_id, BASE_ARM, replicate))
-            enforce = episodes.get((case_id, ENFORCE_ARM, replicate))
+            enforce = episodes.get((case_id, enforce_arm, replicate))
             if base is None or enforce is None:
                 continue
             pairs.append(
@@ -127,8 +145,8 @@ def adjudicate(
     for case_id in case_ids:
         floor = placed_floor(baseline_cases.get(case_id))
         base_mean = case_mean_placed(case_id, BASE_ARM)
-        rerank_mean = case_mean_placed(case_id, ENFORCE_ARM)
-        null_mean = case_mean_placed(case_id, NULL_ARM)
+        rerank_mean = case_mean_placed(case_id, enforce_arm)
+        null_mean = case_mean_placed(case_id, null_arm)
         no_harm[case_id] = {
             "floor": round(floor, 3),
             "base_mean": base_mean,
@@ -151,15 +169,15 @@ def adjudicate(
         }
 
     gamble_base = pooled_channel(BASE_ARM, PHYSICAL_GAMBLE_CHANNELS)
-    gamble_rerank = pooled_channel(ENFORCE_ARM, PHYSICAL_GAMBLE_CHANNELS)
+    gamble_rerank = pooled_channel(enforce_arm, PHYSICAL_GAMBLE_CHANNELS)
     transport_base = pooled_channel(BASE_ARM, ("transport_invalid",))
     transport_rerank = pooled_channel(
-        ENFORCE_ARM, ("transport_invalid",)
+        enforce_arm, ("transport_invalid",)
     )
     placed_base = pooled_placed(BASE_ARM)
-    placed_rerank = pooled_placed(ENFORCE_ARM)
+    placed_rerank = pooled_placed(enforce_arm)
     enforced_total = sum(
-        episode["enforced"] for episode in arm_episodes(ENFORCE_ARM)
+        episode["enforced"] for episode in arm_episodes(enforce_arm)
     )
 
     gates = {
@@ -208,7 +226,13 @@ def adjudicate(
     }
 
     return {
-        "protocol": "reports/state-model/gate2-rerank-protocol.md",
+        "protocol": (
+            "reports/state-model/gate2-rerank-protocol.md"
+            if (null_arm, enforce_arm) == (NULL_ARM, ENFORCE_ARM)
+            else "reports/hazard/probe-guard-protocol.md"
+        ),
+        "null_arm": null_arm,
+        "enforce_arm": enforce_arm,
         "episodes": len(episodes),
         "arms": arms,
         "pooled_placed": {
@@ -230,8 +254,13 @@ def adjudicate(
 
 
 def to_markdown(result: dict[str, Any]) -> str:
+    enforce_arm = result.get("enforce_arm", ENFORCE_ARM)
     lines = [
-        "# Safety rerank development adjudication (Gate 2)",
+        (
+            "# Safety rerank development adjudication (Gate 2)"
+            if enforce_arm == ENFORCE_ARM
+            else f"# {enforce_arm} development adjudication"
+        ),
         "",
         f"Protocol: `{result['protocol']}`",
         "",
@@ -278,10 +307,25 @@ def main() -> int:
     parser.add_argument("--baseline", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown", type=pathlib.Path)
+    parser.add_argument(
+        "--null-arm",
+        default=NULL_ARM,
+        help="Arm name carrying the physical negative control.",
+    )
+    parser.add_argument(
+        "--enforce-arm",
+        default=ENFORCE_ARM,
+        help="Arm name carrying the behavioral intervention.",
+    )
     args = parser.parse_args()
     rows = load_rows(args.rows)
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
-    result = adjudicate(rows, baseline)
+    result = adjudicate(
+        rows,
+        baseline,
+        null_arm=args.null_arm,
+        enforce_arm=args.enforce_arm,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, indent=2) + "\n", encoding="utf-8"
