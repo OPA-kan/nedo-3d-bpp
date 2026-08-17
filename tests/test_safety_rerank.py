@@ -1,8 +1,12 @@
 import importlib.util
+import json
+import math
 import pathlib
 import sys
 import unittest
 from unittest import mock
+
+import numpy as np
 
 AGENT_PATH = pathlib.Path(__file__).parents[1] / "agent" / "agent.py"
 SPEC = importlib.util.spec_from_file_location(
@@ -147,11 +151,85 @@ class SafetyRerankRecordTests(unittest.TestCase):
         self.assertIsNone(proposed)
 
     def test_default_mode_is_off_and_constants_are_preregistered(self):
+        # The 2026-08-17 guard_quiet adoption deliberately left the rerank
+        # machinery off: the guard consumes the observed pool and the
+        # calibrated logit directly, without per-step rerank records.
         self.assertEqual(agent.SAFETY_RERANK_MODE, "off")
         self.assertEqual(agent.SAFETY_RERANK_TRIGGER_LOGIT, 2.0)
         self.assertEqual(agent.SAFETY_RERANK_MARGIN_LOGIT, 2.0)
         self.assertEqual(agent.SAFETY_RERANK_MAX_SCORE_LOSS_ABS, 1.0)
         self.assertEqual(agent.SAFETY_RERANK_POOL_CAP, 4096)
+
+
+ARTIFACT_PATH = (
+    pathlib.Path(__file__).parents[1]
+    / "reports" / "state-model" / "candidate-mlp-safety-v1.json"
+)
+
+
+def _forward_logit(model, phi_raw, candidate_raw):
+    """The exact forward stack safety_shadow_logit applies."""
+    x = np.concatenate([
+        (phi_raw - model["phi_mean"]) / model["phi_scale"],
+        (candidate_raw - model["cand_mean"]) / model["cand_scale"],
+    ])
+    for layer in model["layers"]:
+        if layer["kind"] == "linear":
+            x = layer["weight"] @ x + layer["bias"]
+        elif layer["kind"] == "gelu":
+            x = np.asarray([
+                0.5 * value * (1.0 + math.erf(value / math.sqrt(2.0)))
+                for value in x
+            ])
+    return float(x[0])
+
+
+class EmbeddedSafetyModelTests(unittest.TestCase):
+    """The 2026-08-17 adoption contract: with no environment at all, the
+    quiet guard's instrument loads from the embedded artifact and scores
+    identically to the committed JSON file."""
+
+    def _load(self, path_value):
+        with mock.patch.object(
+            agent, "SAFETY_RERANK_SHADOW", path_value
+        ), mock.patch.dict(
+            agent._SAFETY_SHADOW_CACHE, {"path": None, "model": None}
+        ):
+            return agent._safety_shadow_model()
+
+    def test_empty_path_loads_the_embedded_model(self):
+        model = self._load("")
+        self.assertIsNotNone(model)
+        self.assertTrue(model["phi_features"])
+
+    def test_embedded_json_round_trips_the_committed_artifact(self):
+        embedded = json.loads(agent._EMBEDDED_SAFETY_MODEL_JSON)
+        committed = json.loads(ARTIFACT_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(embedded, committed)
+
+    def test_embedded_model_scores_a_known_input_like_the_file(self):
+        embedded = self._load("")
+        from_file = self._load(str(ARTIFACT_PATH))
+        self.assertIsNotNone(embedded)
+        self.assertIsNotNone(from_file)
+        self.assertEqual(
+            embedded["phi_features"], from_file["phi_features"]
+        )
+        rng = np.random.default_rng(20260817)
+        phi_raw = rng.normal(
+            size=embedded["phi_mean"].shape[0]
+        ) * embedded["phi_scale"] + embedded["phi_mean"]
+        candidate_raw = rng.normal(
+            size=embedded["cand_mean"].shape[0]
+        ) * embedded["cand_scale"] + embedded["cand_mean"]
+        logit_embedded = _forward_logit(embedded, phi_raw, candidate_raw)
+        logit_file = _forward_logit(from_file, phi_raw, candidate_raw)
+        self.assertEqual(logit_embedded, logit_file)
+
+    def test_set_path_still_overrides_the_embedded_copy(self):
+        # Instrument replay compatibility: an explicit artifact path wins.
+        bogus = self._load(str(ARTIFACT_PATH) + ".does-not-exist")
+        self.assertIsNone(bogus)
 
 
 if __name__ == "__main__":

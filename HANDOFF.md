@@ -40,6 +40,7 @@ These are source defaults in `agent/agent.py`, not proposed settings:
 | anchor-space fallback | off | not adopted |
 | temporal chunk ensemble | off | shadow measured; delay voting did not form consensus |
 | structured placement pipeline | opt-in | contracts accepted; eager live materialization failed its physical negative control |
+| physics probe guard | `PHYSICS_PROBE_MODE=guard_quiet`, safety artifact embedded in agent.py | adopted 2026-08-17 (`quiet-guard-confirmed-adoption-licensed`); fail-safe: no pybullet or no weights degrades bit-identically to the old default; SAFETY_RERANK_MODE stays off — the guard materializes the observed pool itself |
 
 `agent/agent.py` and `simulator/agent.py` must remain byte-identical after an
 agent change. The official simulator itself must not be changed to make an
@@ -508,14 +509,20 @@ is now present on the live branch: commit `3b1635c` is an ancestor and
 `ANCHOR_TRUE_ENVELOPE` defaults to 1. The old active ledger claim that the
 trunk lacked this code has been superseded.
 
-A submission artifact was built on 2026-08-16 from commit `ab198d7`
-(repository defaults, every new knob default-off, `behaviour_sha256`
-unchanged from the trueenvelope-lineage agent): `dist/submission.zip`,
+A submission artifact was rebuilt on 2026-08-17 from the quiet-guard
+adoption commit (repository defaults, now including
+`PHYSICS_PROBE_MODE=guard_quiet` with the safety artifact embedded — the
+campaign's first shipped-behavior change; the offline optimizer's
+`behaviour_sha256` is unchanged because the guard sits in `Agent.policy`,
+outside the fingerprint's DryRunEvaluator probe graph, while
+`component_sha256` moved with the default): `dist/submission.zip`,
 SHA-256
-`6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`,
+`6ce23e7013149908cf13d3eb0848305b9430166a6d51e7e54e30a20b1d62ca9a`,
 containing `submit/agent.py` byte-identical to `agent/agent.py`. The zip
 itself stays uncommitted; rebuild with `python scripts/build_submission.py`
 from a fresh fetch and re-record both values if any commit lands later.
+The superseded 2026-08-16 build from `ab198d7` was
+`6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`.
 
 ## Established by evidence
 
@@ -841,12 +848,14 @@ list. Everything below is stated with its entry gate; nothing here is a
 suggestion to re-run a closed line.
 
 1. **Submission readiness is done — submit when a slot exists.**
-   `dist/submission.zip` built from commit `ab198d7` (SHA-256
-   `6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`),
+   `dist/submission.zip` built from the 2026-08-17 quiet-guard adoption
+   commit (SHA-256
+   `6ce23e7013149908cf13d3eb0848305b9430166a6d51e7e54e30a20b1d62ca9a`),
    `submit/agent.py` byte-identical to the repository agent, repository
-   defaults (best-known behaviour; every new knob is default-off and
-   `behaviour_sha256` is unchanged). Rebuild from a fresh fetch if any
-   commit lands after `ab198d7`.
+   defaults — which now include `PHYSICS_PROBE_MODE=guard_quiet` with
+   the embedded safety artifact, fail-safe when the platform lacks
+   pybullet. Rebuild from a fresh fetch if any commit lands after the
+   adoption commit.
 2. **Safety-reranker campaign: CLOSED 2026-08-16, and what it proved.**
    Gate 1 calibration passed (`safety-shadow-calibration-pass`: live
    perception AUC 0.933, monotone bands, all deaths
@@ -877,7 +886,14 @@ suggestion to re-run a closed line.
    real-physics episode value here, even when they carry value in a
    correlated synthetic world. What remains open is mid-game search
    and labels from real physics at scale; the 94k-row corpus, trainer
-   and gate evaluator are committed as reusable instruments.
+   and gate evaluator are committed as reusable instruments. The
+   campaign then produced its first shipped-behavior change after all:
+   using the physics clone as the arbiter and the calibrated logit only
+   as a trigger, the quiet probe guard passed development and a
+   corrected fresh-permutation confirmation on three independent stream
+   sets (`quiet-guard-confirmed-adoption-licensed`), and
+   `PHYSICS_PROBE_MODE=guard_quiet` was adopted as the shipped default
+   on 2026-08-17 with the safety artifact embedded in `agent.py`.
 3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry

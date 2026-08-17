@@ -2604,9 +2604,15 @@ class LookaheadSelectionTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             trace_path = pathlib.Path(directory) / "policy.jsonl"
-            with mock.patch.dict(
-                os.environ,
-                {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {"NEDO_POLICY_TRACE_PATH": str(trace_path)},
+                ),
+                # This test pins the exact trace shape; the shipped
+                # guard_quiet default adds physics_probe_guard events,
+                # exercised by its own tests and the ablation arms.
+                mock.patch.object(agent, "PHYSICS_PROBE_MODE", "off"),
             ):
                 solver = agent.Agent("")
                 solver.get_init_states(
@@ -2782,6 +2788,10 @@ class LookaheadSelectionTests(unittest.TestCase):
                         best_score=1.0,
                     ),
                 ),
+                # Trace-shape test: the shipped guard_quiet default would
+                # attach the observed-pool collector and add its own
+                # events; the guard has its own tests.
+                mock.patch.object(agent, "PHYSICS_PROBE_MODE", "off"),
             ):
                 solver = agent.Agent("")
                 solver.get_init_states(
@@ -2970,6 +2980,10 @@ class LookaheadSelectionTests(unittest.TestCase):
                     "top_candidates",
                     side_effect=top_candidates,
                 ),
+                # Trace-shape test: the shipped guard_quiet default would
+                # attach the observed-pool collector and add its own
+                # events; the guard has its own tests.
+                mock.patch.object(agent, "PHYSICS_PROBE_MODE", "off"),
             ):
                 solver = agent.Agent("")
                 init_states = {
@@ -4759,6 +4773,10 @@ class CrossStepIncumbentTests(unittest.TestCase):
             mock.patch.object(
                 agent, "VISIBLE_POOL_ROLLOUT_MODE", "off"
             ),
+            # The shipped guard_quiet default materializes the observed
+            # pool (and so an observer) on its own; this test pins the
+            # no-observer contract of the remaining modes.
+            mock.patch.object(agent, "PHYSICS_PROBE_MODE", "off"),
             mock.patch.object(
                 agent, "visible_pool_rollout_evaluation"
             ) as rollout_shadow,

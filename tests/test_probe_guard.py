@@ -48,8 +48,12 @@ def _never_expired():
 
 
 class KnobAndConstantsTests(unittest.TestCase):
-    def test_default_mode_is_off_and_constants_are_preregistered(self):
-        self.assertEqual(agent.PHYSICS_PROBE_MODE, "off")
+    def test_default_mode_is_guard_quiet_and_constants_are_preregistered(
+        self,
+    ):
+        # Adopted 2026-08-17 (quiet-guard-protocol.md corrected
+        # confirmation; ledger quiet-guard-confirmed-adoption-licensed).
+        self.assertEqual(agent.PHYSICS_PROBE_MODE, "guard_quiet")
         self.assertEqual(
             agent.PHYSICS_PROBE_MODES,
             frozenset({"off", "guard", "guard_quiet"}),
