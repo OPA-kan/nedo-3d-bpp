@@ -1,4 +1,4 @@
-# stage 0: shadow wave (visible-tree-search-protocol.md)
+# stage 1: enforce A/B (visible-tree-search-protocol.md)
 name: Tree search stage0
 
 on:
@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, tree_shadow]
+        arm: [base, tree_null, tree_search]
         replicate: [0, 1, 2]
         case:
           - case_id: b000-k15
@@ -105,7 +105,12 @@ jobs:
           python scripts/run_risk_ablation.py \
             --summarize \
             --output-dir reports/hazard/tree-stage0/aggregate
-          cat reports/hazard/tree-stage0/aggregate/summary.md \
+          python scripts/adjudicate_safety_rerank.py \
+            --rows reports/hazard/tree-stage0/aggregate/rows.jsonl \
+            --baseline reports/benchmarks/baseline.json \
+            --output reports/hazard/tree-stage0/aggregate/adjudication.json \
+            --markdown reports/hazard/tree-stage0/aggregate/adjudication.md || true
+          cat reports/hazard/tree-stage0/aggregate/adjudication.md \
             >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
         with:
