@@ -3308,6 +3308,19 @@
         "verdict": "inert_arm_closed, knob stays off",
         "local_soft": "quiet_guard 0.981 vs base 0.973 (official regression not reproduced locally)"
       }
+    },
+    {
+      "id": "soft-axis-is-the-single-blind-instrument",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "Instrument audit after the official quietguard submission. The starvation hypothesis is REJECTED: local guard streams carry 26-32% soft items and 5-10% priority items, matching the official sample config (29%/7%), so the local soft proxy is not data-starved. The remaining explanations for the official soft -7.7% that local instruments called flat-or-better: (a) measurement timing -- the local soft_clean_ratio reads the settled state BEFORE the shake while the official soft/placement procedure is unpublished and may score post-shake state, which is exactly where the guard's longer-lived fuller boards differ (supporting evidence: under quiet_guard, shake max shift 0.36->0.30, shifted 5.8->5.5, toppled 0.76->0.57 all IMPROVE while shake peak kinetic energy rises 49.0->60.7, +24% -- fuller boards store more energy, and peak KE is the one proxy historically noted as directionally agreeing with an official component); (b) official single-sample noise. These cannot be distinguished locally. Scoreboard of instrument validity after two official data points: placed/steps/fill direct and consistent; cog and stability local mechanism predictions matched official directions (+2.4%/+0.4%); soft is the SINGLE axis where local said flat and official moved -- treat it as a blind axis whose only reliable readout is an official submission, and treat peak shake KE as the local early-warning proxy for shake-time regressions.",
+      "source": "run 32019553323 rows (shake comparison); config soft counts; docs/OFFICIAL_SCORE_LOG.md submissionquietguard",
+      "values": {
+        "soft_density": "local 26-32% vs official sample 29% (not starved)",
+        "shake_under_guard": "shift/shifted/toppled improve; peak KE +24%",
+        "verdict": "soft = blind axis (post-shake timing or official noise); all other instruments cross-validated"
+      }
     }
   ]
 }
