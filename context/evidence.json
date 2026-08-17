@@ -3252,6 +3252,21 @@
         "footprint": "0.15 s/step shifts timing-dependent search on 3/7 configs",
         "verdict": "instrument fidelity_fail per preregistration; oracle validated; behavioral A/B licensed by gates 1-3"
       }
+    },
+    {
+      "id": "probe-guard-wave1-fail-but-parity",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The probe-guard wave (run 31999156345, 63/63 episodes) adjudicates development_fail_arm_closed, and the failure structure is qualitatively different from the five geometry-proxy closures. What worked: 114 unsafe incumbents detected, 17 physics-approved rescues executed, pooled placed at parity (389 guard vs 390 base -- every prior enforce arm lost 14-37), and the no-harm floor passed on ALL seven configs for the first time in the campaign; transport_invalid endings halved (10 -> 5), meaning guarded episodes stopped dying at the fallback and lived into physical territory. What failed: (1) the mechanism gate -- topple+slide rose 11 -> 16, consistent with rescued episodes surviving longer and then dying physically, a death-channel CONVERSION the rerank-era gate reads as regression; and (2) the null control on b000-k20 (18.0 vs 20.67, floor 1.97) -- the probe's 0.15 s/step timing footprint alone moves outcomes on timing-sensitive configs, reconfirming fidelity gate 4 and partially confounding the wave. Per preregistration the arm closes. What a successor needs, recorded now: a quieter instrument (probe only at triggered steps rather than every step -- the trigger can come from the free calibrated safety logit, cutting the footprint ~20x), and a mechanism gate stated in survival terms (steps/placed) rather than channel counts, since converting an early certain death into a later physical gamble at placed parity is exactly what a rescue does. Both are design changes requiring fresh preregistration, not retunes.",
+      "source": "reports/hazard/probe-guard/adjudication.md; reports/hazard/probe-guard-protocol.md; run 31999156345",
+      "values": {
+        "pooled": "389 vs 390 (parity; prior enforce arms -14 to -37)",
+        "rescues": "17 physics-approved swaps, 114 detections",
+        "channels": "transport 10->5, topple+slide 11->16 (conversion)",
+        "null_breach": "b000-k20 timing footprint",
+        "verdict": "closed per prereg; successor design recorded"
+      }
     }
   ]
 }
