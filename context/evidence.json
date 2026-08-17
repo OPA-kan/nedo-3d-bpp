@@ -3193,6 +3193,21 @@
         "negative_control": "clean in all three waves",
         "verdict": "development_fail_arm_closed; campaign closed, knob stays off"
       }
+    },
+    {
+      "id": "hazard-signal-exists-scalars-transfer",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The selfplay hazard corpus (94,023 schema-2 rows, 5000 episodes, two container geometries, run 31980546799) carries a real de-confounded afterstate-value signal: with evaluation restricted to (container, step) strata -- the only contrast free of the clock confound -- the held-out mlp_scalars arm ranks remaining survival at pooled Spearman rho 0.48 and separates terminal-within-3 boards at pooled AUC 0.835, and the signal TRANSFERS across containers (leave-one-container-out rho 0.41-0.52, AUC 0.80-0.85). Two representation verdicts fall out. First, the transformer rematch at 12x the data that motivated it is lost: attention_grid matches the MLPs within-container (episode folds rho 0.43-0.44) but COLLAPSES across containers (rho 0.09 and -0.09, AUC 0.43-0.57, at or below chance), and mlp_grid degrades the same way in milder form -- grid representations memorize container-specific layout while the container-relative scalar ratios (occupancy/roughness/sealed-void/span/options) are what transfer. The set_attention-ties-mlp result at 7764 rows is therefore not a data-starvation artifact at this architecture and scale. Second, the six-scalar fullness axis plus sealed void, corrected largest-free-span and the legal-options count is a sufficient state representation for this signal; adding the raw 16x12 grid HURTS transfer. Next per the frozen protocol: entry gate -- score deviation-corpus branch siblings with the winning arm against the pooled placed AUC 0.561 bar before any physics or live spend.",
+      "source": "reports/hazard/selfplay-model/training-report.json; reports/hazard/selfplay-hazard-protocol.md; scripts/train_hazard_model.py; run 31980546799",
+      "values": {
+        "corpus": "94023 rows / 5000 episodes / 2 containers",
+        "winner": "mlp_scalars rho 0.484, terminal AUC 0.835 (held-out, within-stratum)",
+        "container_transfer": "rho 0.41-0.52, AUC 0.80-0.85",
+        "attention_cross_container": "rho 0.09 / -0.09, AUC 0.43-0.57 (collapse)",
+        "grid_verdict": "grid representations memorize containers; relative scalars transfer"
+      }
     }
   ]
 }
