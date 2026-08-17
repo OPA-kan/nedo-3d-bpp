@@ -45,3 +45,28 @@ and wave 1's channel gate misread exactly that. An inert arm (zero
 swaps) closes it. Pass licenses fresh-permutation confirmation before
 any default flip. Fail closes the line; no retuning of the trigger,
 thresholds, caps, or slice on these streams.
+
+## Confirmation stage (preregistered before any confirmation result)
+
+Development passed on run 32000938328 (all five gates; placed +7,
+steps +7, 9 rescues). Per the adoption discipline, confirmation runs
+on never-before-used arrival permutations: six fresh streams
+(three per source case, `build_stream_variants` seed 20260817,
+look-ahead 20, same item multisets) x {base, quiet_guard} x 2
+replicates. Gates on the fresh set, all required:
+
+1. Pooled placed strictly higher under quiet_guard.
+2. Paired placed wins >= losses across stream-replicate pairs.
+3. Pooled episode steps strictly higher (the survival mechanism).
+4. Pooled transport_invalid non-increasing.
+5. No stream's mean placed lower by more than three placements
+   (the last-resort confirmation's floor, stricter than the largest
+   measured 2-sd).
+
+Pass: adopt PHYSICS_PROBE_MODE=guard_quiet as the shipped default
+(with SAFETY_RERANK_MODE=shadow and the committed artifact path
+wired), record the adoption, and rebuild the submission artifact.
+Fail: the knob stays off, the line closes, and the result is
+recorded. No retuning on these streams in either case. The
+last-resort relaxation passed development and died exactly here; this
+gate is the real one.
