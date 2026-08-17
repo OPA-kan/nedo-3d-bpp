@@ -3281,6 +3281,20 @@
         "mechanism": "103 detections, 9 physics-approved rescues, 70% steps at 0.3 ms",
         "verdict": "development_pass_gate3_required"
       }
+    },
+    {
+      "id": "quiet-guard-confirmed-adoption-licensed",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The corrected confirmation (run 32002161568, six never-used seed-20260818 streams x {base, quiet_guard} x 2 replicates) passes all five gates: pooled placed 213 versus 194 (+19), pooled steps 225 versus 206, paired 6W/2L, physical deaths non-increasing (6 -> 5 topple+slide with slide eliminated), and every stream within the three-placement floor (worst -1.5). 12 danger detections, 10 physics-approved rescues. Together with the development pass (placed +7 on the guard configs) and confirmation run 1 (+26 on seed-20260817 streams, failed only on the backwards transport gate), the quiet guard has now improved pooled placed on three independent stream sets under three independent preregistrations. Adoption is licensed per the corrected confirmation protocol: PHYSICS_PROBE_MODE=guard_quiet becomes the shipped default with the safety artifact wired; fail-safe by construction (missing pybullet or missing weights degrade bit-identically to the previous default). This is the campaign's first shipped-behavior change.",
+      "source": "reports/quiet-guard-confirmation/rows-corrected.jsonl; reports/hazard/quiet-guard-protocol.md; run 32002161568",
+      "values": {
+        "gates": "5/5 on fresh seed-20260818 streams",
+        "pooled": "placed 213 vs 194, steps 225 vs 206, 6W/2L",
+        "rescues": "10 of 12 detections",
+        "threeway": "+7 dev, +26 conf1, +19 conf2 on independent stream sets"
+      }
     }
   ]
 }
