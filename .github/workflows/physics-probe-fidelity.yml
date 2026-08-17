@@ -1,0 +1,117 @@
+# fidelity wave (physics-probe-protocol.md)
+name: Physics probe fidelity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/v5-hypothesis-validation-cyna2c
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/physics-probe-fidelity.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: probe-fidelity-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, physics_probe]
+        replicate: [0, 1]
+        case:
+          - case_id: b000-k15
+            source_case: "000"
+            look_ahead: 15
+          - case_id: b000-k20
+            source_case: "000"
+            look_ahead: 20
+          - case_id: b000-k40
+            source_case: "000"
+            look_ahead: 40
+          - case_id: b001-k20
+            source_case: "001"
+            look_ahead: 20
+          - case_id: b001-k30
+            source_case: "001"
+            look_ahead: 30
+          - case_id: c000-k1
+            source_case: "000"
+            look_ahead: 1
+          - case_id: c001-k1
+            source_case: "001"
+            look_ahead: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output "reports/hazard/probe-fidelity/${{ matrix.case.case_id }}.json"
+      - name: Run paired-arm episode member
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config "reports/hazard/probe-fidelity/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.replicate }}"
+          --output-dir
+          "reports/hazard/probe-fidelity/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: >-
+            probe-fidelity-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}
+          path: >-
+            reports/hazard/probe-fidelity/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.replicate }}/
+
+  aggregate:
+    needs: episode
+    if: always() && needs.episode.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: probe-fidelity-*
+          path: reports/hazard/probe-fidelity/downloads
+      - name: Combine, summarize, adjudicate
+        run: |
+          mkdir -p reports/hazard/probe-fidelity/aggregate
+          find reports/hazard/probe-fidelity/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/hazard/probe-fidelity/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/hazard/probe-fidelity/aggregate
+          python scripts/analyze_physics_probe.py \
+            --input-dir reports/hazard/probe-fidelity/downloads \
+            --output reports/hazard/probe-fidelity/aggregate/fidelity.json \
+            --markdown reports/hazard/probe-fidelity/aggregate/fidelity.md || true
+          cat reports/hazard/probe-fidelity/aggregate/fidelity.md \
+            >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-fidelity-aggregate
+          path: reports/hazard/probe-fidelity/aggregate/
