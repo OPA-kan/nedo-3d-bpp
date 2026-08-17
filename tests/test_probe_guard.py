@@ -51,7 +51,8 @@ class KnobAndConstantsTests(unittest.TestCase):
     def test_default_mode_is_off_and_constants_are_preregistered(self):
         self.assertEqual(agent.PHYSICS_PROBE_MODE, "off")
         self.assertEqual(
-            agent.PHYSICS_PROBE_MODES, frozenset({"off", "guard"})
+            agent.PHYSICS_PROBE_MODES,
+            frozenset({"off", "guard", "guard_quiet"}),
         )
         self.assertEqual(agent.PHYSICS_PROBE_GUARD_MAX_PROBES, 6)
         self.assertEqual(agent.PHYSICS_PROBE_GUARD_SECONDS, 1.5)
@@ -72,6 +73,25 @@ class KnobAndConstantsTests(unittest.TestCase):
                 os.environ.pop("PHYSICS_PROBE_MODE", None)
             else:
                 os.environ["PHYSICS_PROBE_MODE"] = previous
+
+
+class QuietGuardTests(unittest.TestCase):
+    def test_guard_quiet_is_an_accepted_mode(self):
+        self.assertIn("guard_quiet", agent.PHYSICS_PROBE_MODES)
+
+    def test_skip_rule_none_and_at_or_above_trigger_skip(self):
+        self.assertFalse(agent.quiet_guard_should_probe(None))
+        self.assertFalse(
+            agent.quiet_guard_should_probe(
+                agent.SAFETY_RERANK_TRIGGER_LOGIT
+            )
+        )
+        self.assertFalse(agent.quiet_guard_should_probe(5.7))
+
+    def test_skip_rule_below_trigger_probes(self):
+        self.assertTrue(agent.quiet_guard_should_probe(1.999))
+        self.assertTrue(agent.quiet_guard_should_probe(0.0))
+        self.assertTrue(agent.quiet_guard_should_probe(-3.0))
 
 
 class ProbeGuardChooseTests(unittest.TestCase):

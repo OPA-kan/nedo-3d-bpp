@@ -1,4 +1,4 @@
-# guard wave (probe-guard-protocol.md)
+# quiet-guard wave (quiet-guard-protocol.md)
 name: Physics probe fidelity
 
 on:
@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, probe_null, probe_guard]
+        arm: [base, quiet_null, quiet_guard]
         replicate: [0, 1, 2]
         case:
           - case_id: b000-k15
@@ -108,8 +108,9 @@ jobs:
           python scripts/adjudicate_safety_rerank.py \
             --rows reports/hazard/probe-fidelity/aggregate/rows.jsonl \
             --baseline reports/benchmarks/baseline.json \
-            --null-arm probe_null \
-            --enforce-arm probe_guard \
+            --null-arm quiet_null \
+            --enforce-arm quiet_guard \
+            --mechanism survival \
             --output reports/hazard/probe-fidelity/aggregate/adjudication.json \
             --markdown reports/hazard/probe-fidelity/aggregate/adjudication.md
           cat reports/hazard/probe-fidelity/aggregate/adjudication.md \

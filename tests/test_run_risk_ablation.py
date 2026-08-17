@@ -658,6 +658,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "probe_guard_unsafe_incumbent_count": 0,
                 "probe_guard_swapped_count": 0,
                 "probe_guard_budget_exhausted_count": 0,
+                "probe_guard_quiet_skipped_count": 0,
                 "cross_step_observed_steps": 1,
                 "cross_step_previous_count": 4,
                 "cross_step_pool_survivor_count": 3,
@@ -786,6 +787,67 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         base = {"PHYSICS_PROBE_MODE": "guard"}
         configure_arm_environment(base, "base", 2.0, 0.0)
         self.assertNotIn("PHYSICS_PROBE_MODE", base)
+
+    def test_quiet_null_sets_only_the_log_only_shadow_artifact(self):
+        env = {"PHYSICS_PROBE_MODE": "stale", "SAFETY_RERANK_MODE": "stale"}
+        configure_arm_environment(env, "quiet_null", 2.0, 0.0)
+        self.assertTrue(
+            env["SAFETY_RERANK_SHADOW"].endswith(
+                "candidate-mlp-safety-v1.json"
+            )
+        )
+        self.assertNotIn("PHYSICS_PROBE_MODE", env)
+        self.assertNotIn("SAFETY_RERANK_MODE", env)
+
+    def test_quiet_guard_mirrors_probe_guard_except_the_mode(self):
+        guard: dict[str, str] = {}
+        quiet: dict[str, str] = {}
+        configure_arm_environment(guard, "probe_guard", 2.0, 0.0)
+        configure_arm_environment(quiet, "quiet_guard", 2.0, 0.0)
+
+        self.assertEqual(quiet.pop("PHYSICS_PROBE_MODE"), "guard_quiet")
+        self.assertEqual(guard.pop("PHYSICS_PROBE_MODE"), "guard")
+        self.assertEqual(quiet, guard)
+
+    def test_quiet_skip_events_are_counted(self):
+        records = [
+            {
+                "event": "physics_probe_guard",
+                "step": 0,
+                "probes_used": 0,
+                "incumbent_safe": None,
+                "swapped": False,
+                "swap_rank": None,
+                "elapsed_seconds": 0.0002,
+                "budget_exhausted": False,
+                "quiet_skipped": True,
+                "incumbent_logit": 4.2,
+            },
+            {
+                "event": "physics_probe_guard",
+                "step": 1,
+                "probes_used": 3,
+                "incumbent_safe": False,
+                "swapped": True,
+                "swap_rank": 0,
+                "elapsed_seconds": 0.4,
+                "budget_exhausted": False,
+                "quiet_skipped": False,
+                "incumbent_logit": -1.1,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["probe_guard_observed_steps"], 2)
+        self.assertEqual(summary["probe_guard_quiet_skipped_count"], 1)
+        self.assertEqual(summary["probe_guard_swapped_count"], 1)
 
     def test_probe_guard_summary_counts_unsafe_swaps_and_budget(self):
         records = [

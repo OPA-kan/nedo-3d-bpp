@@ -164,8 +164,11 @@ PHYSICS_PROBE_SHADOW = os.environ.get("PHYSICS_PROBE_SHADOW", "")
 # only when it predicts unsafe, probes alternatives in shipped-score order
 # and plays the first that predicts safe; the incumbent stands otherwise --
 # never refuse, never fall through. The probe physics is
-# physics_probe_settle, reused verbatim.
-PHYSICS_PROBE_MODES = frozenset({"off", "guard"})
+# physics_probe_settle, reused verbatim. "guard_quiet"
+# (reports/hazard/quiet-guard-protocol.md) is the same guard gated by the
+# calibrated safety logit: at or above SAFETY_RERANK_TRIGGER_LOGIT (or on
+# a failed logit) the step plays unchanged with no probe.
+PHYSICS_PROBE_MODES = frozenset({"off", "guard", "guard_quiet"})
 PHYSICS_PROBE_MODE = os.environ.get("PHYSICS_PROBE_MODE", "off")
 if PHYSICS_PROBE_MODE not in PHYSICS_PROBE_MODES:
     raise ValueError(
@@ -7159,6 +7162,18 @@ def probe_guard_choose(
     return incumbent, record
 
 
+def quiet_guard_should_probe(logit):
+    """The quiet guard's trigger rule, pure so it is testable alone.
+
+    quiet-guard-protocol.md: probe only below the calibrated trigger
+    (SAFETY_RERANK_TRIGGER_LOGIT). A None logit -- shadow model missing
+    or the scorer failed -- skips too: the guard never fires blind.
+    """
+    if logit is None:
+        return False
+    return float(logit) < SAFETY_RERANK_TRIGGER_LOGIT
+
+
 class SettledFirstSelector:
     """Current live selection doctrine, isolated from candidate search."""
 
@@ -10438,7 +10453,7 @@ class Agent:
             except Exception:
                 pass
         if (
-            PHYSICS_PROBE_MODE == "guard"
+            PHYSICS_PROBE_MODE in ("guard", "guard_quiet")
             and decision is not None
             and action_source == "placement_core"
         ):
@@ -10451,92 +10466,130 @@ class Agent:
             try:
                 if physics_probe_available():
                     guard_started = time.perf_counter()
-                    guard_deadline = min(
-                        guard_started + PHYSICS_PROBE_GUARD_SECONDS,
-                        deadline,
-                    )
-                    # Alternatives in shipped-score order: the retained
-                    # top candidates first, then -- when the safety-rerank
-                    # machinery has its mode on and so materialized the
-                    # observed legal pool in this scope -- that pool,
-                    # sorted by shipped score descending. With the guard
-                    # alone only last_top_candidates is materialized,
-                    # which the protocol accepts. Deduplicated by action
-                    # key; the incumbent is skipped.
-                    incumbent_key = _safety_rerank_action_key(decision)
-                    seen_keys = {incumbent_key}
-                    guard_alternatives = []
-                    guard_pool = list(self.last_top_candidates or [])
-                    if safety_pool:
-                        guard_pool += sorted(
-                            safety_pool,
-                            key=lambda entry: float(entry.score),
-                            reverse=True,
-                        )
-                    for candidate in guard_pool:
-                        key = _safety_rerank_action_key(candidate)
-                        if key in seen_keys:
-                            continue
-                        seen_keys.add(key)
-                        guard_alternatives.append(candidate)
-                    # Probe order (probe-guard-protocol amendment 1):
-                    # descending safety-model logit when the exported
-                    # ranker is loadable, shipped score otherwise. The
-                    # slice affords only 3-4 settles and unsafe settles
-                    # run the full horizon, so probing in score order
-                    # spends the budget on exactly the candidates most
-                    # likely to waste it; the calibrated model's pick
-                    # precision (19/20 at unsafe-incumbent boards) puts
-                    # a genuinely safe candidate first or second. The
-                    # physics remains the sole arbiter of what plays.
-                    if _safety_shadow_model() is not None:
-                        def _guard_logit(candidate):
-                            try:
-                                logit = safety_shadow_logit(
-                                    observation, candidate
-                                )
-                            except Exception:
-                                logit = None
-                            return (
-                                logit
-                                if logit is not None
-                                else float("-inf")
+                    quiet_mode = PHYSICS_PROBE_MODE == "guard_quiet"
+                    incumbent_logit = None
+                    if quiet_mode:
+                        # Quiet trigger (quiet-guard-protocol.md): price
+                        # the incumbent with the Gate 1 instrument BEFORE
+                        # any probe; at or above the trigger, or on a
+                        # failed logit, the step plays unchanged with no
+                        # probe and the event records the skip.
+                        try:
+                            incumbent_logit = safety_shadow_logit(
+                                observation, decision
                             )
-
-                        guard_alternatives.sort(
-                            key=_guard_logit, reverse=True
-                        )
-                    guard_chosen, guard_record = probe_guard_choose(
-                        decision,
-                        guard_alternatives,
-                        lambda candidate: physics_probe_settle(
-                            observation, candidate
-                        ),
-                        lambda: time.perf_counter() >= guard_deadline,
-                    )
-                    if guard_record["swapped"] and (
-                        guard_chosen is not decision
+                        except Exception:
+                            incumbent_logit = None
+                        if incumbent_logit is not None:
+                            incumbent_logit = float(incumbent_logit)
+                    if quiet_mode and not quiet_guard_should_probe(
+                        incumbent_logit
                     ):
-                        decision = guard_chosen
-                        action_source = "physics_probe_guard"
-                    self._append_policy_trace(
-                        {
-                            "event": "physics_probe_guard",
-                            "step": self._policy_step,
-                            "probes_used": guard_record["probes_used"],
-                            "incumbent_safe": guard_record[
-                                "incumbent_safe"
-                            ],
-                            "swapped": guard_record["swapped"],
-                            "swap_rank": guard_record["swap_rank"],
-                            "elapsed_seconds": float(
-                                time.perf_counter() - guard_started
+                        self._append_policy_trace(
+                            {
+                                "event": "physics_probe_guard",
+                                "step": self._policy_step,
+                                "probes_used": 0,
+                                "incumbent_safe": None,
+                                "swapped": False,
+                                "swap_rank": None,
+                                "elapsed_seconds": float(
+                                    time.perf_counter() - guard_started
+                                ),
+                                "budget_exhausted": False,
+                                "quiet_skipped": True,
+                                "incumbent_logit": incumbent_logit,
+                            }
+                        )
+                    else:
+                        guard_deadline = min(
+                            guard_started + PHYSICS_PROBE_GUARD_SECONDS,
+                            deadline,
+                        )
+                        # Alternatives in shipped-score order: the retained
+                        # top candidates first, then -- when the safety-rerank
+                        # machinery has its mode on and so materialized the
+                        # observed legal pool in this scope -- that pool,
+                        # sorted by shipped score descending. With the guard
+                        # alone only last_top_candidates is materialized,
+                        # which the protocol accepts. Deduplicated by action
+                        # key; the incumbent is skipped.
+                        incumbent_key = _safety_rerank_action_key(decision)
+                        seen_keys = {incumbent_key}
+                        guard_alternatives = []
+                        guard_pool = list(self.last_top_candidates or [])
+                        if safety_pool:
+                            guard_pool += sorted(
+                                safety_pool,
+                                key=lambda entry: float(entry.score),
+                                reverse=True,
+                            )
+                        for candidate in guard_pool:
+                            key = _safety_rerank_action_key(candidate)
+                            if key in seen_keys:
+                                continue
+                            seen_keys.add(key)
+                            guard_alternatives.append(candidate)
+                        # Probe order (probe-guard-protocol amendment 1):
+                        # descending safety-model logit when the exported
+                        # ranker is loadable, shipped score otherwise. The
+                        # slice affords only 3-4 settles and unsafe settles
+                        # run the full horizon, so probing in score order
+                        # spends the budget on exactly the candidates most
+                        # likely to waste it; the calibrated model's pick
+                        # precision (19/20 at unsafe-incumbent boards) puts
+                        # a genuinely safe candidate first or second. The
+                        # physics remains the sole arbiter of what plays.
+                        if _safety_shadow_model() is not None:
+                            def _guard_logit(candidate):
+                                try:
+                                    logit = safety_shadow_logit(
+                                        observation, candidate
+                                    )
+                                except Exception:
+                                    logit = None
+                                return (
+                                    logit
+                                    if logit is not None
+                                    else float("-inf")
+                                )
+
+                            guard_alternatives.sort(
+                                key=_guard_logit, reverse=True
+                            )
+                        guard_chosen, guard_record = probe_guard_choose(
+                            decision,
+                            guard_alternatives,
+                            lambda candidate: physics_probe_settle(
+                                observation, candidate
                             ),
-                            "budget_exhausted": guard_record[
-                                "budget_exhausted"
-                            ],
-                        }
-                    )
+                            lambda: time.perf_counter() >= guard_deadline,
+                        )
+                        if guard_record["swapped"] and (
+                            guard_chosen is not decision
+                        ):
+                            decision = guard_chosen
+                            action_source = "physics_probe_guard"
+                        self._append_policy_trace(
+                            {
+                                "event": "physics_probe_guard",
+                                "step": self._policy_step,
+                                "probes_used": guard_record["probes_used"],
+                                "incumbent_safe": guard_record[
+                                    "incumbent_safe"
+                                ],
+                                "swapped": guard_record["swapped"],
+                                "swap_rank": guard_record["swap_rank"],
+                                "elapsed_seconds": float(
+                                    time.perf_counter() - guard_started
+                                ),
+                                "budget_exhausted": guard_record[
+                                    "budget_exhausted"
+                                ],
+                                "quiet_skipped": False,
+                                "incumbent_logit": incumbent_logit,
+                            }
+                        )
             except Exception:
                 pass
         if decision is not None:

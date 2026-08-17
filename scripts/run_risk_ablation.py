@@ -160,6 +160,8 @@ def configure_arm_environment(
         "physics_probe",
         "probe_null",
         "probe_guard",
+        "quiet_null",
+        "quiet_guard",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -239,6 +241,30 @@ def configure_arm_environment(
             # queue (descending logit) so the 3-4 affordable settles land
             # on the candidates most likely to be safe; physics remains
             # the sole arbiter.
+            env["SAFETY_RERANK_SHADOW"] = str(
+                ROOT / "reports" / "state-model"
+                / "candidate-mlp-safety-v1.json"
+            )
+        elif arm == "quiet_null":
+            # Quiet-guard wave null (quiet-guard-protocol.md): the Gate 1
+            # log-only arm, already measured trajectory-identical to off,
+            # so a floor breach voids the instrument rather than the
+            # interpretation. Only the shadow artifact is set; no mode.
+            env["SAFETY_RERANK_SHADOW"] = str(
+                ROOT / "reports" / "state-model"
+                / "candidate-mlp-safety-v1.json"
+            )
+        elif arm == "quiet_guard":
+            # Quiet-guard enforce arm (quiet-guard-protocol.md): the
+            # calibrated incumbent logit gates the probe; below the
+            # trigger the probe_guard machinery runs unchanged, so the
+            # env mirrors probe_guard except for the mode.
+            env["PHYSICS_PROBE_MODE"] = "guard_quiet"
+            # Shadow mode materializes the observed legal pool for the
+            # guard's alternatives, exactly as in probe_guard.
+            env["SAFETY_RERANK_MODE"] = "shadow"
+            # The exported safety ranker: the quiet trigger's instrument
+            # and (amendment 1) the probe queue's ordering.
             env["SAFETY_RERANK_SHADOW"] = str(
                 ROOT / "reports" / "state-model"
                 / "candidate-mlp-safety-v1.json"
@@ -592,6 +618,7 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "probe_guard_unsafe_incumbent_count": 0,
         "probe_guard_swapped_count": 0,
         "probe_guard_budget_exhausted_count": 0,
+        "probe_guard_quiet_skipped_count": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -703,6 +730,9 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 summary["probe_guard_budget_exhausted_count"] += int(
                     record.get("budget_exhausted") is True
+                )
+                summary["probe_guard_quiet_skipped_count"] += int(
+                    record.get("quiet_skipped") is True
                 )
                 continue
             if record.get("event") != "decision":

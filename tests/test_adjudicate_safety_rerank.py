@@ -176,6 +176,94 @@ class AdjudicateSafetyRerankTests(unittest.TestCase):
         )
         self.assertEqual(result["verdict"], "inert_arm_closed")
 
+    def test_survival_mechanism_gates_on_pooled_steps(self) -> None:
+        # The quiet-guard wave's channel composition: the enforce arm
+        # still dies physically (channel unchanged) but LATER, so the
+        # channel gate fails while the survival gate reads the extra
+        # steps. Steps come from the cases' "steps" field.
+        def row_with_steps(case_id, arm, repeat, placed, channel, steps,
+                           swapped=0):
+            row = _row(case_id, arm, repeat, placed, channel)
+            row["cases"][case_id]["steps"] = steps
+            row["policy_trace"] = {
+                "probe_guard_observed_steps": steps,
+                "probe_guard_unsafe_incumbent_count": swapped,
+                "probe_guard_swapped_count": swapped,
+                "probe_guard_budget_exhausted_count": 0,
+                "probe_guard_quiet_skipped_count": steps - swapped,
+            }
+            return row
+
+        rows = []
+        for repeat in range(3):
+            rows.append(
+                row_with_steps("b000-k20", "base", repeat, 20,
+                               "safe_end", 21)
+            )
+            rows.append(
+                row_with_steps("c000-k1", "base", repeat, 16,
+                               "topple", 17)
+            )
+            rows.append(
+                row_with_steps("b000-k20", "quiet_null", repeat, 20,
+                               "safe_end", 21)
+            )
+            rows.append(
+                row_with_steps("c000-k1", "quiet_null", repeat, 16,
+                               "topple", 17)
+            )
+            rows.append(
+                row_with_steps("b000-k20", "quiet_guard", repeat, 20,
+                               "safe_end", 21, swapped=1)
+            )
+            rows.append(
+                row_with_steps("c000-k1", "quiet_guard", repeat, 19,
+                               "topple", 20, swapped=1)
+            )
+        survival = adjudicate(
+            rows,
+            BASELINE,
+            null_arm="quiet_null",
+            enforce_arm="quiet_guard",
+            mechanism="survival",
+        )
+        self.assertEqual(survival["mechanism"], "survival")
+        self.assertIn("mechanism_pooled_steps_higher", survival["gates"])
+        self.assertNotIn(
+            "mechanism_topple_slide_lower", survival["gates"]
+        )
+        self.assertTrue(
+            survival["gates"]["mechanism_pooled_steps_higher"]
+        )
+        self.assertEqual(
+            survival["pooled_steps"],
+            {"base": 114, "quiet_null": 114, "quiet_guard": 123},
+        )
+        # Channel composition stays reported even though it is not gated.
+        self.assertEqual(
+            survival["pooled_channels"]["quiet_guard"],
+            {"safe_end": 3, "topple": 3},
+        )
+        self.assertTrue(all(survival["gates"].values()))
+        self.assertEqual(
+            survival["verdict"], "development_pass_gate3_required"
+        )
+
+        channels = adjudicate(
+            rows,
+            BASELINE,
+            null_arm="quiet_null",
+            enforce_arm="quiet_guard",
+        )
+        self.assertEqual(channels["mechanism"], "channels")
+        self.assertFalse(
+            channels["gates"]["mechanism_topple_slide_lower"]
+        )
+
+    def test_unknown_mechanism_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            adjudicate([], BASELINE, mechanism="bogus")
+
     def test_failed_processes_are_excluded_by_loader_contract(self) -> None:
         # adjudicate() receives already-filtered rows; collect() must
         # still ignore rows without exactly one case.

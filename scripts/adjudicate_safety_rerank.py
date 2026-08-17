@@ -12,6 +12,12 @@ Later waves reuse the same five gates over differently named arms
 (reports/hazard/probe-guard-protocol.md: {base, probe_null,
 probe_guard}); --null-arm/--enforce-arm rename the arms without
 changing any gate, and default to the Gate 2 names.
+
+--mechanism selects the mechanism gate: "channels" (default) keeps the
+pooled topple+slide comparison; "survival"
+(reports/hazard/quiet-guard-protocol.md) gates on pooled episode STEPS
+strictly higher under the enforce arm than base, with the channel
+table still reported descriptively.
 """
 
 from __future__ import annotations
@@ -61,6 +67,7 @@ def collect(rows: list[dict[str, Any]]) -> dict[str, Any]:
         episodes[(case_id, str(row["arm"]), int(row["repeat"]))] = {
             "placed": int(case.get("placed_count") or 0),
             "fill": float(case.get("fill_score") or 0.0),
+            "steps": int(case.get("steps") or 0),
             "channel": str(case.get("terminal_channel") or "unknown"),
             "triggered": (
                 int(trace.get("safety_rerank_triggered_count") or 0)
@@ -85,7 +92,13 @@ def adjudicate(
     baseline: dict[str, Any],
     null_arm: str = NULL_ARM,
     enforce_arm: str = ENFORCE_ARM,
+    mechanism: str = "channels",
 ) -> dict[str, Any]:
+    if mechanism not in ("channels", "survival"):
+        raise ValueError(
+            f"unknown mechanism {mechanism!r}; "
+            "expected 'channels' or 'survival'"
+        )
     episodes = collect(rows)
     case_ids = sorted({key[0] for key in episodes})
     arms = sorted({key[1] for key in episodes})
@@ -97,6 +110,9 @@ def adjudicate(
 
     def pooled_placed(arm: str) -> int:
         return sum(episode["placed"] for episode in arm_episodes(arm))
+
+    def pooled_steps(arm: str) -> int:
+        return sum(episode["steps"] for episode in arm_episodes(arm))
 
     def pooled_channel(arm: str, channels) -> int:
         return sum(
@@ -180,8 +196,22 @@ def adjudicate(
         episode["enforced"] for episode in arm_episodes(enforce_arm)
     )
 
+    if mechanism == "survival":
+        # quiet-guard-protocol.md gate 1: converting an early fallback
+        # death into later physical survival raises steps even when the
+        # terminal channel stays physical, which the channel gate
+        # misreads. Channels remain reported below, not gated.
+        mechanism_gate = (
+            "mechanism_pooled_steps_higher",
+            pooled_steps(enforce_arm) > pooled_steps(BASE_ARM),
+        )
+    else:
+        mechanism_gate = (
+            "mechanism_topple_slide_lower",
+            gamble_rerank < gamble_base,
+        )
     gates = {
-        "mechanism_topple_slide_lower": gamble_rerank < gamble_base,
+        mechanism_gate[0]: mechanism_gate[1],
         "direction_pooled_placed_higher": (
             placed_rerank > placed_base and wins >= losses
         ),
@@ -225,18 +255,24 @@ def adjudicate(
         for arm in arms
     }
 
+    if mechanism == "survival":
+        protocol = "reports/hazard/quiet-guard-protocol.md"
+    elif (null_arm, enforce_arm) == (NULL_ARM, ENFORCE_ARM):
+        protocol = "reports/state-model/gate2-rerank-protocol.md"
+    else:
+        protocol = "reports/hazard/probe-guard-protocol.md"
     return {
-        "protocol": (
-            "reports/state-model/gate2-rerank-protocol.md"
-            if (null_arm, enforce_arm) == (NULL_ARM, ENFORCE_ARM)
-            else "reports/hazard/probe-guard-protocol.md"
-        ),
+        "protocol": protocol,
         "null_arm": null_arm,
         "enforce_arm": enforce_arm,
+        "mechanism": mechanism,
         "episodes": len(episodes),
         "arms": arms,
         "pooled_placed": {
             arm: pooled_placed(arm) for arm in arms
+        },
+        "pooled_steps": {
+            arm: pooled_steps(arm) for arm in arms
         },
         "pooled_channels": per_arm_channels,
         "paired_placed": {
@@ -267,6 +303,8 @@ def to_markdown(result: dict[str, Any]) -> str:
         f"- episodes: {result['episodes']} across arms "
         f"{result['arms']}",
         f"- pooled placed: {json.dumps(result['pooled_placed'])}",
+        f"- pooled steps: "
+        f"{json.dumps(result.get('pooled_steps', {}))}",
         f"- pooled channels: "
         f"{json.dumps(result['pooled_channels'])}",
         f"- paired placed: {result['paired_placed']['wins']} wins / "
@@ -317,6 +355,16 @@ def main() -> int:
         default=ENFORCE_ARM,
         help="Arm name carrying the behavioral intervention.",
     )
+    parser.add_argument(
+        "--mechanism",
+        choices=("channels", "survival"),
+        default="channels",
+        help=(
+            "Mechanism gate: 'channels' pools topple+slide; 'survival' "
+            "requires pooled episode steps strictly higher under the "
+            "enforce arm than base (channel table stays reported)."
+        ),
+    )
     args = parser.parse_args()
     rows = load_rows(args.rows)
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
@@ -325,6 +373,7 @@ def main() -> int:
         baseline,
         null_arm=args.null_arm,
         enforce_arm=args.enforce_arm,
+        mechanism=args.mechanism,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
