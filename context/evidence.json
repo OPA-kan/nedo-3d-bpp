@@ -3295,6 +3295,19 @@
         "rescues": "10 of 12 detections",
         "threeway": "+7 dev, +26 conf1, +19 conf2 on independent stream sets"
       }
+    },
+    {
+      "id": "guard-attr-filter-inert-on-guard-matrix",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The attribute-filter wave (run 32019553323, 63/63 episodes) closes the arm as INERT on the guard matrix: across 21 guard_attr episodes with 16 rescue swaps, the filter rejected zero alternatives -- at rescue time on these configs, alternatives simply do not carry more attribute violations than incumbents (soft/priority cargo is too sparse in the b-config streams for the clause to bind). Every observed difference between guard_attr and quiet_guard (pooled placed 385 vs 408, a b001-k20 floor breach at 15.0 vs 20.0) is therefore arm-level episode noise, not the filter; the preregistered gates fail on their letter and the knob stays off. Two structural conclusions: (1) the official soft -7.7% regression is NOT reproducible on the local guard matrix -- quiet_guard's local soft_clean (0.981 pooled) actually beat base (0.973) in this same wave, so attacking the official soft component requires either soft/priority-rich local cases (the scenario-matrix m-cases exist for exactly this) or accepting official-submission A/Bs with their single-sample noise; (2) local placed varies by up to 5 between identically-configured arms on this hardware, re-confirming that per-wave floors, not point comparisons, are the only quotable unit. The ladder's rung 2 (probe-everywhere selection) is unaffected and remains the high-upside path.",
+      "source": "reports/hazard/attribute-filter-protocol.md; run 32019553323",
+      "values": {
+        "filtered": "0 across 16 swaps / 21 episodes",
+        "verdict": "inert_arm_closed, knob stays off",
+        "local_soft": "quiet_guard 0.981 vs base 0.973 (official regression not reproduced locally)"
+      }
     }
   ]
 }
