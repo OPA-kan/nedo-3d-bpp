@@ -70,3 +70,30 @@ Fail: the knob stays off, the line closes, and the result is
 recorded. No retuning on these streams in either case. The
 last-resort relaxation passed development and died exactly here; this
 gate is the real one.
+
+## Confirmation run 1 verdict and corrected confirmation
+
+Run 32001795205 (six fresh streams, seed 20260817): pooled placed 210
+versus 184, pooled steps 222 versus 196, paired 5W/1L, every stream at
+or above base (floors +0.0 to +5.0), physical deaths (topple+slide)
+10 -> 7, and 8 physics-approved rescues from 12 detections. Gate 4 as
+written (transport_invalid non-increasing) breached 2 -> 5, so the
+confirmation FAILS on its letter and that verdict is recorded.
+
+The breach is a design contradiction inside this same protocol: the
+development stage explicitly repudiated channel-composition gates
+("converting an early fallback death into later physical survival is
+the mechanism working"), and the confirmation then reintroduced one
+copied from the last-resort protocol, whose mechanism was fallback
+rescue and whose gate direction is exactly backwards for a physical
+guard: episodes that no longer die physically live long enough to
+reach search exhaustion. Physical deaths fell; the conversion is the
+mechanism.
+
+Corrected confirmation, preregistered before any of its results
+exist: same six-stream construction on a NEVER-USED seed (20260818),
+same replicates, gates 1-3 and 5 unchanged, gate 4 restated as pooled
+topple+slide NON-INCREASING (the guard must not create the deaths it
+exists to prevent; fallback conversion is reported, not gated). The
+seed-20260817 streams are burned as development-adjacent and may not
+be reused. No retuning of any mechanism constant.
