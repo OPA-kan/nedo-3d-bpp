@@ -224,6 +224,25 @@ def configure_arm_environment(
             # alternatives and play the first predicted safe. The
             # incumbent stands otherwise.
             env["PHYSICS_PROBE_MODE"] = "guard"
+            # The protocol's alternative pool is "retained top-K, then
+            # observed legal candidates". The observed pool is collected
+            # by the safety-rerank observer, which is gated on
+            # SAFETY_RERANK_MODE != off; with no SAFETY_RERANK_SHADOW
+            # artifact the rerank scorer stays inert (record None), so
+            # shadow mode here materializes the pool and nothing else.
+            # Without this the guard smoke had only the top-3 to probe at
+            # its two triggered steps and both rescues failed for want of
+            # candidates -- the Gate 2c pool bottleneck reproduced inside
+            # the guard.
+            env["SAFETY_RERANK_MODE"] = "shadow"
+            # Amendment 1: the exported safety ranker orders the probe
+            # queue (descending logit) so the 3-4 affordable settles land
+            # on the candidates most likely to be safe; physics remains
+            # the sole arbiter.
+            env["SAFETY_RERANK_SHADOW"] = str(
+                ROOT / "reports" / "state-model"
+                / "candidate-mlp-safety-v1.json"
+            )
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder

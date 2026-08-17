@@ -10479,6 +10479,33 @@ class Agent:
                             continue
                         seen_keys.add(key)
                         guard_alternatives.append(candidate)
+                    # Probe order (probe-guard-protocol amendment 1):
+                    # descending safety-model logit when the exported
+                    # ranker is loadable, shipped score otherwise. The
+                    # slice affords only 3-4 settles and unsafe settles
+                    # run the full horizon, so probing in score order
+                    # spends the budget on exactly the candidates most
+                    # likely to waste it; the calibrated model's pick
+                    # precision (19/20 at unsafe-incumbent boards) puts
+                    # a genuinely safe candidate first or second. The
+                    # physics remains the sole arbiter of what plays.
+                    if _safety_shadow_model() is not None:
+                        def _guard_logit(candidate):
+                            try:
+                                logit = safety_shadow_logit(
+                                    observation, candidate
+                                )
+                            except Exception:
+                                logit = None
+                            return (
+                                logit
+                                if logit is not None
+                                else float("-inf")
+                            )
+
+                        guard_alternatives.sort(
+                            key=_guard_logit, reverse=True
+                        )
                     guard_chosen, guard_record = probe_guard_choose(
                         decision,
                         guard_alternatives,

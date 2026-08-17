@@ -48,3 +48,19 @@ An inert guard (zero swaps) closes the arm. Pass licenses the
 fresh-permutation confirmation before any default flip. Fail closes
 the line with the result recorded; no retuning of thresholds, probe
 counts, or slice on these streams.
+
+## Amendment 1 (2026-08-17, before any wave result opened)
+
+Bring-up smokes exposed a budget interaction: unsafe settles run the
+full horizon (~0.4 s) while safe ones early-stop (~0.15 s), so probing
+alternatives in shipped-score order spends the 1.5 s slice on exactly
+the candidates most likely to waste it (both triggered steps exhausted
+at 3-4 probes, zero rescues). Amended probe order: descending
+calibrated safety-model logit when the exported ranker is loadable
+(the probe_guard arm supplies the artifact), shipped score otherwise.
+The physics remains the sole arbiter of what plays; the model only
+orders the queue. Third smoke with the amendment: the step-15 fatal
+incumbent was detected, the model's first-ranked alternative passed
+physics on probe 2, the swap played, and the episode survived its
+previously fatal step (placed 17 -> 19). One episode is bring-up
+evidence only; the wave adjudicates.
