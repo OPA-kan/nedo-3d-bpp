@@ -97,6 +97,7 @@ def configure_arm_environment(
         "LAST_RESORT_RELAXATION_SECONDS",
         "SAFETY_RERANK_MODE",
         "VISIBLE_TREE_SEARCH",
+        "PHYSICS_PROBE_SHADOW",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -155,6 +156,7 @@ def configure_arm_environment(
         "tree_shadow",
         "tree_null",
         "tree_search",
+        "physics_probe",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -201,6 +203,12 @@ def configure_arm_environment(
             # Enforce arm: swap the played action to the best root under
             # the preregistered tie-band rule.
             env["VISIBLE_TREE_SEARCH"] = "enforce"
+        elif arm == "physics_probe":
+            # In-process physics probe shadow
+            # (reports/hazard/physics-probe-protocol.md). Log-only: the
+            # played action never changes; every placement-core step gains
+            # a physics_probe trace event with the predicted settle.
+            env["PHYSICS_PROBE_SHADOW"] = "1"
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder
@@ -543,6 +551,9 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "visible_tree_would_change_count": 0,
         "visible_tree_enforced_count": 0,
         "visible_tree_budget_exhausted_count": 0,
+        "physics_probe_observed_steps": 0,
+        "physics_probe_failed_steps": 0,
+        "physics_probe_unsafe_predictions": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -631,6 +642,18 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 summary["visible_tree_budget_exhausted_count"] += int(
                     record.get("budget_exhausted") is True
                 )
+                continue
+            if record.get("event") == "physics_probe":
+                summary["physics_probe_observed_steps"] += 1
+                # An event whose predicted values are missing is a probe
+                # that fired but failed inside pybullet.
+                if (
+                    record.get("angle_deg") is None
+                    or record.get("displacement") is None
+                ):
+                    summary["physics_probe_failed_steps"] += 1
+                elif record.get("predicted_safe") is False:
+                    summary["physics_probe_unsafe_predictions"] += 1
                 continue
             if record.get("event") != "decision":
                 continue

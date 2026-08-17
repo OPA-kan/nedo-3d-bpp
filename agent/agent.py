@@ -151,6 +151,35 @@ VISIBLE_TREE_SEARCH_RECEPTIVITY_WEIGHT = 0.01
 # ordering with the shipped release checks, at most this many
 # validations, while the budget affords them.
 VISIBLE_TREE_SEARCH_CHECKS_PER_ITEM = 24
+# In-process physics probe (reports/hazard/physics-probe-protocol.md).
+# Log-only: when non-empty, after every placement-core decision is
+# frozen the chosen candidate is replayed in a DIRECT pybullet scene
+# rebuilt from the observation, and the predicted settle motion is
+# appended to the policy trace. The played action never changes; if
+# pybullet is not importable the probe disables itself permanently and
+# the agent behaves exactly as shipped. Empty disables.
+PHYSICS_PROBE_SHADOW = os.environ.get("PHYSICS_PROBE_SHADOW", "")
+# The official settle horizon (settle_wait_step: 300 in the development
+# configs, simulator/configs/sample_config.json). The observation does
+# not carry the validator config, so the probe cannot read it live.
+PHYSICS_PROBE_SETTLE_STEPS = 300
+# Official settle thresholds (validator.place_item displacement_threshold
+# 0.3; the 30-degree angle channel of terminal_failure_channel). The raw
+# probe values are recorded so any threshold can be re-applied.
+PHYSICS_PROBE_DISPLACEMENT_THRESHOLD = 0.3
+PHYSICS_PROBE_ANGLE_THRESHOLD_DEG = 30.0
+# Orientation euler table copied verbatim from
+# simulator/src/ground_handling/utils.py ORNS -- the table the
+# validator uses for every warp. tests/test_physics_probe.py compares
+# the two entry by entry.
+SIMULATOR_ORNS = (
+    (0.0, 0.0, 0.0),
+    (math.pi / 2, 0.0, 0.0),
+    (0.0, math.pi / 2, 0.0),
+    (0.0, 0.0, math.pi / 2),
+    (0.0, math.pi / 2, math.pi / 2),
+    (math.pi / 2, 0.0, math.pi / 2),
+)
 TRANSPORT_SAMPLE_STEP = 0.03
 SIMULATOR_DROP_HEIGHT = 0.08
 SIMULATOR_START_MARGIN = 0.01
@@ -6737,6 +6766,326 @@ def visible_tree_search_record(
     return record, proposed
 
 
+_PHYSICS_PROBE_STATE = {"module": None, "import_failed": False, "client": None}
+
+
+def _physics_probe_bullet():
+    """Lazy pybullet loader; import failure disables the probe forever.
+
+    The import is deliberately function-local: the shipped agent must
+    load unchanged in an environment without pybullet, so the module can
+    never be imported at module scope.
+    """
+    if _PHYSICS_PROBE_STATE["import_failed"]:
+        return None
+    if _PHYSICS_PROBE_STATE["module"] is None:
+        try:
+            import pybullet
+        except ImportError:
+            _PHYSICS_PROBE_STATE["import_failed"] = True
+            return None
+        _PHYSICS_PROBE_STATE["module"] = pybullet
+    return _PHYSICS_PROBE_STATE["module"]
+
+
+def physics_probe_available():
+    return _physics_probe_bullet() is not None
+
+
+def _physics_probe_client(bullet):
+    """One cached DIRECT client; the scene is rebuilt fresh per call."""
+    client = _PHYSICS_PROBE_STATE["client"]
+    if client is None:
+        client = bullet.connect(bullet.DIRECT)
+        _PHYSICS_PROBE_STATE["client"] = client
+    return client
+
+
+def _physics_probe_item_dynamics(item_dict):
+    """Official item dynamics (simulator/src/ground_handling/items.py).
+
+    Item.spawn applies the Item instance values, which the observation
+    dicts carry verbatim (Item.get_info), so per-item config overrides
+    ride along; the fallbacks are the items.py class defaults.
+    """
+    params = {
+        "lateralFriction": float(item_dict.get("lateralFriction", 0.8)),
+        "rollingFriction": float(item_dict.get("rollingFriction", 0.01)),
+        "spinningFriction": float(item_dict.get("spinningFriction", 0.01)),
+        "restitution": float(item_dict.get("restitution", 0.0)),
+        "angularDamping": float(item_dict.get("angularDamping", 0.8)),
+    }
+    if item_dict.get("is_soft"):
+        params.update(
+            {
+                "contactStiffness": float(
+                    item_dict.get("contactStiffness", 5000)
+                ),
+                "contactDamping": float(item_dict.get("contactDamping", 500)),
+                "linearDamping": float(item_dict.get("linearDamping", 0.8)),
+            }
+        )
+    return params
+
+
+def _physics_probe_box(
+    bullet, client, half_extents, center, orn=(0.0, 0.0, 0.0, 1.0),
+    mass=0.0, dynamics=None,
+):
+    shape = bullet.createCollisionShape(
+        bullet.GEOM_BOX,
+        halfExtents=[float(value) for value in half_extents],
+        physicsClientId=client,
+    )
+    body = bullet.createMultiBody(
+        baseMass=float(mass),
+        baseCollisionShapeIndex=shape,
+        basePosition=[float(value) for value in center],
+        baseOrientation=[float(value) for value in orn],
+        physicsClientId=client,
+    )
+    if dynamics is None:
+        # Static container geometry dynamics (Container._create_body).
+        dynamics = {
+            "lateralFriction": 0.8,
+            "rollingFriction": 0.01,
+            "spinningFriction": 0.01,
+        }
+    bullet.changeDynamics(body, -1, physicsClientId=client, **dynamics)
+    return body
+
+
+def physics_probe_settle(observation, decision):
+    """Replay the frozen decision's settle in a DIRECT pybullet scene.
+
+    Frame: everything is container-local, the frame of place_pos itself.
+    The simulator offsets containers on world X only (Container
+    local_to_global), so container-local z equals world z, the
+    packed_aabbs_local centers drop in directly, and no conversion is
+    needed for any body in the scene.
+
+    The scene clones the validator.place_item contract: gravity -9.8,
+    deterministic overlapping pairs, packed items at their settled poses
+    with the official dynamics, then the candidate warped to its command
+    pose and stepped for the official settle horizon. Log-only: the
+    decision is never touched. Returns {angle_deg, displacement,
+    predicted_safe, scene_bodies, elapsed_seconds} or None on failure.
+    """
+    bullet = _physics_probe_bullet()
+    if bullet is None or decision is None:
+        return None
+    started = time.perf_counter()
+    client = None
+    try:
+        containers = observation.get("container_list", [])
+        pool_list = observation.get("pool_list", [])
+        container_idx = int(decision.action["container_idx"])
+        item_idx = int(decision.action["item_idx"])
+        orientation = int(decision.action["orientation"])
+        if not 0 <= container_idx < len(containers):
+            return None
+        if not 0 <= item_idx < len(pool_list):
+            return None
+        if not 0 <= orientation < len(SIMULATOR_ORNS):
+            return None
+        container = containers[container_idx]
+        length = float(container["length"])
+        width = float(container["width"])
+        height = float(container["height"])
+        thickness = float(container["thickness"])
+        buffer = float(container.get("buffer", 0.0))
+
+        client = _physics_probe_client(bullet)
+        bullet.resetSimulation(physicsClientId=client)
+        bullet.setGravity(0.0, 0.0, -9.8, physicsClientId=client)
+        bullet.setPhysicsEngineParameter(
+            deterministicOverlappingPairs=1, physicsClientId=client
+        )
+
+        # Envelope approximation, v1: a static floor box at the interior
+        # floor height (thickness + buffer, the cup mesh's inner bottom)
+        # plus four static wall boxes on the outer footprint, plus the
+        # shelf boxes the agent already models (shelf_aabbs: the small
+        # shelf over the cut, and the main shelf when the container
+        # requires one). The corner cut's sloped face is omitted, and
+        # the loading opening at y=-width/2 that the real container
+        # leaves open is closed by a wall.
+        floor_top = thickness + buffer
+        scene_bodies = 0
+        _physics_probe_box(
+            bullet,
+            client,
+            (length / 2.0, width / 2.0, thickness / 2.0),
+            (0.0, 0.0, floor_top - thickness / 2.0),
+        )
+        scene_bodies += 1
+        wall_center_z = buffer + height / 2.0
+        for sign in (-1.0, 1.0):
+            _physics_probe_box(
+                bullet,
+                client,
+                (thickness / 2.0, width / 2.0, height / 2.0),
+                (sign * (length / 2.0 - thickness / 2.0), 0.0, wall_center_z),
+            )
+            scene_bodies += 1
+            _physics_probe_box(
+                bullet,
+                client,
+                (length / 2.0, thickness / 2.0, height / 2.0),
+                (0.0, sign * (width / 2.0 - thickness / 2.0), wall_center_z),
+            )
+            scene_bodies += 1
+        for shelf in shelf_aabbs(container):
+            _physics_probe_box(bullet, client, tuple(
+                float(value) / 2.0 for value in shelf.size
+            ), shelf.center)
+            scene_bodies += 1
+
+        # Packed items at their settled poses. packed_aabbs_local is the
+        # canonical reader of the packed_items dicts; mass and dynamics
+        # come from a parallel walk over the same list under the same
+        # skip rule, so the two stay index-aligned.
+        boxes = packed_aabbs_local(container)
+        packed_meta = []
+        for packed in container.get("packed_items", []):
+            try:
+                packed_position_world(packed)
+                packed_dimensions(packed)
+            except (KeyError, TypeError, ValueError):
+                continue
+            packed_meta.append(packed)
+        if len(packed_meta) != len(boxes):
+            packed_meta = [{} for _ in boxes]
+        dynamic_bodies = []
+        for (box, is_soft, _is_priority), packed in zip(boxes, packed_meta):
+            entry = packed if packed else {"is_soft": is_soft}
+            # Settled pose: the true box (original dims at the settled
+            # quaternion) whenever the dict carries one. The axis-aligned
+            # settled AABB is only the fallback -- for a tilted settled
+            # item the AABB overestimates the envelope and the warped
+            # scene starts interpenetrated, which both distorts the
+            # settle and keeps the contact solver jittering for the full
+            # horizon.
+            settled_orn = entry.get("orn")
+            if (
+                settled_orn is not None
+                and len(settled_orn) == 4
+                and entry.get("length") is not None
+                and entry.get("width") is not None
+                and entry.get("height") is not None
+            ):
+                packed_half = (
+                    float(entry["length"]) / 2.0,
+                    float(entry["width"]) / 2.0,
+                    float(entry["height"]) / 2.0,
+                )
+                packed_orn = tuple(float(value) for value in settled_orn)
+            else:
+                packed_half = tuple(
+                    float(value) / 2.0 for value in box.size
+                )
+                packed_orn = (0.0, 0.0, 0.0, 1.0)
+            packed_body = _physics_probe_box(
+                bullet,
+                client,
+                packed_half,
+                box.center,
+                orn=packed_orn,
+                mass=float(entry.get("mass", 1.0)),
+                dynamics=_physics_probe_item_dynamics(entry),
+            )
+            scene_bodies += 1
+            dynamic_bodies.append(packed_body)
+
+        # The candidate, warped to its command pose exactly as
+        # validator.place_item does before its settle loop.
+        item = pool_list[item_idx]
+        target_pos = tuple(
+            float(value) for value in decision.action["place_pos"]
+        )
+        target_orn = bullet.getQuaternionFromEuler(
+            list(SIMULATOR_ORNS[orientation])
+        )
+        candidate_body = _physics_probe_box(
+            bullet,
+            client,
+            (
+                float(item["length"]) / 2.0,
+                float(item["width"]) / 2.0,
+                float(item["height"]) / 2.0,
+            ),
+            target_pos,
+            orn=target_orn,
+            mass=float(item.get("mass", 1.0)),
+            dynamics=_physics_probe_item_dynamics(item),
+        )
+        scene_bodies += 1
+        dynamic_bodies.append(candidate_body)
+
+        # Official settle horizon, with the official builder's early
+        # stop cloned from MultiContainerManager.build: after a 60-step
+        # warmup, break once every dynamic body's velocity is under
+        # 1 mm/s. The horizon and criterion are the simulator's own
+        # constants; steps skipped this way cannot move a settled body.
+        for settle_step in range(PHYSICS_PROBE_SETTLE_STEPS):
+            bullet.stepSimulation(physicsClientId=client)
+            if settle_step > 60:
+                all_sleeping = True
+                for body in dynamic_bodies:
+                    linear_v, angular_v = bullet.getBaseVelocity(
+                        body, physicsClientId=client
+                    )
+                    if (
+                        sum(abs(value) for value in linear_v) > 0.001
+                        or sum(abs(value) for value in angular_v) > 0.001
+                    ):
+                        all_sleeping = False
+                        break
+                if all_sleeping:
+                    break
+
+        final_pos, final_orn = bullet.getBasePositionAndOrientation(
+            candidate_body, physicsClientId=client
+        )
+        displacement = math.sqrt(
+            sum(
+                (float(final_value) - float(target_value)) ** 2
+                for final_value, target_value in zip(final_pos, target_pos)
+            )
+        )
+        # Same quaternion angle as validator.place_item.
+        dot_product = min(
+            1.0,
+            abs(
+                sum(
+                    float(a) * float(b)
+                    for a, b in zip(target_orn, final_orn)
+                )
+            ),
+        )
+        angle_deg = math.degrees(2.0 * math.acos(dot_product))
+        return {
+            "angle_deg": float(angle_deg),
+            "displacement": float(displacement),
+            "predicted_safe": bool(
+                displacement <= PHYSICS_PROBE_DISPLACEMENT_THRESHOLD
+                and angle_deg <= PHYSICS_PROBE_ANGLE_THRESHOLD_DEG
+            ),
+            "scene_bodies": int(scene_bodies),
+            "elapsed_seconds": float(time.perf_counter() - started),
+        }
+    except Exception:
+        return None
+    finally:
+        # The client is cached; the bodies are not. Reset so calls do
+        # not leak scene state into each other.
+        if client is not None:
+            try:
+                bullet.resetSimulation(physicsClientId=client)
+            except Exception:
+                pass
+
+
 class SettledFirstSelector:
     """Current live selection doctrine, isolated from candidate search."""
 
@@ -9982,6 +10331,39 @@ class Agent:
                         "elapsed_seconds": tree_record["elapsed_seconds"],
                     }
                 )
+        if (
+            PHYSICS_PROBE_SHADOW
+            and decision is not None
+            and action_source == "placement_core"
+        ):
+            # Log-only, same discipline as the shadows above: the probe
+            # runs only after every live selection decision is frozen and
+            # never touches the action. Without pybullet the probe is
+            # unavailable and leaves zero footprint (no event); a probe
+            # that fails at runtime logs null fields so the failure rate
+            # stays measurable.
+            try:
+                if physics_probe_available():
+                    probe_record = (
+                        physics_probe_settle(observation, decision) or {}
+                    )
+                    self._append_policy_trace(
+                        {
+                            "event": "physics_probe",
+                            "step": self._policy_step,
+                            "angle_deg": probe_record.get("angle_deg"),
+                            "displacement": probe_record.get("displacement"),
+                            "predicted_safe": probe_record.get(
+                                "predicted_safe"
+                            ),
+                            "scene_bodies": probe_record.get("scene_bodies"),
+                            "elapsed_seconds": probe_record.get(
+                                "elapsed_seconds"
+                            ),
+                        }
+                    )
+            except Exception:
+                pass
         if decision is not None:
             self.last_action_source = action_source
             self.last_candidate_kind = (

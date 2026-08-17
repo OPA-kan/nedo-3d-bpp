@@ -651,6 +651,9 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "visible_tree_would_change_count": 0,
                 "visible_tree_enforced_count": 0,
                 "visible_tree_budget_exhausted_count": 0,
+                "physics_probe_observed_steps": 0,
+                "physics_probe_failed_steps": 0,
+                "physics_probe_unsafe_predictions": 0,
                 "cross_step_observed_steps": 1,
                 "cross_step_previous_count": 4,
                 "cross_step_pool_survivor_count": 3,
@@ -709,6 +712,60 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "multi_axis_pareto_front_count": 0,
             },
         )
+
+    def test_physics_probe_summary_counts_failed_and_unsafe(self):
+        records = [
+            {
+                "event": "physics_probe",
+                "step": 0,
+                "angle_deg": 1.2,
+                "displacement": 0.01,
+                "predicted_safe": True,
+                "scene_bodies": 7,
+                "elapsed_seconds": 0.04,
+            },
+            {
+                "event": "physics_probe",
+                "step": 1,
+                "angle_deg": 88.0,
+                "displacement": 0.6,
+                "predicted_safe": False,
+                "scene_bodies": 8,
+                "elapsed_seconds": 0.05,
+            },
+            {
+                "event": "physics_probe",
+                "step": 2,
+                "angle_deg": None,
+                "displacement": None,
+                "predicted_safe": None,
+                "scene_bodies": None,
+                "elapsed_seconds": None,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["physics_probe_observed_steps"], 3)
+        self.assertEqual(summary["physics_probe_failed_steps"], 1)
+        self.assertEqual(summary["physics_probe_unsafe_predictions"], 1)
+        self.assertEqual(summary["decision_count"], 0)
+
+    def test_physics_probe_arm_sets_only_the_shadow_knob(self):
+        env = {"PHYSICS_PROBE_SHADOW": "stale", "VISIBLE_TREE_SEARCH": "on"}
+        configure_arm_environment(env, "physics_probe", 2.0, 0.0)
+        self.assertEqual(env["PHYSICS_PROBE_SHADOW"], "1")
+        self.assertNotIn("VISIBLE_TREE_SEARCH", env)
+
+        base = {"PHYSICS_PROBE_SHADOW": "stale"}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        self.assertNotIn("PHYSICS_PROBE_SHADOW", base)
 
     def test_multi_axis_shadow_summary_counts_proposals(self):
         record = {
