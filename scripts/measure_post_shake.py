@@ -8,16 +8,40 @@ offline: rebuild each recorded episode's final settled state in a DIRECT
 pybullet world, apply the official shake, and recompute the coverage
 rules on the post-shake poses.
 
-## Reconstruction method (and its limits)
+## Reconstruction methods (and their limits)
 
-Source of truth per episode: the run directory's evaluation_results.json
-written by scripts/run_test.py via run_risk_ablation. Each step in
-evaluation.step_metrics whose status.is_placed_safe is true records the
-placed item's settled world pose (settle_final_position /
-settle_final_quaternion, world frame; containers offset on world X
-only). validator.place_item removes unsafely-placed items from the
-world, so the safely-placed steps are exactly the official shake's item
-population (Evaluator._live_poses walks container.packed_items).
+Two sources of truth per episode, selected by --from-snapshots:
+
+1. Default (step-metrics mode). The run directory's
+   evaluation_results.json written by scripts/run_test.py via
+   run_risk_ablation. Each step in evaluation.step_metrics whose
+   status.is_placed_safe is true records the placed item's settled
+   world pose (settle_final_position / settle_final_quaternion, world
+   frame; containers offset on world X only). validator.place_item
+   removes unsafely-placed items from the world, so the safely-placed
+   steps are exactly the official shake's item population
+   (Evaluator._live_poses walks container.packed_items). This mode
+   FAILED its fidelity gate (reports/hazard/post-shake/verdict.md):
+   each pose is recorded at the item's OWN placement step and later
+   placements disturb it unrecorded.
+
+2. --from-snapshots (pose-snapshot mode). The run directory's
+   policy-trace.jsonl, recorded with NEDO_POSE_SNAPSHOT=1
+   (run_risk_ablation --pose-snapshot): every policy step appends a
+   pose_snapshot event carrying the CURRENT pose of every packed item
+   as the env itself reports it in the observation's container_list
+   (containers.update_packed_items refreshes ALL packed poses after
+   each safe placement). The LAST snapshot therefore sees every
+   disturbance up to the final decision. It cannot see the final
+   placement itself (no observation follows it), so any safe placement
+   at a step >= the snapshot step is supplemented from that step's own
+   settle_final pose in step_metrics -- the freshest record that
+   exists for it. Remaining residual: whatever the final placement (or
+   a terminal UNSAFE attempt's 300-step settle) moves afterwards is
+   unrecorded in both modes. The trace file may span several cases;
+   it is split into per-episode segments at the agent's init events,
+   which run in config order -- the same order evaluation_results.json
+   preserves.
 
 The world is rebuilt with the OFFICIAL classes imported from
 simulator/src/ground_handling -- not copies: MultiContainerManager.build
@@ -49,11 +73,14 @@ episode can continue; nothing here continues).
 
 Known limits, stated rather than hidden:
 
-1. Stale poses. An item's pose is recorded at ITS placement step; later
-   placements (including the 300-step settle of a final UNSAFE attempt)
-   can nudge it afterwards, and no later record exists. The pre-shake
-   re-settle re-derives consistent contacts but cannot recover a
-   later shift. The fidelity gate measures whether this matters.
+1. Stale poses (step-metrics mode). An item's pose is recorded at ITS
+   placement step; later placements (including the 300-step settle of a
+   final UNSAFE attempt) can nudge it afterwards, and no later record
+   exists. The pre-shake re-settle re-derives consistent contacts but
+   cannot recover a later shift. The fidelity gate measured this and it
+   is exactly what failed. Snapshot mode shrinks the stale window to
+   the final placement's own disturbance (and a terminal unsafe
+   settle), which remains unrecorded in both modes.
 2. The recorded shake ran in the live end-of-episode world; the cloned
    shake runs in the rebuilt one. Solver state (velocities are zero at
    rebuild; warm-start caches differ) is not reproduced.
@@ -88,6 +115,7 @@ tuned to pass.
 from __future__ import annotations
 
 import argparse
+import copy
 import glob
 import json
 import math
@@ -402,16 +430,149 @@ def parse_label(run_dir_name):
     return None, None
 
 
+def _item_configs_by_index(case_config):
+    """Every item config the episode can contain, keyed by index.
+
+    The stream items plus any pre-packed container items (pre-packed
+    items appear in pose snapshots too; the stream never reuses their
+    indices)."""
+    configs = {
+        int(entry["index"]): entry
+        for entry in case_config["item_stream"]["item_list"]
+    }
+    for container in (case_config.get("containers") or {}).get(
+        "container_list", []
+    ):
+        for entry in container.get("packed_items") or []:
+            configs.setdefault(int(entry["index"]), entry)
+    return configs
+
+
+def split_trace_episodes(trace_events):
+    """Split a policy-trace event stream into per-episode segments.
+
+    The agent appends one init event per episode (get_init_states), and
+    run_test executes cases in config order, so segment i belongs to
+    the i-th case of the run's config/evaluation_results.json. Events
+    before the first init (none in practice) form a leading segment.
+    """
+    episodes = []
+    current = None
+    for event in trace_events:
+        if event.get("event") == "init":
+            current = [event]
+            episodes.append(current)
+            continue
+        if current is None:
+            current = [event]
+            episodes.append(current)
+            continue
+        current.append(event)
+    return episodes
+
+
+def extract_placed_from_snapshots(case_config, case_record, trace_events):
+    """Placed items from the LAST pose_snapshot event of one episode.
+
+    The snapshot at policy step S carries the env-refreshed current
+    pose (pos + orn quaternion, world frame) of every item packed by
+    env steps 0..S-1, disturbances included. Safe placements the
+    snapshot cannot contain -- normally exactly the final step's --
+    are supplemented from their own settle_final pose in step_metrics,
+    the freshest record that exists for them. Returns
+    (placed, skipped_steps, info); raises ValueError when the trace has
+    no pose_snapshot events.
+    """
+    snapshots = [
+        event
+        for event in trace_events
+        if event.get("event") == "pose_snapshot"
+    ]
+    if not snapshots:
+        raise ValueError("no pose_snapshot events in policy trace")
+    snapshot = snapshots[-1]
+    item_configs = _item_configs_by_index(case_config)
+    placed = []
+    seen = set()
+    missing_pose = []
+    for container in snapshot.get("containers") or []:
+        container_index = int(container.get("container_index", 0))
+        for entry in container.get("packed_items") or []:
+            index = int(entry.get("index", -1))
+            config = item_configs.get(index)
+            position = entry.get("pos")
+            quaternion = entry.get("orn")
+            if config is None or position is None or quaternion is None:
+                missing_pose.append(index)
+                continue
+            placed.append(
+                {
+                    "item_config": config,
+                    "container_index": container_index,
+                    "position": [float(value) for value in position],
+                    "quaternion": [float(value) for value in quaternion],
+                }
+            )
+            seen.add(index)
+    snapshot_items = len(placed)
+
+    # Supplement: safely-placed items absent from the snapshot (their
+    # placement postdates it, or their snapshot pose was unreadable).
+    supplemented = []
+    skipped = []
+    steps = (case_record.get("evaluation") or {}).get("step_metrics") or []
+    for step in steps:
+        status = step.get("status") or {}
+        if status.get("is_placed_safe") is not True:
+            continue
+        index = step.get("selected_item_index")
+        if index is None or int(index) in seen:
+            continue
+        index = int(index)
+        config = item_configs.get(index)
+        position = step.get("settle_final_position")
+        quaternion = step.get("settle_final_quaternion")
+        if config is None or position is None or quaternion is None:
+            skipped.append(int(step.get("step", -1)))
+            continue
+        placed.append(
+            {
+                "item_config": config,
+                "container_index": int(step.get("container_index", 0)),
+                "position": [float(value) for value in position],
+                "quaternion": [float(value) for value in quaternion],
+            }
+        )
+        seen.add(index)
+        supplemented.append(index)
+
+    info = {
+        "reconstruction": "snapshots",
+        "snapshot_step": int(snapshot.get("step", -1)),
+        "snapshot_events": len(snapshots),
+        "snapshot_items": snapshot_items,
+        "supplemented_item_indices": supplemented,
+        "snapshot_missing_pose_indices": missing_pose,
+    }
+    return placed, skipped, info
+
+
 # --- Physics half: rebuild and shake (requires pybullet) ---
 
 
-def rebuild_and_shake(config, case_record):
+def rebuild_and_shake(config, case_record, placed=None, skipped=None):
     """Rebuild the recorded final state and run the official shake.
 
     Returns the official shake_response dict plus post-shake coverage
     and rebuild diagnostics. Imports the simulator's own modules so the
     container mesh, item dynamics, shake schedule and metrics are the
     official code, not copies.
+
+    placed=None extracts the step-metrics reconstruction (default
+    mode). A caller passing a snapshot reconstruction supplies placed
+    (and skipped) itself; pre-packed container items are then spawned
+    from the snapshot poses like everything else, so the manager builds
+    empty containers to avoid duplicating them.
     """
     if str(SIMULATOR) not in sys.path:
         sys.path.insert(0, str(SIMULATOR))
@@ -422,7 +583,14 @@ def rebuild_and_shake(config, case_record):
     from src.ground_handling.evaluator import Evaluator
     from src.ground_handling.items import Item
 
-    placed, skipped = extract_placed(config, case_record)
+    containers_config = config["containers"]
+    if placed is None:
+        placed, skipped = extract_placed(config, case_record)
+    else:
+        skipped = list(skipped or [])
+        containers_config = copy.deepcopy(containers_config)
+        for entry in containers_config["container_list"]:
+            entry["packed_items"] = []
 
     client = bullet_client.BulletClient(
         connection_mode=pybullet.DIRECT
@@ -434,7 +602,7 @@ def rebuild_and_shake(config, case_record):
         client.setGravity(0, 0, -9.8)
         client.loadURDF("plane.urdf")
         manager = MultiContainerManager(
-            client=client, config=config["containers"]
+            client=client, config=containers_config
         )
         manager.build()
 
@@ -601,7 +769,7 @@ def load_configs(config_paths):
     return cases
 
 
-def measure_run_dir(run_dir, configs):
+def measure_run_dir(run_dir, configs, from_snapshots=False):
     """One row per case in the run dir's evaluation_results.json."""
     run_dir = pathlib.Path(run_dir)
     results_path = run_dir / "evaluation_results.json"
@@ -609,8 +777,22 @@ def measure_run_dir(run_dir, configs):
         return []
     payload = json.loads(results_path.read_text(encoding="utf-8"))
     arm, repeat = parse_label(run_dir.name)
+    trace_episodes = None
+    if from_snapshots:
+        trace_path = run_dir / "policy-trace.jsonl"
+        trace_events = []
+        if trace_path.exists():
+            for line in trace_path.read_text(
+                encoding="utf-8"
+            ).splitlines():
+                line = line.strip()
+                if line:
+                    trace_events.append(json.loads(line))
+        trace_episodes = split_trace_episodes(trace_events)
     rows = []
-    for case_id, case_record in payload.items():
+    for case_position, (case_id, case_record) in enumerate(
+        payload.items()
+    ):
         if not isinstance(case_record, dict):
             continue
         config = configs.get(case_id)
@@ -627,7 +809,28 @@ def measure_run_dir(run_dir, configs):
         }
         if config is None:
             row["error"] = "no config for case"
+        elif from_snapshots:
+            row["reconstruction_mode"] = "snapshots"
+            if case_position >= len(trace_episodes):
+                row["error"] = (
+                    "policy trace has fewer episodes than "
+                    "evaluation_results.json has cases"
+                )
+            else:
+                try:
+                    placed, skipped, info = extract_placed_from_snapshots(
+                        config,
+                        case_record,
+                        trace_episodes[case_position],
+                    )
+                    row["reconstruction"] = info
+                    row["cloned"] = rebuild_and_shake(
+                        config, case_record, placed=placed, skipped=skipped
+                    )
+                except Exception as error:  # surface, never drop
+                    row["error"] = f"{type(error).__name__}: {error}"
         else:
+            row["reconstruction_mode"] = "step_metrics"
             try:
                 row["cloned"] = rebuild_and_shake(config, case_record)
             except Exception as error:  # surface, never silently drop
@@ -689,12 +892,20 @@ def render_markdown(validation):
             return "-"
         return f"{value:.{digits}f}"
 
+    mode = validation.get("reconstruction_mode", "step_metrics")
     lines = [
         "# Post-shake instrument fidelity verdict",
         "",
         "Protocol: `reports/hazard/post-shake-instrument-protocol.md`. "
         "Cloned = official shake re-run on the rebuilt final state; "
-        "recorded = the episode's own end-of-run shake_response.",
+        "recorded = the episode's own end-of-run shake_response. "
+        f"Reconstruction mode: `{mode}` "
+        + (
+            "(last pose_snapshot trace event, settle_final supplement "
+            "for placements the snapshot postdates)."
+            if mode == "snapshots"
+            else "(per-step settle_final poses only)."
+        ),
         "",
         f"- episodes joined: {gates['episodes']} "
         f"(arms: {json.dumps(validation['episodes_by_arm'], sort_keys=True)})",
@@ -825,6 +1036,16 @@ def main():
         "repeatable.",
     )
     parser.add_argument(
+        "--from-snapshots",
+        action="store_true",
+        help="Rebuild each episode from the LAST pose_snapshot event "
+        "in its run's policy-trace.jsonl (recorded with "
+        "NEDO_POSE_SNAPSHOT=1), supplemented by settle_final poses for "
+        "safe placements the snapshot postdates. Default: rebuild from "
+        "per-step settle_final poses alone (the mode that failed its "
+        "fidelity gate).",
+    )
+    parser.add_argument(
         "--validate",
         action="store_true",
         help="Join cloned metrics with each episode's recorded "
@@ -848,9 +1069,18 @@ def main():
 
     rows = []
     for run_dir in run_dirs:
-        rows.extend(measure_run_dir(run_dir, configs))
+        rows.extend(
+            measure_run_dir(
+                run_dir, configs, from_snapshots=args.from_snapshots
+            )
+        )
 
-    payload: dict[str, Any] = {"rows": rows}
+    payload: dict[str, Any] = {
+        "reconstruction_mode": (
+            "snapshots" if args.from_snapshots else "step_metrics"
+        ),
+        "rows": rows,
+    }
     if args.validate:
         joined = join_for_gates(rows)
         by_arm: dict[str, int] = {}

@@ -100,6 +100,7 @@ def configure_arm_environment(
         "PHYSICS_PROBE_SHADOW",
         "PHYSICS_PROBE_MODE",
         "PHYSICS_PROBE_ATTR_FILTER",
+        "NEDO_POSE_SNAPSHOT",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -1064,6 +1065,7 @@ def run_episode(
     output_dir: pathlib.Path,
     open_final_holdout: bool = False,
     slide_lambda: float = 0.0,
+    pose_snapshot: bool = False,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     case_ids = list(config)
@@ -1086,6 +1088,12 @@ def run_episode(
     configure_arm_environment(env, arm, risk_lambda, slide_lambda)
     trace_path = run_dir / "policy-trace.jsonl"
     env["NEDO_POLICY_TRACE_PATH"] = str(trace_path.resolve())
+    if pose_snapshot:
+        # Orthogonal to the arm on purpose: the pose snapshot is a
+        # log-only diagnostic (registered semantic=false), so any arm can
+        # carry it and the trace gains per-step pose_snapshot events that
+        # measure_post_shake.py --from-snapshots can rebuild from.
+        env["NEDO_POSE_SNAPSHOT"] = "1"
 
     record_from_env(1)
     result = run(
@@ -1115,6 +1123,7 @@ def run_episode(
         "slide_lambda": slide_lambda if slide_lambda > 0.0 else None,
         "repeat": repeat,
         "config": config_path.name,
+        "pose_snapshot": bool(pose_snapshot),
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"
         ),
@@ -2151,6 +2160,18 @@ def main() -> int:
             "final evaluation (protocol section 7)."
         ),
     )
+    parser.add_argument(
+        "--pose-snapshot",
+        action="store_true",
+        help=(
+            "Set NEDO_POSE_SNAPSHOT=1 for the episode (any arm): the "
+            "policy trace gains a log-only per-step pose_snapshot event "
+            "with the current pose of every packed item, which "
+            "measure_post_shake.py --from-snapshots reconstructs from. "
+            "Registered diagnostic (semantic=false); the played "
+            "trajectory is unchanged."
+        ),
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2178,6 +2199,7 @@ def main() -> int:
         args.output_dir,
         open_final_holdout=args.open_final_holdout,
         slide_lambda=args.slide_lambda,
+        pose_snapshot=args.pose_snapshot,
     )
     print(json.dumps({k: row[k] for k in ("label", "cases")}, indent=1))
     return 0 if row["process_returncode"] == 0 else 1

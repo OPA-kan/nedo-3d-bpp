@@ -12,9 +12,11 @@ from scripts.measure_post_shake import (
     covers_from_above,
     evaluate_gates,
     extract_placed,
+    extract_placed_from_snapshots,
     join_for_gates,
     parse_label,
     spearman,
+    split_trace_episodes,
 )
 
 PYBULLET_AVAILABLE = importlib.util.find_spec("pybullet") is not None
@@ -313,6 +315,178 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual([row["label"] for row in joined], ["a"])
 
 
+def snapshot_event(step, packed, container_index=0):
+    return {
+        "event": "pose_snapshot",
+        "step": step,
+        "containers": [
+            {"container_index": container_index, "packed_items": packed}
+        ],
+    }
+
+
+def packed_entry(index, pos, orn=(0.0, 0.0, 0.0, 1.0), **flags):
+    entry = {
+        "index": index,
+        "pos": list(pos) if pos is not None else None,
+        "orn": list(orn) if orn is not None else None,
+        "dims": [0.4, 0.4, 0.2],
+        "is_soft": False,
+        "is_prioritized": False,
+    }
+    entry.update(flags)
+    return entry
+
+
+class SplitTraceEpisodesTest(unittest.TestCase):
+    def test_splits_at_init_events(self):
+        events = [
+            {"event": "init"},
+            {"event": "pose_snapshot", "step": 0},
+            {"event": "decision", "step": 0},
+            {"event": "init"},
+            {"event": "decision", "step": 0},
+        ]
+        episodes = split_trace_episodes(events)
+        self.assertEqual(len(episodes), 2)
+        self.assertEqual(len(episodes[0]), 3)
+        self.assertEqual(len(episodes[1]), 2)
+
+    def test_events_before_first_init_form_a_segment(self):
+        events = [{"event": "decision", "step": 0}, {"event": "init"}]
+        episodes = split_trace_episodes(events)
+        self.assertEqual(len(episodes), 2)
+
+
+class SnapshotExtractionTest(unittest.TestCase):
+    def case_config(self):
+        return {
+            "containers": {
+                "container_list": [
+                    {
+                        "index": 0,
+                        "packed_items": [
+                            {
+                                "index": 9,
+                                "length": 0.5,
+                                "width": 0.5,
+                                "height": 0.3,
+                            }
+                        ],
+                    }
+                ]
+            },
+            "item_stream": {
+                "item_list": [
+                    {"index": 0, "length": 0.4, "width": 0.4, "height": 0.2},
+                    {"index": 7, "length": 0.3, "width": 0.3, "height": 0.3},
+                ]
+            },
+        }
+
+    def step(self, step, index, z, safe=True):
+        return {
+            "step": step,
+            "selected_item_index": index,
+            "container_index": 0,
+            "status": {"is_placed_safe": safe},
+            "settle_final_position": [0.0, 0.0, z],
+            "settle_final_quaternion": [0.0, 0.0, 0.0, 1.0],
+        }
+
+    def test_last_snapshot_wins_and_final_step_is_supplemented(self):
+        # Item 0 placed at step 0; by the final observation (step 1's
+        # snapshot) it has been disturbed to a different pose. Item 7 is
+        # placed at step 1, AFTER the last snapshot, so only its own
+        # settle_final pose exists.
+        trace = [
+            {"event": "init"},
+            snapshot_event(0, []),
+            snapshot_event(
+                1, [packed_entry(0, (0.5, 0.5, 0.1), is_soft=True)]
+            ),
+        ]
+        record = {
+            "evaluation": {
+                "step_metrics": [
+                    self.step(0, 0, 0.1),
+                    self.step(1, 7, 0.3),
+                ]
+            }
+        }
+        placed, skipped, info = extract_placed_from_snapshots(
+            self.case_config(), record, trace
+        )
+        self.assertEqual(skipped, [])
+        self.assertEqual(len(placed), 2)
+        by_index = {
+            entry["item_config"]["index"]: entry for entry in placed
+        }
+        # The snapshot's disturbed pose, not step 0's settle_final.
+        self.assertEqual(by_index[0]["position"], [0.5, 0.5, 0.1])
+        # The supplemented final placement.
+        self.assertEqual(by_index[7]["position"], [0.0, 0.0, 0.3])
+        self.assertEqual(info["snapshot_step"], 1)
+        self.assertEqual(info["snapshot_events"], 2)
+        self.assertEqual(info["snapshot_items"], 1)
+        self.assertEqual(info["supplemented_item_indices"], [7])
+
+    def test_unsafe_final_step_is_not_supplemented(self):
+        trace = [
+            snapshot_event(1, [packed_entry(0, (0.0, 0.0, 0.1))]),
+        ]
+        record = {
+            "evaluation": {
+                "step_metrics": [
+                    self.step(0, 0, 0.1),
+                    self.step(1, 7, 0.3, safe=False),
+                ]
+            }
+        }
+        placed, skipped, info = extract_placed_from_snapshots(
+            self.case_config(), record, trace
+        )
+        self.assertEqual([e["item_config"]["index"] for e in placed], [0])
+        self.assertEqual(info["supplemented_item_indices"], [])
+
+    def test_prepacked_items_resolve_their_container_config(self):
+        trace = [
+            snapshot_event(0, [packed_entry(9, (0.1, 0.1, 0.15))]),
+        ]
+        record = {"evaluation": {"step_metrics": []}}
+        placed, skipped, info = extract_placed_from_snapshots(
+            self.case_config(), record, trace
+        )
+        self.assertEqual(len(placed), 1)
+        self.assertEqual(placed[0]["item_config"]["length"], 0.5)
+
+    def test_null_snapshot_pose_falls_back_to_settle_final(self):
+        trace = [
+            snapshot_event(
+                1,
+                [
+                    packed_entry(0, None, orn=None),
+                ],
+            ),
+        ]
+        record = {"evaluation": {"step_metrics": [self.step(0, 0, 0.1)]}}
+        placed, skipped, info = extract_placed_from_snapshots(
+            self.case_config(), record, trace
+        )
+        self.assertEqual(len(placed), 1)
+        self.assertEqual(placed[0]["position"], [0.0, 0.0, 0.1])
+        self.assertEqual(info["snapshot_missing_pose_indices"], [0])
+        self.assertEqual(info["supplemented_item_indices"], [0])
+
+    def test_no_snapshot_events_raises(self):
+        with self.assertRaises(ValueError):
+            extract_placed_from_snapshots(
+                self.case_config(),
+                {"evaluation": {"step_metrics": []}},
+                [{"event": "init"}, {"event": "decision", "step": 0}],
+            )
+
+
 def _load_official_diagnostics():
     module_path = (
         ROOT / "simulator" / "src" / "ground_handling" / "diagnostics.py"
@@ -455,3 +629,44 @@ class RebuildAndShakeTest(unittest.TestCase):
         self.assertIn("post_shake_priority_clean", metrics)
         self.assertIsNone(metrics["post_shake_priority_clean"])
         self.assertLess(metrics["resettle_max_shift"], 0.5)
+
+    def test_rebuild_from_snapshot_reconstruction(self):
+        from scripts.measure_post_shake import (
+            extract_placed_from_snapshots,
+            rebuild_and_shake,
+        )
+
+        record = self.case_record()
+        trace = [
+            {"event": "init"},
+            {
+                "event": "pose_snapshot",
+                "step": 1,
+                "containers": [
+                    {
+                        "container_index": 0,
+                        "packed_items": [
+                            {
+                                "index": 0,
+                                "pos": [0.0, 0.2, 0.14],
+                                "orn": [0.0, 0.0, 0.0, 1.0],
+                                "dims": [0.5, 0.4, 0.2],
+                                "is_soft": False,
+                                "is_prioritized": False,
+                            }
+                        ],
+                    }
+                ],
+            },
+        ]
+        placed, skipped, info = extract_placed_from_snapshots(
+            self.minimal_config(), record, trace
+        )
+        # Item 1's placement postdates the snapshot: supplemented.
+        self.assertEqual(info["supplemented_item_indices"], [1])
+        metrics = rebuild_and_shake(
+            self.minimal_config(), record, placed=placed, skipped=skipped
+        )
+        self.assertEqual(metrics["items_rebuilt"], 2)
+        self.assertEqual(metrics["shake_items"], 2)
+        self.assertGreaterEqual(metrics["shake_peak_kinetic_energy"], 0.0)

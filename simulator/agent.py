@@ -164,6 +164,18 @@ VISIBLE_TREE_SEARCH_CHECKS_PER_ITEM = 24
 # pybullet is not importable the probe disables itself permanently and
 # the agent behaves exactly as shipped. Empty disables.
 PHYSICS_PROBE_SHADOW = os.environ.get("PHYSICS_PROBE_SHADOW", "")
+# Per-step pose snapshot (reports/hazard/post-shake/verdict.md, "what
+# would close the gap"). Log-only diagnostic: when "1" and a policy
+# trace path is active, every policy step appends a compact
+# "pose_snapshot" trace event recording the CURRENT pose of every
+# packed item exactly as this observation's container_list reports it.
+# The env refreshes ALL packed poses after each safe placement
+# (containers.update_packed_items), so the last snapshot of an episode
+# carries every disturbance that the per-item placement-step record
+# misses -- except whatever the final placement itself moves, which has
+# no later observation. Nothing on any decision path changes; empty
+# disables.
+NEDO_POSE_SNAPSHOT = os.environ.get("NEDO_POSE_SNAPSHOT", "")
 # Behavioral probe guard (reports/hazard/probe-guard-protocol.md). "guard"
 # probes the frozen placement-core choice with the same settle clone and,
 # only when it predicts unsafe, probes alternatives in shipped-score order
@@ -10026,6 +10038,64 @@ class Agent:
         self.last_candidate_kind = None
         pool_list = observation.get("pool_list", [])
         containers = observation.get("container_list", [])
+        if NEDO_POSE_SNAPSHOT and self._policy_trace_path:
+            # Log-only, same discipline as the trace shadows below: record
+            # what the observation already carries, touch nothing. Each
+            # packed_items entry is Item.get_info(): pos is the world
+            # position and orn the world quaternion, both refreshed by the
+            # env after every safe placement, so this is the current pose,
+            # not the placement-step pose. Recorded verbatim (null when the
+            # env has not registered a pose).
+            try:
+                snapshot_containers = []
+                for container_pos, container in enumerate(containers):
+                    packed_entries = []
+                    for packed in container.get("packed_items") or []:
+                        pos = packed.get("pos")
+                        orn = packed.get("orn")
+                        packed_entries.append(
+                            {
+                                "index": int(packed.get("index", -1)),
+                                "pos": (
+                                    [float(value) for value in pos]
+                                    if pos is not None
+                                    else None
+                                ),
+                                "orn": (
+                                    [float(value) for value in orn]
+                                    if orn is not None
+                                    else None
+                                ),
+                                "dims": [
+                                    float(packed.get("length", 0.0)),
+                                    float(packed.get("width", 0.0)),
+                                    float(packed.get("height", 0.0)),
+                                ],
+                                "is_soft": bool(
+                                    packed.get("is_soft", False)
+                                ),
+                                "is_prioritized": bool(
+                                    packed.get("is_prioritized", False)
+                                ),
+                            }
+                        )
+                    snapshot_containers.append(
+                        {
+                            "container_index": int(
+                                container.get("index", container_pos)
+                            ),
+                            "packed_items": packed_entries,
+                        }
+                    )
+                self._append_policy_trace(
+                    {
+                        "event": "pose_snapshot",
+                        "step": self._policy_step,
+                        "containers": snapshot_containers,
+                    }
+                )
+            except Exception:
+                pass
         ordered_items = capped_online_items(
             pool_list,
             effective_online_item_cap(observation),
