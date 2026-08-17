@@ -98,6 +98,68 @@ class QuietGuardTests(unittest.TestCase):
         self.assertTrue(agent.quiet_guard_should_probe(-3.0))
 
 
+class GuardAttrFilterTests(unittest.TestCase):
+    def test_filter_knob_defaults_off(self):
+        # attribute-filter-protocol.md: the filter ships off until the
+        # preregistered wave passes.
+        self.assertFalse(agent.PHYSICS_PROBE_ATTR_FILTER)
+
+    def test_equal_violations_stay_eligible(self):
+        self.assertTrue(agent.guard_attr_eligible((1, 2), (1, 2)))
+        self.assertTrue(agent.guard_attr_eligible((0, 0), (0, 0)))
+
+    def test_higher_priority_violations_are_ineligible(self):
+        self.assertFalse(agent.guard_attr_eligible((1, 2), (2, 2)))
+        self.assertFalse(agent.guard_attr_eligible((0, 0), (1, 0)))
+
+    def test_higher_soft_violations_are_ineligible(self):
+        self.assertFalse(agent.guard_attr_eligible((1, 2), (1, 3)))
+        self.assertFalse(agent.guard_attr_eligible((0, 0), (0, 1)))
+
+    def test_lower_both_stay_eligible(self):
+        self.assertTrue(agent.guard_attr_eligible((1, 2), (0, 1)))
+        self.assertTrue(agent.guard_attr_eligible((2, 2), (0, 0)))
+
+    def test_filtered_alternative_is_skipped_without_a_probe(self):
+        incumbent = _FakeDecision(0, (0, 0, 0), 5.0)
+        alternatives = [
+            _FakeDecision(1, (1, 0, 0), 4.9),
+            _FakeDecision(2, (2, 0, 0), 4.8),
+        ]
+        violations = {
+            id(incumbent): (1, 1),
+            id(alternatives[0]): (2, 1),
+            id(alternatives[1]): (0, 0),
+        }
+        probe = _probe_fn([False, True])
+        chosen, record = agent.probe_guard_choose(
+            incumbent,
+            alternatives,
+            probe,
+            _never_expired,
+            violations_fn=lambda decision: violations[id(decision)],
+        )
+        self.assertIs(chosen, alternatives[1])
+        self.assertEqual(record["attr_filtered_count"], 1)
+        self.assertEqual(record["probes_used"], 2)
+        self.assertEqual(record["swap_rank"], 1)
+        self.assertEqual(probe.calls, [incumbent, alternatives[1]])
+
+    def test_a_none_violation_pair_leaves_the_alternative_unfiltered(self):
+        incumbent = _FakeDecision(0, (0, 0, 0), 5.0)
+        alternatives = [_FakeDecision(1, (1, 0, 0), 4.9)]
+        probe = _probe_fn([False, True])
+        chosen, record = agent.probe_guard_choose(
+            incumbent,
+            alternatives,
+            probe,
+            _never_expired,
+            violations_fn=lambda decision: None,
+        )
+        self.assertIs(chosen, alternatives[0])
+        self.assertEqual(record["attr_filtered_count"], 0)
+
+
 class ProbeGuardChooseTests(unittest.TestCase):
     def setUp(self):
         self.incumbent = _FakeDecision(0, (0, 0, 0), 5.0)

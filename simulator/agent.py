@@ -194,6 +194,17 @@ if PHYSICS_PROBE_MODE not in PHYSICS_PROBE_MODES:
         f"unknown PHYSICS_PROBE_MODE {PHYSICS_PROBE_MODE!r}; "
         f"expected one of {sorted(PHYSICS_PROBE_MODES)}"
     )
+# Guard attribute filter (reports/hazard/attribute-filter-protocol.md).
+# "1": while the guard rescues a predicted-unsafe incumbent, an
+# alternative whose candidate_attribute_violations exceed the
+# incumbent's own on either the priority or the soft count is skipped
+# before it is probed; if every safe alternative worsens coverage the
+# incumbent stands. Trigger, probe order, physics arbitration, caps and
+# never-refuse: unchanged. Default off until the preregistered wave
+# passes.
+PHYSICS_PROBE_ATTR_FILTER = (
+    os.environ.get("PHYSICS_PROBE_ATTR_FILTER", "0") == "1"
+)
 # Fixed by the frozen protocol, so source literals rather than knobs: at
 # most this many probes per step (the incumbent's included) and this
 # wall-clock slice, clamped to the shipped policy deadline.
@@ -7138,12 +7149,29 @@ def physics_probe_settle(observation, decision):
                 pass
 
 
+def guard_attr_eligible(incumbent_violations, alternative_violations):
+    """The attribute-filter clause, pure so it is testable alone.
+
+    attribute-filter-protocol.md: an alternative is ineligible if it
+    INCREASES priority or soft coverage violations relative to the
+    incumbent's own. Equal counts stay eligible. Both arguments are
+    (priority, soft) pairs from candidate_attribute_violations.
+    """
+    incumbent_priority, incumbent_soft = incumbent_violations
+    alternative_priority, alternative_soft = alternative_violations
+    return (
+        int(alternative_priority) <= int(incumbent_priority)
+        and int(alternative_soft) <= int(incumbent_soft)
+    )
+
+
 def probe_guard_choose(
     incumbent,
     alternatives,
     probe_fn,
     deadline_fn,
     max_probes=PHYSICS_PROBE_GUARD_MAX_PROBES,
+    violations_fn=None,
 ):
     """The guard's decision rule, pure so it is testable with stubs.
 
@@ -7156,6 +7184,14 @@ def probe_guard_choose(
     incumbent's included) and the deadline. Never refuse: with no safe
     alternative, or on budget exhaustion, the incumbent stands.
     Returns (chosen, record).
+
+    violations_fn (attribute-filter-protocol.md): when set, it maps a
+    decision to its (priority, soft) attribute violations, or None on
+    failure. The incumbent's pair is computed once, only after an
+    unsafe verdict; an alternative failing guard_attr_eligible against
+    it is skipped BEFORE its probe, spending no probe budget, and
+    counted in attr_filtered_count. A None pair on either side leaves
+    that alternative unfiltered.
     """
     record = {
         "probes_used": 0,
@@ -7163,6 +7199,7 @@ def probe_guard_choose(
         "swapped": False,
         "swap_rank": None,
         "budget_exhausted": False,
+        "attr_filtered_count": 0,
     }
     if deadline_fn():
         record["budget_exhausted"] = True
@@ -7177,7 +7214,17 @@ def probe_guard_choose(
     )
     if predicted_safe is not False:
         return incumbent, record
+    incumbent_violations = (
+        violations_fn(incumbent) if violations_fn is not None else None
+    )
     for rank, alternative in enumerate(alternatives):
+        if incumbent_violations is not None:
+            alternative_violations = violations_fn(alternative)
+            if alternative_violations is not None and not guard_attr_eligible(
+                incumbent_violations, alternative_violations
+            ):
+                record["attr_filtered_count"] += 1
+                continue
         if record["probes_used"] >= max_probes or deadline_fn():
             record["budget_exhausted"] = True
             return incumbent, record
@@ -10544,6 +10591,7 @@ class Agent:
                                 "budget_exhausted": False,
                                 "quiet_skipped": True,
                                 "incumbent_logit": incumbent_logit,
+                                "attr_filtered_count": 0,
                             }
                         )
                     else:
@@ -10603,6 +10651,32 @@ class Agent:
                             guard_alternatives.sort(
                                 key=_guard_logit, reverse=True
                             )
+                        # Attribute filter (attribute-filter-protocol.md):
+                        # only when the knob is on, price each candidate's
+                        # incremental priority/soft coverage violations with
+                        # the same contract the offline scorer uses. A
+                        # failure returns None, which leaves that candidate
+                        # unfiltered -- the filter must never block the
+                        # rescue by erroring.
+                        guard_violations_fn = None
+                        if PHYSICS_PROBE_ATTR_FILTER:
+                            def guard_violations_fn(candidate):
+                                try:
+                                    return candidate_attribute_violations(
+                                        observation["pool_list"][
+                                            int(candidate.action["item_idx"])
+                                        ],
+                                        candidate.candidate,
+                                        observation["container_list"][
+                                            int(
+                                                candidate.action[
+                                                    "container_idx"
+                                                ]
+                                            )
+                                        ],
+                                    )
+                                except Exception:
+                                    return None
                         guard_chosen, guard_record = probe_guard_choose(
                             decision,
                             guard_alternatives,
@@ -10610,6 +10684,7 @@ class Agent:
                                 observation, candidate
                             ),
                             lambda: time.perf_counter() >= guard_deadline,
+                            violations_fn=guard_violations_fn,
                         )
                         if guard_record["swapped"] and (
                             guard_chosen is not decision
@@ -10634,6 +10709,9 @@ class Agent:
                                 ],
                                 "quiet_skipped": False,
                                 "incumbent_logit": incumbent_logit,
+                                "attr_filtered_count": guard_record[
+                                    "attr_filtered_count"
+                                ],
                             }
                         )
             except Exception:

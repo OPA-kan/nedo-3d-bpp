@@ -99,6 +99,7 @@ def configure_arm_environment(
         "VISIBLE_TREE_SEARCH",
         "PHYSICS_PROBE_SHADOW",
         "PHYSICS_PROBE_MODE",
+        "PHYSICS_PROBE_ATTR_FILTER",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -162,6 +163,7 @@ def configure_arm_environment(
         "probe_guard",
         "quiet_null",
         "quiet_guard",
+        "guard_attr",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -269,6 +271,18 @@ def configure_arm_environment(
                 ROOT / "reports" / "state-model"
                 / "candidate-mlp-safety-v1.json"
             )
+        elif arm == "guard_attr":
+            # Attribute-filter wave (attribute-filter-protocol.md): the
+            # shipped quiet guard's env plus the filter knob, so the
+            # contrast against quiet_guard is the swap-eligibility clause
+            # alone.
+            env["PHYSICS_PROBE_MODE"] = "guard_quiet"
+            env["SAFETY_RERANK_MODE"] = "shadow"
+            env["SAFETY_RERANK_SHADOW"] = str(
+                ROOT / "reports" / "state-model"
+                / "candidate-mlp-safety-v1.json"
+            )
+            env["PHYSICS_PROBE_ATTR_FILTER"] = "1"
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder
@@ -619,6 +633,7 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "probe_guard_swapped_count": 0,
         "probe_guard_budget_exhausted_count": 0,
         "probe_guard_quiet_skipped_count": 0,
+        "probe_guard_attr_filtered_count": 0,
         "cross_step_observed_steps": 0,
         "cross_step_previous_count": 0,
         "cross_step_pool_survivor_count": 0,
@@ -733,6 +748,9 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 )
                 summary["probe_guard_quiet_skipped_count"] += int(
                     record.get("quiet_skipped") is True
+                )
+                summary["probe_guard_attr_filtered_count"] += int(
+                    record.get("attr_filtered_count") or 0
                 )
                 continue
             if record.get("event") != "decision":

@@ -659,6 +659,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "probe_guard_swapped_count": 0,
                 "probe_guard_budget_exhausted_count": 0,
                 "probe_guard_quiet_skipped_count": 0,
+                "probe_guard_attr_filtered_count": 0,
                 "cross_step_observed_steps": 1,
                 "cross_step_previous_count": 4,
                 "cross_step_pool_survivor_count": 3,

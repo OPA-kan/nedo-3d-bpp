@@ -1,4 +1,4 @@
-# quiet-guard wave (quiet-guard-protocol.md)
+# attribute-filter wave (attribute-filter-protocol.md)
 name: Physics probe fidelity
 
 on:
@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arm: [base, quiet_null, quiet_guard]
+        arm: [base, quiet_guard, guard_attr]
         replicate: [0, 1, 2]
         case:
           - case_id: b000-k15
@@ -105,14 +105,18 @@ jobs:
           python scripts/run_risk_ablation.py \
             --summarize \
             --output-dir reports/hazard/probe-fidelity/aggregate
+          # Advisory only: quiet_guard is not a physical null, and the
+          # binding gates (attribute-filter-protocol.md) are adjudicated
+          # offline from the rows.
           python scripts/adjudicate_safety_rerank.py \
             --rows reports/hazard/probe-fidelity/aggregate/rows.jsonl \
             --baseline reports/benchmarks/baseline.json \
-            --null-arm quiet_null \
-            --enforce-arm quiet_guard \
+            --null-arm quiet_guard \
+            --enforce-arm guard_attr \
             --mechanism survival \
             --output reports/hazard/probe-fidelity/aggregate/adjudication.json \
-            --markdown reports/hazard/probe-fidelity/aggregate/adjudication.md
+            --markdown reports/hazard/probe-fidelity/aggregate/adjudication.md \
+            || true
           cat reports/hazard/probe-fidelity/aggregate/adjudication.md \
             >> "$GITHUB_STEP_SUMMARY"
           python scripts/analyze_physics_probe.py \
