@@ -3222,6 +3222,20 @@
         "in_env_signal": "rho 0.48 / AUC 0.835 held-out",
         "verdict": "entry gate failed; line closed per preregistered falsification clause"
       }
+    },
+    {
+      "id": "tree-search-stage1-fail-line-closed",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The visible-pool tree search passed stage 0 (mechanism alive at 23.8% would-change, zero behavioral footprint, budget-neutral) and failed stage 1 (run 31991555287): 93 enforced swaps produced pooled placed 372 versus base 386, paired 4W/7L, and a no-harm breach on b000-k20 (-3.33 vs floor 1.97), with the tree_null negative control within every floor. Topple+slide dipped 14->12 but the placed cost fails direction and no-harm; the line closes with VISIBLE_TREE_SEARCH default off. This is the fifth independent failure of a geometry-proxy-driven intervention (v5/v6 features, vacuum cutoff, safety rerank, hazard value, tree search): orderings computed on heightmap geometry do not survive the physics that ends episodes, whether used to predict value or to steer search. The successor is the in-process physics probe: pybullet is importable inside the agent process, a DIRECT-client drop probe on a 30-box scene costs 40 ms and a mini-shake 19 ms (measured), and its preregistered fidelity gate is reproducing the 14 recorded Gate 1 fatal actions before any behavioral wiring. The shake-scored components flagged as under-optimized are attackable by the same instrument.",
+      "source": "reports/hazard/tree-stage1-verdict.md; reports/hazard/visible-tree-search-protocol.md; run 31991555287",
+      "values": {
+        "stage1": "372 vs 386 pooled, 4W/7L, b000-k20 breach",
+        "swaps": 93,
+        "verdict": "closed, knob off",
+        "successor": "in-process physics probe (40ms/candidate)"
+      }
     }
   ]
 }
