@@ -866,8 +866,18 @@ suggestion to re-run a closed line.
    full pool — safety-selected placements are bad board moves whose
    costs compound (the min-q collapse at pool scale). The binding
    constraint on the topple channel is afterstate VALUE, not safety
-   perception; the successor is the selfplay-scale V(s) line (task 4's
-   AUC 0.561 bar) feeding hazard pricing, not another swap rule.
+   perception. The selfplay hazard line then ran and CLOSED at its
+   preregistered entry gate (2026-08-17,
+   `hazard-entry-gate-failed-line-closed`): the model that robustly
+   predicts survival inside the physics-free world (rho 0.48, AUC
+   0.835, clean cross-container transfer; transformer rematch lost on
+   transfer at 12x data) scores real branch siblings at AUC 0.512
+   versus the 0.561 bar — the fourth independent representation to
+   fail it. Cheap decision-time state summaries do not carry
+   real-physics episode value here, even when they carry value in a
+   correlated synthetic world. What remains open is mid-game search
+   and labels from real physics at scale; the 94k-row corpus, trainer
+   and gate evaluator are committed as reusable instruments.
 3. **State-dependent risk pricing** is the ledger's own named lever for
    the topple channel (`terminal-failure-channels`: most fatal topples
    sat in the ambiguous P band, "insufficient endgame penalty"). Entry

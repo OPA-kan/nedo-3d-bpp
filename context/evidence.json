@@ -3208,6 +3208,20 @@
         "attention_cross_container": "rho 0.09 / -0.09, AUC 0.43-0.57 (collapse)",
         "grid_verdict": "grid representations memorize containers; relative scalars transfer"
       }
+    },
+    {
+      "id": "hazard-entry-gate-failed-line-closed",
+      "topic": "learning_data",
+      "date": "2026-08-17",
+      "status": "active",
+      "claim": "The selfplay hazard line closes at its preregistered entry gate. The winning mlp_scalars arm -- pooled within-stratum Spearman 0.48 and terminal AUC 0.835 held-out inside its own physics-free world, with clean cross-container transfer -- scores the real deviation-corpus branch siblings at pooled placed AUC 0.512 (251 pairs; 0.534 on the 468/495 fingerprint-verified branches; 0.500 and 0.523 on the two collections separately), far below the 0.561 bar. Reconstruction was exact where verifiable (196 states replayed, 93% fingerprint-matched, 86% branch coverage; the 14% unreconstructable are fast-env geometric rejections of real actions and are reported, not hidden). This is now the FOURTH independent representation to fail the same bar (sibling features 0.561, board features 0.532, grid representations, selfplay-hazard scalars 0.512), and the strongest version of the accumulating conclusion: cheap decision-time state summaries do not carry real-physics episode value on this corpus, even when they demonstrably carry value in a correlated synthetic world. The sim-to-real gap is consistent with board-value-f1-discriminates-not-predicts (real episodes die by physics, not by the capacity exhaustion the fast env models). Per the protocol's falsification clause the line closes toward mid-game search and real-physics labels; no live wiring occurred, and the corpus (94k schema-2 rows), the trainer, and the in-env representation verdicts stand as reusable assets.",
+      "source": "reports/hazard/selfplay-model/entry-gate-verdict.json; reports/hazard/selfplay-model/capture-coverage.jsonl; scripts/evaluate_hazard_entry_gate.py; reports/hazard/selfplay-hazard-protocol.md",
+      "values": {
+        "gate": "pooled AUC 0.512 (bar 0.561), verified-only 0.534",
+        "coverage": "495 branches, 86%; fingerprints 468/495",
+        "in_env_signal": "rho 0.48 / AUC 0.835 held-out",
+        "verdict": "entry gate failed; line closed per preregistered falsification clause"
+      }
     }
   ]
 }
