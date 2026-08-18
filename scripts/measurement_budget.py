@@ -34,7 +34,9 @@ by momentum.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import fcntl
 import json
 import os
 import pathlib
@@ -82,9 +84,42 @@ def load() -> dict[str, Any]:
 def save(data: dict[str, Any]) -> None:
     data["contract"] = CONTRACT
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
-    LEDGER.write_text(
+    # Atomic, because the runners increment this from concurrent episode
+    # processes. A plain write_text leaves a window where a reader sees a
+    # half-written file, and it cost a real episode: two paired arms
+    # running at once on 2026-08-18 crashed one runner with
+    # JSONDecodeError at char 0 and lost c001-k1-base-r0.
+    tmp = LEDGER.with_suffix(LEDGER.suffix + f".tmp.{os.getpid()}")
+    tmp.write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
+    os.replace(tmp, LEDGER)
+
+
+@contextlib.contextmanager
+def _exclusive():
+    """Serialize read-modify-write across concurrent episode runners.
+
+    Atomicity alone is not enough: two processes that each read N and
+    each write N+1 lose an increment, so the whole load/modify/save must
+    be under one lock. The lock lives beside the ledger rather than on
+    it, so it survives the os.replace that swaps the ledger inode.
+    """
+    LEDGER.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = LEDGER.with_suffix(LEDGER.suffix + ".lock")
+    handle = open(lock_path, "w", encoding="utf-8")
+    try:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            # No advisory locking here (some network filesystems). The
+            # atomic replace still prevents torn reads; only the
+            # lost-update race remains, and a miscounted episode must
+            # never take the run down with it.
+            pass
+        yield
+    finally:
+        handle.close()
 
 
 def line_status(data: dict[str, Any], name: str) -> dict[str, Any]:
@@ -135,18 +170,21 @@ def warn(status: dict[str, Any], stream=sys.stderr) -> None:
 
 
 def record(name: str, episodes: int, *, quiet: bool = False) -> dict[str, Any]:
-    data = load()
-    entry = data["lines"].setdefault(
-        name,
-        {
-            "opened": dt.date.today().isoformat(),
-            "episodes": 0,
-            "shipping_candidates": [],
-        },
-    )
-    entry["episodes"] = int(entry.get("episodes", 0)) + max(0, int(episodes))
-    entry["last_recorded"] = dt.date.today().isoformat()
-    save(data)
+    with _exclusive():
+        data = load()
+        entry = data["lines"].setdefault(
+            name,
+            {
+                "opened": dt.date.today().isoformat(),
+                "episodes": 0,
+                "shipping_candidates": [],
+            },
+        )
+        entry["episodes"] = int(entry.get("episodes", 0)) + max(
+            0, int(episodes)
+        )
+        entry["last_recorded"] = dt.date.today().isoformat()
+        save(data)
     status = line_status(data, name)
     if status["over_budget"] and not quiet:
         warn(status)

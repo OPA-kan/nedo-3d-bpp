@@ -3408,6 +3408,33 @@
         "added": "action_source attribution; post-adoption share growth; late-board location",
         "not_reopened": "vacuum-cutoff and last-resort both already failed in this regime"
       }
+    },
+    {
+      "id": "post-shake-instrument-passes-rung3-labels-unblocked",
+      "topic": "learning_data",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The post-shake blind spot is CLOSED and rung-3 label generation is UNBLOCKED. After v1 and v2 both failed by trying to rebuild the terminal state in a clone, reading the bundled evaluator showed the rebuild was never necessary: Evaluator.shake_test computes the post-shake poses in the LIVE world and discards them at restoreState. v3 records them instead -- a harness-side wrapper takes the evaluator's OWN settled_snapshot on the post-shake _live_poses call, so the attribute counts come from calculate_attribute_placement, the same function the pre-shake proxy uses, and reconstruction error is zero by construction rather than by tuning. All gates pass on 41 episodes across 7 configs and both arms: wrapped-vs-unwrapped shake responses equal 41/41, exactly two _live_poses calls per shake 41/41, pre-shake capture equal to the last safe step's attribute counts 41/41 (100%, gate 95%), and the structural no-reimplementation gate green across 10 tests. Nothing under simulator/ was modified, the agent is untouched and behaviour_sha256 is unmoved; NEDO_POSTSHAKE_CAPTURE is default-off and log-only. THE PAYLOAD: the shake changes attribute coverage on 6 of 41 episodes -- soft in BOTH directions (0.917->1.000 on b000-k20-base-r0, 1.000->0.750 on b000-k40-quiet_guard-r2) and priority one-directionally worse on four. The pre-shake proxy therefore does not merely add noise; on those episodes it reads a different value and on one the opposite sign of change. Bound on the payload, stated because the arm means invite a claim they cannot carry: the apparent post-shake soft rank inversion between arms is driven entirely by two episodes, and excluding the six changed episodes both arms are exactly flat, so this does NOT separate the arms and no such claim is made. Labels may now be (settle_safe, post_shake_stable, post_shake_coverage) with the third measured. One episode was lost, c001-k1-base-r0, to a non-atomic measurement_budget read-modify-write under the batch's concurrent paired arms; fixed with atomic replace plus an exclusive lock and concurrency regression tests, and recorded rather than backfilled because re-running one arm of a pair alone would break the load symmetry the design preserves.",
+      "source": "reports/hazard/post-shake/direct-verdict.md; direct-gates.{json,md}; scripts/postshake_capture.py; scripts/adjudicate_postshake.py; tests/test_postshake_capture.py; protocol reports/hazard/post-shake-direct-protocol.md; 41 episodes in reports/raw/post-shake-direct",
+      "values": {
+        "gates": "G1a 41/41 and 41/41, span pass, G2 41/41 = 100%, G3 structural pass",
+        "payload": "6/41 episodes had coverage changed by the shake; soft both directions, priority always worse",
+        "not_supported": "arm separation -- the inversion is two episodes; excluding changed episodes both arms are flat",
+        "consequence": "rung-3 labels unblocked with post_shake_coverage measured"
+      }
+    },
+    {
+      "id": "placed-regression-does-not-license-dropping-soft-from-labels",
+      "topic": "learning_data",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Retraction of an inference, recorded because it nearly closed a line that then passed. The placed regression (`soft-regression-was-the-placed-drop-not-a-coverage-failure`) found soft tracking num_placed_items at r=0.988 across the five submissions, and that was used in session narration to argue the post-shake instrument's motivation was weakened and that soft is not independently movable. THAT INFERENCE IS INVALID. The regression is a correlation ACROSS AGENTS at the submission level; a learning label is an effect WITHIN A STATE, over the choice between two placements on one board. An aggregate relation between five different agents says nothing about a per-decision action effect -- treating it as if it did is an ecological-inference error. Two further reasons it cuts the other way: if the official soft component charges for unplaced soft items then it MECHANICALLY tracks placed, which makes the controllable part exactly what the local instrument measures, namely coverage among the items actually placed; and a 5-point fit spending 2 degrees of freedom cannot support 'not independently movable' about anything (its stability residuals swing +-4). The regression supports one narrow claim only: the -7.7% soft headline was not evidence that the guard damaged soft coverage, and raw component deltas across submissions must be read against placed before being read as mechanism. The direct post-shake instrument subsequently PASSED all its gates and measured the shake changing attribute coverage on 6 of 41 episodes, so dropping post_shake_coverage from the rung-3 label triple would have baked the blind spot into the training objective at scale -- the exact failure the block existed to prevent.",
+      "source": "reports/hazard/post-shake/direct-verdict.md; reports/official/placed-regression.md; entry soft-regression-was-the-placed-drop-not-a-coverage-failure",
+      "values": {
+        "error": "ecological inference -- across-agent correlation read as within-state action effect",
+        "what_the_regression_does_support": "the -7.7% headline was not guard damage",
+        "consequence": "label triple keeps post_shake_coverage; instrument passed on 6/41 changed episodes"
+      }
     }
   ]
 }

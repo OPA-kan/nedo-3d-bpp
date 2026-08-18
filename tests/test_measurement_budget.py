@@ -155,5 +155,90 @@ class ContractTests(unittest.TestCase):
             self.assertIn(excluded, text)
 
 
+class ConcurrentRecordingTests(unittest.TestCase):
+    """The runners increment this from concurrent episode processes.
+
+    Before the 2026-08-18 fix, `save` wrote in place and `load` read
+    without locking, so a paired-arm batch could crash a runner with
+    JSONDecodeError at char 0 mid-write. That is not hypothetical: it
+    lost episode c001-k1-base-r0 out of the direct post-shake stream.
+    Two things are needed and both are checked here -- an atomic
+    replace so no reader ever sees a partial file, and one lock around
+    the whole read-modify-write so two processes that each read N do
+    not both write N+1.
+    """
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        patcher = mock.patch.object(
+            budget, "LEDGER", pathlib.Path(self._dir.name) / "budget.json"
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_every_concurrent_increment_lands(self):
+        import threading
+
+        workers = 16
+        barrier = threading.Barrier(workers)
+        errors: list[BaseException] = []
+
+        def bump():
+            try:
+                barrier.wait()
+                budget.record("alpha", 1, quiet=True)
+            except BaseException as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        threads = [threading.Thread(target=bump) for _ in range(workers)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
+        data = budget.load()
+        self.assertEqual(data["lines"]["alpha"]["episodes"], workers)
+
+    def test_save_never_leaves_a_partial_file_at_the_ledger_path(self):
+        budget.record("alpha", 1, quiet=True)
+        original = budget.LEDGER.read_text(encoding="utf-8")
+
+        real_write = pathlib.Path.write_text
+        observed: list[str] = []
+
+        def watching_write(self, *args, **kwargs):
+            result = real_write(self, *args, **kwargs)
+            # Whatever a concurrent reader would see at the ledger path
+            # while a write is in progress must still parse.
+            if budget.LEDGER.exists():
+                observed.append(
+                    budget.LEDGER.read_text(encoding="utf-8")
+                )
+            return result
+
+        with mock.patch.object(pathlib.Path, "write_text", watching_write):
+            budget.record("alpha", 1, quiet=True)
+
+        self.assertTrue(observed, "the write path was not exercised")
+        for snapshot in observed:
+            json.loads(snapshot)
+        self.assertNotEqual(
+            budget.LEDGER.read_text(encoding="utf-8"), original
+        )
+
+    def test_no_temporary_files_are_left_beside_the_ledger(self):
+        budget.record("alpha", 1, quiet=True)
+
+        leftovers = [
+            path.name
+            for path in budget.LEDGER.parent.iterdir()
+            if ".tmp." in path.name
+        ]
+
+        self.assertEqual(leftovers, [])
+
+
 if __name__ == "__main__":
     unittest.main()
