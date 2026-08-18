@@ -3466,6 +3466,23 @@
         "lever": "candidate generation/retention diversity, not selection",
         "control": "R4 contact reading 0.0%, confirming the attribute filter's inert verdict was guaranteed"
       }
+    },
+    {
+      "id": "soft-clean-placement-exists-in-40pct-of-violating-states",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The generation-versus-retention question returns AMBIGUOUS by its preregistered thresholds, and the ambiguity is itself the bound on any fix. On 14 episodes (293 decisions, mean 311 accepted candidates per decision of interest, zero harness failures), 48/293 = 16.4% of decisions play a placement covering a soft item. Of those, G1: a strictly better accepted candidate existed on 25/48 = 52.1%; G2: a completely CLEAN accepted candidate existed on 19/48 = 39.6%; G3 split: clean available for the same item on 10, for another item on 13. The frozen reading was G2>=0.5 retention, G2<0.1 generation, else ambiguous -- 39.6% is ambiguous, so NO arm is licensed and the thresholds are not moved to manufacture a verdict. What the numbers establish: the generator is NOT empty (a clean placement was produced and dropped on 40% of violating decisions), but it IS empty on the majority (on 29 of 48, not one of ~311 accepted candidates avoids the coverage), so even a perfect retention rule leaves 60% of soft coverage in place. The ceiling of a retention fix is therefore 19/293 = 6.5% of all decisions BEFORE any score cost, and the real value is lower because taking those candidates costs score, which this protocol deliberately did not measure (the audit carries no score). Severity narrows it further: chosen placements cover 1 soft item on 31 decisions, 2 on 15, 4 on 2, and the best accepted alternative is still 1 on 26, so most reachable improvement is a single violation. Half the reachable value (13 of 23 clean cases) needs the retained set to SPAN ITEMS, which is the item-coverage machinery whose widenings item-cap-16, late-cap-20 and late-narrow-pool-cap-16 all failed fresh-permutation confirmation. Also recorded: the audit's recording cost changes the trajectory, so this wave's placed and fill are not comparable with another wave's. Together with `soft-proxy-is-contact-only-and-therefore-inert` and `stack-aware-soft-tiebreak-has-no-reach-in-selection` this closes the soft axis end to end: the shipped predicate was inert, fixing it gave selection nothing to act on, and the clean placement is unreachable in 60% of the states where it would be needed.",
+      "source": "reports/hazard/soft-stack/generation-verdict.md; generation.{json,md}; scripts/analyze_soft_generation.py (predicate cross-checked against the agent's own in tests/test_analyze_soft_generation.py); protocol reports/hazard/soft-generation-protocol.md; 14 episodes in reports/raw/soft-generation",
+      "values": {
+        "violating_decisions": "48/293 = 16.4%",
+        "G1_better_exists": "25/48 = 52.1%",
+        "G2_clean_exists": "19/48 = 39.6% -- ambiguous band, no arm licensed",
+        "G3_split": "same item 10, another item 13",
+        "ceiling": "19/293 = 6.5% of decisions, before any score cost",
+        "severity": "chosen covers 1 on 31 decisions, 2 on 15, 4 on 2; best alternative still 1 on 26",
+        "inherited_risk": "half the value needs item-spanning retention, which failed three confirmations"
+      }
     }
   ]
 }
