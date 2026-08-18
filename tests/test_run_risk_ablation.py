@@ -1196,3 +1196,56 @@ class TrueEnvelopeArmTests(unittest.TestCase):
 
         self.assertEqual(arm.pop("POLICY_BUDGET_SECONDS"), "32.5")
         self.assertEqual(arm, base)
+
+
+class ArmRegistryIntegrityTests(unittest.TestCase):
+    """Every named arm must actually configure something.
+
+    An arm listed in the membership set but missing its branch falls
+    through and returns {}, which is indistinguishable from `base` --
+    the run is labelled as the arm and silently executes the shipped
+    default. That already happened twice: `base` stopped being a
+    baseline when a default flipped under it, and five reconstruction
+    arms were named in a commit whose branches never landed.
+
+    `base` and `base_null` are the deliberate exceptions: they mean
+    "shipped defaults" and say so.
+    """
+
+    INHERITS_DEFAULTS = {"base", "base_null"}
+
+    def _arm_names(self):
+        import ast
+        import pathlib
+
+        source = pathlib.Path(
+            __file__
+        ).resolve().parents[1] / "scripts" / "run_risk_ablation.py"
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        names = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Set):
+                continue
+            values = [
+                e.value
+                for e in node.elts
+                if isinstance(e, ast.Constant) and isinstance(e.value, str)
+            ]
+            if "base" in values and "quiet_guard" in values:
+                names.update(values)
+        return names
+
+    def test_every_named_arm_configures_something(self):
+        missing = []
+        for arm in sorted(self._arm_names() - self.INHERITS_DEFAULTS):
+            env: dict[str, str] = {}
+            configure_arm_environment(env, arm, 2.0, 0.0)
+            if not env:
+                missing.append(arm)
+
+        self.assertEqual(
+            missing,
+            [],
+            f"named arms with no branch, they silently run as base: "
+            f"{missing}",
+        )

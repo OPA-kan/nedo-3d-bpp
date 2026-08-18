@@ -171,6 +171,7 @@ def configure_arm_environment(
         "guard_off",
         "headroom",
         "attr_support_rule",
+        "attr_contract",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -290,6 +291,14 @@ def configure_arm_environment(
                 / "candidate-mlp-safety-v1.json"
             )
             env["PHYSICS_PROBE_ATTR_FILTER"] = "1"
+        elif arm == "attr_contract":
+            # Both halves of the attribute contract at once
+            # (reports/hazard/attribute-contract-protocol.md): the
+            # settled path stops over-refusing legal same-attribute
+            # rests, and the release path stops under-checking. Measured
+            # separately, each half's failure mode is the other's fix.
+            env["ATTRIBUTE_SUPPORT_RULE"] = "1"
+            env["RELEASE_ATTRIBUTE_GUARD"] = "priority"
         elif arm == "attr_support_rule":
             # Rule-faithful attribute support
             # (reports/hazard/attribute-support-protocol.md): a protected
