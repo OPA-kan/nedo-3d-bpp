@@ -115,6 +115,58 @@ def reach(records, violation_key: str, require_score: bool) -> dict:
     }
 
 
+def retained_set_diversity(records) -> dict:
+    """Why a reach number is what it is, not just what it is.
+
+    A tie-break can only act when the retained set actually differs on
+    the axis it reads. If every retained candidate carries the same
+    violation count, a reach of zero says nothing about the predicate --
+    it says the intervention point is wrong, because retention is by
+    score and the top-scoring poses of one item are near-duplicates.
+    Reporting this beside the gate keeps a null result diagnostic
+    instead of merely negative. It feeds no threshold.
+    """
+    spread_stack = 0
+    spread_contact = 0
+    any_stack_violation = 0
+    item_counts: dict[int, int] = {}
+    for record in records:
+        candidates = record["candidates"]
+        stack_values = {
+            candidate.get("soft_cover_violations_stack")
+            for candidate in candidates
+        }
+        contact_values = {
+            candidate.get("soft_cover_violations")
+            for candidate in candidates
+        }
+        spread_stack += int(len(stack_values) > 1)
+        spread_contact += int(len(contact_values) > 1)
+        any_stack_violation += int(
+            any(
+                (candidate.get("soft_cover_violations_stack") or 0) > 0
+                for candidate in candidates
+            )
+        )
+        distinct_items = len(
+            {
+                candidate.get("item_index")
+                for candidate in candidates
+                if candidate.get("item_index") is not None
+            }
+        )
+        item_counts[distinct_items] = item_counts.get(distinct_items, 0) + 1
+    total = len(records)
+    return {
+        "decisions": total,
+        "with_stack_violation_spread": spread_stack,
+        "with_contact_violation_spread": spread_contact,
+        "with_any_stack_violation": any_stack_violation,
+        "spread_fraction_stack": (spread_stack / total) if total else 0.0,
+        "distinct_items_in_retained_set": dict(sorted(item_counts.items())),
+    }
+
+
 def analyze(records) -> dict:
     r1 = reach(records, "soft_cover_violations_stack", require_score=False)
     r2 = reach(records, "soft_cover_violations_stack", require_score=True)
@@ -127,6 +179,7 @@ def analyze(records) -> dict:
     )
     return {
         "records": len(records),
+        "retained_set_diversity": retained_set_diversity(records),
         "R1_any_better_stack_soft": r1,
         "R2_dominance_eligible_stack_soft": r2,
         "R3_dominance_eligible_stack_priority": r3,
@@ -185,6 +238,36 @@ def render_markdown(result: dict) -> str:
             "closes as measured-inert-with-a-reason and the shadow "
             "columns stay as telemetry.",
         ]
+    div = result["retained_set_diversity"]
+    lines += [
+        "",
+        "## Why the reach is what it is",
+        "",
+        "A tie-break can only act where the retained set DIFFERS on the "
+        "axis it reads. These numbers carry no threshold; they say "
+        "whether a null result is about the predicate or about the "
+        "intervention point.",
+        "",
+        f"- decisions where retained candidates differ on stack-aware "
+        f"soft violations: **{div['with_stack_violation_spread']}/"
+        f"{div['decisions']}** "
+        f"({div['spread_fraction_stack']:.1%})",
+        f"- decisions where they differ under the shipped contact "
+        f"reading: {div['with_contact_violation_spread']}/"
+        f"{div['decisions']}",
+        f"- decisions where ANY retained candidate has a stack-aware "
+        f"violation at all: {div['with_any_stack_violation']}/"
+        f"{div['decisions']}",
+        f"- distinct items in the retained set, by count: "
+        f"`{div['distinct_items_in_retained_set']}`",
+        "",
+        "Retention is by score, and the top-scoring poses of one item "
+        "are near-duplicates, so a retained set concentrated on one item "
+        "cannot differ on any attribute axis. Where that is what the "
+        "numbers show, the finding is that selection is the wrong "
+        "intervention point -- the lever is candidate retention "
+        "diversity -- and no predicate fix reaches it.",
+    ]
     control = result["R4_control_contact_soft"]
     lines += [
         "",
