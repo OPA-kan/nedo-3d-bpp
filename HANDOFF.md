@@ -647,6 +647,48 @@ The remaining route to soft is placing more items, which is what every
 official component is made of. Nothing in this line changed shipped
 behaviour; both fingerprints are unmoved.
 
+## Why each proxy is a proxy (2026-08-18)
+
+`docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
+what has to be measurable for it, and why does each local quantity
+count as a proxy". Read it before proposing anything that reads a
+component.
+
+Its load-bearing result: **a proxy needs variance, not fidelity.** The
+soft transcription is correct -- the rule says upward contact and the
+code implements upward contact -- but local `soft_clean_ratio` sits at
+0.982 and barely moves between arms while the official component moved
+threefold across submissions. Computing
+`g = official / (local ratio * 100)` independently from the soft and
+placement axes gives nearly the same value per submission and one that
+climbs steeply with placed (0.07 at 0.434 to 0.22 at 0.505), which is
+the amplification `num-placed-gate-amplifies-downward-too` measured
+directly. So the official attribute components behave as
+`local ratio * g(placed)` and the proxy does not contain `g`. A proxy
+saturated at 0.98 is not a control variable however faithful it is.
+`priority_clean_ratio` at 0.760 is not saturated, so that side is
+healthier.
+
+Consequence for labels: keep all six axes, but treat soft as a
+constraint rather than a signal in the current operating regime.
+
+## The attribute-support arm: development FAIL (2026-08-18)
+
+`ATTRIBUTE_SUPPORT_RULE=1` makes `support_surfaces()` admit a protected
+top exactly when the mover carries every attribute it is protected by --
+the same-attribute stacking the rule allows and the shipped
+over-approximation discards. Paired 42-episode wave,
+`reports/hazard/attribute-support/development.md`.
+
+The mechanism gate passes decisively: **physical ending rate 38.1% ->
+0.0%**. The over-approximation IS costing survival. But only 1 of 7
+configs clears its own frozen floor, violations per placed item rise on
+both axes, and `shake_max_shift` worsens, so it is not adopted and the
+knob stays off. The effect is strongly config-dependent -- three configs
+produced identical episodes, one cleared its floor at +6.33 -- which is
+the shape any narrower variant would have to exploit, in its own
+preregistration on a fresh stream.
+
 ## What ends our episodes (2026-08-18)
 
 `reports/hazard/death-budget.md` joins 66 episodes' harness rows with
