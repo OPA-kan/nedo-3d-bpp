@@ -3532,6 +3532,23 @@
         "why_closed": "the fix costs the variable that gates every component, and the trade cannot be priced locally",
         "blind_spot": "priority_misrouted untestable -- no development config has a priority container"
       }
+    },
+    {
+      "id": "loading-cutoff-does-not-explain-the-low-attribute-scores",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "RETRACTION of the explanation in `soft-axis-has-no-headroom-under-the-published-rule` and `soft-stack-aware-reading-contradicts-the-published-rule`. Both attributed the low official soft_item_score to the documented loading cutoff ('手荷物を一定数以上コンテナに積載できていないと充填率スコア以外は0となる'). That cannot be the explanation: the cutoff zeroes every non-fill component, and NO component is zero on any of the five submissions -- the latest reads cog 41.67, stability 53.48, placement 16.30, soft 19.65. The cutoff is passed, not binding. What the numbers actually show, and what remains unexplained: local soft_clean_ratio measures 0.982 and priority_clean_ratio 0.760 over 132 development episodes, so a 100x-the-ratio mapping would predict soft 98.2 and placement 76.0 against actuals of 19.65 and 16.30 -- factors of 5.0 and 4.7. Scaling by num_placed_items (0.497) leaves 48.8 and 37.7, still 2.5x and 2.3x high. The residual factor is nearly the SAME on both attribute components, which argues against scene-composition differences between the development configs and the evaluation scenes (those would not miss identically on two axes) and for something structural in the mapping or in the violation detection itself -- note that the bundled diagnostic reads covering from settled AABB proximity while docs/ATTRIBUTE_PLACEMENT.md records that contact points would be more faithful, and that the official scorer is not this diagnostic. This is the FOURTH mechanism I have proposed for the soft gap (search starvation, post-shake timing, stack-aware reading, loading cutoff) and the fourth to fail. The pattern is the finding: proposing mechanisms is not identifying the mapping. The only identification available is calibration -- reconstruct the five submissions as arms, measure their local attribute counts on a fixed scene set, fit the mapping to the official components, and validate by leave-one-submission-out. Until that runs, the correct statement about the official attribute components is that we do not know what produces them.",
+      "source": "docs/OFFICIAL_SCORE_LOG.md (5 feedback blocks); 132 development episodes' attribute_placement telemetry; simulator/README.md 評価指標; docs/ATTRIBUTE_PLACEMENT.md",
+      "values": {
+        "retracted": "the loading cutoff explains the low soft score",
+        "why": "the cutoff zeroes non-fill components and none is zero",
+        "unexplained_gap": "soft 98.2 predicted vs 19.65 actual (5.0x); placement 76.0 vs 16.30 (4.7x)",
+        "after_placed_scaling": "48.8 and 37.7, still 2.5x and 2.3x high",
+        "structural_clue": "the residual factor is nearly identical on both attribute axes",
+        "failed_mechanisms": "search starvation, post-shake timing, stack-aware reading, loading cutoff",
+        "next": "calibration by submission reconstruction with leave-one-out validation"
+      }
     }
   ]
 }

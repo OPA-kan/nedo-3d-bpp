@@ -171,6 +171,11 @@ def configure_arm_environment(
         "guard_off",
         "headroom",
         "attr_support_rule",
+        "recon_sub1",
+        "recon_sub2",
+        "recon_trueenv",
+        "recon_deathband",
+        "recon_quietguard",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -290,6 +295,34 @@ def configure_arm_environment(
                 / "candidate-mlp-safety-v1.json"
             )
             env["PHYSICS_PROBE_ATTR_FILTER"] = "1"
+        elif arm == "recon_sub1":
+            # Submission reconstructions for the attribute calibration
+            # (reports/official/attribute-calibration-protocol.md). Each
+            # pins the era's live-policy knobs AND turns the physics
+            # probe off, because the probe did not exist before
+            # 2026-08-17 and `base` silently carries it now -- the defect
+            # recorded in base-arm-stopped-being-a-baseline-at-the-guard-
+            # adoption. These are approximations: only the knobs known to
+            # have moved are pinned, so any default that changed without
+            # being registered is inherited from today.
+            env["ANCHOR_TRUE_ENVELOPE"] = "0"
+            env["ANCHOR_FIRST_PASS_ATTEMPTS"] = "64"
+            env["PHYSICS_PROBE_MODE"] = "off"
+        elif arm == "recon_sub2":
+            env["ANCHOR_TRUE_ENVELOPE"] = "0"
+            env["PHYSICS_PROBE_MODE"] = "off"
+        elif arm == "recon_trueenv":
+            env["ANCHOR_TRUE_ENVELOPE"] = "1"
+            env["PHYSICS_PROBE_MODE"] = "off"
+        elif arm == "recon_deathband":
+            env["ANCHOR_TRUE_ENVELOPE"] = "1"
+            env["DEATH_BAND_FALLBACK"] = "1"
+            env["PHYSICS_PROBE_MODE"] = "off"
+        elif arm == "recon_quietguard":
+            # The shipped default, pinned explicitly so the calibration
+            # row does not silently change when a default moves again.
+            env["ANCHOR_TRUE_ENVELOPE"] = "1"
+            env["PHYSICS_PROBE_MODE"] = "guard_quiet"
         elif arm == "attr_support_rule":
             # Rule-faithful attribute support
             # (reports/hazard/attribute-support-protocol.md): a protected
