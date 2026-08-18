@@ -1131,3 +1131,68 @@ class TrueEnvelopeArmTests(unittest.TestCase):
         configure_arm_environment(env, "base", 2.0, 0.0)
 
         self.assertNotIn("ANCHOR_TRUE_ENVELOPE", env)
+
+    def test_guard_off_arm_actually_turns_the_probe_off(self):
+        """
+        `base` sets nothing, so it inherits whatever the agent's defaults
+        are. When PHYSICS_PROBE_MODE defaulted to guard_quiet on
+        2026-08-17, `base` silently stopped being a guard-off baseline --
+        its traces carry physics_probe_guard events on every step -- and
+        for a day no arm in the registry could turn the guard off. This
+        pins the replacement so the next default flip cannot repeat it.
+        """
+        env: dict[str, str] = {}
+
+        configure_arm_environment(env, "guard_off", 2.0, 0.0)
+
+        self.assertEqual(env.get("PHYSICS_PROBE_MODE"), "off")
+
+    def test_a_control_arm_exists_for_every_default_on_behaviour(self):
+        """
+        Every knob the shipped agent defaults to an ACTIVE value must have
+        some arm that can switch it off, or the shipped behaviour is
+        unmeasurable. Checked against the agent's own defaults rather
+        than a hardcoded list, so adopting a new default fails here until
+        its control arm exists.
+        """
+        import agent.agent as shipped
+
+        default_on = {
+            "PHYSICS_PROBE_MODE": shipped.PHYSICS_PROBE_MODE != "off",
+            "ANCHOR_TRUE_ENVELOPE": shipped.ANCHOR_TRUE_ENVELOPE != "0",
+        }
+        off_values = {
+            "PHYSICS_PROBE_MODE": "off",
+            "ANCHOR_TRUE_ENVELOPE": "0",
+        }
+        arms = ("off", "base", "guard_off", "box_envelope", "quiet_guard")
+        for knob, is_on in default_on.items():
+            if not is_on:
+                continue
+            reachable = False
+            for arm in arms:
+                env: dict[str, str] = {}
+                configure_arm_environment(env, arm, 2.0, 0.0)
+                if env.get(knob) == off_values[knob]:
+                    reachable = True
+                    break
+            self.assertTrue(
+                reachable,
+                f"{knob} defaults to an active value but no arm sets it "
+                f"to {off_values[knob]!r}; the shipped behaviour has no "
+                "control",
+            )
+
+    def test_headroom_arm_only_moves_the_policy_deadline(self):
+        """
+        The headroom arm is a measurement, not a candidate: it must be
+        the shipped configuration and the deadline, nothing else, or the
+        contrast stops being about search time.
+        """
+        base: dict[str, str] = {}
+        arm: dict[str, str] = {}
+        configure_arm_environment(base, "base", 2.0, 0.0)
+        configure_arm_environment(arm, "headroom", 2.0, 0.0)
+
+        self.assertEqual(arm.pop("POLICY_BUDGET_SECONDS"), "32.5")
+        self.assertEqual(arm, base)

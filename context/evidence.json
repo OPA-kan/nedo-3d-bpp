@@ -3379,6 +3379,20 @@
         "fatal_step_search": "deadline reached 38/38, no candidate for any item 38/38, mean 7371 attempts",
         "consequence": "attack proposal quality on late boards; probe-everywhere targets the minority channel"
       }
+    },
+    {
+      "id": "base-arm-stopped-being-a-baseline-at-the-guard-adoption",
+      "topic": "measurement_hygiene",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The run_risk_ablation `base` arm sets NO environment variables -- it inherits whatever agent.py defaults to. That made it a genuine baseline until 2026-08-17, when the quiet-guard adoption flipped PHYSICS_PROBE_MODE's default to guard_quiet; from that moment `base` silently became the shipped agent WITH the guard, and no arm in the registry could turn the guard off at all. Confirmed empirically, not inferred: configure_arm_environment('base') returns {} while configure_arm_environment('quiet_guard') returns three keys, and a base episode's policy trace carries physics_probe_guard on every one of its 20 steps. Consequences for already-collected data: every base-vs-quiet_guard contrast run after the adoption compares the guard against itself plus the observed-pool shadow machinery (SAFETY_RERANK_MODE=shadow, which supplies the guard's rescue alternatives), NOT guard-off against guard-on. This is the better explanation for the v2 post-shake stream's weak arm separation (12 of 21 base runs having a byte-identical quiet_guard twin, c000-k1 and c001-k1 3/3 identical) than the one recorded there, which attributed it to the guard rarely changing the episode. Fixed by adding a `guard_off` arm (PHYSICS_PROBE_MODE=off) and a test that reads the agent's own defaults and fails when any knob defaulting to an active value has no arm able to switch it off, so the next adoption cannot repeat this.",
+      "source": "scripts/run_risk_ablation.py configure_arm_environment; tests/test_run_risk_ablation.py; reports/raw/post-shake-direct/b000-k15-base-r0 policy trace (20/20 physics_probe_guard events)",
+      "values": {
+        "base_env": "{} -- inherits shipped defaults",
+        "evidence": "base trace has physics_probe_guard on 20/20 steps",
+        "window": "2026-08-17 adoption to 2026-08-18 fix: no guard-off arm existed",
+        "fix": "guard_off arm plus a defaults-derived control-coverage test"
+      }
     }
   ]
 }

@@ -101,6 +101,7 @@ def configure_arm_environment(
         "PHYSICS_PROBE_MODE",
         "PHYSICS_PROBE_ATTR_FILTER",
         "NEDO_POSE_SNAPSHOT",
+        "POLICY_BUDGET_SECONDS",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -165,6 +166,8 @@ def configure_arm_environment(
         "quiet_null",
         "quiet_guard",
         "guard_attr",
+        "guard_off",
+        "headroom",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -284,6 +287,24 @@ def configure_arm_environment(
                 / "candidate-mlp-safety-v1.json"
             )
             env["PHYSICS_PROBE_ATTR_FILTER"] = "1"
+        elif arm == "guard_off":
+            # A real guard-off control, which the registry lacked between
+            # the 2026-08-17 adoption and 2026-08-18. `base` sets nothing
+            # and therefore inherits the shipped defaults; once
+            # PHYSICS_PROBE_MODE defaulted to guard_quiet, `base` stopped
+            # being a baseline and started being the shipped agent -- its
+            # traces carry physics_probe_guard events on every step. Any
+            # contrast that needs the guard genuinely absent must use
+            # this arm, not `base`.
+            env["PHYSICS_PROBE_MODE"] = "off"
+        elif arm == "headroom":
+            # Measurement arm only (search-headroom-protocol.md): the
+            # shipped configuration with the online policy deadline
+            # multiplied by five, to ask whether the surrender ending is
+            # a full board or an unsearched one. Unshippable by
+            # construction -- the platform fixes policy_timeout at 8.0 s
+            # and a timeout substitutes a random action.
+            env["POLICY_BUDGET_SECONDS"] = "32.5"
         elif arm == "last_resort":
             # Fallback replacement, not a search change: when the deadline
             # scan accepts nothing, rescan briefly down a clearance ladder

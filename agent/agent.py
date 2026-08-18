@@ -333,7 +333,28 @@ if _release_attribute_guard_raw not in RELEASE_ATTRIBUTE_GUARD_MODES:
         f"{sorted(RELEASE_ATTRIBUTE_GUARD_MODES)} (or a boolean alias)"
     )
 RELEASE_ATTRIBUTE_GUARD = _release_attribute_guard_raw
-POLICY_BUDGET_SECONDS = 6.5
+# Online policy deadline. 6.5 s under the platform's 8.0 s
+# policy_timeout, and the shipped value is not a free parameter: the
+# evaluation platform fixes the timeout, a timeout substitutes
+# env.action_space.sample() (a random action, which on a late board is a
+# probable death), and the official feedback already reports a max
+# policy time of 6.992 s against that 8.0 s ceiling.
+#
+# It is a knob ONLY so diagnostics can measure what the deadline costs
+# us. `death-budget-is-search-starvation-not-physics` records that 57.6%
+# of episodes end with the search having accepted nothing before this
+# deadline, finding no candidate for any item after ~7371 attempts.
+# Whether those boards are genuinely full or merely un-searched in 6.5 s
+# is the question that decides whether a learned proposer is worth
+# building, and it cannot be asked without varying this.
+#
+# Raising it is therefore a MEASUREMENT policy, never a shipped one: any
+# value above the default is unshippable by construction. Registered
+# offline_optimizer=false for the same reason -- the offline proposal
+# oracle must not be able to "discover" that more time scores better.
+POLICY_BUDGET_SECONDS = float(
+    os.environ.get("POLICY_BUDGET_SECONDS", "6.5")
+)
 # Measurement-mode work budget for the ONLINE primary search. 0 keeps the
 # shipped behaviour (wall-clock only).
 #
