@@ -1,6 +1,9 @@
 # Handoff — current state
 
-Updated: 2026-08-16 JST. The most advanced line is now
+Updated: 2026-08-18 JST (the 2026-08-16 text below is retained; the
+sections added on 2026-08-18 are the soft axis, the death budget, the
+measurement-hygiene defects, the post-shake instrument, and the fifth
+official submission). The most advanced line is now
 `claude/v5-hypothesis-validation-cyna2c` (continues
 `experiment/counterfactual-graph` from `f3bd29e` through the regime
 expedition: powered v5/v6 rejections, phase structure, freezing points,
@@ -503,8 +506,28 @@ representation before any physics is spent.
 | submission3334 | 23.246 | 31.413 | 21.505 | 29.424 | 10.85 | 12.65 | 0.452 |
 | trueenvelope | **35.375** | **34.246** | **40.683** | **53.240** | **16.95** | **21.30** | **0.505** |
 | deathband | 29.959 | 33.635 | 32.243 | 41.288 | 14.70 | 17.45 | 0.491 |
+| quietguard | 35.195 | 33.851 | 41.665 | 53.480 | 16.30 | 19.65 | 0.497 |
 
-The best known official result is `trueenvelope` at 35.375. Its implementation
+The best known official result is `trueenvelope` at 35.375.
+
+**Read these components against placed before reading them as mechanism**
+(`reports/official/placed-regression.md`, ledger
+`soft-regression-was-the-placed-drop-not-a-coverage-failure`). Every
+component tracks `num_placed_items` above r = 0.96, and `soft` is the
+one placed explains best: r = 0.988, strictly monotone across all five,
+178.4 points per unit placed. `quietguard`'s headline -7.7% on soft is
+its -1.6% on placed through that slope; its residual against the trend
+is **+0.20**, and controlling for placed it was ABOVE trend on every
+component and markedly so on the two it was built to move (stability
++4.36, cog +3.71) while the `deathband` build it replaced sat below
+trend on exactly those. Caveats: n = 5 with two degrees of freedom
+spent, residuals are small differences of large numbers, and the
+observed placed range is only 0.434-0.505.
+
+That regression is a statement about agents, not about actions. It does
+NOT say soft is unmovable within a state, and reading it that way is an
+ecological-inference error that was made and retracted here
+(`placed-regression-does-not-license-dropping-soft-from-labels`). Its implementation
 is now present on the live branch: commit `3b1635c` is an ancestor and
 `ANCHOR_TRUE_ENVELOPE` defaults to 1. The old active ledger claim that the
 trunk lacked this code has been superseded.
@@ -523,6 +546,102 @@ itself stays uncommitted; rebuild with `python scripts/build_submission.py`
 from a fresh fetch and re-record both values if any commit lands later.
 The superseded 2026-08-16 build from `ab198d7` was
 `6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`.
+
+## The soft axis, and why it never moved (2026-08-18)
+
+The published rule is one sentence: "soft手荷物の上への通常荷物配置に
+よる破損リスク". Both the bundled diagnostic (`_covers_from_above`) and
+the agent (`candidate_attribute_violations`) read it as DIRECT CONTACT
+-- the mover's bottom within `CONTACT_TOLERANCE` of the protected top.
+
+Measured on 42 recorded terminal states
+(`reports/official/soft-rule-gap.md`, ledger
+`soft-proxy-is-contact-only-and-therefore-inert`), that predicate fires
+on **0.19 soft items per episode and is identically zero on 34 of 42**.
+The soft axis has never carried a gradient, so nothing built on it could
+move -- which is the mechanical reason the preregistered attribute
+filter came back inert at 0 of 16 swaps. A stack-aware reading of the
+same states gives 2.24 violated soft items and 5.45 violating pairs,
+with 1 of 42 episodes clean, and moves the local ratio from 98.14 to
+33.42 (25.17 counting pairs) against an official `soft_item_score` of
+19.65. This does NOT identify the official rule -- its normalization and
+scene set are unpublished and the closest variant is still 5.5 points
+off on development configs.
+
+`candidate_attribute_violations(..., stack_aware=True)` now exists and
+is logged beside the shipped reading for every retained candidate.
+Nothing selects on it; both fingerprints are unmoved. The staged
+protocol is `reports/hazard/soft-stack-protocol.md`, whose Stage 1
+shadow measures reach BEFORE an arm is built, precisely because the
+attribute filter spent a wave establishing that a predicate which is
+zero on four fifths of episodes does nothing.
+
+**A hard attribute gate stays closed.** `release attribute hard reject`
+was measured and rejected on placed cost; a wider predicate costs more,
+not less. Stage 2, if it earns the right to exist, is a dominance
+tie-break with no coefficient, per `AGENT_OPERATIONS.md` §5.1 and §5.
+
+## What ends our episodes (2026-08-18)
+
+`reports/hazard/death-budget.md` joins 66 episodes' harness rows with
+the last decision of their traces, which separates two things
+`terminal_channel` conflates. Replicates and refines
+`terminal-failure-channels`.
+
+| cause | share | mean placed fraction |
+|---|---:|---:|
+| surrender: search accepted nothing, fixed fallback fired | **57.6%** | 0.5052 |
+| topple from placement_core | 22.7% | 0.4407 |
+| slide from placement_core | 13.6% | 0.4228 |
+| topple after a physics_probe_guard rescue | 6.1% | 0.4695 |
+
+In all 38 surrender episodes the deadline was reached and NO candidate
+was found for any item, after a mean 7371 attempts. The shipped physics
+probe therefore guards the minority channel. This does not reopen the
+majority one: `vacuum-cutoff` already turned the true-empty detector
+into an in-flight early stop and failed all four gates, and
+`last-resort-relaxation` already spent extra effort in exactly this
+regime and failed fresh-permutation confirmation. The feasibility phase
+structure (P1 deadline-miss 17 vs P3 true-empty 8) already answered
+whether those boards are full.
+
+## Measurement hygiene defects found and fixed (2026-08-18)
+
+- **`base` stopped being a baseline** at the quiet-guard adoption. It
+  sets no environment variables, so once `PHYSICS_PROBE_MODE` defaulted
+  to `guard_quiet`, `base` WAS the shipped agent with the guard -- its
+  traces carry `physics_probe_guard` on every step -- and no arm could
+  turn the guard off. Every post-adoption base-vs-quiet_guard contrast
+  compares the guard against itself plus the observed-pool shadow.
+  Fixed: a `guard_off` arm, plus a test that reads the agent's own
+  defaults and fails when a knob defaulting to an active value has no
+  arm able to switch it off. Ledger
+  `base-arm-stopped-being-a-baseline-at-the-guard-adoption`.
+- **`measurement_budget` was not concurrency-safe.** A non-atomic
+  read-modify-write cost a real episode when a paired batch ran two arms
+  at once. Fixed with atomic replace plus an exclusive lock and
+  concurrency regression tests.
+
+## The post-shake instrument (2026-08-18): PASSED
+
+Three versions. v1 and v2 both tried to rebuild the terminal state in a
+clone and both failed their fidelity gates, v2 on peak kinetic energy,
+which a rebuilt world cannot reproduce in principle. The rebuild was
+never necessary: `Evaluator.shake_test` computes the post-shake poses in
+the LIVE world and discards them at `restoreState`. v3
+(`scripts/postshake_capture.py`) records them, so reconstruction error
+is zero by construction. All gates pass on 41 episodes across 7 configs
+and both arms; `reports/hazard/post-shake/direct-verdict.md`.
+
+Payload: **the shake changes attribute coverage on 6 of 41 episodes**,
+soft in both directions and priority one-directionally worse. The
+pre-shake proxy is not a noisy version of the post-shake truth. This
+does NOT separate the arms -- the apparent arm inversion is two
+episodes and both arms are flat with them excluded.
+
+**Rung-3 label generation is unblocked**: labels may be
+`(settle_safe, post_shake_stable, post_shake_coverage)` with the third
+measured. `NEDO_POSTSHAKE_CAPTURE` is default-off and log-only.
 
 ## Established by evidence
 
@@ -847,6 +966,12 @@ Rewritten 2026-08-16 after the expedition that closed most of the old
 list. Everything below is stated with its entry gate; nothing here is a
 suggestion to re-run a closed line.
 
+0. **Read the ledger before designing anything** — this list has been
+   re-derived by an agent that skipped it, and the cost was a withdrawn
+   protocol whose question `reports/anchor-recall/phase-structure.md`
+   had already answered, plus a death-budget entry recorded as a
+   discovery when it was a replication of `terminal-failure-channels`.
+   `AGENT_OPERATIONS.md` §0.2: 導出しない、照会する.
 1. **Submission readiness is done — submit when a slot exists.**
    `dist/submission.zip` built from the 2026-08-17 quiet-guard adoption
    commit `d63bace` (SHA-256
