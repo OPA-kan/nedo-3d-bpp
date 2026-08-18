@@ -3581,6 +3581,22 @@
         "gate_S_stability": "FAIL -- max shift 0.1803->0.2541; peak KE improved 19.34->14.34",
         "verdict": "development fail, not adopted, knob default off"
       }
+    },
+    {
+      "id": "official-weights-partially-identified-from-five-submissions",
+      "topic": "scoring",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The official total is reproduced by a weighted average of the five reported component values, and with FIVE submissions the weights become partially identifiable -- superseding the 'not identifiable' reading in `official-score-log-submission22`, which was correctly derived from ONE submission (83 weight vectors on a 0.05 grid reproduced that single total). Least squares over all five gives fill 0.29, cog 0.25, placement 0.14, soft 0.13, stability 0.19 at RMSE 0.023, i.e. 0.1% relative on totals given to 14 digits. Enumerating every grid weight vector with RMSE < 0.05 leaves 46 candidates and bounds them: **fill is pinned at 0.28-0.29** and **placement+soft, the two independently evaluated halves of the published 配置スコア, is pinned as a SUM at 0.26-0.31**, while cog (0.14-0.29) and stability (0.16-0.27) stay individually loose. TWO STRUCTURAL CORRECTIONS FOLLOW. First, simulator/README.md's 評価指標 lists FOUR scored items -- 充填率 / 重心 / 配置 / 安定性 -- and `num_placed_items` is NOT among them; it is the gate variable of the loading cutoff, not a scored axis. Framing placed as 'the master variable' among six components conflated a gate with a component and is retracted. Second, `placement_score` and `soft_item_score` are not two separate components but the priority and soft halves of one, which is why their weights are only pinned as a sum. WHERE THE SCORE ACTUALLY IS, computed as weight x (100 - current) on the quietguard submission: fill 18.5-19.2, **配置スコア combined 11.5-35.3**, cog 8.2-16.9, stability 7.4-12.6. The 配置 component carries roughly 0.28 of the weight while reading 16.30 and 19.65, the two lowest values by a factor of three, so it is the largest remaining pool and not a minor axis. That is a direct correction to this session's repeated claim that placed is the only lever worth attacking.",
+      "source": "docs/OFFICIAL_SCORE_LOG.md (5 verbatim feedback blocks); simulator/README.md 評価指標; grid enumeration over weight vectors at 0.01 resolution",
+      "values": {
+        "least_squares": "fill 0.29, cog 0.25, placement 0.14, soft 0.13, stability 0.19; RMSE 0.023",
+        "identified": "fill 0.28-0.29; placement+soft as a sum 0.26-0.31",
+        "loose": "cog 0.14-0.29; stability 0.16-0.27",
+        "num_placed_items": "NOT a scored component -- the cutoff gate variable",
+        "headroom_points": "fill 18.5-19.2, placement+soft 11.5-35.3, cog 8.2-16.9, stability 7.4-12.6",
+        "retracts": "placed as the master variable among six components"
+      }
     }
   ]
 }
