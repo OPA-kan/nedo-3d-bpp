@@ -101,6 +101,7 @@ def configure_arm_environment(
         "PHYSICS_PROBE_MODE",
         "PHYSICS_PROBE_ATTR_FILTER",
         "NEDO_POSE_SNAPSHOT",
+        "NEDO_CANDIDATE_AUDIT",
         "POLICY_BUDGET_SECONDS",
     ):
         env.pop(name, None)
@@ -1088,6 +1089,7 @@ def run_episode(
     slide_lambda: float = 0.0,
     pose_snapshot: bool = False,
     postshake_capture: bool = False,
+    candidate_audit: bool = False,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     case_ids = list(config)
@@ -1115,6 +1117,17 @@ def run_episode(
         # log-only diagnostic (registered semantic=false), so any arm can
         # carry it and the trace gains per-step pose_snapshot events that
         # measure_post_shake.py --from-snapshots can rebuild from.
+        env["NEDO_POSE_SNAPSHOT"] = "1"
+    if candidate_audit:
+        # Records every ACCEPTED candidate's geometry before retention
+        # (protocol reports/hazard/soft-generation-protocol.md), so
+        # attribute violations over the pre-retention set can be computed
+        # offline instead of inside the candidate loop, where the work
+        # would perturb the deadline-bound trajectory it measures.
+        # Registered diagnostic; the recording cost still changes the
+        # trajectory, so an audited episode's placed and fill are not
+        # comparable with another wave's.
+        env["NEDO_CANDIDATE_AUDIT"] = "1"
         env["NEDO_POSE_SNAPSHOT"] = "1"
     if postshake_capture:
         # Records what the official shake already computes and throws
@@ -1160,6 +1173,7 @@ def run_episode(
         "config": config_path.name,
         "pose_snapshot": bool(pose_snapshot),
         "postshake_capture": bool(postshake_capture),
+        "candidate_audit": bool(candidate_audit),
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"
         ),
@@ -2220,6 +2234,19 @@ def main() -> int:
             "empirically."
         ),
     )
+    parser.add_argument(
+        "--candidate-audit",
+        action="store_true",
+        help=(
+            "Set NEDO_CANDIDATE_AUDIT=1 and NEDO_POSE_SNAPSHOT=1, so the "
+            "diagnostics record every ACCEPTED candidate before retention "
+            "alongside the packed poses "
+            "(reports/hazard/soft-generation-protocol.md). Registered "
+            "diagnostics, but the recording cost changes the trajectory: "
+            "an audited episode's placed and fill are not comparable with "
+            "another wave's."
+        ),
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2249,6 +2276,7 @@ def main() -> int:
         slide_lambda=args.slide_lambda,
         pose_snapshot=args.pose_snapshot,
         postshake_capture=args.postshake_capture,
+        candidate_audit=args.candidate_audit,
     )
     print(json.dumps({k: row[k] for k in ("label", "cases")}, indent=1))
     return 0 if row["process_returncode"] == 0 else 1
