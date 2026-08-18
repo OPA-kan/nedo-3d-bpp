@@ -3549,6 +3549,23 @@
         "failed_mechanisms": "search starvation, post-shake timing, stack-aware reading, loading cutoff",
         "next": "calibration by submission reconstruction with leave-one-out validation"
       }
+    },
+    {
+      "id": "attribute-components-are-local-ratio-times-a-placed-scale",
+      "topic": "scoring",
+      "date": "2026-08-18",
+      "status": "active",
+      "replicates": "num-placed-gate-amplifies-downward-too",
+      "claim": "Synthesis obtained by finally reading the scoring ledger instead of re-deriving it, and it is the first internally consistent account of the low attribute components. Computing g = official_component / (local_clean_ratio * 100) INDEPENDENTLY from the soft axis and from the placement axis gives nearly the same value within each submission and a value that rises steeply with num_placed_items: sub1 (placed 0.434) 0.078 and 0.059; sub2 (0.452) 0.129 and 0.143; deathband (0.491) 0.178 and 0.193; quietguard (0.497) 0.200 and 0.214; trueenvelope (0.505) 0.217 and 0.223. Two independent axes agreeing on a common scale at each submission is a consistency check that was not constructed -- it fell out -- and g moving roughly threefold while placed moves 16% IS the multi-fold amplification `num-placed-gate-amplifies-downward-too` measured directly (7.6x downward, 6.7x upward). So the attribute components behave as local_clean_ratio times a steep function of placed, and our soft reads 19.65 not because we violate the rule (local soft_clean_ratio is 0.982) but because g is only about 0.20 at placed 0.497. Caveats: the current agent's local ratios stand in for each era's, which is wrong in detail though the two-axis agreement depends mainly on the RATIO between the axes being stable; five points; and no functional form for g is fitted or claimed. Consequence: raising the attribute components means raising placed, and this closes the fourth failed mechanism for the soft gap with a fifth that at least reproduces the ledger's own measured amplification. ALSO RECORDED, because I built arms for it before checking: the plan to identify the mapping by reconstructing the five submissions and regressing local counts on official components is ALREADY CLOSED by `submitted-pair-is-nearly-identical-on-local-cases` (2026-08-04) -- two submissions differing 15.3% officially are nearly indistinguishable on the distributed cases, so the official gap is generated on cases we do not have and no proxy-to-component mapping is identifiable from replaying submissions here. The reconstruction arms were removed.",
+      "source": "docs/OFFICIAL_SCORE_LOG.md (5 feedback blocks); 132 development episodes' attribute telemetry; ledger entries score-cutoff-gate, num-placed-gate-amplifies-downward-too, submitted-pair-is-nearly-identical-on-local-cases, attribute-placement-local-instrument",
+      "values": {
+        "model": "official attribute component ~ local_clean_ratio * g(placed)",
+        "g_by_submission": "0.434->0.07, 0.452->0.14, 0.491->0.19, 0.497->0.21, 0.505->0.22",
+        "two_axis_agreement": "soft-derived and placement-derived g agree within each submission",
+        "why_soft_is_low": "g ~ 0.20 at placed 0.497, not rule violation (local clean 0.982)",
+        "closed_plan": "submission-reconstruction calibration, already closed 2026-08-04",
+        "process_lesson": "four failed mechanisms and three ledger rediscoveries, all from re-deriving instead of querying"
+      }
     }
   ]
 }
