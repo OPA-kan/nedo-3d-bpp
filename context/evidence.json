@@ -3483,6 +3483,37 @@
         "severity": "chosen covers 1 on 31 decisions, 2 on 15, 4 on 2; best alternative still 1 on 26",
         "inherited_risk": "half the value needs item-spanning retention, which failed three confirmations"
       }
+    },
+    {
+      "id": "soft-stack-aware-reading-contradicts-the-published-rule",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "CORRECTION, and it invalidates the premise of three entries filed today. The soft/priority rule is NOT unpublished and NOT ambiguous: simulator/README.md's 評価指標 section defines the Placement Score as '優先手荷物やソフト貨物が自分以外の属性の手荷物の下敷き(上方向からの接触判定がある)になっている' -- an explicit UPWARD CONTACT determination -- and docs/ATTRIBUTE_PLACEMENT.md already transcribed it from that source. The shipped contact-only predicate in candidate_attribute_violations and _covers_from_above is therefore a FAITHFUL TRANSCRIPTION of the published rule, not a defect. The 'stack-aware' reading I introduced (charging any ordinary item resting anywhere above) CONTRADICTS the published text; it was selected because its number (25.17) sat closest to the official 19.65, which is fitting a rule to a single data point. Second and independent error: docs/ATTRIBUTE_PLACEMENT.md states that the violation-count to 0-100 mapping is unpublished and instructs in as many words 'clean_ratio をスコアとして提示しないこと', yet `soft-proxy-is-contact-only-and-therefore-inert` presented local clean ratios (98.14) beside the official soft_item_score (19.65) and called the difference a 5x discrepancy. Those are incommensurable quantities and the comparison is void. Third: the placed gating that `soft-regression-was-the-placed-drop-not-a-coverage-failure` reports as a finding is DOCUMENTED -- simulator/README.md '手荷物を一定数以上コンテナに積載できていないと充填率スコア以外は0となる' and docs/COMPETITION_QA.md:9 '積載数カットオフ ... placed 数は ... cog / stability / placement / soft のゲート' -- so the r=0.988 regression rediscovered a published rule rather than establishing a new one. What SURVIVES all three corrections, and changes meaning entirely: the contact predicate fires on 0.19 soft items per episode and is zero on 34 of 42 boards. Under the CORRECT rule that is not an inert instrument -- it is the measurement that we are already nearly clean on soft placement, so the axis has almost no violation left to remove. The official soft number is low because of the documented placed cutoff and an unpublished normalization, not because we bury soft cargo. Root cause of all three: AGENTS.md puts the running official simulator source and config FIRST in its information-priority list, and I read one line of docs/COMPETITION_RULES.md instead of simulator/README.md's own 評価指標 section.",
+      "source": "simulator/README.md 評価指標 section; docs/ATTRIBUTE_PLACEMENT.md; docs/COMPETITION_QA.md:9-11; corrects soft-proxy-is-contact-only-and-therefore-inert, stack-aware-soft-tiebreak-has-no-reach-in-selection, soft-clean-placement-exists-in-40pct-of-violating-states, soft-regression-was-the-placed-drop-not-a-coverage-failure",
+      "values": {
+        "published_rule": "上方向からの接触判定 -- contact, not anywhere-above",
+        "shipped_predicate": "faithful transcription, not a defect",
+        "invalid_comparison": "clean_ratio 98.14 vs score 19.65 -- mapping unpublished, and the repo forbids presenting the ratio as a score",
+        "placed_gate": "documented in simulator/README.md and COMPETITION_QA.md, not discovered",
+        "what_survives": "0.19 violations/episode and 34/42 clean boards now read as: we are already nearly clean, the axis has no headroom",
+        "root_cause": "did not read the primary source the information-priority list puts first"
+      }
+    },
+    {
+      "id": "soft-axis-has-no-headroom-under-the-published-rule",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Restatement of the soft axis under the rule as actually published, replacing the reading in the three entries corrected by `soft-stack-aware-reading-contradicts-the-published-rule`. Measured on 42 recorded terminal states with the SHIPPED contact predicate, which is the faithful transcription of simulator/README.md's upward-contact determination: violations run at 0.19 soft items per episode and 34 of 42 boards are completely clean, i.e. soft_clean_ratio averages 0.98. We are already compliant with the published soft rule on nearly every board. The correct conclusion is therefore the opposite of 'the instrument is broken': there is almost no soft violation left to remove, so no selector, filter, guard or ranking term on this axis can buy anything, and the preregistered attribute filter's 0-of-16 inert result was the right answer rather than a symptom. The low official soft_item_score is explained by two documented facts that have nothing to do with our coverage: the loading cutoff that zeroes every component except fill below a placed threshold (simulator/README.md; docs/COMPETITION_QA.md:9), and the unpublished violation-count to 0-100 normalization (docs/ATTRIBUTE_PLACEMENT.md, which also forbids presenting clean_ratio as a score). Consequence for planning: soft is not a separate lever at all, and the only route to it is placed -- which is what the cutoff rule says in so many words. The 32 episodes spent on the stack-aware line bought this correction and nothing else; the stack_aware flag stays in the code default-off as the reproduction of a negative, and must not be described as a better reading of the rule.",
+      "source": "reports/official/soft-rule-gap.json (contact-reading columns only); simulator/README.md 評価指標; docs/ATTRIBUTE_PLACEMENT.md; docs/COMPETITION_QA.md",
+      "values": {
+        "shipped_predicate_violations": "0.19 soft items per episode, 34/42 boards clean, mean clean ratio 0.98",
+        "reading": "already compliant; no headroom on the axis",
+        "official_score_explained_by": "documented placed cutoff plus unpublished normalization",
+        "attribute_filter_verdict": "0 of 16 was correct, not symptomatic",
+        "route_to_soft": "placed, per the cutoff rule itself"
+      }
     }
   ]
 }

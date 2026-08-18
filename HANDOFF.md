@@ -547,12 +547,44 @@ from a fresh fetch and re-record both values if any commit lands later.
 The superseded 2026-08-16 build from `ab198d7` was
 `6aea7fae446bd53194f43f1badce44242a8d3bde7c85a8425fed97ab97c43bf8`.
 
-## The soft axis, and why it never moved (2026-08-18)
+## The soft axis (2026-08-18): already compliant, no headroom
 
-The published rule is one sentence: "soft手荷物の上への通常荷物配置に
-よる破損リスク". Both the bundled diagnostic (`_covers_from_above`) and
-the agent (`candidate_attribute_violations`) read it as DIRECT CONTACT
--- the mover's bottom within `CONTACT_TOLERANCE` of the protected top.
+> **Corrected the same day, before this section was a day old**, by
+> `reports/official/soft-rule-correction.md` and ledger
+> `soft-stack-aware-reading-contradicts-the-published-rule`. The text
+> below originally called the published rule ambiguous and treated the
+> shipped predicate as a defect. It is neither. `simulator/README.md`'s
+> 評価指標 section defines the Placement Score with an explicit
+> **上方向からの接触判定** — contact — and `docs/ATTRIBUTE_PLACEMENT.md`
+> had already transcribed it from there. The shipped predicate is a
+> faithful transcription; the "stack-aware" variant contradicts the
+> rule and was chosen only because its number sat nearest the official
+> one. Read this section for the measurements, not for that framing.
+>
+> Two further corrections travel with it. The count-to-score mapping is
+> unpublished and `docs/ATTRIBUTE_PLACEMENT.md` explicitly forbids
+> presenting `clean_ratio` as a score, so comparing local 98.14 with
+> official 19.65 was comparing incommensurable quantities. And the
+> placed gating the score table below reports is **documented** —
+> simulator/README.md's 積載数カットオフ and `docs/COMPETITION_QA.md:9` —
+> so the r = 0.988 regression rediscovered a rule rather than finding
+> one.
+>
+> **What the measurements then mean, inverted from what was written
+> here first:** with the shipped predicate, violations run at 0.19 soft
+> items per episode and 34 of 42 boards are completely clean, mean
+> `soft_clean_ratio` 0.98. We are already compliant on nearly every
+> board, so there is nothing left on this axis for a selector, filter,
+> guard or ranking term to buy, and the attribute filter's 0-of-16 was
+> the right answer rather than a symptom. Soft is not a separate lever;
+> the route to it is placed, which is what the cutoff rule says
+> outright.
+
+The rule as published: "優先手荷物やソフト貨物が自分以外の属性の手荷物の
+下敷き(上方向からの接触判定がある)になっている" -- an upward contact
+determination. Both the bundled diagnostic (`_covers_from_above`) and
+the agent (`candidate_attribute_violations`) implement exactly that:
+the mover's bottom within `CONTACT_TOLERANCE` of the protected top.
 
 Measured on 42 recorded terminal states
 (`reports/official/soft-rule-gap.md`, ledger
