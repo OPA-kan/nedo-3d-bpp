@@ -3450,6 +3450,22 @@
         "retrodiagnosis": "the rung-1 attribute filter was inert because its predicate is inert",
         "not_established": "the official rule itself; a hard gate remains closed on placed cost"
       }
+    },
+    {
+      "id": "stack-aware-soft-tiebreak-has-no-reach-in-selection",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Fixing the soft predicate does not make the soft axis actionable AT THE SELECTION STAGE, and the Stage 1 shadow caught that before an arm was built. On 273 multi-candidate decisions from 14 log-only shadow episodes (7 dev configs x 2, zero failures), the preregistered entry gate R2 >= 5% FAILS at 0/273 = 0.0%, so the dominance tie-break was not implemented. Two independent causes stack. First, the retained set almost never differs on the axis: candidates differ on stack-aware soft violations in only 8/273 decisions (2.9%), while 64/273 carry a violation SOMEWHERE in the retained set and 173/273 retain poses of a single item -- retention is by score and the top-scoring poses of one item are near-duplicates sharing an attribute footprint, so a selector cannot choose what retention never offers. Second, in all six decisions where a soft-better alternative does exist it scores worse, and in five of six only by 0.003-0.025 on a score of order 1.5 -- a fraction of a percent to remove two or three violations outright. The dominance restriction that made the design safe (selling placed for soft impossible by construction, and no coefficient per AGENT_OPERATIONS 5.1) is exactly what makes it inert. That tension is not fixable by widening: even R1, which ignores score entirely and is the most generous rule writable on this data, reaches 2.2%, so the gate fails under every available variant and the verdict is robust rather than knife-edge. No epsilon band was introduced or tested on this stream. The R4 control at 0.0% under the shipped contact reading directly confirms that the attribute filter's 0-of-16 inert verdict was mechanically guaranteed. The located lever is candidate GENERATION and RETENTION diversity, not selection; stating that is not licensing it, and any such work inherits `release attribute hard reject` (closed on placed cost) and the item-cap widenings that failed fresh permutations. The stack-aware reading stays default-off and logged; both fingerprints unmoved, no default changed, simulator untouched.",
+      "source": "reports/hazard/soft-stack/verdict.md; reach.{json,md}; protocol reports/hazard/soft-stack-protocol.md; 14 episodes in reports/raw/soft-stack-shadow",
+      "values": {
+        "gate": "R2 >= 5% required, measured 0/273 = 0.0% -- FAIL",
+        "most_generous_variant": "R1 ignoring score entirely = 6/273 = 2.2%, still below gate",
+        "retained_diversity": "8/273 decisions differ on the axis; 173/273 retain one item; 64/273 carry a violation",
+        "dominance_cost": "5 of 6 better alternatives lose by 0.003-0.025 on a score of order 1.5",
+        "lever": "candidate generation/retention diversity, not selection",
+        "control": "R4 contact reading 0.0%, confirming the attribute filter's inert verdict was guaranteed"
+      }
     }
   ]
 }
