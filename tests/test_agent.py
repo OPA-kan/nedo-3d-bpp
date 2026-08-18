@@ -1384,6 +1384,99 @@ class RankingPipelineContractTests(unittest.TestCase):
         )
         self.assertEqual((priority, soft), (1, 1))
 
+    def test_rest_legality_matches_the_bundled_rule_on_every_combination(self):
+        """The per-axis reading, checked against the simulator, not argued.
+
+        The sentence 自分以外の属性 is read PER AXIS, and the case that
+        catches a loose reading is priority-on-soft: a priority item is
+        not itself soft, so resting it on a soft item IS a soft-axis
+        violation. Only an item carrying every protected attribute the
+        lower one has may rest on it. This enumerates all sixteen
+        (lower, mover) attribute pairs and requires the agent's
+        predicate to agree with calculate_attribute_placement.
+        """
+        import pathlib as _pathlib
+        import sys as _sys
+
+        simulator = str(
+            _pathlib.Path(__file__).resolve().parents[1] / "simulator"
+        )
+        if simulator not in _sys.path:
+            _sys.path.insert(0, simulator)
+        from src.ground_handling.diagnostics import (
+            calculate_attribute_placement,
+        )
+
+        def packed(index, is_soft, is_prioritized, z):
+            return {
+                "index": index,
+                "mass": 1.0,
+                "volume": 1.0,
+                "pos": [0.0, 0.0, z],
+                "aabb_min": [-0.2, -0.2, z - 0.1],
+                "aabb_max": [0.2, 0.2, z + 0.1],
+                "is_soft": is_soft,
+                "is_prioritized": is_prioritized,
+            }
+
+        combinations = [(False, False), (True, False), (False, True), (True, True)]
+        for lower_soft, lower_priority in combinations:
+            for mover_soft, mover_priority in combinations:
+                snapshot = [
+                    {
+                        "index": 0,
+                        "offset_x": 0.0,
+                        "length": 2.0,
+                        "width": 1.5,
+                        "height": 1.5,
+                        "thickness": 0.01,
+                        "buffer": 0.0,
+                        "cut_x": 0.0,
+                        "require_shelf": False,
+                        "is_prioritized": False,
+                        "volume": 4.0,
+                        "packed_items": [
+                            packed(0, lower_soft, lower_priority, 0.1),
+                            packed(1, mover_soft, mover_priority, 0.3),
+                        ],
+                    }
+                ]
+                official = calculate_attribute_placement(snapshot)
+                penalised = bool(
+                    official["soft_covered_by_other"]
+                    or official["priority_covered_by_other"]
+                )
+                mover = {
+                    "is_soft": mover_soft,
+                    "is_prioritized": mover_priority,
+                }
+                legal = agent.attribute_rest_is_legal(
+                    mover, lower_soft, lower_priority
+                )
+                self.assertEqual(
+                    legal,
+                    not penalised,
+                    f"lower(soft={lower_soft}, prio={lower_priority}) "
+                    f"mover(soft={mover_soft}, prio={mover_priority}): "
+                    f"agent says legal={legal}, simulator penalises="
+                    f"{penalised}",
+                )
+
+    def test_support_surfaces_without_an_item_keeps_the_old_contract(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(sample_item(1, is_soft=True), pos=[0.0, 0.0, 0.1],
+                 orientation=0),
+            dict(sample_item(2), pos=[0.5, 0.0, 0.1], orientation=0),
+        ]
+
+        names = [s.name for s in agent.support_surfaces(container)]
+
+        # floor, shelves, and the plain packed item only.
+        self.assertEqual(len(names), 2)
+
     def test_the_two_attribute_readings_agree_on_direct_contact(self):
         """Stack-awareness must be a strict widening, not a different rule.
 

@@ -217,6 +217,21 @@ if PHYSICS_PROBE_MODE not in PHYSICS_PROBE_MODES:
 PHYSICS_PROBE_ATTR_FILTER = (
     os.environ.get("PHYSICS_PROBE_ATTR_FILTER", "0") == "1"
 )
+# Rule-faithful attribute support (reports/hazard/attribute-support-protocol.md).
+# "1": support_surfaces() admits a protected top when the mover carries
+# every attribute that top is protected by, which is what the published
+# rule allows -- 同属性の積み重ねは減点なし. Default "0" keeps the
+# historical over-approximation, where NO protected top is ever support,
+# so the shipped trajectory is unchanged until a wave says otherwise.
+#
+# The over-approximation is not free: support-exhaustion-is-the-terminal-state
+# records a fatal board where all 950 legal release candidates rest on
+# protected tops and the settled contract refuses every one, and
+# docs/ATTRIBUTE_PLACEMENT.md notes the same shape -- 公式が許す同属性積み
+# 重ね(体積になる)を捨てながら、違反そのものは防げていない.
+ATTRIBUTE_SUPPORT_RULE = (
+    os.environ.get("ATTRIBUTE_SUPPORT_RULE", "0") == "1"
+)
 # Fixed by the frozen protocol, so source literals rather than knobs: at
 # most this many probes per step (the incumbent's included) and this
 # wall-clock slice, clamped to the shipped policy deadline.
@@ -2080,7 +2095,46 @@ def simulator_action_center(candidate, container):
     return action_center
 
 
-def support_surfaces(container):
+def attribute_rest_is_legal(item, is_soft, is_prioritized):
+    """May `item` legally rest on a packed item with these attributes?
+
+    The published rule, read per axis: a protected item is penalised
+    when covered by an item of a DIFFERENT attribute than its own, and
+    same-attribute stacking is explicitly exempt -- 優先手荷物(ソフト貨物)
+    の上に優先手荷物(ソフト貨物)を配置しても減点はなく, それ以外の状況の
+    場合に減点 (simulator/README.md 評価指標).
+
+    "Per axis" is the part that is easy to get wrong, and it is verified
+    against the bundled `calculate_attribute_placement` in
+    tests/test_agent.py rather than argued from the sentence: a PRIORITY
+    item resting on a SOFT one IS a soft-axis violation, because it is
+    not itself soft. Only an item carrying every protected attribute the
+    lower item has may rest on it.
+    """
+    if is_soft and not bool(item.get("is_soft", False)):
+        return False
+    if is_prioritized and not bool(item.get("is_prioritized", False)):
+        return False
+    return True
+
+
+def support_surfaces(container, item=None):
+    """Tops an anchor may rest on.
+
+    `item=None` keeps the historical contract: only PLAIN packed items
+    are support, so nothing is ever proposed onto a protected top. That
+    is stricter than the rule -- it discards the same-attribute stacking
+    the rule explicitly allows, and
+    `support-exhaustion-is-the-terminal-state` records boards where all
+    950 legal release candidates rest on protected tops while the
+    settled contract refuses every one of them.
+
+    Passing `item` applies the rule instead of the over-approximation,
+    admitting a protected top exactly when the mover carries every
+    attribute that top is protected by. Gated by
+    ATTRIBUTE_SUPPORT_RULE so the default trajectory is unchanged until
+    a wave says otherwise.
+    """
     thickness = float(container["thickness"])
     buffer = float(container.get("buffer", 0.0))
     length = float(container["length"])
@@ -2094,8 +2148,12 @@ def support_surfaces(container):
         )
     ]
     surfaces.extend(shelf_aabbs(container))
+    rule_mode = ATTRIBUTE_SUPPORT_RULE and item is not None
     for box, is_soft, is_prioritized in packed_aabbs_local(container):
-        if not is_soft and not is_prioritized:
+        if rule_mode:
+            if attribute_rest_is_legal(item, is_soft, is_prioritized):
+                surfaces.append(box)
+        elif not is_soft and not is_prioritized:
             surfaces.append(box)
     return surfaces
 
@@ -3595,7 +3653,7 @@ class CandidateGenerator:
                 + TRANSPORT_CLEARANCE
             )
 
-        for surface in support_surfaces(container):
+        for surface in support_surfaces(container, item):
             zs.add(surface.top + dz / 2.0)
             xs.update(
                 (
@@ -3824,7 +3882,7 @@ class CandidateGenerator:
             return
 
         components = order_support_plane_components(
-            support_plane_components(support_surfaces(container))
+            support_plane_components(support_surfaces(container, item))
         )
         position_groups = [
             (
@@ -4047,7 +4105,7 @@ class CandidateGenerator:
             yield None
             return
 
-        surfaces = support_surfaces(container)
+        surfaces = support_surfaces(container, item)
         components = order_support_plane_components(
             support_plane_components(surfaces)
         )

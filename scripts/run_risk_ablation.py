@@ -103,6 +103,7 @@ def configure_arm_environment(
         "NEDO_POSE_SNAPSHOT",
         "NEDO_CANDIDATE_AUDIT",
         "POLICY_BUDGET_SECONDS",
+        "ATTRIBUTE_SUPPORT_RULE",
     ):
         env.pop(name, None)
     if arm == "off":
@@ -169,6 +170,7 @@ def configure_arm_environment(
         "guard_attr",
         "guard_off",
         "headroom",
+        "attr_support_rule",
     }:
         if arm == "anchor_fallback":
             env["ANCHOR_FALLBACK_ENABLED"] = "1"
@@ -288,6 +290,14 @@ def configure_arm_environment(
                 / "candidate-mlp-safety-v1.json"
             )
             env["PHYSICS_PROBE_ATTR_FILTER"] = "1"
+        elif arm == "attr_support_rule":
+            # Rule-faithful attribute support
+            # (reports/hazard/attribute-support-protocol.md): a protected
+            # top becomes legal anchor support exactly when the mover
+            # carries every attribute that top is protected by, which is
+            # the same-attribute stacking the published rule allows and
+            # the shipped over-approximation discards.
+            env["ATTRIBUTE_SUPPORT_RULE"] = "1"
         elif arm == "guard_off":
             # A real guard-off control, which the registry lacked between
             # the 2026-08-17 adoption and 2026-08-18. `base` sets nothing
