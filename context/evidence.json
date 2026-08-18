@@ -3514,6 +3514,24 @@
         "attribute_filter_verdict": "0 of 16 was correct, not symptomatic",
         "route_to_soft": "placed, per the cutoff rule itself"
       }
+    },
+    {
+      "id": "priority-cover-lexicographic-preference-has-no-reach-either",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "replicates": "release-path-causes-priority-covers",
+      "claim": "Replication at scale of `release-path-causes-priority-covers`, plus the reach measurement its recorded next shape needed. THE REPLICATION: across 132 episodes and 725 chosen placements carrying multi-axis telemetry, settled commands cover a priority item 0 times out of 368 while release commands do so 60 times out of 357 (16.8%) -- 100% of priority covering comes through the release path, against 6 of 7 cover events in the original 2026-08-04 measurement. support_surfaces() is perfectly effective where it applies and release bypasses it entirely. THE NEW PART: the entry named a lexicographic preference (avoid covering while a non-covering candidate exists) as the next shape instead of the hard reject that was measured and not adopted. Conditioned on the 62 decisions whose chosen placement covers a priority item, a retained alternative covers fewer on only 2 (3.2%), and ZERO are dominance-eligible -- both cost 0.077 of score, and no alternative sits within 0.05. So the lexicographic preference hits exactly the wall the soft tie-break hit, for the same structural reason: retention is by score and the non-covering alternative is not in the retained set. CURRENT STATE OF THE AXIS, which is the one that is actually violated: priority_clean_ratio averages 0.7602 over 114 episodes with only 36 fully clean, against soft at 0.9817 with 107 of 132 clean; roughly one priority item in four is buried. The generation-stage fix works and is priced -- RELEASE_ATTRIBUTE_GUARD drives priority_covered_by_other to zero in every scenario but costs about 11.5 placed per scenario, breaching the floor in three of four (`attribute-guard-trades-placed-for-priority`), with mode 'priority' recovering about a third of mode 'all''s cost. So the axis closes for a different reason than soft did: the fix exists and works, it costs the master variable that gates every component, and the trade cannot be priced locally because the count-to-score mapping is unpublished -- only an official submission A/B could price it, at single-sample noise. Also recorded: priority_misrouted is 0 on every episode because no development config has a priority container (docs/ATTRIBUTE_PLACEMENT.md flagged this), so the routing half of the rule remains locally untestable.",
+      "source": "132 episodes' multi-axis shadow telemetry across reports/raw/{soft-stack-shadow,risk-pricing-entry,post-shake-*}; entries release-path-causes-priority-covers, attribute-guard-trades-placed-for-priority, support-exhaustion-is-the-terminal-state; docs/ATTRIBUTE_PLACEMENT.md",
+      "values": {
+        "mechanism": "settled 0/368 covers, release 60/357 = 16.8%; 100% of covers are release",
+        "priority_clean_ratio": "0.7602 mean, 36/114 episodes fully clean",
+        "soft_clean_ratio": "0.9817 mean, 107/132 episodes fully clean",
+        "lexicographic_reach": "2/62 have a better retained alternative, 0/62 dominance-eligible, both cost 0.077 score",
+        "generation_fix": "works (covers -> 0) but costs ~11.5 placed per scenario, floor breach in 3 of 4",
+        "why_closed": "the fix costs the variable that gates every component, and the trade cannot be priced locally",
+        "blind_spot": "priority_misrouted untestable -- no development config has a priority container"
+      }
     }
   ]
 }
