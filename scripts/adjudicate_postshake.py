@@ -50,6 +50,9 @@ from scripts.postshake_capture import (  # noqa: E402
 
 G2_THRESHOLD = 0.95
 G1_MIN_EPISODES = 6
+G1_MIN_CONFIGS = 3
+STREAM_MIN_EPISODES = 40
+STREAM_MIN_CONFIGS = 5
 
 
 def load_run(run_dir: pathlib.Path) -> list[dict[str, Any]]:
@@ -107,13 +110,33 @@ def adjudicate_g1a(rows: list[dict]) -> dict[str, Any]:
     matched = sum(1 for c in checked if c["control_matches"])
     calls_ok = sum(1 for c in checked if c["calls_as_expected"])
     total = len(checked)
+    # The protocol asks for >= 6 episodes "spanning >= 3 configs and
+    # both arms", so the span is part of the gate, not a description of
+    # the data. A recorder verified on one config proves less.
+    configs = sorted({row["case_id"] for row in rows})
+    arms = sorted(
+        {
+            "quiet_guard"
+            if "quiet_guard" in row["label"]
+            else ("base" if "-base-" in row["label"] else "other")
+            for row in rows
+        }
+    )
+    span_ok = len(configs) >= G1_MIN_CONFIGS and {"base", "quiet_guard"} <= set(
+        arms
+    )
     return {
         "episodes": total,
         "control_matches": matched,
         "live_poses_calls_as_expected": calls_ok,
         "min_episodes": G1_MIN_EPISODES,
+        "configs": configs,
+        "min_configs": G1_MIN_CONFIGS,
+        "arms": arms,
+        "span_ok": span_ok,
         "pass": (
             total >= G1_MIN_EPISODES
+            and span_ok
             and matched == total
             and calls_ok == total
         ),
@@ -212,6 +235,7 @@ def payload(rows: list[dict]) -> dict[str, Any]:
 def render_markdown(report: dict) -> str:
     g1 = report["g1a"]
     g2 = report["g2"]
+    suf = report["stream_sufficiency"]
     pay = report["payload"]
     lines = [
         "# Direct post-shake instrument: gate adjudication",
@@ -226,13 +250,20 @@ def render_markdown(report: dict) -> str:
         "",
         "| gate | threshold | measured | result |",
         "|---|---|---|---|",
-        f"| G1a wrapped-vs-unwrapped shake equal | all of >= "
-        f"{g1['min_episodes']} episodes | "
+        f"| G1a wrapped-vs-unwrapped shake equal | all episodes | "
         f"{g1['control_matches']}/{g1['episodes']} | "
-        f"{'pass' if g1['pass'] else '**fail**'} |",
-        f"| G1a exactly two `_live_poses` calls per shake | all | "
+        f"{'pass' if g1['control_matches'] == g1['episodes'] else '**fail**'}"
+        " |",
+        f"| G1a exactly two `_live_poses` calls per shake | all episodes | "
         f"{g1['live_poses_calls_as_expected']}/{g1['episodes']} | "
-        f"{'pass' if g1['pass'] else '**fail**'} |",
+        f"{'pass' if g1['live_poses_calls_as_expected'] == g1['episodes'] else '**fail**'}"
+        " |",
+        f"| G1a span | >= {g1['min_episodes']} episodes, >= "
+        f"{g1['min_configs']} configs, both arms | "
+        f"{g1['episodes']} episodes, {len(g1['configs'])} configs, "
+        f"arms {g1['arms']} | "
+        f"{'pass' if g1['episodes'] >= g1['min_episodes'] and g1['span_ok'] else '**fail**'}"
+        " |",
         f"| G2 pre-shake capture == last safe step counts | >= "
         f"{int(G2_THRESHOLD * 100)}% | "
         f"{g2['exact_matches']}/{g2['qualifying_episodes']} = "
@@ -240,6 +271,11 @@ def render_markdown(report: dict) -> str:
         f"{'pass' if g2['pass'] else '**fail**'} |",
         "| G3 no reimplementation of the attribute contract | structural"
         " | `tests/test_postshake_capture.py` | see test run |",
+        f"| stream sufficiency | >= {suf['min_episodes']} episodes, >= "
+        f"{suf['min_configs']} configs, both arms | "
+        f"{suf['episodes']} episodes, {len(suf['configs'])} configs, "
+        f"arms {suf['arms']} | "
+        f"{'pass' if suf['pass'] else '**fail**'} |",
         "",
         f"## Verdict: **{report['verdict']}**",
         "",
@@ -306,13 +342,42 @@ def main() -> int:
 
     g1a = adjudicate_g1a(rows)
     g2 = adjudicate_g2(rows)
+    # The protocol sizes the stream as well as the gates: ">= 40
+    # episodes across >= 5 configs and both arms for G2 and for the
+    # payload". A gate that passes on a thin stream has not been tested.
+    stream_configs = sorted({row["case_id"] for row in rows})
+    stream_arms = sorted(
+        {
+            "quiet_guard"
+            if "quiet_guard" in row["label"]
+            else ("base" if "-base-" in row["label"] else "other")
+            for row in rows
+        }
+    )
+    sufficiency = {
+        "episodes": len(rows),
+        "min_episodes": STREAM_MIN_EPISODES,
+        "configs": stream_configs,
+        "min_configs": STREAM_MIN_CONFIGS,
+        "arms": stream_arms,
+        "pass": (
+            len(rows) >= STREAM_MIN_EPISODES
+            and len(stream_configs) >= STREAM_MIN_CONFIGS
+            and {"base", "quiet_guard"} <= set(stream_arms)
+        ),
+    }
     report = {
         "run_dirs": run_dirs,
         "episodes": len(rows),
+        "stream_sufficiency": sufficiency,
         "g1a": g1a,
         "g2": g2,
         "payload": payload(rows),
-        "verdict": "pass" if (g1a["pass"] and g2["pass"]) else "fail",
+        "verdict": (
+            "pass"
+            if (g1a["pass"] and g2["pass"] and sufficiency["pass"])
+            else "fail"
+        ),
     }
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(
