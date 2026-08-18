@@ -3351,6 +3351,20 @@
         "arm_separation": "12/21 base runs have an identical quiet_guard twin",
         "consequence": "rung-3 labels remain blocked; v3 needs a fresh preregistration and a fresh stream"
       }
+    },
+    {
+      "id": "soft-regression-was-the-placed-drop-not-a-coverage-failure",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Regressing every official component on num_placed_items across all five submissions dissolves the soft anomaly that motivated the whole post-shake instrument line. soft_item_score is the component MOST tightly explained by placed (Pearson r 0.9880, r^2 0.9762, strictly monotone across all five, slope 178.4 points per unit placed); the quiet_guard submission's residual against that trend is +0.20, i.e. given how many items it placed its soft score was exactly what the trend predicts and a hair above it. The headline -7.7% soft was the placed drop 0.5047 -> 0.4967 (-1.6%) amplified by the slope, not evidence that the guard damaged soft coverage. The same regression re-reads the whole submission: controlling for placed, quiet_guard was ABOVE trend on every component and markedly so on the two it was designed to move -- stability +4.36 and cog +3.71 -- while the deathband build it replaced was below trend on exactly those two (stability -5.46, cog -3.75). Every component tracks placed above r=0.96, so placed is the master variable and the residual is the only controlled comparison five submissions permit. Caveats that bound the claim: n=5 with 2 degrees of freedom spent on the fit, residuals are small differences of large numbers, correlation is not mechanism (soft could genuinely measure coverage AND track placed), and the observed placed range is only 0.434-0.505 so any extrapolation is arithmetic rather than prediction.",
+      "source": "reports/official/placed-regression.{json,md}; scripts/analyze_official_components.py; docs/OFFICIAL_SCORE_LOG.md (5 feedback blocks)",
+      "values": {
+        "soft_vs_placed": "r 0.9880, r^2 0.9762, monotone 5/5, slope 178.4",
+        "quietguard_residuals": "soft +0.20, stability +4.36, cog +3.71, placement +0.28, fill -0.03",
+        "deathband_residuals": "stability -5.46, cog -3.75",
+        "consequence": "the soft blind spot is not a coverage-measurement problem; placed is the axis to attack"
+      }
     }
   ]
 }
