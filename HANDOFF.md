@@ -578,8 +578,42 @@ zero on four fifths of episodes does nothing.
 
 **A hard attribute gate stays closed.** `release attribute hard reject`
 was measured and rejected on placed cost; a wider predicate costs more,
-not less. Stage 2, if it earns the right to exist, is a dominance
-tie-break with no coefficient, per `AGENT_OPERATIONS.md` §5.1 and §5.
+not less.
+
+### The axis is now closed end to end, with no arm licensed
+
+Three measured findings, in order, each with its own preregistration
+and verdict:
+
+1. **The shipped predicate is inert** (above): 0.19 violations per
+   episode, zero on 34 of 42 boards.
+2. **Fixing the predicate gives selection nothing to act on.**
+   `reports/hazard/soft-stack/verdict.md`, ledger
+   `stack-aware-soft-tiebreak-has-no-reach-in-selection`. A dominance
+   tie-break's reach is **0 of 273** multi-candidate decisions against
+   a 5% entry gate frozen beforehand, and the verdict is robust rather
+   than knife-edge: even R1, which ignores score entirely and is the
+   most generous rule writable on that data, reaches 2.2%. Retained
+   candidates differ on the axis in only 8 of 273 decisions, because
+   retention is by score and the top poses of one item are
+   near-duplicates. Stage 2 was therefore never built. The R4 control
+   at 0.0% under the shipped reading confirms the attribute filter's
+   inert verdict was mechanically guaranteed.
+3. **The clean placement is unreachable where it is most needed.**
+   `reports/hazard/soft-stack/generation-verdict.md`, ledger
+   `soft-clean-placement-exists-in-40pct-of-violating-states`. On 48 of
+   293 decisions the played placement covers a soft item; a clean
+   candidate was accepted and dropped on 39.6% of them and a better one
+   on 52.1%, but on the other 29 decisions **not one of ~311 accepted
+   candidates avoids it**. Ambiguous by the frozen thresholds, so no
+   arm is licensed. Ceiling of a perfect retention rule: **19 of 293
+   decisions, 6.5%**, before any score cost -- and half the reachable
+   value needs item-spanning retention, whose three widenings all
+   failed fresh-permutation confirmation.
+
+The remaining route to soft is placing more items, which is what every
+official component is made of. Nothing in this line changed shipped
+behaviour; both fingerprints are unmoved.
 
 ## What ends our episodes (2026-08-18)
 
