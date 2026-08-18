@@ -3365,6 +3365,20 @@
         "deathband_residuals": "stability -5.46, cog -3.75",
         "consequence": "the soft blind spot is not a coverage-measurement problem; placed is the axis to attack"
       }
+    },
+    {
+      "id": "death-budget-is-search-starvation-not-physics",
+      "topic": "agent_behaviour",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Joining 66 recorded episodes' harness rows with the last decision event of their policy traces attributes every ending to a cause, and the result re-ranks the whole improvement ladder. 57.6% (38/66) end in surrender_no_candidate: the deadline search accepted nothing and the agent emitted the fixed protocol fallback, which is a knowingly transport-invalid action. In all 38 the deadline was reached, in all 38 the search found no candidate for ANY item, mean 7371 attempts were consumed at the fatal step, and in 12 not one search unit completed. The remaining 42.4% are physical: topple from placement_core 22.7%, slide from placement_core 13.6%, topple after a physics_probe_guard rescue 6.1%. The shipped physics probe therefore guards the MINORITY channel; on the majority channel there is nothing for it to arbitrate between because zero candidates exist to compare. Note also that the surrender episodes carry the HIGHEST mean placed fraction (0.5052 vs 0.4407/0.4228 for topple/slide), i.e. they are late-board endings where the agent had already done well and then ran out of reachable poses -- exactly the regime the closed last-resort-relaxation entry named as the target for any future variant. Combined with the placed regression (every official component tracks num_placed_items above r=0.96), this says the binding constraint on score is proposal quality under an 8 s policy deadline on late boards, not physics arbitration -- which is the strongest available argument for the rung-3 learned proposer and which demotes the already-preregistered probe-everywhere arm to the minority channel.",
+      "source": "reports/hazard/death-budget.{json,md}; scripts/analyze_death_budget.py; 66 episodes in reports/raw/post-shake-revalidation and reports/raw/post-shake-direct",
+      "values": {
+        "surrender_no_candidate": "38/66 = 57.6%, mean placed 0.5052",
+        "physical_deaths": "topple 22.7% + slide 13.6% + topple-after-guard 6.1% = 42.4%",
+        "fatal_step_search": "deadline reached 38/38, no candidate for any item 38/38, mean 7371 attempts",
+        "consequence": "attack proposal quality on late boards; probe-everywhere targets the minority channel"
+      }
     }
   ]
 }
