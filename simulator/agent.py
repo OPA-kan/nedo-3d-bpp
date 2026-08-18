@@ -4634,13 +4634,47 @@ def predicted_center_of_mass_z(observation, item, candidate, container):
     return weighted_z / total_mass if total_mass > EPS else 0.0
 
 
-def candidate_attribute_violations(item, candidate, container):
-    """Incremental rule-proxy violations caused by placing one candidate."""
+def candidate_attribute_violations(item, candidate, container, *, stack_aware=False):
+    """Incremental rule-proxy violations caused by placing one candidate.
+
+    Two readings of the same published sentence -- "soft手荷物の上への
+    通常荷物配置による破損リスク", the breakage risk of putting ordinary
+    cargo ON TOP OF a soft item.
+
+    `stack_aware=False` (default, and what the bundled diagnostic's
+    `_covers_from_above` also does) charges only DIRECT CONTACT: the
+    mover's bottom must sit within CONTACT_TOLERANCE of the protected
+    top. Measured on 42 recorded terminal states
+    (`reports/official/soft-rule-gap.md`), that predicate fires on 0.19
+    soft items per episode and is identically zero on 34 of 42, which is
+    why every intervention built on it has been inert -- including the
+    preregistered attribute filter, whose 0-of-16 result was mechanically
+    guaranteed rather than informative.
+
+    `stack_aware=True` charges any ordinary item resting ANYWHERE over
+    the protected one, so load carried down through an intervening box
+    counts. On the same states that reads 2.24 violated soft items and
+    5.45 violating pairs per episode, with 1 of 42 episodes clean, and
+    it moves the local soft ratio from 98.14 to 33.42 against an
+    official soft_item_score of 19.65.
+
+    Which reading the official scorer uses is NOT established -- its
+    normalization and scene set are unpublished, and the closest variant
+    is still several points away on development configs. The flag exists
+    so the two can be compared by measurement; it changes no default.
+    """
     priority = 0
     soft = 0
     bottom = float(candidate.minimum[2])
     for lower, is_soft, is_priority in packed_aabbs_local(container):
-        if abs(bottom - float(lower.top)) > CONTACT_TOLERANCE:
+        top = float(lower.top)
+        if stack_aware:
+            # At or above the protected top, by the same tolerance, so
+            # the two readings agree on the direct-contact case and
+            # differ only on load carried through a stack.
+            if bottom < top - CONTACT_TOLERANCE:
+                continue
+        elif abs(bottom - top) > CONTACT_TOLERANCE:
             continue
         if xy_overlap_area(candidate, lower) <= EPS:
             continue
@@ -4661,6 +4695,14 @@ def multi_axis_candidate_record(decision, observation, rank):
     support = Geometry.support_metrics(contact, container, item)
     priority_cover, soft_cover = candidate_attribute_violations(
         item, contact, container
+    )
+    # Recorded alongside, never substituted for, the shipped reading.
+    # The shipped one is inert on most episodes, so a shadow that only
+    # logged it could not tell whether a stack-aware selector would have
+    # any reach at all -- which is exactly what the attribute filter's
+    # inert verdict failed to reveal in advance.
+    priority_cover_stack, soft_cover_stack = candidate_attribute_violations(
+        item, contact, container, stack_aware=True
     )
     has_priority_container = any(
         bool(current.get("is_prioritized", False))
@@ -4696,6 +4738,8 @@ def multi_axis_candidate_record(decision, observation, rank):
         ),
         "priority_cover_violations": int(priority_cover),
         "soft_cover_violations": int(soft_cover),
+        "priority_cover_violations_stack": int(priority_cover_stack),
+        "soft_cover_violations_stack": int(soft_cover_stack),
         "priority_routing_violation": int(priority_routing),
         "rotation_probability": p_rot,
         "slide_probability": p_slide,

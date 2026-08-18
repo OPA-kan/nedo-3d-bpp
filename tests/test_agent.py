@@ -1380,6 +1380,127 @@ class RankingPipelineContractTests(unittest.TestCase):
         )
         self.assertEqual((priority, soft), (1, 1))
 
+    def test_the_two_attribute_readings_agree_on_direct_contact(self):
+        """Stack-awareness must be a strict widening, not a different rule.
+
+        Both readings have to charge the resting case identically, or
+        the shadow's comparison measures two unrelated things instead of
+        the one structural choice under test.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True, is_prioritized=True),
+                pos=[0.0, 0.0, 0.1],
+                orientation=0,
+            )
+        ]
+        resting = agent.AABB((0.0, 0.0, 0.3), (0.3, 0.25, 0.2), "candidate")
+        plain = sample_item(2)
+
+        contact = agent.candidate_attribute_violations(
+            plain, resting, container
+        )
+        stacked = agent.candidate_attribute_violations(
+            plain, resting, container, stack_aware=True
+        )
+
+        self.assertEqual(contact, stacked)
+
+    def test_stack_aware_charges_load_carried_through_a_gap(self):
+        """The case the shipped reading misses: ordinary cargo higher up.
+
+        A box floating a clear 40 cm over a soft item is charged by the
+        stack-aware reading and not by the contact one. On recorded
+        boards this is the difference between 0.19 and 2.24 violated
+        soft items per episode.
+        """
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True),
+                pos=[0.0, 0.0, 0.1],
+                orientation=0,
+            )
+        ]
+        higher = agent.AABB((0.0, 0.0, 0.7), (0.3, 0.25, 0.2), "candidate")
+        plain = sample_item(2)
+
+        _, contact_soft = agent.candidate_attribute_violations(
+            plain, higher, container
+        )
+        _, stacked_soft = agent.candidate_attribute_violations(
+            plain, higher, container, stack_aware=True
+        )
+
+        self.assertEqual(contact_soft, 0)
+        self.assertEqual(stacked_soft, 1)
+
+    def test_stack_aware_ignores_items_below_and_same_attribute_above(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True),
+                pos=[0.0, 0.0, 0.9],
+                orientation=0,
+            )
+        ]
+        below = agent.AABB((0.0, 0.0, 0.2), (0.3, 0.25, 0.2), "candidate")
+
+        _, soft_below = agent.candidate_attribute_violations(
+            sample_item(2), below, container, stack_aware=True
+        )
+        self.assertEqual(soft_below, 0)
+
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True),
+                pos=[0.0, 0.0, 0.1],
+                orientation=0,
+            )
+        ]
+        higher = agent.AABB((0.0, 0.0, 0.7), (0.3, 0.25, 0.2), "candidate")
+        _, soft_same = agent.candidate_attribute_violations(
+            sample_item(2, is_soft=True), higher, container,
+            stack_aware=True,
+        )
+        self.assertEqual(soft_same, 0)
+
+    def test_multi_axis_dominance_ignores_the_stack_aware_columns(self):
+        """The shadow records the new reading; nothing selects on it yet.
+
+        multi_axis_dominates fixes its own axis tuple, so adding columns
+        to the record must not change any verdict. If a future arm wants
+        to select on them it has to say so in a protocol, not inherit it
+        silently from a logging change.
+        """
+        better = {
+            "priority_cover_violations": 0,
+            "soft_cover_violations": 0,
+            "priority_cover_violations_stack": 9,
+            "soft_cover_violations_stack": 9,
+            "priority_routing_violation": 0,
+            "rotation_probability": 0.1,
+            "slide_probability": 0.1,
+            "support_ratio": 0.9,
+            "support_center_margin": 0.2,
+        }
+        worse = dict(
+            better,
+            soft_cover_violations=1,
+            priority_cover_violations_stack=0,
+            soft_cover_violations_stack=0,
+        )
+
+        self.assertTrue(agent.multi_axis_dominates(better, worse))
+        self.assertFalse(agent.multi_axis_dominates(worse, better))
+
     def test_multi_axis_shadow_does_not_run_inside_closed_loop_selection(self):
         items = [sample_item(1), sample_item(2)]
         container = sample_container(
