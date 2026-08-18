@@ -54,14 +54,36 @@ move.
 
 ## Gates (frozen; a gate that fails is reported as failed)
 
-**G1 -- no-op.** For >= 6 episodes spanning >= 3 configs and both arms,
-running with the recorder installed and with it absent must produce
-identical `evaluation_results.json` content apart from the single added
-`post_shake` key: every official component (`fill_score`,
-`num_placed_items`), every `step_metrics` entry, and the whole
-`shake_response` dict must compare equal. Any difference fails G1 and
-the instrument is discarded, because a measurement that perturbs the
-thing it measures is not a measurement.
+**G1 -- no-op.** (Amended 2026-08-18, before any G1 datum was
+collected; the original text is preserved below with the reason.)
+
+*G1a, binding, in-process.* Within a single episode, the recorder's
+wrapped `shake_test` and the original unwrapped `shake_test` must
+return equal `shake_response` dicts when called on the same terminal
+state, and the second call's state must equal the first's -- the
+official method saves and restores, so a recorder that perturbed the
+world would show up as a divergence between two calls that are supposed
+to be identical. Additionally the recorder's own bookkeeping must show
+exactly two `_live_poses` calls per shake and must not step the
+simulation. Threshold: exact equality on >= 6 episodes spanning >= 3
+configs and both arms.
+
+*G1b, non-binding cross-check.* Paired runs of the same config and arm
+with the recorder on and off, comparing `evaluation_results.json`.
+Reported, not adjudicated.
+
+**Why the amendment.** The original G1 required two separate runs of
+the same config and arm to produce identical `evaluation_results.json`.
+That assumes run-to-run determinism which this project has already
+documented does NOT hold: the agent's search is wall-clock budgeted, and
+the v2 stream landed identical arms in different basins on 12 of 21
+paired runs (`reports/hazard/post-shake/revalidation-verdict.md`,
+section 3). As written, G1 would have adjudicated the harness's timing
+nondeterminism rather than the recorder, and it could fail while the
+recorder was provably inert. The in-process form is strictly stronger:
+it compares the wrapped and unwrapped method on the *same* state, so
+there is no nondeterminism to confound it. This amendment is made with
+no G1 measurement in hand; nothing here is chosen because of a result.
 
 **G2 -- pre-shake self-consistency.** On every episode whose final step
 is a safe placement, the recorder's pre-shake capture (taken at the

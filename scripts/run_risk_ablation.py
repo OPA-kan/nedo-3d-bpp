@@ -1066,6 +1066,7 @@ def run_episode(
     open_final_holdout: bool = False,
     slide_lambda: float = 0.0,
     pose_snapshot: bool = False,
+    postshake_capture: bool = False,
 ) -> dict[str, Any]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     case_ids = list(config)
@@ -1094,12 +1095,25 @@ def run_episode(
         # carry it and the trace gains per-step pose_snapshot events that
         # measure_post_shake.py --from-snapshots can rebuild from.
         env["NEDO_POSE_SNAPSHOT"] = "1"
+    if postshake_capture:
+        # Records what the official shake already computes and throws
+        # away (protocol reports/hazard/post-shake-direct-protocol.md).
+        # The wrapper is a no-op without this variable, so the same
+        # entry point serves both arms of the no-op gate.
+        env["NEDO_POSTSHAKE_CAPTURE"] = str(
+            (run_dir / "post-shake-capture.json").resolve()
+        )
+    runner_script = (
+        str((ROOT / "scripts" / "run_test_capture.py").resolve())
+        if postshake_capture
+        else "scripts/run_test.py"
+    )
 
     record_from_env(1)
     result = run(
         [
             sys.executable,
-            "scripts/run_test.py",
+            runner_script,
             "--config-path",
             str(config_path.resolve()),
             "--module-path",
@@ -1124,6 +1138,7 @@ def run_episode(
         "repeat": repeat,
         "config": config_path.name,
         "pose_snapshot": bool(pose_snapshot),
+        "postshake_capture": bool(postshake_capture),
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(
             timespec="seconds"
         ),
@@ -2172,6 +2187,18 @@ def main() -> int:
             "trajectory is unchanged."
         ),
     )
+    parser.add_argument(
+        "--postshake-capture",
+        action="store_true",
+        help=(
+            "Record the bundled shake's own pre- and post-shake settled "
+            "metrics to post-shake-capture.json in the run directory, by "
+            "running the episode through scripts/run_test_capture.py "
+            "(protocol reports/hazard/post-shake-direct-protocol.md). "
+            "The recorder only reads; the no-op gate G1 checks that "
+            "empirically."
+        ),
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2200,6 +2227,7 @@ def main() -> int:
         open_final_holdout=args.open_final_holdout,
         slide_lambda=args.slide_lambda,
         pose_snapshot=args.pose_snapshot,
+        postshake_capture=args.postshake_capture,
     )
     print(json.dumps({k: row[k] for k in ("label", "cases")}, indent=1))
     return 0 if row["process_returncode"] == 0 else 1
