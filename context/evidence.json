@@ -3393,6 +3393,21 @@
         "window": "2026-08-17 adoption to 2026-08-18 fix: no guard-off arm existed",
         "fix": "guard_off arm plus a defaults-derived control-coverage test"
       }
+    },
+    {
+      "id": "death-budget-replicates-terminal-failure-channels",
+      "topic": "protocol",
+      "date": "2026-08-18",
+      "status": "active",
+      "replicates": "terminal-failure-channels",
+      "claim": "Correction of record. `death-budget-is-search-starvation-not-physics` was written and committed as a discovery; it is substantially a REPLICATION of `terminal-failure-channels`, which already post-mortemed 57 episode-ending placements (topple 28, transport_invalid 21, slide 8) and already named the lever: 'The largest untapped lever is the transport_invalid channel (37% of deaths, untouchable by any release-risk lambda): episodes die on transport validation before physics, pointing back at candidate generation / anchor recall in endgame states.' Per docs/AGENT_OPERATIONS.md a replication is recorded with `replicates` and both entries stay active, which the earlier entry failed to do; the earlier entry is not edited because post-commit value rewriting is forbidden, so this entry carries the linkage instead. What the new measurement genuinely ADDS over the original, on 66 post-adoption episodes: (a) trace attribution via action_source separates the two things terminal_channel conflates, showing the transport_invalid channel is almost entirely the fixed protocol fallback firing after the search accepted nothing, not the agent mispredicting reachability -- 38/38 such episodes reached the deadline having found no candidate for ANY item; (b) the channel's share has grown from 37% to 57.6% since the quiet-guard adoption, consistent with the guard removing physical deaths and leaving the starvation channel proportionally larger; (c) surrender episodes carry the highest mean placed fraction (0.5052 vs 0.4407 topple / 0.4228 slide), locating them at late boards. None of that reopens the channel: `vacuum-cutoff` already turned the true-empty detector into an in-flight early stop and failed all four gates, and `last-resort-relaxation-dev-pass-confirmation-fail` already spent extra effort in exactly this regime and failed fresh-permutation confirmation.",
+      "source": "reports/hazard/death-budget.{json,md}; context entry terminal-failure-channels; reports/anchor-recall/phase-structure.md",
+      "values": {
+        "original": "topple 28, transport_invalid 21, slide 8 (57 deaths)",
+        "replication": "surrender 57.6%, topple 28.8%, slide 13.6% (66 episodes)",
+        "added": "action_source attribution; post-adoption share growth; late-board location",
+        "not_reopened": "vacuum-cutoff and last-resort both already failed in this regime"
+      }
     }
   ]
 }

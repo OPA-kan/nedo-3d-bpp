@@ -1,5 +1,37 @@
 # Search headroom: is the surrender ending a full board or an unsearched one?
 
+> **WITHDRAWN 2026-08-18, before it ran, as largely redundant.** The
+> question below was already measured. `reports/anchor-recall/phase-structure.md`
+> crossed 51 anchor-recall oracle states with their decision-time
+> telemetry and split exactly this: **P1 deadline-miss 17** (reachable
+> settled candidates exist, none accepted) against **P3 true-empty 8**,
+> with P2 generator-hole zero. So roughly two thirds of no-candidate
+> states are un-searched rather than full, and the answer did not need
+> a new 7-hour physical stream.
+>
+> Worse, the live consequence has already been tested twice and failed
+> twice. `VACUUM_SETTLED_CUTOFF` turned that phase detector into an
+> in-flight early stop and failed all four preregistered gates
+> (`reports/vacuum-cutoff/verdict.md`). `LAST_RESORT_RELAXATION_SECONDS`
+> spent extra effort in precisely the zero-accepted regime, passed
+> development, and failed fresh-permutation confirmation
+> (`reports/last-resort/`). "Reachable candidates exist" is therefore
+> already known NOT to convert into placed by either detecting the
+> state or spending more effort in it.
+>
+> This protocol is kept, unrun, as the record of a wrong turn:
+> `docs/AGENT_OPERATIONS.md` §0.2 says "導出しない、照会する" -- query
+> the ledger, do not reconstruct measured facts from prose -- and this
+> was written without doing that. The instrument it motivated
+> (`POLICY_BUDGET_SECONDS` as a registered knob) is harmless and stays,
+> default-inert; the stream it asked for is not worth spending.
+>
+> What is NOT answered by the prior work, and would need its own
+> preregistration if anyone reopens this: the phase split was measured
+> on the anchor-recall oracle's 51 states, before the quiet-guard
+> adoption, and P1 says candidates were reachable by an ORACLE, not
+> that the shipped search would reach them given more wall clock.
+
 Preregistration, written before the diagnostic runs. This is a
 MEASUREMENT protocol, not a candidate for adoption: every treatment
 value here is unshippable by construction (see "Why nothing here can
