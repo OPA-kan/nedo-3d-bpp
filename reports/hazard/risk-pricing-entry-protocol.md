@@ -85,6 +85,26 @@ losing values recorded.
 Passing this gate licenses a design, not an adoption, and not a default
 change.
 
+## For the stage after this one, if it is reached
+
+`docs/RELEASE_RISK_PROTOCOL.md` §6 already implements
+`RELEASE_RISK_SHADOW_RERANK`: it reruns the WHOLE selection stack under
+`Q - lambda*P_rot` and records baseline, risk selection, whether the
+choice changed, and `p_rot`. That is the right instrument for "does
+reweighting actually move the selection", which is the design question,
+not this entry gate's existence question -- so it is noted here rather
+than used, so that a later stage does not rebuild it. Its own caveat
+travels with it: the shadow re-search doubles policy time on release
+steps and must stay off on the submission path.
+
+The same document's §8 carries a lesson that any later stage inherits:
+"探索・選択・リスクの各部品は独立に評価できない — 部品変更時は他部品の
+採否も再測定する". The quiet-guard adoption on 2026-08-17 changed the
+risk component, so the standing `RELEASE_RISK_RERANK_LAMBDA=1.0` and
+`RELEASE_RISK_SLIDE_LAMBDA=0.5` adoptions were decided before it and
+are, by that rule, due for re-measurement independently of whatever
+this gate returns.
+
 ## What this cannot become
 
 No lambda is fitted on this stream. No threshold above may move after
