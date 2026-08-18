@@ -3435,6 +3435,21 @@
         "what_the_regression_does_support": "the -7.7% headline was not guard damage",
         "consequence": "label triple keeps post_shake_coverage; instrument passed on 6/41 changed episodes"
       }
+    },
+    {
+      "id": "soft-proxy-is-contact-only-and-therefore-inert",
+      "topic": "official_feedback",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The soft axis has never been optimized, because the predicate the agent optimizes is almost never true. Both the bundled diagnostic (_covers_from_above) and the agent's own candidate_attribute_violations (agent/agent.py, the `abs(bottom - lower.top) > CONTACT_TOLERANCE: continue` guard) read the published rule -- 'soft手荷物の上への通常荷物配置による破損リスク' -- as DIRECT CONTACT: an ordinary item charges a soft item only if its bottom sits within 2 cm of the soft item's top. Recomputed on 42 recorded terminal states from pose_snapshot traces, that predicate fires on 0.19 soft items per episode and is identically ZERO on 34 of 42 episodes, so the soft axis carries no gradient: there is nothing for a filter, a guard or a ranking term to act on. Under a stack-aware reading (any ordinary item resting anywhere over the soft one, load through a stack included) the same states give 2.24 violated soft items and 5.45 violating pairs per episode, with only 1 of 42 episodes clean. The gap to official is correspondingly enormous: the current reading scores 98.14 against an official soft_item_score of 19.65, while stack-aware readings close most of it (above/stream 33.42, above-pairs/stream 25.17). This RETRODIAGNOSES the closed rung-1 verdict `guard-attr-filter-inert-on-guard-matrix`: the attribute filter was not a bad idea that failed, it was wired to a predicate that is zero on 81% of episodes, so 0 filtered across 16 swaps was mechanically guaranteed. Bounds on the claim: this does NOT identify the official rule (normalization and scene set unpublished, and the closest variant is still 5.5 points off on development configs), and it does NOT license a hard attribute gate -- that was measured and closed for placed cost, and a stricter predicate costs more, not less. What it licenses is a stack-aware attribute term measured against placed.",
+      "source": "reports/official/soft-rule-gap.{json,md}; scripts/analyze_soft_rule_gap.py; 42 pose_snapshot traces in reports/raw/post-shake-revalidation; agent/agent.py candidate_attribute_violations; simulator diagnostics _covers_from_above",
+      "values": {
+        "contact_rule": "0.19 violated soft items/episode, 34/42 episodes at zero, scores 98.14",
+        "stack_aware": "2.24 violated soft items and 5.45 pairs/episode, 1/42 clean, scores 33.42 (25.17 pair-counted)",
+        "official": "soft_item_score 19.65",
+        "retrodiagnosis": "the rung-1 attribute filter was inert because its predicate is inert",
+        "not_established": "the official rule itself; a hard gate remains closed on placed cost"
+      }
     }
   ]
 }
