@@ -3335,6 +3335,22 @@
         "fix": "end-of-episode pose snapshot",
         "consequence": "rung-3 labels blocked until instrument passes"
       }
+    },
+    {
+      "id": "post-shake-instrument-v2-two-gates-still-fail",
+      "topic": "learning_data",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "Pose snapshots (NEDO_POSE_SNAPSHOT, log-only, behaviour_sha256 unmoved) fixed the reconstruction failure that sank instrument v1, but the instrument still FAILS its frozen fidelity gate 2-of-4 on a fresh 42-episode stream (7 dev configs x {base, quiet_guard} x 3, 42/42 complete, zero harness failures). Every gate improved: max_shift rho 0.256->0.762 (gate 0.8, still FAIL), items_shifted 0.820->0.931 (pass), toppled-within-1 79.4%->95.2% (pass), peak-KE direction still sign-flipped (recorded +19.3% vs cloned -24.9%, FAIL). The residual has MOVED and split in two: (a) displacement geometry is now good in bulk -- max_shift median abs err 0.0435 m, items_shifted median abs err 0.5 items, and the non-binding low-drift subset (30/42) reads rho 0.913 / 0.974 -- with the correlation dragged under the bar by a tail traceable to the one thing still unrecorded, the final placement's own 300-step settle, which no snapshot postdates and which is exactly what a single-item extremum like max_shift is sensitive to; (b) peak kinetic energy is simply not reproducible in a rebuilt world -- 13/42 episodes off by more than 2x, |log ratio| mean 0.451, max 1.745 -- so the direction gate was built on the least stable quantity available and on a stream that cannot separate the arms anyway (12 of 21 base runs have a byte-identical quiet_guard twin; c000-k1 and c001-k1 are 3/3 identical, so the guard changed nothing there). Verdict per the protocol's unconditional fail branch: the clone does NOT become a wave-adjudication column, its post-shake coverage columns are not adopted, and rung-3 label generation REMAINS BLOCKED. No constant may be adjusted and re-scored on these 42 episodes; a v3 must be preregistered separately and adjudicated on a fresh stream.",
+      "source": "reports/hazard/post-shake/revalidation-verdict.md; revalidation-fidelity.{json,md}; reports/raw/post-shake-revalidation/ (42 episodes); protocol reports/hazard/post-shake-instrument-protocol.md",
+      "values": {
+        "gates": "max_shift rho 0.762 FAIL, shifted 0.931 pass, toppled 95.2% pass, direction sign-flip FAIL",
+        "v1_to_v2": "0.256->0.762, 0.820->0.931, 79.4%->95.2%",
+        "residual_geometry": "final placement's own settle is unrecorded; low-drift subset rho 0.913",
+        "residual_energy": "peak KE unreproducible, 13/42 off by >2x",
+        "arm_separation": "12/21 base runs have an identical quiet_guard twin",
+        "consequence": "rung-3 labels remain blocked; v3 needs a fresh preregistration and a fresh stream"
+      }
     }
   ]
 }
