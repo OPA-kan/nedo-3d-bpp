@@ -1,5 +1,20 @@
 # Rung 2: probe-everywhere selection (preregistration)
 
+> **Priority amendment, 2026-08-18, before this arm was built or waved.**
+> The death budget measured after this protocol was frozen
+> (`reports/hazard/death-budget.md`) shows that the physical channels
+> this arm targets -- topple and slide -- are 42.4% of endings, while
+> 57.6% end with the deadline search having accepted nothing at all and
+> the agent emitting the fixed protocol fallback. On that majority
+> channel there is nothing for a physics probe to arbitrate between,
+> because zero candidates exist to compare. Nothing in the design or
+> gates below changes; the arm remains preregistered exactly as frozen
+> and may still be waved. But it is no longer the next thing to run,
+> and this note records why so the ordering is not quietly rewritten
+> later. The search-headroom diagnostic
+> (`reports/hazard/search-headroom-protocol.md`) runs first because it
+> decides whether the majority channel is recoverable at all.
+
 Written before the arm exists and before any wave runs. Ladder context:
 rung 1 (attribute filter) closed inert
 (`reports/hazard/attribute-filter-protocol.md`); rung 3 (learned
