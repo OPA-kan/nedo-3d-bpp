@@ -3597,6 +3597,24 @@
         "headroom_points": "fill 18.5-19.2, placement+soft 11.5-35.3, cog 8.2-16.9, stability 7.4-12.6",
         "retracts": "placed as the master variable among six components"
       }
+    },
+    {
+      "id": "attribute-contract-halves-compound-not-cancel",
+      "topic": "anchor",
+      "date": "2026-08-18",
+      "status": "active",
+      "claim": "The combined attribute contract FAILS all four preregistered gates and the hypothesis behind it is refuted precisely. Four arms, same run, 7 dev configs x 3 replicates, 84/84 complete, zero harness failures. The hypothesis was that the two halves cancel each other's measured failure mode -- ATTRIBUTE_SUPPORT_RULE takes physical endings down but raises violations, RELEASE_ATTRIBUTE_GUARD=priority zeroes violations but costs placed -- so together they would buy compliance at no placed cost. They do not cancel; they COMPOUND. Pooled placed: base 410, support-only 405, guard-only 343, combined 342. The combination recovers NOTHING of the guard's placed cost (342 against the guard's own 343) while losing 17% against base, and it is WORSE on priority violations than either single (12 against support-only 11 and guard-only 9), which fails the same-wave negative control on both of its legs. Gate A misses at 40.0% against the 50% bar; gate P is breached on three configs (b000-k20 -7.67 against a 2.23 floor, b000-k40 -6.33 against 3.93, b001-k20 -4.67 against 4.22); gate S fails. Mechanism reading: both halves act on the candidate set from opposite sides -- the support rule opens taller stacks on protected tops while the guard forbids landing on them -- so the union leaves fewer reachable placements rather than more. STRATEGIC CONSEQUENCE: the 配置スコア headroom of 11.5-35.3 total points (`official-weights-partially-identified-from-five-submissions`) is NOT reachable by making the attribute contract rule-faithful. That is a priced negative on the highest-headroom component. SEPARATE MEASUREMENT-VALIDITY FINDING, recorded because it bounds every single-wave claim on this branch: attr_support_rule was measured twice and the two waves DISAGREE IN SIGN. The 42-episode 2-up wave gave placed 420->449, shake_max_shift 0.180->0.254 (worse) and physical endings 38.1%->0%; this 84-episode 4-up wave gives placed 410->405, shake_max_shift 0.3334->0.2619 (better) and peak kinetic energy 46.96->23.37 (halved). Same arm, opposite signs on both shake and placed. Neither wave's reading of that arm may be quoted alone, and the earlier development FAIL recorded in `attribute-support-rule-fails-development` should be read as one of two disagreeing observations rather than as a settled verdict.",
+      "source": "reports/hazard/attribute-contract/development.{json,md}; protocol reports/hazard/attribute-contract-protocol.md (frozen before launch); 84 episodes in reports/raw/attribute-contract; compared against reports/hazard/attribute-support/development.md",
+      "values": {
+        "pooled_placed": "base 410, support 405, guard 343, combined 342",
+        "priority_violations": "base 20, support 11, guard 9, combined 12",
+        "gate_A": "40.0% drop against a 50% bar -- fail",
+        "gate_P": "breached on b000-k20, b000-k40, b001-k20 -- fail",
+        "gate_N": "combined beats neither single -- fail on both legs",
+        "mechanism": "the halves compound: one opens protected-top stacks, the other forbids landing on them",
+        "consequence": "配置スコア headroom is not reachable via a rule-faithful contract",
+        "cross_wave": "attr_support_rule's two waves disagree in sign on placed and on shake"
+      }
     }
   ]
 }
