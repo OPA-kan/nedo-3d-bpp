@@ -401,12 +401,59 @@ def run_episode(agent, task, *, force=None, capture_steps=()):
         "forced_accepted": forced_accepted,
         "chosen": chosen,
         "evaluation": {
-            key: value
-            for key, value in evaluation.items()
-            if key != "step_metrics"
+            **{
+                key: value
+                for key, value in evaluation.items()
+                if key != "step_metrics"
+            },
+            # The five official axes, not two. step_metrics is dropped
+            # because it is large, but the terminal entry carries the
+            # attribute-placement counts and the centre of mass, and a
+            # board-value label that omits them can only ever learn
+            # placed and fill. Extracted before the drop, as a compact
+            # terminal vector rather than the whole per-step history.
+            #
+            # These are monotone proxies, never scores: the
+            # violation-count to 0-100 mapping is unpublished and
+            # docs/ATTRIBUTE_PLACEMENT.md forbids presenting a clean
+            # ratio as a score. They rank branches; they do not price
+            # them.
+            "terminal_axes": terminal_axis_vector(evaluation),
         },
         "terminated": bool(terminated),
         "truncated": bool(truncated),
+    }
+
+
+TERMINAL_AXIS_KEYS = (
+    # attribute placement (soft and priority are scored independently)
+    "soft_items",
+    "soft_covered_by_other",
+    "soft_clean_ratio",
+    "priority_items",
+    "priority_covered_by_other",
+    "priority_misrouted",
+    "priority_clean_ratio",
+    # centre of gravity
+    "com_z",
+    "com_height_ratio",
+    "center_of_mass_z",
+)
+
+
+def terminal_axis_vector(evaluation):
+    """The last step's attribute and centre-of-mass readings.
+
+    Returns {} when no step ran. Keys absent from a given simulator
+    build are omitted rather than defaulted, so a contract change shows
+    up as a missing key instead of a silent zero.
+    """
+    steps = evaluation.get("step_metrics") or []
+    if not steps:
+        return {}
+    last = steps[-1]
+    return {
+        key: last[key] for key in TERMINAL_AXIS_KEYS if key in last
     }
 
 
