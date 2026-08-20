@@ -756,6 +756,16 @@ are `reports/counterfactual-afterstate-value/residual-affordance-shadow-protocol
 Until that wave passes, this is an instrument only and does not license a
 canary or submission.
 
+The first live wave, run `32380902237`, is **invalid as a physical negative
+control**. It established ample model reach (292 observed decisions; 129
+unrestricted changes, 126 after the attribute guard; the guard blocked three
+soft/priority regressions), but its arm unnecessarily enabled
+`structured_retained`. That changed search work before the decision froze and
+split trajectories across paired arms; do not read the placed/fill differences
+as model effects. The dependency has been removed. The runner now hashes the
+ordered executed action commands and the aggregate fails the negative-control
+gate on any paired mismatch or missing hash. A clean rerun is required.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

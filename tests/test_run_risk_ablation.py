@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import hashlib
 import json
 import pathlib
 import tempfile
@@ -222,6 +223,31 @@ class SummarizeTests(unittest.TestCase):
             summary["registered_development_baseline"]["placed"], 88.0
         )
 
+    def test_action_hash_negative_control_is_paired_by_case_and_repeat(self):
+        rows = []
+        for repeat, base_hash, shadow_hash in (
+            (0, "same", "same"),
+            (1, "base-only", "shadow-only"),
+        ):
+            for arm, digest in (
+                ("base", base_hash),
+                ("residual_affordance_shadow", shadow_hash),
+            ):
+                row = episode_row(arm, "b000-k20", 18, 20.0)
+                row["repeat"] = repeat
+                row["policy_trace"] = {
+                    "action_sequence_sha256": digest
+                }
+                rows.append(row)
+
+        control = summarize(rows)["action_sequence_negative_control"]
+
+        self.assertEqual(control["paired"], 2)
+        self.assertEqual(control["matched"], 1)
+        self.assertEqual(control["mismatched"], 1)
+        self.assertEqual(control["missing"], 0)
+        self.assertFalse(control["passed"])
+
 
 class ArmEnvironmentTests(unittest.TestCase):
     def test_multi_axis_enforce_uses_retained_portfolio(self):
@@ -253,7 +279,7 @@ class ArmEnvironmentTests(unittest.TestCase):
             env, "residual_affordance_shadow", 2.0, 0.0
         )
 
-        self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
+        self.assertNotIn("PLACEMENT_SELECTOR_MODE", env)
         self.assertEqual(env["RESIDUAL_AFFORDANCE_SHADOW_MODE"], "shadow")
 
     def test_structured_noop_is_baseline_plus_selector_mode(self):
@@ -604,6 +630,47 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["search_attempts_max"], 120)
         self.assertEqual(summary["structured_evaluation_count"], 1)
 
+    def test_action_sequence_hash_is_canonical_and_ordered(self):
+        commands = [
+            {
+                "item_idx": 2,
+                "container_idx": 0,
+                "place_pos": [0.1, 0.2, 0.3],
+                "orientation": 4,
+            },
+            {
+                "item_idx": 1,
+                "container_idx": 1,
+                "place_pos": [0.4, 0.5, 0.6],
+                "orientation": 2,
+            },
+        ]
+        records = [
+            {"event": "decision", "action_command": command}
+            for command in commands
+        ]
+        expected = hashlib.sha256()
+        for command in commands:
+            expected.update(
+                json.dumps(
+                    command, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+            )
+            expected.update(b"\n")
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(
+                "".join(json.dumps(record) + "\n" for record in records),
+                encoding="utf-8",
+            )
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["action_command_count"], 2)
+        self.assertEqual(
+            summary["action_sequence_sha256"], expected.hexdigest()
+        )
+
     def test_counts_rescue_and_protocol_fallback_separately(self):
         records = [
             {"event": "init"},
@@ -739,6 +806,11 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "residual_affordance_contract_regression_count": 0,
                 "residual_affordance_immediate_delta_total": 0.0,
                 "residual_affordance_guarded_immediate_delta_total": 0.0,
+                "action_command_count": 0,
+                "action_sequence_sha256": (
+                    "e3b0c44298fc1c149afbf4c8996fb924"
+                    "27ae41e4649b934ca495991b7852b855"
+                ),
             },
         )
 

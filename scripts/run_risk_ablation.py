@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
@@ -359,7 +360,6 @@ def configure_arm_environment(
         elif arm == "residual_affordance_shadow":
             # Replicated action model, measurement only. There is no enforce
             # mode until official-score and special-attribute reach pass.
-            env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
             env["RESIDUAL_AFFORDANCE_SHADOW_MODE"] = "shadow"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
@@ -658,6 +658,8 @@ def case_summary(
 
 
 def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
+    action_hasher = hashlib.sha256()
+    action_command_count = 0
     summary = {
         "decision_count": 0,
         "search_attempts_total": 0,
@@ -815,6 +817,17 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
             if record.get("event") != "decision":
                 continue
             summary["decision_count"] += 1
+            command = record.get("action_command")
+            if isinstance(command, dict):
+                action_hasher.update(
+                    json.dumps(
+                        command,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                )
+                action_hasher.update(b"\n")
+                action_command_count += 1
             source = record.get("action_source")
             if source == "rescue_scan":
                 summary["rescue_action_count"] += 1
@@ -1150,6 +1163,8 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 ] += float(
                     residual.get("guarded_immediate_score_delta", 0.0)
                 )
+    summary["action_command_count"] = action_command_count
+    summary["action_sequence_sha256"] = action_hasher.hexdigest()
     return summary
 
 
@@ -1280,11 +1295,16 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     per_case_arm: dict[tuple[str, str], dict[str, list[float]]] = {}
     terminal_channels_by_arm: dict[str, dict[str, int]] = {}
     policy_trace_by_arm: dict[str, dict[str, float]] = {}
+    action_hashes: dict[tuple[str, int], dict[str, str | None]] = {}
     for row in rows:
         if row["process_returncode"] != 0:
             continue
         trace = row.get("policy_trace")
         if isinstance(trace, dict):
+            for case_id in row.get("cases", {}):
+                action_hashes.setdefault(
+                    (str(case_id), int(row.get("repeat", 0))), {}
+                )[str(row["arm"])] = trace.get("action_sequence_sha256")
             trace_bucket = policy_trace_by_arm.setdefault(
                 row["arm"],
                 {
@@ -2051,6 +2071,38 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             bucket["fill"] = round(bucket["fill"], 3)
         return totals
 
+    action_hash_comparisons = []
+    for (case_id, repeat), by_arm in sorted(action_hashes.items()):
+        baseline_hash = by_arm.get(baseline_arm)
+        for arm, candidate_hash in sorted(by_arm.items()):
+            if arm == baseline_arm:
+                continue
+            missing = not baseline_hash or not candidate_hash
+            action_hash_comparisons.append({
+                "case_id": case_id,
+                "repeat": repeat,
+                "arm": arm,
+                "baseline_sha256": baseline_hash,
+                "candidate_sha256": candidate_hash,
+                "missing": missing,
+                "matched": bool(
+                    not missing and baseline_hash == candidate_hash
+                ),
+            })
+    negative_control = {
+        "paired": len(action_hash_comparisons),
+        "matched": sum(row["matched"] for row in action_hash_comparisons),
+        "mismatched": sum(
+            not row["matched"] and not row["missing"]
+            for row in action_hash_comparisons
+        ),
+        "missing": sum(row["missing"] for row in action_hash_comparisons),
+        "passed": bool(
+            action_hash_comparisons
+            and all(row["matched"] for row in action_hash_comparisons)
+        ),
+        "comparisons": action_hash_comparisons,
+    }
     return {
         "arms": arms,
         "cases": cases,
@@ -2065,6 +2117,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "paired_vs_off": paired if baseline_arm == "off" else {},
         "policy_trace_by_arm": policy_trace,
         "terminal_channels": terminal_channels_by_arm,
+        "action_sequence_negative_control": negative_control,
     }
 
 
@@ -2109,6 +2162,19 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['near_miss'].get('mean', '-')} "
             f"| {stats['surface_tv'].get('mean', '-')} |"
         )
+    negative_control = summary.get("action_sequence_negative_control", {})
+    lines += [
+        "",
+        "## Action-sequence physical negative control",
+        "",
+        "| paired | matched | mismatched | missing | passed |",
+        "|---:|---:|---:|---:|---|",
+        f"| {negative_control.get('paired', 0)} "
+        f"| {negative_control.get('matched', 0)} "
+        f"| {negative_control.get('mismatched', 0)} "
+        f"| {negative_control.get('missing', 0)} "
+        f"| {negative_control.get('passed', False)} |",
+    ]
     lines += [
         "",
         "## Full local proxy vector",
