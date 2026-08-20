@@ -80,8 +80,12 @@ jobs:
             requirements.txt
             requirements-simulator.txt
       - run: pip install -r requirements-simulator.txt
-      - name: Replay physics isolation
-        run: python -m unittest tests.test_replay_integration -v
+      - name: Replay and attribute physics contracts
+        run: >-
+          python -m unittest
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
         env:
           NEDO_REQUIRE_INTEGRATION: "1"
 

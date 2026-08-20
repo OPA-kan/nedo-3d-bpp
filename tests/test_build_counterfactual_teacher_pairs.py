@@ -14,6 +14,28 @@ from scripts.build_counterfactual_teacher_pairs import (
 
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
+    def test_post_shake_soft_axis_reaches_continuation_labels(self):
+        common = {
+            "placed_count": 0,
+            "fill_score_proxy": 0.0,
+            "com_z": 0.0,
+            "surface_total_variation": 0.0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0,
+            "post_shake_soft_covered_by_other": 0,
+        }
+        labels = continuation_labels({
+            "lower_continuation_outcome_vectors": [common],
+            "higher_continuation_outcome_vectors": [{
+                **common, "post_shake_soft_covered_by_other": 1,
+            }],
+        })
+
+        self.assertEqual(
+            labels["post_shake_soft_covered_by_other"]["relation"],
+            "lower_afterstate_better",
+        )
+
     def test_distributional_labels_use_search_policy_pessimistic_quantile(self):
         def sample(fill, reason=None):
             return {

@@ -7,12 +7,90 @@ from unittest import mock
 from scripts.build_counterfactual_graph import (
     build_candidate_provider,
     cumulative_metrics,
+    post_shake_metrics,
     scenario_axes,
     transition_outcomes,
 )
 
 
 class PhysicalOutcomeTests(unittest.TestCase):
+    def test_post_shake_labels_share_one_exact_shake(self):
+        class Evaluator:
+            def __init__(self):
+                self.phase = "pre"
+
+            def _live_poses(self, _containers):
+                return [{"phase": self.phase}]
+
+            def settled_snapshot(self, _containers):
+                return {
+                    "soft_items": 1,
+                    "soft_covered_by_other": int(self.phase == "post"),
+                    "soft_clean_ratio": 0.0 if self.phase == "post" else 1.0,
+                    "priority_items": 0,
+                    "priority_covered_by_other": 0,
+                    "priority_misrouted": 0,
+                    "priority_clean_ratio": None,
+                    "has_priority_container": False,
+                }
+
+            def shake_test(self, containers):
+                self._live_poses(containers)
+                self.phase = "post"
+                self._live_poses(containers)
+                self.phase = "pre"
+                return {
+                    "shake_items": 1,
+                    "shake_items_lost": 0,
+                    "shake_max_shift": 0.25,
+                    "shake_mean_shift": 0.25,
+                    "shake_max_rotation_deg": 3.0,
+                    "shake_items_shifted": 1,
+                    "shake_items_toppled": 0,
+                    "shake_peak_kinetic_energy": 2.5,
+                }
+
+        env = SimpleNamespace(
+            evaluator=Evaluator(),
+            container_manager=SimpleNamespace(containers=[object()]),
+        )
+
+        metrics = post_shake_metrics(env)
+
+        self.assertTrue(metrics["post_shake_measured"])
+        self.assertEqual(metrics["post_shake_live_poses_calls"], 2)
+        self.assertEqual(metrics["post_shake_soft_covered_by_other"], 1)
+        self.assertEqual(metrics["post_shake_soft_clean_ratio"], 0.0)
+        self.assertEqual(metrics["post_shake_max_shift"], 0.25)
+        self.assertEqual(metrics["post_shake_peak_kinetic_energy"], 2.5)
+
+    def test_empty_board_uses_its_unchanged_pre_state_as_post_state(self):
+        class Evaluator:
+            def _live_poses(self, _containers):
+                return []
+
+            def settled_snapshot(self, _containers):
+                return {
+                    "soft_items": 0,
+                    "soft_covered_by_other": 0,
+                    "soft_clean_ratio": None,
+                }
+
+            def shake_test(self, containers):
+                self._live_poses(containers)
+                return {"shake_items": 0, "shake_items_lost": 0}
+
+        env = SimpleNamespace(
+            evaluator=Evaluator(),
+            container_manager=SimpleNamespace(containers=[]),
+        )
+
+        metrics = post_shake_metrics(env)
+
+        self.assertEqual(metrics["post_shake_live_poses_calls"], 1)
+        self.assertEqual(metrics["post_shake_soft_covered_by_other"], 0)
+        self.assertIsNone(metrics["post_shake_soft_clean_ratio"])
+
     def test_scenario_axes_are_saved_with_the_graph(self):
         config = {
             "containers": {
@@ -309,6 +387,55 @@ class PhysicalOutcomeTests(unittest.TestCase):
         self.assertEqual(immediate["settle_angle_deg"], 12.0)
         self.assertTrue(immediate["is_placed_safe"])
         self.assertEqual(cumulative["soft_covered_by_other"], 1)
+
+    def test_transition_can_attach_post_shake_state_and_delta(self):
+        class Container:
+            packed_items = [object()]
+
+        class Evaluator:
+            def __init__(self):
+                self.phase = "pre"
+
+            def settled_snapshot(self, _containers):
+                return {
+                    "placed_count": 1,
+                    "placed_volume": 0.4,
+                    "fill_percent_proxy": 10.0,
+                    "soft_items": 1,
+                    "soft_covered_by_other": int(self.phase == "post"),
+                    "soft_clean_ratio": 0.0 if self.phase == "post" else 1.0,
+                }
+
+            def _live_poses(self, _containers):
+                return [{"phase": self.phase}]
+
+            def shake_test(self, containers):
+                self._live_poses(containers)
+                self.phase = "post"
+                self._live_poses(containers)
+                self.phase = "pre"
+                return {"shake_items": 1, "shake_max_shift": 0.1}
+
+        env = SimpleNamespace(
+            evaluator=Evaluator(),
+            container_manager=SimpleNamespace(containers=[Container()]),
+            step_metrics=[],
+        )
+
+        immediate, cumulative = transition_outcomes(
+            env,
+            {"status": {"is_placed_safe": True}},
+            {"post_shake_soft_covered_by_other": 0},
+            include_post_shake=True,
+        )
+
+        self.assertEqual(cumulative["post_shake_soft_covered_by_other"], 1)
+        self.assertEqual(
+            immediate["post_shake_soft_covered_by_other_after"], 1
+        )
+        self.assertEqual(
+            immediate["post_shake_soft_covered_by_other_delta"], 1.0
+        )
 
 
 if __name__ == "__main__":

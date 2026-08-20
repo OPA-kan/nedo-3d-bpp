@@ -751,6 +751,16 @@ episodes and both arms are flat with them excluded.
 `(settle_safe, post_shake_stable, post_shake_coverage)` with the third
 measured. `NEDO_POSTSHAKE_CAPTURE` is default-off and log-only.
 
+The H3-H5 builder now exposes that same exact capture through
+`--post-shake-labels`. It runs one bundled shake on the reconstructed root and
+each physical child, then retains the separate stability, soft and priority
+axes in `cumulative_outcomes`; the condition-matrix workflow enables it.
+`tests/test_attribute_placement_pybullet_e2e.py` settles all 16 lower/upper
+soft/priority combinations in PyBullet and compares the resulting bundled
+diagnostic against the agent's pre-action legality predicate. Integration CI
+sets `NEDO_REQUIRE_INTEGRATION=1`, so a missing PyBullet installation cannot
+turn that physical contract into a green skip.
+
 ## Established by evidence
 
 ### Task A

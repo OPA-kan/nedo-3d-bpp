@@ -57,6 +57,47 @@ def graph_fixture():
 
 
 class CounterfactualGraphSignalTests(unittest.TestCase):
+    def test_post_shake_graph_adds_physical_teacher_axes_only_for_itself(self):
+        graph = graph_fixture()
+        graph["provenance"]["post_shake_labels"] = True
+        for node, soft, shift in zip(
+            graph["nodes"], (0, 0, 1), (0.0, 0.1, 0.3)
+        ):
+            node["cumulative_outcomes"].update({
+                "post_shake_items_lost": 0,
+                "post_shake_max_shift": shift,
+                "post_shake_max_rotation_deg": 0.0,
+                "post_shake_items_shifted": int(shift > 0.0),
+                "post_shake_items_toppled": 0,
+                "post_shake_peak_kinetic_energy": shift,
+                "post_shake_priority_covered_by_other": 0,
+                "post_shake_priority_misrouted": 0,
+                "post_shake_soft_covered_by_other": soft,
+            })
+
+        summary = summarize_graph_signal(graph, source="post-shake.json")
+
+        self.assertIn(
+            "post_shake_soft_covered_by_other",
+            summary["metric_directions"],
+        )
+        pair = summary["sibling_pairs"][0]
+        self.assertEqual(
+            pair["comparisons"]["post_shake_soft_covered_by_other"]
+            ["higher_range"],
+            [1, 1],
+        )
+        self.assertIn(
+            "post_shake_max_shift",
+            pair["lower_reachable_outcome_vectors"][0],
+        )
+
+        legacy = summarize_graph_signal(graph_fixture(), source="legacy.json")
+        self.assertNotIn(
+            "post_shake_soft_covered_by_other",
+            legacy["metric_directions"],
+        )
+
     def test_finds_lower_score_reachable_leaf_and_failure_label(self):
         summary = summarize_graph_signal(
             graph_fixture(), source="graph.json", include_afterstate_tensors=True

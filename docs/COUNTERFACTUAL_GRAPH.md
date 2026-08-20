@@ -93,8 +93,20 @@ python3 scripts/build_counterfactual_graph.py `
   --snapshot reports/replay-dataset/<run>/step-009-state.json `
   --config simulator/configs/sample_config.json --case 000 `
   --split development --horizon 3 --branch-factor 2 `
-  --attempt-budget 256 --output reports/raw/graph-b000-step9.json
+  --attempt-budget 256 --post-shake-labels `
+  --output reports/raw/graph-b000-step9.json
 ```
+
+`--post-shake-labels` はrootと各物理edgeについて、同梱
+`Evaluator.shake_test()`をそのlive worldで1回実行する。shakeが復元する直前の
+状態を直接捕捉し、`post_shake_max_shift`、`post_shake_peak_kinetic_energy`、
+`post_shake_soft_covered_by_other`、`post_shake_priority_covered_by_other`などを
+nodeの`cumulative_outcomes`へ別軸のまま保存する。属性計算は独自実装せず、
+pre-shakeと同じ`Evaluator.settled_snapshot()`へ委譲する。計測はsave/restore内で
+完結するため、branchの盤面・fingerprint・後続展開を変えない。計算量をほぼ倍に
+するため既定offであり、学習用label生成時に明示する。signal集計とteacher-pair
+exportはprovenanceを見て、post-shake付きgraphでのみこれらの軸を追加するため、
+既存graphのschemaと教師ベクトルは変わらない。
 
 branch factor 2・horizon 3でも最大14 edge、horizon 5では最大62 edgeになる。
 各edgeがrootからの物理再生を伴うため、まずH3でroot一致率と実時間を測ってからH5へ

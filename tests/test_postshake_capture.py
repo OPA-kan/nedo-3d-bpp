@@ -41,6 +41,55 @@ class AttributeProjectionTests(unittest.TestCase):
         self.assertEqual(counts, {"soft_items": 1})
 
 
+class InProcessCaptureTests(unittest.TestCase):
+    def test_capture_reads_the_exact_two_states_and_restores_the_method(self):
+        class Evaluator:
+            def __init__(self):
+                self.phase = "settled"
+
+            def _live_poses(self, _containers):
+                return [{"phase": self.phase}]
+
+            def settled_snapshot(self, _containers):
+                return {"phase": self.phase, "soft_covered_by_other": 0}
+
+            def shake_test(self, containers):
+                before = self._live_poses(containers)
+                self.phase = "shaken"
+                after = self._live_poses(containers)
+                self.phase = "settled"
+                return {"before": before, "after": after}
+
+        evaluator = Evaluator()
+        original = evaluator._live_poses
+
+        captured = postshake_capture.capture_shake_labels(evaluator, [])
+
+        self.assertEqual(captured["live_poses_calls"], 2)
+        self.assertEqual(captured["pre_shake"]["phase"], "settled")
+        self.assertEqual(captured["post_shake"]["phase"], "shaken")
+        self.assertEqual(evaluator.phase, "settled")
+        self.assertEqual(evaluator._live_poses([]), original([]))
+        self.assertNotIn("_live_poses", evaluator.__dict__)
+
+    def test_capture_restores_the_method_when_the_shake_raises(self):
+        class Evaluator:
+            def _live_poses(self, _containers):
+                return []
+
+            def settled_snapshot(self, _containers):
+                return {}
+
+            def shake_test(self, containers):
+                self._live_poses(containers)
+                raise RuntimeError("shake failed")
+
+        evaluator = Evaluator()
+        with self.assertRaisesRegex(RuntimeError, "shake failed"):
+            postshake_capture.capture_shake_labels(evaluator, [])
+        self.assertNotIn("_live_poses", evaluator.__dict__)
+
+
 class ContractSourceTests(unittest.TestCase):
     """Gate G3: the post-shake counts come from the simulator, not a copy."""
 

@@ -65,6 +65,54 @@ from typing import Any
 _INSTALLED = False
 
 
+def capture_shake_labels(evaluator, containers) -> dict[str, Any]:
+    """Run one bundled shake and retain its exact pre/post state metrics.
+
+    ``Evaluator.shake_test`` restores the PyBullet state before returning, so
+    callers cannot read the shaken board afterwards.  This helper shadows
+    ``_live_poses`` on this evaluator instance only and takes the evaluator's
+    own read-only ``settled_snapshot`` at the two points the bundled shake
+    already exposes.  It neither reimplements the attribute rule nor changes
+    the state that ``shake_test`` restores.
+
+    Unlike :func:`install`, this is an in-process measurement seam for offline
+    branch builders.  It deliberately does not run the second control shake;
+    the recorder's no-op property was already established by the frozen v3
+    fidelity campaign, and doubling every graph-edge shake would only add
+    measurement cost.
+    """
+    original_live_poses = evaluator._live_poses
+    instance_dict = getattr(evaluator, "__dict__", {})
+    had_instance_override = "_live_poses" in instance_dict
+    previous_instance_value = instance_dict.get("_live_poses")
+    calls: list[list[dict]] = []
+    captured: dict[str, Any] = {}
+
+    def recording_live_poses(inner_containers):
+        poses = original_live_poses(inner_containers)
+        calls.append(poses)
+        which = "pre_shake" if len(calls) == 1 else "post_shake"
+        if which not in captured:
+            captured[which] = evaluator.settled_snapshot(inner_containers)
+        return poses
+
+    evaluator._live_poses = recording_live_poses
+    try:
+        response = evaluator.shake_test(containers)
+    finally:
+        if had_instance_override:
+            evaluator._live_poses = previous_instance_value
+        else:
+            delattr(evaluator, "_live_poses")
+
+    return {
+        "shake_response": response,
+        "live_poses_calls": len(calls),
+        "pre_shake": captured.get("pre_shake"),
+        "post_shake": captured.get("post_shake"),
+    }
+
+
 def _capture_path() -> pathlib.Path | None:
     raw = os.environ.get("NEDO_POSTSHAKE_CAPTURE", "").strip()
     if not raw:

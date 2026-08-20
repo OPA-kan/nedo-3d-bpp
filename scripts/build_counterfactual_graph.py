@@ -42,6 +42,10 @@ from scripts.measure_anchor_recall import (  # noqa: E402
     policy_observation,
     state_snapshot,
 )
+from scripts.postshake_capture import (  # noqa: E402
+    ATTRIBUTE_KEYS,
+    capture_shake_labels,
+)
 
 
 METRIC_KEYS = (
@@ -63,8 +67,61 @@ METRIC_KEYS = (
     "soft_covered_by_other",
 )
 
+POST_SHAKE_STABILITY_KEYS = (
+    "shake_items",
+    "shake_items_lost",
+    "shake_max_shift",
+    "shake_mean_shift",
+    "shake_max_rotation_deg",
+    "shake_items_shifted",
+    "shake_items_toppled",
+    "shake_peak_kinetic_energy",
+)
 
-def cumulative_metrics(env) -> dict[str, Any]:
+
+def post_shake_metrics(env) -> dict[str, Any]:
+    """Measure stability and attribute coverage in the same live shake.
+
+    The bundled shake saves/restores the world. ``capture_shake_labels``
+    intercepts its exact post-shake state before that restore and delegates
+    coverage arithmetic to ``Evaluator.settled_snapshot``.  Flattened names
+    keep each physical/attribute axis separately consumable by graph tooling.
+    """
+    containers = env.container_manager.containers
+    captured = capture_shake_labels(env.evaluator, containers)
+    calls = int(captured.get("live_poses_calls", 0))
+    post = captured.get("post_shake")
+    response = captured.get("shake_response") or {}
+    empty_shake = calls == 1 and int(response.get("shake_items", -1)) == 0
+    if empty_shake and not isinstance(post, dict):
+        # The bundled evaluator returns immediately after its pre-shake read
+        # when the board is empty. The unchanged pre-state is therefore also
+        # the exact post-state, not a missing measurement.
+        post = captured.get("pre_shake")
+    if (calls != 2 and not empty_shake) or not isinstance(post, dict):
+        raise RuntimeError(
+            "post-shake label capture requires two live-pose reads (one on "
+            "an empty board) and a post-shake snapshot; "
+            f"calls={calls} shake_items={response.get('shake_items')}"
+        )
+
+    metrics: dict[str, Any] = {
+        "post_shake_measured": True,
+        "post_shake_live_poses_calls": calls,
+    }
+    for key in POST_SHAKE_STABILITY_KEYS:
+        if key in response:
+            output_key = "post_shake_" + key.removeprefix("shake_")
+            metrics[output_key] = json_safe(response[key])
+    for key in ATTRIBUTE_KEYS:
+        if key in post:
+            metrics[f"post_shake_{key}"] = json_safe(post[key])
+    return metrics
+
+
+def cumulative_metrics(
+    env, *, include_post_shake: bool = False,
+) -> dict[str, Any]:
     metrics = env.evaluator.settled_snapshot(
         env.container_manager.containers
     )
@@ -75,19 +132,26 @@ def cumulative_metrics(env) -> dict[str, Any]:
     # ``fill_score_proxy`` is the bundled fill percentage, not the official
     # weighted total score.
     metrics["fill_score_proxy"] = metrics.get("fill_percent_proxy")
-    return {
+    result = {
         key: json_safe(metrics.get(key))
         for key in METRIC_KEYS
         if key in metrics or key == "fill_score_proxy"
     }
+    if include_post_shake:
+        result.update(post_shake_metrics(env))
+    return result
 
 
 def transition_outcomes(
     env,
     info: dict[str, Any],
     parent: dict[str, Any],
+    *,
+    include_post_shake: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    cumulative = cumulative_metrics(env)
+    cumulative = cumulative_metrics(
+        env, include_post_shake=include_post_shake
+    )
     status = info.get("status", {}) if isinstance(info, dict) else {}
     immediate: dict[str, Any] = {
         "is_included": bool(status.get("is_included")),
@@ -295,6 +359,14 @@ def main() -> int:
     parser.add_argument("--attempt-budget", type=int, default=512)
     parser.add_argument("--max-nodes", type=int, default=128)
     parser.add_argument("--max-edges", type=int, default=256)
+    parser.add_argument(
+        "--post-shake-labels",
+        action="store_true",
+        help=(
+            "run the bundled shake at every reconstructed node and retain "
+            "its exact post-shake stability and soft/priority measurements"
+        ),
+    )
     parser.add_argument("--forced-candidate-spec", type=pathlib.Path)
     parser.add_argument("--forced-target-id")
     parser.add_argument(
@@ -401,7 +473,9 @@ def main() -> int:
                 f"error={rebuilt.error} difference="
                 f"{json.dumps(difference, sort_keys=True)}"
             )
-        root_metrics = cumulative_metrics(root_env)
+        root_metrics = cumulative_metrics(
+            root_env, include_post_shake=args.post_shake_labels
+        )
     finally:
         root_env.close()
 
@@ -438,6 +512,12 @@ def main() -> int:
                 {"path": list(path), "required_item_indices": indices}
                 for path, indices in forced_candidates.items()
             ],
+            "post_shake_labels": bool(args.post_shake_labels),
+            "post_shake_label_contract": (
+                "bundled_shake_live_state_direct_capture_v1"
+                if args.post_shake_labels
+                else None
+            ),
         },
         board_fingerprint=expected,
         state_ref=str(args.snapshot),
@@ -452,7 +532,12 @@ def main() -> int:
             agent_module,
             attempt_budget=args.attempt_budget,
         ),
-        outcome_provider=transition_outcomes,
+        outcome_provider=lambda env, info, parent: transition_outcomes(
+            env,
+            info,
+            parent,
+            include_post_shake=args.post_shake_labels,
+        ),
         state_tensor_factory=state_tensor_from_snapshot,
         forced_candidate_indices_by_path=forced_candidates,
     )

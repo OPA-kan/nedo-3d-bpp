@@ -44,6 +44,8 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("--item-scope live-cap", text)
         self.assertIn("inputs.measurement_only == true", text)
         self.assertIn("inputs.measurement_only != true", text)
+        self.assertIn("tests.test_attribute_placement_pybullet_e2e", text)
+        self.assertIn("--post-shake-labels", text)
 
     def test_partial_condition_matrix_cannot_be_published(self):
         text = WORKFLOW.read_text(encoding="utf-8")

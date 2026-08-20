@@ -88,6 +88,7 @@ on:
     paths:
       - scripts/counterfactual_graph.py
       - scripts/build_counterfactual_graph.py
+      - scripts/postshake_capture.py
       - scripts/build_replay_dataset.py
       - scripts/summarize_counterfactual_graph_matrix.py
       - scripts/summarize_counterfactual_graph_signal.py
@@ -156,8 +157,12 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-simulator.txt
       - run: pip install -r requirements-simulator.txt
-      - name: Verify physical replay contract
-        run: python -m unittest tests.test_replay_integration -v
+      - name: Verify physical replay and attribute contracts
+        run: >-
+          python -m unittest
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
         env:
           NEDO_REQUIRE_INTEGRATION: "1"
       - name: Build declared competition-condition config
@@ -220,6 +225,7 @@ jobs:
               --attempt-budget "$attempt_budget" \
               --max-nodes "$max_nodes" \
               --max-edges "$max_edges" \
+              --post-shake-labels \
               --output "$graph_dir/graph.json"
           done
       - name: Measure uncapped feasible visible items at the latest root

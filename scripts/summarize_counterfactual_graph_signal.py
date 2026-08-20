@@ -19,6 +19,18 @@ METRIC_DIRECTIONS = {
     "soft_covered_by_other": -1,
 }
 
+POST_SHAKE_METRIC_DIRECTIONS = {
+    "post_shake_items_lost": -1,
+    "post_shake_max_shift": -1,
+    "post_shake_max_rotation_deg": -1,
+    "post_shake_items_shifted": -1,
+    "post_shake_items_toppled": -1,
+    "post_shake_peak_kinetic_energy": -1,
+    "post_shake_priority_covered_by_other": -1,
+    "post_shake_priority_misrouted": -1,
+    "post_shake_soft_covered_by_other": -1,
+}
+
 ACTION_TENSOR_FEATURES = (
     "container_index", "command_x", "command_y", "command_z",
     "orientation", "is_release_candidate", "immediate_score",
@@ -95,9 +107,10 @@ def _leaf_paths(
 
 def _metric_ranges(
     paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
+    metric_directions: dict[str, int] = METRIC_DIRECTIONS,
 ) -> dict[str, list[float | int]]:
     ranges = {}
-    for metric in METRIC_DIRECTIONS:
+    for metric in metric_directions:
         values = [
             leaf.get("cumulative_outcomes", {}).get(metric)
             for _edges, leaf in paths
@@ -109,15 +122,16 @@ def _metric_ranges(
 
 def _outcome_vectors(
     paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
+    metric_directions: dict[str, int] = METRIC_DIRECTIONS,
 ) -> list[dict[str, float | int]]:
     vectors = []
     seen = set()
     for _edges, leaf in paths:
         outcomes = leaf.get("cumulative_outcomes", {})
-        if not all(metric in outcomes for metric in METRIC_DIRECTIONS):
+        if not all(metric in outcomes for metric in metric_directions):
             continue
         vector = {
-            metric: outcomes[metric] for metric in METRIC_DIRECTIONS
+            metric: outcomes[metric] for metric in metric_directions
         }
         identity = tuple(vector.items())
         if identity not in seen:
@@ -129,6 +143,7 @@ def _outcome_vectors(
 def _continuation_outcome_vectors(
     paths: list[tuple[list[dict[str, Any]], dict[str, Any]]],
     afterstate: dict[str, Any],
+    metric_directions: dict[str, int] = METRIC_DIRECTIONS,
 ) -> list[dict[str, float | int]]:
     """Return leaf gains after the first action, excluding its immediate effect."""
     baseline = afterstate.get("cumulative_outcomes", {})
@@ -138,12 +153,12 @@ def _continuation_outcome_vectors(
         outcomes = leaf.get("cumulative_outcomes", {})
         if not all(
             metric in outcomes and metric in baseline
-            for metric in METRIC_DIRECTIONS
+            for metric in metric_directions
         ):
             continue
         vector = {
             metric: outcomes[metric] - baseline[metric]
-            for metric in METRIC_DIRECTIONS
+            for metric in metric_directions
         }
         identity = tuple(vector.items())
         if identity not in seen:
@@ -158,6 +173,7 @@ def _continuation_samples(
     outgoing: dict[str, list[dict[str, Any]]],
     *,
     horizon: int,
+    metric_directions: dict[str, int] = METRIC_DIRECTIONS,
 ) -> list[dict[str, Any]]:
     """Preserve one continuation sample per searched leaf, including failures.
 
@@ -172,7 +188,7 @@ def _continuation_samples(
         outcomes = leaf.get("cumulative_outcomes", {})
         if not all(
             metric in outcomes and metric in baseline
-            for metric in METRIC_DIRECTIONS
+            for metric in metric_directions
         ):
             continue
         reason = leaf.get("terminal_reason")
@@ -193,7 +209,7 @@ def _continuation_samples(
             "search_policy_weight": search_policy_weight,
             "outcomes": {
                 metric: outcomes[metric] - baseline[metric]
-                for metric in METRIC_DIRECTIONS
+                for metric in metric_directions
             },
         })
     return samples
@@ -212,32 +228,35 @@ def _summarize_sibling_pair(
     outgoing: dict[str, list[dict[str, Any]]], *,
     include_afterstate_tensors: bool,
     horizon: int,
+    metric_directions: dict[str, int],
 ) -> dict[str, Any]:
         lower_paths = _leaf_paths(lower["target"], nodes, outgoing)
         higher_paths = _leaf_paths(higher["target"], nodes, outgoing)
-        lower_ranges = _metric_ranges(lower_paths)
-        higher_ranges = _metric_ranges(higher_paths)
-        lower_vectors = _outcome_vectors(lower_paths)
-        higher_vectors = _outcome_vectors(higher_paths)
+        lower_ranges = _metric_ranges(lower_paths, metric_directions)
+        higher_ranges = _metric_ranges(higher_paths, metric_directions)
+        lower_vectors = _outcome_vectors(lower_paths, metric_directions)
+        higher_vectors = _outcome_vectors(higher_paths, metric_directions)
         lower_afterstate = nodes[lower["target"]]
         higher_afterstate = nodes[higher["target"]]
         lower_continuation_vectors = _continuation_outcome_vectors(
-            lower_paths, lower_afterstate
+            lower_paths, lower_afterstate, metric_directions
         )
         higher_continuation_vectors = _continuation_outcome_vectors(
-            higher_paths, higher_afterstate
+            higher_paths, higher_afterstate, metric_directions
         )
         lower_continuation_samples = _continuation_samples(
-            lower_paths, lower_afterstate, outgoing, horizon=horizon
+            lower_paths, lower_afterstate, outgoing, horizon=horizon,
+            metric_directions=metric_directions,
         )
         higher_continuation_samples = _continuation_samples(
-            higher_paths, higher_afterstate, outgoing, horizon=horizon
+            higher_paths, higher_afterstate, outgoing, horizon=horizon,
+            metric_directions=metric_directions,
         )
         score_gap = float(higher["selection"]["score"]) - float(
             lower["selection"]["score"]
         )
         comparisons = {}
-        for metric, direction in METRIC_DIRECTIONS.items():
+        for metric, direction in metric_directions.items():
             if metric not in lower_ranges or metric not in higher_ranges:
                 continue
             lower_range = lower_ranges[metric]
@@ -295,6 +314,9 @@ def summarize_graph_signal(
     nodes, outgoing, root_id = _graph_index(graph)
     paths = _leaf_paths(root_id, nodes, outgoing)
     horizon = int(graph.get("budget", {}).get("horizon", 3))
+    metric_directions = dict(METRIC_DIRECTIONS)
+    if graph.get("provenance", {}).get("post_shake_labels"):
+        metric_directions.update(POST_SHAKE_METRIC_DIRECTIONS)
     sibling_rows = []
     lower_score_better = collections.Counter()
     for source_id, edges in outgoing.items():
@@ -312,6 +334,7 @@ def summarize_graph_signal(
                 source_id, lower, higher, nodes, outgoing,
                 include_afterstate_tensors=include_afterstate_tensors,
                 horizon=horizon,
+                metric_directions=metric_directions,
             )
             sibling_rows.append(sibling_row)
             for metric, comparison in sibling_row["comparisons"].items():
@@ -335,6 +358,7 @@ def summarize_graph_signal(
         "scenario_axes": graph.get("provenance", {}).get(
             "scenario_axes", {}
         ),
+        "metric_directions": metric_directions,
         "edges": len(graph.get("edges", [])),
         "physically_failed_edges": sum(
             not bool(edge.get("immediate_outcomes", {}).get("is_placed_safe"))
@@ -342,7 +366,7 @@ def summarize_graph_signal(
         ),
         "terminal_trajectory_count": len(paths),
         "terminal_reasons": dict(sorted(terminal_reasons.items())),
-        "terminal_outcome_ranges": _metric_ranges(paths),
+        "terminal_outcome_ranges": _metric_ranges(paths, metric_directions),
         "sibling_pair_count": len(sibling_rows),
         "equal_immediate_score_pairs": len(equal),
         "equal_score_pairs_with_different_downstream_ranges": sum(
@@ -353,7 +377,7 @@ def summarize_graph_signal(
         ),
         "lower_score_better_reachable_leaf_counts": {
             metric: lower_score_better[metric]
-            for metric in METRIC_DIRECTIONS
+            for metric in metric_directions
         },
         "sibling_pairs": sibling_rows,
     }
@@ -373,8 +397,10 @@ def summarize_paths(
     ]
     terminal_reasons = collections.Counter()
     lower_score_better = collections.Counter()
+    metric_directions = dict(METRIC_DIRECTIONS)
     for graph in graphs:
         terminal_reasons.update(graph["terminal_reasons"])
+        metric_directions.update(graph.get("metric_directions", {}))
         lower_score_better.update(
             graph["lower_score_better_reachable_leaf_counts"]
         )
@@ -483,7 +509,7 @@ def summarize_paths(
         ),
         "lower_score_better_reachable_leaf_counts": {
             metric: lower_score_better[metric]
-            for metric in METRIC_DIRECTIONS
+            for metric in metric_directions
         },
         "findings": {
             "terminal_label_coverage_observed": bool(

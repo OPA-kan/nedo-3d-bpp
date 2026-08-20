@@ -11,17 +11,43 @@ import collections
 from typing import Any
 
 try:
-    from scripts.summarize_counterfactual_graph_signal import METRIC_DIRECTIONS
+    from scripts.summarize_counterfactual_graph_signal import (
+        METRIC_DIRECTIONS,
+        POST_SHAKE_METRIC_DIRECTIONS,
+    )
 except ModuleNotFoundError:  # direct `python scripts/...py` execution
-    from summarize_counterfactual_graph_signal import METRIC_DIRECTIONS
+    from summarize_counterfactual_graph_signal import (
+        METRIC_DIRECTIONS,
+        POST_SHAKE_METRIC_DIRECTIONS,
+    )
+
+
+ALL_METRIC_DIRECTIONS = {
+    **METRIC_DIRECTIONS,
+    **POST_SHAKE_METRIC_DIRECTIONS,
+}
 
 
 def _best(metric: str, value_range: list[float | int]) -> float | int:
-    return value_range[1] if METRIC_DIRECTIONS[metric] > 0 else value_range[0]
+    return (
+        value_range[1]
+        if ALL_METRIC_DIRECTIONS[metric] > 0
+        else value_range[0]
+    )
 
 
 def _outcome_equal(metric: str, left: float | int, right: float | int) -> bool:
-    if metric in ("placed_count", "priority_misrouted", "soft_covered_by_other"):
+    if metric in (
+        "placed_count",
+        "priority_misrouted",
+        "soft_covered_by_other",
+        "post_shake_items_lost",
+        "post_shake_items_shifted",
+        "post_shake_items_toppled",
+        "post_shake_priority_covered_by_other",
+        "post_shake_priority_misrouted",
+        "post_shake_soft_covered_by_other",
+    ):
         return left == right
     return math.isclose(float(left), float(right), rel_tol=0.0, abs_tol=1e-12)
 
@@ -29,9 +55,11 @@ def _outcome_equal(metric: str, left: float | int, right: float | int) -> bool:
 def _weakly_dominates(
     left: dict[str, float | int], right: dict[str, float | int],
 ) -> bool:
+    if left.keys() != right.keys():
+        return False
     return all(
-        METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) >= 0
-        for metric in METRIC_DIRECTIONS
+        ALL_METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) >= 0
+        for metric in left
     )
 
 
@@ -39,8 +67,8 @@ def _strictly_dominates(
     left: dict[str, float | int], right: dict[str, float | int],
 ) -> bool:
     return _weakly_dominates(left, right) and any(
-        METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) > 0
-        for metric in METRIC_DIRECTIONS
+        ALL_METRIC_DIRECTIONS[metric] * (left[metric] - right[metric]) > 0
+        for metric in left
     )
 
 
@@ -91,7 +119,13 @@ def continuation_labels(pair: dict[str, Any]) -> dict[str, dict[str, Any]]:
     lower_vectors = pair.get("lower_continuation_outcome_vectors", [])
     higher_vectors = pair.get("higher_continuation_outcome_vectors", [])
     labels = {}
-    for metric, direction in METRIC_DIRECTIONS.items():
+    metrics = set.intersection(*(
+        set(vector) for vector in lower_vectors + higher_vectors
+    )) if lower_vectors and higher_vectors else set()
+    for metric in ALL_METRIC_DIRECTIONS:
+        if metric not in metrics:
+            continue
+        direction = ALL_METRIC_DIRECTIONS[metric]
         lower_values = [vector[metric] for vector in lower_vectors]
         higher_values = [vector[metric] for vector in higher_vectors]
         if not lower_values or not higher_values:
@@ -174,7 +208,14 @@ def distributional_continuation_labels(
         higher_samples, higher_weights, "physical_failure"
     )
     labels = {}
-    for metric, direction in METRIC_DIRECTIONS.items():
+    metrics = set.intersection(*(
+        set(sample.get("outcomes", {}))
+        for sample in lower_samples + higher_samples
+    ))
+    for metric in ALL_METRIC_DIRECTIONS:
+        if metric not in metrics:
+            continue
+        direction = ALL_METRIC_DIRECTIONS[metric]
         lower_values = [
             float(sample["outcomes"][metric]) for sample in lower_samples
             if metric in sample.get("outcomes", {})
@@ -284,7 +325,7 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     for metric, comparison in pair["comparisons"].items():
         lower = _best(metric, comparison["lower_range"])
         higher = _best(metric, comparison["higher_range"])
-        direction = METRIC_DIRECTIONS[metric]
+        direction = ALL_METRIC_DIRECTIONS[metric]
         if _outcome_equal(metric, lower, higher):
             relation = "equal"
         elif (lower > higher and direction > 0) or (
