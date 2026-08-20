@@ -2,6 +2,15 @@ name: Multi-axis selector shadow
 
 on:
   workflow_dispatch:
+    inputs:
+      wave:
+        description: Experiment wave to execute
+        required: true
+        default: multi_axis
+        type: choice
+        options:
+          - multi_axis
+          - residual_affordance
 
 permissions:
   contents: read
@@ -12,6 +21,7 @@ concurrency:
 
 jobs:
   episode:
+    if: inputs.wave == 'multi_axis'
     name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -60,6 +70,7 @@ jobs:
             reports/multi-axis-selector/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}/
 
   aggregate:
+    if: inputs.wave == 'multi_axis'
     needs: episode
     runs-on: ubuntu-24.04
     permissions:
@@ -121,3 +132,9 @@ jobs:
             git fetch origin "$GITHUB_REF_NAME"
             git rebase "origin/$GITHUB_REF_NAME"
           done
+
+  residual-affordance:
+    if: inputs.wave == 'residual_affordance'
+    uses: ./.github/workflows/residual-affordance-shadow.yml
+    permissions:
+      contents: write
