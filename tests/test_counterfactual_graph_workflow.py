@@ -60,6 +60,10 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         )
         self.assertIn("aggregate/teacher-pairs", text)
         self.assertIn("distributional_training_ready", text)
+        self.assertIn("develop_post_shake_soft_reranker.py", text)
+        self.assertIn("evaluate_frozen_post_shake_soft_reranker.py", text)
+        self.assertIn("distributional_discovery.jsonl", text)
+        self.assertIn("distributional_late_holdout.jsonl", text)
         self.assertIn("pip install -r requirements.txt", text)
         self.assertIn(
             "--policy reports/counterfactual-teacher-discovery/policy.json",

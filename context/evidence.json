@@ -3632,6 +3632,21 @@
         "still_valid": "paired same-run A/B, conditional on that wave's load",
         "fix": "pin concurrency per line; re-derive floors from between-wave base repeats"
       }
+    },
+    {
+      "id": "post-shake-soft-afterstate-model-fails-late-gate",
+      "topic": "learning",
+      "date": "2026-08-20",
+      "status": "active",
+      "claim": "The first rule-aware H3 learner for distributional post_shake_soft_covered_by_other has a real discovery signal but fails the frozen late gate and is not licensed for the live agent. Whole-physical-graph discovery folds select pooled physical afterstate at 26/34, ahead of immediate score 25/34 and action geometry 23/34; seven rotated-afterstate negative controls span 11--18/34 and graph W/T/L versus action is 2/1/1. The serialized discovery winner is then evaluated once, without retuning, on late roots: it collapses to 10/32 versus action geometry 13/32 and immediate score 26/32. This is evidence of a mid/late condition shift, not a score-improving agent. The matrix workflow now repeats the discovery gate and opens late only when licensed; agent/agent.py remains unchanged.",
+      "source": "run 32351615182; reports/counterfactual-afterstate-value/post-shake-soft-{development,policy,late}-32351615182.*",
+      "values": {
+        "discovery": "pooled afterstate 26/34; immediate 25/34; action 23/34",
+        "negative_control": "seven afterstate rotations 11--18/34",
+        "discovery_graph_wtl_vs_action": "2/1/1",
+        "late": "frozen pooled afterstate 10/32; action 13/32; immediate 26/32",
+        "verdict": "do not connect to live agent; collect new physical conditions and test frozen gates again"
+      }
     }
   ]
 }

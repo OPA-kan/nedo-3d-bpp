@@ -97,6 +97,8 @@ on:
       - scripts/evaluate_counterfactual_teacher_discovery.py
       - scripts/evaluate_counterfactual_teacher_frozen_policy.py
       - scripts/evaluate_counterfactual_afterstate_value.py
+      - scripts/develop_post_shake_soft_reranker.py
+      - scripts/evaluate_frozen_post_shake_soft_reranker.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -322,6 +324,21 @@ jobs:
           --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/late_holdout.jsonl
           --json-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md
+      - name: Select post-shake soft afterstate model on discovery roots only
+        run: >-
+          python scripts/develop_post_shake_soft_reranker.py
+          --discovery reports/counterfactual-graph-scale/aggregate/teacher-pairs/distributional_discovery.jsonl
+          --json-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-development.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-development.md
+          --policy-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-policy.json
+      - name: Evaluate licensed frozen post-shake soft model once on late roots
+        run: >-
+          python scripts/evaluate_frozen_post_shake_soft_reranker.py
+          --policy reports/counterfactual-graph-scale/aggregate/post-shake-soft-policy.json
+          --discovery reports/counterfactual-graph-scale/aggregate/teacher-pairs/distributional_discovery.jsonl
+          --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/distributional_late_holdout.jsonl
+          --json-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.md
       - name: Validate physical afterstate teacher contract
         run: >-
           python -c "import json,pathlib;
@@ -337,6 +354,8 @@ jobs:
       - run: cat reports/counterfactual-graph-scale/aggregate/baseline.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/discovery-audit.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/post-shake-soft-development.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: counterfactual-graph-scale-aggregate

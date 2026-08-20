@@ -652,6 +652,29 @@ The remaining route to soft is placing more items, which is what every
 official component is made of. Nothing in this line changed shipped
 behaviour; both fingerprints are unmoved.
 
+### The first H3 post-shake soft learner is rejected at the late gate
+
+Run 32351615182 supplied the first schema-5 distributional H3 labels for
+`post_shake_soft_covered_by_other`.  A discovery-only, whole-graph-folded
+comparison now runs in `scripts/develop_post_shake_soft_reranker.py`; its
+rule-faithful topology representation explicitly preserves the four upper
+item classes (plain, priority, soft, soft+priority), and a physical-afterstate
+permutation is the negative control.  The discovery winner was the broader
+pooled physical afterstate: **26/34**, versus immediate score **25/34**,
+action geometry **23/34**, and all seven permuted controls **11--18/34**.
+It passed the frozen discovery gate (graph W/T/L **2/1/1**).
+
+The separately frozen one-shot late evaluation then failed decisively:
+pooled afterstate **10/32**, action geometry **13/32**, immediate score
+**26/32**.  Evidence and the serialized candidate are in
+`reports/counterfactual-afterstate-value/post-shake-soft-*-32351615182.*`.
+Therefore no live reranker is licensed and `agent/agent.py` is unchanged.
+The matrix workflow now repeats both gates for each new collection, leaving
+late roots unread whenever discovery fails.  Reopen only on a new physical
+collection whose frozen model passes both gates; do not tune on this late
+split.  The result localizes the problem as a mid/late condition shift, not
+absence of a discovery signal.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
