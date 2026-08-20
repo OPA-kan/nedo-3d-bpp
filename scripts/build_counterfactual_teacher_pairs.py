@@ -47,6 +47,7 @@ def _outcome_equal(metric: str, left: float | int, right: float | int) -> bool:
         "post_shake_priority_covered_by_other",
         "post_shake_priority_misrouted",
         "post_shake_soft_covered_by_other",
+        "post_shake_soft_clean_to_covered_events",
     ):
         return left == right
     return math.isclose(float(left), float(right), rel_tol=0.0, abs_tol=1e-12)

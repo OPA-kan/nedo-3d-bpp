@@ -29,6 +29,7 @@ POST_SHAKE_METRIC_DIRECTIONS = {
     "post_shake_priority_covered_by_other": -1,
     "post_shake_priority_misrouted": -1,
     "post_shake_soft_covered_by_other": -1,
+    "post_shake_soft_clean_to_covered_events": -1,
 }
 
 ACTION_TENSOR_FEATURES = (
@@ -316,7 +317,15 @@ def summarize_graph_signal(
     horizon = int(graph.get("budget", {}).get("horizon", 3))
     metric_directions = dict(METRIC_DIRECTIONS)
     if graph.get("provenance", {}).get("post_shake_labels"):
-        metric_directions.update(POST_SHAKE_METRIC_DIRECTIONS)
+        outcome_keys = set.intersection(*(
+            set(node.get("cumulative_outcomes", {}))
+            for node in nodes.values()
+        ))
+        metric_directions.update({
+            metric: direction
+            for metric, direction in POST_SHAKE_METRIC_DIRECTIONS.items()
+            if metric in outcome_keys
+        })
     sibling_rows = []
     lower_score_better = collections.Counter()
     for source_id, edges in outgoing.items():

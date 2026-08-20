@@ -77,6 +77,11 @@ The instrument and the first Linux physical H3 condition matrix are complete:
   candidate path in a fresh env, records multi-axis node totals and edge
   deltas, merges equal same-depth states, and stops terminal branches. It does
   not use a wall-clock deadline.
+- The post-shake instrument now separates pre-existing soft coverage from
+  shake-introduced coverage. `post_shake_soft_clean_to_covered_events` counts
+  only exact in-shake `soft_covered_by_other == 0` to `> 0` transitions and is
+  accumulated across H3 paths for teacher export. Older post-shake graphs omit
+  the optional axis and reproduce their prior signal and manifest byte-for-byte.
 - no ranker, policy default, simulator rule or final holdout was changed.
 
 The original pilot remains in `reports/counterfactual-graph/summary.md`.

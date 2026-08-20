@@ -32,6 +32,7 @@ class CounterfactualMatrixSummaryTests(unittest.TestCase):
                         "com_z": 0.6,
                         "priority_misrouted": 0,
                         "soft_covered_by_other": 1,
+                        "post_shake_soft_clean_to_covered_events": 0,
                     },
                 },
                 {
@@ -43,6 +44,7 @@ class CounterfactualMatrixSummaryTests(unittest.TestCase):
                         "com_z": 0.6,
                         "priority_misrouted": 0,
                         "soft_covered_by_other": 1,
+                        "post_shake_soft_clean_to_covered_events": 1,
                     },
                 },
             ],
@@ -61,6 +63,10 @@ class CounterfactualMatrixSummaryTests(unittest.TestCase):
         self.assertEqual(row["terminal_reasons"], {"physical_failure": 1})
         self.assertEqual(row["ranges"]["placed_count"]["min"], 15.0)
         self.assertEqual(row["ranges"]["com_z"]["max"], 0.6)
+        self.assertEqual(
+            row["ranges"]["post_shake_soft_clean_to_covered_events"],
+            {"min": 0.0, "max": 1.0},
+        )
         self.assertEqual(row["ranges"]["settle_angle_deg"]["max"], 35.0)
         self.assertIn("CoG", render_markdown({
             "graph_count": 1,

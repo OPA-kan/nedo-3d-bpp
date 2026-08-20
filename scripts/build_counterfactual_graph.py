@@ -78,6 +78,10 @@ POST_SHAKE_STABILITY_KEYS = (
     "shake_peak_kinetic_energy",
 )
 
+POST_SHAKE_EVENT_KEYS = (
+    "post_shake_soft_clean_to_covered_events",
+)
+
 
 def post_shake_metrics(env) -> dict[str, Any]:
     """Measure stability and attribute coverage in the same live shake.
@@ -90,6 +94,7 @@ def post_shake_metrics(env) -> dict[str, Any]:
     containers = env.container_manager.containers
     captured = capture_shake_labels(env.evaluator, containers)
     calls = int(captured.get("live_poses_calls", 0))
+    pre = captured.get("pre_shake")
     post = captured.get("post_shake")
     response = captured.get("shake_response") or {}
     empty_shake = calls == 1 and int(response.get("shake_items", -1)) == 0
@@ -116,6 +121,16 @@ def post_shake_metrics(env) -> dict[str, Any]:
     for key in ATTRIBUTE_KEYS:
         if key in post:
             metrics[f"post_shake_{key}"] = json_safe(post[key])
+    if isinstance(pre, dict):
+        before = pre.get("soft_covered_by_other")
+        after = post.get("soft_covered_by_other")
+        if isinstance(before, (int, float)) and isinstance(after, (int, float)):
+            metrics["post_shake_soft_covered_by_other_before"] = json_safe(
+                before
+            )
+            metrics["post_shake_soft_clean_to_covered_events"] = int(
+                before == 0 and after > 0
+            )
     return metrics
 
 
@@ -152,6 +167,9 @@ def transition_outcomes(
     cumulative = cumulative_metrics(
         env, include_post_shake=include_post_shake
     )
+    for key in POST_SHAKE_EVENT_KEYS:
+        if key in cumulative:
+            cumulative[key] = int(parent.get(key, 0)) + int(cumulative[key])
     status = info.get("status", {}) if isinstance(info, dict) else {}
     immediate: dict[str, Any] = {
         "is_included": bool(status.get("is_included")),

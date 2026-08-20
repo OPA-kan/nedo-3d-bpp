@@ -60,6 +60,12 @@ class PhysicalOutcomeTests(unittest.TestCase):
         self.assertTrue(metrics["post_shake_measured"])
         self.assertEqual(metrics["post_shake_live_poses_calls"], 2)
         self.assertEqual(metrics["post_shake_soft_covered_by_other"], 1)
+        self.assertEqual(
+            metrics["post_shake_soft_covered_by_other_before"], 0
+        )
+        self.assertEqual(
+            metrics["post_shake_soft_clean_to_covered_events"], 1
+        )
         self.assertEqual(metrics["post_shake_soft_clean_ratio"], 0.0)
         self.assertEqual(metrics["post_shake_max_shift"], 0.25)
         self.assertEqual(metrics["post_shake_peak_kinetic_energy"], 2.5)
@@ -89,7 +95,39 @@ class PhysicalOutcomeTests(unittest.TestCase):
 
         self.assertEqual(metrics["post_shake_live_poses_calls"], 1)
         self.assertEqual(metrics["post_shake_soft_covered_by_other"], 0)
+        self.assertEqual(
+            metrics["post_shake_soft_clean_to_covered_events"], 0
+        )
         self.assertIsNone(metrics["post_shake_soft_clean_ratio"])
+
+    def test_existing_soft_violation_is_not_attributed_to_shake(self):
+        class Evaluator:
+            def _live_poses(self, _containers):
+                return [{}]
+
+            def settled_snapshot(self, _containers):
+                return {
+                    "soft_items": 1,
+                    "soft_covered_by_other": 1,
+                    "soft_clean_ratio": 0.0,
+                }
+
+            def shake_test(self, containers):
+                self._live_poses(containers)
+                self._live_poses(containers)
+                return {"shake_items": 1, "shake_items_lost": 0}
+
+        env = SimpleNamespace(
+            evaluator=Evaluator(),
+            container_manager=SimpleNamespace(containers=[object()]),
+        )
+
+        metrics = post_shake_metrics(env)
+
+        self.assertEqual(metrics["post_shake_soft_covered_by_other"], 1)
+        self.assertEqual(
+            metrics["post_shake_soft_clean_to_covered_events"], 0
+        )
 
     def test_scenario_axes_are_saved_with_the_graph(self):
         config = {
@@ -425,16 +463,25 @@ class PhysicalOutcomeTests(unittest.TestCase):
         immediate, cumulative = transition_outcomes(
             env,
             {"status": {"is_placed_safe": True}},
-            {"post_shake_soft_covered_by_other": 0},
+            {
+                "post_shake_soft_covered_by_other": 0,
+                "post_shake_soft_clean_to_covered_events": 2,
+            },
             include_post_shake=True,
         )
 
         self.assertEqual(cumulative["post_shake_soft_covered_by_other"], 1)
         self.assertEqual(
+            cumulative["post_shake_soft_clean_to_covered_events"], 3
+        )
+        self.assertEqual(
             immediate["post_shake_soft_covered_by_other_after"], 1
         )
         self.assertEqual(
             immediate["post_shake_soft_covered_by_other_delta"], 1.0
+        )
+        self.assertEqual(
+            immediate["post_shake_soft_clean_to_covered_events_delta"], 1.0
         )
 
 

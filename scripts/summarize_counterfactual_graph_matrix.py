@@ -77,6 +77,15 @@ def summarize_graph(graph: dict[str, Any], *, source: str) -> dict[str, Any]:
             "soft_covered_by_other": _range(
                 row.get("soft_covered_by_other") for row in cumulative
             ),
+            **({
+                "post_shake_soft_clean_to_covered_events": _range(
+                    row.get("post_shake_soft_clean_to_covered_events")
+                    for row in cumulative
+                ),
+            } if any(
+                "post_shake_soft_clean_to_covered_events" in row
+                for row in cumulative
+            ) else {}),
             "settle_angle_deg": _range(
                 row.get("settle_angle_deg") for row in immediate
             ),

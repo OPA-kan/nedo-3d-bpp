@@ -15,8 +15,14 @@ from scripts.build_counterfactual_teacher_pairs import (
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
     def test_manifest_counts_observed_post_shake_axes(self):
-        lower = {"post_shake_soft_covered_by_other": 0}
-        higher = {"post_shake_soft_covered_by_other": 1}
+        lower = {
+            "post_shake_soft_covered_by_other": 0,
+            "post_shake_soft_clean_to_covered_events": 0,
+        }
+        higher = {
+            "post_shake_soft_covered_by_other": 1,
+            "post_shake_soft_clean_to_covered_events": 1,
+        }
         pair = {
             "source_node_id": "root",
             "source_depth": 0,
@@ -26,6 +32,9 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
             "higher_stable_item_index": 2,
             "comparisons": {
                 "post_shake_soft_covered_by_other": {
+                    "lower_range": [0, 0], "higher_range": [1, 1],
+                },
+                "post_shake_soft_clean_to_covered_events": {
                     "lower_range": [0, 0], "higher_range": [1, 1],
                 },
             },
@@ -64,6 +73,15 @@ class CounterfactualTeacherPairTests(unittest.TestCase):
         self.assertEqual(
             manifest["distributional_continuation_directional_counts"][metric],
             1,
+        )
+        event_metric = "post_shake_soft_clean_to_covered_events"
+        self.assertEqual(
+            manifest["axis_relation_counts_on_training_rows"][event_metric]
+            ["lower_immediate_score_better"],
+            1,
+        )
+        self.assertEqual(
+            manifest["continuation_directional_counts"][event_metric], 1
         )
 
     def test_post_shake_soft_axis_reaches_continuation_labels(self):

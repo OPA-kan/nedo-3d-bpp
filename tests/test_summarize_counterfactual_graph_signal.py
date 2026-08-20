@@ -73,6 +73,7 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
                 "post_shake_priority_covered_by_other": 0,
                 "post_shake_priority_misrouted": 0,
                 "post_shake_soft_covered_by_other": soft,
+                "post_shake_soft_clean_to_covered_events": int(soft > 0),
             })
 
         summary = summarize_graph_signal(graph, source="post-shake.json")
@@ -90,6 +91,28 @@ class CounterfactualGraphSignalTests(unittest.TestCase):
         self.assertIn(
             "post_shake_max_shift",
             pair["lower_reachable_outcome_vectors"][0],
+        )
+        self.assertEqual(
+            pair["comparisons"][
+                "post_shake_soft_clean_to_covered_events"
+            ]["higher_range"],
+            [1, 1],
+        )
+
+        for node in graph["nodes"]:
+            node["cumulative_outcomes"].pop(
+                "post_shake_soft_clean_to_covered_events"
+            )
+        old_post_shake = summarize_graph_signal(
+            graph, source="old-post-shake.json"
+        )
+        self.assertNotIn(
+            "post_shake_soft_clean_to_covered_events",
+            old_post_shake["metric_directions"],
+        )
+        self.assertTrue(
+            old_post_shake["sibling_pairs"][0]
+            ["lower_reachable_outcome_vectors"]
         )
 
         legacy = summarize_graph_signal(graph_fixture(), source="legacy.json")

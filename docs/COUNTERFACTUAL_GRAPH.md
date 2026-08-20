@@ -112,6 +112,14 @@ branch factor 2・horizon 3でも最大14 edge、horizon 5では最大62 edgeに
 各edgeがrootからの物理再生を伴うため、まずH3でroot一致率と実時間を測ってからH5へ
 広げる。
 
+`post_shake_soft_clean_to_covered_events` is a separate causal-transition
+axis. It increments only when the exact snapshots inside one official shake
+change from zero soft items covered to one or more covered. The graph carries
+the event count forward along the path, so an earlier shake-caused violation
+cannot disappear from an H3 leaf merely because the next node starts dirty.
+Pre-existing soft violations remain represented by
+`post_shake_soft_covered_by_other` but do not increment this transition axis.
+
 ## H3 condition-matrix gate
 
 `.github/workflows/counterfactual-graph-scale.yml` runs eight bounded H3/B2
