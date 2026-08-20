@@ -494,6 +494,50 @@ if MULTI_AXIS_SELECTOR_MODE not in MULTI_AXIS_SELECTOR_MODES:
         f"unknown MULTI_AXIS_SELECTOR_MODE {MULTI_AXIS_SELECTOR_MODE!r}; "
         f"expected one of {sorted(MULTI_AXIS_SELECTOR_MODES)}"
     )
+RESIDUAL_AFFORDANCE_SHADOW_MODES = frozenset({"off", "shadow"})
+RESIDUAL_AFFORDANCE_SHADOW_MODE = os.environ.get(
+    "RESIDUAL_AFFORDANCE_SHADOW_MODE", "off"
+).strip().lower()
+if RESIDUAL_AFFORDANCE_SHADOW_MODE not in RESIDUAL_AFFORDANCE_SHADOW_MODES:
+    raise ValueError(
+        "unknown RESIDUAL_AFFORDANCE_SHADOW_MODE "
+        f"{RESIDUAL_AFFORDANCE_SHADOW_MODE!r}; expected one of "
+        f"{sorted(RESIDUAL_AFFORDANCE_SHADOW_MODES)}"
+    )
+# Exact action-only ridge frozen after run 32368148298 and then confirmed,
+# without refitting, on runs 32372290412 and 32375696343.  The model predicts
+# the Pareto direction of branch-capped searched residual affordance.  It does
+# not predict official score, so the only licensed live mode is log-only
+# shadow.  Feature order is the graph action tensor without immediate_score:
+# six command fields followed by the fourteen observed item fields below.
+RESIDUAL_AFFORDANCE_MODEL_ID = "action-ridge-32351615182-v1"
+RESIDUAL_AFFORDANCE_ITEM_FEATURES = (
+    "length", "width", "height", "mass", "is_prioritized", "is_soft",
+    "lateralFriction", "rollingFriction", "spinningFriction",
+    "restitution", "angularDamping", "contactStiffness",
+    "contactDamping", "linearDamping",
+)
+RESIDUAL_AFFORDANCE_SCALES = (
+    0.3806073153191131, 0.2621412364385038, 0.2835773360318977,
+    0.42196113293868803, 0.43291467977395326, 0.3092434436967794,
+    0.07663267431256171, 0.10788513919624611, 0.041828401959703054,
+    4.353352152772388, 0.558991687464666, 0.7468812475943873,
+    0.29089082826744855, 0.007290921570502314,
+    0.007290921570502314, 0.14544541413372428, 1.0,
+    2060.2073935166304, 596.1282959431495, 0.5975049980755098,
+)
+RESIDUAL_AFFORDANCE_WEIGHTS = (
+    -0.03352362571555443, -0.17731679491757138,
+    0.2745141931066554, -0.49347796424288454,
+    0.01687634848410732, -0.1729749895194009,
+    -0.5346835821963346, 0.342788110155405,
+    -0.3736838894945536, 0.4049669902454743,
+    -0.33664655932076804, 0.17875471372173454,
+    0.06640011580088521, -0.05065562676644937,
+    -0.05065562676645119, -0.0664001158008919, 0.0,
+    -0.12809334439384412, 0.4520593099191406,
+    0.17875471372178273,
+)
 ITEM_COVERAGE_MODES = frozenset({"legacy", "class_aware"})
 ITEM_COVERAGE_MODE = os.environ.get(
     "ITEM_COVERAGE_MODE", "class_aware"
@@ -4902,6 +4946,114 @@ def multi_axis_shadow_record(top, observation, selected_decision=None):
             proposed["rank"] != selected["rank"]
         ),
         "enforced": False,
+        "candidates": records,
+    }
+
+
+def residual_affordance_action_features(observation, decision):
+    """Rebuild the frozen graph action tensor for one live decision."""
+    action = action_for_execution(decision)
+    pool_index = int(action["item_idx"])
+    item = observation["pool_list"][pool_index]
+    values = [
+        float(action["container_idx"]),
+        *[float(value) for value in action["place_pos"]],
+        float(action["orientation"]),
+        float(decision.candidate.name == "release_candidate"),
+    ]
+    values.extend(
+        float(bool(item.get(name)))
+        if name in ("is_prioritized", "is_soft")
+        else float(item.get(name, 0.0) or 0.0)
+        for name in RESIDUAL_AFFORDANCE_ITEM_FEATURES
+    )
+    if len(values) != len(RESIDUAL_AFFORDANCE_WEIGHTS):
+        raise ValueError("residual affordance feature shape mismatch")
+    return values
+
+
+def residual_affordance_action_utility(observation, decision):
+    """Frozen no-intercept ridge utility; differences reproduce training."""
+    values = residual_affordance_action_features(observation, decision)
+    return sum(
+        value / scale * weight
+        for value, scale, weight in zip(
+            values,
+            RESIDUAL_AFFORDANCE_SCALES,
+            RESIDUAL_AFFORDANCE_WEIGHTS,
+        )
+    )
+
+
+def residual_affordance_shadow_record(top, observation, selected_decision):
+    """Compare the frozen model after live selection without changing it.
+
+    The unrestricted proposal measures the replicated model exactly.  The
+    guarded proposal additionally refuses any increase in direct-contact OR
+    stack-aware soft/priority coverage, and in priority routing, relative to
+    the live decision.  Logging both answers whether special-item safety costs
+    the learner reach before any enforce mode can be considered.
+    """
+    if selected_decision is None:
+        return None
+    decisions = []
+    seen = set()
+    for decision in [selected_decision, *(top or [])]:
+        key = _safety_rerank_action_key(decision)
+        if key not in seen:
+            seen.add(key)
+            decisions.append(decision)
+    records = []
+    for rank, decision in enumerate(decisions):
+        record = multi_axis_candidate_record(decision, observation, rank)
+        record["affordance_utility"] = float(
+            residual_affordance_action_utility(observation, decision)
+        )
+        records.append(record)
+    incumbent = records[0]
+    unrestricted = max(records, key=lambda row: row["affordance_utility"])
+
+    def contract_not_worse(candidate):
+        return all(
+            int(candidate[name]) <= int(incumbent[name])
+            for name in (
+                "priority_cover_violations",
+                "soft_cover_violations",
+                "priority_cover_violations_stack",
+                "soft_cover_violations_stack",
+                "priority_routing_violation",
+            )
+        )
+
+    eligible = [record for record in records if contract_not_worse(record)]
+    guarded = max(eligible, key=lambda row: row["affordance_utility"])
+    return {
+        "schema_version": 1,
+        "mode": "shadow",
+        "model_id": RESIDUAL_AFFORDANCE_MODEL_ID,
+        "target": "searched_residual_affordance_pareto",
+        "candidate_count": len(records),
+        "incumbent_rank": 0,
+        "unrestricted_proposed_rank": int(unrestricted["rank"]),
+        "guarded_proposed_rank": int(guarded["rank"]),
+        "would_change_action": unrestricted["rank"] != 0,
+        "would_change_item": (
+            unrestricted["item_index"] != incumbent["item_index"]
+        ),
+        "unrestricted_contract_not_worse": contract_not_worse(unrestricted),
+        "guarded_would_change_action": guarded["rank"] != 0,
+        "guarded_would_change_item": (
+            guarded["item_index"] != incumbent["item_index"]
+        ),
+        "attribute_guard_blocked_unrestricted": (
+            unrestricted["rank"] != guarded["rank"]
+        ),
+        "immediate_score_delta": float(
+            unrestricted["immediate_score"] - incumbent["immediate_score"]
+        ),
+        "guarded_immediate_score_delta": float(
+            guarded["immediate_score"] - incumbent["immediate_score"]
+        ),
         "candidates": records,
     }
 
@@ -9605,6 +9757,9 @@ class Agent:
                 "lookahead_k": self._lookahead_k,
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
+                "residual_affordance_shadow_mode": (
+                    RESIDUAL_AFFORDANCE_SHADOW_MODE
+                ),
                 "release_risk_gate_mode": RELEASE_RISK_GATE_MODE,
                 "release_risk_p_model": RELEASE_RISK_P_MODEL,
                 "release_risk_live_rerank": RELEASE_RISK_LIVE_RERANK,
@@ -10607,6 +10762,25 @@ class Agent:
                 action_source = "multi_axis_enforce"
                 self.last_multi_axis_shadow["enforced"] = True
         if (
+            RESIDUAL_AFFORDANCE_SHADOW_MODE == "shadow"
+            and decision is not None
+            and action_source == "placement_core"
+            and self.last_top_candidates
+        ):
+            # The model is evaluated only after the live decision is frozen.
+            # There is intentionally no enforce branch: official-score and
+            # special-attribute reach must be measured first.
+            try:
+                residual_record = residual_affordance_shadow_record(
+                    self.last_top_candidates, observation, decision
+                )
+            except Exception:
+                residual_record = None
+            if residual_record is not None:
+                self.last_candidate_diagnostics[
+                    "residual_affordance_shadow"
+                ] = residual_record
+        if (
             SAFETY_RERANK_MODE != "off"
             and decision is not None
             and action_source == "placement_core"
@@ -10991,6 +11165,9 @@ class Agent:
                     "mode": LOOKAHEAD_SELECTION_MODE,
                     "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
                     "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
+                    "residual_affordance_shadow_mode": (
+                        RESIDUAL_AFFORDANCE_SHADOW_MODE
+                    ),
                     "item_coverage_mode": ITEM_COVERAGE_MODE,
                     "optimize": self._optimize_enabled,
                     "lookahead_k": self._lookahead_k,
@@ -11123,6 +11300,9 @@ class Agent:
                 "mode": LOOKAHEAD_SELECTION_MODE,
                 "placement_selector_mode": PLACEMENT_SELECTOR_MODE,
                 "multi_axis_selector_mode": MULTI_AXIS_SELECTOR_MODE,
+                "residual_affordance_shadow_mode": (
+                    RESIDUAL_AFFORDANCE_SHADOW_MODE
+                ),
                 "item_coverage_mode": ITEM_COVERAGE_MODE,
                 "optimize": self._optimize_enabled,
                 "lookahead_k": self._lookahead_k,

@@ -243,6 +243,19 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
         self.assertEqual(env["MULTI_AXIS_SELECTOR_MODE"], "shadow")
 
+    def test_residual_affordance_shadow_has_no_enforce_control(self):
+        env = {
+            "RESIDUAL_AFFORDANCE_SHADOW_MODE": "stale",
+            "PLACEMENT_SELECTOR_MODE": "stale",
+        }
+
+        configure_arm_environment(
+            env, "residual_affordance_shadow", 2.0, 0.0
+        )
+
+        self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
+        self.assertEqual(env["RESIDUAL_AFFORDANCE_SHADOW_MODE"], "shadow")
+
     def test_structured_noop_is_baseline_plus_selector_mode(self):
         env = {"PLACEMENT_SELECTOR_MODE": "stale"}
 
@@ -716,6 +729,16 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "multi_axis_enforced_count": 0,
                 "multi_axis_candidate_count": 0,
                 "multi_axis_pareto_front_count": 0,
+                "residual_affordance_observed_steps": 0,
+                "residual_affordance_candidate_count": 0,
+                "residual_affordance_would_change_count": 0,
+                "residual_affordance_would_change_item_count": 0,
+                "residual_affordance_guarded_change_count": 0,
+                "residual_affordance_guarded_item_change_count": 0,
+                "residual_affordance_attr_blocked_count": 0,
+                "residual_affordance_contract_regression_count": 0,
+                "residual_affordance_immediate_delta_total": 0.0,
+                "residual_affordance_guarded_immediate_delta_total": 0.0,
             },
         )
 
@@ -941,6 +964,41 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         )
         self.assertEqual(summary["multi_axis_would_change_item_count"], 0)
         self.assertEqual(summary["multi_axis_enforced_count"], 0)
+
+    def test_residual_affordance_summary_keeps_attribute_guard_reach(self):
+        record = {
+            "event": "decision",
+            "candidate_diagnostics": {
+                "residual_affordance_shadow": {
+                    "candidate_count": 3,
+                    "would_change_action": True,
+                    "would_change_item": True,
+                    "guarded_would_change_action": False,
+                    "guarded_would_change_item": False,
+                    "attribute_guard_blocked_unrestricted": True,
+                    "unrestricted_contract_not_worse": False,
+                    "immediate_score_delta": -0.4,
+                    "guarded_immediate_score_delta": 0.0,
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "trace.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            summary = policy_trace_summary(path)
+
+        self.assertEqual(summary["residual_affordance_observed_steps"], 1)
+        self.assertEqual(summary["residual_affordance_candidate_count"], 3)
+        self.assertEqual(summary["residual_affordance_would_change_count"], 1)
+        self.assertEqual(summary["residual_affordance_guarded_change_count"], 0)
+        self.assertEqual(summary["residual_affordance_attr_blocked_count"], 1)
+        self.assertEqual(
+            summary["residual_affordance_contract_regression_count"], 1
+        )
+        self.assertAlmostEqual(
+            summary["residual_affordance_immediate_delta_total"], -0.4
+        )
 
     def test_temporal_chunk_summary_counts_delay_consensus_and_cost(self):
         record = {

@@ -743,6 +743,19 @@ residual-affordance Pareto teacher, not official competition score.  The next
 engineering step is to attach this exact frozen action model in shadow mode
 and measure official score deltas without allowing it to choose placements.
 
+That shadow is now implemented behind
+`RESIDUAL_AFFORDANCE_SHADOW_MODE=off|shadow`. The exact scales and weights are
+embedded in `agent.py`; live features reproduce the graph action tensor and
+the code exposes no enforce path. Each retained candidate is audited under
+both direct-contact and stack-aware soft/priority readings plus priority
+routing. The trace retains the exact unrestricted learner proposal and a
+conservative proposal that cannot worsen any of those five attribute axes
+relative to the live choice. The preregistered physical negative-control wave
+is `.github/workflows/residual-affordance-shadow.yml`; its contract and gates
+are `reports/counterfactual-afterstate-value/residual-affordance-shadow-protocol.md`.
+Until that wave passes, this is an instrument only and does not license a
+canary or submission.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

@@ -93,6 +93,7 @@ def configure_arm_environment(
         "TEMPORAL_CHUNK_CELL_SIZE",
         "PLACEMENT_SELECTOR_MODE",
         "MULTI_AXIS_SELECTOR_MODE",
+        "RESIDUAL_AFFORDANCE_SHADOW_MODE",
         "VACUUM_SETTLED_CUTOFF",
         "LAST_RESORT_RELAXATION_SECONDS",
         "SAFETY_RERANK_MODE",
@@ -155,6 +156,7 @@ def configure_arm_environment(
         "structured_retained",
         "multi_axis_shadow",
         "multi_axis_enforce",
+        "residual_affordance_shadow",
         "vacuum_cutoff",
         "last_resort",
         "safety_null",
@@ -354,6 +356,11 @@ def configure_arm_environment(
             # Pareto-dominates it on every trusted rule/physical axis.
             env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
             env["MULTI_AXIS_SELECTOR_MODE"] = "enforce"
+        elif arm == "residual_affordance_shadow":
+            # Replicated action model, measurement only. There is no enforce
+            # mode until official-score and special-attribute reach pass.
+            env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
+            env["RESIDUAL_AFFORDANCE_SHADOW_MODE"] = "shadow"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the
@@ -732,6 +739,16 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "multi_axis_enforced_count": 0,
         "multi_axis_candidate_count": 0,
         "multi_axis_pareto_front_count": 0,
+        "residual_affordance_observed_steps": 0,
+        "residual_affordance_candidate_count": 0,
+        "residual_affordance_would_change_count": 0,
+        "residual_affordance_would_change_item_count": 0,
+        "residual_affordance_guarded_change_count": 0,
+        "residual_affordance_guarded_item_change_count": 0,
+        "residual_affordance_attr_blocked_count": 0,
+        "residual_affordance_contract_regression_count": 0,
+        "residual_affordance_immediate_delta_total": 0.0,
+        "residual_affordance_guarded_immediate_delta_total": 0.0,
     }
     if not path.exists():
         return summary
@@ -1095,6 +1112,44 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 summary["multi_axis_enforced_count"] += int(
                     multi_axis.get("enforced") is True
                 )
+            residual = (
+                diagnostics.get("residual_affordance_shadow")
+                if isinstance(diagnostics, dict)
+                else None
+            )
+            if isinstance(residual, dict):
+                summary["residual_affordance_observed_steps"] += 1
+                summary["residual_affordance_candidate_count"] += int(
+                    residual.get("candidate_count", 0)
+                )
+                summary["residual_affordance_would_change_count"] += int(
+                    residual.get("would_change_action") is True
+                )
+                summary[
+                    "residual_affordance_would_change_item_count"
+                ] += int(residual.get("would_change_item") is True)
+                summary[
+                    "residual_affordance_guarded_change_count"
+                ] += int(residual.get("guarded_would_change_action") is True)
+                summary[
+                    "residual_affordance_guarded_item_change_count"
+                ] += int(residual.get("guarded_would_change_item") is True)
+                summary["residual_affordance_attr_blocked_count"] += int(
+                    residual.get("attribute_guard_blocked_unrestricted") is True
+                )
+                summary[
+                    "residual_affordance_contract_regression_count"
+                ] += int(
+                    residual.get("unrestricted_contract_not_worse") is False
+                )
+                summary[
+                    "residual_affordance_immediate_delta_total"
+                ] += float(residual.get("immediate_score_delta", 0.0))
+                summary[
+                    "residual_affordance_guarded_immediate_delta_total"
+                ] += float(
+                    residual.get("guarded_immediate_score_delta", 0.0)
+                )
     return summary
 
 
@@ -1288,6 +1343,16 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "multi_axis_enforced_count": 0,
                     "multi_axis_candidate_count": 0,
                     "multi_axis_pareto_front_count": 0,
+                    "residual_affordance_observed_steps": 0,
+                    "residual_affordance_candidate_count": 0,
+                    "residual_affordance_would_change_count": 0,
+                    "residual_affordance_would_change_item_count": 0,
+                    "residual_affordance_guarded_change_count": 0,
+                    "residual_affordance_guarded_item_change_count": 0,
+                    "residual_affordance_attr_blocked_count": 0,
+                    "residual_affordance_contract_regression_count": 0,
+                    "residual_affordance_immediate_delta_total": 0.0,
+                    "residual_affordance_guarded_immediate_delta_total": 0.0,
                 },
             )
             trace_bucket["episodes"] += 1
@@ -1315,8 +1380,21 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "multi_axis_enforced_count",
                 "multi_axis_candidate_count",
                 "multi_axis_pareto_front_count",
+                "residual_affordance_observed_steps",
+                "residual_affordance_candidate_count",
+                "residual_affordance_would_change_count",
+                "residual_affordance_would_change_item_count",
+                "residual_affordance_guarded_change_count",
+                "residual_affordance_guarded_item_change_count",
+                "residual_affordance_attr_blocked_count",
+                "residual_affordance_contract_regression_count",
             ):
                 trace_bucket[name] += int(trace.get(name, 0))
+            for name in (
+                "residual_affordance_immediate_delta_total",
+                "residual_affordance_guarded_immediate_delta_total",
+            ):
+                trace_bucket[name] += float(trace.get(name, 0.0))
             trace_bucket["observed_steps"] += int(
                 trace.get("cross_step_observed_steps", 0)
             )
@@ -1670,6 +1748,68 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     6,
                 )
                 if bucket["multi_axis_multi_candidate_steps"]
+                else None
+            ),
+            "residual_affordance_observed_steps": int(
+                bucket["residual_affordance_observed_steps"]
+            ),
+            "residual_affordance_candidate_count": int(
+                bucket["residual_affordance_candidate_count"]
+            ),
+            "residual_affordance_would_change_count": int(
+                bucket["residual_affordance_would_change_count"]
+            ),
+            "residual_affordance_would_change_item_count": int(
+                bucket["residual_affordance_would_change_item_count"]
+            ),
+            "residual_affordance_guarded_change_count": int(
+                bucket["residual_affordance_guarded_change_count"]
+            ),
+            "residual_affordance_guarded_item_change_count": int(
+                bucket["residual_affordance_guarded_item_change_count"]
+            ),
+            "residual_affordance_attr_blocked_count": int(
+                bucket["residual_affordance_attr_blocked_count"]
+            ),
+            "residual_affordance_contract_regression_count": int(
+                bucket["residual_affordance_contract_regression_count"]
+            ),
+            "residual_affordance_change_rate": (
+                round(
+                    bucket["residual_affordance_would_change_count"]
+                    / bucket["residual_affordance_observed_steps"],
+                    6,
+                )
+                if bucket["residual_affordance_observed_steps"]
+                else None
+            ),
+            "residual_affordance_guarded_change_rate": (
+                round(
+                    bucket["residual_affordance_guarded_change_count"]
+                    / bucket["residual_affordance_observed_steps"],
+                    6,
+                )
+                if bucket["residual_affordance_observed_steps"]
+                else None
+            ),
+            "residual_affordance_mean_immediate_delta": (
+                round(
+                    bucket["residual_affordance_immediate_delta_total"]
+                    / bucket["residual_affordance_observed_steps"],
+                    6,
+                )
+                if bucket["residual_affordance_observed_steps"]
+                else None
+            ),
+            "residual_affordance_guarded_mean_immediate_delta": (
+                round(
+                    bucket[
+                        "residual_affordance_guarded_immediate_delta_total"
+                    ]
+                    / bucket["residual_affordance_observed_steps"],
+                    6,
+                )
+                if bucket["residual_affordance_observed_steps"]
                 else None
             ),
             "observed_steps": observed_steps,
@@ -2162,6 +2302,31 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['multi_axis_would_change_item_count']} "
                 f"| {trace['multi_axis_enforced_count']} "
                 f"| {trace['multi_axis_change_rate']} |"
+            )
+        lines += [
+            "",
+            "## Residual-affordance action shadow",
+            "",
+            "| arm | observed | candidates | changes | item changes "
+            "| guarded changes | guarded item changes | attr blocked "
+            "| contract regressions | change rate | guarded rate "
+            "| immediate delta | guarded immediate delta |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for arm, trace in sorted(policy_trace.items()):
+            lines.append(
+                f"| {arm} | {trace['residual_affordance_observed_steps']} "
+                f"| {trace['residual_affordance_candidate_count']} "
+                f"| {trace['residual_affordance_would_change_count']} "
+                f"| {trace['residual_affordance_would_change_item_count']} "
+                f"| {trace['residual_affordance_guarded_change_count']} "
+                f"| {trace['residual_affordance_guarded_item_change_count']} "
+                f"| {trace['residual_affordance_attr_blocked_count']} "
+                f"| {trace['residual_affordance_contract_regression_count']} "
+                f"| {trace['residual_affordance_change_rate']} "
+                f"| {trace['residual_affordance_guarded_change_rate']} "
+                f"| {trace['residual_affordance_mean_immediate_delta']} "
+                f"| {trace['residual_affordance_guarded_mean_immediate_delta']} |"
             )
         lines += [
             "",

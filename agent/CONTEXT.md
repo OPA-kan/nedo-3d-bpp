@@ -168,6 +168,13 @@
   and proposes a Pareto-front candidate without changing the executed action.
   CoM is telemetry-only until its official direction is resolved; no local
   weighted total is constructed. See `docs/MULTI_AXIS_SELECTOR.md`.
+- `RESIDUAL_AFFORDANCE_SHADOW_MODE=shadow` scores the frozen retained Top-K
+  with the exact action-only ridge confirmed on runs `32372290412` and
+  `32375696343`. It runs only after the live decision is frozen and has no
+  enforce mode. The trace records both the unrestricted proposal and a
+  guarded proposal that may not increase direct or stack-aware soft/priority
+  coverage or priority-routing violations. See
+  `reports/counterfactual-afterstate-value/residual-affordance-shadow-protocol.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

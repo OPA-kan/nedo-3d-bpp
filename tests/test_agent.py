@@ -1364,6 +1364,109 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertTrue(record["would_change_item"])
         self.assertEqual(record["pareto_front_size"], 1)
 
+    def test_residual_affordance_live_features_reproduce_frozen_pair_delta(self):
+        items = [
+            sample_item(10, length=0.2, mass=2, is_soft=True),
+            sample_item(11, length=0.5, mass=7, is_prioritized=True),
+        ]
+        observation = {
+            "pool_list": items,
+            "container_list": [
+                sample_container(require_shelf=False, center_x=0.0, cut_x=0.0),
+                sample_container(require_shelf=False, center_x=0.0, cut_x=0.0),
+            ],
+        }
+
+        def decision(item_idx, container_idx, position, orientation, name):
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": item_idx,
+                    "container_idx": container_idx,
+                    "place_pos": position,
+                    "orientation": orientation,
+                },
+                candidate=agent.AABB(position, (0.2, 0.2, 0.2), name),
+                score=0.0,
+            )
+
+        lower = decision(0, 0, [0.1, -0.2, 0.3], 1, "candidate")
+        higher = decision(1, 1, [0.4, 0.2, 0.6], 4, "release_candidate")
+        lower_features = agent.residual_affordance_action_features(
+            observation, lower
+        )
+        higher_features = agent.residual_affordance_action_features(
+            observation, higher
+        )
+        expected_delta = sum(
+            (right - left) / scale * weight
+            for left, right, scale, weight in zip(
+                lower_features,
+                higher_features,
+                agent.RESIDUAL_AFFORDANCE_SCALES,
+                agent.RESIDUAL_AFFORDANCE_WEIGHTS,
+            )
+        )
+
+        observed_delta = (
+            agent.residual_affordance_action_utility(observation, higher)
+            - agent.residual_affordance_action_utility(observation, lower)
+        )
+        self.assertAlmostEqual(observed_delta, expected_delta, places=12)
+        self.assertEqual(len(lower_features), 20)
+
+    def test_residual_affordance_attribute_guard_blocks_soft_regression(self):
+        container = sample_container(
+            require_shelf=False, center_x=0.0, cut_x=0.0
+        )
+        container["packed_items"] = [
+            dict(
+                sample_item(1, is_soft=True),
+                pos=[0.0, 0.0, 0.1],
+                orientation=0,
+            )
+        ]
+        observation = {
+            "pool_list": [
+                sample_item(2, is_soft=True),
+                sample_item(3, is_soft=False),
+            ],
+            "container_list": [container],
+        }
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": item_idx,
+                    "container_idx": 0,
+                    "place_pos": [0.0, 0.0, 0.3],
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.0, 0.0, 0.3), (0.3, 0.25, 0.2), "candidate"
+                ),
+                score=2.0 - item_idx,
+            )
+            for item_idx in range(2)
+        ]
+        with mock.patch.object(
+            agent,
+            "residual_affordance_action_utility",
+            side_effect=[0.0, 1.0],
+        ):
+            record = agent.residual_affordance_shadow_record(
+                decisions, observation, decisions[0]
+            )
+
+        self.assertEqual(record["unrestricted_proposed_rank"], 1)
+        self.assertFalse(record["unrestricted_contract_not_worse"])
+        self.assertEqual(record["guarded_proposed_rank"], 0)
+        self.assertTrue(record["attribute_guard_blocked_unrestricted"])
+        self.assertEqual(
+            record["candidates"][1]["soft_cover_violations"], 1
+        )
+        self.assertEqual(
+            record["candidates"][1]["soft_cover_violations_stack"], 1
+        )
+
     def test_candidate_attribute_violations_match_incremental_rule(self):
         container = sample_container(
             require_shelf=False, center_x=0.0, cut_x=0.0
