@@ -3662,6 +3662,20 @@
         "development_step6": "4 lower/14 higher -- boundary not reproduced",
         "verdict": "FAIL; no live shadow; do not fit a hard step boundary from this stream"
       }
+    },
+    {
+      "id": "counterfactual-sensitivity-regimes-detect-outlier-not-transferable-decision-regimes",
+      "topic": "learning",
+      "date": "2026-08-20",
+      "status": "active",
+      "claim": "A label-blind regime probe was implemented using per-source-state mean and maximum absolute PyBullet candidate-pair responses in fill, height, horizontal CoG, direct and stack soft coverage, ordinary overlap and load on soft, and soft wall clearance. Labels and root_step are excluded from clustering. Training-only silhouette selects k=2 on run 32351615182 (0.593), but cluster support is 1 versus 31 source states, failing the minimum max(2, 10%) support contract. The partition is therefore an extreme physical-response outlier rather than evidence of a stable regime. Frozen evaluation on non-overlapping run 32368148298 assigns 15 source states and scores 28/30, tying immediate score; both clusters freeze to higher_afterstate_better. The promotion gate fails and no live shadow is licensed.",
+      "source": "scripts/analyze_counterfactual_sensitivity_regimes.py; runs 32351615182 and 32368148298; reports/counterfactual-afterstate-value/sensitivity-regime-{policy-32351615182,prospective-32368148298}.{json,md}",
+      "values": {
+        "training_structure": "32 source states; k=2; silhouette 0.593; cluster support 1/31; support gate FAIL",
+        "prospective_contract": "different physical run; 15 source states; 30 directional rows; zero teacher-signature overlap",
+        "prospective_scores": "immediate 28/30; sensitivity regime 28/30",
+        "verdict": "FAIL; measures physical response outliers but not transferable decision regimes; no live shadow"
+      }
     }
   ]
 }

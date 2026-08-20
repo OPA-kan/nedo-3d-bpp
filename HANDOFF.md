@@ -702,6 +702,21 @@ appear inside one stream, but neither the smooth observed-state interaction
 nor a fixed stage boundary generalizes across stream conditions.  Keep phase
 telemetry; close this model family pending multiple stream-conditioned runs.
 
+A label-blind counterfactual-sensitivity probe now tests the narrower regime
+hypothesis directly.  It aggregates, per source state, the mean and maximum
+absolute PyBullet candidate-pair response in fill, height, horizontal CoG,
+direct/stack soft coverage, ordinary overlap/load on soft, and soft wall
+clearance.  Neither labels nor `root_step` enter clustering.  Run 32351615182
+selects two clusters by training-only silhouette (0.593), but their support is
+**1 versus 31 source states**; the apparent separation is an extreme physical
+response outlier, not a supported regime partition.  The frozen clusters score
+28/30 on non-overlapping run 32368148298, exactly tying immediate score, and
+both frozen decisions are `higher_afterstate_better`.  The support and
+promotion gates therefore fail.  This establishes a usable measurement
+protocol and a negative result: current pairwise response magnitudes detect
+outliers, but do not yet expose transferable decision regimes.  Do not connect
+the regime policy to the live agent.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
