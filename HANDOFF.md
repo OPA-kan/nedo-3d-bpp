@@ -675,6 +675,19 @@ collection whose frozen model passes both gates; do not tune on this late
 split.  The result localizes the problem as a mid/late condition shift, not
 absence of a discovery signal.
 
+The prospective response to that shift is now frozen, but not adopted.
+`phase-soft-policy-32351615182.json` trains on all 66 directional rows of
+run 32351615182 and uses no root-step feature: continuous observed progress,
+fill, height and attribute composition multiply the physical afterstate
+difference.  The selected `phase_conditioned_pooled_afterstate` explains
+66/66 training rows versus 64/66 for unconditioned pooled afterstate, but
+that is resubstitution evidence only.  Its promotion gate requires a
+different physical run, at least 20 directional rows, zero overlap in
+source-state/action teacher signatures, and a strict win over immediate
+score, action geometry and unconditioned pooled afterstate.  The matrix
+workflow evaluates this frozen artifact automatically; only a prospective
+PASS licenses a live PyBullet-afterstate shadow.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

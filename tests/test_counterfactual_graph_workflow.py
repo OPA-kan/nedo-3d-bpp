@@ -64,6 +64,8 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("evaluate_frozen_post_shake_soft_reranker.py", text)
         self.assertIn("distributional_discovery.jsonl", text)
         self.assertIn("distributional_late_holdout.jsonl", text)
+        self.assertIn("evaluate_prospective_phase_soft_policy.py", text)
+        self.assertIn("phase-soft-policy-32351615182.json", text)
         self.assertIn("pip install -r requirements.txt", text)
         self.assertIn(
             "--policy reports/counterfactual-teacher-discovery/policy.json",

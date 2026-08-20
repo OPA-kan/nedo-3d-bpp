@@ -99,6 +99,8 @@ on:
       - scripts/evaluate_counterfactual_afterstate_value.py
       - scripts/develop_post_shake_soft_reranker.py
       - scripts/evaluate_frozen_post_shake_soft_reranker.py
+      - scripts/train_phase_conditioned_soft_policy.py
+      - scripts/evaluate_prospective_phase_soft_policy.py
       - .github/workflows/counterfactual-graph-scale.yml
 
 permissions:
@@ -339,6 +341,13 @@ jobs:
           --late reports/counterfactual-graph-scale/aggregate/teacher-pairs/distributional_late_holdout.jsonl
           --json-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.json
           --markdown-output reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.md
+      - name: Evaluate the frozen previous-run phase policy prospectively
+        run: >-
+          python scripts/evaluate_prospective_phase_soft_policy.py
+          --policy reports/counterfactual-afterstate-value/phase-soft-policy-32351615182.json
+          --teacher-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
+          --json-output reports/counterfactual-graph-scale/aggregate/phase-soft-prospective.json
+          --markdown-output reports/counterfactual-graph-scale/aggregate/phase-soft-prospective.md
       - name: Validate physical afterstate teacher contract
         run: >-
           python -c "import json,pathlib;
@@ -356,6 +365,7 @@ jobs:
       - run: cat reports/counterfactual-graph-scale/aggregate/frozen-policy-late.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/post-shake-soft-development.md >> "$GITHUB_STEP_SUMMARY"
       - run: cat reports/counterfactual-graph-scale/aggregate/post-shake-soft-late.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/counterfactual-graph-scale/aggregate/phase-soft-prospective.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: counterfactual-graph-scale-aggregate
