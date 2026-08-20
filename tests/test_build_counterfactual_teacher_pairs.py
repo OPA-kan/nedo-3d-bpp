@@ -14,6 +14,58 @@ from scripts.build_counterfactual_teacher_pairs import (
 
 
 class CounterfactualTeacherPairTests(unittest.TestCase):
+    def test_manifest_counts_observed_post_shake_axes(self):
+        lower = {"post_shake_soft_covered_by_other": 0}
+        higher = {"post_shake_soft_covered_by_other": 1}
+        pair = {
+            "source_node_id": "root",
+            "source_depth": 0,
+            "score_gap": 0.1,
+            "equal_immediate_score": False,
+            "lower_stable_item_index": 1,
+            "higher_stable_item_index": 2,
+            "comparisons": {
+                "post_shake_soft_covered_by_other": {
+                    "lower_range": [0, 0], "higher_range": [1, 1],
+                },
+            },
+            "lower_continuation_outcome_vectors": [lower],
+            "higher_continuation_outcome_vectors": [higher],
+            "lower_continuation_samples": [{
+                "outcomes": lower, "terminal_reason": "horizon",
+            }],
+            "higher_continuation_samples": [{
+                "outcomes": higher, "terminal_reason": "horizon",
+            }],
+            "lower_reachable_outcome_vectors": [lower],
+            "higher_reachable_outcome_vectors": [higher],
+        }
+        signal = {
+            "horizons": [3],
+            "branch_factors": [3],
+            "graphs": [{
+                "graph_id": "post-shake",
+                "case_id": "soft",
+                "root_step": 6,
+                "scenario_axes": {},
+                "sibling_pairs": [pair],
+            }],
+        }
+
+        manifest, _buckets = build_teacher_corpus(signal)
+
+        metric = "post_shake_soft_covered_by_other"
+        self.assertEqual(
+            manifest["axis_relation_counts_on_training_rows"][metric]
+            ["lower_immediate_score_better"],
+            1,
+        )
+        self.assertEqual(manifest["continuation_directional_counts"][metric], 1)
+        self.assertEqual(
+            manifest["distributional_continuation_directional_counts"][metric],
+            1,
+        )
+
     def test_post_shake_soft_axis_reaches_continuation_labels(self):
         common = {
             "placed_count": 0,

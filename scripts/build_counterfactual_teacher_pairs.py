@@ -388,6 +388,16 @@ def teacher_row(graph: dict[str, Any], pair: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _manifest_metrics(
+    rows: list[dict[str, Any]], label_field: str,
+) -> list[str]:
+    """Keep the legacy axes and add only optional axes present in this corpus."""
+    observed = set(METRIC_DIRECTIONS)
+    for row in rows:
+        observed.update(row.get(label_field, {}))
+    return [metric for metric in ALL_METRIC_DIRECTIONS if metric in observed]
+
+
 def build_teacher_corpus(
     signal: dict[str, Any], *, expected_horizon: int | None = None,
     expected_branch_factor: int | None = None,
@@ -424,13 +434,15 @@ def build_teacher_corpus(
                 buckets["controls"].append(row)
             else:
                 buckets[row["split"]].append(row)
+    informative = buckets["discovery"] + buckets["late_holdout"]
+    relation_metrics = _manifest_metrics(informative, "labels")
     relations = {
         metric: {relation: 0 for relation in (
             "lower_immediate_score_better",
             "higher_immediate_score_better",
             "equal",
         )}
-        for metric in METRIC_DIRECTIONS
+        for metric in relation_metrics
     }
     joint_relations = {
         relation: 0 for relation in (
@@ -445,7 +457,6 @@ def build_teacher_corpus(
             for metric, label in row["labels"].items():
                 relations[metric][label["relation"]] += 1
             joint_relations[row["joint_pareto"]["relation"]] += 1
-    informative = buckets["discovery"] + buckets["late_holdout"]
     tensor_rows = sum(
         isinstance(row.get("source_state_tensor"), dict)
         for row in informative
@@ -479,7 +490,7 @@ def build_teacher_corpus(
             in ("lower_afterstate_better", "higher_afterstate_better")
             for row in informative
         )
-        for metric in METRIC_DIRECTIONS
+        for metric in _manifest_metrics(informative, "continuation_labels")
     }
     distributional = (
         buckets["distributional_discovery"]
@@ -498,7 +509,9 @@ def build_teacher_corpus(
             in ("lower_afterstate_better", "higher_afterstate_better")
             for row in distributional
         )
-        for metric in METRIC_DIRECTIONS
+        for metric in _manifest_metrics(
+            distributional, "distributional_continuation_labels"
+        )
     }
     manifest = {
         "schema_version": 5,
