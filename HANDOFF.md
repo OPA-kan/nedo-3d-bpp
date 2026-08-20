@@ -688,6 +688,20 @@ score, action geometry and unconditioned pooled afterstate.  The matrix
 workflow evaluates this frozen artifact automatically; only a prospective
 PASS licenses a live PyBullet-afterstate shadow.
 
+That prospective gate has now **FAILED** on the first complete non-overlapping
+condition, run 32368148298 (`source-001`, seed 42): 30 directional rows,
+zero teacher-signature overlap.  Immediate score is **28/30**, action geometry
+**18/30**, unconditioned pooled afterstate **19/30**, phase-conditioned soft
+topology **20/30**, and the selected phase-conditioned pooled afterstate only
+**14/30**.  No live shadow is licensed.  The target run is highly directional:
+step 6 contributes the only two lower-score-better rows, while all 28 rows at
+steps 9/12/15 are higher-score-better.  The development run does not reproduce
+that boundary (step 6 itself is 4 lower / 14 higher), so a hard phase switch is
+not licensed either.  The honest result is narrower: phase relationships can
+appear inside one stream, but neither the smooth observed-state interaction
+nor a fixed stage boundary generalizes across stream conditions.  Keep phase
+telemetry; close this model family pending multiple stream-conditioned runs.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

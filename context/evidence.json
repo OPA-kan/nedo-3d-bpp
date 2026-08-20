@@ -3647,6 +3647,21 @@
         "late": "frozen pooled afterstate 10/32; action 13/32; immediate 26/32",
         "verdict": "do not connect to live agent; collect new physical conditions and test frozen gates again"
       }
+    },
+    {
+      "id": "phase-conditioned-soft-model-fails-prospective-stream",
+      "topic": "learning",
+      "date": "2026-08-20",
+      "status": "active",
+      "claim": "A phase-conditioned physical-afterstate model does not generalize to the first complete non-overlapping stream and is not licensed for the live agent. The model was frozen on all 66 directional post-shake-soft rows from run 32351615182 after the mid/late failure, using continuous live-observable progress, fill, height and attribute composition multiplied by candidate physical-afterstate differences; root_step was excluded. Although it fit 66/66 training rows versus 64/66 for unconditioned pooled afterstate, prospective run 32368148298 (source-001, seed 42) has 30 directional rows and zero source-state/action teacher-signature overlap and scores immediate 28/30, action 18/30, pooled afterstate 19/30, phase-conditioned soft topology 20/30, selected phase-conditioned pooled afterstate 14/30. The gate fails. Target labels have a sharp within-stream shape (step 6: 2 lower / 0 higher; steps 9/12/15: 0 lower / 28 higher), but development step 6 is 4 lower / 14 higher, so the apparent boundary itself is not cross-stream stable. Phase telemetry remains useful; this model family is closed until multiple stream-conditioned runs support a transferable gate.",
+      "source": "runs 32351615182 and 32368148298; reports/counterfactual-afterstate-value/phase-soft-{policy-32351615182,prospective-32368148298}.{json,md}",
+      "values": {
+        "prospective_contract": "different run; 30 directional rows; zero teacher-signature overlap",
+        "prospective_scores": "immediate 28/30; action 18/30; pooled 19/30; phase-soft 20/30; phase-pooled 14/30",
+        "target_stage_labels": "step6 2 lower/0 higher; step9+12+15 0 lower/28 higher",
+        "development_step6": "4 lower/14 higher -- boundary not reproduced",
+        "verdict": "FAIL; no live shadow; do not fit a hard step boundary from this stream"
+      }
     }
   ]
 }
