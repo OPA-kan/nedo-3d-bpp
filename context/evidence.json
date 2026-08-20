@@ -3676,6 +3676,23 @@
         "prospective_scores": "immediate 28/30; sensitivity regime 28/30",
         "verdict": "FAIL; measures physical response outliers but not transferable decision regimes; no live shadow"
       }
+    },
+    {
+      "id": "residual-affordance-action-correction-replicates-across-two-future-streams",
+      "topic": "learning",
+      "date": "2026-08-20",
+      "status": "active",
+      "claim": "Residual space is now measured directly from raw H3 graph topology as an eight-coordinate searched-affordance vector: expected safe additional placements, searched-horizon completion probability, next and future distinct safe item breadth, non-soft/soft/priority future breadth, and maximum future safe item volume. The teacher is explicitly branch-factor-capped and only Pareto-dominant sibling pairs are directional. A compact physical-afterstate model passed original-run graph CV at 69/94 versus immediate 64/94 but failed on source-001 at 13/46 versus immediate 17/46, so the present board representation does not transfer. A frozen action-geometry model trained only on run 32351615182 unexpectedly scored 31/46 versus immediate 17/46 on source-001 run 32368148298. It was then frozen as a replication candidate and passed interleave run 32372290412 at 23/41 versus 19/41 with zero signature overlap. A step-6-only hybrid inferred afterward failed the fourth reverse-000 run 32375696343 at 35/64 versus immediate 37/64 and must not be used. The globally applied frozen action model confirmed again on the fourth run at 45/64 versus 37/64, graph W/T/L 5/6/3, zero overlap. This licenses shadow comparison against official score, not live placement selection, because the demonstrated target is residual-affordance Pareto direction rather than official competition score.",
+      "source": "runs 32351615182, 32368148298, 32372290412, and 32375696343; scripts/evaluate_residual_affordance_{value,replication,phase_hybrid}.py; reports/counterfactual-afterstate-value/residual-affordance-*.{json,md}",
+      "values": {
+        "teacher_contract": "eight-dimensional Pareto over branch-factor-capped searched future actions",
+        "board_model": "development compact afterstate 69/94 vs immediate 64/94; prospective 13/46 vs 17/46 -- FAIL",
+        "action_discovery": "source-001 31/46 vs immediate 17/46; zero overlap",
+        "action_replication": "interleave 23/41 vs immediate 19/41; PASS; zero overlap",
+        "phase_hybrid": "reverse-000 35/64 vs immediate 37/64 -- FAIL; do not use fixed phase gate",
+        "global_action_confirmation": "reverse-000 45/64 vs immediate 37/64; graph W/T/L 5/6/3; zero overlap",
+        "verdict": "license exact frozen global action model for shadow comparison only; do not alter live ranking until official-score delta is measured"
+      }
     }
   ]
 }

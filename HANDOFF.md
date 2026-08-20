@@ -717,6 +717,32 @@ protocol and a negative result: current pairwise response magnitudes detect
 outliers, but do not yet expose transferable decision regimes.  Do not connect
 the regime policy to the live agent.
 
+The next experiment now measures residual space as **searched future
+affordance**, rather than as a named regime.  From each raw H3 graph it records
+expected safe continuation placements, searched-horizon completion, next and
+future distinct item breadth, non-soft/soft/priority breadth, and maximum
+future safe item volume.  These are branch-factor-capped search proxies, not
+complete feasibility.  Only sibling afterstates with Pareto dominance across
+all eight coordinates become directional teachers.  On original run
+32351615182 this yields 94 directional rows; a compact physical-afterstate
+model wins development graph CV 69/94 versus immediate score 64/94, but fails
+prospectively on source-001 run 32368148298 at 13/46 versus immediate 17/46.
+The current board representation therefore still does not transfer.
+
+That failure nevertheless exposed a frozen **action-geometry** correction,
+trained only on 32351615182, at 31/46 versus immediate 17/46 on source-001.
+It was nominated for third-stream replication before run 32372290412
+(`interleave`) was generated.  Replication passes at 23/41 versus 19/41,
+zero signature overlap.  A proposed step-6-only hybrid was then frozen, but
+the fourth valid run 32375696343 (`reverse-000`) rejects it: hybrid 35/64 versus
+immediate 37/64.  Do **not** use the hard phase switch.  The globally applied
+frozen action correction, however, confirms again at **45/64 versus 37/64**,
+with graph wins/ties/losses **5/6/3** and zero overlap.  This licenses an
+offline/live-policy **shadow comparison**, not live ranking: it predicts the
+residual-affordance Pareto teacher, not official competition score.  The next
+engineering step is to attach this exact frozen action model in shadow mode
+and measure official score deltas without allowing it to choose placements.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
