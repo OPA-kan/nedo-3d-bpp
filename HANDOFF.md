@@ -766,6 +766,29 @@ as model effects. The dependency has been removed. The runner now hashes the
 ordered executed action commands and the aggregate fails the negative-control
 gate on any paired mismatch or missing hash. A clean rerun is required.
 
+The corrected wave, run `32381957502`, is a **valid measurement but still
+fails the preregistered physical negative-control gate**: only 2/15 paired
+action-command hashes match (13 mismatch, none missing). Do not promote the
+learner or interpret the arm-level placed/fill differences causally. The
+failure is narrower than the first wave: every reported per-case physical and
+attribute proxy difference remains inside the simultaneously measured base
+spread, and identical base runs themselves occupy multiple action hashes, so
+the strict hash gate is detecting the known wall-clock/PyBullet trajectory
+instability rather than a demonstrated action swap. The gate was frozen in
+advance, however, and is not waived post hoc.
+
+The wave does answer the special-attribute reach question. Across 280
+observed placement-core decisions and 835 retained candidates, the frozen
+learner proposes 123 different actions (24 different items). Five
+unrestricted proposals increase at least one direct-contact or stack-aware
+soft/priority coverage or priority-routing violation; the conservative
+contract blocks all five. The remaining guarded proposal still changes 120
+actions and 22 items (42.9% of observed decisions). Thus the rule-faithful
+guard has ample reach and the special-condition implementation is not the
+bottleneck, but no guarded enforce canary is licensed until its negative
+control is redesigned and preregistered. Compact evidence is under
+`reports/residual-affordance-shadow/history/32381957502/`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

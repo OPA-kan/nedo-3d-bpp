@@ -175,6 +175,12 @@
   guarded proposal that may not increase direct or stack-aware soft/priority
   coverage or priority-routing violations. See
   `reports/counterfactual-afterstate-value/residual-affordance-shadow-protocol.md`.
+- Corrected live run `32381957502` observed 280 decisions and 835 candidates:
+  unrestricted/guarded proposals changed 123/120 actions, and the guard
+  blocked all five proposals that worsened a soft/priority contract axis.
+  The preregistered physical negative control nevertheless failed at 2/15
+  matching action hashes, so this remains telemetry-only and no enforce
+  canary is licensed.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 
