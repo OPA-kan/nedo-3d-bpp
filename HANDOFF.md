@@ -892,6 +892,28 @@ Do not enforce. The next indicated corpus is forced discordant-pair H5 across
 multiple trajectories, admitted only if placed/survival directionality spans
 at least four groups. See `trajectory-advantage-value-development-32441630451.md`.
 
+The first behavior-policy diversity test and confidence-gated search-follow
+pilot are also complete. The four-policy test produced 91.7% unique board and
+model-visible states across 36 H3/B3 graphs, but arbitrary safe divergence
+created no additional H1/H3 reversal; diversity alone is not relevant
+diversity. `scripts/build_paired_search_follow.py` now requires the exact live
+policy action (stored in each root snapshot) and a hard-safe search candidate
+to agree across declared horizon and branch-width views before it may fork a
+fresh trajectory. It keeps the baseline/search arms paired on the same root
+and future stream and reports fill, placed gate, CoG, stability, soft, and
+priority separately.
+
+Physical Actions run `32469901132` is a valid **HOLD**. On the baseline
+dual-preloaded-dedicated step-9 root, the search action beat the live incumbent
+by +0.339408 fill in both H3/B3 and H3/B4, but the two actions tied exactly in
+H4/B3. The preregistered 0.5 margin and cross-horizon agreement therefore
+failed, so no search-follow trajectory was admitted. This is the intended
+negative control: following every H3 disagreement would have propagated a
+bounded-horizon preference that vanished one step later. Screen multiple
+roots under the same H3/H4 plus width-stability contract; paired-fork only
+unchanged passes. Compact evidence is in
+`reports/paired-search-follow/run-32469901132.md`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
