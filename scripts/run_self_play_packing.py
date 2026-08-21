@@ -173,6 +173,7 @@ def build_physical_puct_search(
     rules: GameRules, top_k: int, simulations: int = 6, horizon: int = 3,
     cpuct: float = 2.0, prior_mode: str = "uniform",
     prior_temperature: float = 1.0, action_temperature: float = 1.0,
+    temperature_drop_step: int | None = None,
     search_seed: int = 0,
     metrics_fn: Callable[[Any], dict[str, Any]] = cumulative_metrics,
     leaf_value_fn: Callable[..., float] | None = None,
@@ -183,6 +184,8 @@ def build_physical_puct_search(
         raise ValueError("simulations, horizon, and top_k must be positive")
     if action_temperature < 0.0:
         raise ValueError("action_temperature must be non-negative")
+    if temperature_drop_step is not None and temperature_drop_step < 0:
+        raise ValueError("temperature_drop_step must be non-negative")
     if env_factory is None:
         from src.ground_handling.env import GroundHandlingEnv
 
@@ -343,9 +346,15 @@ def build_physical_puct_search(
             finally:
                 simulation_env.close()
 
+        effective_action_temperature = (
+            0.0
+            if temperature_drop_step is not None
+            and int(step) >= temperature_drop_step
+            else action_temperature
+        )
         chosen = tree.choose(
-            root_key, list(candidates), temperature=action_temperature,
-            rng=policy_rng,
+            root_key, list(candidates),
+            temperature=effective_action_temperature, rng=policy_rng,
         )
         policy_target = tree.policy(root_key)
         return chosen, {
@@ -356,7 +365,9 @@ def build_physical_puct_search(
             "cpuct": float(cpuct),
             "prior_mode": prior_mode,
             "prior_temperature": float(prior_temperature),
-            "action_temperature": float(action_temperature),
+            "action_temperature": float(effective_action_temperature),
+            "configured_action_temperature": float(action_temperature),
+            "temperature_drop_step": temperature_drop_step,
             "leaf_value_model": (
                 "zero_untrained" if leaf_value_fn is None else "injected"
             ),
@@ -588,6 +599,7 @@ def run_physical_game(
     mcts_cpuct: float = 2.0, mcts_prior: str = "uniform",
     mcts_prior_temperature: float = 1.0,
     mcts_action_temperature: float = 1.0,
+    mcts_temperature_drop_step: int | None = None,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -612,6 +624,7 @@ def run_physical_game(
             prior_mode=mcts_prior,
             prior_temperature=mcts_prior_temperature,
             action_temperature=mcts_action_temperature,
+            temperature_drop_step=mcts_temperature_drop_step,
             search_seed=policy_seed + 20000,
         )
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -633,6 +646,7 @@ def run_physical_game(
                     "prior": mcts_prior,
                     "prior_temperature": mcts_prior_temperature,
                     "action_temperature": mcts_action_temperature,
+                    "temperature_drop_step": mcts_temperature_drop_step,
                     "leaf_value_model": "zero_untrained",
                 }
                 if selection_mode == "mcts" else None
@@ -754,6 +768,10 @@ def main() -> int:
     )
     parser.add_argument("--mcts-prior-temperature", type=float, default=1.0)
     parser.add_argument("--mcts-action-temperature", type=float, default=1.0)
+    parser.add_argument(
+        "--mcts-temperature-drop-step", type=int, default=-1,
+        help="Use greedy root visits from this real step; -1 disables",
+    )
     parser.add_argument("--policy-generation", default="pi0")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -791,6 +809,10 @@ def main() -> int:
             mcts_prior=args.mcts_prior,
             mcts_prior_temperature=args.mcts_prior_temperature,
             mcts_action_temperature=args.mcts_action_temperature,
+            mcts_temperature_drop_step=(
+                None if args.mcts_temperature_drop_step < 0
+                else args.mcts_temperature_drop_step
+            ),
         ))
     manifest = {
         "schema_version": 1,
@@ -826,6 +848,10 @@ def main() -> int:
                     "prior": args.mcts_prior,
                     "prior_temperature": args.mcts_prior_temperature,
                     "action_temperature": args.mcts_action_temperature,
+                    "temperature_drop_step": (
+                        None if args.mcts_temperature_drop_step < 0
+                        else args.mcts_temperature_drop_step
+                    ),
                     "leaf_value_model": "zero_untrained",
                 }
                 if args.selection_mode == "mcts" else None

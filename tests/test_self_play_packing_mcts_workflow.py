@@ -22,6 +22,7 @@ class SelfPlayPackingMctsWorkflowTests(unittest.TestCase):
         self.assertIn("inputs.simulations || '12'", text)
         self.assertIn("--mcts-horizon", text)
         self.assertIn("--mcts-prior uniform", text)
+        self.assertIn("--mcts-temperature-drop-step 6", text)
         self.assertIn("evaluate_self_play_packing.py", text)
         self.assertIn("replays/mcts.html", text)
         self.assertIn("upload-artifact@v4", text)

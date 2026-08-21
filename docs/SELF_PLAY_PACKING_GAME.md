@@ -84,6 +84,9 @@ Generation `pi0-puct0` is deliberately a cold start:
   `zero_untrained`, not a claim that the state has zero production value.
 - Terminal game reward and incremental soft/priority reward are the only backed
   up rewards. The hand-written packing `immediate_score` is not a value target.
+- Root actions can be sampled from visit counts early and switched to greedy
+  visit selection at a configured real-game step. This preserves early state
+  diversity without knowingly sampling a low-visit late-game action.
 
 After an episode, every captured state receives a policy target from MCTS root
 visits and an undiscounted suffix-return target:

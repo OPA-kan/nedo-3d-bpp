@@ -112,7 +112,8 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             candidate_provider=provider_for_branch,
             legal_filter_fn=legal_filter, rules=GameRules(minimum_block=10),
             top_k=2, simulations=4, horizon=2, cpuct=2.0,
-            prior_mode="uniform", action_temperature=0.0,
+            prior_mode="uniform", action_temperature=1.0,
+            temperature_drop_step=0,
             metrics_fn=lambda _env: {}, env_factory=factory,
         )
 
@@ -125,6 +126,9 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         )
 
         self.assertEqual(chosen["candidate_id"], "alive")
+        self.assertEqual(result["action_temperature"], 0.0)
+        self.assertEqual(result["configured_action_temperature"], 1.0)
+        self.assertEqual(result["temperature_drop_step"], 0)
         self.assertEqual(sum(row["visits"] for row in result["policy_target"]), 4)
         self.assertEqual(
             result["simulation_terminal_reasons"][
