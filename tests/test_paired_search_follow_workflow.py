@@ -15,6 +15,7 @@ class PairedSearchFollowWorkflowTests(unittest.TestCase):
         self.assertIn("build_view h3-b3 3 3", text)
         self.assertIn("build_view h4-b3 4 3", text)
         self.assertIn("build_view h3-b4 3 4", text)
+        self.assertIn("experiment/counterfactual-graph", text)
         self.assertIn("--require-horizon 4", text)
         self.assertIn("--require-branch-factor 4", text)
         self.assertIn("build_paired_search_follow.py", text)

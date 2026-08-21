@@ -15,6 +15,18 @@ on:
         description: "Minimum fill proxy advantage in every search view"
         required: false
         default: "0.5"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/counterfactual-graph-paired-search-follow.yml
+      - scripts/build_behavior_policy_roots.py
+      - scripts/build_paired_search_follow.py
+      - scripts/evaluate_paired_search_follow.py
+      - tests/test_build_behavior_policy_roots.py
+      - tests/test_build_paired_search_follow.py
+      - tests/test_evaluate_paired_search_follow.py
+      - tests/test_paired_search_follow_workflow.py
 
 permissions:
   contents: read
