@@ -79,3 +79,24 @@ the player to move, block length, chosen candidate rank, candidate count,
 handoffs, and incremental attribute violations. CI generates one replay per
 pilot game under `reports/self-play-packing/replays/` and includes them in the
 normal Actions artifact.
+
+## Scenario matrix and critical gallery
+
+The scenario-matrix workflow runs the same rank-0 control and symmetric
+exploration contract across four representative physical setups:
+
+- one general container without a shelf;
+- one general container with a shelf;
+- two general containers with a shelf in only the second container;
+- two pre-loaded containers with the second reserved for priority baggage.
+
+The replay labels make these roles explicit as `GENERAL`, `PRIORITY`, and
+`SHELF`; priority baggage is not placed on a separate hidden board.
+
+Raw manifests and snapshots remain available for auditing, but the default
+gallery is deliberately small. `scripts/select_critical_self_play_replays.py`
+ranks games by selected-action physical rejection, newly created soft/priority
+violations, deeper-ranked exploration, state novelty, and handoffs. It first
+keeps the strongest game from every scenario, then fills the remaining slots
+globally. CI emits the six selected standalone replays under
+`reports/self-play-matrix/critical/`; open `index.html` to browse them.

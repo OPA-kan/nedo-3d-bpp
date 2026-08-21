@@ -16,6 +16,7 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
                 "observation": {"container_list": [{
                     "index": 0, "length": 2, "width": 1, "height": 1.5,
                     "center": [0, 0, 0.75], "is_prioritized": True,
+                    "shelf": True,
                     "packed_items": [{
                         "index": 7, "length": .4, "width": .3, "height": .2,
                         "pos": [0, 0, .1], "is_soft": True,
@@ -55,6 +56,7 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertEqual(frame["selected_rank"], 2)
         self.assertTrue(frame["is_handoff_state"])
         self.assertTrue(frame["containers"][0]["items"][0]["is_soft"])
+        self.assertTrue(frame["containers"][0]["has_shelf"])
         self.assertEqual(frame["new_violations"], 1)
 
     def test_html_is_standalone_and_has_replay_controls(self):
@@ -63,6 +65,8 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertIn('id="play"', html)
         self.assertIn('id="step"', html)
         self.assertIn("SELF_PLAY_REPLAY", html)
+        self.assertIn("PRIORITY", html)
+        self.assertIn("SHELF", html)
         self.assertNotIn("https://", html)
 
 

@@ -28,6 +28,7 @@ def _container(row: dict[str, Any]) -> dict[str, Any]:
         "height": float(row.get("height", 0)),
         "center": [float(value) for value in (row.get("center") or [0, 0, 0])],
         "is_prioritized": bool(row.get("is_prioritized")),
+        "has_shelf": bool(row.get("shelf", row.get("require_shelf", False))),
         "items": [_item(item) for item in row.get("packed_items", [])],
     }
 
@@ -64,7 +65,10 @@ def build_payload(manifest_path: pathlib.Path, game_index: int) -> dict[str, Any
             ],
         })
     return {
-        "title": f"Self-Play Packing · {manifest.get('selection', {}).get('mode')} · game {game_index}",
+        "title": (
+            f"Self-Play Packing · {manifest.get('case_id', 'scenario')} · "
+            f"{manifest.get('selection', {}).get('mode')} · game {game_index}"
+        ),
         "game": {
             "index": game_index,
             "starting_player": game.get("starting_player"),
@@ -97,7 +101,7 @@ slider.max=Math.max(0,data.frames.length-1);document.getElementById('title').tex
 function proj(x,y,z,s,ox,oy){return [ox+(x-y)*s*.55,oy-z*s+(x+y)*s*.25]}
 function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>(i?ctx.lineTo(...p):ctx.moveTo(...p)));ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.stroke()}
 function box(x,y,z,l,w,h,color,s,ox,oy){let p=(a,b,c)=>proj(a,b,c,s,ox,oy),A=p(x-l/2,y-w/2,z-h/2),B=p(x+l/2,y-w/2,z-h/2),C=p(x+l/2,y+w/2,z-h/2),D=p(x-l/2,y+w/2,z-h/2),E=p(x-l/2,y-w/2,z+h/2),F=p(x+l/2,y-w/2,z+h/2),G=p(x+l/2,y+w/2,z+h/2),H=p(x-l/2,y+w/2,z+h/2);poly([D,C,G,H],color+'aa','#dff3ff');poly([B,C,G,F],color+'cc','#dff3ff');poly([E,F,G,H],color,'#fff')}
-function render(){let f=data.frames[at];ctx.clearRect(0,0,cv.width,cv.height);if(!f)return;let n=Math.max(1,f.containers.length),panel=cv.width/n,s=Math.min(170,panel/3.2,cv.height/3.4);f.containers.forEach((c,i)=>{let ox=panel*(i+.5),oy=cv.height*.72,cc=c.center||[0,0,0],corn=[[-c.length/2,-c.width/2,0],[c.length/2,-c.width/2,0],[c.length/2,c.width/2,0],[-c.length/2,c.width/2,0]];ctx.strokeStyle=c.is_prioritized?'#ffd45c':'#52769a';ctx.lineWidth=2;ctx.beginPath();corn.forEach((q,j)=>{let p=proj(q[0],q[1],q[2],s,ox,oy);j?ctx.lineTo(...p):ctx.moveTo(...p)});ctx.closePath();ctx.stroke();[...c.items].sort((a,b)=>a.pos[2]-b.pos[2]).forEach(it=>{let col=it.is_soft&&it.is_prioritized?'#ff8a4c':it.is_soft?'#ff73c7':it.is_prioritized?'#ffd45c':'#49a7ff';box(it.pos[0]-cc[0],it.pos[1]-cc[1],it.pos[2],it.length,it.width,it.height,col,s,ox,oy)})});
+function render(){let f=data.frames[at];ctx.clearRect(0,0,cv.width,cv.height);if(!f)return;let n=Math.max(1,f.containers.length),panel=cv.width/n,s=Math.min(170,panel/3.2,cv.height/3.4);f.containers.forEach((c,i)=>{let ox=panel*(i+.5),oy=cv.height*.72,cc=c.center||[0,0,0],corn=[[-c.length/2,-c.width/2,0],[c.length/2,-c.width/2,0],[c.length/2,c.width/2,0],[-c.length/2,c.width/2,0]];ctx.fillStyle=c.is_prioritized?'#ffd45c':'#8eb5dc';ctx.font='bold 16px system-ui';ctx.textAlign='center';ctx.fillText(`C${c.index} ${c.is_prioritized?'PRIORITY':'GENERAL'}${c.has_shelf?' + SHELF':''}`,ox,42);ctx.strokeStyle=c.is_prioritized?'#ffd45c':'#52769a';ctx.lineWidth=2;ctx.beginPath();corn.forEach((q,j)=>{let p=proj(q[0],q[1],q[2],s,ox,oy);j?ctx.lineTo(...p):ctx.moveTo(...p)});ctx.closePath();ctx.stroke();[...c.items].sort((a,b)=>a.pos[2]-b.pos[2]).forEach(it=>{let col=it.is_soft&&it.is_prioritized?'#ff8a4c':it.is_soft?'#ff73c7':it.is_prioritized?'#ffd45c':'#49a7ff';box(it.pos[0]-cc[0],it.pos[1]-cc[1],it.pos[2],it.length,it.width,it.height,col,s,ox,oy)})});
 document.getElementById('counter').textContent=`${at+1} / ${data.frames.length}`;document.getElementById('hud').innerHTML=`<b>STEP ${f.step}</b><br>Player <b style="color:${f.player?'#ff73c7':'#51d6ff'}">${f.player}</b> · block ${f.block_length}<br>rank ${f.selected_rank??'terminal'} / candidates ${f.candidate_count}<br>${f.is_handoff_state?'🔁 HANDOFF STATE<br>':''}${f.handoff_after?'handoff after move<br>':''}${f.new_violations?`⚠ attribute violation +${f.new_violations}`:'attribute clean'}`;slider.value=at}
 function go(v){at=Math.max(0,Math.min(data.frames.length-1,v));render()}function play(){if(timer){clearInterval(timer);timer=null;document.getElementById('play').textContent='▶ Play'}else{document.getElementById('play').textContent='⏸ Pause';timer=setInterval(()=>go(at+1<data.frames.length?at+1:0),+document.getElementById('speed').value)}}
 document.getElementById('play').onclick=play;document.getElementById('back').onclick=()=>go(at-1);document.getElementById('next').onclick=()=>go(at+1);slider.oninput=()=>go(+slider.value);document.getElementById('speed').onchange=()=>{if(timer){play();play()}};
