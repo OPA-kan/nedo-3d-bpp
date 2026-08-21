@@ -69,7 +69,7 @@ def _leaf_paths(
             continue
         child_weight = weight / len(children)
         for edge in children:
-            stack.append((edges + [edge], nodes[edge["target"]], child_weight))
+            stack.append((edge["target"], edges + [edge], child_weight))
     return paths
 
 

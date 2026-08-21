@@ -16,12 +16,38 @@ def advantage_graph():
     graph["edges"][1]["selection"].update({"rank": 1, "score": -999.0})
     graph["nodes"][1]["terminal_reason"] = "physical_failure"
     graph["nodes"][1]["cumulative_outcomes"]["fill_score_proxy"] = 11.0
-    graph["nodes"][2]["depth"] = 3
     graph["nodes"][2]["terminal_reason"] = None
     graph["nodes"][2]["cumulative_outcomes"].update({
-        "placed_count": 14,
-        "fill_score_proxy": 13.0,
+        "placed_count": 13,
+        "fill_score_proxy": 11.5,
         "soft_covered_by_other": 0,
+    })
+    graph["nodes"].append({
+        **graph["nodes"][2],
+        "node_id": "candidate-leaf",
+        "depth": 3,
+        "cumulative_outcomes": {
+            **graph["nodes"][2]["cumulative_outcomes"],
+            "placed_count": 14,
+            "fill_score_proxy": 13.0,
+        },
+    })
+    graph["edges"].append({
+        "source": "high",
+        "target": "candidate-leaf",
+        "command_action": {
+            "item_idx": 0,
+            "container_idx": 0,
+            "place_pos": [0.2, 0.2, 0.7],
+            "orientation": 0,
+        },
+        "selection": {
+            "rank": 0,
+            "score": 0.5,
+            "stable_item_index": 1,
+            "candidate_kind": "settled_candidate",
+        },
+        "immediate_outcomes": {"is_placed_safe": True},
     })
     return graph
 
@@ -56,6 +82,11 @@ class TrajectoryAdvantageDatasetTests(unittest.TestCase):
             row["advantage_heads"]["horizon_survival_rate"]
             ["directed_advantage"],
             1.0,
+        )
+        self.assertEqual(
+            row["candidate_trajectory_samples"][0]
+            ["path_stable_item_indices"],
+            [2, 1],
         )
 
     def test_model_inputs_exclude_the_hand_written_immediate_score(self):
