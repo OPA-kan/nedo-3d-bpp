@@ -12,7 +12,8 @@ class SelfPlayPackingMctsWorkflowTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("workflow_dispatch", text)
-        self.assertNotIn("push:", text)
+        self.assertIn("push:", text)
+        self.assertIn("experiment/counterfactual-graph", text)
         self.assertIn("tests.test_self_play_packing_search", text)
         self.assertIn("NEDO_REQUIRE_INTEGRATION", text)
         self.assertIn("--selection-mode rank0", text)

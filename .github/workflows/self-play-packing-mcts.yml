@@ -15,6 +15,18 @@ on:
         description: "Simulator seed shared by control and PUCT"
         required: false
         default: "42"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/self-play-packing-mcts.yml
+      - scripts/self_play_packing_search.py
+      - scripts/run_self_play_packing.py
+      - scripts/evaluate_self_play_packing.py
+      - scripts/render_self_play_replay.py
+      - tests/test_self_play_packing_search.py
+      - tests/test_run_self_play_packing.py
+      - tests/test_self_play_packing_mcts_workflow.py
 
 permissions:
   contents: read
