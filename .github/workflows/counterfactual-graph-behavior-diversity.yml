@@ -1,0 +1,157 @@
+name: Counterfactual graph behavior-policy diversity
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_seed:
+        description: "Shared simulator seed for all four behavior policies"
+        required: false
+        default: "42"
+      stream_variant:
+        description: "Shared development stream variant"
+        required: false
+        default: "original"
+      divergence_step:
+        description: "One-time rank-1/rank-2 divergence step"
+        required: false
+        default: "6"
+      behavior_temperature:
+        description: "Rank temperature for safe Top-K behavior"
+        required: false
+        default: "1.5"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - scripts/build_behavior_policy_roots.py
+      - scripts/evaluate_behavior_policy_diversity.py
+      - scripts/build_counterfactual_graph.py
+      - scripts/evaluate_budgeted_dag_search.py
+      - .github/workflows/counterfactual-graph-behavior-diversity.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: behavior-policy-diversity-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  graph:
+    name: ${{ matrix.label }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: single-preloaded-p20
+            scenario: single-preloaded
+            pool: 20
+          - label: dual-shelf-p20
+            scenario: dual-shelf-mixed
+            pool: 20
+          - label: dual-preloaded-priority-p40
+            scenario: dual-preloaded-dedicated
+            pool: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify physical replay contracts
+        run: >-
+          python -m unittest
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          tests.test_build_behavior_policy_roots
+          tests.test_evaluate_behavior_policy_diversity
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build one shared scenario and stream
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead ${{ matrix.pool }}
+          --policy-timeout 8
+          --stream-variant ${{ inputs.stream_variant || 'original' }}
+          --output-dir
+          "reports/behavior-policy-diversity/${{ matrix.label }}/configs"
+      - name: Capture four behavior-policy trajectories
+        run: >-
+          python scripts/build_behavior_policy_roots.py
+          --config
+          "reports/behavior-policy-diversity/${{ matrix.label }}/configs/${{ matrix.scenario }}.json"
+          --case "m-${{ matrix.scenario }}"
+          --steps 9 12 15
+          --divergence-step ${{ inputs.divergence_step || '6' }}
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --attempt-budget 512
+          --top-k 3
+          --temperature ${{ inputs.behavior_temperature || '1.5' }}
+          --output-dir
+          "reports/behavior-policy-diversity/${{ matrix.label }}/roots"
+      - name: Expand every paired root into the same hard-constrained H3 graph
+        shell: bash
+        run: |
+          mapfile -t snapshots < <(find \
+            "reports/behavior-policy-diversity/${{ matrix.label }}/roots" \
+            -type f -name 'step-*-state.json' | sort)
+          test "${#snapshots[@]}" -eq 12
+          for snapshot in "${snapshots[@]}"; do
+            relative="${snapshot#*/roots/}"
+            behavior="${relative%%/*}"
+            step="$(basename "$snapshot" -state.json)"
+            graph_dir="reports/behavior-policy-diversity/${{ matrix.label }}/graphs/$behavior/$step"
+            mkdir -p "$graph_dir"
+            python scripts/build_counterfactual_graph.py \
+              --snapshot "$snapshot" \
+              --config "reports/behavior-policy-diversity/${{ matrix.label }}/configs/${{ matrix.scenario }}.json" \
+              --case "m-${{ matrix.scenario }}" \
+              --split development \
+              --horizon 3 \
+              --branch-factor 3 \
+              --attempt-budget 512 \
+              --max-nodes 40 \
+              --max-edges 39 \
+              --post-shake-labels \
+              --output "$graph_dir/graph.json"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: behavior-policy-diversity-${{ matrix.label }}
+          path: reports/behavior-policy-diversity/${{ matrix.label }}/
+
+  aggregate:
+    needs: graph
+    if: ${{ always() && needs.graph.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: behavior-policy-diversity-*
+          path: reports/behavior-policy-diversity/downloads
+      - name: Test the state-distribution hypothesis
+        run: >-
+          python scripts/evaluate_behavior_policy_diversity.py
+          --graph-root reports/behavior-policy-diversity/downloads
+          --json-output reports/behavior-policy-diversity/aggregate/result.json
+          --markdown-output reports/behavior-policy-diversity/aggregate/result.md
+      - name: Retain the general search benchmark on the broadened distribution
+        run: >-
+          python scripts/evaluate_budgeted_dag_search.py
+          --graph-root reports/behavior-policy-diversity/downloads
+          --json-output reports/behavior-policy-diversity/aggregate/search.json
+          --markdown-output reports/behavior-policy-diversity/aggregate/search.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: behavior-policy-diversity-aggregate
+          path: reports/behavior-policy-diversity/aggregate/

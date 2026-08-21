@@ -522,6 +522,10 @@ def main() -> int:
             "attempt_budget": int(args.attempt_budget),
             "attempt_budget_scope": "per_item",
             "root_action_prefix_id": contract.get("action_prefix_id"),
+            "behavior_policy": snapshot.get("behavior_policy"),
+            "model_visible_state_signature": snapshot.get(
+                "model_visible_state_signature"
+            ),
             "scenario_axes": scenario_axes(task_config),
             "forced_candidate_target_id": (
                 None if forced_target is None else forced_target["target_id"]
