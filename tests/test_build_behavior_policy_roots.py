@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from scripts.build_behavior_policy_roots import (
     action_was_accepted,
+    behavior_policy_metadata,
     behavior_frontier,
     choose_behavior_action,
 )
@@ -17,6 +18,15 @@ def action(x: float) -> dict:
 
 
 class BehaviorPolicyRootTests(unittest.TestCase):
+    def test_metadata_records_live_root_action_for_paired_causality(self):
+        metadata = behavior_policy_metadata(
+            mode="baseline", baseline_action=action(0.1),
+            behavior_seed=7, environment_seed=42, divergence_step=2,
+            attempt_budget=512, top_k=3, temperature=1.5,
+        )
+
+        self.assertEqual(metadata["root_live_action"], action(0.1))
+
     def test_acceptance_reads_the_environment_nested_status_contract(self):
         self.assertTrue(action_was_accepted({"status": {"is_included": True}}))
         self.assertFalse(action_was_accepted({"is_included": True}))

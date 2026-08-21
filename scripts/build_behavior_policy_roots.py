@@ -181,6 +181,30 @@ def model_visible_signature(snapshot: dict[str, Any]) -> str:
     return stable_id("model-state", state_tensor_from_snapshot(snapshot))
 
 
+def behavior_policy_metadata(
+    *, mode: str, baseline_action: dict[str, Any], behavior_seed: int,
+    environment_seed: int, divergence_step: int, attempt_budget: int,
+    top_k: int, temperature: float,
+) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        # The graph provider uses a fixed offline attempt budget, so its
+        # rank-0 is not assumed to equal the action emitted by the live
+        # policy at this root. Paired search-follow uses this exact command
+        # as its incumbent.
+        "root_live_action": canonical_action(baseline_action),
+        "behavior_seed": int(behavior_seed),
+        "environment_seed": int(environment_seed),
+        "divergence_step": int(divergence_step),
+        "attempt_budget": int(attempt_budget),
+        "top_k": int(top_k),
+        "temperature": float(temperature),
+        "alternative_action_constraint": (
+            "physical_status_and_postshake_attribute_nonregression"
+        ),
+    }
+
+
 def run_trajectory(
     agent_module, task_config: dict[str, Any], *, case_id: str, mode: str,
     target_steps: set[int], divergence_step: int, environment_seed: int,
@@ -240,18 +264,14 @@ def run_trajectory(
                 )
                 snapshot["board_fingerprint"] = board_fingerprint(snapshot)
                 snapshot["model_visible_state_signature"] = model_visible_signature(snapshot)
-                snapshot["behavior_policy"] = {
-                    "mode": mode,
-                    "behavior_seed": int(behavior_seed),
-                    "environment_seed": int(environment_seed),
-                    "divergence_step": int(divergence_step),
-                    "attempt_budget": int(attempt_budget),
-                    "top_k": int(top_k),
-                    "temperature": float(temperature),
-                    "alternative_action_constraint": (
-                        "physical_status_and_postshake_attribute_nonregression"
-                    ),
-                }
+                snapshot["behavior_policy"] = behavior_policy_metadata(
+                    mode=mode, baseline_action=baseline_action,
+                    behavior_seed=behavior_seed,
+                    environment_seed=environment_seed,
+                    divergence_step=divergence_step,
+                    attempt_budget=attempt_budget, top_k=top_k,
+                    temperature=temperature,
+                )
                 path = output_dir / f"step-{step:03d}-state.json"
                 path.write_text(json.dumps(json_safe(snapshot), ensure_ascii=False, indent=2), encoding="utf-8")
                 captures.append({

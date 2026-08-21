@@ -1,0 +1,123 @@
+name: Counterfactual graph paired search-follow
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_seed:
+        description: "Simulator seed shared by every graph and paired arm"
+        required: false
+        default: "42"
+      stream_variant:
+        description: "Development stream variant"
+        required: false
+        default: "original"
+      min_advantage:
+        description: "Minimum fill proxy advantage in every search view"
+        required: false
+        default: "0.5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paired-search-follow-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify paired search-follow contracts
+        run: >-
+          python -m unittest
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          tests.test_build_paired_search_follow
+          tests.test_evaluate_paired_search_follow
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build the known future-sensitive scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead 40
+          --policy-timeout 8
+          --stream-variant ${{ inputs.stream_variant || 'original' }}
+          --output-dir reports/paired-search-follow/configs
+      - name: Reproduce the baseline step-9 root
+        run: >-
+          python scripts/build_behavior_policy_roots.py
+          --config reports/paired-search-follow/configs/dual-preloaded-dedicated.json
+          --case m-dual-preloaded-dedicated
+          --steps 9
+          --divergence-step 2
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --attempt-budget 512
+          --top-k 3
+          --behavior baseline
+          --output-dir reports/paired-search-follow/root
+      - name: Build H3-H4 and B3-B4 confidence views
+        shell: bash
+        run: |
+          snapshot="reports/paired-search-follow/root/baseline/step-009-state.json"
+          config="reports/paired-search-follow/configs/dual-preloaded-dedicated.json"
+          build_view() {
+            label="$1"
+            horizon="$2"
+            width="$3"
+            max_nodes="$4"
+            max_edges="$5"
+            mkdir -p "reports/paired-search-follow/graphs/$label"
+            python scripts/build_counterfactual_graph.py \
+              --snapshot "$snapshot" \
+              --config "$config" \
+              --case m-dual-preloaded-dedicated \
+              --split development \
+              --horizon "$horizon" \
+              --branch-factor "$width" \
+              --attempt-budget 512 \
+              --max-nodes "$max_nodes" \
+              --max-edges "$max_edges" \
+              --post-shake-labels \
+              --output "reports/paired-search-follow/graphs/$label/graph.json"
+          }
+          build_view h3-b3 3 3 40 39
+          build_view h4-b3 4 3 122 121
+          build_view h3-b4 3 4 85 84
+      - name: Confidence gate and paired fresh continuation
+        run: >-
+          python scripts/build_paired_search_follow.py
+          --config reports/paired-search-follow/configs/dual-preloaded-dedicated.json
+          --case m-dual-preloaded-dedicated
+          --snapshot reports/paired-search-follow/root/baseline/step-009-state.json
+          --graph reports/paired-search-follow/graphs/h3-b3/graph.json
+          --graph reports/paired-search-follow/graphs/h4-b3/graph.json
+          --graph reports/paired-search-follow/graphs/h3-b4/graph.json
+          --min-advantage ${{ inputs.min_advantage || '0.5' }}
+          --require-horizon 3
+          --require-horizon 4
+          --require-branch-factor 3
+          --require-branch-factor 4
+          --capture-offset 3
+          --capture-offset 6
+          --policy-generation pi0
+          --output-dir reports/paired-search-follow/paired
+      - name: Separate teacher admission from fresh trajectory evidence
+        run: >-
+          python scripts/evaluate_paired_search_follow.py
+          --manifest reports/paired-search-follow/paired/manifest.json
+          --json-output reports/paired-search-follow/aggregate/result.json
+          --markdown-output reports/paired-search-follow/aggregate/result.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paired-search-follow-pilot
+          path: reports/paired-search-follow/
