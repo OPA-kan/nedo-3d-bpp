@@ -29,6 +29,11 @@ def summarize(manifest: dict[str, Any]) -> dict[str, Any]:
     )
     steps = [int(game.get("steps", 0)) for game in games]
     total_steps = sum(steps)
+    proposals = sum(int(game.get("candidate_proposals", 0)) for game in games)
+    legal_candidates = sum(int(game.get("legal_candidates", 0)) for game in games)
+    prefilter_rejections = sum(
+        int(game.get("prefilter_rejections", 0)) for game in games
+    )
     action_failures = terminal_reasons.get("selected_action_failure", 0)
     early_failures = sum(
         game.get("terminal_reason") == "selected_action_failure"
@@ -86,6 +91,12 @@ def summarize(manifest: dict[str, Any]) -> dict[str, Any]:
                 action_failures / len(games) if games else 0.0
             ),
             "early_selected_action_failures": early_failures,
+            "candidate_proposals": proposals,
+            "legal_candidates": legal_candidates,
+            "prefilter_rejections": prefilter_rejections,
+            "proposal_rejection_rate": (
+                prefilter_rejections / proposals if proposals else 0.0
+            ),
             "new_attribute_violations_per_step": (
                 sum(float(game.get("new_attribute_violations", 0.0)) for game in games)
                 / total_steps if total_steps else 0.0
@@ -116,6 +127,10 @@ def markdown(result: dict[str, Any]) -> str:
         f"- unique model-visible states: {distribution['unique_model_visible_signatures']}",
         f"- unique game states: {distribution['unique_game_state_signatures']}",
         f"- selected-action failure rate: {degeneracy['selected_action_failure_rate']:.3f}",
+        f"- candidate proposals: {degeneracy['candidate_proposals']}",
+        f"- physically legal candidates: {degeneracy['legal_candidates']}",
+        f"- prefilter rejections: {degeneracy['prefilter_rejections']}",
+        f"- proposal rejection rate: {degeneracy['proposal_rejection_rate']:.3f}",
         f"- new attribute violations/step: {degeneracy['new_attribute_violations_per_step']:.6f}",
         "", "The game reward is diagnostic only. Production P/V labels require relabelling these states under the original single-agent packing objective.", "",
     ])

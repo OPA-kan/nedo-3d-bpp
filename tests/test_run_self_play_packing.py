@@ -1,7 +1,12 @@
 import random
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
-from scripts.run_self_play_packing import play_game
+from scripts.run_self_play_packing import (
+    build_exact_physical_legal_filter,
+    play_game,
+)
 from scripts.self_play_packing_game import GameRules
 
 
@@ -41,6 +46,140 @@ def metrics(env):
 
 
 class SelfPlayPackingDriverTests(unittest.TestCase):
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_exact_filter_uses_fresh_preview_and_authoritative_status(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, actions_replayed=2,
+            observed_fingerprint="fp", error=None,
+        )
+        statuses = [
+            {"is_included": True, "is_valid": True, "is_placed_safe": False},
+            {"is_included": True, "is_valid": True, "is_placed_safe": True},
+        ]
+        previews = []
+
+        class Preview:
+            def __init__(self, status):
+                self.status = status
+                self.closed = False
+
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": self.status}
+
+            def close(self):
+                self.closed = True
+
+        def factory():
+            preview = Preview(statuses[len(previews)])
+            previews.append(preview)
+            return preview
+
+        candidates = [
+            {
+                "candidate_id": name,
+                "selection": {"rank": rank},
+                "command_action": {
+                    "item_idx": rank, "container_idx": 0,
+                    "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+                },
+            }
+            for rank, name in enumerate(("unsafe", "safe"))
+        ]
+        legal_filter = build_exact_physical_legal_filter(
+            {}, case_id="case", environment_seed=42, env_factory=factory
+        )
+
+        retained, audit = legal_filter(
+            env=object(), observation={}, candidates=candidates,
+            actions=[candidates[0]["command_action"]], step=2,
+        )
+
+        self.assertEqual([row["candidate_id"] for row in retained], ["safe"])
+        self.assertEqual(audit["rejected_count"], 1)
+        self.assertEqual(audit["candidates"][0]["status"], statuses[0])
+        self.assertTrue(all(preview.closed for preview in previews))
+        self.assertEqual(replay.call_count, 2)
+
+    def test_policy_selects_only_from_prefiltered_legal_moves(self):
+        def two_candidates(_env, _observation, _limit):
+            return [
+                {
+                    "candidate_id": "unsafe",
+                    "selection": {"rank": 0, "score": 2.0},
+                    "command_action": {
+                        "item_idx": 0, "container_idx": 0,
+                        "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+                    },
+                },
+                {
+                    "candidate_id": "safe",
+                    "selection": {"rank": 1, "score": 1.0},
+                    "command_action": {
+                        "item_idx": 1, "container_idx": 0,
+                        "place_pos": [0.5, 0.0, 0.5], "orientation": 0,
+                    },
+                },
+            ]
+
+        def filter_second(**context):
+            rows = context["candidates"]
+            return [rows[1]], {
+                "schema_version": 1, "mode": "test", "step": 0,
+                "proposal_count": 2, "safe_count": 1,
+                "rejected_count": 1,
+                "candidates": [
+                    {"candidate_id": "unsafe", "safe": False},
+                    {"candidate_id": "safe", "safe": True},
+                ],
+            }
+
+        result = play_game(
+            FakeEnv([{"terminated": True}]), {}, two_candidates,
+            rules=GameRules(), handoff_rng=random.Random(1),
+            policy_rng=random.Random(2), metrics_fn=metrics,
+            max_steps=10, legal_filter_fn=filter_second,
+        )
+
+        self.assertEqual(result["terminal_reason"], "stream_exhausted")
+        self.assertEqual(result["records"][0]["selected_candidate_id"], "safe")
+        self.assertEqual(result["records"][0]["proposal_count"], 2)
+        self.assertEqual(result["records"][0]["candidate_count"], 1)
+        self.assertEqual(result["prefilter_rejections"], 1)
+        self.assertEqual(
+            result["legal_move_audits"][0]["candidates"][0]["candidate_id"],
+            "unsafe",
+        )
+
+    def test_all_rejected_proposals_are_bounded_safe_set_exhaustion(self):
+        def reject_all(**context):
+            return [], {
+                "schema_version": 1, "mode": "test", "step": 0,
+                "proposal_count": len(context["candidates"]),
+                "safe_count": 0, "rejected_count": 1,
+                "candidates": [{"candidate_id": None, "safe": False}],
+            }
+
+        result = play_game(
+            FakeEnv([{}]), {}, provider,
+            rules=GameRules(), handoff_rng=random.Random(1),
+            policy_rng=random.Random(2), metrics_fn=metrics,
+            max_steps=10, legal_filter_fn=reject_all,
+        )
+
+        self.assertEqual(result["terminal_reason"], "no_safe_retained_candidate")
+        self.assertEqual(result["loser"], 0)
+        self.assertEqual(result["rewards"], [-50.0, 50.0])
+        self.assertTrue(result["training_eligible"])
+        self.assertTrue(result["outcome_target_eligible"])
+        self.assertEqual(result["steps"], 0)
+        self.assertEqual(result["prefilter_rejections"], 1)
+
     def test_captures_each_pre_action_decision_state(self):
         seen = []
 

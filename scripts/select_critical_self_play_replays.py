@@ -18,11 +18,13 @@ from scripts.render_self_play_replay import build_payload, render_html
 
 TERMINAL_WEIGHT = {
     "selected_action_failure": 120.0,
+    "no_safe_retained_candidate": 90.0,
     "no_retained_candidate": 80.0,
     "stream_exhausted": 40.0,
 }
 TERMINAL_REASON = {
     "selected_action_failure": "physical rejection",
+    "no_safe_retained_candidate": "bounded legal-set exhaustion",
     "no_retained_candidate": "candidate exhaustion",
     "stream_exhausted": "stream terminal",
 }
@@ -34,6 +36,7 @@ def rank_games(entries: list[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]
         for game_index, game in enumerate(manifest.get("games", [])):
             terminal = str(game.get("terminal_reason", "unknown"))
             violations = float(game.get("new_attribute_violations", 0) or 0)
+            prefilter_rejections = int(game.get("prefilter_rejections", 0) or 0)
             ranks = [
                 int(record.get("selected_rank", 0) or 0)
                 for record in game.get("records", [])
@@ -49,6 +52,7 @@ def rank_games(entries: list[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]
             score = (
                 TERMINAL_WEIGHT.get(terminal, 0.0)
                 + 30.0 * violations
+                + 8.0 * prefilter_rejections
                 + 6.0 * max_rank
                 + 1.5 * non_rank0
                 + 10.0 * novelty
@@ -59,6 +63,10 @@ def rank_games(entries: list[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]
                 reasons.append(TERMINAL_REASON[terminal])
             if violations:
                 reasons.append(f"attribute violation +{violations:g}")
+            if prefilter_rejections:
+                reasons.append(
+                    f"PyBullet filtered {prefilter_rejections} proposal(s)"
+                )
             if max_rank:
                 reasons.append(f"rank-{max_rank} exploration")
             if novelty:
@@ -71,6 +79,7 @@ def rank_games(entries: list[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]
                 "reasons": reasons or ["scenario coverage"],
                 "terminal_reason": terminal,
                 "new_attribute_violations": violations,
+                "prefilter_rejections": prefilter_rejections,
                 "max_selected_rank": max_rank,
                 "non_rank0_actions": non_rank0,
                 "state_novelty": novelty,

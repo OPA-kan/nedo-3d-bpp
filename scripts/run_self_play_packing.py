@@ -32,6 +32,7 @@ from scripts.counterfactual_graph import (  # noqa: E402
     board_fingerprint,
     canonical_action,
     capture_replay_contract,
+    replay_action_prefix,
     stable_id,
     state_tensor_from_snapshot,
 )
@@ -80,6 +81,86 @@ def _safe(status: dict[str, Any]) -> bool:
     ))
 
 
+def build_exact_physical_legal_filter(
+    task_config: dict[str, Any], *, case_id: str, environment_seed: int,
+    env_factory: Callable[[], Any] | None = None,
+) -> Callable[..., tuple[list[Any], dict[str, Any]]]:
+    """Retain only proposals accepted by an independently replayed simulator.
+
+    The live environment is never mutated during filtering.  Every proposal is
+    tried in a fresh environment reconstructed from the same item order and
+    accepted action prefix.  Rejected proposals remain in the returned audit as
+    useful negative examples, but cannot be selected by the game policy.
+    """
+    if env_factory is None:
+        from src.ground_handling.env import GroundHandlingEnv
+
+        def env_factory():
+            return GroundHandlingEnv(
+                config=copy.deepcopy(task_config), verbose=False,
+                render_mode=None,
+            )
+
+    def legal_filter(*, env, observation, candidates, actions, step):
+        observed = policy_observation(env, observation)
+        expected_snapshot = state_snapshot(
+            env, observed, case_id=case_id, step=int(step)
+        )
+        expected_fingerprint = board_fingerprint(expected_snapshot)
+        contract = capture_replay_contract(
+            env, actions, seed=environment_seed
+        )
+        retained = []
+        candidate_audits = []
+        for candidate in candidates:
+            preview_env = env_factory()
+            try:
+                rebuilt = replay_action_prefix(
+                    preview_env, contract,
+                    expected_fingerprint=expected_fingerprint,
+                    expected_snapshot=expected_snapshot,
+                    snapshot_factory=lambda current, raw: state_snapshot(
+                        current, policy_observation(current, raw),
+                        case_id=case_id, step=int(step),
+                    ),
+                )
+                if not rebuilt.matched:
+                    raise RuntimeError(
+                        "legal-move preview reconstruction failed: "
+                        f"{rebuilt.error}; expected={expected_fingerprint}; "
+                        f"observed={rebuilt.observed_fingerprint}"
+                    )
+                _next, _reward, terminated, truncated, info = preview_env.step(
+                    _candidate_action(candidate)
+                )
+                status = _status(info)
+                is_safe = _safe(status)
+                if is_safe:
+                    retained.append(candidate)
+                candidate_audits.append({
+                    **_candidate_record(candidate),
+                    "safe": is_safe,
+                    "status": status,
+                    "terminated": bool(terminated),
+                    "truncated": bool(truncated),
+                    "prefix_actions_replayed": rebuilt.actions_replayed,
+                    "prefix_fingerprint": rebuilt.observed_fingerprint,
+                })
+            finally:
+                preview_env.close()
+        return retained, {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": int(step),
+            "proposal_count": len(candidates),
+            "safe_count": len(retained),
+            "rejected_count": len(candidates) - len(retained),
+            "candidates": candidate_audits,
+        }
+
+    return legal_filter
+
+
 def play_game(
     env, initial_observation: Any, candidate_provider: Callable, *,
     rules: GameRules, handoff_rng, policy_rng,
@@ -88,6 +169,7 @@ def play_game(
     selection_temperature: float = 1.5, starting_player: int = 0,
     capture_fn: Callable[..., dict[str, Any] | None] | None = None,
     evaluate_fn: Callable[[Any], dict[str, Any]] | None = None,
+    legal_filter_fn: Callable[..., tuple[list[Any], dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Play one game through injected candidate and physics boundaries."""
     if max_steps < 1 or top_k < 1:
@@ -103,6 +185,7 @@ def play_game(
     loser = winner = None
     new_attribute_violations = 0.0
     non_rank0 = 0
+    legal_move_audits = []
 
     for step in range(max_steps):
         mover = state.current_player
@@ -114,9 +197,29 @@ def play_game(
             )
             if state_capture is not None:
                 captures.append(state_capture)
-        candidates = list(candidate_provider(env, observation, int(top_k)))
+        proposals = list(candidate_provider(env, observation, int(top_k)))
+        legal_audit = {
+            "schema_version": 1,
+            "mode": "unfiltered",
+            "step": int(step),
+            "proposal_count": len(proposals),
+            "safe_count": len(proposals),
+            "rejected_count": 0,
+            "candidates": [_candidate_record(row) for row in proposals],
+        }
+        candidates = proposals
+        if proposals and legal_filter_fn is not None:
+            candidates, legal_audit = legal_filter_fn(
+                env=env, observation=observation, candidates=proposals,
+                actions=list(actions), step=step,
+            )
+            candidates = list(candidates)
+        legal_move_audits.append(legal_audit)
         if not candidates:
-            terminal_reason = "no_retained_candidate"
+            terminal_reason = (
+                "no_safe_retained_candidate" if proposals
+                else "no_retained_candidate"
+            )
             terminal = apply_terminal_loss(rewards, loser=mover, rules=rules)
             loser, winner = terminal["loser"], terminal["winner"]
             break
@@ -137,8 +240,10 @@ def play_game(
             "step": step,
             "player": mover,
             "block_length_before": state.block_length,
+            "proposal_count": len(proposals),
             "candidate_count": len(candidates),
             "candidate_set": [_candidate_record(row) for row in candidates],
+            "legal_move_audit": legal_audit,
             "selected_candidate_id": selected_candidate["candidate_id"],
             "selected_rank": selected_rank,
             "selection": selection,
@@ -199,7 +304,8 @@ def play_game(
             "selected_action_failure", "simulator_truncated",
         },
         "outcome_target_eligible": terminal_reason in {
-            "no_retained_candidate", "stream_exhausted",
+            "no_retained_candidate", "no_safe_retained_candidate",
+            "stream_exhausted",
         },
         "loser": loser,
         "winner": winner,
@@ -207,6 +313,16 @@ def play_game(
         "zero_sum_error": abs(sum(rewards)),
         "new_attribute_violations": new_attribute_violations,
         "non_rank0_action_count": non_rank0,
+        "legal_move_audits": legal_move_audits,
+        "candidate_proposals": sum(
+            int(row.get("proposal_count", 0)) for row in legal_move_audits
+        ),
+        "legal_candidates": sum(
+            int(row.get("safe_count", 0)) for row in legal_move_audits
+        ),
+        "prefilter_rejections": sum(
+            int(row.get("rejected_count", 0)) for row in legal_move_audits
+        ),
         "records": records,
         "captures": captures,
         "evaluation": evaluation,
@@ -314,6 +430,10 @@ def run_physical_game(
             selection_temperature=selection_temperature,
             starting_player=starting_player, capture_fn=capture_fn,
             evaluate_fn=lambda current: _compact_evaluation(current.evaluate()),
+            legal_filter_fn=build_exact_physical_legal_filter(
+                task_config, case_id=case_id,
+                environment_seed=environment_seed,
+            ),
         )
         result.update({
             "trajectory_id": trajectory_id,
@@ -402,6 +522,11 @@ def main() -> int:
             "provider": "placement_core_item_stratified_fixed_attempts",
             "attempt_budget": args.attempt_budget,
             "top_k": args.top_k,
+            "legal_filter": "fresh_pybullet_prefix_replay",
+            "legal_definition": (
+                "all status flags true: is_included, is_valid, is_placed_safe"
+            ),
+            "rejected_proposals_retained_for_audit": True,
             "soft_priority": "dense_zero_sum_penalty_not_hard_filter",
         },
         "selection": {

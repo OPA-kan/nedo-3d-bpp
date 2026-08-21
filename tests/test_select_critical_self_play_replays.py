@@ -9,12 +9,16 @@ from scripts.select_critical_self_play_replays import rank_games, select_diverse
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def game(reason="max_steps", violations=0, ranks=(0,), fingerprints=("a",)):
+def game(
+    reason="max_steps", violations=0, ranks=(0,), fingerprints=("a",),
+    prefilter_rejections=0,
+):
     return {
         "terminal_reason": reason,
         "new_attribute_violations": violations,
         "non_rank0_action_count": sum(rank > 0 for rank in ranks),
         "handoff_count": 2,
+        "prefilter_rejections": prefilter_rejections,
         "records": [{"selected_rank": rank} for rank in ranks],
         "captures": [
             {"board_fingerprint": fingerprint} for fingerprint in fingerprints
@@ -53,6 +57,15 @@ class CriticalReplaySelectionTests(unittest.TestCase):
         ])
         self.assertIn("physical rejection", rows[0]["reasons"])
         self.assertIn("attribute violation +1", rows[1]["reasons"])
+
+    def test_prefiltered_negative_proposals_make_a_game_replay_worthy(self):
+        rows = rank_games([
+            ("plain", {"games": [game(ranks=(0, 1))]}),
+            ("filtered", {"games": [game(prefilter_rejections=2)]}),
+        ])
+
+        self.assertEqual(rows[0]["label"], "filtered")
+        self.assertIn("PyBullet filtered 2 proposal(s)", rows[0]["reasons"])
 
     def test_selection_keeps_scenario_coverage_before_global_fill(self):
         rows = rank_games([

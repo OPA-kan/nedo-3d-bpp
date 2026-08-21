@@ -14,12 +14,20 @@ original single-agent packing score and fresh scenario streams.
   exactly the same policy.
 - A player places at least three items. After every later successful placement,
   control changes with probability `0.6`.
-- Transport, containment, settling, and physical safety remain hard constraints
-  in the unchanged bundled PyBullet simulator.
+- The candidate generator produces a bounded proposal set, not mathematical
+  legal moves. Before selection, every proposal is executed in an independent
+  PyBullet environment reconstructed from the same item stream and accepted
+  action prefix. Only proposals with all three authoritative status flags
+  (`is_included`, `is_valid`, and `is_placed_safe`) enter the bounded legal set.
+- Transport, containment, settling, and physical safety therefore remain hard
+  constraints in the unchanged bundled PyBullet simulator.
 - Soft and priority relationships remain legal actions. A mover pays `5` and
   the opponent receives `5` for each newly created violation. Existing
   violations are not charged again.
-- A player with no retained candidate loses `50`; the opponent gains `50`.
+- A player with no physically safe move in the bounded proposal set loses `50`;
+  the opponent gains `50`. This is explicitly bounded-set exhaustion, not proof
+  that the mathematical action set is empty. Candidate recall remains a
+  separate audit target.
 - A selected candidate rejected by physics is recorded separately as
   `selected_action_failure` and quarantined without a winner or terminal
   reward. It is a policy/retention failure, not evidence that the mathematical
@@ -35,8 +43,10 @@ different handoff probability depending on the current block length. A separate
 model-visible signature is computed from the existing physical tensor only, so
 production transfer can discard the artificial game context.
 
-Every transition also retains the complete bounded candidate set, its ranker
-metadata, and the selected candidate. A later search policy can therefore emit a
+Every transition retains the complete bounded legal set, its ranker metadata,
+and the selected candidate. Physically rejected proposals and their simulator
+status are retained in a separate legal-move audit as negative teacher data,
+but can never be selected. A later search policy can therefore emit a
 distribution over the exact legal-action abstraction seen at that state instead
 of reconstructing an unstable candidate list after the fact.
 

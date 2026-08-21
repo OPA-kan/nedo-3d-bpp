@@ -14,6 +14,9 @@ class SelfPlayPackingEvaluationTests(unittest.TestCase):
                     "winner": 1, "rewards": [-50.0, 50.0],
                     "new_attribute_violations": 0,
                     "non_rank0_action_count": 1,
+                    "candidate_proposals": 10,
+                    "legal_candidates": 8,
+                    "prefilter_rejections": 2,
                     "captures": [{
                         "board_fingerprint": "a",
                         "model_visible_state_signature": "x",
@@ -28,6 +31,9 @@ class SelfPlayPackingEvaluationTests(unittest.TestCase):
                     "winner": None, "rewards": [5.0, -5.0],
                     "new_attribute_violations": 1,
                     "non_rank0_action_count": 2,
+                    "candidate_proposals": 12,
+                    "legal_candidates": 11,
+                    "prefilter_rejections": 1,
                     "captures": [{
                         "board_fingerprint": "b",
                         "model_visible_state_signature": "y",
@@ -48,6 +54,12 @@ class SelfPlayPackingEvaluationTests(unittest.TestCase):
         self.assertEqual(result["distribution"]["captured_decision_states"], 2)
         self.assertEqual(result["distribution"]["captured_handoff_states"], 1)
         self.assertEqual(result["degeneracy"]["selected_action_failure_rate"], 0.0)
+        self.assertEqual(result["degeneracy"]["candidate_proposals"], 22)
+        self.assertEqual(result["degeneracy"]["legal_candidates"], 19)
+        self.assertEqual(result["degeneracy"]["prefilter_rejections"], 3)
+        self.assertAlmostEqual(
+            result["degeneracy"]["proposal_rejection_rate"], 3 / 22
+        )
 
 
 if __name__ == "__main__":

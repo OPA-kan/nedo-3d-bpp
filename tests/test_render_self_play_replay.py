@@ -32,6 +32,9 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
             (game / "step-000-state.json").write_text(
                 json.dumps(snapshot), encoding="utf-8"
             )
+            (game / "step-001-state.json").write_text(
+                json.dumps(snapshot), encoding="utf-8"
+            )
             manifest = {
                 "selection": {"mode": "temperature"},
                 "games": [{
@@ -39,10 +42,18 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
                     "rewards": [-5, 5],
                     "captures": [{
                         "step": 0, "snapshot_path": "step-000-state.json",
+                    }, {
+                        "step": 1, "snapshot_path": "step-001-state.json",
+                    }],
+                    "legal_move_audits": [{
+                        "step": 1, "proposal_count": 2,
+                        "safe_count": 0, "rejected_count": 2,
                     }],
                     "records": [{
                         "step": 0, "player": 1, "selected_rank": 2,
-                        "candidate_count": 3, "handoff": True,
+                        "candidate_count": 2, "proposal_count": 3,
+                        "legal_move_audit": {"rejected_count": 1},
+                        "handoff": True,
                         "attribute_reward": {"new_violations": 1},
                     }],
                 }],
@@ -62,6 +73,11 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertEqual(frame["containers"][0]["cut_y"], .4)
         self.assertEqual(frame["containers"][0]["thickness"], .04)
         self.assertEqual(frame["new_violations"], 1)
+        self.assertEqual(frame["candidate_count"], 2)
+        self.assertEqual(frame["proposal_count"], 3)
+        self.assertEqual(frame["prefilter_rejections"], 1)
+        self.assertEqual(payload["frames"][1]["proposal_count"], 2)
+        self.assertEqual(payload["frames"][1]["prefilter_rejections"], 2)
 
     def test_html_is_standalone_and_has_replay_controls(self):
         html = render_html({"title": "demo", "frames": [], "game": {}})
