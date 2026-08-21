@@ -193,6 +193,13 @@
   runs `32380902237`, `32381957502`, and `32435231411`; calibration shadow
   values are excluded. It also invalidates a current base outside that domain.
   See `reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v3.md`.
+- Prospective v3 run `32436768825` passed the frozen gate: 284/284 incumbent
+  and portfolio decisions unchanged, 135 guarded proposals across 27 items,
+  and all 65 physical comparisons inside the fixed base-only calibration
+  (zero baseline/effect breaches or missing metrics). Its compact evidence is
+  under `reports/residual-affordance-shadow/history/32436768825/`. This
+  licenses a separately preregistered guarded-enforce development canary, not
+  an official submission or a score-improvement claim.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

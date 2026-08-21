@@ -820,6 +820,25 @@ executable adjudicator is
 Only a fresh v3 PASS may license design of a separately preregistered guarded
 enforce canary; it does not license submission.
 
+The fresh prospective v3 wave, run `32436768825` at commit `5027bdf`, is
+**PASS**. All 30 episodes completed. Same-call invariance passed at 284/284
+observations for both the incumbent and retained portfolio, with no missing
+records. The frozen model retained 135 guarded proposals across 27 items
+(47.5% reach). The v3 physical gate completed all 65 comparisons with zero
+current-base domain breaches, zero shadow-effect breaches, and zero missing
+metrics. This confirms that the shadow instrument itself is causally inert at
+the calibrated resolution. In this wave no unrestricted special-attribute
+regression was encountered; the earlier v2 wave remains the positive stress
+evidence, where all six soft/priority regressions were blocked and none
+survived the guard.
+
+Do not call this a score-improving agent yet. The shadow cannot cause its arm's
+physical differences, and its simultaneous aggregate happened to be lower
+than base (placed 18.267 vs 18.600; fill 20.437 vs 20.937). The v3 PASS licenses
+only the next experiment: freeze and run a guarded-enforce development canary
+with explicit placed/fill, special-attribute, terminal, and shake vetoes.
+Evidence is in `reports/residual-affordance-shadow/history/32436768825/`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,
