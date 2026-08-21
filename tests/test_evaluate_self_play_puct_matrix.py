@@ -78,6 +78,8 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
             result = summarize(pathlib.Path(directory))
 
         self.assertEqual(result["aggregate"]["pair_count"], 2)
+        self.assertEqual(result["aggregate"]["unique_rank0_trajectories"], 1)
+        self.assertEqual(result["aggregate"]["unique_mcts_trajectories"], 1)
         self.assertEqual(result["aggregate"]["diverged_pairs"], 2)
         self.assertEqual(result["aggregate"]["fill_wins"], 1)
         self.assertEqual(result["aggregate"]["fill_losses"], 1)
@@ -91,6 +93,8 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
         self.assertEqual(result["aggregate"]["policy_targets"], 4)
         self.assertEqual(result["aggregate"]["value_targets"], 6)
         self.assertTrue(result["gates"]["data_contract_ready"])
+        self.assertTrue(result["gates"]["policy_contract_ready"])
+        self.assertTrue(result["gates"]["value_contract_ready"])
         self.assertTrue(result["gates"]["safety_noninferior"])
         self.assertTrue(result["gates"]["score_improvement_observed"])
         self.assertFalse(result["gates"]["score_improvement_established"])
@@ -112,6 +116,30 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "environment seed mismatch"):
                 summarize(pathlib.Path(directory))
+
+    def test_censored_game_keeps_policy_gate_and_fails_value_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self._write_pair(
+                directory, "case-seed-42", seed=42,
+                rank0_fill=9.0, mcts_fill=10.0,
+            )
+            mcts_path = (
+                pathlib.Path(directory) / "case-seed-42" / "mcts"
+                / "manifest.json"
+            )
+            manifest = json.loads(mcts_path.read_text(encoding="utf-8"))
+            item = manifest["games"][0]
+            item["terminal_reason"] = "max_steps"
+            item["outcome_target_eligible"] = False
+            for target in item["learning_targets"]:
+                target["value_target_eligible"] = False
+            mcts_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = summarize(pathlib.Path(directory))
+
+        self.assertTrue(result["gates"]["policy_contract_ready"])
+        self.assertFalse(result["gates"]["value_contract_ready"])
+        self.assertFalse(result["gates"]["data_contract_ready"])
 
 
 if __name__ == "__main__":

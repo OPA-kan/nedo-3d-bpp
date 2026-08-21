@@ -6,7 +6,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class SelfPlayPackingPuctMatrixWorkflowTests(unittest.TestCase):
-    def test_workflow_runs_paired_scenario_seed_matrix_and_aggregates(self):
+    def test_workflow_runs_paired_scenario_stream_matrix_and_aggregates(self):
         text = (
             ROOT / ".github" / "workflows"
             / "self-play-packing-puct-matrix.yml"
@@ -19,8 +19,9 @@ class SelfPlayPackingPuctMatrixWorkflowTests(unittest.TestCase):
             "dual-shelf-mixed", "dual-preloaded-dedicated",
         ):
             self.assertIn(f"- {scenario}", text)
-        self.assertIn("- 42", text)
-        self.assertIn("- 137", text)
+        self.assertIn("- original", text)
+        self.assertIn("- permute-000-17", text)
+        self.assertIn("--environment-seed 42", text)
         self.assertIn("--selection-mode rank0", text)
         self.assertIn("--selection-mode mcts", text)
         self.assertIn("--mcts-simulations 12", text)

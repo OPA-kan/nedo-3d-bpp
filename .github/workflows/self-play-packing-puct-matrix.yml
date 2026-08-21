@@ -34,9 +34,9 @@ jobs:
           - single-empty-shelf
           - dual-shelf-mixed
           - dual-preloaded-dedicated
-        environment_seed:
-          - 42
-          - 137
+        stream_variant:
+          - original
+          - permute-000-17
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -64,15 +64,15 @@ jobs:
           python scripts/build_scenario_matrix.py
           --look-ahead 40
           --policy-timeout 8
-          --stream-variant original
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs
+          --stream-variant ${{ matrix.stream_variant }}
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs
       - name: Run paired rank-0 control
         run: >-
           python scripts/run_self_play_packing.py
-          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs/${{ matrix.scenario }}.json
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs/${{ matrix.scenario }}.json
           --case m-${{ matrix.scenario }}
           --episodes 1
-          --environment-seed ${{ matrix.environment_seed }}
+          --environment-seed 42
           --game-seed 20260822
           --minimum-block 3
           --handoff-probability 0.6
@@ -81,14 +81,14 @@ jobs:
           --max-steps 12
           --selection-mode rank0
           --policy-generation pi0
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/rank0
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/rank0
       - name: Run scheduled physical PUCT
         run: >-
           python scripts/run_self_play_packing.py
-          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs/${{ matrix.scenario }}.json
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs/${{ matrix.scenario }}.json
           --case m-${{ matrix.scenario }}
           --episodes 1
-          --environment-seed ${{ matrix.environment_seed }}
+          --environment-seed 42
           --game-seed 20260822
           --minimum-block 3
           --handoff-probability 0.6
@@ -103,11 +103,11 @@ jobs:
           --mcts-action-temperature 1.0
           --mcts-temperature-drop-step 6
           --policy-generation pi0-puct0
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/mcts
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/mcts
       - name: Evaluate and render pair
         shell: bash
         run: |
-          pair=reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}
+          pair=reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}
           python scripts/evaluate_self_play_packing.py \
             --manifest "$pair/rank0/manifest.json" \
             --json-output "$pair/rank0-summary.json" \
@@ -126,7 +126,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: self-play-puct-matrix-${{ matrix.scenario }}-${{ matrix.environment_seed }}
+          name: self-play-puct-matrix-${{ matrix.scenario }}-${{ matrix.stream_variant }}
           path: reports/self-play-puct-matrix/
 
   aggregate:
@@ -150,6 +150,7 @@ jobs:
         shell: bash
         run: cat reports/self-play-puct-matrix/aggregate.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: self-play-puct-matrix-aggregate-${{ github.run_id }}
           path: reports/self-play-puct-matrix/
