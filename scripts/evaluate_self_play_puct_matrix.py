@@ -24,14 +24,52 @@ def _game_metrics(game: dict[str, Any]) -> dict[str, Any]:
     shake = evaluation.get("shake_response") or {}
     records = game.get("records", [])
     learning_targets = game.get("learning_targets", [])
+    captures_by_step = {
+        int(row["step"]): row
+        for row in game.get("captures", [])
+        if row.get("step") is not None
+    }
     search_records = [row for row in records if row.get("search")]
     nonuniform_roots = 0
+    informative_policy_state_signatures = set()
     for record in search_records:
         visits = [
             int(row.get("visits", 0))
             for row in record["search"].get("policy_target", [])
         ]
-        nonuniform_roots += int(bool(visits) and len(set(visits)) > 1)
+        is_nonuniform = bool(visits) and len(set(visits)) > 1
+        nonuniform_roots += int(is_nonuniform)
+        capture = captures_by_step.get(int(record.get("step", -1)), {})
+        signature = capture.get("model_visible_state_signature")
+        if is_nonuniform and signature:
+            informative_policy_state_signatures.add(signature)
+    policy_steps = {
+        int(row["step"])
+        for row in learning_targets
+        if row.get("step") is not None and row.get("policy_target_eligible")
+    }
+    value_steps = {
+        int(row["step"])
+        for row in learning_targets
+        if row.get("step") is not None and row.get("value_target_eligible")
+    }
+    model_visible_state_signatures = {
+        row.get("model_visible_state_signature")
+        for row in captures_by_step.values()
+        if row.get("model_visible_state_signature")
+    }
+    policy_state_signatures = {
+        captures_by_step[step].get("model_visible_state_signature")
+        for step in policy_steps
+        if step in captures_by_step
+        and captures_by_step[step].get("model_visible_state_signature")
+    }
+    value_state_signatures = {
+        captures_by_step[step].get("model_visible_state_signature")
+        for step in value_steps
+        if step in captures_by_step
+        and captures_by_step[step].get("model_visible_state_signature")
+    }
     return {
         "terminal_reason": game.get("terminal_reason"),
         "training_eligible": bool(game.get("training_eligible")),
@@ -66,6 +104,12 @@ def _game_metrics(game: dict[str, Any]) -> dict[str, Any]:
             for row in learning_targets
         ),
         "captured_targets": len(learning_targets),
+        "model_visible_state_signatures": sorted(model_visible_state_signatures),
+        "policy_state_signatures": sorted(policy_state_signatures),
+        "informative_policy_state_signatures": sorted(
+            informative_policy_state_signatures
+        ),
+        "value_state_signatures": sorted(value_state_signatures),
     }
 
 
@@ -155,6 +199,26 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
     total_captured_targets = sum(
         row["mcts"]["captured_targets"] for row in pair_rows
     )
+    unique_model_visible_states = {
+        signature
+        for row in pair_rows
+        for signature in row["mcts"]["model_visible_state_signatures"]
+    }
+    unique_policy_states = {
+        signature
+        for row in pair_rows
+        for signature in row["mcts"]["policy_state_signatures"]
+    }
+    unique_informative_policy_states = {
+        signature
+        for row in pair_rows
+        for signature in row["mcts"]["informative_policy_state_signatures"]
+    }
+    unique_value_states = {
+        signature
+        for row in pair_rows
+        for signature in row["mcts"]["value_state_signatures"]
+    }
     policy_contract_ready = all(
         row["mcts"]["training_eligible"]
         and row["mcts"]["search_decisions"] > 0
@@ -209,6 +273,12 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
             "policy_targets": total_policy_targets,
             "value_targets": total_value_targets,
             "captured_targets": total_captured_targets,
+            "unique_model_visible_states": len(unique_model_visible_states),
+            "unique_policy_states": len(unique_policy_states),
+            "unique_informative_policy_states": len(
+                unique_informative_policy_states
+            ),
+            "unique_value_states": len(unique_value_states),
         },
         "gates": {
             "policy_contract_ready": policy_contract_ready,
@@ -251,6 +321,13 @@ def markdown(result: dict[str, Any]) -> str:
         f"- physical simulations: {aggregate['search_simulations']}",
         f"- non-uniform roots: {aggregate['nonuniform_roots']}",
         f"- policy/value targets: {aggregate['policy_targets']} / {aggregate['value_targets']}",
+        f"- unique model-visible states: {aggregate['unique_model_visible_states']}",
+        f"- unique policy states: {aggregate['unique_policy_states']}",
+        (
+            "- unique informative policy states: "
+            f"{aggregate['unique_informative_policy_states']}"
+        ),
+        f"- unique terminal-value states: {aggregate['unique_value_states']}",
         f"- policy contract ready: {gates['policy_contract_ready']}",
         f"- terminal-value contract ready: {gates['value_contract_ready']}",
         f"- combined P/V contract ready: {gates['data_contract_ready']}",

@@ -22,6 +22,7 @@ def game(*, seed, fill, actions, search=False, violations=0):
         records.append(record)
     targets = [
         {
+            "step": step,
             "policy_target_eligible": step < len(actions),
             "value_target_eligible": True,
         }
@@ -37,6 +38,13 @@ def game(*, seed, fill, actions, search=False, violations=0):
         "rewards": [50.0 - 5.0 * violations, -50.0 + 5.0 * violations],
         "new_attribute_violations": violations,
         "records": records,
+        "captures": [
+            {
+                "step": step,
+                "model_visible_state_signature": f"model-state-{step}",
+            }
+            for step in range(len(actions) + 1)
+        ],
         "learning_targets": targets,
         "evaluation": {
             "fill_score": fill,
@@ -92,6 +100,12 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
         self.assertEqual(result["aggregate"]["nonuniform_roots"], 4)
         self.assertEqual(result["aggregate"]["policy_targets"], 4)
         self.assertEqual(result["aggregate"]["value_targets"], 6)
+        self.assertEqual(result["aggregate"]["unique_model_visible_states"], 3)
+        self.assertEqual(result["aggregate"]["unique_policy_states"], 2)
+        self.assertEqual(
+            result["aggregate"]["unique_informative_policy_states"], 2,
+        )
+        self.assertEqual(result["aggregate"]["unique_value_states"], 3)
         self.assertTrue(result["gates"]["data_contract_ready"])
         self.assertTrue(result["gates"]["policy_contract_ready"])
         self.assertTrue(result["gates"]["value_contract_ready"])

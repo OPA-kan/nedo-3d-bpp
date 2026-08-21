@@ -36,6 +36,8 @@ jobs:
           - dual-preloaded-dedicated
         stream_variant:
           - original
+          - source-001
+          - reverse-000
           - permute-000-17
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -78,7 +80,7 @@ jobs:
           --handoff-probability 0.6
           --attempt-budget 128
           --top-k 3
-          --max-steps 12
+          --max-steps 24
           --selection-mode rank0
           --policy-generation pi0
           --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/rank0
@@ -94,7 +96,7 @@ jobs:
           --handoff-probability 0.6
           --attempt-budget 128
           --top-k 3
-          --max-steps 12
+          --max-steps 24
           --selection-mode mcts
           --mcts-simulations 12
           --mcts-horizon 2

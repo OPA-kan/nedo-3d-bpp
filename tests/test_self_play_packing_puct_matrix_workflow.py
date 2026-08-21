@@ -20,6 +20,8 @@ class SelfPlayPackingPuctMatrixWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(f"- {scenario}", text)
         self.assertIn("- original", text)
+        self.assertIn("- source-001", text)
+        self.assertIn("- reverse-000", text)
         self.assertIn("- permute-000-17", text)
         self.assertIn("--environment-seed 42", text)
         self.assertIn("--selection-mode rank0", text)
@@ -27,6 +29,7 @@ class SelfPlayPackingPuctMatrixWorkflowTests(unittest.TestCase):
         self.assertIn("--mcts-simulations 12", text)
         self.assertIn("--mcts-horizon 2", text)
         self.assertIn("--mcts-temperature-drop-step 6", text)
+        self.assertEqual(text.count("--max-steps 24"), 2)
         self.assertIn("merge-multiple: true", text)
         self.assertIn("evaluate_self_play_puct_matrix.py", text)
         self.assertIn("replays/mcts.html", text)
