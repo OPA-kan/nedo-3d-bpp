@@ -14,7 +14,7 @@ on:
       divergence_step:
         description: "One-time rank-1/rank-2 divergence step"
         required: false
-        default: "6"
+        default: "2"
       behavior_temperature:
         description: "Rank temperature for safe Top-K behavior"
         required: false
@@ -87,7 +87,7 @@ jobs:
           "reports/behavior-policy-diversity/${{ matrix.label }}/configs/${{ matrix.scenario }}.json"
           --case "m-${{ matrix.scenario }}"
           --steps 9 12 15
-          --divergence-step ${{ inputs.divergence_step || '6' }}
+          --divergence-step ${{ inputs.divergence_step || '2' }}
           --environment-seed ${{ inputs.environment_seed || '42' }}
           --attempt-budget 512
           --top-k 3

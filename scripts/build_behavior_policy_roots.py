@@ -58,6 +58,11 @@ def _action_key(action: dict[str, Any]) -> str:
     return json.dumps(normalized, sort_keys=True)
 
 
+def action_was_accepted(info: Any) -> bool:
+    status = info.get("status", {}) if isinstance(info, dict) else {}
+    return bool(status.get("is_included"))
+
+
 def behavior_frontier(
     baseline_action: dict[str, Any], decisions: list[Any], *, top_k: int,
     is_safe=None,
@@ -260,7 +265,7 @@ def run_trajectory(
                 "selected_rank": selected_rank,
                 "frontier_size": len(frontier),
                 "action_changed": _action_key(action) != _action_key(baseline_action),
-                "accepted": bool(isinstance(info, dict) and info.get("is_included")),
+                "accepted": action_was_accepted(info),
             })
             action_prefix.append(action)
             step += 1
@@ -283,7 +288,7 @@ def main() -> int:
     parser.add_argument("--config", type=pathlib.Path, required=True)
     parser.add_argument("--case", required=True)
     parser.add_argument("--steps", type=int, nargs="+", required=True)
-    parser.add_argument("--divergence-step", type=int, default=6)
+    parser.add_argument("--divergence-step", type=int, default=2)
     parser.add_argument("--environment-seed", type=int, default=42)
     parser.add_argument("--behavior-seed", type=int, default=1729)
     parser.add_argument("--attempt-budget", type=int, default=512)

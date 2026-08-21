@@ -5,6 +5,7 @@ import unittest
 from types import SimpleNamespace
 
 from scripts.build_behavior_policy_roots import (
+    action_was_accepted,
     behavior_frontier,
     choose_behavior_action,
 )
@@ -16,6 +17,10 @@ def action(x: float) -> dict:
 
 
 class BehaviorPolicyRootTests(unittest.TestCase):
+    def test_acceptance_reads_the_environment_nested_status_contract(self):
+        self.assertTrue(action_was_accepted({"status": {"is_included": True}}))
+        self.assertFalse(action_was_accepted({"is_included": True}))
+
     def test_transition_contract_separates_edge_outcomes_from_cumulative_state(self):
         class Evaluator:
             def settled_snapshot(self, _containers):
