@@ -158,6 +158,7 @@ def configure_arm_environment(
         "multi_axis_shadow",
         "multi_axis_enforce",
         "residual_affordance_shadow",
+        "residual_affordance_enforce",
         "vacuum_cutoff",
         "last_resort",
         "safety_null",
@@ -358,9 +359,13 @@ def configure_arm_environment(
             env["PLACEMENT_SELECTOR_MODE"] = "structured_retained"
             env["MULTI_AXIS_SELECTOR_MODE"] = "enforce"
         elif arm == "residual_affordance_shadow":
-            # Replicated action model, measurement only. There is no enforce
-            # mode until official-score and special-attribute reach pass.
+            # Replicated action model, measurement only. The separate
+            # guarded-enforce arm owns any live action change.
             env["RESIDUAL_AFFORDANCE_SHADOW_MODE"] = "shadow"
+        elif arm == "residual_affordance_enforce":
+            # Execute only the frozen proposal that passes every direct,
+            # stack-aware soft/priority, and priority-routing guard.
+            env["RESIDUAL_AFFORDANCE_SHADOW_MODE"] = "guarded_enforce"
         elif arm == "zone_doctrine":
             # Loading order over zones: shelf top, deep, centre, under the
             # shelf. The corridor scan is what motivates it -- 62.9% of the
@@ -747,6 +752,7 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "residual_affordance_would_change_item_count": 0,
         "residual_affordance_guarded_change_count": 0,
         "residual_affordance_guarded_item_change_count": 0,
+        "residual_affordance_enforced_count": 0,
         "residual_affordance_attr_blocked_count": 0,
         "residual_affordance_contract_regression_count": 0,
         "residual_affordance_incumbent_unchanged_count": 0,
@@ -1151,6 +1157,9 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 summary[
                     "residual_affordance_guarded_item_change_count"
                 ] += int(residual.get("guarded_would_change_item") is True)
+                summary["residual_affordance_enforced_count"] += int(
+                    residual.get("enforced") is True
+                )
                 summary["residual_affordance_attr_blocked_count"] += int(
                     residual.get("attribute_guard_blocked_unrestricted") is True
                 )
@@ -1390,6 +1399,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "residual_affordance_would_change_item_count": 0,
                     "residual_affordance_guarded_change_count": 0,
                     "residual_affordance_guarded_item_change_count": 0,
+                    "residual_affordance_enforced_count": 0,
                     "residual_affordance_attr_blocked_count": 0,
                     "residual_affordance_contract_regression_count": 0,
                     "residual_affordance_incumbent_unchanged_count": 0,
@@ -1431,6 +1441,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "residual_affordance_would_change_item_count",
                 "residual_affordance_guarded_change_count",
                 "residual_affordance_guarded_item_change_count",
+                "residual_affordance_enforced_count",
                 "residual_affordance_attr_blocked_count",
                 "residual_affordance_contract_regression_count",
                 "residual_affordance_incumbent_unchanged_count",
@@ -1816,6 +1827,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             ),
             "residual_affordance_guarded_item_change_count": int(
                 bucket["residual_affordance_guarded_item_change_count"]
+            ),
+            "residual_affordance_enforced_count": int(
+                bucket["residual_affordance_enforced_count"]
             ),
             "residual_affordance_attr_blocked_count": int(
                 bucket["residual_affordance_attr_blocked_count"]
@@ -2475,10 +2489,10 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             "## Residual-affordance action shadow",
             "",
             "| arm | observed | candidates | changes | item changes "
-            "| guarded changes | guarded item changes | attr blocked "
+            "| guarded changes | guarded item changes | enforced | attr blocked "
             "| contract regressions | change rate | guarded rate "
             "| immediate delta | guarded immediate delta |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for arm, trace in sorted(policy_trace.items()):
             lines.append(
@@ -2488,6 +2502,7 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
                 f"| {trace['residual_affordance_would_change_item_count']} "
                 f"| {trace['residual_affordance_guarded_change_count']} "
                 f"| {trace['residual_affordance_guarded_item_change_count']} "
+                f"| {trace['residual_affordance_enforced_count']} "
                 f"| {trace['residual_affordance_attr_blocked_count']} "
                 f"| {trace['residual_affordance_contract_regression_count']} "
                 f"| {trace['residual_affordance_change_rate']} "

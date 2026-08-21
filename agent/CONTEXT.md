@@ -168,10 +168,12 @@
   and proposes a Pareto-front candidate without changing the executed action.
   CoM is telemetry-only until its official direction is resolved; no local
   weighted total is constructed. See `docs/MULTI_AXIS_SELECTOR.md`.
-- `RESIDUAL_AFFORDANCE_SHADOW_MODE=shadow` scores the frozen retained Top-K
+- `RESIDUAL_AFFORDANCE_SHADOW_MODE=shadow|guarded_enforce` scores the frozen retained Top-K
   with the exact action-only ridge confirmed on runs `32372290412` and
-  `32375696343`. It runs only after the live decision is frozen and has no
-  enforce mode. The trace records both the unrestricted proposal and a
+  `32375696343`. It runs only after the ordinary live decision is frozen.
+  `shadow` records without changing it; the development-only
+  `guarded_enforce` canary executes only the conservative proposal. The trace
+  records both the unrestricted proposal and a
   guarded proposal that may not increase direct or stack-aware soft/priority
   coverage or priority-routing violations. See
   `reports/counterfactual-afterstate-value/residual-affordance-shadow-protocol.md`.
@@ -200,6 +202,11 @@
   under `reports/residual-affordance-shadow/history/32436768825/`. This
   licenses a separately preregistered guarded-enforce development canary, not
   an official submission or a score-improvement claim.
+- Guarded-enforce canary v1 is preregistered in
+  `reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1.md`.
+  Its gates do not form a weighted total: executed reach, placed/fill/steps,
+  soft/priority, five shake axes, and three terminal axes must pass
+  independently. A development PASS licenses unseen-case replication only.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

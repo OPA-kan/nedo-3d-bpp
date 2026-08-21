@@ -1,0 +1,129 @@
+name: Residual-affordance guarded-enforce canary
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: residual-affordance-enforce-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  episode:
+    name: ${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, residual_affordance_enforce]
+        repeat: [0, 1, 2]
+        case:
+          - {case_id: b000-k15, source_case: "000", look_ahead: 15}
+          - {case_id: b000-k20, source_case: "000", look_ahead: 20}
+          - {case_id: b000-k40, source_case: "000", look_ahead: 40}
+          - {case_id: b001-k20, source_case: "001", look_ahead: 20}
+          - {case_id: b001-k30, source_case: "001", look_ahead: 30}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Build development config
+        run: >-
+          python scripts/build_task_b_config.py
+          --source-case "${{ matrix.case.source_case }}"
+          --task-id "${{ matrix.case.case_id }}"
+          --look-ahead "${{ matrix.case.look_ahead }}"
+          --policy-timeout 8
+          --output
+          "reports/residual-affordance-enforce/${{ matrix.case.case_id }}.json"
+      - name: Run trajectory canary episode
+        run: >-
+          python scripts/run_risk_ablation.py
+          --config
+          "reports/residual-affordance-enforce/${{ matrix.case.case_id }}.json"
+          --arm "${{ matrix.arm }}"
+          --repeat "${{ matrix.repeat }}"
+          --output-dir
+          "reports/residual-affordance-enforce/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: residual-affordance-enforce-${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}
+          path: >-
+            reports/residual-affordance-enforce/${{ matrix.case.case_id }}-${{ matrix.arm }}-r${{ matrix.repeat }}/
+
+  aggregate:
+    needs: episode
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: residual-affordance-enforce-*
+          path: reports/residual-affordance-enforce/downloads
+      - name: Aggregate and adjudicate trajectory canary
+        run: |
+          mkdir -p reports/residual-affordance-enforce/aggregate
+          find reports/residual-affordance-enforce/downloads -name rows.jsonl \
+            -type f -exec cat {} + \
+            > reports/residual-affordance-enforce/aggregate/rows.jsonl
+          python scripts/run_risk_ablation.py \
+            --summarize \
+            --output-dir reports/residual-affordance-enforce/aggregate
+          python scripts/evaluate_residual_affordance_enforce_canary.py \
+            --summary reports/residual-affordance-enforce/aggregate/summary.json \
+            --output-json reports/residual-affordance-enforce/aggregate/gate.json \
+            --output-md reports/residual-affordance-enforce/aggregate/gate.md
+          cat reports/residual-affordance-enforce/aggregate/summary.md \
+            >> "$GITHUB_STEP_SUMMARY"
+          cat reports/residual-affordance-enforce/aggregate/gate.md \
+            >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: residual-affordance-enforce-aggregate
+          path: reports/residual-affordance-enforce/aggregate/
+      - name: Persist compact canary history
+        env:
+          HISTORY_DIR: >-
+            reports/residual-affordance-enforce/history/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HISTORY_DIR"
+          cp reports/residual-affordance-enforce/aggregate/summary.md \
+            "$HISTORY_DIR/summary.md"
+          cp reports/residual-affordance-enforce/aggregate/summary.json \
+            "$HISTORY_DIR/summary.json"
+          cp reports/residual-affordance-enforce/aggregate/gate.md \
+            "$HISTORY_DIR/gate.md"
+          cp reports/residual-affordance-enforce/aggregate/gate.json \
+            "$HISTORY_DIR/gate.json"
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$HISTORY_DIR"
+          git commit \
+            -m "Record residual-affordance enforce ${{ github.run_id }} [skip residual-enforce]"
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+          done
+      - name: Enforce preregistered canary gate
+        run: >-
+          python scripts/evaluate_residual_affordance_enforce_canary.py
+          --summary reports/residual-affordance-enforce/aggregate/summary.json
+          --require-pass

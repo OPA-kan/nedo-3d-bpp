@@ -305,7 +305,7 @@ class ArmEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["PLACEMENT_SELECTOR_MODE"], "structured_retained")
         self.assertEqual(env["MULTI_AXIS_SELECTOR_MODE"], "shadow")
 
-    def test_residual_affordance_shadow_has_no_enforce_control(self):
+    def test_residual_affordance_shadow_remains_measurement_only(self):
         env = {
             "RESIDUAL_AFFORDANCE_SHADOW_MODE": "stale",
             "PLACEMENT_SELECTOR_MODE": "stale",
@@ -317,6 +317,17 @@ class ArmEnvironmentTests(unittest.TestCase):
 
         self.assertNotIn("PLACEMENT_SELECTOR_MODE", env)
         self.assertEqual(env["RESIDUAL_AFFORDANCE_SHADOW_MODE"], "shadow")
+
+    def test_residual_affordance_enforce_uses_guarded_mode(self):
+        env = {"RESIDUAL_AFFORDANCE_SHADOW_MODE": "stale"}
+
+        configure_arm_environment(
+            env, "residual_affordance_enforce", 2.0, 0.0
+        )
+
+        self.assertEqual(
+            env["RESIDUAL_AFFORDANCE_SHADOW_MODE"], "guarded_enforce"
+        )
 
     def test_structured_noop_is_baseline_plus_selector_mode(self):
         env = {"PLACEMENT_SELECTOR_MODE": "stale"}
@@ -1087,6 +1098,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                     "would_change_item": True,
                     "guarded_would_change_action": False,
                     "guarded_would_change_item": False,
+                    "enforced": True,
                     "attribute_guard_blocked_unrestricted": True,
                     "unrestricted_contract_not_worse": False,
                     "guarded_contract_not_worse": True,
@@ -1107,6 +1119,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["residual_affordance_candidate_count"], 3)
         self.assertEqual(summary["residual_affordance_would_change_count"], 1)
         self.assertEqual(summary["residual_affordance_guarded_change_count"], 0)
+        self.assertEqual(summary["residual_affordance_enforced_count"], 1)
         self.assertEqual(summary["residual_affordance_attr_blocked_count"], 1)
         self.assertEqual(
             summary["residual_affordance_contract_regression_count"], 1

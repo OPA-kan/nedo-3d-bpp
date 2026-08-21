@@ -743,10 +743,11 @@ residual-affordance Pareto teacher, not official competition score.  The next
 engineering step is to attach this exact frozen action model in shadow mode
 and measure official score deltas without allowing it to choose placements.
 
-That shadow is now implemented behind
-`RESIDUAL_AFFORDANCE_SHADOW_MODE=off|shadow`. The exact scales and weights are
-embedded in `agent.py`; live features reproduce the graph action tensor and
-the code exposes no enforce path. Each retained candidate is audited under
+That shadow is implemented behind
+`RESIDUAL_AFFORDANCE_SHADOW_MODE=off|shadow|guarded_enforce`. The exact scales
+and weights are embedded in `agent.py`; live features reproduce the graph
+action tensor. The `guarded_enforce` path was added only after prospective v3
+passed and remains a development canary, not a shipped policy. Each retained candidate is audited under
 both direct-contact and stack-aware soft/priority readings plus priority
 routing. The trace retains the exact unrestricted learner proposal and a
 conservative proposal that cannot worsen any of those five attribute axes
@@ -838,6 +839,16 @@ than base (placed 18.267 vs 18.600; fill 20.437 vs 20.937). The v3 PASS licenses
 only the next experiment: freeze and run a guarded-enforce development canary
 with explicit placed/fill, special-attribute, terminal, and shake vetoes.
 Evidence is in `reports/residual-affordance-shadow/history/32436768825/`.
+
+The guarded-enforce canary implementation is now wired as the
+`residual_affordance_enforce` ablation arm and the separately callable
+`.github/workflows/residual-affordance-enforce-canary.yml`. It executes only
+the proposal that is no worse than the live incumbent on direct and
+stack-aware soft/priority coverage and priority routing. The frozen v1 gate
+requires actual action divergence, simultaneous placed/fill/step improvement,
+non-regressing soft/priority and terminal channels, and no worsening on any of
+five shake axes; it forms no weighted score. The preregistration is
+`reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1.md`.
 
 ## Why each proxy is a proxy (2026-08-18)
 

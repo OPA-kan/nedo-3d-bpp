@@ -1470,6 +1470,109 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertTrue(record["portfolio_actions_unchanged"])
         self.assertTrue(record["guarded_contract_not_worse"])
 
+    def test_residual_affordance_evaluation_returns_guarded_decision(self):
+        observation = {
+            "pool_list": [sample_item(10), sample_item(11)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": item_idx,
+                    "container_idx": 0,
+                    "place_pos": [0.1 * item_idx, 0.0, 0.2],
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.1 * item_idx, 0.0, 0.2),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=float(1 - item_idx),
+            )
+            for item_idx in range(2)
+        ]
+        with mock.patch.object(
+            agent,
+            "residual_affordance_action_utility",
+            side_effect=[0.0, 1.0],
+        ):
+            record, proposed = agent.residual_affordance_evaluation(
+                decisions, observation, decisions[0]
+            )
+
+        self.assertIs(proposed, decisions[1])
+        self.assertTrue(record["guarded_would_change_action"])
+        self.assertTrue(record["guarded_contract_not_worse"])
+
+    def test_policy_guarded_enforce_executes_only_guarded_proposal(self):
+        pool = [sample_item(10), sample_item(11)]
+        observation = {
+            "pool_list": pool,
+            "container_list": [sample_container(require_shelf=False)],
+        }
+
+        def decision(item_idx):
+            return agent.PlacementDecision(
+                action={
+                    "item_idx": item_idx,
+                    "container_idx": 0,
+                    "place_pos": np.array(
+                        [0.1 + 0.2 * item_idx, 0.0, 0.1],
+                        dtype=np.float32,
+                    ),
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.1 + 0.2 * item_idx, 0.0, 0.1),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=float(1 - item_idx),
+            )
+
+        selected = decision(0)
+        proposed = decision(1)
+        record = {
+            "guarded_would_change_action": True,
+            "guarded_contract_not_worse": True,
+        }
+        solver = agent.Agent("")
+
+        def select(*_args, **_kwargs):
+            solver.last_top_candidates = [selected, proposed]
+            return selected
+
+        with (
+            mock.patch.object(
+                agent, "RESIDUAL_AFFORDANCE_SHADOW_MODE", "guarded_enforce"
+            ),
+            mock.patch.object(
+                solver, "_closed_loop_choice", side_effect=select
+            ),
+            mock.patch.object(
+                agent,
+                "residual_affordance_evaluation",
+                return_value=(record, proposed),
+            ),
+        ):
+            action = solver.policy(observation)
+
+        self.assertEqual(action["item_idx"], 1)
+        self.assertEqual(
+            solver.last_action_source,
+            "residual_affordance_guarded_enforce",
+        )
+        self.assertTrue(
+            solver.last_candidate_diagnostics["residual_affordance_shadow"][
+                "enforced"
+            ]
+        )
+
     def test_residual_affordance_shadow_detects_candidate_mutation(self):
         observation = {
             "pool_list": [sample_item(10), sample_item(11)],

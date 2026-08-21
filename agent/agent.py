@@ -494,7 +494,9 @@ if MULTI_AXIS_SELECTOR_MODE not in MULTI_AXIS_SELECTOR_MODES:
         f"unknown MULTI_AXIS_SELECTOR_MODE {MULTI_AXIS_SELECTOR_MODE!r}; "
         f"expected one of {sorted(MULTI_AXIS_SELECTOR_MODES)}"
     )
-RESIDUAL_AFFORDANCE_SHADOW_MODES = frozenset({"off", "shadow"})
+RESIDUAL_AFFORDANCE_SHADOW_MODES = frozenset(
+    {"off", "shadow", "guarded_enforce"}
+)
 RESIDUAL_AFFORDANCE_SHADOW_MODE = os.environ.get(
     "RESIDUAL_AFFORDANCE_SHADOW_MODE", "off"
 ).strip().lower()
@@ -507,8 +509,9 @@ if RESIDUAL_AFFORDANCE_SHADOW_MODE not in RESIDUAL_AFFORDANCE_SHADOW_MODES:
 # Exact action-only ridge frozen after run 32368148298 and then confirmed,
 # without refitting, on runs 32372290412 and 32375696343.  The model predicts
 # the Pareto direction of branch-capped searched residual affordance.  It does
-# not predict official score, so the only licensed live mode is log-only
-# shadow.  Feature order is the graph action tensor without immediate_score:
+# not predict official score. Shadow v3 licensed a guarded-enforce development
+# canary; it is not a shipped policy. Feature order is the graph action tensor
+# without immediate_score:
 # six command fields followed by the fourteen observed item fields below.
 RESIDUAL_AFFORDANCE_MODEL_ID = "action-ridge-32351615182-v1"
 RESIDUAL_AFFORDANCE_ITEM_FEATURES = (
@@ -4985,8 +4988,8 @@ def residual_affordance_action_utility(observation, decision):
     )
 
 
-def residual_affordance_shadow_record(top, observation, selected_decision):
-    """Compare the frozen model after live selection without changing it.
+def residual_affordance_evaluation(top, observation, selected_decision):
+    """Return frozen-model telemetry and its attribute-safe proposal.
 
     The unrestricted proposal measures the replicated model exactly.  The
     guarded proposal additionally refuses any increase in direct-contact OR
@@ -5031,7 +5034,7 @@ def residual_affordance_shadow_record(top, observation, selected_decision):
 
     eligible = [record for record in records if contract_not_worse(record)]
     guarded = max(eligible, key=lambda row: row["affordance_utility"])
-    return {
+    record = {
         "schema_version": 1,
         "mode": "shadow",
         "model_id": RESIDUAL_AFFORDANCE_MODEL_ID,
@@ -5068,6 +5071,15 @@ def residual_affordance_shadow_record(top, observation, selected_decision):
         ),
         "candidates": records,
     }
+    return record, decisions[int(guarded["rank"])]
+
+
+def residual_affordance_shadow_record(top, observation, selected_decision):
+    """Compatibility wrapper returning log-only residual-affordance data."""
+    evaluated = residual_affordance_evaluation(
+        top, observation, selected_decision
+    )
+    return None if evaluated is None else evaluated[0]
 
 
 def action_for_execution(decision):
@@ -10774,21 +10786,31 @@ class Agent:
                 action_source = "multi_axis_enforce"
                 self.last_multi_axis_shadow["enforced"] = True
         if (
-            RESIDUAL_AFFORDANCE_SHADOW_MODE == "shadow"
+            RESIDUAL_AFFORDANCE_SHADOW_MODE in {"shadow", "guarded_enforce"}
             and decision is not None
             and action_source == "placement_core"
             and self.last_top_candidates
         ):
-            # The model is evaluated only after the live decision is frozen.
-            # There is intentionally no enforce branch: official-score and
-            # special-attribute reach must be measured first.
+            # Evaluate only after the ordinary live decision is frozen. The
+            # enforce canary may choose only the attribute-guarded proposal.
             try:
-                residual_record = residual_affordance_shadow_record(
-                    self.last_top_candidates, observation, decision
+                residual_record, residual_proposed = (
+                    residual_affordance_evaluation(
+                        self.last_top_candidates, observation, decision
+                    )
                 )
             except Exception:
-                residual_record = None
+                residual_record, residual_proposed = None, None
             if residual_record is not None:
+                residual_record["mode"] = RESIDUAL_AFFORDANCE_SHADOW_MODE
+                residual_record["enforced"] = bool(
+                    RESIDUAL_AFFORDANCE_SHADOW_MODE == "guarded_enforce"
+                    and residual_record["guarded_would_change_action"]
+                    and residual_proposed is not None
+                )
+                if residual_record["enforced"]:
+                    decision = residual_proposed
+                    action_source = "residual_affordance_guarded_enforce"
                 self.last_candidate_diagnostics[
                     "residual_affordance_shadow"
                 ] = residual_record

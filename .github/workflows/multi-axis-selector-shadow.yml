@@ -11,6 +11,7 @@ on:
         options:
           - multi_axis
           - residual_affordance
+          - residual_affordance_enforce
 
 permissions:
   contents: read
@@ -136,5 +137,11 @@ jobs:
   residual-affordance:
     if: inputs.wave == 'residual_affordance'
     uses: ./.github/workflows/residual-affordance-shadow.yml
+    permissions:
+      contents: write
+
+  residual-affordance-enforce:
+    if: inputs.wave == 'residual_affordance_enforce'
+    uses: ./.github/workflows/residual-affordance-enforce-canary.yml
     permissions:
       contents: write
