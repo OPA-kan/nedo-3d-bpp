@@ -63,6 +63,8 @@ class CounterfactualGraphWorkflowTests(unittest.TestCase):
         self.assertIn("aggregate/trajectory-advantage", text)
         self.assertIn("rows_with_immediate_score_input", text)
         self.assertIn("evaluation_group_fold_consistent", text)
+        self.assertIn("evaluate_trajectory_advantage_value.py", text)
+        self.assertIn("trajectory-advantage-value.md", text)
         self.assertIn("distributional_training_ready", text)
         self.assertIn("develop_post_shake_soft_reranker.py", text)
         self.assertIn("evaluate_frozen_post_shake_soft_reranker.py", text)

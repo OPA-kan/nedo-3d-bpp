@@ -879,6 +879,19 @@ measurement layer only: no value model, online rollout selector, or policy
 default is licensed until a new physical corpus passes the contract and a
 whole-root held-out model gate is preregistered.
 
+The first direct-value development fit used the 25 valid physical graphs from
+run `32441630451` after fixing the export-only suffix traversal in `8fce14b`.
+Across eight whole-trajectory holdouts, the score-free action view classified
+fill advantage 266/295 (90.2%) and 248/276 (89.9%) on exact-unseen action
+signatures; always choosing the candidate would score only 206/295 (69.8%).
+PyBullet afterstate summaries were weaker at 228/295 (77.3%), and combining
+them with action features reached 235/295 (79.7%). This is a genuine learned
+fill signal, but not yet an agent: placed and horizon-survival changed on only
+14 rows, all from one trajectory group, and their held-out accuracy was 8/14.
+Do not enforce. The next indicated corpus is forced discordant-pair H5 across
+multiple trajectories, admitted only if placed/survival directionality spans
+at least four groups. See `trajectory-advantage-value-development-32441630451.md`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

@@ -374,6 +374,13 @@ tensor still contains `immediate_score`, a physical trajectory crosses folds,
 or any paired action/afterstate tensor is missing. This is a teacher-contract gate,
 not evidence that a learned selector improves an episode.
 
+`scripts/evaluate_trajectory_advantage_value.py` then fits independent
+fixed-L2, no-intercept ridge heads in the original physical units. It compares
+score-free action, PyBullet afterstate, and combined views while holding out a
+complete trajectory group at a time. Exact feature-signature novelty is
+reported separately. The evaluator does not collapse heads or authorize a
+selector when placed/survival support is sparse.
+
 For each outcome axis, `distributional_continuation_labels` records the
 search-policy-weighted mean, a pessimistic quantile (q25 for maximized axes and
 q75 for minimized axes), and physical-failure rates for both sibling
