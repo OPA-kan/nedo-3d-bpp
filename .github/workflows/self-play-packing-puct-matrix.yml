@@ -1,0 +1,155 @@
+name: Self-Play Packing scheduled PUCT matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/self-play-packing-puct-matrix.yml
+      - scripts/self_play_packing_search.py
+      - scripts/run_self_play_packing.py
+      - scripts/evaluate_self_play_packing.py
+      - scripts/evaluate_self_play_puct_matrix.py
+      - scripts/render_self_play_replay.py
+      - tests/test_self_play_packing_search.py
+      - tests/test_run_self_play_packing.py
+      - tests/test_evaluate_self_play_puct_matrix.py
+      - tests/test_self_play_packing_puct_matrix_workflow.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-play-puct-matrix-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  paired-play:
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          - single-empty-noshelf
+          - single-empty-shelf
+          - dual-shelf-mixed
+          - dual-preloaded-dedicated
+        environment_seed:
+          - 42
+          - 137
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify PUCT matrix contracts
+        run: >-
+          python -m unittest
+          tests.test_self_play_packing_search
+          tests.test_run_self_play_packing
+          tests.test_evaluate_self_play_puct_matrix
+          tests.test_self_play_packing_puct_matrix_workflow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build physical scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead 40
+          --policy-timeout 8
+          --stream-variant original
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs
+      - name: Run paired rank-0 control
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }}
+          --episodes 1
+          --environment-seed ${{ matrix.environment_seed }}
+          --game-seed 20260822
+          --minimum-block 3
+          --handoff-probability 0.6
+          --attempt-budget 128
+          --top-k 3
+          --max-steps 12
+          --selection-mode rank0
+          --policy-generation pi0
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/rank0
+      - name: Run scheduled physical PUCT
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/configs/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }}
+          --episodes 1
+          --environment-seed ${{ matrix.environment_seed }}
+          --game-seed 20260822
+          --minimum-block 3
+          --handoff-probability 0.6
+          --attempt-budget 128
+          --top-k 3
+          --max-steps 12
+          --selection-mode mcts
+          --mcts-simulations 12
+          --mcts-horizon 2
+          --mcts-cpuct 2.0
+          --mcts-prior uniform
+          --mcts-action-temperature 1.0
+          --mcts-temperature-drop-step 6
+          --policy-generation pi0-puct0
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}/mcts
+      - name: Evaluate and render pair
+        shell: bash
+        run: |
+          pair=reports/self-play-puct-matrix/${{ matrix.scenario }}-seed-${{ matrix.environment_seed }}
+          python scripts/evaluate_self_play_packing.py \
+            --manifest "$pair/rank0/manifest.json" \
+            --json-output "$pair/rank0-summary.json" \
+            --markdown-output "$pair/rank0-summary.md"
+          python scripts/evaluate_self_play_packing.py \
+            --manifest "$pair/mcts/manifest.json" \
+            --json-output "$pair/mcts-summary.json" \
+            --markdown-output "$pair/mcts-summary.md"
+          mkdir -p "$pair/replays"
+          python scripts/render_self_play_replay.py \
+            --manifest "$pair/rank0/manifest.json" \
+            --game-index 0 --output "$pair/replays/rank0.html"
+          python scripts/render_self_play_replay.py \
+            --manifest "$pair/mcts/manifest.json" \
+            --game-index 0 --output "$pair/replays/mcts.html"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-puct-matrix-${{ matrix.scenario }}-${{ matrix.environment_seed }}
+          path: reports/self-play-puct-matrix/
+
+  aggregate:
+    needs: paired-play
+    if: always() && needs.paired-play.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: self-play-puct-matrix-*
+          path: reports/self-play-puct-matrix
+          merge-multiple: true
+      - name: Aggregate paired evidence
+        run: >-
+          python scripts/evaluate_self_play_puct_matrix.py
+          --root reports/self-play-puct-matrix
+          --json-output reports/self-play-puct-matrix/aggregate.json
+          --markdown-output reports/self-play-puct-matrix/aggregate.md
+      - name: Publish paired verdict
+        shell: bash
+        run: cat reports/self-play-puct-matrix/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: self-play-puct-matrix-aggregate-${{ github.run_id }}
+          path: reports/self-play-puct-matrix/
