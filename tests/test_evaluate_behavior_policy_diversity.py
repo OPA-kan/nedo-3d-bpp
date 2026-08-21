@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import copy
+import pathlib
+import subprocess
+import sys
 import unittest
 
 from scripts.evaluate_behavior_policy_diversity import evaluate_diversity
@@ -24,6 +27,20 @@ def tagged_graph(mode: str, *, board: str, future_sensitive: bool) -> dict:
 
 
 class BehaviorPolicyDiversityEvaluationTests(unittest.TestCase):
+    def test_direct_cli_entrypoint_can_import_project_modules(self):
+        script = (
+            pathlib.Path(__file__).parents[1]
+            / "scripts"
+            / "evaluate_behavior_policy_diversity.py"
+        )
+        completed = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
     def test_counts_unique_states_and_new_reversal_from_alternative_policy(self):
         report = evaluate_diversity([
             tagged_graph("baseline", board="a", future_sensitive=False),

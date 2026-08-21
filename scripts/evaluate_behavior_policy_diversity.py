@@ -6,7 +6,12 @@ import argparse
 import collections
 import json
 import pathlib
+import sys
 from typing import Any
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.counterfactual_graph import stable_id
 from scripts.evaluate_budgeted_dag_search import evaluate_graph
