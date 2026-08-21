@@ -285,6 +285,7 @@ def calculate_settled_metrics(
     depth = _depth_metrics(containers, depth_bins)
     return {
         "placed_count": len(items),
+        "placed_mass": total_mass,
         "placed_volume": placed_volume,
         "fill_percent_proxy": (
             100.0 * placed_volume / total_container_volume

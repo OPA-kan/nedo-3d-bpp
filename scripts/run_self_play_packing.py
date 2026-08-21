@@ -174,6 +174,8 @@ def build_physical_puct_search(
     cpuct: float = 2.0, prior_mode: str = "uniform",
     prior_temperature: float = 1.0, action_temperature: float = 1.0,
     temperature_drop_step: int | None = None,
+    root_dirichlet_alpha: float = 0.0,
+    root_dirichlet_epsilon: float = 0.0,
     search_seed: int = 0,
     metrics_fn: Callable[[Any], dict[str, Any]] = cumulative_metrics,
     leaf_value_fn: Callable[..., float] | None = None,
@@ -186,6 +188,12 @@ def build_physical_puct_search(
         raise ValueError("action_temperature must be non-negative")
     if temperature_drop_step is not None and temperature_drop_step < 0:
         raise ValueError("temperature_drop_step must be non-negative")
+    if root_dirichlet_alpha < 0.0:
+        raise ValueError("root_dirichlet_alpha must be non-negative")
+    if not 0.0 <= root_dirichlet_epsilon <= 1.0:
+        raise ValueError("root_dirichlet_epsilon must be in [0, 1]")
+    if bool(root_dirichlet_alpha) != bool(root_dirichlet_epsilon):
+        raise ValueError("Dirichlet alpha and epsilon must both be zero or positive")
     if env_factory is None:
         from src.ground_handling.env import GroundHandlingEnv
 
@@ -196,6 +204,7 @@ def build_physical_puct_search(
             )
 
     chance_rng = random.Random(search_seed)
+    root_noise_rng = random.Random(search_seed + 1)
     value_scale = max(
         1.0, float(rules.terminal_reward), float(rules.attribute_penalty)
     )
@@ -218,6 +227,12 @@ def build_physical_puct_search(
             "player": state.current_player,
             "block_length": state.block_length,
         })
+        root_noise = None
+        if root_dirichlet_epsilon > 0.0:
+            root_noise = tree.add_dirichlet_noise(
+                root_key, list(candidates), alpha=root_dirichlet_alpha,
+                epsilon=root_dirichlet_epsilon, rng=root_noise_rng,
+            )
         candidate_cache: dict[str, list[Any]] = {root_key: list(candidates)}
         terminal_reasons: collections.Counter[str] = collections.Counter()
         search_prefilter_rejections = 0
@@ -368,6 +383,9 @@ def build_physical_puct_search(
             "action_temperature": float(effective_action_temperature),
             "configured_action_temperature": float(action_temperature),
             "temperature_drop_step": temperature_drop_step,
+            "root_dirichlet_alpha": float(root_dirichlet_alpha),
+            "root_dirichlet_epsilon": float(root_dirichlet_epsilon),
+            "root_dirichlet_noise": root_noise,
             "leaf_value_model": (
                 "zero_untrained" if leaf_value_fn is None else "injected"
             ),
@@ -600,6 +618,8 @@ def run_physical_game(
     mcts_prior_temperature: float = 1.0,
     mcts_action_temperature: float = 1.0,
     mcts_temperature_drop_step: int | None = None,
+    mcts_root_dirichlet_alpha: float = 0.0,
+    mcts_root_dirichlet_epsilon: float = 0.0,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -625,6 +645,8 @@ def run_physical_game(
             prior_temperature=mcts_prior_temperature,
             action_temperature=mcts_action_temperature,
             temperature_drop_step=mcts_temperature_drop_step,
+            root_dirichlet_alpha=mcts_root_dirichlet_alpha,
+            root_dirichlet_epsilon=mcts_root_dirichlet_epsilon,
             search_seed=policy_seed + 20000,
         )
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -647,6 +669,8 @@ def run_physical_game(
                     "prior_temperature": mcts_prior_temperature,
                     "action_temperature": mcts_action_temperature,
                     "temperature_drop_step": mcts_temperature_drop_step,
+                    "root_dirichlet_alpha": mcts_root_dirichlet_alpha,
+                    "root_dirichlet_epsilon": mcts_root_dirichlet_epsilon,
                     "leaf_value_model": "zero_untrained",
                 }
                 if selection_mode == "mcts" else None
@@ -772,6 +796,8 @@ def main() -> int:
         "--mcts-temperature-drop-step", type=int, default=-1,
         help="Use greedy root visits from this real step; -1 disables",
     )
+    parser.add_argument("--mcts-root-dirichlet-alpha", type=float, default=0.0)
+    parser.add_argument("--mcts-root-dirichlet-epsilon", type=float, default=0.0)
     parser.add_argument("--policy-generation", default="pi0")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -813,6 +839,8 @@ def main() -> int:
                 None if args.mcts_temperature_drop_step < 0
                 else args.mcts_temperature_drop_step
             ),
+            mcts_root_dirichlet_alpha=args.mcts_root_dirichlet_alpha,
+            mcts_root_dirichlet_epsilon=args.mcts_root_dirichlet_epsilon,
         ))
     manifest = {
         "schema_version": 1,
@@ -852,6 +880,8 @@ def main() -> int:
                         None if args.mcts_temperature_drop_step < 0
                         else args.mcts_temperature_drop_step
                     ),
+                    "root_dirichlet_alpha": args.mcts_root_dirichlet_alpha,
+                    "root_dirichlet_epsilon": args.mcts_root_dirichlet_epsilon,
                     "leaf_value_model": "zero_untrained",
                 }
                 if args.selection_mode == "mcts" else None

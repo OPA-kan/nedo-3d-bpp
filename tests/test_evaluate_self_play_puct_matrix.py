@@ -14,9 +14,9 @@ def game(*, seed, fill, actions, search=False, violations=0):
             record["search"] = {
                 "simulations": 12,
                 "policy_target": [
-                    {"candidate_id": "a", "visits": 7},
-                    {"candidate_id": "b", "visits": 3},
-                    {"candidate_id": "c", "visits": 2},
+                    {"candidate_id": "a", "visits": 7, "q": 0.5},
+                    {"candidate_id": "b", "visits": 3, "q": 0.0},
+                    {"candidate_id": "c", "visits": 2, "q": -0.5},
                 ],
             }
         records.append(record)
@@ -30,6 +30,8 @@ def game(*, seed, fill, actions, search=False, violations=0):
     ]
     return {
         "environment_seed": seed,
+        "handoff_seed": 11,
+        "policy_seed": 12,
         "terminal_reason": "no_retained_candidate",
         "training_eligible": True,
         "outcome_target_eligible": True,
@@ -71,6 +73,20 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
             path.write_text(json.dumps({
                 "case_id": "m-case", "games": [payload],
             }), encoding="utf-8")
+        matched_path = pathlib.Path(root) / label / "matched-shake.json"
+        matched_path.write_text(json.dumps({
+            "matched_placed_count": 2,
+            "delta_mcts_minus_rank0": {
+                "peak_kinetic_energy": 0.4,
+                "peak_kinetic_energy_per_item": 0.2,
+                "peak_kinetic_energy_per_mass": 0.1,
+                "shifted_fraction": 0.0,
+                "toppled_fraction": 0.0,
+                "max_shift": 0.01,
+                "mean_shift": 0.005,
+                "max_rotation_deg": 0.2,
+            },
+        }), encoding="utf-8")
 
     def test_aggregates_paired_deltas_search_signal_and_target_contract(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -106,6 +122,17 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
             result["aggregate"]["unique_informative_policy_states"], 2,
         )
         self.assertEqual(result["aggregate"]["unique_value_states"], 3)
+        self.assertEqual(
+            result["aggregate"]["unique_value_discriminating_policy_states"],
+            2,
+        )
+        self.assertEqual(result["aggregate"]["matched_shake_pairs"], 2)
+        self.assertEqual(
+            result["aggregate"]
+            ["matched_shake_mean_delta_mcts_minus_rank0"]
+            ["peak_kinetic_energy_per_item"],
+            0.2,
+        )
         self.assertTrue(result["gates"]["data_contract_ready"])
         self.assertTrue(result["gates"]["policy_contract_ready"])
         self.assertTrue(result["gates"]["value_contract_ready"])

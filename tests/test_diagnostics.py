@@ -58,6 +58,7 @@ class SettledMetricTests(unittest.TestCase):
         )
 
         self.assertEqual(result["placed_count"], 2)
+        self.assertAlmostEqual(result["placed_mass"], 4.0)
         self.assertAlmostEqual(result["placed_volume"], 0.3)
         self.assertAlmostEqual(result["fill_percent_proxy"], 30.0)
         self.assertAlmostEqual(result["center_of_mass_z"], 0.5)

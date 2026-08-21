@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import random
 from typing import Any
 
 
@@ -74,12 +75,36 @@ class PuctTree:
             candidate_id(row): {
                 "candidate": row,
                 "rank": candidate_rank(row),
+                "base_prior": weight / total,
                 "prior": weight / total,
                 "visits": 0,
                 "value_sum": 0.0,
             }
             for row, weight in zip(ordered, weights)
         }
+
+    def add_dirichlet_noise(
+        self, node_key: str, candidates: list[Any], *, alpha: float,
+        epsilon: float, rng: random.Random,
+    ) -> list[float]:
+        """Mix seeded Dirichlet exploration into one already bounded root."""
+        if alpha <= 0.0:
+            raise ValueError("Dirichlet alpha must be positive")
+        if not 0.0 <= epsilon <= 1.0:
+            raise ValueError("Dirichlet epsilon must be in [0, 1]")
+        self._register(node_key, candidates)
+        edges = self._nodes[node_key]
+        samples = [rng.gammavariate(alpha, 1.0) for _ in edges]
+        total = sum(samples)
+        if total <= 0.0:
+            raise RuntimeError("Dirichlet sampler produced zero total mass")
+        noise = [sample / total for sample in samples]
+        for row, eta in zip(edges.values(), noise):
+            row["prior"] = (
+                (1.0 - epsilon) * float(row["base_prior"])
+                + epsilon * eta
+            )
+        return noise
 
     def select(self, node_key: str, *, player: int, candidates: list[Any]) -> Any:
         if player not in (0, 1):
@@ -129,6 +154,7 @@ class PuctTree:
             result.append({
                 "candidate_id": identifier,
                 "rank": int(row["rank"]),
+                "base_prior": float(row["base_prior"]),
                 "prior": float(row["prior"]),
                 "visits": visits,
                 "probability": visits / total if total else 0.0,

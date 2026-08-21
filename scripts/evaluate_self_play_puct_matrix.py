@@ -32,6 +32,7 @@ def _game_metrics(game: dict[str, Any]) -> dict[str, Any]:
     search_records = [row for row in records if row.get("search")]
     nonuniform_roots = 0
     informative_policy_state_signatures = set()
+    value_discriminating_state_signatures = set()
     for record in search_records:
         visits = [
             int(row.get("visits", 0))
@@ -43,6 +44,13 @@ def _game_metrics(game: dict[str, Any]) -> dict[str, Any]:
         signature = capture.get("model_visible_state_signature")
         if is_nonuniform and signature:
             informative_policy_state_signatures.add(signature)
+        q_values = {
+            round(float(row["q"]), 12)
+            for row in record["search"].get("policy_target", [])
+            if row.get("q") is not None and int(row.get("visits", 0)) > 0
+        }
+        if len(q_values) > 1 and signature:
+            value_discriminating_state_signatures.add(signature)
     policy_steps = {
         int(row["step"])
         for row in learning_targets
@@ -109,6 +117,9 @@ def _game_metrics(game: dict[str, Any]) -> dict[str, Any]:
         "informative_policy_state_signatures": sorted(
             informative_policy_state_signatures
         ),
+        "value_discriminating_state_signatures": sorted(
+            value_discriminating_state_signatures
+        ),
         "value_state_signatures": sorted(value_state_signatures),
     }
 
@@ -145,9 +156,17 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
             raise ValueError(f"case mismatch in {pair_dir}")
         if rank0_game.get("environment_seed") != mcts_game.get("environment_seed"):
             raise ValueError(f"environment seed mismatch in {pair_dir}")
+        for seed_field in ("handoff_seed", "policy_seed"):
+            if rank0_game.get(seed_field) != mcts_game.get(seed_field):
+                raise ValueError(f"{seed_field} mismatch in {pair_dir}")
 
         rank0 = _game_metrics(rank0_game)
         mcts = _game_metrics(mcts_game)
+        matched_shake_path = pair_dir / "matched-shake.json"
+        matched_shake = (
+            json.loads(matched_shake_path.read_text(encoding="utf-8"))
+            if matched_shake_path.exists() else None
+        )
         rank0_actions = [
             row.get("selected_candidate_id") for row in rank0_game.get("records", [])
         ]
@@ -180,6 +199,7 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
             "mcts_trajectory_signature": _trajectory_signature(mcts_game),
             "rank0": rank0,
             "mcts": mcts,
+            "matched_shake": matched_shake,
             "delta_mcts_minus_rank0": deltas,
         })
 
@@ -219,6 +239,29 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
         for row in pair_rows
         for signature in row["mcts"]["value_state_signatures"]
     }
+    unique_value_discriminating_states = {
+        signature
+        for row in pair_rows
+        for signature in row["mcts"]["value_discriminating_state_signatures"]
+    }
+    matched_shake_rows = [
+        row["matched_shake"] for row in pair_rows if row["matched_shake"]
+    ]
+    matched_shake_fields = (
+        "peak_kinetic_energy", "peak_kinetic_energy_per_item",
+        "peak_kinetic_energy_per_mass", "shifted_fraction",
+        "toppled_fraction", "max_shift", "mean_shift", "max_rotation_deg",
+    )
+    matched_shake_mean_deltas = {}
+    for field in matched_shake_fields:
+        values = [
+            float(row["delta_mcts_minus_rank0"][field])
+            for row in matched_shake_rows
+            if row.get("delta_mcts_minus_rank0", {}).get(field) is not None
+        ]
+        matched_shake_mean_deltas[field] = (
+            statistics.mean(values) if values else None
+        )
     policy_contract_ready = all(
         row["mcts"]["training_eligible"]
         and row["mcts"]["search_decisions"] > 0
@@ -279,6 +322,13 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
                 unique_informative_policy_states
             ),
             "unique_value_states": len(unique_value_states),
+            "unique_value_discriminating_policy_states": len(
+                unique_value_discriminating_states
+            ),
+            "matched_shake_pairs": len(matched_shake_rows),
+            "matched_shake_mean_delta_mcts_minus_rank0": (
+                matched_shake_mean_deltas
+            ),
         },
         "gates": {
             "policy_contract_ready": policy_contract_ready,
@@ -301,6 +351,7 @@ def markdown(result: dict[str, Any]) -> str:
     aggregate = result["aggregate"]
     gates = result["gates"]
     delta = aggregate["mean_delta_mcts_minus_rank0"]
+    matched = aggregate["matched_shake_mean_delta_mcts_minus_rank0"]
     lines = [
         "# Paired physical PUCT matrix", "",
         f"- pairs: {aggregate['pair_count']}",
@@ -317,6 +368,23 @@ def markdown(result: dict[str, Any]) -> str:
         f"- mean attribute-violation delta: {delta['attribute_violations']:+.6f}",
         f"- mean CoM-z delta: {delta['com_z']:+.6f}",
         f"- mean shake-KE delta: {delta['shake_peak_kinetic_energy']:+.6f}",
+        f"- matched-count shake pairs: {aggregate['matched_shake_pairs']}",
+        (
+            "- matched-count mean shake-KE/item delta: "
+            + (
+                f"{matched['peak_kinetic_energy_per_item']:+.6f}"
+                if matched["peak_kinetic_energy_per_item"] is not None
+                else "n/a"
+            )
+        ),
+        (
+            "- matched-count mean shake-KE/mass delta: "
+            + (
+                f"{matched['peak_kinetic_energy_per_mass']:+.6f}"
+                if matched["peak_kinetic_energy_per_mass"] is not None
+                else "n/a"
+            )
+        ),
         f"- search decisions: {aggregate['search_decisions']}",
         f"- physical simulations: {aggregate['search_simulations']}",
         f"- non-uniform roots: {aggregate['nonuniform_roots']}",
@@ -328,6 +396,10 @@ def markdown(result: dict[str, Any]) -> str:
             f"{aggregate['unique_informative_policy_states']}"
         ),
         f"- unique terminal-value states: {aggregate['unique_value_states']}",
+        (
+            "- unique search-value-discriminating policy states: "
+            f"{aggregate['unique_value_discriminating_policy_states']}"
+        ),
         f"- policy contract ready: {gates['policy_contract_ready']}",
         f"- terminal-value contract ready: {gates['value_contract_ready']}",
         f"- combined P/V contract ready: {gates['data_contract_ready']}",

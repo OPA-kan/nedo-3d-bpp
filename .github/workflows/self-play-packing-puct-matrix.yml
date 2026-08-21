@@ -39,6 +39,9 @@ jobs:
           - source-001
           - reverse-000
           - permute-000-17
+        game_seed:
+          - 20260822
+          - 20260823
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -67,15 +70,15 @@ jobs:
           --look-ahead 40
           --policy-timeout 8
           --stream-variant ${{ matrix.stream_variant }}
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}/configs
       - name: Run paired rank-0 control
         run: >-
           python scripts/run_self_play_packing.py
-          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs/${{ matrix.scenario }}.json
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}/configs/${{ matrix.scenario }}.json
           --case m-${{ matrix.scenario }}
           --episodes 1
           --environment-seed 42
-          --game-seed 20260822
+          --game-seed ${{ matrix.game_seed }}
           --minimum-block 3
           --handoff-probability 0.6
           --attempt-budget 128
@@ -83,15 +86,15 @@ jobs:
           --max-steps 24
           --selection-mode rank0
           --policy-generation pi0
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/rank0
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}/rank0
       - name: Run scheduled physical PUCT
         run: >-
           python scripts/run_self_play_packing.py
-          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/configs/${{ matrix.scenario }}.json
+          --config reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}/configs/${{ matrix.scenario }}.json
           --case m-${{ matrix.scenario }}
           --episodes 1
           --environment-seed 42
-          --game-seed 20260822
+          --game-seed ${{ matrix.game_seed }}
           --minimum-block 3
           --handoff-probability 0.6
           --attempt-budget 128
@@ -104,12 +107,20 @@ jobs:
           --mcts-prior uniform
           --mcts-action-temperature 1.0
           --mcts-temperature-drop-step 6
+          --mcts-root-dirichlet-alpha 0.3
+          --mcts-root-dirichlet-epsilon 0.25
           --policy-generation pi0-puct0
-          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}/mcts
+          --output-dir reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}/mcts
       - name: Evaluate and render pair
         shell: bash
         run: |
-          pair=reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}
+          pair=reports/self-play-puct-matrix/${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}
+          python scripts/evaluate_paired_matched_shake.py \
+            --config "$pair/configs/${{ matrix.scenario }}.json" \
+            --case m-${{ matrix.scenario }} \
+            --rank0-manifest "$pair/rank0/manifest.json" \
+            --mcts-manifest "$pair/mcts/manifest.json" \
+            --output "$pair/matched-shake.json"
           python scripts/evaluate_self_play_packing.py \
             --manifest "$pair/rank0/manifest.json" \
             --json-output "$pair/rank0-summary.json" \
@@ -128,7 +139,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: self-play-puct-matrix-${{ matrix.scenario }}-${{ matrix.stream_variant }}
+          name: self-play-puct-matrix-${{ matrix.scenario }}-${{ matrix.stream_variant }}-game-${{ matrix.game_seed }}
           path: reports/self-play-puct-matrix/
 
   aggregate:

@@ -50,6 +50,7 @@ from scripts.postshake_capture import (  # noqa: E402
 
 METRIC_KEYS = (
     "placed_count",
+    "placed_mass",
     "placed_volume",
     "fill_score_proxy",
     "fill_percent_proxy",

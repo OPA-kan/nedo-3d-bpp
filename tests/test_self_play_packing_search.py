@@ -13,6 +13,28 @@ def candidate(name, rank):
 
 
 class PuctTreeTests(unittest.TestCase):
+    def test_seeded_root_dirichlet_noise_changes_prior_and_preserves_mass(self):
+        rows = [candidate("a", 0), candidate("b", 1), candidate("c", 2)]
+        left = PuctTree(cpuct=2.0, prior_mode="uniform")
+        right = PuctTree(cpuct=2.0, prior_mode="uniform")
+
+        left_noise = left.add_dirichlet_noise(
+            "root", rows, alpha=0.3, epsilon=0.25,
+            rng=random.Random(19),
+        )
+        right_noise = right.add_dirichlet_noise(
+            "root", rows, alpha=0.3, epsilon=0.25,
+            rng=random.Random(19),
+        )
+
+        self.assertEqual(left_noise, right_noise)
+        policy = left.policy("root")
+        self.assertAlmostEqual(sum(row["prior"] for row in policy), 1.0)
+        self.assertTrue(any(
+            abs(row["prior"] - row["base_prior"]) > 1e-6
+            for row in policy
+        ))
+
     def test_uniform_cold_start_probes_each_root_action(self):
         rows = [candidate("a", 0), candidate("b", 1), candidate("c", 2)]
         tree = PuctTree(cpuct=2.0, prior_mode="uniform")
