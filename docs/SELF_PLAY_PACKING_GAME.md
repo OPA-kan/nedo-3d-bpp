@@ -68,3 +68,14 @@ The game may feed a P/V learner only if the pilot shows:
 
 The eventual success criterion is stricter: a P/V model or search policy trained
 with these states must improve fresh, unbiased, single-agent 3D-BPP evaluation.
+
+## Visual replay
+
+`scripts/render_self_play_replay.py` converts any saved game into a standalone
+HTML replay. It needs no server or external JavaScript dependency. The canvas
+shows an isometric view of every container and item, with distinct colors for
+normal, soft, priority, and soft-plus-priority baggage. Playback overlays expose
+the player to move, block length, chosen candidate rank, candidate count,
+handoffs, and incremental attribute violations. CI generates one replay per
+pilot game under `reports/self-play-packing/replays/` and includes them in the
+normal Actions artifact.

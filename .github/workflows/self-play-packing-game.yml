@@ -23,9 +23,11 @@ on:
       - scripts/self_play_packing_game.py
       - scripts/run_self_play_packing.py
       - scripts/evaluate_self_play_packing.py
+      - scripts/render_self_play_replay.py
       - tests/test_self_play_packing_game.py
       - tests/test_run_self_play_packing.py
       - tests/test_evaluate_self_play_packing.py
+      - tests/test_render_self_play_replay.py
       - tests/test_self_play_packing_workflow.py
       - docs/SELF_PLAY_PACKING_GAME.md
 
@@ -54,6 +56,7 @@ jobs:
           tests.test_self_play_packing_game
           tests.test_run_self_play_packing
           tests.test_evaluate_self_play_packing
+          tests.test_render_self_play_replay
           tests.test_self_play_packing_workflow
           tests.test_replay_integration
           tests.test_attribute_placement_pybullet_e2e
@@ -112,6 +115,23 @@ jobs:
           --manifest reports/self-play-packing/temperature/manifest.json
           --json-output reports/self-play-packing/aggregate/temperature.json
           --markdown-output reports/self-play-packing/aggregate/temperature.md
+      - name: Render standalone visual replays
+        shell: bash
+        run: |
+          mkdir -p reports/self-play-packing/replays
+          for game in 0 1; do
+            python scripts/render_self_play_replay.py \
+              --manifest reports/self-play-packing/rank0/manifest.json \
+              --game-index "$game" \
+              --output "reports/self-play-packing/replays/rank0-game-$game.html"
+          done
+          for game in 0 1 2 3; do
+            python scripts/render_self_play_replay.py \
+              --manifest reports/self-play-packing/temperature/manifest.json \
+              --game-index "$game" \
+              --output "reports/self-play-packing/replays/temperature-game-$game.html"
+          done
+          test "$(find reports/self-play-packing/replays -name '*.html' | wc -l)" -eq 6
       - name: Publish pilot summaries
         shell: bash
         run: |

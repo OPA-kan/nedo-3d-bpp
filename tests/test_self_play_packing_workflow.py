@@ -20,6 +20,9 @@ class SelfPlayPackingWorkflowTests(unittest.TestCase):
         self.assertIn("--episodes 2", text)
         self.assertIn("--episodes 4", text)
         self.assertIn("evaluate_self_play_packing.py", text)
+        self.assertIn("render_self_play_replay.py", text)
+        self.assertIn("temperature-game-$game.html", text)
+        self.assertIn("-eq 6", text)
         self.assertIn("upload-artifact@v4", text)
 
 
