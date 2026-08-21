@@ -865,6 +865,20 @@ and survival units, with attributes and physics kept as separate constraints.
 See
 `reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1-result.md`.
 
+That target now has an implemented, unmeasured teacher contract.
+`scripts/build_trajectory_advantage_dataset.py` pairs every retained candidate
+with the rank-zero behaviour-policy incumbent at the same H3/H5 DAG source and
+exports direct source-to-leaf `G_H(s,a)-G_H(s,a0)` heads. The first action is
+included in the physical return, while `immediate_score` is excluded from all
+model inputs and targets. Placed/fill/survival, attributes, and physics remain
+separate. The H3/B3 scale workflow now emits and validates the corpus under
+`aggregate/trajectory-advantage/`, grouped by policy generation, future stream,
+case, and scenario (so multiple roots from one trajectory cannot cross folds)
+and tagged with the generating commit as `policy_generation`. This implements the
+measurement layer only: no value model, online rollout selector, or policy
+default is licensed until a new physical corpus passes the contract and a
+whole-root held-out model gate is preregistered.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

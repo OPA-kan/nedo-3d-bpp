@@ -342,6 +342,38 @@ node; path weights are the product of those conditional probabilities. These
 weights describe the bounded search only and must not be interpreted as
 calibrated arrival-stream or environment probabilities.
 
+## Direct trajectory-advantage teachers
+
+`scripts/build_trajectory_advantage_dataset.py` adds the action-value target
+needed after the residual-affordance enforcement failure. At every branching
+source node, the retained rank-zero action is the behaviour-policy incumbent
+`a0`; each other retained action is paired with that same incumbent and future
+stream. The target is kept per physical outcome axis:
+
+`A_H(s,a;a0) = G_H(s,a) - G_H(s,a0)`.
+
+Unlike the schema-v4 continuation target, `G_H` starts at the source node, so
+it includes the physical outcome of the first action as well as its searched
+suffix. Unlike a heuristic Q decomposition, the hand-written
+`immediate_score` is absent from both exported action tensors and targets.
+Placed, fill, CoG, surface, soft, priority, post-shake physics, survival,
+physical-failure and terminal-failure heads remain separate; there is no
+weighted total.
+
+Each row retains the full searched trajectory samples and their declared
+uniform-search weights, plus mean and pessimistic returns. `split_group_id`
+combines policy generation, future stream, case, and scenario axes. All roots
+from the same physical trajectory therefore stay in the same deterministic
+five-fold evaluation group even when they cross the step-15 regime boundary.
+`policy_generation` records the policy whose retained rank-zero action defined
+the incumbent. Future policy iterations must append a new generation rather
+than relabel old roots.
+
+The H3/B3 scale workflow exports this corpus and rejects it if any action
+tensor still contains `immediate_score`, a physical trajectory crosses folds,
+or any paired action/afterstate tensor is missing. This is a teacher-contract gate,
+not evidence that a learned selector improves an episode.
+
 For each outcome axis, `distributional_continuation_labels` records the
 search-policy-weighted mean, a pessimistic quantile (q25 for maximized axes and
 q75 for minimized axes), and physical-failure rates for both sibling

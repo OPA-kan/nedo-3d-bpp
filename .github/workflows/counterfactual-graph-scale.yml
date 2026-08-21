@@ -93,6 +93,7 @@ on:
       - scripts/summarize_counterfactual_graph_matrix.py
       - scripts/summarize_counterfactual_graph_signal.py
       - scripts/build_counterfactual_teacher_pairs.py
+      - scripts/build_trajectory_advantage_dataset.py
       - scripts/evaluate_counterfactual_teacher_baseline.py
       - scripts/evaluate_counterfactual_teacher_discovery.py
       - scripts/evaluate_counterfactual_teacher_frozen_policy.py
@@ -305,6 +306,27 @@ jobs:
           --expected-horizon ${{ inputs.graph_horizon || '3' }}
           --expected-branch-factor ${{ inputs.graph_branch_factor || '3' }}
           --output-dir reports/counterfactual-graph-scale/aggregate/teacher-pairs
+      - name: Export direct candidate trajectory advantages
+        run: >-
+          python scripts/build_trajectory_advantage_dataset.py
+          --graph-root reports/counterfactual-graph-scale/downloads
+          --policy-generation baseline-${{ github.sha }}
+          --expected-horizon ${{ inputs.graph_horizon || '3' }}
+          --expected-branch-factor ${{ inputs.graph_branch_factor || '3' }}
+          --output-dir reports/counterfactual-graph-scale/aggregate/trajectory-advantage
+      - name: Validate trajectory advantage teacher contract
+        run: >-
+          python -c "import json,pathlib;
+          p=pathlib.Path('reports/counterfactual-graph-scale/aggregate/trajectory-advantage/manifest.json');
+          m=json.loads(p.read_text());
+          assert m['row_count'] > 0;
+          assert m['evaluation_group_fold_consistent'];
+          assert m['rows_with_immediate_score_input'] == 0;
+          assert m['rows_with_paired_action_tensors'] == m['row_count'];
+          assert m['rows_with_paired_afterstate_tensors'] == m['row_count'];
+          assert m['advantage_head_row_counts']['placed_count'] > 0;
+          assert m['advantage_head_row_counts']['fill_score_proxy'] > 0;
+          assert m['advantage_head_row_counts']['horizon_survival_rate'] > 0"
       - name: Evaluate the first late-root learning baseline
         run: >-
           python scripts/evaluate_counterfactual_teacher_baseline.py
