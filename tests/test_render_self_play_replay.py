@@ -15,6 +15,7 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
             snapshot = {
                 "observation": {"container_list": [{
                     "index": 0, "length": 2, "width": 1, "height": 1.5,
+                    "cut_x": .44, "cut_y": .4, "thickness": .04,
                     "center": [0, 0, 0.75], "is_prioritized": True,
                     "shelf": True,
                     "packed_items": [{
@@ -57,6 +58,9 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertTrue(frame["is_handoff_state"])
         self.assertTrue(frame["containers"][0]["items"][0]["is_soft"])
         self.assertTrue(frame["containers"][0]["has_shelf"])
+        self.assertEqual(frame["containers"][0]["cut_x"], .44)
+        self.assertEqual(frame["containers"][0]["cut_y"], .4)
+        self.assertEqual(frame["containers"][0]["thickness"], .04)
         self.assertEqual(frame["new_violations"], 1)
 
     def test_html_is_standalone_and_has_replay_controls(self):
@@ -67,6 +71,8 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertIn("SELF_PLAY_REPLAY", html)
         self.assertIn("PRIORITY", html)
         self.assertIn("SHELF", html)
+        self.assertIn("function containerWire", html)
+        self.assertIn("ULD CUT PROFILE", html)
         self.assertNotIn("https://", html)
 
 
