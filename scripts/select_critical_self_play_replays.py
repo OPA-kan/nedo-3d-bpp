@@ -6,7 +6,12 @@ import argparse
 import html
 import json
 import pathlib
+import sys
 from typing import Any
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.render_self_play_replay import build_payload, render_html
 
@@ -96,7 +101,7 @@ def select_diverse(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any
         if key not in chosen:
             selected.append(row)
             chosen.add(key)
-    return selected
+    return sorted(selected, key=lambda row: -float(row["critical_score"]))
 
 
 def _gallery(selected: list[dict[str, Any]]) -> str:

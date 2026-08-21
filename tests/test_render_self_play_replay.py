@@ -73,6 +73,7 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertIn("SHELF", html)
         self.assertIn("function containerWire", html)
         self.assertIn("ULD CUT PROFILE", html)
+        self.assertIn("terminal:", html)
         self.assertNotIn("https://", html)
 
 

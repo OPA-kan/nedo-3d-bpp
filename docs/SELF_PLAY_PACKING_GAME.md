@@ -73,7 +73,10 @@ with these states must improve fresh, unbiased, single-agent 3D-BPP evaluation.
 
 `scripts/render_self_play_replay.py` converts any saved game into a standalone
 HTML replay. It needs no server or external JavaScript dependency. The canvas
-shows an isometric view of every container and item, with distinct colors for
+shows an isometric view of every container and item. Container wireframes use
+the simulator's cut-corner ULD profile (`cut_x`, `cut_y`) rather than a
+rectangular proxy, and show the always-present small shelf plus the optional
+main shelf using the simulator's dimension formulas. Distinct colors identify
 normal, soft, priority, and soft-plus-priority baggage. Playback overlays expose
 the player to move, block length, chosen candidate rank, candidate count,
 handoffs, and incremental attribute violations. CI generates one replay per

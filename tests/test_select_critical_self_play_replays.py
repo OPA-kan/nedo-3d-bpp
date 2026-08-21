@@ -1,6 +1,12 @@
+import pathlib
+import subprocess
+import sys
 import unittest
 
 from scripts.select_critical_self_play_replays import rank_games, select_diverse
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def game(reason="max_steps", violations=0, ranks=(0,), fingerprints=("a",)):
@@ -17,6 +23,22 @@ def game(reason="max_steps", violations=0, ranks=(0,), fingerprints=("a",)):
 
 
 class CriticalReplaySelectionTests(unittest.TestCase):
+    def test_cli_imports_renderer_when_run_as_an_isolated_script(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                str(ROOT / "scripts" / "select_critical_self_play_replays.py"),
+                "--help",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_attribute_and_terminal_events_outrank_plain_exploration(self):
         rows = rank_games([
             ("plain", {"case_id": "a", "games": [game(ranks=(0, 1))]}),
@@ -43,6 +65,9 @@ class CriticalReplaySelectionTests(unittest.TestCase):
         selected = select_diverse(rows, top_k=2)
 
         self.assertEqual({row["label"] for row in selected}, {"a", "b"})
+        self.assertGreaterEqual(
+            selected[0]["critical_score"], selected[1]["critical_score"]
+        )
 
 
 if __name__ == "__main__":
