@@ -798,6 +798,28 @@ fail the new causal gate. The executable adjudicator is
 `scripts/evaluate_residual_affordance_shadow_gate.py`; the contract is
 `reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v2.md`.
 
+V2 run `32435231411` is complete and **fails its frozen gate**. It passed
+same-call decision invariance (287/287 selected actions and portfolios
+unchanged), reach (126 guarded proposals), and attribute safety (all six
+unrestricted soft/priority regressions blocked; zero guarded regressions), but
+23/65 physical comparisons breached the simultaneous-base spread. Seventeen
+of those breaches had a base spread of exactly zero. This is a proved
+under-estimated noise-floor failure: pooling base-only repeats across the
+completed waves removes all 65 apparent breaches, while action mutation,
+attribute regression, and missing metrics are independently excluded. Do not
+reinterpret v2 as passing.
+
+Negative-control v3 is frozen before its first prospective wave. It calibrates
+only from base arms of runs `32380902237`, `32381957502`, and `32435231411`;
+all historical shadow values are ignored. The new gate compares the current
+shadow-minus-simultaneous-base effect with the full historical base range and
+separately invalidates a current base outside the calibrated domain. The
+executable adjudicator is
+`scripts/evaluate_residual_affordance_shadow_gate_v3.py`; the contract is
+`reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v3.md`.
+Only a fresh v3 PASS may license design of a separately preregistered guarded
+enforce canary; it does not license submission.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

@@ -87,16 +87,19 @@ jobs:
             --root reports/residual-affordance-shadow/downloads \
             --output reports/residual-affordance-shadow/aggregate/noise-floor.json \
             > reports/residual-affordance-shadow/aggregate/noise-floor.txt
-          python scripts/evaluate_residual_affordance_shadow_gate.py \
+          python scripts/evaluate_residual_affordance_shadow_gate_v3.py \
             --summary reports/residual-affordance-shadow/aggregate/summary.json \
             --noise-floor reports/residual-affordance-shadow/aggregate/noise-floor.json \
-            --output-json reports/residual-affordance-shadow/aggregate/gate.json \
-            --output-md reports/residual-affordance-shadow/aggregate/gate.md
+            --calibration-noise-floor 32380902237=reports/residual-affordance-shadow/history/32380902237/noise-floor.json \
+            --calibration-noise-floor 32381957502=reports/residual-affordance-shadow/history/32381957502/noise-floor.json \
+            --calibration-noise-floor 32435231411=reports/residual-affordance-shadow/history/32435231411/noise-floor.json \
+            --output-json reports/residual-affordance-shadow/aggregate/gate-v3.json \
+            --output-md reports/residual-affordance-shadow/aggregate/gate-v3.md
           cat reports/residual-affordance-shadow/aggregate/summary.md \
             >> "$GITHUB_STEP_SUMMARY"
           cat reports/residual-affordance-shadow/aggregate/noise-floor.txt \
             >> "$GITHUB_STEP_SUMMARY"
-          cat reports/residual-affordance-shadow/aggregate/gate.md \
+          cat reports/residual-affordance-shadow/aggregate/gate-v3.md \
             >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
@@ -117,10 +120,10 @@ jobs:
             "$HISTORY_DIR/noise-floor.txt"
           cp reports/residual-affordance-shadow/aggregate/noise-floor.json \
             "$HISTORY_DIR/noise-floor.json"
-          cp reports/residual-affordance-shadow/aggregate/gate.md \
-            "$HISTORY_DIR/gate.md"
-          cp reports/residual-affordance-shadow/aggregate/gate.json \
-            "$HISTORY_DIR/gate.json"
+          cp reports/residual-affordance-shadow/aggregate/gate-v3.md \
+            "$HISTORY_DIR/gate-v3.md"
+          cp reports/residual-affordance-shadow/aggregate/gate-v3.json \
+            "$HISTORY_DIR/gate-v3.json"
           git config user.name "github-actions[bot]"
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
@@ -133,9 +136,12 @@ jobs:
             git fetch origin "$GITHUB_REF_NAME"
             git rebase "origin/$GITHUB_REF_NAME"
           done
-      - name: Enforce preregistered v2 gate
+      - name: Enforce preregistered v3 gate
         run: >-
-          python scripts/evaluate_residual_affordance_shadow_gate.py
+          python scripts/evaluate_residual_affordance_shadow_gate_v3.py
           --summary reports/residual-affordance-shadow/aggregate/summary.json
           --noise-floor reports/residual-affordance-shadow/aggregate/noise-floor.json
+          --calibration-noise-floor 32380902237=reports/residual-affordance-shadow/history/32380902237/noise-floor.json
+          --calibration-noise-floor 32381957502=reports/residual-affordance-shadow/history/32381957502/noise-floor.json
+          --calibration-noise-floor 32435231411=reports/residual-affordance-shadow/history/32435231411/noise-floor.json
           --require-pass

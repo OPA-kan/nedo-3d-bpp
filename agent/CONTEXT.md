@@ -186,6 +186,13 @@
   separately against simultaneous base repeats. Independent action hashes are
   retained as diagnostics only. See
   `reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v2.md`.
+- V2 run `32435231411` passed same-call invariance (287/287), reach (126
+  guarded changes), and attribute safety (all 6 regressions blocked), but
+  failed 23/65 physical comparisons because same-wave base spread was often
+  exactly zero. V3 is frozen prospectively against base-only calibration from
+  runs `32380902237`, `32381957502`, and `32435231411`; calibration shadow
+  values are excluded. It also invalidates a current base outside that domain.
+  See `reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v3.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

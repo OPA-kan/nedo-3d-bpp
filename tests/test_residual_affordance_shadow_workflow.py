@@ -27,10 +27,13 @@ class ResidualAffordanceShadowWorkflowTests(unittest.TestCase):
         self.assertIn("summary.json", self.text)
         self.assertIn("noise-floor.json", self.text)
         self.assertIn(
-            "scripts/evaluate_residual_affordance_shadow_gate.py", self.text
+            "scripts/evaluate_residual_affordance_shadow_gate_v3.py",
+            self.text,
         )
-        self.assertIn("gate.json", self.text)
-        self.assertIn("gate.md", self.text)
+        for run_id in ("32380902237", "32381957502", "32435231411"):
+            self.assertIn(run_id, self.text)
+        self.assertIn("gate-v3.json", self.text)
+        self.assertIn("gate-v3.md", self.text)
 
     def test_existing_default_branch_workflow_routes_to_new_wave(self):
         self.assertIn("wave:", self.router)
