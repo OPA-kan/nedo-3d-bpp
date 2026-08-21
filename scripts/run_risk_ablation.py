@@ -749,6 +749,10 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
         "residual_affordance_guarded_item_change_count": 0,
         "residual_affordance_attr_blocked_count": 0,
         "residual_affordance_contract_regression_count": 0,
+        "residual_affordance_incumbent_unchanged_count": 0,
+        "residual_affordance_portfolio_unchanged_count": 0,
+        "residual_affordance_invariance_missing_count": 0,
+        "residual_affordance_guarded_contract_regression_count": 0,
         "residual_affordance_immediate_delta_total": 0.0,
         "residual_affordance_guarded_immediate_delta_total": 0.0,
     }
@@ -1155,6 +1159,23 @@ def policy_trace_summary(path: pathlib.Path) -> dict[str, Any]:
                 ] += int(
                     residual.get("unrestricted_contract_not_worse") is False
                 )
+                invariants = (
+                    residual.get("incumbent_action_unchanged"),
+                    residual.get("portfolio_actions_unchanged"),
+                    residual.get("guarded_contract_not_worse"),
+                )
+                summary[
+                    "residual_affordance_incumbent_unchanged_count"
+                ] += int(invariants[0] is True)
+                summary[
+                    "residual_affordance_portfolio_unchanged_count"
+                ] += int(invariants[1] is True)
+                summary[
+                    "residual_affordance_invariance_missing_count"
+                ] += int(any(not isinstance(value, bool) for value in invariants))
+                summary[
+                    "residual_affordance_guarded_contract_regression_count"
+                ] += int(invariants[2] is False)
                 summary[
                     "residual_affordance_immediate_delta_total"
                 ] += float(residual.get("immediate_score_delta", 0.0))
@@ -1371,6 +1392,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "residual_affordance_guarded_item_change_count": 0,
                     "residual_affordance_attr_blocked_count": 0,
                     "residual_affordance_contract_regression_count": 0,
+                    "residual_affordance_incumbent_unchanged_count": 0,
+                    "residual_affordance_portfolio_unchanged_count": 0,
+                    "residual_affordance_invariance_missing_count": 0,
+                    "residual_affordance_guarded_contract_regression_count": 0,
                     "residual_affordance_immediate_delta_total": 0.0,
                     "residual_affordance_guarded_immediate_delta_total": 0.0,
                 },
@@ -1408,6 +1433,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "residual_affordance_guarded_item_change_count",
                 "residual_affordance_attr_blocked_count",
                 "residual_affordance_contract_regression_count",
+                "residual_affordance_incumbent_unchanged_count",
+                "residual_affordance_portfolio_unchanged_count",
+                "residual_affordance_invariance_missing_count",
+                "residual_affordance_guarded_contract_regression_count",
             ):
                 trace_bucket[name] += int(trace.get(name, 0))
             for name in (
@@ -1794,6 +1823,20 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "residual_affordance_contract_regression_count": int(
                 bucket["residual_affordance_contract_regression_count"]
             ),
+            "residual_affordance_incumbent_unchanged_count": int(
+                bucket["residual_affordance_incumbent_unchanged_count"]
+            ),
+            "residual_affordance_portfolio_unchanged_count": int(
+                bucket["residual_affordance_portfolio_unchanged_count"]
+            ),
+            "residual_affordance_invariance_missing_count": int(
+                bucket["residual_affordance_invariance_missing_count"]
+            ),
+            "residual_affordance_guarded_contract_regression_count": int(
+                bucket[
+                    "residual_affordance_guarded_contract_regression_count"
+                ]
+            ),
             "residual_affordance_change_rate": (
                 round(
                     bucket["residual_affordance_would_change_count"]
@@ -2103,6 +2146,43 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "comparisons": action_hash_comparisons,
     }
+    shadow_trace = policy_trace.get("residual_affordance_shadow", {})
+    invariant_observed = int(
+        shadow_trace.get("residual_affordance_observed_steps", 0)
+    )
+    incumbent_unchanged = int(
+        shadow_trace.get(
+            "residual_affordance_incumbent_unchanged_count", 0
+        )
+    )
+    portfolio_unchanged = int(
+        shadow_trace.get(
+            "residual_affordance_portfolio_unchanged_count", 0
+        )
+    )
+    invariant_missing = int(
+        shadow_trace.get("residual_affordance_invariance_missing_count", 0)
+    )
+    guarded_regressions = int(
+        shadow_trace.get(
+            "residual_affordance_guarded_contract_regression_count", 0
+        )
+    )
+    decision_invariance = {
+        "minimum_observed": 50,
+        "observed": invariant_observed,
+        "incumbent_unchanged": incumbent_unchanged,
+        "portfolio_unchanged": portfolio_unchanged,
+        "missing": invariant_missing,
+        "guarded_contract_regressions": guarded_regressions,
+        "passed": bool(
+            invariant_observed >= 50
+            and incumbent_unchanged == invariant_observed
+            and portfolio_unchanged == invariant_observed
+            and invariant_missing == 0
+            and guarded_regressions == 0
+        ),
+    }
     return {
         "arms": arms,
         "cases": cases,
@@ -2117,6 +2197,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "paired_vs_off": paired if baseline_arm == "off" else {},
         "policy_trace_by_arm": policy_trace,
         "terminal_channels": terminal_channels_by_arm,
+        "decision_invariance_negative_control": decision_invariance,
         "action_sequence_negative_control": negative_control,
     }
 
@@ -2162,10 +2243,30 @@ def render_markdown(summary: dict[str, Any], rows: int) -> str:
             f"| {stats['near_miss'].get('mean', '-')} "
             f"| {stats['surface_tv'].get('mean', '-')} |"
         )
+    decision_control = summary.get(
+        "decision_invariance_negative_control", {}
+    )
+    lines += [
+        "",
+        "## Same-call decision-invariance negative control",
+        "",
+        "| observed | incumbent unchanged | portfolio unchanged | missing "
+        "| guarded regressions | passed |",
+        "|---:|---:|---:|---:|---:|---|",
+        f"| {decision_control.get('observed', 0)} "
+        f"| {decision_control.get('incumbent_unchanged', 0)} "
+        f"| {decision_control.get('portfolio_unchanged', 0)} "
+        f"| {decision_control.get('missing', 0)} "
+        f"| {decision_control.get('guarded_contract_regressions', 0)} "
+        f"| {decision_control.get('passed', False)} |",
+    ]
     negative_control = summary.get("action_sequence_negative_control", {})
     lines += [
         "",
-        "## Action-sequence physical negative control",
+        "## Cross-process action-sequence diagnostic",
+        "",
+        "Exact hashes are retained as a nondeterminism diagnostic, not used "
+        "as the same-call decision-invariance gate.",
         "",
         "| paired | matched | mismatched | missing | passed |",
         "|---:|---:|---:|---:|---|",

@@ -1466,6 +1466,52 @@ class RankingPipelineContractTests(unittest.TestCase):
         self.assertEqual(
             record["candidates"][1]["soft_cover_violations_stack"], 1
         )
+        self.assertTrue(record["incumbent_action_unchanged"])
+        self.assertTrue(record["portfolio_actions_unchanged"])
+        self.assertTrue(record["guarded_contract_not_worse"])
+
+    def test_residual_affordance_shadow_detects_candidate_mutation(self):
+        observation = {
+            "pool_list": [sample_item(10), sample_item(11)],
+            "container_list": [
+                sample_container(
+                    require_shelf=False, center_x=0.0, cut_x=0.0
+                )
+            ],
+        }
+        decisions = [
+            agent.PlacementDecision(
+                action={
+                    "item_idx": item_idx,
+                    "container_idx": 0,
+                    "place_pos": [0.1 * item_idx, 0.0, 0.2],
+                    "orientation": 0,
+                },
+                candidate=agent.AABB(
+                    (0.1 * item_idx, 0.0, 0.2),
+                    (0.2, 0.2, 0.2),
+                    "candidate",
+                ),
+                score=float(1 - item_idx),
+            )
+            for item_idx in range(2)
+        ]
+
+        def mutating_utility(_observation, decision):
+            decision.action["orientation"] += 1
+            return float(decision.action["item_idx"])
+
+        with mock.patch.object(
+            agent,
+            "residual_affordance_action_utility",
+            side_effect=mutating_utility,
+        ):
+            record = agent.residual_affordance_shadow_record(
+                decisions, observation, decisions[0]
+            )
+
+        self.assertFalse(record["incumbent_action_unchanged"])
+        self.assertFalse(record["portfolio_actions_unchanged"])
 
     def test_candidate_attribute_violations_match_incremental_rule(self):
         container = sample_container(

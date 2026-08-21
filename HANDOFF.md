@@ -789,6 +789,15 @@ bottleneck, but no guarded enforce canary is licensed until its negative
 control is redesigned and preregistered. Compact evidence is under
 `reports/residual-affordance-shadow/history/32381957502/`.
 
+Negative-control v2 is now frozen before its first run. It separates exact
+same-call selected-action/portfolio immutability from cross-process physical
+variation, requires every observed attribute regression to remain blocked,
+and gates each physical/attribute channel against the simultaneous base
+repeat spread. Independent action hashes remain diagnostic and cannot pass or
+fail the new causal gate. The executable adjudicator is
+`scripts/evaluate_residual_affordance_shadow_gate.py`; the contract is
+`reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v2.md`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

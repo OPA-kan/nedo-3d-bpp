@@ -5003,6 +5003,10 @@ def residual_affordance_shadow_record(top, observation, selected_decision):
         if key not in seen:
             seen.add(key)
             decisions.append(decision)
+    incumbent_action_before = _safety_rerank_action_key(selected_decision)
+    portfolio_actions_before = tuple(
+        _safety_rerank_action_key(decision) for decision in decisions
+    )
     records = []
     for rank, decision in enumerate(decisions):
         record = multi_axis_candidate_record(decision, observation, rank)
@@ -5041,6 +5045,14 @@ def residual_affordance_shadow_record(top, observation, selected_decision):
             unrestricted["item_index"] != incumbent["item_index"]
         ),
         "unrestricted_contract_not_worse": contract_not_worse(unrestricted),
+        "guarded_contract_not_worse": contract_not_worse(guarded),
+        "incumbent_action_unchanged": (
+            _safety_rerank_action_key(selected_decision)
+            == incumbent_action_before
+        ),
+        "portfolio_actions_unchanged": tuple(
+            _safety_rerank_action_key(decision) for decision in decisions
+        ) == portfolio_actions_before,
         "guarded_would_change_action": guarded["rank"] != 0,
         "guarded_would_change_item": (
             guarded["item_index"] != incumbent["item_index"]

@@ -1,5 +1,9 @@
 # Residual-affordance live shadow protocol
 
+Historical v1 protocol: both executed waves failed gate 2. Prospective runs use
+`residual-affordance-shadow-negative-control-v2.md`; v2 does not retroactively
+change either v1 verdict.
+
 ## Frozen object
 
 The candidate is the exact no-intercept action-geometry ridge trained on raw

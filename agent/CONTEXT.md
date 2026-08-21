@@ -181,6 +181,11 @@
   The preregistered physical negative control nevertheless failed at 2/15
   matching action hashes, so this remains telemetry-only and no enforce
   canary is licensed.
+- Negative-control v2 records selected-action and retained-portfolio
+  immutability inside the same policy call, then evaluates physical variation
+  separately against simultaneous base repeats. Independent action hashes are
+  retained as diagnostics only. See
+  `reports/counterfactual-afterstate-value/residual-affordance-shadow-negative-control-v2.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 

@@ -248,6 +248,42 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(control["missing"], 0)
         self.assertFalse(control["passed"])
 
+    def test_decision_invariance_gate_uses_same_call_evidence(self):
+        row = episode_row(
+            "residual_affordance_shadow", "b000-k20", 18, 20.0
+        )
+        row["policy_trace"] = {
+            "residual_affordance_observed_steps": 60,
+            "residual_affordance_incumbent_unchanged_count": 60,
+            "residual_affordance_portfolio_unchanged_count": 60,
+            "residual_affordance_invariance_missing_count": 0,
+            "residual_affordance_guarded_contract_regression_count": 0,
+        }
+
+        gate = summarize([row])["decision_invariance_negative_control"]
+
+        self.assertEqual(gate["observed"], 60)
+        self.assertEqual(gate["incumbent_unchanged"], 60)
+        self.assertEqual(gate["portfolio_unchanged"], 60)
+        self.assertEqual(gate["guarded_contract_regressions"], 0)
+        self.assertTrue(gate["passed"])
+
+    def test_decision_invariance_gate_fails_missing_or_mutated_records(self):
+        row = episode_row(
+            "residual_affordance_shadow", "b000-k20", 18, 20.0
+        )
+        row["policy_trace"] = {
+            "residual_affordance_observed_steps": 60,
+            "residual_affordance_incumbent_unchanged_count": 59,
+            "residual_affordance_portfolio_unchanged_count": 58,
+            "residual_affordance_invariance_missing_count": 1,
+            "residual_affordance_guarded_contract_regression_count": 1,
+        }
+
+        gate = summarize([row])["decision_invariance_negative_control"]
+
+        self.assertFalse(gate["passed"])
+
 
 class ArmEnvironmentTests(unittest.TestCase):
     def test_multi_axis_enforce_uses_retained_portfolio(self):
@@ -804,6 +840,10 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "residual_affordance_guarded_item_change_count": 0,
                 "residual_affordance_attr_blocked_count": 0,
                 "residual_affordance_contract_regression_count": 0,
+                "residual_affordance_incumbent_unchanged_count": 0,
+                "residual_affordance_portfolio_unchanged_count": 0,
+                "residual_affordance_invariance_missing_count": 0,
+                "residual_affordance_guarded_contract_regression_count": 0,
                 "residual_affordance_immediate_delta_total": 0.0,
                 "residual_affordance_guarded_immediate_delta_total": 0.0,
                 "action_command_count": 0,
@@ -1049,6 +1089,9 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                     "guarded_would_change_item": False,
                     "attribute_guard_blocked_unrestricted": True,
                     "unrestricted_contract_not_worse": False,
+                    "guarded_contract_not_worse": True,
+                    "incumbent_action_unchanged": True,
+                    "portfolio_actions_unchanged": True,
                     "immediate_score_delta": -0.4,
                     "guarded_immediate_score_delta": 0.0,
                 }
@@ -1067,6 +1110,21 @@ class PolicyTraceSummaryTests(unittest.TestCase):
         self.assertEqual(summary["residual_affordance_attr_blocked_count"], 1)
         self.assertEqual(
             summary["residual_affordance_contract_regression_count"], 1
+        )
+        self.assertEqual(
+            summary["residual_affordance_incumbent_unchanged_count"], 1
+        )
+        self.assertEqual(
+            summary["residual_affordance_portfolio_unchanged_count"], 1
+        )
+        self.assertEqual(
+            summary["residual_affordance_invariance_missing_count"], 0
+        )
+        self.assertEqual(
+            summary[
+                "residual_affordance_guarded_contract_regression_count"
+            ],
+            0,
         )
         self.assertAlmostEqual(
             summary["residual_affordance_immediate_delta_total"], -0.4

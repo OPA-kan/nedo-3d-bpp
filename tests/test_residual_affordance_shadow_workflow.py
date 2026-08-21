@@ -26,6 +26,11 @@ class ResidualAffordanceShadowWorkflowTests(unittest.TestCase):
         self.assertIn("scripts/summarize_ablation.py", self.text)
         self.assertIn("summary.json", self.text)
         self.assertIn("noise-floor.json", self.text)
+        self.assertIn(
+            "scripts/evaluate_residual_affordance_shadow_gate.py", self.text
+        )
+        self.assertIn("gate.json", self.text)
+        self.assertIn("gate.md", self.text)
 
     def test_existing_default_branch_workflow_routes_to_new_wave(self):
         self.assertIn("wave:", self.router)
