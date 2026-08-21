@@ -850,6 +850,21 @@ non-regressing soft/priority and terminal channels, and no worsening on any of
 five shake axes; it forms no weighted score. The preregistration is
 `reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1.md`.
 
+Canary run `32438901241` is a valid **FAIL**, not an infrastructure failure.
+It executed 101 guarded changes with zero guarded special-attribute
+regressions, but trajectory value fell sharply: placed -2.333, fill -3.429,
+steps -2.333; shake peak kinetic energy rose +47.899. Attribute safety and
+terminal validity passed. Trace inspection shows the mechanism: 99/101
+executed proposals sacrificed immediate score because the frozen ridge ranks
+residual affordance alone and excludes `immediate_score`. Similar predicted
+utility gains bought radically different present costs (`b001-k20`: utility
++0.268, immediate -0.206; `b001-k30`: +0.242, immediate -0.034). Reject global
+enforcement and do not fit a post-hoc weight or phase threshold to this wave.
+The next target is candidate-conditioned trajectory advantage in placed/fill
+and survival units, with attributes and physics kept as separate constraints.
+See
+`reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1-result.md`.
+
 ## Why each proxy is a proxy (2026-08-18)
 
 `docs/PROXY_SUPPORT.md` is the standing answer to "what is the strategy,

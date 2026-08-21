@@ -207,6 +207,14 @@
   Its gates do not form a weighted total: executed reach, placed/fill/steps,
   soft/priority, five shake axes, and three terminal axes must pass
   independently. A development PASS licenses unseen-case replication only.
+- Canary run `32438901241` validly failed after 101 actions were enforced:
+  placed -2.333, fill -3.429, steps -2.333, and shake peak KE +47.899. The
+  attribute and terminal gates passed, confirming that the guard worked but
+  the value target did not. Only 2/101 enforced actions preserved immediate
+  score. Reject global enforcement of `action-ridge-32351615182-v1`; the next
+  model must learn candidate-conditioned trajectory advantage including both
+  immediate cost and suffix outcome. See
+  `reports/counterfactual-afterstate-value/residual-affordance-guarded-enforce-canary-v1-result.md`.
 - This is an integration contract, not a new adopted ranking policy.  See
   `docs/PLACEMENT_PIPELINE.md`.
 
