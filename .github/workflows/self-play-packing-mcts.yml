@@ -6,7 +6,7 @@ on:
       simulations:
         description: "Physical PUCT simulations per real move"
         required: false
-        default: "6"
+        default: "12"
       horizon:
         description: "Maximum physical placements per simulation"
         required: false
@@ -98,7 +98,7 @@ jobs:
           --top-k 3
           --max-steps 12
           --selection-mode mcts
-          --mcts-simulations ${{ inputs.simulations || '6' }}
+          --mcts-simulations ${{ inputs.simulations || '12' }}
           --mcts-horizon ${{ inputs.horizon || '2' }}
           --mcts-cpuct 2.0
           --mcts-prior uniform

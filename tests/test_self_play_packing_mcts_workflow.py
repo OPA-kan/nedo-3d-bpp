@@ -19,6 +19,7 @@ class SelfPlayPackingMctsWorkflowTests(unittest.TestCase):
         self.assertIn("--selection-mode rank0", text)
         self.assertIn("--selection-mode mcts", text)
         self.assertIn("--mcts-simulations", text)
+        self.assertIn("inputs.simulations || '12'", text)
         self.assertIn("--mcts-horizon", text)
         self.assertIn("--mcts-prior uniform", text)
         self.assertIn("evaluate_self_play_packing.py", text)
