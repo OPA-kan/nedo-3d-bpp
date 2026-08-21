@@ -53,6 +53,14 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
                         "step": 0, "player": 1, "selected_rank": 2,
                         "candidate_count": 2, "proposal_count": 3,
                         "legal_move_audit": {"rejected_count": 1},
+                        "search": {
+                            "algorithm": "open_loop_physical_puct",
+                            "simulations": 6, "horizon": 3,
+                            "policy_target": [
+                                {"rank": 0, "visits": 2, "probability": 1 / 3},
+                                {"rank": 2, "visits": 4, "probability": 2 / 3},
+                            ],
+                        },
                         "handoff": True,
                         "attribute_reward": {"new_violations": 1},
                     }],
@@ -76,6 +84,8 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertEqual(frame["candidate_count"], 2)
         self.assertEqual(frame["proposal_count"], 3)
         self.assertEqual(frame["prefilter_rejections"], 1)
+        self.assertEqual(frame["search"]["simulations"], 6)
+        self.assertEqual(frame["search"]["policy"][1]["visits"], 4)
         self.assertEqual(payload["frames"][1]["proposal_count"], 2)
         self.assertEqual(payload["frames"][1]["prefilter_rejections"], 2)
 

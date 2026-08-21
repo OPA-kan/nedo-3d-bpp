@@ -5,6 +5,7 @@ from unittest import mock
 
 from scripts.run_self_play_packing import (
     build_exact_physical_legal_filter,
+    build_physical_puct_search,
     play_game,
 )
 from scripts.self_play_packing_game import GameRules
@@ -46,6 +47,169 @@ def metrics(env):
 
 
 class SelfPlayPackingDriverTests(unittest.TestCase):
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_physical_puct_prefers_branch_that_avoids_bounded_exhaustion(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        def row(name, item_idx, rank):
+            return {
+                "candidate_id": name,
+                "selection": {"rank": rank},
+                "command_action": {
+                    "item_idx": item_idx, "container_idx": 0,
+                    "place_pos": [item_idx * 0.1, 0.0, 0.5],
+                    "orientation": 0,
+                },
+            }
+
+        root_candidates = [row("dead", 0, 0), row("alive", 1, 1)]
+        continuation = row("finish", 2, 0)
+
+        class SimulationEnv:
+            def __init__(self):
+                self.last_item = None
+                self.closed = False
+
+            def step(self, action):
+                self.last_item = action["item_idx"]
+                return (
+                    {}, 0.0, self.last_item == 2, False,
+                    {"status": {
+                        "is_included": True, "is_valid": True,
+                        "is_placed_safe": True,
+                    }},
+                )
+
+            def close(self):
+                self.closed = True
+
+        simulations = []
+
+        def factory():
+            env = SimulationEnv()
+            simulations.append(env)
+            return env
+
+        def provider_for_branch(env, _observation, _limit):
+            return [continuation] if env.last_item == 1 else []
+
+        def legal_filter(**context):
+            return context["candidates"], {
+                "rejected_count": 0,
+            }
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=provider_for_branch,
+            legal_filter_fn=legal_filter, rules=GameRules(minimum_block=10),
+            top_k=2, simulations=4, horizon=2, cpuct=2.0,
+            prior_mode="uniform", action_temperature=0.0,
+            metrics_fn=lambda _env: {}, env_factory=factory,
+        )
+
+        chosen, result = search(
+            env=object(), observation={}, candidates=root_candidates,
+            actions=[], state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(9),
+        )
+
+        self.assertEqual(chosen["candidate_id"], "alive")
+        self.assertEqual(sum(row["visits"] for row in result["policy_target"]), 4)
+        self.assertEqual(
+            result["simulation_terminal_reasons"][
+                "bounded_candidate_exhaustion"
+            ],
+            1,
+        )
+        self.assertTrue(all(env.closed for env in simulations))
+
+    def test_search_policy_selects_action_and_emits_pi_and_return_target(self):
+        def two_candidates(_env, _observation, _limit):
+            return [
+                {
+                    "candidate_id": name,
+                    "selection": {"rank": rank},
+                    "command_action": {
+                        "item_idx": rank, "container_idx": 0,
+                        "place_pos": [rank * 0.2, 0.0, 0.5],
+                        "orientation": 0,
+                    },
+                }
+                for rank, name in enumerate(("a", "b"))
+            ]
+
+        def search(**context):
+            self.assertEqual(
+                [row["candidate_id"] for row in context["candidates"]],
+                ["a", "b"],
+            )
+            return context["candidates"][1], {
+                "algorithm": "puct",
+                "policy_target": [
+                    {"candidate_id": "a", "probability": 0.25, "visits": 1},
+                    {"candidate_id": "b", "probability": 0.75, "visits": 3},
+                ],
+            }
+
+        result = play_game(
+            FakeEnv([{"terminated": True}]), {}, two_candidates,
+            rules=GameRules(), handoff_rng=random.Random(1),
+            policy_rng=random.Random(2), metrics_fn=metrics,
+            max_steps=10, search_fn=search,
+            capture_fn=lambda **context: {
+                "step": context["step"],
+                "snapshot_path": f"s{context['step']}.json",
+            },
+        )
+
+        self.assertEqual(result["records"][0]["selected_candidate_id"], "b")
+        self.assertEqual(result["records"][0]["search"]["algorithm"], "puct")
+        self.assertEqual(
+            result["learning_targets"][0]["policy_target"][1]["visits"], 3
+        )
+        self.assertEqual(result["learning_targets"][0]["return_to_go"], 0.0)
+        self.assertTrue(result["learning_targets"][0]["value_target_eligible"])
+
+    def test_search_cannot_select_outside_bounded_legal_set(self):
+        def provider(_env, _observation, _limit):
+            return [{
+                "candidate_id": "legal",
+                "selection": {"rank": 0},
+                "command_action": {
+                    "item_idx": 0, "container_idx": 0,
+                    "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+                },
+            }]
+
+        def search(**_context):
+            return {
+                "candidate_id": "invented",
+                "selection": {"rank": 1},
+                "command_action": {
+                    "item_idx": 1, "container_idx": 0,
+                    "place_pos": [0.2, 0.0, 0.5], "orientation": 0,
+                },
+            }, {"policy_target": []}
+
+        with self.assertRaisesRegex(RuntimeError, "bounded legal set"):
+            play_game(
+                FakeEnv([{"terminated": True}]), {}, provider,
+                rules=GameRules(), handoff_rng=random.Random(1),
+                policy_rng=random.Random(2), metrics_fn=metrics,
+                max_steps=10, search_fn=search,
+            )
+
     @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
     @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
     @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)

@@ -17,6 +17,19 @@ class SelfPlayPackingEvaluationTests(unittest.TestCase):
                     "candidate_proposals": 10,
                     "legal_candidates": 8,
                     "prefilter_rejections": 2,
+                    "records": [{
+                        "search": {
+                            "simulations": 4, "expanded_nodes": 3,
+                            "search_prefilter_rejections": 1,
+                            "policy_target": [
+                                {"probability": 0.75}, {"probability": 0.25},
+                            ],
+                        },
+                    }],
+                    "learning_targets": [{
+                        "policy_target_eligible": True,
+                        "value_target_eligible": True,
+                    }],
                     "captures": [{
                         "board_fingerprint": "a",
                         "model_visible_state_signature": "x",
@@ -60,6 +73,11 @@ class SelfPlayPackingEvaluationTests(unittest.TestCase):
         self.assertAlmostEqual(
             result["degeneracy"]["proposal_rejection_rate"], 3 / 22
         )
+        self.assertEqual(result["learning"]["search_decisions"], 1)
+        self.assertEqual(result["learning"]["search_simulations"], 4)
+        self.assertEqual(result["learning"]["expanded_search_nodes"], 3)
+        self.assertEqual(result["learning"]["policy_targets"], 1)
+        self.assertEqual(result["learning"]["value_targets"], 1)
 
 
 if __name__ == "__main__":

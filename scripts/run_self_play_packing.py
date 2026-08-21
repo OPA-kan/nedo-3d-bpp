@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import json
 import os
@@ -43,6 +44,11 @@ from scripts.self_play_packing_game import (  # noqa: E402
     apply_terminal_loss,
     advance_after_placement,
     choose_candidate,
+)
+from scripts.self_play_packing_search import (  # noqa: E402
+    PuctTree,
+    build_return_targets,
+    candidate_id,
 )
 
 
@@ -161,6 +167,210 @@ def build_exact_physical_legal_filter(
     return legal_filter
 
 
+def build_physical_puct_search(
+    task_config: dict[str, Any], *, case_id: str, environment_seed: int,
+    candidate_provider: Callable, legal_filter_fn: Callable,
+    rules: GameRules, top_k: int, simulations: int = 6, horizon: int = 3,
+    cpuct: float = 2.0, prior_mode: str = "uniform",
+    prior_temperature: float = 1.0, action_temperature: float = 1.0,
+    search_seed: int = 0,
+    metrics_fn: Callable[[Any], dict[str, Any]] = cumulative_metrics,
+    leaf_value_fn: Callable[..., float] | None = None,
+    env_factory: Callable[[], Any] | None = None,
+) -> Callable[..., tuple[Any, dict[str, Any]]]:
+    """Build open-loop PUCT whose transitions are authoritative PyBullet steps."""
+    if simulations < 1 or horizon < 1 or top_k < 1:
+        raise ValueError("simulations, horizon, and top_k must be positive")
+    if action_temperature < 0.0:
+        raise ValueError("action_temperature must be non-negative")
+    if env_factory is None:
+        from src.ground_handling.env import GroundHandlingEnv
+
+        def env_factory():
+            return GroundHandlingEnv(
+                config=copy.deepcopy(task_config), verbose=False,
+                render_mode=None,
+            )
+
+    chance_rng = random.Random(search_seed)
+    value_scale = max(
+        1.0, float(rules.terminal_reward), float(rules.attribute_penalty)
+    )
+
+    def search(*, env, observation, candidates, actions, state, step, policy_rng):
+        expected_observation = policy_observation(env, observation)
+        expected_snapshot = state_snapshot(
+            env, expected_observation, case_id=case_id, step=int(step)
+        )
+        expected_fingerprint = board_fingerprint(expected_snapshot)
+        contract = capture_replay_contract(
+            env, actions, seed=environment_seed
+        )
+        tree = PuctTree(
+            cpuct=cpuct, prior_mode=prior_mode,
+            prior_temperature=prior_temperature,
+        )
+        root_key = stable_id("puct-root", {
+            "board": expected_fingerprint,
+            "player": state.current_player,
+            "block_length": state.block_length,
+        })
+        candidate_cache: dict[str, list[Any]] = {root_key: list(candidates)}
+        terminal_reasons: collections.Counter[str] = collections.Counter()
+        search_prefilter_rejections = 0
+        leaf_value_calls = 0
+
+        for _simulation in range(simulations):
+            simulation_env = env_factory()
+            try:
+                rebuilt = replay_action_prefix(
+                    simulation_env, contract,
+                    expected_fingerprint=expected_fingerprint,
+                    expected_snapshot=expected_snapshot,
+                    snapshot_factory=lambda current, raw: state_snapshot(
+                        current, policy_observation(current, raw),
+                        case_id=case_id, step=int(step),
+                    ),
+                )
+                if not rebuilt.matched:
+                    raise RuntimeError(
+                        "MCTS root reconstruction failed: "
+                        f"{rebuilt.error}; expected={expected_fingerprint}; "
+                        f"observed={rebuilt.observed_fingerprint}"
+                    )
+                simulation_observation = rebuilt.observation
+                simulation_state = copy.deepcopy(state)
+                simulation_actions = list(actions)
+                relative_actions: list[dict[str, Any]] = []
+                simulation_rewards = [0.0, 0.0]
+                search_path: list[tuple[str, str, int]] = []
+                ended = False
+
+                for depth in range(horizon):
+                    node_key = root_key if depth == 0 else stable_id(
+                        "puct-node", {
+                            "root": root_key,
+                            "actions": relative_actions,
+                            "player": simulation_state.current_player,
+                            "block_length": simulation_state.block_length,
+                        },
+                    )
+                    if node_key not in candidate_cache:
+                        proposals = list(candidate_provider(
+                            simulation_env, simulation_observation, int(top_k)
+                        ))
+                        legal = proposals
+                        audit = {"rejected_count": 0}
+                        if proposals:
+                            legal, audit = legal_filter_fn(
+                                env=simulation_env,
+                                observation=simulation_observation,
+                                candidates=proposals,
+                                actions=list(simulation_actions),
+                                step=int(step) + depth,
+                            )
+                        search_prefilter_rejections += int(
+                            audit.get("rejected_count", 0)
+                        )
+                        candidate_cache[node_key] = list(legal)
+                    node_candidates = candidate_cache[node_key]
+                    if not node_candidates:
+                        apply_terminal_loss(
+                            simulation_rewards,
+                            loser=simulation_state.current_player,
+                            rules=rules,
+                        )
+                        terminal_reasons["bounded_candidate_exhaustion"] += 1
+                        ended = True
+                        break
+
+                    mover = simulation_state.current_player
+                    selected = tree.select(
+                        node_key, player=mover, candidates=node_candidates
+                    )
+                    search_path.append((node_key, candidate_id(selected), mover))
+                    action = _candidate_action(selected)
+                    before = metrics_fn(simulation_env)
+                    (
+                        simulation_observation, _reward, terminated,
+                        truncated, info,
+                    ) = simulation_env.step(action)
+                    simulation_actions.append(action)
+                    relative_actions.append(action)
+                    status = _status(info)
+                    if not _safe(status):
+                        raise RuntimeError(
+                            "MCTS selected an action rejected by its legal filter: "
+                            f"{candidate_id(selected)} status={status}"
+                        )
+                    after = metrics_fn(simulation_env)
+                    apply_attribute_reward(
+                        simulation_rewards, mover=mover,
+                        before=before, after=after, rules=rules,
+                    )
+                    if truncated:
+                        terminal_reasons["simulator_truncated"] += 1
+                        ended = True
+                        break
+                    if terminated:
+                        terminal_reasons["stream_exhausted"] += 1
+                        ended = True
+                        break
+                    advance_after_placement(
+                        simulation_state, rules, chance_rng
+                    )
+
+                normalized = [
+                    max(-1.0, min(1.0, value / value_scale))
+                    for value in simulation_rewards
+                ]
+                if not ended:
+                    leaf_value_calls += 1
+                    leaf_value = 0.0 if leaf_value_fn is None else float(
+                        leaf_value_fn(
+                            env=simulation_env,
+                            observation=simulation_observation,
+                            state=simulation_state,
+                        )
+                    )
+                    if not -1.0 <= leaf_value <= 1.0:
+                        raise ValueError("leaf value must be normalized to [-1, 1]")
+                    normalized = [
+                        max(-1.0, min(1.0, normalized[0] + leaf_value)),
+                        max(-1.0, min(1.0, normalized[1] - leaf_value)),
+                    ]
+                tree.backup(search_path, normalized)
+            finally:
+                simulation_env.close()
+
+        chosen = tree.choose(
+            root_key, list(candidates), temperature=action_temperature,
+            rng=policy_rng,
+        )
+        policy_target = tree.policy(root_key)
+        return chosen, {
+            "schema_version": 1,
+            "algorithm": "open_loop_physical_puct",
+            "simulations": int(simulations),
+            "horizon": int(horizon),
+            "cpuct": float(cpuct),
+            "prior_mode": prior_mode,
+            "prior_temperature": float(prior_temperature),
+            "action_temperature": float(action_temperature),
+            "leaf_value_model": (
+                "zero_untrained" if leaf_value_fn is None else "injected"
+            ),
+            "leaf_value_calls": leaf_value_calls,
+            "expanded_nodes": tree.node_count,
+            "search_prefilter_rejections": search_prefilter_rejections,
+            "simulation_terminal_reasons": dict(terminal_reasons),
+            "policy_target": policy_target,
+            "chosen_candidate_id": candidate_id(chosen),
+        }
+
+    return search
+
+
 def play_game(
     env, initial_observation: Any, candidate_provider: Callable, *,
     rules: GameRules, handoff_rng, policy_rng,
@@ -170,6 +380,7 @@ def play_game(
     capture_fn: Callable[..., dict[str, Any] | None] | None = None,
     evaluate_fn: Callable[[Any], dict[str, Any]] | None = None,
     legal_filter_fn: Callable[..., tuple[list[Any], dict[str, Any]]] | None = None,
+    search_fn: Callable[..., tuple[Any, dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Play one game through injected candidate and physics boundaries."""
     if max_steps < 1 or top_k < 1:
@@ -196,6 +407,9 @@ def play_game(
                 actions=list(actions), step=step,
             )
             if state_capture is not None:
+                state_capture["step"] = int(step)
+                state_capture["player_to_move"] = mover
+                state_capture["rewards_before"] = list(rewards)
                 captures.append(state_capture)
         proposals = list(candidate_provider(env, observation, int(top_k)))
         legal_audit = {
@@ -223,10 +437,26 @@ def play_game(
             terminal = apply_terminal_loss(rewards, loser=mover, rules=rules)
             loser, winner = terminal["loser"], terminal["winner"]
             break
-        chosen = choose_candidate(
-            candidates, mode=selection_mode,
-            temperature=selection_temperature, rng=policy_rng,
-        )
+        search_record = None
+        if search_fn is not None:
+            chosen, search_record = search_fn(
+                env=env, observation=observation, candidates=candidates,
+                actions=list(actions), state=copy.deepcopy(state), step=step,
+                policy_rng=policy_rng,
+            )
+            legal_candidate_ids = {
+                candidate_id(candidate) for candidate in candidates
+            }
+            if candidate_id(chosen) not in legal_candidate_ids:
+                raise RuntimeError(
+                    "search selected an action outside the bounded legal set: "
+                    f"{candidate_id(chosen)}"
+                )
+        else:
+            chosen = choose_candidate(
+                candidates, mode=selection_mode,
+                temperature=selection_temperature, rng=policy_rng,
+            )
         selection = _candidate_selection(chosen)
         selected_candidate = _candidate_record(chosen)
         selected_rank = int(selection.get("rank", 0))
@@ -249,7 +479,10 @@ def play_game(
             "selection": selection,
             "action": action,
             "status": status,
+            "rewards_before": list(rewards),
         }
+        if search_record is not None:
+            record["search"] = search_record
         if state_capture is not None:
             record["state_snapshot_path"] = state_capture.get("snapshot_path")
         if not _safe(status):
@@ -292,6 +525,17 @@ def play_game(
         terminal_reason = "max_steps"
 
     evaluation = evaluate_fn(env) if evaluate_fn is not None else None
+    training_eligible = terminal_reason not in {
+        "selected_action_failure", "simulator_truncated",
+    }
+    outcome_target_eligible = terminal_reason in {
+        "no_retained_candidate", "no_safe_retained_candidate",
+        "stream_exhausted",
+    }
+    learning_targets = build_return_targets(
+        captures, records, final_rewards=rewards,
+        value_target_eligible=training_eligible and outcome_target_eligible,
+    )
     return {
         "starting_player": starting_player,
         "steps": len(records),
@@ -300,13 +544,8 @@ def play_game(
         "completed_block_lengths": completed_blocks,
         "final_block_length": state.block_length,
         "terminal_reason": terminal_reason,
-        "training_eligible": terminal_reason not in {
-            "selected_action_failure", "simulator_truncated",
-        },
-        "outcome_target_eligible": terminal_reason in {
-            "no_retained_candidate", "no_safe_retained_candidate",
-            "stream_exhausted",
-        },
+        "training_eligible": training_eligible,
+        "outcome_target_eligible": outcome_target_eligible,
         "loser": loser,
         "winner": winner,
         "rewards": rewards,
@@ -325,6 +564,7 @@ def play_game(
         ),
         "records": records,
         "captures": captures,
+        "learning_targets": learning_targets,
         "evaluation": evaluation,
     }
 
@@ -344,6 +584,10 @@ def run_physical_game(
     selection_mode: str, selection_temperature: float,
     starting_player: int, policy_generation: str,
     output_dir: pathlib.Path,
+    mcts_simulations: int = 6, mcts_horizon: int = 3,
+    mcts_cpuct: float = 2.0, mcts_prior: str = "uniform",
+    mcts_prior_temperature: float = 1.0,
+    mcts_action_temperature: float = 1.0,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -354,6 +598,22 @@ def run_physical_game(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
     )
+    legal_filter = build_exact_physical_legal_filter(
+        task_config, case_id=case_id, environment_seed=environment_seed,
+    )
+    search_fn = None
+    if selection_mode == "mcts":
+        search_fn = build_physical_puct_search(
+            task_config, case_id=case_id,
+            environment_seed=environment_seed,
+            candidate_provider=provider, legal_filter_fn=legal_filter,
+            rules=rules, top_k=top_k, simulations=mcts_simulations,
+            horizon=mcts_horizon, cpuct=mcts_cpuct,
+            prior_mode=mcts_prior,
+            prior_temperature=mcts_prior_temperature,
+            action_temperature=mcts_action_temperature,
+            search_seed=policy_seed + 20000,
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     try:
         env.reset_settings()
@@ -365,6 +625,18 @@ def run_physical_game(
             "handoff_seed": handoff_seed,
             "policy_seed": policy_seed,
             "selection_mode": selection_mode,
+            "mcts": (
+                {
+                    "simulations": mcts_simulations,
+                    "horizon": mcts_horizon,
+                    "cpuct": mcts_cpuct,
+                    "prior": mcts_prior,
+                    "prior_temperature": mcts_prior_temperature,
+                    "action_temperature": mcts_action_temperature,
+                    "leaf_value_model": "zero_untrained",
+                }
+                if selection_mode == "mcts" else None
+            ),
         })
 
         def capture_fn(*, env, observation, state, actions, step):
@@ -430,10 +702,8 @@ def run_physical_game(
             selection_temperature=selection_temperature,
             starting_player=starting_player, capture_fn=capture_fn,
             evaluate_fn=lambda current: _compact_evaluation(current.evaluate()),
-            legal_filter_fn=build_exact_physical_legal_filter(
-                task_config, case_id=case_id,
-                environment_seed=environment_seed,
-            ),
+            legal_filter_fn=legal_filter,
+            search_fn=search_fn,
         )
         result.update({
             "trajectory_id": trajectory_id,
@@ -472,9 +742,18 @@ def main() -> int:
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--max-steps", type=int, default=18)
     parser.add_argument(
-        "--selection-mode", choices=("rank0", "temperature"), default="rank0"
+        "--selection-mode", choices=("rank0", "temperature", "mcts"),
+        default="rank0",
     )
     parser.add_argument("--selection-temperature", type=float, default=1.5)
+    parser.add_argument("--mcts-simulations", type=int, default=6)
+    parser.add_argument("--mcts-horizon", type=int, default=3)
+    parser.add_argument("--mcts-cpuct", type=float, default=2.0)
+    parser.add_argument(
+        "--mcts-prior", choices=("uniform", "rank"), default="uniform"
+    )
+    parser.add_argument("--mcts-prior-temperature", type=float, default=1.0)
+    parser.add_argument("--mcts-action-temperature", type=float, default=1.0)
     parser.add_argument("--policy-generation", default="pi0")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -506,6 +785,12 @@ def main() -> int:
             starting_player=episode % 2,
             policy_generation=args.policy_generation,
             output_dir=game_dir,
+            mcts_simulations=args.mcts_simulations,
+            mcts_horizon=args.mcts_horizon,
+            mcts_cpuct=args.mcts_cpuct,
+            mcts_prior=args.mcts_prior,
+            mcts_prior_temperature=args.mcts_prior_temperature,
+            mcts_action_temperature=args.mcts_action_temperature,
         ))
     manifest = {
         "schema_version": 1,
@@ -533,6 +818,18 @@ def main() -> int:
             "mode": args.selection_mode,
             "temperature": args.selection_temperature,
             "shared_between_players": True,
+            "mcts": (
+                {
+                    "simulations": args.mcts_simulations,
+                    "horizon": args.mcts_horizon,
+                    "cpuct": args.mcts_cpuct,
+                    "prior": args.mcts_prior,
+                    "prior_temperature": args.mcts_prior_temperature,
+                    "action_temperature": args.mcts_action_temperature,
+                    "leaf_value_model": "zero_untrained",
+                }
+                if args.selection_mode == "mcts" else None
+            ),
         },
         "games": games,
     }

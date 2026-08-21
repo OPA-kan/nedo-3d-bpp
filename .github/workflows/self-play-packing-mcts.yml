@@ -1,0 +1,129 @@
+name: Self-Play Packing physical PUCT pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulations:
+        description: "Physical PUCT simulations per real move"
+        required: false
+        default: "6"
+      horizon:
+        description: "Maximum physical placements per simulation"
+        required: false
+        default: "2"
+      environment_seed:
+        description: "Simulator seed shared by control and PUCT"
+        required: false
+        default: "42"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-play-physical-puct-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  physical-puct:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify PUCT, game, replay, and physical contracts
+        run: >-
+          python -m unittest
+          tests.test_self_play_packing_search
+          tests.test_self_play_packing_game
+          tests.test_run_self_play_packing
+          tests.test_evaluate_self_play_packing
+          tests.test_render_self_play_replay
+          tests.test_self_play_packing_mcts_workflow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build paired physical scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead 40
+          --policy-timeout 8
+          --stream-variant original
+          --output-dir reports/self-play-puct/configs
+      - name: Run paired rank-0 control
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-puct/configs/single-empty-noshelf.json
+          --case m-single-empty-noshelf
+          --episodes 1
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --game-seed 20260822
+          --minimum-block 3
+          --handoff-probability 0.6
+          --attempt-budget 128
+          --top-k 3
+          --max-steps 12
+          --selection-mode rank0
+          --policy-generation pi0
+          --output-dir reports/self-play-puct/rank0
+      - name: Run physical PUCT Self-Play
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-puct/configs/single-empty-noshelf.json
+          --case m-single-empty-noshelf
+          --episodes 1
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --game-seed 20260822
+          --minimum-block 3
+          --handoff-probability 0.6
+          --attempt-budget 128
+          --top-k 3
+          --max-steps 12
+          --selection-mode mcts
+          --mcts-simulations ${{ inputs.simulations || '6' }}
+          --mcts-horizon ${{ inputs.horizon || '2' }}
+          --mcts-cpuct 2.0
+          --mcts-prior uniform
+          --mcts-action-temperature 1.0
+          --policy-generation pi0-puct0
+          --output-dir reports/self-play-puct/mcts
+      - name: Evaluate paired arms
+        shell: bash
+        run: |
+          python scripts/evaluate_self_play_packing.py \
+            --manifest reports/self-play-puct/rank0/manifest.json \
+            --json-output reports/self-play-puct/rank0-summary.json \
+            --markdown-output reports/self-play-puct/rank0-summary.md
+          python scripts/evaluate_self_play_packing.py \
+            --manifest reports/self-play-puct/mcts/manifest.json \
+            --json-output reports/self-play-puct/mcts-summary.json \
+            --markdown-output reports/self-play-puct/mcts-summary.md
+      - name: Render paired replays
+        shell: bash
+        run: |
+          mkdir -p reports/self-play-puct/replays
+          python scripts/render_self_play_replay.py \
+            --manifest reports/self-play-puct/rank0/manifest.json \
+            --game-index 0 \
+            --output reports/self-play-puct/replays/rank0.html
+          python scripts/render_self_play_replay.py \
+            --manifest reports/self-play-puct/mcts/manifest.json \
+            --game-index 0 \
+            --output reports/self-play-puct/replays/mcts.html
+          test -f reports/self-play-puct/replays/mcts.html
+      - name: Publish pilot summaries
+        shell: bash
+        run: |
+          cat reports/self-play-puct/rank0-summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat reports/self-play-puct/mcts-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-physical-puct-${{ github.run_id }}
+          path: reports/self-play-puct/

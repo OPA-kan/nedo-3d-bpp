@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import math
 import pathlib
 import statistics
 from typing import Any
@@ -29,6 +30,24 @@ def summarize(manifest: dict[str, Any]) -> dict[str, Any]:
     )
     steps = [int(game.get("steps", 0)) for game in games]
     total_steps = sum(steps)
+    search_records = [
+        record for game in games for record in game.get("records", [])
+        if record.get("search")
+    ]
+    policy_entropies = []
+    for record in search_records:
+        probabilities = [
+            float(row.get("probability", 0.0))
+            for row in record["search"].get("policy_target", [])
+            if float(row.get("probability", 0.0)) > 0.0
+        ]
+        policy_entropies.append(-sum(
+            probability * math.log(probability)
+            for probability in probabilities
+        ))
+    learning_targets = [
+        target for game in games for target in game.get("learning_targets", [])
+    ]
     proposals = sum(int(game.get("candidate_proposals", 0)) for game in games)
     legal_candidates = sum(int(game.get("legal_candidates", 0)) for game in games)
     prefilter_rejections = sum(
@@ -86,6 +105,33 @@ def summarize(manifest: dict[str, Any]) -> dict[str, Any]:
                 if row.get("game_state_signature")
             }),
         },
+        "learning": {
+            "search_decisions": len(search_records),
+            "search_simulations": sum(
+                int(record["search"].get("simulations", 0))
+                for record in search_records
+            ),
+            "expanded_search_nodes": sum(
+                int(record["search"].get("expanded_nodes", 0))
+                for record in search_records
+            ),
+            "search_prefilter_rejections": sum(
+                int(record["search"].get("search_prefilter_rejections", 0))
+                for record in search_records
+            ),
+            "mean_policy_entropy": (
+                statistics.mean(policy_entropies) if policy_entropies else 0.0
+            ),
+            "policy_targets": sum(
+                bool(target.get("policy_target_eligible"))
+                for target in learning_targets
+            ),
+            "value_targets": sum(
+                bool(target.get("value_target_eligible"))
+                for target in learning_targets
+            ),
+            "captured_targets": len(learning_targets),
+        },
         "degeneracy": {
             "selected_action_failure_rate": (
                 action_failures / len(games) if games else 0.0
@@ -110,6 +156,7 @@ def markdown(result: dict[str, Any]) -> str:
     behavior = result["behavior"]
     distribution = result["distribution"]
     degeneracy = result["degeneracy"]
+    learning = result["learning"]
     return "\n".join([
         "# Self-Play Packing Game pilot", "",
         f"- games: {valid['games']}",
@@ -131,6 +178,11 @@ def markdown(result: dict[str, Any]) -> str:
         f"- physically legal candidates: {degeneracy['legal_candidates']}",
         f"- prefilter rejections: {degeneracy['prefilter_rejections']}",
         f"- proposal rejection rate: {degeneracy['proposal_rejection_rate']:.3f}",
+        f"- MCTS decisions: {learning['search_decisions']}",
+        f"- MCTS simulations: {learning['search_simulations']}",
+        f"- expanded search nodes: {learning['expanded_search_nodes']}",
+        f"- policy targets: {learning['policy_targets']}",
+        f"- eligible value targets: {learning['value_targets']}",
         f"- new attribute violations/step: {degeneracy['new_attribute_violations_per_step']:.6f}",
         "", "The game reward is diagnostic only. Production P/V labels require relabelling these states under the original single-agent packing objective.", "",
     ])

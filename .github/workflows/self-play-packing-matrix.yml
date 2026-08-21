@@ -17,12 +17,14 @@ on:
     paths:
       - .github/workflows/self-play-packing-matrix.yml
       - scripts/self_play_packing_game.py
+      - scripts/self_play_packing_search.py
       - scripts/run_self_play_packing.py
       - scripts/evaluate_self_play_packing.py
       - scripts/build_scenario_matrix.py
       - scripts/render_self_play_replay.py
       - scripts/select_critical_self_play_replays.py
       - tests/test_self_play_packing_game.py
+      - tests/test_self_play_packing_search.py
       - tests/test_run_self_play_packing.py
       - tests/test_evaluate_self_play_packing.py
       - tests/test_render_self_play_replay.py
@@ -60,6 +62,7 @@ jobs:
       - name: Verify game and physical contracts
         run: >-
           python -m unittest
+          tests.test_self_play_packing_search
           tests.test_self_play_packing_game
           tests.test_run_self_play_packing
           tests.test_evaluate_self_play_packing

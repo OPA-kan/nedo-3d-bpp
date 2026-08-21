@@ -66,6 +66,36 @@ handoff roots. The next gate is to run bounded physical search from those roots
 and show that game-generated states contain planning signal. Only after that do
 policy/value targets and search-follow generations become justified.
 
+## Physical PUCT bootstrap
+
+The next executable mode runs open-loop PUCT at every real Self-Play decision.
+Each simulation reconstructs the current root in a fresh PyBullet environment,
+uses the same bounded physically filtered action set, samples the stochastic
+handoff rule, and backs up zero-sum return in the perspective of the player to
+move at each visited node. The real move is sampled from the root visit policy.
+
+Generation `pi0-puct0` is deliberately a cold start:
+
+- `P` is uniform over the bounded legal set by default. The old rank prior is
+  available only as a control because the executed-DAG audit found it too
+  sticky at small budgets (16/19 oracle-root recovery versus 18/19 for uniform
+  PUCT).
+- `V` is zero at an unexpanded horizon leaf. This is explicit
+  `zero_untrained`, not a claim that the state has zero production value.
+- Terminal game reward and incremental soft/priority reward are the only backed
+  up rewards. The hand-written packing `immediate_score` is not a value target.
+
+After an episode, every captured state receives a policy target from MCTS root
+visits and an undiscounted suffix-return target:
+
+`G_t = final_reward[player_to_move_t] - reward_already_received_t`.
+
+Terminal states have a value target but no policy target. Step-capped episodes
+retain their observed return for diagnosis but mark it ineligible as a final
+value target. These contracts make the output directly consumable by a later
+P/V learner without pretending that the initial PUCT bootstrap is already an
+AlphaZero-strength expert.
+
 ## Gates
 
 The game may feed a P/V learner only if the pilot shows:
@@ -89,7 +119,8 @@ rectangular proxy, and show the always-present small shelf plus the optional
 main shelf using the simulator's dimension formulas. Distinct colors identify
 normal, soft, priority, and soft-plus-priority baggage. Playback overlays expose
 the player to move, block length, chosen candidate rank, candidate count,
-handoffs, and incremental attribute violations. CI generates one replay per
+handoffs, incremental attribute violations, and—when search is active—the PUCT
+simulation/horizon budget and root visit counts. CI generates one replay per
 pilot game under `reports/self-play-packing/replays/` and includes them in the
 normal Actions artifact.
 
