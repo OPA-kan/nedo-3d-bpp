@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "protocol": "residual-affordance-guarded-enforce-canary-v1",
+  "passed": false,
+  "gates": {
+    "causal_reach": {
+      "minimum_enforced": 5,
+      "enforced": 101,
+      "guarded_contract_regressions": 0,
+      "passed": true
+    },
+    "trajectory_value": {
+      "comparisons": [
+        {
+          "metric": "placed",
+          "direction": "higher",
+          "base_mean": 19.533,
+          "enforce_mean": 17.2,
+          "delta": -2.333,
+          "passed": false
+        },
+        {
+          "metric": "fill",
+          "direction": "higher",
+          "base_mean": 22.187,
+          "enforce_mean": 18.758,
+          "delta": -3.429,
+          "passed": false
+        },
+        {
+          "metric": "steps",
+          "direction": "higher",
+          "base_mean": 20.533,
+          "enforce_mean": 18.2,
+          "delta": -2.333,
+          "passed": false
+        }
+      ],
+      "passed": false,
+      "strict_score_gain": false
+    },
+    "attribute_safety": {
+      "comparisons": [
+        {
+          "metric": "priority_clean",
+          "direction": "higher",
+          "base_mean": 0.767,
+          "enforce_mean": 0.778,
+          "delta": 0.011,
+          "passed": true
+        },
+        {
+          "metric": "soft_clean",
+          "direction": "higher",
+          "base_mean": 0.967,
+          "enforce_mean": 0.967,
+          "delta": 0.0,
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    "physical_safety": {
+      "comparisons": [
+        {
+          "metric": "shake_max_shift",
+          "direction": "lower",
+          "base_mean": 0.313,
+          "enforce_mean": 0.261,
+          "delta": -0.052,
+          "passed": true
+        },
+        {
+          "metric": "shake_peak_ke",
+          "direction": "lower",
+          "base_mean": 37.643,
+          "enforce_mean": 85.542,
+          "delta": 47.899,
+          "passed": false
+        },
+        {
+          "metric": "shake_shifted",
+          "direction": "lower",
+          "base_mean": 6.0,
+          "enforce_mean": 5.267,
+          "delta": -0.733,
+          "passed": true
+        },
+        {
+          "metric": "shake_toppled",
+          "direction": "lower",
+          "base_mean": 0.533,
+          "enforce_mean": 0.533,
+          "delta": 0.0,
+          "passed": true
+        },
+        {
+          "metric": "shake_shifted_fraction",
+          "direction": "lower",
+          "base_mean": 0.308,
+          "enforce_mean": 0.302,
+          "delta": -0.006,
+          "passed": true
+        }
+      ],
+      "passed": false
+    },
+    "terminal_validity": {
+      "comparisons": [
+        {
+          "metric": "terminal_included",
+          "direction": "higher",
+          "base_mean": 1.0,
+          "enforce_mean": 1.0,
+          "delta": 0.0,
+          "passed": true
+        },
+        {
+          "metric": "terminal_valid",
+          "direction": "higher",
+          "base_mean": 0.4,
+          "enforce_mean": 0.867,
+          "delta": 0.467,
+          "passed": true
+        },
+        {
+          "metric": "terminal_placed_safe",
+          "direction": "higher",
+          "base_mean": 0.0,
+          "enforce_mean": 0.0,
+          "delta": 0.0,
+          "passed": true
+        }
+      ],
+      "passed": true
+    }
+  },
+  "missing": [],
+  "weighted_total": null,
+  "action_sequence_hash_role": "diagnostic_only"
+}
