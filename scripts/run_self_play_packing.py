@@ -1,0 +1,421 @@
+"""Run the two-player packing game on the unchanged PyBullet simulator."""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import os
+import pathlib
+import random
+import sys
+from typing import Any, Callable
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SIMULATOR = ROOT / "simulator"
+for path in (ROOT, SIMULATOR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from scripts.build_counterfactual_graph import (  # noqa: E402
+    build_candidate_provider,
+    cumulative_metrics,
+)
+from scripts.build_replay_dataset import (  # noqa: E402
+    json_safe,
+    load_agent_module,
+    policy_observation,
+    require_supported_python,
+    state_snapshot,
+)
+from scripts.counterfactual_graph import (  # noqa: E402
+    board_fingerprint,
+    canonical_action,
+    capture_replay_contract,
+    stable_id,
+    state_tensor_from_snapshot,
+)
+from scripts.self_play_packing_game import (  # noqa: E402
+    GameRules,
+    GameState,
+    apply_attribute_reward,
+    apply_terminal_loss,
+    advance_after_placement,
+    choose_candidate,
+)
+
+
+def _candidate_action(candidate: Any) -> dict[str, Any]:
+    if isinstance(candidate, dict):
+        return canonical_action(candidate["command_action"])
+    return canonical_action(candidate.command_action)
+
+
+def _candidate_selection(candidate: Any) -> dict[str, Any]:
+    if isinstance(candidate, dict):
+        return dict(candidate.get("selection", {}))
+    return dict(candidate.selection)
+
+
+def _candidate_record(candidate: Any) -> dict[str, Any]:
+    candidate_id = (
+        candidate.get("candidate_id")
+        if isinstance(candidate, dict)
+        else getattr(candidate, "candidate_id", None)
+    )
+    return {
+        "candidate_id": candidate_id,
+        "command_action": _candidate_action(candidate),
+        "selection": _candidate_selection(candidate),
+    }
+
+
+def _status(info: Any) -> dict[str, Any]:
+    return info.get("status", {}) if isinstance(info, dict) else {}
+
+
+def _safe(status: dict[str, Any]) -> bool:
+    return all(status.get(key) is True for key in (
+        "is_included", "is_valid", "is_placed_safe"
+    ))
+
+
+def play_game(
+    env, initial_observation: Any, candidate_provider: Callable, *,
+    rules: GameRules, handoff_rng, policy_rng,
+    metrics_fn: Callable[[Any], dict[str, Any]], max_steps: int,
+    top_k: int = 3, selection_mode: str = "rank0",
+    selection_temperature: float = 1.5, starting_player: int = 0,
+    capture_fn: Callable[..., dict[str, Any] | None] | None = None,
+    evaluate_fn: Callable[[Any], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Play one game through injected candidate and physics boundaries."""
+    if max_steps < 1 or top_k < 1:
+        raise ValueError("max_steps and top_k must be positive")
+    state = GameState(current_player=starting_player)
+    observation = initial_observation
+    rewards = [0.0, 0.0]
+    actions: list[dict[str, Any]] = []
+    records = []
+    captures = []
+    completed_blocks = []
+    terminal_reason = None
+    loser = winner = None
+    new_attribute_violations = 0.0
+    non_rank0 = 0
+
+    for step in range(max_steps):
+        mover = state.current_player
+        state_capture = None
+        if capture_fn is not None:
+            state_capture = capture_fn(
+                env=env, observation=observation, state=state,
+                actions=list(actions), step=step,
+            )
+            if state_capture is not None:
+                captures.append(state_capture)
+        candidates = list(candidate_provider(env, observation, int(top_k)))
+        if not candidates:
+            terminal_reason = "no_retained_candidate"
+            terminal = apply_terminal_loss(rewards, loser=mover, rules=rules)
+            loser, winner = terminal["loser"], terminal["winner"]
+            break
+        chosen = choose_candidate(
+            candidates, mode=selection_mode,
+            temperature=selection_temperature, rng=policy_rng,
+        )
+        selection = _candidate_selection(chosen)
+        selected_candidate = _candidate_record(chosen)
+        selected_rank = int(selection.get("rank", 0))
+        non_rank0 += int(selected_rank != 0)
+        action = _candidate_action(chosen)
+        before = metrics_fn(env)
+        observation, _reward, terminated, truncated, info = env.step(action)
+        actions.append(action)
+        status = _status(info)
+        record: dict[str, Any] = {
+            "step": step,
+            "player": mover,
+            "block_length_before": state.block_length,
+            "candidate_count": len(candidates),
+            "candidate_set": [_candidate_record(row) for row in candidates],
+            "selected_candidate_id": selected_candidate["candidate_id"],
+            "selected_rank": selected_rank,
+            "selection": selection,
+            "action": action,
+            "status": status,
+        }
+        if state_capture is not None:
+            record["state_snapshot_path"] = state_capture.get("snapshot_path")
+        if not _safe(status):
+            # The retained-action abstraction predicted that this move was
+            # legal, but the authoritative simulator rejected it. Abort and
+            # quarantine the episode; assigning +/- terminal reward here
+            # would teach a proposal/retention error as if it were checkmate.
+            terminal_reason = "selected_action_failure"
+            record["terminal_reward"] = [0.0, 0.0]
+            records.append(record)
+            break
+
+        after = metrics_fn(env)
+        attribute = apply_attribute_reward(
+            rewards, mover=mover, before=before, after=after, rules=rules
+        )
+        new_attribute_violations += float(attribute["new_violations"])
+        record["attribute_reward"] = attribute
+        if truncated:
+            terminal_reason = "simulator_truncated"
+            record["handoff"] = False
+            records.append(record)
+            break
+        if terminated:
+            # A safe terminating placement means the finite item stream was
+            # exhausted. It is coverage completion, not one player's loss.
+            state.placements += 1
+            state.block_length += 1
+            terminal_reason = "stream_exhausted"
+            record["handoff"] = False
+            records.append(record)
+            break
+
+        schedule = advance_after_placement(state, rules, handoff_rng)
+        record.update(schedule)
+        records.append(record)
+        if schedule["completed_block_length"] is not None:
+            completed_blocks.append(int(schedule["completed_block_length"]))
+    else:
+        terminal_reason = "max_steps"
+
+    evaluation = evaluate_fn(env) if evaluate_fn is not None else None
+    return {
+        "starting_player": starting_player,
+        "steps": len(records),
+        "placements": state.placements,
+        "handoff_count": state.handoff_count,
+        "completed_block_lengths": completed_blocks,
+        "final_block_length": state.block_length,
+        "terminal_reason": terminal_reason,
+        "training_eligible": terminal_reason not in {
+            "selected_action_failure", "simulator_truncated",
+        },
+        "outcome_target_eligible": terminal_reason in {
+            "no_retained_candidate", "stream_exhausted",
+        },
+        "loser": loser,
+        "winner": winner,
+        "rewards": rewards,
+        "zero_sum_error": abs(sum(rewards)),
+        "new_attribute_violations": new_attribute_violations,
+        "non_rank0_action_count": non_rank0,
+        "records": records,
+        "captures": captures,
+        "evaluation": evaluation,
+    }
+
+
+def _compact_evaluation(evaluation: dict[str, Any]) -> dict[str, Any]:
+    result = {key: value for key, value in evaluation.items() if key != "step_metrics"}
+    steps = evaluation.get("step_metrics") or []
+    if steps:
+        result["terminal_step_metrics"] = steps[-1]
+    return json_safe(result)
+
+
+def run_physical_game(
+    agent_module, task_config: dict[str, Any], *, case_id: str,
+    rules: GameRules, environment_seed: int, handoff_seed: int,
+    policy_seed: int, attempt_budget: int, top_k: int, max_steps: int,
+    selection_mode: str, selection_temperature: float,
+    starting_player: int, policy_generation: str,
+    output_dir: pathlib.Path,
+) -> dict[str, Any]:
+    from src.ground_handling.env import GroundHandlingEnv
+
+    env = GroundHandlingEnv(
+        config=copy.deepcopy(task_config), verbose=False, render_mode=None
+    )
+    provider = build_candidate_provider(
+        agent_module, attempt_budget=attempt_budget,
+        scan_all_visible_items=True,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        env.reset_settings()
+        env.reset_item_stream()
+        raw_observation, _info = env.reset(seed=environment_seed)
+        trajectory_id = stable_id("self-play-trajectory", {
+            "case_id": case_id,
+            "environment_seed": environment_seed,
+            "handoff_seed": handoff_seed,
+            "policy_seed": policy_seed,
+            "selection_mode": selection_mode,
+        })
+
+        def capture_fn(*, env, observation, state, actions, step):
+            observed = policy_observation(env, observation)
+            snapshot = state_snapshot(
+                env, observed, case_id=case_id, step=int(step)
+            )
+            snapshot["snapshot_id"] = (
+                f"self-play:{trajectory_id}:step-{step:03d}"
+            )
+            snapshot["replay_contract"] = capture_replay_contract(
+                env, actions, seed=environment_seed
+            )
+            snapshot["board_fingerprint"] = board_fingerprint(snapshot)
+            physical_state = state_tensor_from_snapshot(snapshot)
+            snapshot["model_visible_state_signature"] = stable_id(
+                "model-state", physical_state
+            )
+            snapshot["game_state_signature"] = stable_id(
+                "self-play-game-state", {
+                    "physical_state": physical_state,
+                    "player_to_move": state.current_player,
+                    "block_length": state.block_length,
+                },
+            )
+            snapshot["self_play_game"] = {
+                "trajectory_id": trajectory_id,
+                "policy_generation": policy_generation,
+                "behavior_source": f"self_play:{selection_mode}",
+                "player_to_move": state.current_player,
+                "block_length": state.block_length,
+                "handoff_count": state.handoff_count,
+                "is_handoff_state": bool(
+                    state.handoff_count > 0 and state.block_length == 0
+                ),
+            }
+            path = output_dir / f"step-{step:03d}-state.json"
+            path.write_text(
+                json.dumps(json_safe(snapshot), ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            return {
+                "step": int(step),
+                "handoff_count": state.handoff_count,
+                "is_handoff_state": snapshot["self_play_game"][
+                    "is_handoff_state"
+                ],
+                "snapshot_path": path.name,
+                "board_fingerprint": snapshot["board_fingerprint"],
+                "model_visible_state_signature": snapshot[
+                    "model_visible_state_signature"
+                ],
+                "game_state_signature": snapshot["game_state_signature"],
+            }
+
+        result = play_game(
+            env, raw_observation, provider, rules=rules,
+            handoff_rng=random.Random(handoff_seed),
+            policy_rng=random.Random(policy_seed),
+            metrics_fn=lambda current: cumulative_metrics(current),
+            max_steps=max_steps, top_k=top_k,
+            selection_mode=selection_mode,
+            selection_temperature=selection_temperature,
+            starting_player=starting_player, capture_fn=capture_fn,
+            evaluate_fn=lambda current: _compact_evaluation(current.evaluate()),
+        )
+        result.update({
+            "trajectory_id": trajectory_id,
+            "environment_seed": environment_seed,
+            "handoff_seed": handoff_seed,
+            "policy_seed": policy_seed,
+            "selection_mode": selection_mode,
+        })
+        return result
+    finally:
+        env.close()
+
+
+def _write_json(path: pathlib.Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(json_safe(payload), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=pathlib.Path, required=True)
+    parser.add_argument("--case", required=True)
+    parser.add_argument("--episodes", type=int, default=4)
+    parser.add_argument("--environment-seed", type=int, default=42)
+    parser.add_argument("--game-seed", type=int, default=20260821)
+    parser.add_argument("--minimum-block", type=int, default=3)
+    parser.add_argument("--handoff-probability", type=float, default=0.6)
+    parser.add_argument("--terminal-reward", type=float, default=50.0)
+    parser.add_argument("--attribute-penalty", type=float, default=5.0)
+    parser.add_argument("--attempt-budget", type=int, default=512)
+    parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--max-steps", type=int, default=18)
+    parser.add_argument(
+        "--selection-mode", choices=("rank0", "temperature"), default="rank0"
+    )
+    parser.add_argument("--selection-temperature", type=float, default=1.5)
+    parser.add_argument("--policy-generation", default="pi0")
+    parser.add_argument("--output-dir", type=pathlib.Path, required=True)
+    args = parser.parse_args()
+    require_supported_python()
+    if args.episodes < 1:
+        raise SystemExit("--episodes must be positive")
+    config = json.loads(args.config.read_text(encoding="utf-8"))
+    if args.case not in config:
+        raise SystemExit(f"unknown case: {args.case}")
+    rules = GameRules(
+        minimum_block=args.minimum_block,
+        handoff_probability=args.handoff_probability,
+        terminal_reward=args.terminal_reward,
+        attribute_penalty=args.attribute_penalty,
+    )
+    os.environ["NEDO_CANDIDATE_AUDIT"] = "1"
+    agent_module = load_agent_module()
+    games = []
+    for episode in range(args.episodes):
+        game_dir = args.output_dir / f"game-{episode:03d}"
+        games.append(run_physical_game(
+            agent_module, config[args.case], case_id=args.case, rules=rules,
+            environment_seed=args.environment_seed,
+            handoff_seed=args.game_seed + episode,
+            policy_seed=args.game_seed + 10000 + episode,
+            attempt_budget=args.attempt_budget, top_k=args.top_k,
+            max_steps=args.max_steps, selection_mode=args.selection_mode,
+            selection_temperature=args.selection_temperature,
+            starting_player=episode % 2,
+            policy_generation=args.policy_generation,
+            output_dir=game_dir,
+        ))
+    manifest = {
+        "schema_version": 1,
+        "experiment": "self-play packing game",
+        "case_id": args.case,
+        "policy_generation": args.policy_generation,
+        "rules": {
+            "minimum_block": rules.minimum_block,
+            "handoff_probability": rules.handoff_probability,
+            "terminal_reward": rules.terminal_reward,
+            "attribute_penalty": rules.attribute_penalty,
+        },
+        "candidate_contract": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "attempt_budget": args.attempt_budget,
+            "top_k": args.top_k,
+            "soft_priority": "dense_zero_sum_penalty_not_hard_filter",
+        },
+        "selection": {
+            "mode": args.selection_mode,
+            "temperature": args.selection_temperature,
+            "shared_between_players": True,
+        },
+        "games": games,
+    }
+    path = args.output_dir / "manifest.json"
+    _write_json(path, manifest)
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

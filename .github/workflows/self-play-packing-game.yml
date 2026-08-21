@@ -1,0 +1,124 @@
+name: Self-Play Packing Game pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_seed:
+        description: "Simulator seed shared by the control and exploration arms"
+        required: false
+        default: "42"
+      handoff_probability:
+        description: "Eligible-placement handoff probability"
+        required: false
+        default: "0.6"
+      exploration_temperature:
+        description: "Shared Top-K rank temperature"
+        required: false
+        default: "1.5"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/self-play-packing-game.yml
+      - scripts/self_play_packing_game.py
+      - scripts/run_self_play_packing.py
+      - scripts/evaluate_self_play_packing.py
+      - tests/test_self_play_packing_game.py
+      - tests/test_run_self_play_packing.py
+      - tests/test_evaluate_self_play_packing.py
+      - tests/test_self_play_packing_workflow.py
+      - docs/SELF_PLAY_PACKING_GAME.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-play-packing-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify game and physical contracts
+        run: >-
+          python -m unittest
+          tests.test_self_play_packing_game
+          tests.test_run_self_play_packing
+          tests.test_evaluate_self_play_packing
+          tests.test_self_play_packing_workflow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Build one shared physical scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --look-ahead 40
+          --policy-timeout 8
+          --stream-variant original
+          --output-dir reports/self-play-packing/configs
+      - name: Run deterministic shared-policy control
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-packing/configs/dual-preloaded-dedicated.json
+          --case m-dual-preloaded-dedicated
+          --episodes 2
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --game-seed 20260821
+          --minimum-block 3
+          --handoff-probability ${{ inputs.handoff_probability || '0.6' }}
+          --attempt-budget 512
+          --top-k 3
+          --max-steps 18
+          --selection-mode rank0
+          --policy-generation pi0
+          --output-dir reports/self-play-packing/rank0
+      - name: Run symmetric self-game exploration
+        run: >-
+          python scripts/run_self_play_packing.py
+          --config reports/self-play-packing/configs/dual-preloaded-dedicated.json
+          --case m-dual-preloaded-dedicated
+          --episodes 4
+          --environment-seed ${{ inputs.environment_seed || '42' }}
+          --game-seed 20260821
+          --minimum-block 3
+          --handoff-probability ${{ inputs.handoff_probability || '0.6' }}
+          --attempt-budget 512
+          --top-k 3
+          --max-steps 18
+          --selection-mode temperature
+          --selection-temperature ${{ inputs.exploration_temperature || '1.5' }}
+          --policy-generation pi0
+          --output-dir reports/self-play-packing/temperature
+      - name: Evaluate control
+        run: >-
+          python scripts/evaluate_self_play_packing.py
+          --manifest reports/self-play-packing/rank0/manifest.json
+          --json-output reports/self-play-packing/aggregate/rank0.json
+          --markdown-output reports/self-play-packing/aggregate/rank0.md
+      - name: Evaluate exploration
+        run: >-
+          python scripts/evaluate_self_play_packing.py
+          --manifest reports/self-play-packing/temperature/manifest.json
+          --json-output reports/self-play-packing/aggregate/temperature.json
+          --markdown-output reports/self-play-packing/aggregate/temperature.md
+      - name: Publish pilot summaries
+        shell: bash
+        run: |
+          cat reports/self-play-packing/aggregate/rank0.md >> "$GITHUB_STEP_SUMMARY"
+          cat reports/self-play-packing/aggregate/temperature.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-packing-${{ github.run_id }}
+          path: reports/self-play-packing/
