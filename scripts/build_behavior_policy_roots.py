@@ -143,7 +143,7 @@ def candidate_passes_hard_constraints(
         _observation, _reward, _terminated, _truncated, info = env.step(
             canonical_action(action)
         )
-        outcomes = transition_outcomes(
+        outcomes, _cumulative = transition_outcomes(
             env, info, parent, include_post_shake=True
         )
         return edge_passes_hard_constraints(

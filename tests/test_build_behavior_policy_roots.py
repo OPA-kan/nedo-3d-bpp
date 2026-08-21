@@ -8,6 +8,7 @@ from scripts.build_behavior_policy_roots import (
     behavior_frontier,
     choose_behavior_action,
 )
+from scripts.build_counterfactual_graph import transition_outcomes
 
 
 def action(x: float) -> dict:
@@ -15,6 +16,29 @@ def action(x: float) -> dict:
 
 
 class BehaviorPolicyRootTests(unittest.TestCase):
+    def test_transition_contract_separates_edge_outcomes_from_cumulative_state(self):
+        class Evaluator:
+            def settled_snapshot(self, _containers):
+                return {}
+
+        env = SimpleNamespace(
+            evaluator=Evaluator(),
+            container_manager=SimpleNamespace(containers=[]),
+            evaluate=lambda: {
+                "score_proxies": {"fill_score_proxy": 1.0},
+                "items_placed": 1,
+            },
+            step_metrics=[],
+        )
+        immediate, cumulative = transition_outcomes(
+            env,
+            {"is_included": True, "is_valid": True, "is_placed_safe": True},
+            {},
+        )
+        self.assertIsInstance(immediate, dict)
+        self.assertIsInstance(cumulative, dict)
+        self.assertIn("is_included", immediate)
+
     def test_frontier_keeps_live_action_first_and_only_settled_unique_alternatives(self):
         decisions = [
             SimpleNamespace(action=action(0.2), score=8.0, candidate=SimpleNamespace(name=None)),
