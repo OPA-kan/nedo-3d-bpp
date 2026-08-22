@@ -16,14 +16,18 @@ def _policy(q_top, visit_top):
     return rows
 
 
-def _condition(q_top, visit_top):
-    return {
+def _condition(q_top, visit_top, *, rescue_limit=None, rescued=0):
+    result = {
         "policy_target": _policy(q_top, visit_top),
         "candidate_exhaustion_shadow_summary": {
             "audited_nodes": 2,
             "wider_safe_recovered_nodes": 1,
         },
+        "candidate_rescue_summary": {"applied_nodes": rescued},
     }
+    if rescue_limit is not None:
+        result["candidate_rescue_limit"] = rescue_limit
+    return result
 
 
 class AdaptivePuctScheduleTests(unittest.TestCase):
@@ -106,6 +110,31 @@ class AdaptivePuctScheduleTests(unittest.TestCase):
         self.assertEqual(
             comparison["full_order_guarded"]["both_top_matches_roots"], 1
         )
+
+    def test_caveat_distinguishes_searchable_rescue_from_shadow_audit(self):
+        conditions = {
+            label: _condition("a", "a", rescue_limit=64, rescued=2)
+            for label in (
+                "h2-s24", "h2-s48", "h3-s48", "h5-s48"
+            )
+        }
+        payload = {"complete": True, "roots": [{
+            "root_id": "rescued",
+            "promoted": False,
+            "conditions": conditions,
+        }]}
+
+        result = evaluate_adaptive_schedule([payload], expected_roots=1)
+
+        self.assertEqual(result["reference_candidate_rescue_limits"], [64])
+        self.assertEqual(result["reference_searchable_rescue_nodes"], 2)
+        self.assertTrue(any(
+            "conditional on that enlarged support" in caveat
+            for caveat in result["caveats"]
+        ))
+        self.assertFalse(any(
+            "shadow-only" in caveat for caveat in result["caveats"]
+        ))
 
 
 if __name__ == "__main__":

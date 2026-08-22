@@ -206,7 +206,10 @@ def build_candidate_provider(
     agent_module, *, attempt_budget: int,
     include_release_fallbacks: bool = False,
     scan_all_visible_items: bool = False,
+    candidate_stride: int = 1,
 ):
+    if int(candidate_stride) < 1:
+        raise ValueError("candidate_stride must be positive")
     risk_lambda = (
         agent_module.RELEASE_RISK_RERANK_LAMBDA
         if agent_module.RELEASE_RISK_LIVE_RERANK
@@ -242,21 +245,64 @@ def build_candidate_provider(
             ):
                 target[stable_item_index] = decision
 
+        def scan_item(indexed_item):
+            if int(candidate_stride) == 1:
+                agent_module.PlacementCore.top_candidates(
+                    observation,
+                    [indexed_item],
+                    1,
+                    deadline=None,
+                    diagnostics=None,
+                    risk_lambda=risk_lambda,
+                    candidate_observer=retain_item_best,
+                    attempt_budget=int(attempt_budget),
+                )
+                return
+            containers = observation.get("container_list", [])
+            has_priority_container = any(
+                bool(container.get("is_prioritized", False))
+                for container in containers
+            )
+            for (
+                pool_index,
+                item,
+                container_index,
+                orientation,
+                candidate,
+            ) in agent_module.iter_prioritized_candidates(
+                observation,
+                [indexed_item],
+                deadline=None,
+                diagnostics=None,
+                attempt_budget=int(attempt_budget),
+                stride=int(candidate_stride),
+                interleave=int(agent_module.LIVE_SEARCH_INTERLEAVE),
+            ):
+                decision = agent_module.make_placement_decision(
+                    pool_index,
+                    item,
+                    container_index,
+                    containers[container_index],
+                    orientation,
+                    candidate,
+                    has_priority_container=has_priority_container,
+                    risk_lambda=risk_lambda,
+                    source="provider_stride_rescue",
+                )
+                retain_item_best(
+                    pool_index,
+                    item,
+                    container_index,
+                    orientation,
+                    decision,
+                )
+
         # Run an equal fixed-attempt scan PER ITEM. A single shared scan still
         # spent all 512 pilot attempts on one easy item and produced a graph
         # of width one. This is offline state-coverage sampling, so the extra
         # cost is intentional and recorded; live policy timing is untouched.
         for indexed_item in indexed_items:
-            agent_module.PlacementCore.top_candidates(
-                observation,
-                [indexed_item],
-                1,
-                deadline=None,
-                diagnostics=None,
-                risk_lambda=risk_lambda,
-                candidate_observer=retain_item_best,
-                attempt_budget=int(attempt_budget),
-            )
+            scan_item(indexed_item)
         settled = sorted(
             settled_by_item.items(),
             key=lambda pair: (-float(pair[1].score), int(pair[0])),
@@ -283,6 +329,51 @@ def build_candidate_provider(
                 if decision.candidate.name == "release_candidate"
                 else "settled_candidate"
             )
+            attribute_heads = {
+                "priority_routing_violation": None,
+                "priority_violations_direct": None,
+                "soft_violations_direct": None,
+                "priority_violations_stack": None,
+                "soft_violations_stack": None,
+            }
+            attribute_fn = getattr(
+                agent_module, "candidate_attribute_violations", None
+            )
+            pool = observation.get("pool_list", [])
+            containers = observation.get("container_list", [])
+            item_index = int(action["item_idx"])
+            container_index = int(action["container_idx"])
+            if (
+                callable(attribute_fn)
+                and 0 <= item_index < len(pool)
+                and 0 <= container_index < len(containers)
+            ):
+                direct_priority, direct_soft = attribute_fn(
+                    pool[item_index], decision.candidate,
+                    containers[container_index], stack_aware=False,
+                )
+                stack_priority, stack_soft = attribute_fn(
+                    pool[item_index], decision.candidate,
+                    containers[container_index], stack_aware=True,
+                )
+                attribute_heads = {
+                    "priority_routing_violation": int(
+                        bool(pool[item_index].get("is_prioritized", False))
+                        and any(
+                            bool(row.get("is_prioritized", False))
+                            for row in containers
+                        )
+                        and not bool(
+                            containers[container_index].get(
+                                "is_prioritized", False
+                            )
+                        )
+                    ),
+                    "priority_violations_direct": int(direct_priority),
+                    "soft_violations_direct": int(direct_soft),
+                    "priority_violations_stack": int(stack_priority),
+                    "soft_violations_stack": int(stack_soft),
+                }
             result.append(
                 BranchCandidate(
                     candidate_id=stable_id(
@@ -305,6 +396,7 @@ def build_candidate_provider(
                         "candidate_kind": candidate_kind,
                         "attempt_budget": int(attempt_budget),
                         "attempt_budget_scope": "per_item",
+                        "candidate_stride": int(candidate_stride),
                         "risk_lambda": (
                             None
                             if risk_lambda is None
@@ -316,6 +408,7 @@ def build_candidate_provider(
                         "all_visible_items_scanned": bool(
                             scan_all_visible_items
                         ),
+                        **attribute_heads,
                     },
                 )
             )

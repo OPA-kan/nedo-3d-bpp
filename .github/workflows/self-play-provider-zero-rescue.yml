@@ -1,0 +1,147 @@
+name: Provider-zero physical rescue benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Self-Play PUCT matrix run containing replay configs
+        required: true
+        default: "32515349437"
+      max_per_stratum:
+        description: Unique boards per case x effective-step stratum; 0 means all 521
+        required: false
+        default: "8"
+      sample_seed:
+        description: Deterministic board sampling seed
+        required: false
+        default: "20260823"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/self-play-provider-zero-rescue.yml
+      - agent/agent.py
+      - scripts/build_counterfactual_graph.py
+      - scripts/extract_provider_zero_corpus.py
+      - scripts/run_provider_zero_rescue.py
+      - scripts/evaluate_provider_zero_rescue.py
+      - tests/test_extract_provider_zero_corpus.py
+      - tests/test_evaluate_provider_zero_rescue.py
+      - tests/test_self_play_provider_zero_rescue_workflow.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: self-play-provider-zero-rescue-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.head_commit.message, '[skip provider rescue]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify corpus and evaluator contracts
+        run: >-
+          python -m unittest
+          tests.test_extract_provider_zero_corpus
+          tests.test_evaluate_provider_zero_rescue
+          tests.test_self_play_provider_zero_rescue_workflow
+          -v
+      - name: Freeze the stratified unique-board sample
+        run: >-
+          python scripts/extract_provider_zero_corpus.py
+          --corpus reports/self-play-packing/provider-zero-corpus-32572648489.json
+          --max-per-stratum ${{ inputs.max_per_stratum || '8' }}
+          --seed ${{ inputs.sample_seed || '20260823' }}
+          --output reports/provider-zero-input/provider-zero-corpus.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provider-zero-rescue-input
+          path: reports/provider-zero-input/
+
+  physical-rescue:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify provider and physical contracts
+        run: >-
+          python -m unittest
+          tests.test_build_counterfactual_graph
+          tests.test_extract_provider_zero_corpus
+          tests.test_evaluate_provider_zero_rescue
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Download the frozen source roots
+        shell: bash
+        run: >-
+          gh run download "${{ inputs.source_run_id || '32515349437' }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id || '32515349437' }}"
+          --dir reports/source-puct-matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: provider-zero-rescue-input
+          path: reports/provider-zero-input
+      - name: Replay provider-zero boards with bounded rescue proposals
+        run: >-
+          python scripts/run_provider_zero_rescue.py
+          --corpus reports/provider-zero-input/provider-zero-corpus.json
+          --source-root reports/source-puct-matrix
+          --shard-index ${{ matrix.shard_index }}
+          --shard-count 8
+          --output reports/provider-zero-rescue/provider-rescue-shard-${{ matrix.shard_index }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: provider-zero-rescue-shard-${{ matrix.shard_index }}
+          path: reports/provider-zero-rescue/
+
+  aggregate:
+    needs: physical-rescue
+    if: always() && needs.physical-rescue.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: provider-zero-rescue-shard-*
+          path: reports/provider-zero-rescue
+          merge-multiple: true
+      - name: Aggregate provider recall, cost, and attribute heads
+        run: >-
+          python scripts/evaluate_provider_zero_rescue.py
+          --root reports/provider-zero-rescue
+          --json-output reports/provider-zero-rescue/aggregate.json
+          --markdown-output reports/provider-zero-rescue/aggregate.md
+      - name: Publish provider-zero rescue verdict
+        shell: bash
+        run: cat reports/provider-zero-rescue/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: provider-zero-rescue-aggregate-${{ github.run_id }}
+          path: reports/provider-zero-rescue/

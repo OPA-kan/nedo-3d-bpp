@@ -1,6 +1,6 @@
 # Handoff — current state
 
-Updated: 2026-08-22 JST (the 2026-08-16 text below is retained; the
+Updated: 2026-08-23 JST (the 2026-08-16 text below is retained; the
 sections added on 2026-08-18 are the soft axis, the death budget, the
 measurement-hygiene defects, the post-shake instrument, and the fifth
 official submission). The most advanced line is now
@@ -102,16 +102,40 @@ suffix value heads without ranker score/rank/prior leakage. See
 `reports/self-play-packing/multi-head-branch-teacher-contract.md`.
 
 The first no-NN adaptive H/S replay over these 58 roots is in
-`reports/self-play-packing/adaptive-puct-schedule-32553551810.{json,md}`. An
-aggressive budget-top stop matched both deep-reference tops on 54/58 roots at
-a mean rollout-step upper bound of 151.4; requiring H3 confirmation reached
-57/58 at 321.1; the full-order guarded schedule reproduced 58/58 at 958.3.
-These are posthoc development rules on the same capability set, not an
-unbiased score estimate or independent confirmation; the full-order result is
-58/58 by construction because it uses the reference-defining promotion rule.
-Adaptive K is
-not yet validated: the width-64 data are shadow-only and cannot show whether a
-recovered candidate changes the root decision.
+`reports/self-play-packing/adaptive-puct-schedule-32553551810.{json,md}`. The
+searchable-K rerun is Actions run `32572648489`, with its corrected schedule in
+`adaptive-puct-schedule-32572648489.{json,md}`. An aggressive budget-top stop
+matched both deep-reference tops on 54/58 roots at a mean rollout-step upper
+bound of 151.4; requiring H3 confirmation reached 57/58 at 345.9; the
+full-order guarded schedule reproduced 58/58 at 958.3. These are posthoc
+development rules on the same capability set, not an unbiased score estimate
+or independent confirmation; the full-order result is 58/58 by construction
+because it uses the reference-defining promotion rule.
+
+Adaptive K is now measured rather than shadow-only. Run `32572648489`
+completed 8/8 shards plus aggregate with `candidate_rescue_limit=64`: 151
+exhausted nodes admitted 1,862 physically safe rank-4+ candidates into the
+tree. Deep-reference Q-top and visit-top changed on 5/58 roots. Relative to
+fixed Top-3, bounded Q-top/visit-top/full-order stability changed by -1/-1/-1;
+this is not evidence of action-quality regression because each arm's deep
+reference is conditional on a different candidate support. Censored
+exhaustion events fell 2,629 -> 2,473 while unique exhausted nodes rose 1,141
+-> 1,206, consistent with rescued branches reaching new deeper dead ends.
+
+The next bottleneck is provider support. Of 1,357 reference exhaustion audits,
+151 recovered a safe wider candidate, 37 emitted only physically rejected
+candidates, and 1,169 (86.1%) remained provider-empty even at width 64. Those
+1,169 nodes correspond to 521 unique board fingerprints, not one repeated
+state: 248 single-empty-shelf, 149 dual-preloaded-dedicated, 97
+single-empty-noshelf and 27 dual-shelf-mixed. A durable replay corpus is in
+`reports/self-play-packing/provider-zero-corpus-32572648489.json`. The next
+experiment is a stratified 49-board physical rescue benchmark (up to eight
+boards per case x effective-step band), comparing the same generator at 2,048
+attempts with stride-4 and stride-16 global anchor coverage at the original
+512 attempts. Every emitted proposal remains behind fresh PyBullet hard
+filtering; direct and stack-aware soft/priority coverage plus priority routing
+are separate heads. This is a provider-recall capability test, not a policy or
+score-improvement claim.
 
 The instrument and the first Linux physical H3 condition matrix are complete:
 

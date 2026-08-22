@@ -364,6 +364,151 @@ class PhysicalOutcomeTests(unittest.TestCase):
             for candidate in candidates
         ))
 
+    def test_measurement_provider_forwards_opt_in_candidate_stride(self):
+        calls = []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=SimpleNamespace(),
+            LIVE_SEARCH_INTERLEAVE=1,
+            iter_prioritized_candidates=(
+                lambda _observation, _items, **kwargs:
+                calls.append(kwargs) or iter(())
+            ),
+        )
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value={},
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[(0, {"index": 10})],
+            ),
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=512, candidate_stride=4,
+            )(object(), {}, 64)
+
+        self.assertEqual(candidates, [])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["stride"], 4)
+        self.assertEqual(calls[0]["attempt_budget"], 512)
+
+    def test_strided_provider_scores_the_existing_candidate_stream(self):
+        item = {"index": 10}
+        candidate = SimpleNamespace(name=None)
+        decision = SimpleNamespace(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": [0, 0, 0.5],
+                "orientation": 0,
+            },
+            candidate=candidate,
+            score=7.0,
+        )
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=SimpleNamespace(),
+            LIVE_SEARCH_INTERLEAVE=1,
+            iter_prioritized_candidates=(
+                lambda *_args, **_kwargs:
+                iter([(0, item, 0, 0, candidate)])
+            ),
+            make_placement_decision=lambda *_args, **_kwargs: decision,
+        )
+        observation = {
+            "pool_list": [item],
+            "container_list": [{"is_prioritized": False}],
+        }
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value=observation,
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[(0, item)],
+            ),
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=512, candidate_stride=4,
+            )(object(), {}, 64)
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].selection["score"], 7.0)
+        self.assertEqual(candidates[0].selection["candidate_stride"], 4)
+
+    def test_measurement_provider_rejects_nonpositive_stride(self):
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+        )
+        with self.assertRaisesRegex(ValueError, "candidate_stride"):
+            build_candidate_provider(
+                module, attempt_budget=512, candidate_stride=0,
+            )
+
+    def test_measurement_provider_saves_direct_and_stack_attribute_heads(self):
+        decision = SimpleNamespace(
+            action={
+                "item_idx": 0,
+                "container_idx": 0,
+                "place_pos": [0, 0, 0.5],
+                "orientation": 0,
+            },
+            candidate=SimpleNamespace(name=None),
+            score=1.0,
+        )
+
+        class PlacementCore:
+            @staticmethod
+            def top_candidates(_obs, _items, _k, **kwargs):
+                kwargs["candidate_observer"](
+                    0, {"index": 10}, 0, 0, decision,
+                )
+                return []
+
+        module = SimpleNamespace(
+            RELEASE_RISK_LIVE_RERANK=False,
+            RELEASE_RISK_RERANK_LAMBDA=1.0,
+            PlacementCore=PlacementCore,
+            candidate_attribute_violations=(
+                lambda _item, _candidate, _container, *, stack_aware:
+                (2, 3) if stack_aware else (0, 1)
+            ),
+        )
+        observation = {
+            "pool_list": [{"index": 10, "is_prioritized": True}],
+            "container_list": [
+                {"is_prioritized": False},
+                {"is_prioritized": True},
+            ],
+        }
+        with (
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_observation",
+                return_value=observation,
+            ),
+            mock.patch(
+                "scripts.build_counterfactual_graph.policy_indexed_items",
+                return_value=[(0, {"index": 10})],
+            ),
+        ):
+            candidates = build_candidate_provider(
+                module, attempt_budget=512,
+            )(object(), {}, 64)
+
+        selection = candidates[0].selection
+        self.assertEqual(selection["priority_routing_violation"], 1)
+        self.assertEqual(selection["priority_violations_direct"], 0)
+        self.assertEqual(selection["soft_violations_direct"], 1)
+        self.assertEqual(selection["priority_violations_stack"], 2)
+        self.assertEqual(selection["soft_violations_stack"], 3)
+
     def test_records_all_score_proxies_without_collapsing_them(self):
         class Container:
             packed_items = [object(), object()]
