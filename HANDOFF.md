@@ -130,9 +130,10 @@ state: 248 single-empty-shelf, 149 dual-preloaded-dedicated, 97
 single-empty-noshelf and 27 dual-shelf-mixed. A durable replay corpus is in
 `reports/self-play-packing/provider-zero-corpus-32572648489.json`. The next
 experiment is a stratified 49-board physical rescue benchmark (up to eight
-boards per case x effective-step band), comparing the same generator at 2,048
-attempts with stride-4 and stride-16 global anchor coverage at the original
-512 attempts. Every emitted proposal remains behind fresh PyBullet hard
+boards per case x effective-step band). The source manifest fixes the original
+budget at 128 attempts per item; the benchmark compares 4x/16x deep scans with
+equal-budget stride-4 and stride-16 global anchor coverage. Every emitted
+proposal remains behind fresh PyBullet hard
 filtering; direct and stack-aware soft/priority coverage plus priority routing
 are separate heads. This is a provider-recall capability test, not a policy or
 score-improvement claim.

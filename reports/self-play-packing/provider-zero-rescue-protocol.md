@@ -27,14 +27,16 @@ as independent states.
 ## Frozen rescue strategies
 
 All strategies scan every visible item and retain at most 64 distinct-item
-proposals. The original provider (`stride=1`, 512 attempts per item) must
-reproduce zero proposals before a board is evaluated.
+proposals. The original attempt budget is read from each source manifest
+(`stride=1`, 128 attempts per item in this corpus) and must reproduce zero
+proposals before a board is evaluated.
 
 | strategy | attempts/item | anchor stride | hypothesis |
 |---|---:|---:|---|
-| `deep2048` | 2,048 | 1 | the existing order is right but truncated too early |
-| `stride4` | 512 | 4 | the natural anchor prefix is spatially too local |
-| `stride16` | 512 | 16 | coarse global coverage is required before refinement |
+| `deep4x` | 512 | 1 | modest extra attempts recover the existing order |
+| `deep16x` | 2,048 | 1 | a much deeper ceiling is still useful |
+| `stride4` | 128 | 4 | equal-budget spatial coverage beats the natural prefix |
+| `stride16` | 128 | 16 | equal-budget coarse global coverage is required |
 
 Every proposal is replayed in an independent PyBullet environment. A rescue
 counts only if `is_included`, `is_valid`, and `is_placed_safe` are all true.
@@ -57,8 +59,8 @@ mean generation/physics-filter cost.
 
 - A point estimate at or above 20% is a promising provider-support result,
   not a license to change the policy.
-- If `deep2048` wins, the first defect is attempt starvation.
-- If a strided arm wins at the same 512-attempt budget, the first defect is
+- If a deep arm wins, the first defect is attempt starvation.
+- If a strided arm wins at the same 128-attempt budget, the first defect is
   spatial prefix coverage.
 - If all three are near zero, stop increasing K/attempts and test a new
   proposal family, including learned or continuous action proposals.

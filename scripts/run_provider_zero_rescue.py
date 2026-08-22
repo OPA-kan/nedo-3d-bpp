@@ -34,10 +34,11 @@ from scripts.run_self_play_packing import (  # noqa: E402
 )
 
 
-STRATEGIES = {
-    "deep2048": {"attempt_budget": 2048, "candidate_stride": 1},
-    "stride4": {"attempt_budget": 512, "candidate_stride": 4},
-    "stride16": {"attempt_budget": 512, "candidate_stride": 16},
+STRATEGY_SPECS = {
+    "deep4x": {"attempt_multiplier": 4, "candidate_stride": 1},
+    "deep16x": {"attempt_multiplier": 16, "candidate_stride": 1},
+    "stride4": {"attempt_multiplier": 1, "candidate_stride": 4},
+    "stride16": {"attempt_multiplier": 1, "candidate_stride": 16},
 }
 
 
@@ -50,7 +51,26 @@ def load_task_config(source_root: pathlib.Path, state: dict[str, Any]):
     cases = json.loads(config_path.read_text(encoding="utf-8"))
     if state["case_id"] not in cases:
         raise KeyError(f"missing {state['case_id']} in {config_path}")
-    return cases[state["case_id"]]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    attempt_budget = int(manifest["candidate_contract"]["attempt_budget"])
+    return cases[state["case_id"]], attempt_budget
+
+
+def resolve_strategies(
+    baseline_attempt_budget: int,
+    specs: dict[str, dict[str, int]] = STRATEGY_SPECS,
+) -> dict[str, dict[str, int]]:
+    if baseline_attempt_budget < 1:
+        raise ValueError("baseline attempt budget must be positive")
+    return {
+        name: {
+            "attempt_budget": (
+                baseline_attempt_budget * int(spec["attempt_multiplier"])
+            ),
+            "candidate_stride": int(spec["candidate_stride"]),
+        }
+        for name, spec in specs.items()
+    }
 
 
 def _failure_channel(status: dict[str, Any]) -> str:
@@ -70,11 +90,14 @@ def _candidate_summary(candidate: Any) -> dict[str, Any]:
 
 def run_state(
     state: dict[str, Any], *, source_root: pathlib.Path, agent_module,
-    strategies: dict[str, dict[str, int]] = STRATEGIES,
+    strategy_specs: dict[str, dict[str, int]] = STRATEGY_SPECS,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
-    task_config = load_task_config(source_root, state)
+    task_config, baseline_attempt_budget = load_task_config(source_root, state)
+    strategies = resolve_strategies(
+        baseline_attempt_budget, specs=strategy_specs
+    )
     environment_seed = int(state["replay_contract"]["seed"])
 
     def env_factory():
@@ -109,7 +132,7 @@ def run_state(
         ))
         baseline = build_candidate_provider(
             agent_module,
-            attempt_budget=512,
+            attempt_budget=baseline_attempt_budget,
             scan_all_visible_items=True,
             candidate_stride=1,
         )(env, rebuilt.observation, 64)
@@ -167,6 +190,7 @@ def run_state(
         "effective_step": int(state["effective_step"]),
         "stratum": state["stratum"],
         "occurrence_count": int(state["occurrence_count"]),
+        "baseline_attempt_budget": baseline_attempt_budget,
         "baseline_provider_confirmed_empty": True,
         "strategies": outcomes,
     }
@@ -200,7 +224,7 @@ def main() -> int:
         "shard_index": int(args.shard_index),
         "shard_count": int(args.shard_count),
         "assigned_state_count": len(states),
-        "strategies": STRATEGIES,
+        "strategy_specs": STRATEGY_SPECS,
         "states": rows,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

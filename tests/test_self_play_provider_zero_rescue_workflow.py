@@ -20,6 +20,7 @@ class ProviderZeroRescueWorkflowTests(unittest.TestCase):
         self.assertIn("source_run_id", text)
         self.assertIn("self-play-puct-matrix-aggregate-", text)
         self.assertIn("run_provider_zero_rescue.py", text)
+        self.assertIn("tests.test_run_provider_zero_rescue", text)
         self.assertIn("shard_index: [0, 1, 2, 3, 4, 5, 6, 7]", text)
         self.assertIn("NEDO_REQUIRE_INTEGRATION", text)
         self.assertIn("evaluate_provider_zero_rescue.py", text)
