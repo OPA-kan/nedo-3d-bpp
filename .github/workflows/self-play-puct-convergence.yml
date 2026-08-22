@@ -7,6 +7,15 @@ on:
         description: Successful Self-Play PUCT matrix run containing the 58 roots
         required: true
         default: "32515349437"
+  push:
+    branches:
+      - experiment/counterfactual-graph
+    paths:
+      - .github/workflows/self-play-puct-convergence.yml
+      - scripts/evaluate_self_play_puct_convergence.py
+      - scripts/rerun_self_play_puct_roots.py
+      - tests/test_evaluate_self_play_puct_convergence.py
+      - tests/test_self_play_puct_convergence_workflow.py
 
 permissions:
   contents: read
@@ -47,8 +56,8 @@ jobs:
       - name: Download the frozen source roots
         shell: bash
         run: >-
-          gh run download "${{ inputs.source_run_id }}"
-          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          gh run download "${{ inputs.source_run_id || '32515349437' }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id || '32515349437' }}"
           --dir reports/source-puct-matrix
         env:
           GH_TOKEN: ${{ github.token }}
