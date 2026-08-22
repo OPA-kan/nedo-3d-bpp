@@ -52,7 +52,7 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
     @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
     @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
     @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
-    def test_physical_puct_prefers_branch_that_avoids_bounded_exhaustion(
+    def test_physical_puct_censors_bounded_exhaustion_without_terminal_loss(
         self, replay, _contract, _observation, _snapshot, _fingerprint,
     ):
         replay.return_value = SimpleNamespace(
@@ -125,18 +125,122 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             ), step=0, policy_rng=random.Random(9),
         )
 
-        self.assertEqual(chosen["candidate_id"], "alive")
+        self.assertIn(chosen["candidate_id"], {"dead", "alive"})
         self.assertEqual(result["action_temperature"], 0.0)
         self.assertEqual(result["configured_action_temperature"], 1.0)
         self.assertEqual(result["temperature_drop_step"], 0)
         self.assertEqual(sum(row["visits"] for row in result["policy_target"]), 4)
-        self.assertEqual(
+        self.assertGreaterEqual(
             result["simulation_terminal_reasons"][
-                "bounded_candidate_exhaustion"
+                "bounded_candidate_exhaustion_censored"
             ],
             1,
         )
+        self.assertEqual(result["candidate_exhaustion_unique_nodes"], 1)
+        dead = next(
+            row for row in result["policy_target"]
+            if row["candidate_id"] == "dead"
+        )
+        self.assertEqual(dead["q"], 0.0)
         self.assertTrue(all(env.closed for env in simulations))
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_exhaustion_shadow_widening_finds_safe_candidate_without_selecting_it(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        def row(name, item_idx, rank, safe=True):
+            return {
+                "candidate_id": name,
+                "selection": {"rank": rank, "shadow_safe": safe},
+                "command_action": {
+                    "item_idx": item_idx, "container_idx": 0,
+                    "place_pos": [item_idx * 0.1, 0.0, 0.5],
+                    "orientation": 0,
+                },
+            }
+
+        root = row("root", 0, 0)
+        rejected = [row("bad-0", 1, 0, False), row("bad-1", 2, 1, False)]
+        recovered = row("wide-safe", 3, 2, True)
+
+        class SimulationEnv:
+            def __init__(self):
+                self.at_depth_one = False
+
+            def step(self, _action):
+                self.at_depth_one = True
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        provider_limits = []
+
+        def provider(env, _observation, limit):
+            self.assertTrue(env.at_depth_one)
+            provider_limits.append(limit)
+            return (rejected + [recovered])[:limit]
+
+        def legal_filter(**context):
+            retained = [
+                candidate for candidate in context["candidates"]
+                if candidate["selection"]["shadow_safe"]
+            ]
+            return retained, {
+                "proposal_count": len(context["candidates"]),
+                "safe_count": len(retained),
+                "rejected_count": len(context["candidates"]) - len(retained),
+            }
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=provider, legal_filter_fn=legal_filter,
+            rules=GameRules(minimum_block=10), top_k=2,
+            candidate_audit_limit=3, simulations=1, horizon=2,
+            action_temperature=0.0, metrics_fn=lambda _env: {},
+            leaf_value_fn=lambda **_context: self.fail(
+                "censored exhaustion must not call the value model"
+            ),
+            env_factory=SimulationEnv,
+        )
+
+        chosen, result = search(
+            env=object(), observation={}, candidates=[root], actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        self.assertEqual(chosen["candidate_id"], "root")
+        self.assertEqual(provider_limits, [2, 3])
+        self.assertEqual(result["candidate_exhaustion_unique_nodes"], 1)
+        self.assertEqual(result["leaf_value_calls"], 0)
+        self.assertEqual(result["candidate_exhaustion_shadow_summary"], {
+            "audited_nodes": 1,
+            "top_k_proposal_empty_nodes": 0,
+            "top_k_all_rejected_nodes": 1,
+            "wider_safe_recovered_nodes": 1,
+            "wider_proposal_empty_nodes": 0,
+            "wider_all_rejected_nodes": 0,
+            "prefix_mismatch_nodes": 0,
+        })
+        audit = result["candidate_exhaustion_audits"][0]
+        self.assertEqual(audit["top_k_safe_count"], 0)
+        self.assertEqual(audit["wider_safe_count"], 1)
+        self.assertEqual(audit["recovered_candidate_ids"], ["wide-safe"])
 
     def test_search_policy_selects_action_and_emits_pi_and_return_target(self):
         def two_candidates(_env, _observation, _limit):

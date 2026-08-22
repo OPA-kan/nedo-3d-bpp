@@ -14,8 +14,10 @@ on:
       - .github/workflows/self-play-puct-convergence.yml
       - scripts/evaluate_self_play_puct_convergence.py
       - scripts/rerun_self_play_puct_roots.py
+      - scripts/run_self_play_packing.py
       - tests/test_evaluate_self_play_puct_convergence.py
       - tests/test_self_play_puct_convergence_workflow.py
+      - tests/test_run_self_play_packing.py
 
 permissions:
   contents: read
@@ -69,6 +71,7 @@ jobs:
           python scripts/rerun_self_play_puct_roots.py
           --source-root reports/source-puct-matrix
           --expected-roots 58
+          --candidate-audit-limit 64
           --shard-index ${{ matrix.shard_index }}
           --shard-count 8
           --output reports/puct-convergence/convergence-shard-${{ matrix.shard_index }}.json

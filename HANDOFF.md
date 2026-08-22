@@ -1,6 +1,6 @@
 # Handoff — current state
 
-Updated: 2026-08-18 JST (the 2026-08-16 text below is retained; the
+Updated: 2026-08-22 JST (the 2026-08-16 text below is retained; the
 sections added on 2026-08-18 are the soft axis, the death budget, the
 measurement-hygiene defects, the post-shake instrument, and the fifth
 official submission). The most advanced line is now
@@ -58,6 +58,27 @@ multi-step futures as a deterministic DAG, not as independent one-step rows.
 Nodes are settled residual states; edges are commanded placements with
 separate physical and multi-axis labels. Sibling branches must share the same
 future stream and fixed attempt budget.
+
+### Self-Play PUCT teacher repair awaiting physical rerun
+
+The 58-root convergence audit in Actions run `32543828460` found 4,334
+deepest-reference visits ending in `bounded_candidate_exhaustion`. That event
+was incorrectly backed up as a game loss of magnitude 50 even though the
+search sees only a bounded Top-3 generator set. The repair now censors this
+unknown continuation at zero: accumulated soft/priority rewards remain, but no
+terminal reward and no value-model call are added. Game-level genuine stream
+completion and the external no-retained-candidate rule are unchanged; chance
+handling and the zero leaf model are unchanged.
+
+The same rerun now performs a shadow-only widening audit at each unique
+exhausted node. Search still sees Top-3, while the audit asks the unchanged
+provider for up to 64 candidates and physically checks only candidates beyond
+the already-rejected prefix. It records whether a safe rank-4+ candidate was
+recovered, the wider provider remained empty, or all wider proposals were
+physically rejected. Shadow candidates never enter the tree. The next required
+evidence is the same 58-root H2/H3/H5 schedule; compare Q/horizon stability
+against run `32543828460` and report recall categories before any P/V learner.
+See `reports/self-play-packing/censored-exhaustion-protocol.md`.
 
 The instrument and the first Linux physical H3 condition matrix are complete:
 

@@ -105,16 +105,34 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
         self.assertEqual(signature["q_relations"]["c1|c2"], 1)
 
     def test_aggregate_requires_determinism_and_reports_promoted_stability(self):
+        def condition(qs):
+            return {
+                "policy_target": _policy(qs),
+                "candidate_exhaustion_unique_nodes": 2,
+                "simulation_terminal_reasons": {
+                    "bounded_candidate_exhaustion_censored": 7,
+                },
+                "candidate_exhaustion_shadow_summary": {
+                    "audited_nodes": 2,
+                    "top_k_proposal_empty_nodes": 1,
+                    "top_k_all_rejected_nodes": 1,
+                    "wider_safe_recovered_nodes": 1,
+                    "wider_proposal_empty_nodes": 1,
+                    "wider_all_rejected_nodes": 0,
+                    "prefix_mismatch_nodes": 0,
+                },
+            }
+
         base = {
-            "h2-s12-a": {"policy_target": _policy((0.2, 0.1, 0.0))},
-            "h2-s12-b": {"policy_target": _policy((0.2, 0.1, 0.0))},
-            "h2-s24": {"policy_target": _policy((0.2, 0.1, 0.0))},
-            "h2-s48": {"policy_target": _policy((0.2, 0.1, 0.0))},
-            "h3-s48": {"policy_target": _policy((0.1, 0.2, 0.0))},
-            "h5-s48": {"policy_target": _policy((0.1, 0.2, 0.0))},
-            "h2-s96": {"policy_target": _policy((0.1, 0.2, 0.0))},
-            "h3-s96": {"policy_target": _policy((0.1, 0.2, 0.0))},
-            "h5-s96": {"policy_target": _policy((0.1, 0.2, 0.0))},
+            "h2-s12-a": condition((0.2, 0.1, 0.0)),
+            "h2-s12-b": condition((0.2, 0.1, 0.0)),
+            "h2-s24": condition((0.2, 0.1, 0.0)),
+            "h2-s48": condition((0.2, 0.1, 0.0)),
+            "h3-s48": condition((0.1, 0.2, 0.0)),
+            "h5-s48": condition((0.1, 0.2, 0.0)),
+            "h2-s96": condition((0.1, 0.2, 0.0)),
+            "h3-s96": condition((0.1, 0.2, 0.0)),
+            "h5-s96": condition((0.1, 0.2, 0.0)),
         }
         payload = {"complete": True, "roots": [{
             "root_id": "root-a", "game_state_signature": "state-a",
@@ -132,6 +150,14 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
         self.assertEqual(result["bounded_q_top_stable_roots"], 1)
         self.assertEqual(result["bounded_visit_top_stable_roots"], 1)
         self.assertEqual(result["bounded_q_order_stable_roots"], 1)
+        self.assertEqual(result["reference_censored_exhaustion_events"], 7)
+        self.assertEqual(result["reference_exhaustion_unique_nodes"], 2)
+        self.assertEqual(
+            result["reference_exhaustion_shadow_summary"][
+                "wider_safe_recovered_nodes"
+            ],
+            1,
+        )
 
 
 if __name__ == "__main__":

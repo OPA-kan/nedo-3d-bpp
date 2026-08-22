@@ -23,6 +23,7 @@ class SelfPlayPuctConvergenceWorkflowTests(unittest.TestCase):
         self.assertIn("shard_index", text)
         self.assertIn("evaluate_self_play_puct_convergence.py", text)
         self.assertIn("--expected-roots 58", text)
+        self.assertIn("--candidate-audit-limit 64", text)
 
 
 if __name__ == "__main__":

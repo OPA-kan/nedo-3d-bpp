@@ -155,6 +155,13 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
             or _same_component(conditions, deepest_labels, key)
         )
     reference = conditions[reference_label]["policy_target"]
+    reference_search = conditions[reference_label]
+    reference_terminal_reasons = reference_search.get(
+        "simulation_terminal_reasons", {}
+    )
+    reference_shadow = reference_search.get(
+        "candidate_exhaustion_shadow_summary", {}
+    )
     reference_signature = policy_signature(reference)
     reference_q_values = {
         round(float(row["q"]), 12)
@@ -204,6 +211,26 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
             policy_signature(root["original_search"]["policy_target"])["q_top"]
             == reference_signature["q_top"]
         ),
+        "reference_censored_exhaustion_events": int(
+            reference_terminal_reasons.get(
+                "bounded_candidate_exhaustion_censored", 0
+            )
+        ),
+        "reference_exhaustion_unique_nodes": int(
+            reference_search.get("candidate_exhaustion_unique_nodes", 0)
+        ),
+        "reference_exhaustion_shadow_summary": {
+            key: int(reference_shadow.get(key, 0))
+            for key in (
+                "audited_nodes",
+                "top_k_proposal_empty_nodes",
+                "top_k_all_rejected_nodes",
+                "wider_safe_recovered_nodes",
+                "wider_proposal_empty_nodes",
+                "wider_all_rejected_nodes",
+                "prefix_mismatch_nodes",
+            )
+        },
         "comparisons": comparisons,
     }
 
@@ -235,6 +262,22 @@ def aggregate_convergence(
         all(row["bounded_search_stable"] for row in group)
         for group in state_groups.values()
     )
+    shadow_keys = (
+        "audited_nodes",
+        "top_k_proposal_empty_nodes",
+        "top_k_all_rejected_nodes",
+        "wider_safe_recovered_nodes",
+        "wider_proposal_empty_nodes",
+        "wider_all_rejected_nodes",
+        "prefix_mismatch_nodes",
+    )
+    reference_shadow_summary = {
+        key: sum(
+            row["reference_exhaustion_shadow_summary"][key]
+            for row in rows
+        )
+        for key in shadow_keys
+    }
     return {
         "schema_version": 1,
         "experiment": "targeted_physical_puct_convergence",
@@ -273,6 +316,13 @@ def aggregate_convergence(
         "original_q_top_matches_reference_roots": sum(
             row["original_q_top_matches_reference"] for row in rows
         ),
+        "reference_censored_exhaustion_events": sum(
+            row["reference_censored_exhaustion_events"] for row in rows
+        ),
+        "reference_exhaustion_unique_nodes": sum(
+            row["reference_exhaustion_unique_nodes"] for row in rows
+        ),
+        "reference_exhaustion_shadow_summary": reference_shadow_summary,
         "bounded_search_stable_fraction": stable / len(rows) if rows else 0.0,
         "caveat": (
             "Stability means agreement inside the measured bounded PUCT schedule; "
@@ -283,6 +333,7 @@ def aggregate_convergence(
 
 
 def render_markdown(result: dict[str, Any]) -> str:
+    shadow = result["reference_exhaustion_shadow_summary"]
     lines = [
         "# Targeted physical-PUCT convergence",
         "",
@@ -300,6 +351,13 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- still Q-discriminating at reference: {result['reference_q_discriminating_roots']} / {result['root_count']}",
         f"- original Q-top agrees with reference: {result['original_q_top_matches_reference_roots']} / {result['root_count']}",
         f"- stable unique game-state groups: {result['bounded_search_stable_game_state_groups']} / {result['game_state_group_count']}",
+        f"- censored exhaustion visits at reference: {result['reference_censored_exhaustion_events']}",
+        f"- unique exhausted nodes at reference: {result['reference_exhaustion_unique_nodes']}",
+        f"- shadow-audited exhausted nodes: {shadow['audited_nodes']}",
+        f"- wider safe candidate recovered: {shadow['wider_safe_recovered_nodes']}",
+        f"- wider provider still empty: {shadow['wider_proposal_empty_nodes']}",
+        f"- wider proposals all physically rejected: {shadow['wider_all_rejected_nodes']}",
+        f"- shadow prefix mismatches: {shadow['prefix_mismatch_nodes']}",
         "",
         f"> {result['caveat']}",
         "",

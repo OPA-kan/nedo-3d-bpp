@@ -139,7 +139,9 @@ def load_task_config(path: pathlib.Path, case_id: str) -> dict[str, Any]:
     return cases[case_id]
 
 
-def _run_root(root: dict[str, Any], agent_module) -> dict[str, Any]:
+def _run_root(
+    root: dict[str, Any], agent_module, *, candidate_audit_limit: int | None,
+) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
     task_config = load_task_config(root["config_path"], root["case_id"])
@@ -196,6 +198,7 @@ def _run_root(root: dict[str, Any], agent_module) -> dict[str, Any]:
                 legal_filter_fn=legal_filter,
                 rules=rules,
                 top_k=int(candidate_contract["top_k"]),
+                candidate_audit_limit=candidate_audit_limit,
                 simulations=simulations,
                 horizon=horizon,
                 cpuct=float(original["cpuct"]),
@@ -265,6 +268,13 @@ def main() -> int:
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--expected-roots", type=int)
+    parser.add_argument(
+        "--candidate-audit-limit", type=int, default=0,
+        help=(
+            "Shadow-only wider provider limit at exhausted nodes; zero "
+            "disables it and never changes the searchable action set"
+        ),
+    )
     args = parser.parse_args()
     if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
         raise SystemExit("invalid shard index/count")
@@ -289,6 +299,14 @@ def main() -> int:
             {"label": label, "horizon": horizon, "simulations": simulations}
             for label, horizon, simulations in PROMOTED_SCHEDULE
         ],
+        "candidate_exhaustion_contract": {
+            "value": "censored_zero_continuation",
+            "shadow_audit_limit": (
+                int(args.candidate_audit_limit)
+                if args.candidate_audit_limit > 0 else None
+            ),
+            "shadow_candidates_searchable": False,
+        },
         "assigned_root_count": len(assigned),
         "complete": False,
         "roots": [],
@@ -296,7 +314,13 @@ def main() -> int:
     _write_payload(args.output, payload)
     agent_module = load_agent_module()
     for root in assigned:
-        payload["roots"].append(_run_root(root, agent_module))
+        payload["roots"].append(_run_root(
+            root, agent_module,
+            candidate_audit_limit=(
+                int(args.candidate_audit_limit)
+                if args.candidate_audit_limit > 0 else None
+            ),
+        ))
         _write_payload(args.output, payload)
     payload["complete"] = True
     _write_payload(args.output, payload)

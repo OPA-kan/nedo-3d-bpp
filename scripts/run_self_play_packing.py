@@ -171,6 +171,7 @@ def build_physical_puct_search(
     task_config: dict[str, Any], *, case_id: str, environment_seed: int,
     candidate_provider: Callable, legal_filter_fn: Callable,
     rules: GameRules, top_k: int, simulations: int = 6, horizon: int = 3,
+    candidate_audit_limit: int | None = None,
     cpuct: float = 2.0, prior_mode: str = "uniform",
     prior_temperature: float = 1.0, action_temperature: float = 1.0,
     temperature_drop_step: int | None = None,
@@ -184,6 +185,8 @@ def build_physical_puct_search(
     """Build open-loop PUCT whose transitions are authoritative PyBullet steps."""
     if simulations < 1 or horizon < 1 or top_k < 1:
         raise ValueError("simulations, horizon, and top_k must be positive")
+    if candidate_audit_limit is not None and candidate_audit_limit < 1:
+        raise ValueError("candidate_audit_limit must be positive when set")
     if action_temperature < 0.0:
         raise ValueError("action_temperature must be non-negative")
     if temperature_drop_step is not None and temperature_drop_step < 0:
@@ -237,6 +240,11 @@ def build_physical_puct_search(
         terminal_reasons: collections.Counter[str] = collections.Counter()
         search_prefilter_rejections = 0
         leaf_value_calls = 0
+        exhaustion_node_keys: set[str] = set()
+        candidate_exhaustion_audits: list[dict[str, Any]] = []
+        exhaustion_shadow_summary: collections.Counter[str] = (
+            collections.Counter()
+        )
 
         for _simulation in range(simulations):
             simulation_env = env_factory()
@@ -291,14 +299,114 @@ def build_physical_puct_search(
                             audit.get("rejected_count", 0)
                         )
                         candidate_cache[node_key] = list(legal)
+                        if (
+                            not legal
+                            and candidate_audit_limit is not None
+                            and candidate_audit_limit > top_k
+                        ):
+                            wider_proposals = list(candidate_provider(
+                                simulation_env, simulation_observation,
+                                int(candidate_audit_limit),
+                            ))
+                            proposal_ids = [
+                                candidate_id(candidate)
+                                for candidate in proposals
+                            ]
+                            wider_prefix_ids = [
+                                candidate_id(candidate)
+                                for candidate in wider_proposals[:len(proposals)]
+                            ]
+                            prefix_matches = proposal_ids == wider_prefix_ids
+                            # When the wider call preserves the Top-K prefix,
+                            # the prefix has already been physically rejected.
+                            # Filter only newly exposed candidates so shadow
+                            # accounting does not replay the same actions twice.
+                            audit_proposals = (
+                                wider_proposals[len(proposals):]
+                                if prefix_matches else wider_proposals
+                            )
+                            newly_legal = list(audit_proposals)
+                            wider_audit = {
+                                "proposal_count": len(audit_proposals),
+                                "safe_count": len(audit_proposals),
+                                "rejected_count": 0,
+                            }
+                            if audit_proposals:
+                                newly_legal, wider_audit = legal_filter_fn(
+                                    env=simulation_env,
+                                    observation=simulation_observation,
+                                    candidates=audit_proposals,
+                                    actions=list(simulation_actions),
+                                    step=int(step) + depth,
+                                )
+                                newly_legal = list(newly_legal)
+                            wider_legal = (
+                                list(legal) + newly_legal
+                                if prefix_matches else newly_legal
+                            )
+                            wider_rejected_count = (
+                                int(audit.get("rejected_count", 0))
+                                + int(wider_audit.get("rejected_count", 0))
+                                if prefix_matches
+                                else int(wider_audit.get("rejected_count", 0))
+                            )
+                            recovered_ids = [
+                                candidate_id(candidate)
+                                for candidate in wider_legal
+                                if candidate_id(candidate) not in {
+                                    candidate_id(row) for row in legal
+                                }
+                            ]
+                            exhaustion_shadow_summary["audited_nodes"] += 1
+                            exhaustion_shadow_summary[
+                                "top_k_proposal_empty_nodes"
+                                if not proposals
+                                else "top_k_all_rejected_nodes"
+                            ] += 1
+                            if not prefix_matches:
+                                exhaustion_shadow_summary[
+                                    "prefix_mismatch_nodes"
+                                ] += 1
+                            if wider_legal and prefix_matches:
+                                exhaustion_shadow_summary[
+                                    "wider_safe_recovered_nodes"
+                                ] += 1
+                            elif not wider_proposals:
+                                exhaustion_shadow_summary[
+                                    "wider_proposal_empty_nodes"
+                                ] += 1
+                            elif not wider_legal:
+                                exhaustion_shadow_summary[
+                                    "wider_all_rejected_nodes"
+                                ] += 1
+                            candidate_exhaustion_audits.append({
+                                "node_key": node_key,
+                                "depth": int(depth),
+                                "top_k": int(top_k),
+                                "audit_limit": int(candidate_audit_limit),
+                                "top_k_proposal_count": len(proposals),
+                                "top_k_safe_count": len(legal),
+                                "top_k_rejected_count": int(
+                                    audit.get("rejected_count", 0)
+                                ),
+                                "wider_proposal_count": len(wider_proposals),
+                                "wider_safe_count": len(wider_legal),
+                                "wider_rejected_count": int(
+                                    wider_rejected_count
+                                ),
+                                "prefix_matches": prefix_matches,
+                                "recovered_candidate_ids": recovered_ids,
+                            })
                     node_candidates = candidate_cache[node_key]
                     if not node_candidates:
-                        apply_terminal_loss(
-                            simulation_rewards,
-                            loser=simulation_state.current_player,
-                            rules=rules,
-                        )
-                        terminal_reasons["bounded_candidate_exhaustion"] += 1
+                        # The provider exposes only a bounded action subset.
+                        # Its exhaustion is not proof that the true legal move
+                        # set is empty, so censor the unknown continuation at
+                        # zero instead of backing up a synthetic +/-50 loss.
+                        exhaustion_node_keys.add(node_key)
+                        terminal_reasons[
+                            "bounded_candidate_exhaustion_censored"
+                        ] += 1
                         ended = True
                         break
 
@@ -373,7 +481,7 @@ def build_physical_puct_search(
         )
         policy_target = tree.policy(root_key)
         return chosen, {
-            "schema_version": 1,
+            "schema_version": 2,
             "algorithm": "open_loop_physical_puct",
             "simulations": int(simulations),
             "horizon": int(horizon),
@@ -392,6 +500,24 @@ def build_physical_puct_search(
             "leaf_value_calls": leaf_value_calls,
             "expanded_nodes": tree.node_count,
             "search_prefilter_rejections": search_prefilter_rejections,
+            "bounded_candidate_exhaustion_value": (
+                "censored_zero_continuation"
+            ),
+            "candidate_audit_limit": candidate_audit_limit,
+            "candidate_exhaustion_unique_nodes": len(exhaustion_node_keys),
+            "candidate_exhaustion_shadow_summary": {
+                key: int(exhaustion_shadow_summary.get(key, 0))
+                for key in (
+                    "audited_nodes",
+                    "top_k_proposal_empty_nodes",
+                    "top_k_all_rejected_nodes",
+                    "wider_safe_recovered_nodes",
+                    "wider_proposal_empty_nodes",
+                    "wider_all_rejected_nodes",
+                    "prefix_mismatch_nodes",
+                )
+            },
+            "candidate_exhaustion_audits": candidate_exhaustion_audits,
             "simulation_terminal_reasons": dict(terminal_reasons),
             "policy_target": policy_target,
             "chosen_candidate_id": candidate_id(chosen),
@@ -674,6 +800,9 @@ def run_physical_game(
                     "root_dirichlet_alpha": mcts_root_dirichlet_alpha,
                     "root_dirichlet_epsilon": mcts_root_dirichlet_epsilon,
                     "leaf_value_model": "zero_untrained",
+                    "bounded_candidate_exhaustion_value": (
+                        "censored_zero_continuation"
+                    ),
                 }
                 if selection_mode == "mcts" else None
             ),
@@ -886,6 +1015,9 @@ def main() -> int:
                     "root_dirichlet_alpha": args.mcts_root_dirichlet_alpha,
                     "root_dirichlet_epsilon": args.mcts_root_dirichlet_epsilon,
                     "leaf_value_model": "zero_untrained",
+                    "bounded_candidate_exhaustion_value": (
+                        "censored_zero_continuation"
+                    ),
                 }
                 if args.selection_mode == "mcts" else None
             ),
