@@ -1,0 +1,94 @@
+name: Targeted physical PUCT convergence
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Self-Play PUCT matrix run containing the 58 roots
+        required: true
+        default: "32515349437"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: self-play-puct-convergence-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  targeted-rerun:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify convergence contracts
+        run: >-
+          python -m unittest
+          tests.test_evaluate_self_play_puct_convergence
+          tests.test_self_play_puct_convergence_workflow
+          tests.test_run_self_play_packing
+          tests.test_self_play_packing_search
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Download the frozen source roots
+        shell: bash
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/source-puct-matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Re-search assigned Q-discriminating roots
+        run: >-
+          python scripts/rerun_self_play_puct_roots.py
+          --source-root reports/source-puct-matrix
+          --expected-roots 58
+          --shard-index ${{ matrix.shard_index }}
+          --shard-count 8
+          --output reports/puct-convergence/convergence-shard-${{ matrix.shard_index }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-puct-convergence-shard-${{ matrix.shard_index }}
+          path: reports/puct-convergence/
+
+  aggregate:
+    needs: targeted-rerun
+    if: always() && needs.targeted-rerun.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: self-play-puct-convergence-shard-*
+          path: reports/puct-convergence
+          merge-multiple: true
+      - name: Aggregate convergence evidence
+        run: >-
+          python scripts/evaluate_self_play_puct_convergence.py
+          --root reports/puct-convergence
+          --expected-roots 58
+          --json-output reports/puct-convergence/aggregate.json
+          --markdown-output reports/puct-convergence/aggregate.md
+      - name: Publish bounded-search verdict
+        shell: bash
+        run: cat reports/puct-convergence/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-puct-convergence-aggregate-${{ github.run_id }}
+          path: reports/puct-convergence/
