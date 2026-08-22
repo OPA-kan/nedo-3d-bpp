@@ -7,7 +7,11 @@ from scripts.evaluate_self_play_puct_convergence import (
     aggregate_convergence,
     policy_signature,
 )
-from scripts.rerun_self_play_puct_roots import discover_roots, needs_promotion
+from scripts.rerun_self_play_puct_roots import (
+    discover_roots,
+    load_task_config,
+    needs_promotion,
+)
 
 
 def _policy(qs, visits=(4, 4, 4)):
@@ -24,6 +28,16 @@ def _policy(qs, visits=(4, 4, 4)):
 
 
 class SelfPlayPuctConvergenceTests(unittest.TestCase):
+    def test_loads_named_task_from_scenario_wrapper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "scenario.json"
+            path.write_text(json.dumps({"m-case": {"agent": {"optimize": True}}}))
+
+            self.assertEqual(
+                load_task_config(path, "m-case"),
+                {"agent": {"optimize": True}},
+            )
+
     def test_discovers_only_q_discriminating_records(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

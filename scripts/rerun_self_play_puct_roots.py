@@ -132,10 +132,17 @@ def _root_seed(root_id: str) -> int:
     return int(hashlib.sha256(root_id.encode("utf-8")).hexdigest()[:8], 16)
 
 
+def load_task_config(path: pathlib.Path, case_id: str) -> dict[str, Any]:
+    cases = json.loads(path.read_text(encoding="utf-8"))
+    if case_id not in cases:
+        raise KeyError(f"missing case {case_id} in {path}")
+    return cases[case_id]
+
+
 def _run_root(root: dict[str, Any], agent_module) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
-    task_config = json.loads(root["config_path"].read_text(encoding="utf-8"))
+    task_config = load_task_config(root["config_path"], root["case_id"])
     manifest = root["manifest"]
     contract = root["snapshot"]["replay_contract"]
     environment_seed = int(contract["seed"])
