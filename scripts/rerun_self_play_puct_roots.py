@@ -141,6 +141,7 @@ def load_task_config(path: pathlib.Path, case_id: str) -> dict[str, Any]:
 
 def _run_root(
     root: dict[str, Any], agent_module, *, candidate_audit_limit: int | None,
+    candidate_rescue_limit: int | None,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -199,6 +200,7 @@ def _run_root(
                 rules=rules,
                 top_k=int(candidate_contract["top_k"]),
                 candidate_audit_limit=candidate_audit_limit,
+                candidate_rescue_limit=candidate_rescue_limit,
                 simulations=simulations,
                 horizon=horizon,
                 cpuct=float(original["cpuct"]),
@@ -275,6 +277,13 @@ def main() -> int:
             "disables it and never changes the searchable action set"
         ),
     )
+    parser.add_argument(
+        "--candidate-rescue-limit", type=int, default=0,
+        help=(
+            "Opt-in searchable widening after Top-K has no physical-safe "
+            "candidate; zero preserves the fixed Top-K search"
+        ),
+    )
     args = parser.parse_args()
     if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
         raise SystemExit("invalid shard index/count")
@@ -306,6 +315,13 @@ def main() -> int:
                 if args.candidate_audit_limit > 0 else None
             ),
             "shadow_candidates_searchable": False,
+            "candidate_rescue_limit": (
+                int(args.candidate_rescue_limit)
+                if args.candidate_rescue_limit > 0 else None
+            ),
+            "rescue_candidates_searchable": bool(
+                args.candidate_rescue_limit > 0
+            ),
         },
         "assigned_root_count": len(assigned),
         "complete": False,
@@ -319,6 +335,10 @@ def main() -> int:
             candidate_audit_limit=(
                 int(args.candidate_audit_limit)
                 if args.candidate_audit_limit > 0 else None
+            ),
+            candidate_rescue_limit=(
+                int(args.candidate_rescue_limit)
+                if args.candidate_rescue_limit > 0 else None
             ),
         ))
         _write_payload(args.output, payload)

@@ -142,6 +142,26 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             if row["candidate_id"] == "dead"
         )
         self.assertEqual(dead["q"], 0.0)
+        self.assertGreater(
+            dead["multi_head_target"]["censored_samples"], 0
+        )
+        self.assertEqual(
+            dead["multi_head_target"]["heads"]["fill_gain"][
+                "eligible_count"
+            ],
+            0,
+        )
+        censored = next(
+            row for row in result["multi_head_branch_samples"]
+            if row["root_candidate_id"] == "dead"
+        )
+        self.assertEqual(
+            censored["heads"]["game_reward"]["censor_reason"],
+            "bounded_candidate_exhaustion",
+        )
+        self.assertFalse(
+            censored["heads"]["game_reward"]["target_eligible"]
+        )
         self.assertTrue(all(env.closed for env in simulations))
 
     @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
@@ -241,6 +261,199 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         self.assertEqual(audit["top_k_safe_count"], 0)
         self.assertEqual(audit["wider_safe_count"], 1)
         self.assertEqual(audit["recovered_candidate_ids"], ["wide-safe"])
+        self.assertTrue(audit["root_id"].startswith("puct-root-"))
+        self.assertEqual(audit["relative_action_prefix"][0]["item_idx"], 0)
+        self.assertEqual(audit["board_fingerprint"], "fp")
+        self.assertIn("replay_contract", audit)
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={
+        "seed": 42,
+        "item_order": [0],
+        "action_prefix": [],
+        "future_stream_id": "stream-1",
+        "action_prefix_id": "prefix-0",
+    })
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_physical_puct_saves_complete_multi_head_branch_teacher(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+        root = {
+            "candidate_id": "root",
+            "selection": {"rank": 0},
+            "command_action": {
+                "item_idx": 0, "container_idx": 0,
+                "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+            },
+        }
+
+        class SimulationEnv:
+            def __init__(self):
+                self.placed = 0
+                self.violations = 0
+
+            def step(self, _action):
+                self.placed += 1
+                self.violations += 1
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        def branch_metrics(env):
+            return {
+                "placed_count": env.placed,
+                "fill_score_proxy": 10.0 * env.placed,
+                "soft_covered_by_other": env.violations,
+                "priority_covered_by_other": 0,
+                "priority_misrouted": 0,
+                "surface_total_variation": 0.25 * env.placed,
+            }
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=lambda *_args: [],
+            legal_filter_fn=lambda **context: (context["candidates"], {}),
+            rules=GameRules(minimum_block=10), top_k=1,
+            simulations=1, horizon=1, action_temperature=0.0,
+            metrics_fn=branch_metrics, env_factory=SimulationEnv,
+        )
+
+        _chosen, result = search(
+            env=object(), observation={}, candidates=[root], actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        sample = result["multi_head_branch_samples"][0]
+        self.assertEqual(sample["root_candidate_id"], "root")
+        self.assertEqual(
+            sample["target_semantics"],
+            "root_action_bounded_outcome_not_leaf_value",
+        )
+        self.assertEqual(sample["termination"], "horizon")
+        self.assertEqual(sample["relative_action_prefix"][0]["item_idx"], 0)
+        self.assertEqual(sample["heads"]["fill_gain"]["value"], 10.0)
+        self.assertTrue(
+            sample["heads"]["fill_gain"]["target_eligible"]
+        )
+        self.assertIsNone(
+            sample["heads"]["fill_gain"]["censor_reason"]
+        )
+        self.assertEqual(sample["heads"]["placed_gain"]["value"], 1.0)
+        self.assertEqual(sample["heads"]["soft_violation_gain"]["value"], 1.0)
+        self.assertFalse(
+            sample["heads"]["stability_peak_kinetic_energy"][
+                "target_eligible"
+            ]
+        )
+        aggregate = result["policy_target"][0]["multi_head_target"]
+        self.assertEqual(aggregate["complete_samples"], 1)
+        self.assertEqual(
+            aggregate["heads"]["fill_gain"]["mean"], 10.0
+        )
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_opt_in_candidate_rescue_makes_wider_safe_branch_searchable(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        def row(name, item_idx, rank, safe=True):
+            return {
+                "candidate_id": name,
+                "selection": {"rank": rank, "shadow_safe": safe},
+                "command_action": {
+                    "item_idx": item_idx, "container_idx": 0,
+                    "place_pos": [item_idx * 0.1, 0.0, 0.5],
+                    "orientation": 0,
+                },
+            }
+
+        root = row("root", 0, 0)
+        rejected = [row("bad-0", 1, 0, False), row("bad-1", 2, 1, False)]
+        recovered = row("wide-safe", 3, 2, True)
+
+        class SimulationEnv:
+            def __init__(self):
+                self.actions = []
+
+            def step(self, action):
+                self.actions.append(action["item_idx"])
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        def provider(env, _observation, limit):
+            self.assertEqual(env.actions, [0])
+            return (rejected + [recovered])[:limit]
+
+        def legal_filter(**context):
+            retained = [
+                candidate for candidate in context["candidates"]
+                if candidate["selection"]["shadow_safe"]
+            ]
+            return retained, {
+                "rejected_count": len(context["candidates"]) - len(retained),
+            }
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=provider, legal_filter_fn=legal_filter,
+            rules=GameRules(minimum_block=10), top_k=2,
+            candidate_audit_limit=3, candidate_rescue_limit=3,
+            simulations=1, horizon=2, action_temperature=0.0,
+            metrics_fn=lambda _env: {}, env_factory=SimulationEnv,
+        )
+
+        _chosen, result = search(
+            env=object(), observation={}, candidates=[root], actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        self.assertEqual(result["candidate_rescue_summary"], {
+            "applied_nodes": 1,
+            "recovered_candidates": 1,
+        })
+        self.assertEqual(result["candidate_exhaustion_unique_nodes"], 0)
+        self.assertEqual(
+            result["multi_head_branch_samples"][0]["termination"], "horizon"
+        )
+        self.assertEqual(
+            result["multi_head_branch_samples"][0]["path_candidate_ids"],
+            ["root", "wide-safe"],
+        )
+        self.assertEqual(
+            result["multi_head_branch_samples"][0]["leaf_game_state"][
+                "placements"
+            ],
+            2,
+        )
 
     def test_search_policy_selects_action_and_emits_pi_and_return_target(self):
         def two_candidates(_env, _observation, _limit):
@@ -279,6 +492,11 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
                 "step": context["step"],
                 "snapshot_path": f"s{context['step']}.json",
             },
+            evaluate_fn=lambda _env: {"shake_response": {
+                "shake_max_shift": 0.02,
+                "shake_peak_kinetic_energy": 3.0,
+                "shake_items_toppled": 1,
+            }},
         )
 
         self.assertEqual(result["records"][0]["selected_candidate_id"], "b")
@@ -288,6 +506,13 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         )
         self.assertEqual(result["learning_targets"][0]["return_to_go"], 0.0)
         self.assertTrue(result["learning_targets"][0]["value_target_eligible"])
+        self.assertIn("value_heads", result["learning_targets"][0])
+        self.assertEqual(
+            result["learning_targets"][0]["value_heads"][
+                "terminal_stability_peak_kinetic_energy"
+            ]["value"],
+            3.0,
+        )
 
     def test_search_cannot_select_outside_bounded_legal_set(self):
         def provider(_env, _observation, _limit):

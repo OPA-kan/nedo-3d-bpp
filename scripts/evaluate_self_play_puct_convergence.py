@@ -162,6 +162,7 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
     reference_shadow = reference_search.get(
         "candidate_exhaustion_shadow_summary", {}
     )
+    reference_rescue = reference_search.get("candidate_rescue_summary", {})
     reference_signature = policy_signature(reference)
     reference_q_values = {
         round(float(row["q"]), 12)
@@ -231,6 +232,15 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
                 "prefix_mismatch_nodes",
             )
         },
+        "reference_candidate_rescue_summary": {
+            key: int(reference_rescue.get(key, 0))
+            for key in ("applied_nodes", "recovered_candidates")
+        },
+        "reference_candidate_rescue_limit": (
+            int(reference_search["candidate_rescue_limit"])
+            if reference_search.get("candidate_rescue_limit") is not None
+            else None
+        ),
         "comparisons": comparisons,
     }
 
@@ -278,6 +288,18 @@ def aggregate_convergence(
         )
         for key in shadow_keys
     }
+    reference_candidate_rescue_summary = {
+        key: sum(
+            row["reference_candidate_rescue_summary"][key]
+            for row in rows
+        )
+        for key in ("applied_nodes", "recovered_candidates")
+    }
+    reference_candidate_rescue_limits = sorted({
+        row["reference_candidate_rescue_limit"]
+        for row in rows
+        if row["reference_candidate_rescue_limit"] is not None
+    })
     return {
         "schema_version": 1,
         "experiment": "targeted_physical_puct_convergence",
@@ -323,6 +345,12 @@ def aggregate_convergence(
             row["reference_exhaustion_unique_nodes"] for row in rows
         ),
         "reference_exhaustion_shadow_summary": reference_shadow_summary,
+        "reference_candidate_rescue_summary": (
+            reference_candidate_rescue_summary
+        ),
+        "reference_candidate_rescue_limits": (
+            reference_candidate_rescue_limits
+        ),
         "bounded_search_stable_fraction": stable / len(rows) if rows else 0.0,
         "caveat": (
             "Stability means agreement inside the measured bounded PUCT schedule; "
@@ -334,6 +362,7 @@ def aggregate_convergence(
 
 def render_markdown(result: dict[str, Any]) -> str:
     shadow = result["reference_exhaustion_shadow_summary"]
+    rescue = result["reference_candidate_rescue_summary"]
     lines = [
         "# Targeted physical-PUCT convergence",
         "",
@@ -358,6 +387,8 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- wider provider still empty: {shadow['wider_proposal_empty_nodes']}",
         f"- wider proposals all physically rejected: {shadow['wider_all_rejected_nodes']}",
         f"- shadow prefix mismatches: {shadow['prefix_mismatch_nodes']}",
+        f"- searchable rescue nodes at reference: {rescue['applied_nodes']}",
+        f"- searchable recovered candidates: {rescue['recovered_candidates']}",
         "",
         f"> {result['caveat']}",
         "",

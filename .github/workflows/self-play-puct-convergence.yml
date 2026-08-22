@@ -7,15 +7,27 @@ on:
         description: Successful Self-Play PUCT matrix run containing the 58 roots
         required: true
         default: "32515349437"
+      candidate_rescue_limit:
+        description: Searchable rescue width after Top-K physical exhaustion; 0 keeps shadow-only widening
+        required: false
+        default: "0"
+      baseline_convergence_run_id:
+        description: Fixed Top-K convergence run used for paired rescue comparison
+        required: false
+        default: "32553551810"
   push:
     branches:
       - experiment/counterfactual-graph
     paths:
       - .github/workflows/self-play-puct-convergence.yml
       - scripts/evaluate_self_play_puct_convergence.py
+      - scripts/evaluate_adaptive_puct_schedule.py
+      - scripts/compare_self_play_puct_rescue.py
       - scripts/rerun_self_play_puct_roots.py
       - scripts/run_self_play_packing.py
       - tests/test_evaluate_self_play_puct_convergence.py
+      - tests/test_evaluate_adaptive_puct_schedule.py
+      - tests/test_compare_self_play_puct_rescue.py
       - tests/test_self_play_puct_convergence_workflow.py
       - tests/test_run_self_play_packing.py
 
@@ -50,6 +62,8 @@ jobs:
         run: >-
           python -m unittest
           tests.test_evaluate_self_play_puct_convergence
+          tests.test_evaluate_adaptive_puct_schedule
+          tests.test_compare_self_play_puct_rescue
           tests.test_self_play_puct_convergence_workflow
           tests.test_run_self_play_packing
           tests.test_self_play_packing_search
@@ -72,6 +86,7 @@ jobs:
           --source-root reports/source-puct-matrix
           --expected-roots 58
           --candidate-audit-limit 64
+          --candidate-rescue-limit ${{ inputs.candidate_rescue_limit || '0' }}
           --shard-index ${{ matrix.shard_index }}
           --shard-count 8
           --output reports/puct-convergence/convergence-shard-${{ matrix.shard_index }}.json
@@ -87,6 +102,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Download fixed Top-K convergence baseline
+        shell: bash
+        run: >-
+          gh run download "${{ inputs.baseline_convergence_run_id || '32553551810' }}"
+          --name "self-play-puct-convergence-aggregate-${{ inputs.baseline_convergence_run_id || '32553551810' }}"
+          --dir reports/baseline-puct-convergence
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           pattern: self-play-puct-convergence-shard-*
@@ -99,9 +122,31 @@ jobs:
           --expected-roots 58
           --json-output reports/puct-convergence/aggregate.json
           --markdown-output reports/puct-convergence/aggregate.md
+      - name: Evaluate adaptive H/S schedule
+        run: >-
+          python scripts/evaluate_adaptive_puct_schedule.py
+          --root reports/puct-convergence
+          --expected-roots 58
+          --json-output reports/puct-convergence/adaptive-schedule.json
+          --markdown-output reports/puct-convergence/adaptive-schedule.md
+      - name: Compare searchable rescue with fixed Top-K
+        if: ${{ (inputs.candidate_rescue_limit || '0') != '0' }}
+        run: >-
+          python scripts/compare_self_play_puct_rescue.py
+          --baseline reports/baseline-puct-convergence/aggregate.json
+          --rescue reports/puct-convergence/aggregate.json
+          --json-output reports/puct-convergence/rescue-comparison.json
+          --markdown-output reports/puct-convergence/rescue-comparison.md
       - name: Publish bounded-search verdict
         shell: bash
-        run: cat reports/puct-convergence/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+        run: >-
+          cat reports/puct-convergence/aggregate.md
+          reports/puct-convergence/adaptive-schedule.md
+          >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish searchable-rescue comparison
+        if: ${{ (inputs.candidate_rescue_limit || '0') != '0' }}
+        shell: bash
+        run: cat reports/puct-convergence/rescue-comparison.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

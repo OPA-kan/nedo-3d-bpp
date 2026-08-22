@@ -45,7 +45,7 @@ def _candidate_rows(record: dict[str, Any], target: dict[str, Any]) -> list[dict
         candidate = by_id.get(identifier)
         if candidate is None:
             raise ValueError(f"policy candidate {identifier} missing from legal set")
-        result.append({
+        row = {
             "candidate_id": identifier,
             "command_action": canonical_action(candidate["command_action"]),
             "visits": int(policy.get("visits", 0)),
@@ -53,7 +53,10 @@ def _candidate_rows(record: dict[str, Any], target: dict[str, Any]) -> list[dict
             "search_q": (
                 None if policy.get("q") is None else float(policy["q"])
             ),
-        })
+        }
+        if policy.get("multi_head_target") is not None:
+            row["multi_head_target"] = dict(policy["multi_head_target"])
+        result.append(row)
     return result
 
 
@@ -85,15 +88,32 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
                 snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
                 record = records.get(step)
                 policy_candidates = []
+                bounded_branch_outcomes = []
                 if target.get("policy_target_eligible"):
                     if record is None:
                         raise ValueError(
                             f"missing action record for policy target step {step}"
                         )
                     policy_candidates = _candidate_rows(record, target)
+                if record is not None:
+                    search = record.get("search") or {}
+                    bounded_branch_outcomes = list(
+                        search.get("multi_head_branch_samples") or []
+                    )
+                    legal_ids = {
+                        str(candidate["candidate_id"])
+                        for candidate in record.get("candidate_set", [])
+                    }
+                    for branch in bounded_branch_outcomes:
+                        identifier = str(branch.get("root_candidate_id"))
+                        if identifier not in legal_ids:
+                            raise ValueError(
+                                "multi-head branch root candidate missing from "
+                                f"legal set: {identifier}"
+                            )
                 game_state = snapshot.get("self_play_game") or {}
                 row = {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "trajectory_group": trajectory_group,
                     "root_trajectory_id": trajectory_id,
                     "pair_id": pair_id,
@@ -114,10 +134,12 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
                         target.get("policy_target_eligible")
                     ),
                     "policy_target": policy_candidates,
+                    "bounded_branch_outcomes": bounded_branch_outcomes,
                     "value_target_eligible": bool(
                         target.get("value_target_eligible")
                     ),
                     "return_to_go": float(target.get("return_to_go", 0.0)),
+                    "value_heads": dict(target.get("value_heads") or {}),
                 }
                 hits = _forbidden_key_hits(row)
                 if hits:
@@ -142,9 +164,22 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
             if item["search_q"] is not None and item["visits"] > 0
         }) > 1
     ]
+    multi_head_policy_rows = [
+        row for row in policy_rows
+        if any(
+            candidate.get("multi_head_target") is not None
+            for candidate in row["policy_target"]
+        )
+    ]
+    multi_head_branch_samples = sum(
+        len(row["bounded_branch_outcomes"]) for row in rows
+    )
     summary = {
-        "schema_version": 1,
-        "contract": "physical_search_pi_and_terminal_suffix_return_no_ranker_score",
+        "schema_version": 2,
+        "contract": (
+            "physical_search_pi_multi_head_branch_and_terminal_suffix_return_"
+            "no_ranker_score"
+        ),
         "rows": len(rows),
         "trajectory_groups": len(trajectory_ids),
         "unique_game_states": len({
@@ -154,6 +189,8 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
         "policy_rows": len(policy_rows),
         "nonuniform_policy_rows": len(nonuniform),
         "search_q_discriminating_rows": len(q_discriminating),
+        "multi_head_policy_rows": len(multi_head_policy_rows),
+        "multi_head_branch_samples": multi_head_branch_samples,
         "value_rows": len(value_rows),
         "forbidden_heuristic_key_hits": 0,
         "forbidden_keys": sorted(FORBIDDEN_KEYS),

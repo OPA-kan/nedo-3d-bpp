@@ -148,6 +148,40 @@ class ReturnTargetTests(unittest.TestCase):
                 value_target_eligible=True,
             )
 
+    def test_completed_episode_adds_multi_head_suffix_value_targets(self):
+        targets = build_return_targets(
+            [{
+                "step": 0, "player_to_move": 0,
+                "rewards_before": [0.0, 0.0],
+                "cumulative_metrics_before": {
+                    "placed_count": 2,
+                    "fill_score_proxy": 10.0,
+                    "soft_covered_by_other": 0,
+                    "priority_covered_by_other": 1,
+                    "priority_misrouted": 0,
+                },
+            }],
+            [],
+            final_rewards=[5.0, -5.0],
+            value_target_eligible=True,
+            final_metrics={
+                "placed_count": 5,
+                "fill_score_proxy": 25.0,
+                "soft_covered_by_other": 1,
+                "priority_covered_by_other": 1,
+                "priority_misrouted": 0,
+            },
+            terminal_reason="stream_exhausted",
+        )
+
+        heads = targets[0]["value_heads"]
+        self.assertEqual(heads["game_return"]["value"], 5.0)
+        self.assertEqual(heads["fill_return"]["value"], 15.0)
+        self.assertEqual(heads["placed_return"]["value"], 3.0)
+        self.assertEqual(heads["soft_violation_return"]["value"], 1.0)
+        self.assertEqual(heads["stream_completed"]["value"], 1.0)
+        self.assertTrue(heads["fill_return"]["target_eligible"])
+
 
 if __name__ == "__main__":
     unittest.main()

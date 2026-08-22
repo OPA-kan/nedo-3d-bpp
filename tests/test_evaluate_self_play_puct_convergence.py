@@ -121,6 +121,11 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
                     "wider_all_rejected_nodes": 0,
                     "prefix_mismatch_nodes": 0,
                 },
+                "candidate_rescue_summary": {
+                    "applied_nodes": 1,
+                    "recovered_candidates": 2,
+                },
+                "candidate_rescue_limit": 64,
             }
 
         base = {
@@ -158,6 +163,16 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
             ],
             1,
         )
+        self.assertEqual(
+            result["reference_candidate_rescue_summary"]["applied_nodes"], 1
+        )
+        self.assertEqual(
+            result["reference_candidate_rescue_summary"][
+                "recovered_candidates"
+            ],
+            2,
+        )
+        self.assertEqual(result["reference_candidate_rescue_limits"], [64])
 
 
 if __name__ == "__main__":

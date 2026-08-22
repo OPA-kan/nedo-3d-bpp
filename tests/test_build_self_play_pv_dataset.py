@@ -41,7 +41,32 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
                 "case_id": "m-case", "policy_generation": "pi0-puct0",
                 "games": [{
                     "trajectory_id": "trajectory-1",
-                    "records": [{"step": 0, "candidate_set": candidate_set}],
+                    "records": [{
+                        "step": 0,
+                        "candidate_set": candidate_set,
+                        "search": {
+                            "multi_head_branch_samples": [{
+                                "root_candidate_id": "a",
+                                "termination": "horizon",
+                                "relative_action_prefix": [
+                                    candidate_set[0]["command_action"]
+                                ],
+                                "leaf_model_visible_state_signature": "leaf-1",
+                                "leaf_state": snapshot,
+                                "replay_contract": {
+                                    "future_stream_id": "stream-1",
+                                    "action_prefix_id": "prefix-1",
+                                },
+                                "heads": {
+                                    "fill_gain": {
+                                        "value": 2.5,
+                                        "target_eligible": True,
+                                        "censor_reason": None,
+                                    }
+                                },
+                            }]
+                        },
+                    }],
                     "captures": [{
                         "step": 0, "snapshot_path": "step-000-state.json",
                         "model_visible_state_signature": "model-1",
@@ -54,9 +79,32 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
                             "candidate_id": "a", "rank": 0,
                             "prior": 0.9, "visits": 12,
                             "probability": 1.0, "q": 0.4,
+                            "multi_head_target": {
+                                "schema_version": 1,
+                                "samples": 12,
+                                "complete_samples": 8,
+                                "censored_samples": 4,
+                                "heads": {
+                                    "fill_gain": {
+                                        "eligible_count": 8,
+                                        "censored_count": 4,
+                                        "mean": 2.5,
+                                        "min": 1.0,
+                                        "max": 4.0,
+                                        "objective": "maximize",
+                                    }
+                                },
+                            },
                         }],
                         "value_target_eligible": True,
                         "return_to_go": -45.0,
+                        "value_heads": {
+                            "fill_return": {
+                                "value": 7.0,
+                                "target_eligible": True,
+                                "censor_reason": None,
+                            }
+                        },
                     }],
                 }],
             }
@@ -71,6 +119,18 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
         self.assertEqual(summary["value_rows"], 1)
         self.assertEqual(summary["forbidden_heuristic_key_hits"], 0)
         self.assertEqual(rows[0]["return_to_go"], -45.0)
+        self.assertEqual(rows[0]["value_heads"]["fill_return"]["value"], 7.0)
+        branch_target = rows[0]["policy_target"][0]["multi_head_target"]
+        self.assertEqual(branch_target["complete_samples"], 8)
+        self.assertEqual(branch_target["heads"]["fill_gain"]["mean"], 2.5)
+        self.assertEqual(summary["multi_head_policy_rows"], 1)
+        self.assertEqual(summary["multi_head_branch_samples"], 1)
+        self.assertEqual(
+            rows[0]["bounded_branch_outcomes"][0][
+                "leaf_model_visible_state_signature"
+            ],
+            "leaf-1",
+        )
         self.assertNotIn("selection", json.dumps(rows[0]))
         self.assertNotIn('"prior"', json.dumps(rows[0]))
         self.assertNotIn('"rank"', json.dumps(rows[0]))

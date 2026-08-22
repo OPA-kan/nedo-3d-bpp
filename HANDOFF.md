@@ -59,7 +59,7 @@ Nodes are settled residual states; edges are commanded placements with
 separate physical and multi-axis labels. Sibling branches must share the same
 future stream and fixed attempt budget.
 
-### Self-Play PUCT teacher repair awaiting physical rerun
+### Self-Play PUCT teacher repair confirmed; multi-head branch contract active
 
 The 58-root convergence audit in Actions run `32543828460` found 4,334
 deepest-reference visits ending in `bounded_candidate_exhaustion`. That event
@@ -70,15 +70,48 @@ terminal reward and no value-model call are added. Game-level genuine stream
 completion and the external no-retained-candidate rule are unchanged; chance
 handling and the zero leaf model are unchanged.
 
-The same rerun now performs a shadow-only widening audit at each unique
+The same rerun performs a shadow-only widening audit at each unique
 exhausted node. Search still sees Top-3, while the audit asks the unchanged
 provider for up to 64 candidates and physically checks only candidates beyond
 the already-rejected prefix. It records whether a safe rank-4+ candidate was
 recovered, the wider provider remained empty, or all wider proposals were
-physically rejected. Shadow candidates never enter the tree. The next required
-evidence is the same 58-root H2/H3/H5 schedule; compare Q/horizon stability
-against run `32543828460` and report recall categories before any P/V learner.
-See `reports/self-play-packing/censored-exhaustion-protocol.md`.
+physically rejected. Shadow candidates never enter the tree.
+
+Actions run `32553551810` completed the same 58-root H2/H3/H5 schedule. Q-top
+stability improved from 16/58 to 50/58, visit-top from 19/58 to 53/58, and
+full Q-order from 10/58 to 33/58. At the deepest references, 1,141 unique
+exhausted nodes split into 136 wider-safe recoveries, 969 wider-provider-empty
+nodes, and 36 wider-all-rejected nodes, with zero prefix mismatches. This is
+strong evidence that the old synthetic terminal was a major instability
+mechanism. It does not establish Q* or prove that every provider-empty node has
+a true legal move.
+
+Search schema v3 now saves one replayable multi-head sample per physical
+simulation branch. It retains the root action, full relative/absolute prefix,
+leaf set tensor and signatures, replay contract, termination/censor reason,
+and separate game/fill/placed/survival/soft/priority/CoG/surface/stability
+heads. Every head has its own eligibility mask; bounded exhaustion and
+simulator truncation never become zero targets. Stability heads remain
+explicitly `unmeasured` at search leaves unless post-shake metrics are
+supplied. Played states separately receive state-to-terminal multi-head value
+targets, including the one terminal shake; root-to-leaf branch gains are
+explicitly not leaf-V labels. The scalar Q,
+PUCT selection and candidate set are unchanged. Dataset schema v2 exports both
+the per-candidate aggregate, raw replayable branch outcomes, and played-state
+suffix value heads without ranker score/rank/prior leakage. See
+`reports/self-play-packing/multi-head-branch-teacher-contract.md`.
+
+The first no-NN adaptive H/S replay over these 58 roots is in
+`reports/self-play-packing/adaptive-puct-schedule-32553551810.{json,md}`. An
+aggressive budget-top stop matched both deep-reference tops on 54/58 roots at
+a mean rollout-step upper bound of 151.4; requiring H3 confirmation reached
+57/58 at 321.1; the full-order guarded schedule reproduced 58/58 at 958.3.
+These are posthoc development rules on the same capability set, not an
+unbiased score estimate or independent confirmation; the full-order result is
+58/58 by construction because it uses the reference-defining promotion rule.
+Adaptive K is
+not yet validated: the width-64 data are shadow-only and cannot show whether a
+recovered candidate changes the root decision.
 
 The instrument and the first Linux physical H3 condition matrix are complete:
 

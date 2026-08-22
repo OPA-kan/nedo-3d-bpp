@@ -47,8 +47,10 @@ from scripts.self_play_packing_game import (  # noqa: E402
 )
 from scripts.self_play_packing_search import (  # noqa: E402
     PuctTree,
+    build_multi_head_branch_sample,
     build_return_targets,
     candidate_id,
+    summarize_multi_head_branch_samples,
 )
 
 
@@ -172,6 +174,7 @@ def build_physical_puct_search(
     candidate_provider: Callable, legal_filter_fn: Callable,
     rules: GameRules, top_k: int, simulations: int = 6, horizon: int = 3,
     candidate_audit_limit: int | None = None,
+    candidate_rescue_limit: int | None = None,
     cpuct: float = 2.0, prior_mode: str = "uniform",
     prior_temperature: float = 1.0, action_temperature: float = 1.0,
     temperature_drop_step: int | None = None,
@@ -187,6 +190,8 @@ def build_physical_puct_search(
         raise ValueError("simulations, horizon, and top_k must be positive")
     if candidate_audit_limit is not None and candidate_audit_limit < 1:
         raise ValueError("candidate_audit_limit must be positive when set")
+    if candidate_rescue_limit is not None and candidate_rescue_limit <= top_k:
+        raise ValueError("candidate_rescue_limit must be greater than top_k")
     if action_temperature < 0.0:
         raise ValueError("action_temperature must be non-negative")
     if temperature_drop_step is not None and temperature_drop_step < 0:
@@ -210,6 +215,15 @@ def build_physical_puct_search(
     root_noise_rng = random.Random(search_seed + 1)
     value_scale = max(
         1.0, float(rules.terminal_reward), float(rules.attribute_penalty)
+    )
+    wider_limit = max(
+        (
+            limit for limit in (
+                candidate_audit_limit, candidate_rescue_limit
+            )
+            if limit is not None
+        ),
+        default=None,
     )
 
     def search(*, env, observation, candidates, actions, state, step, policy_rng):
@@ -242,6 +256,10 @@ def build_physical_puct_search(
         leaf_value_calls = 0
         exhaustion_node_keys: set[str] = set()
         candidate_exhaustion_audits: list[dict[str, Any]] = []
+        multi_head_branch_samples: list[dict[str, Any]] = []
+        candidate_rescue_summary: collections.Counter[str] = (
+            collections.Counter()
+        )
         exhaustion_shadow_summary: collections.Counter[str] = (
             collections.Counter()
         )
@@ -270,7 +288,9 @@ def build_physical_puct_search(
                 relative_actions: list[dict[str, Any]] = []
                 simulation_rewards = [0.0, 0.0]
                 search_path: list[tuple[str, str, int]] = []
+                root_metrics = metrics_fn(simulation_env)
                 ended = False
+                termination = None
 
                 for depth in range(horizon):
                     node_key = root_key if depth == 0 else stable_id(
@@ -301,12 +321,12 @@ def build_physical_puct_search(
                         candidate_cache[node_key] = list(legal)
                         if (
                             not legal
-                            and candidate_audit_limit is not None
-                            and candidate_audit_limit > top_k
+                            and wider_limit is not None
+                            and wider_limit > top_k
                         ):
                             wider_proposals = list(candidate_provider(
                                 simulation_env, simulation_observation,
-                                int(candidate_audit_limit),
+                                int(wider_limit),
                             ))
                             proposal_ids = [
                                 candidate_id(candidate)
@@ -357,6 +377,18 @@ def build_physical_puct_search(
                                     candidate_id(row) for row in legal
                                 }
                             ]
+                            rescue_legal = []
+                            if candidate_rescue_limit is not None:
+                                rescue_ids = {
+                                    candidate_id(candidate)
+                                    for candidate in wider_proposals[
+                                        :int(candidate_rescue_limit)
+                                    ]
+                                }
+                                rescue_legal = [
+                                    candidate for candidate in wider_legal
+                                    if candidate_id(candidate) in rescue_ids
+                                ]
                             exhaustion_shadow_summary["audited_nodes"] += 1
                             exhaustion_shadow_summary[
                                 "top_k_proposal_empty_nodes"
@@ -379,11 +411,40 @@ def build_physical_puct_search(
                                 exhaustion_shadow_summary[
                                     "wider_all_rejected_nodes"
                                 ] += 1
+                            node_observation = policy_observation(
+                                simulation_env, simulation_observation
+                            )
+                            node_snapshot = state_snapshot(
+                                simulation_env, node_observation,
+                                case_id=case_id,
+                                step=int(step) + depth,
+                            )
+                            node_replay_contract = capture_replay_contract(
+                                simulation_env, simulation_actions,
+                                seed=environment_seed,
+                            )
                             candidate_exhaustion_audits.append({
+                                "root_id": root_key,
                                 "node_key": node_key,
                                 "depth": int(depth),
+                                "relative_action_prefix": list(relative_actions),
+                                "absolute_action_prefix": list(simulation_actions),
+                                "board_fingerprint": board_fingerprint(
+                                    node_snapshot
+                                ),
+                                "model_visible_state_signature": stable_id(
+                                    "model-state",
+                                    state_tensor_from_snapshot(node_snapshot),
+                                ),
+                                "replay_contract": node_replay_contract,
                                 "top_k": int(top_k),
-                                "audit_limit": int(candidate_audit_limit),
+                                "audit_limit": (
+                                    int(candidate_audit_limit)
+                                    if candidate_audit_limit is not None else None
+                                ),
+                                "wider_limit": int(wider_limit),
+                                "candidate_rescue_limit": candidate_rescue_limit,
+                                "search_widening_applied": bool(rescue_legal),
                                 "top_k_proposal_count": len(proposals),
                                 "top_k_safe_count": len(legal),
                                 "top_k_rejected_count": int(
@@ -397,6 +458,15 @@ def build_physical_puct_search(
                                 "prefix_matches": prefix_matches,
                                 "recovered_candidate_ids": recovered_ids,
                             })
+                            if rescue_legal:
+                                candidate_cache[node_key] = list(rescue_legal)
+                                candidate_rescue_summary["applied_nodes"] += 1
+                                candidate_rescue_summary[
+                                    "recovered_candidates"
+                                ] += len(rescue_legal)
+                                search_prefilter_rejections += int(
+                                    wider_audit.get("rejected_count", 0)
+                                )
                     node_candidates = candidate_cache[node_key]
                     if not node_candidates:
                         # The provider exposes only a bounded action subset.
@@ -407,6 +477,7 @@ def build_physical_puct_search(
                         terminal_reasons[
                             "bounded_candidate_exhaustion_censored"
                         ] += 1
+                        termination = "bounded_candidate_exhaustion"
                         ended = True
                         break
 
@@ -436,10 +507,12 @@ def build_physical_puct_search(
                     )
                     if truncated:
                         terminal_reasons["simulator_truncated"] += 1
+                        termination = "simulator_truncated"
                         ended = True
                         break
                     if terminated:
                         terminal_reasons["stream_exhausted"] += 1
+                        termination = "stream_exhausted"
                         ended = True
                         break
                     advance_after_placement(
@@ -451,6 +524,7 @@ def build_physical_puct_search(
                     for value in simulation_rewards
                 ]
                 if not ended:
+                    termination = "horizon"
                     leaf_value_calls += 1
                     leaf_value = 0.0 if leaf_value_fn is None else float(
                         leaf_value_fn(
@@ -465,6 +539,69 @@ def build_physical_puct_search(
                         max(-1.0, min(1.0, normalized[0] + leaf_value)),
                         max(-1.0, min(1.0, normalized[1] - leaf_value)),
                     ]
+                if not search_path or termination is None:
+                    raise RuntimeError("physical rollout produced no root branch target")
+                leaf_observation = policy_observation(
+                    simulation_env, simulation_observation
+                )
+                leaf_snapshot = state_snapshot(
+                    simulation_env, leaf_observation,
+                    case_id=case_id,
+                    step=int(step) + len(relative_actions),
+                )
+                leaf_state = state_tensor_from_snapshot(leaf_snapshot)
+                leaf_metrics = metrics_fn(simulation_env)
+                multi_head_branch_samples.append({
+                    "schema_version": 1,
+                    "contract": (
+                        "replayable_bounded_physical_branch_multi_head"
+                    ),
+                    "target_semantics": (
+                        "root_action_bounded_outcome_not_leaf_value"
+                    ),
+                    "simulation_index": int(_simulation),
+                    "root_id": root_key,
+                    "root_candidate_id": search_path[0][1],
+                    "path_candidate_ids": [row[1] for row in search_path],
+                    "relative_action_prefix": list(relative_actions),
+                    "absolute_action_prefix": list(simulation_actions),
+                    "termination": termination,
+                    "continuation_censored": termination not in {
+                        "horizon", "stream_exhausted"
+                    },
+                    "leaf_board_fingerprint": board_fingerprint(leaf_snapshot),
+                    "leaf_model_visible_state_signature": stable_id(
+                        "model-state", leaf_state
+                    ),
+                    "leaf_state": leaf_state,
+                    "root_game_state": {
+                        "player_to_move": int(state.current_player),
+                        "block_length": int(state.block_length),
+                        "handoff_count": int(state.handoff_count),
+                        "placements": int(state.placements),
+                    },
+                    "leaf_game_state": {
+                        "player_to_move": int(
+                            simulation_state.current_player
+                        ),
+                        "block_length": int(simulation_state.block_length),
+                        "handoff_count": int(simulation_state.handoff_count),
+                        "placements": int(simulation_state.placements),
+                    },
+                    "replay_contract": capture_replay_contract(
+                        simulation_env, simulation_actions,
+                        seed=environment_seed,
+                    ),
+                    "root_metrics": root_metrics,
+                    "leaf_metrics": leaf_metrics,
+                    "heads": build_multi_head_branch_sample(
+                        root_metrics=root_metrics,
+                        leaf_metrics=leaf_metrics,
+                        rewards=simulation_rewards,
+                        root_player=search_path[0][2],
+                        termination=termination,
+                    ),
+                })
                 tree.backup(search_path, normalized)
             finally:
                 simulation_env.close()
@@ -480,8 +617,17 @@ def build_physical_puct_search(
             temperature=effective_action_temperature, rng=policy_rng,
         )
         policy_target = tree.policy(root_key)
+        samples_by_root_candidate: dict[str, list[dict[str, Any]]] = (
+            collections.defaultdict(list)
+        )
+        for sample in multi_head_branch_samples:
+            samples_by_root_candidate[sample["root_candidate_id"]].append(sample)
+        for row in policy_target:
+            row["multi_head_target"] = summarize_multi_head_branch_samples(
+                samples_by_root_candidate.get(row["candidate_id"], [])
+            )
         return chosen, {
-            "schema_version": 2,
+            "schema_version": 3,
             "algorithm": "open_loop_physical_puct",
             "simulations": int(simulations),
             "horizon": int(horizon),
@@ -504,6 +650,11 @@ def build_physical_puct_search(
                 "censored_zero_continuation"
             ),
             "candidate_audit_limit": candidate_audit_limit,
+            "candidate_rescue_limit": candidate_rescue_limit,
+            "candidate_rescue_summary": {
+                key: int(candidate_rescue_summary.get(key, 0))
+                for key in ("applied_nodes", "recovered_candidates")
+            },
             "candidate_exhaustion_unique_nodes": len(exhaustion_node_keys),
             "candidate_exhaustion_shadow_summary": {
                 key: int(exhaustion_shadow_summary.get(key, 0))
@@ -518,6 +669,7 @@ def build_physical_puct_search(
                 )
             },
             "candidate_exhaustion_audits": candidate_exhaustion_audits,
+            "multi_head_branch_samples": multi_head_branch_samples,
             "simulation_terminal_reasons": dict(terminal_reasons),
             "policy_target": policy_target,
             "chosen_candidate_id": candidate_id(chosen),
@@ -565,6 +717,7 @@ def play_game(
                 state_capture["step"] = int(step)
                 state_capture["player_to_move"] = mover
                 state_capture["rewards_before"] = list(rewards)
+                state_capture["cumulative_metrics_before"] = metrics_fn(env)
                 captures.append(state_capture)
         proposals = list(candidate_provider(env, observation, int(top_k)))
         legal_audit = {
@@ -679,7 +832,20 @@ def play_game(
     else:
         terminal_reason = "max_steps"
 
+    final_metrics = metrics_fn(env)
     evaluation = evaluate_fn(env) if evaluate_fn is not None else None
+    if isinstance(evaluation, dict):
+        shake = evaluation.get("shake_response") or {}
+        for source, target in (
+            ("shake_max_shift", "post_shake_max_shift"),
+            (
+                "shake_peak_kinetic_energy",
+                "post_shake_peak_kinetic_energy",
+            ),
+            ("shake_items_toppled", "post_shake_items_toppled"),
+        ):
+            if source in shake:
+                final_metrics[target] = shake[source]
     training_eligible = terminal_reason not in {
         "selected_action_failure", "simulator_truncated",
     }
@@ -690,6 +856,8 @@ def play_game(
     learning_targets = build_return_targets(
         captures, records, final_rewards=rewards,
         value_target_eligible=training_eligible and outcome_target_eligible,
+        final_metrics=final_metrics,
+        terminal_reason=terminal_reason,
     )
     return {
         "starting_player": starting_player,

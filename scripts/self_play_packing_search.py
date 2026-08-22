@@ -7,6 +7,215 @@ import random
 from typing import Any
 
 
+MULTI_HEAD_SPECS = {
+    "game_reward": "maximize",
+    "fill_gain": "maximize",
+    "placed_gain": "diagnostic",
+    "survival_to_rollout_end": "maximize",
+    "soft_violation_gain": "minimize",
+    "priority_covered_gain": "minimize",
+    "priority_misrouted_gain": "minimize",
+    "center_of_mass_z_delta": "diagnostic",
+    "surface_total_variation_delta": "minimize_proxy",
+    "stability_max_shift": "minimize",
+    "stability_peak_kinetic_energy": "minimize",
+    "stability_items_toppled": "minimize",
+}
+
+TRAJECTORY_VALUE_HEAD_SPECS = {
+    "game_return": "maximize",
+    "fill_return": "maximize",
+    "placed_return": "diagnostic",
+    "stream_completed": "maximize",
+    "soft_violation_return": "minimize",
+    "priority_covered_return": "minimize",
+    "priority_misrouted_return": "minimize",
+    "center_of_mass_z_return": "diagnostic",
+    "surface_total_variation_return": "minimize_proxy",
+    "terminal_stability_max_shift": "minimize",
+    "terminal_stability_peak_kinetic_energy": "minimize",
+    "terminal_stability_items_toppled": "minimize",
+}
+
+
+def _numeric(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    result = float(value)
+    return result if math.isfinite(result) else None
+
+
+def _delta(
+    before: dict[str, Any], after: dict[str, Any], *keys: str,
+) -> float | None:
+    for key in keys:
+        left = _numeric(before.get(key))
+        right = _numeric(after.get(key))
+        if left is not None and right is not None:
+            return right - left
+    return None
+
+
+def build_multi_head_branch_sample(
+    *, root_metrics: dict[str, Any], leaf_metrics: dict[str, Any],
+    rewards: list[float], root_player: int, termination: str,
+) -> dict[str, dict[str, Any]]:
+    """Build separately masked outcomes for one bounded physical rollout.
+
+    A completed horizon is a valid H-step target, not a claim about the full
+    episode return. Candidate exhaustion and simulator truncation leave the
+    continuation unknown, so even observed partial deltas are retained only as
+    diagnostics and are excluded from supervised loss.
+    """
+    if len(rewards) != 2 or root_player not in (0, 1):
+        raise ValueError("branch rewards need both players and a valid root player")
+    complete = termination in {"horizon", "stream_exhausted"}
+    values = {
+        "game_reward": _numeric(rewards[root_player]),
+        "fill_gain": _delta(
+            root_metrics, leaf_metrics, "fill_score_proxy", "fill_percent_proxy"
+        ),
+        "placed_gain": _delta(root_metrics, leaf_metrics, "placed_count"),
+        "survival_to_rollout_end": 1.0 if complete else None,
+        "soft_violation_gain": _delta(
+            root_metrics, leaf_metrics, "soft_covered_by_other"
+        ),
+        "priority_covered_gain": _delta(
+            root_metrics, leaf_metrics, "priority_covered_by_other"
+        ),
+        "priority_misrouted_gain": _delta(
+            root_metrics, leaf_metrics, "priority_misrouted"
+        ),
+        "center_of_mass_z_delta": _delta(
+            root_metrics, leaf_metrics, "center_of_mass_z", "com_z"
+        ),
+        "surface_total_variation_delta": _delta(
+            root_metrics, leaf_metrics, "surface_total_variation"
+        ),
+        "stability_max_shift": _numeric(
+            leaf_metrics.get("post_shake_max_shift")
+        ),
+        "stability_peak_kinetic_energy": _numeric(
+            leaf_metrics.get("post_shake_peak_kinetic_energy")
+        ),
+        "stability_items_toppled": _numeric(
+            leaf_metrics.get("post_shake_items_toppled")
+        ),
+    }
+    result = {}
+    for name, objective in MULTI_HEAD_SPECS.items():
+        value = values[name]
+        eligible = bool(complete and value is not None)
+        result[name] = {
+            "value": value,
+            "target_eligible": eligible,
+            "censor_reason": (
+                None if eligible else termination if not complete else "unmeasured"
+            ),
+            "objective": objective,
+        }
+    return result
+
+
+def summarize_multi_head_branch_samples(
+    samples: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Aggregate only eligible values while preserving censor counts."""
+    heads = {}
+    for name, objective in MULTI_HEAD_SPECS.items():
+        targets = [sample["heads"][name] for sample in samples]
+        values = [
+            float(target["value"])
+            for target in targets
+            if target.get("target_eligible") and target.get("value") is not None
+        ]
+        heads[name] = {
+            "objective": objective,
+            "eligible_count": len(values),
+            "censored_count": len(targets) - len(values),
+            "mean": sum(values) / len(values) if values else None,
+            "min": min(values) if values else None,
+            "max": max(values) if values else None,
+        }
+    complete = sum(
+        sample.get("termination") in {"horizon", "stream_exhausted"}
+        for sample in samples
+    )
+    return {
+        "schema_version": 1,
+        "contract": "bounded_physical_rollout_multi_head_no_weighted_sum",
+        "samples": len(samples),
+        "complete_samples": complete,
+        "censored_samples": len(samples) - complete,
+        "heads": heads,
+    }
+
+
+def build_trajectory_value_heads(
+    *, metrics_before: dict[str, Any], final_metrics: dict[str, Any],
+    player_return: float, terminal_reason: str | None,
+    target_eligible: bool,
+) -> dict[str, dict[str, Any]]:
+    """Build state-to-episode-end targets for a value model."""
+    stream_completed = (
+        1.0 if terminal_reason == "stream_exhausted"
+        else 0.0 if terminal_reason in {
+            "no_retained_candidate", "no_safe_retained_candidate"
+        }
+        else None
+    )
+    values = {
+        "game_return": _numeric(player_return),
+        "fill_return": _delta(
+            metrics_before, final_metrics,
+            "fill_score_proxy", "fill_percent_proxy",
+        ),
+        "placed_return": _delta(
+            metrics_before, final_metrics, "placed_count"
+        ),
+        "stream_completed": stream_completed,
+        "soft_violation_return": _delta(
+            metrics_before, final_metrics, "soft_covered_by_other"
+        ),
+        "priority_covered_return": _delta(
+            metrics_before, final_metrics, "priority_covered_by_other"
+        ),
+        "priority_misrouted_return": _delta(
+            metrics_before, final_metrics, "priority_misrouted"
+        ),
+        "center_of_mass_z_return": _delta(
+            metrics_before, final_metrics, "center_of_mass_z", "com_z"
+        ),
+        "surface_total_variation_return": _delta(
+            metrics_before, final_metrics, "surface_total_variation"
+        ),
+        "terminal_stability_max_shift": _numeric(
+            final_metrics.get("post_shake_max_shift")
+        ),
+        "terminal_stability_peak_kinetic_energy": _numeric(
+            final_metrics.get("post_shake_peak_kinetic_energy")
+        ),
+        "terminal_stability_items_toppled": _numeric(
+            final_metrics.get("post_shake_items_toppled")
+        ),
+    }
+    heads = {}
+    for name, objective in TRAJECTORY_VALUE_HEAD_SPECS.items():
+        value = values[name]
+        eligible = bool(target_eligible and value is not None)
+        heads[name] = {
+            "value": value,
+            "target_eligible": eligible,
+            "censor_reason": (
+                None if eligible
+                else "episode_ineligible" if not target_eligible
+                else "unmeasured"
+            ),
+            "objective": objective,
+        }
+    return heads
+
+
 def candidate_id(candidate: Any) -> str:
     value = (
         candidate.get("candidate_id")
@@ -188,6 +397,8 @@ class PuctTree:
 def build_return_targets(
     captures: list[dict[str, Any]], records: list[dict[str, Any]], *,
     final_rewards: list[float], value_target_eligible: bool,
+    final_metrics: dict[str, Any] | None = None,
+    terminal_reason: str | None = None,
 ) -> list[dict[str, Any]]:
     """Attach undiscounted suffix return G_t and search policy to each state."""
     if len(final_rewards) != 2:
@@ -219,7 +430,7 @@ def build_return_targets(
                 "Self-Play returns must remain zero-sum: "
                 f"{player_returns}"
             )
-        targets.append({
+        target = {
             "step": step,
             "snapshot_path": capture.get("snapshot_path"),
             "player_to_move": player,
@@ -229,5 +440,15 @@ def build_return_targets(
             "return_to_go_player0": player_returns[0],
             "value_target_eligible": bool(value_target_eligible),
             "discount": 1.0,
-        })
+        }
+        target["value_heads"] = build_trajectory_value_heads(
+            metrics_before=dict(
+                capture.get("cumulative_metrics_before") or {}
+            ),
+            final_metrics=dict(final_metrics or {}),
+            player_return=player_returns[player],
+            terminal_reason=terminal_reason,
+            target_eligible=value_target_eligible,
+        )
+        targets.append(target)
     return targets
