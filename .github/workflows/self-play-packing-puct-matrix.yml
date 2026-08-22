@@ -11,10 +11,16 @@ on:
       - scripts/run_self_play_packing.py
       - scripts/evaluate_self_play_packing.py
       - scripts/evaluate_self_play_puct_matrix.py
+      - scripts/build_self_play_pv_dataset.py
+      - scripts/evaluate_self_play_value_bootstrap.py
+      - scripts/evaluate_self_play_policy_bootstrap.py
       - scripts/render_self_play_replay.py
       - tests/test_self_play_packing_search.py
       - tests/test_run_self_play_packing.py
       - tests/test_evaluate_self_play_puct_matrix.py
+      - tests/test_build_self_play_pv_dataset.py
+      - tests/test_evaluate_self_play_value_bootstrap.py
+      - tests/test_evaluate_self_play_policy_bootstrap.py
       - tests/test_self_play_packing_puct_matrix_workflow.py
 
 permissions:
@@ -159,6 +165,31 @@ jobs:
           --root reports/self-play-puct-matrix
           --json-output reports/self-play-puct-matrix/aggregate.json
           --markdown-output reports/self-play-puct-matrix/aggregate.md
+      - name: Build leakage-audited P/V dataset
+        run: >-
+          python scripts/build_self_play_pv_dataset.py
+          --root reports/self-play-puct-matrix
+          --output reports/self-play-puct-matrix/pv-dataset.jsonl
+          --summary reports/self-play-puct-matrix/pv-dataset-summary.json
+      - name: Audit grouped value bootstrap
+        run: >-
+          python scripts/evaluate_self_play_value_bootstrap.py
+          --dataset reports/self-play-puct-matrix/pv-dataset.jsonl
+          --json-output reports/self-play-puct-matrix/value-bootstrap.json
+          --markdown-output reports/self-play-puct-matrix/value-bootstrap.md
+      - name: Audit grouped policy bootstrap
+        run: >-
+          python scripts/evaluate_self_play_policy_bootstrap.py
+          --dataset reports/self-play-puct-matrix/pv-dataset.jsonl
+          --json-output reports/self-play-puct-matrix/policy-bootstrap.json
+          --markdown-output reports/self-play-puct-matrix/policy-bootstrap.md
+      - name: Audit physics-Q-discriminating policy bootstrap
+        run: >-
+          python scripts/evaluate_self_play_policy_bootstrap.py
+          --dataset reports/self-play-puct-matrix/pv-dataset.jsonl
+          --q-discriminating-only
+          --json-output reports/self-play-puct-matrix/policy-bootstrap-q.json
+          --markdown-output reports/self-play-puct-matrix/policy-bootstrap-q.md
       - name: Publish paired verdict
         shell: bash
         run: cat reports/self-play-puct-matrix/aggregate.md >> "$GITHUB_STEP_SUMMARY"

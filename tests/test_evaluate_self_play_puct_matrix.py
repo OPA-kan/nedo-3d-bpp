@@ -133,6 +133,18 @@ class PuctMatrixEvaluationTests(unittest.TestCase):
             ["peak_kinetic_energy_per_item"],
             0.2,
         )
+        self.assertEqual(
+            result["aggregate"]
+            ["matched_shake_median_delta_mcts_minus_rank0"]
+            ["peak_kinetic_energy_per_item"],
+            0.2,
+        )
+        self.assertEqual(
+            result["aggregate"]
+            ["matched_shake_directions_lower_is_better"]
+            ["peak_kinetic_energy_per_item"],
+            {"better": 0, "tie": 0, "worse": 2},
+        )
         self.assertTrue(result["gates"]["data_contract_ready"])
         self.assertTrue(result["gates"]["policy_contract_ready"])
         self.assertTrue(result["gates"]["value_contract_ready"])

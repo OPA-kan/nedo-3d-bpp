@@ -654,8 +654,10 @@ def run_physical_game(
         env.reset_settings()
         env.reset_item_stream()
         raw_observation, _info = env.reset(seed=environment_seed)
+        task_config_signature = stable_id("self-play-task-config", task_config)
         trajectory_id = stable_id("self-play-trajectory", {
             "case_id": case_id,
+            "task_config_signature": task_config_signature,
             "environment_seed": environment_seed,
             "handoff_seed": handoff_seed,
             "policy_seed": policy_seed,
@@ -749,6 +751,7 @@ def run_physical_game(
             "handoff_seed": handoff_seed,
             "policy_seed": policy_seed,
             "selection_mode": selection_mode,
+            "task_config_signature": task_config_signature,
         })
         return result
     finally:

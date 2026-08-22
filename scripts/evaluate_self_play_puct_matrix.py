@@ -253,6 +253,8 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
         "toppled_fraction", "max_shift", "mean_shift", "max_rotation_deg",
     )
     matched_shake_mean_deltas = {}
+    matched_shake_median_deltas = {}
+    matched_shake_directions = {}
     for field in matched_shake_fields:
         values = [
             float(row["delta_mcts_minus_rank0"][field])
@@ -262,6 +264,14 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
         matched_shake_mean_deltas[field] = (
             statistics.mean(values) if values else None
         )
+        matched_shake_median_deltas[field] = (
+            statistics.median(values) if values else None
+        )
+        matched_shake_directions[field] = {
+            "better": sum(value < -1e-12 for value in values),
+            "tie": sum(abs(value) <= 1e-12 for value in values),
+            "worse": sum(value > 1e-12 for value in values),
+        }
     policy_contract_ready = all(
         row["mcts"]["training_eligible"]
         and row["mcts"]["search_decisions"] > 0
@@ -329,6 +339,12 @@ def summarize(root: pathlib.Path) -> dict[str, Any]:
             "matched_shake_mean_delta_mcts_minus_rank0": (
                 matched_shake_mean_deltas
             ),
+            "matched_shake_median_delta_mcts_minus_rank0": (
+                matched_shake_median_deltas
+            ),
+            "matched_shake_directions_lower_is_better": (
+                matched_shake_directions
+            ),
         },
         "gates": {
             "policy_contract_ready": policy_contract_ready,
@@ -352,6 +368,12 @@ def markdown(result: dict[str, Any]) -> str:
     gates = result["gates"]
     delta = aggregate["mean_delta_mcts_minus_rank0"]
     matched = aggregate["matched_shake_mean_delta_mcts_minus_rank0"]
+    matched_median = aggregate[
+        "matched_shake_median_delta_mcts_minus_rank0"
+    ]
+    matched_directions = aggregate[
+        "matched_shake_directions_lower_is_better"
+    ]["peak_kinetic_energy_per_item"]
     lines = [
         "# Paired physical PUCT matrix", "",
         f"- pairs: {aggregate['pair_count']}",
@@ -384,6 +406,19 @@ def markdown(result: dict[str, Any]) -> str:
                 if matched["peak_kinetic_energy_per_mass"] is not None
                 else "n/a"
             )
+        ),
+        (
+            "- matched-count median shake-KE/item delta: "
+            + (
+                f"{matched_median['peak_kinetic_energy_per_item']:+.6f}"
+                if matched_median["peak_kinetic_energy_per_item"] is not None
+                else "n/a"
+            )
+        ),
+        (
+            "- matched-count shake-KE/item better/tie/worse: "
+            f"{matched_directions['better']} / {matched_directions['tie']} / "
+            f"{matched_directions['worse']}"
         ),
         f"- search decisions: {aggregate['search_decisions']}",
         f"- physical simulations: {aggregate['search_simulations']}",
