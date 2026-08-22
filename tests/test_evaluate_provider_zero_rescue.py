@@ -17,6 +17,7 @@ def _state(board, occurrence, rescued):
                 "physical_filter_seconds": 2.0,
                 "safe_candidates": ([{
                     "selection": {
+                        "rank": 0,
                         "priority_routing_violation": 1,
                         "soft_violations_direct": 0,
                         "priority_violations_direct": 0,
@@ -49,6 +50,9 @@ class ProviderZeroRescueEvaluationTests(unittest.TestCase):
             row["attribute_heads"]["priority_routing_violation_events"], 1
         )
         self.assertIn("stride4", result["promising_strategies_at_20pct_point_recall"])
+        self.assertEqual(row["rank0_safe_boards"], 1)
+        self.assertEqual(row["lazy_physical_checks_to_first_safe"], 3)
+        self.assertEqual(row["clean_safe_candidate_count"], 0)
 
     def test_rejects_duplicate_boards_across_shards(self):
         first = {"complete": True, "states": [_state("b1", 1, True)]}

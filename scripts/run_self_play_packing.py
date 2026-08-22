@@ -109,7 +109,12 @@ def build_exact_physical_legal_filter(
                 render_mode=None,
             )
 
-    def legal_filter(*, env, observation, candidates, actions, step):
+    def legal_filter(
+        *, env, observation, candidates, actions, step,
+        max_safe_candidates: int | None = None,
+    ):
+        if max_safe_candidates is not None and max_safe_candidates < 1:
+            raise ValueError("max_safe_candidates must be positive when set")
         observed = policy_observation(env, observation)
         expected_snapshot = state_snapshot(
             env, observed, case_id=case_id, step=int(step)
@@ -156,13 +161,22 @@ def build_exact_physical_legal_filter(
                 })
             finally:
                 preview_env.close()
+            if (
+                max_safe_candidates is not None
+                and len(retained) >= max_safe_candidates
+            ):
+                break
+        checked_count = len(candidate_audits)
         return retained, {
             "schema_version": 1,
             "mode": "fresh_pybullet_prefix_replay",
             "step": int(step),
             "proposal_count": len(candidates),
+            "checked_count": checked_count,
+            "unchecked_count": len(candidates) - checked_count,
             "safe_count": len(retained),
-            "rejected_count": len(candidates) - len(retained),
+            "rejected_count": checked_count - len(retained),
+            "max_safe_candidates": max_safe_candidates,
             "candidates": candidate_audits,
         }
 
@@ -172,6 +186,9 @@ def build_exact_physical_legal_filter(
 def build_physical_puct_search(
     task_config: dict[str, Any], *, case_id: str, environment_seed: int,
     candidate_provider: Callable, legal_filter_fn: Callable,
+    provider_zero_rescue_fn: Callable | None = None,
+    provider_zero_rescue_limit: int | None = None,
+    provider_zero_rescue_safe_limit: int = 1,
     rules: GameRules, top_k: int, simulations: int = 6, horizon: int = 3,
     candidate_audit_limit: int | None = None,
     candidate_rescue_limit: int | None = None,
@@ -192,6 +209,14 @@ def build_physical_puct_search(
         raise ValueError("candidate_audit_limit must be positive when set")
     if candidate_rescue_limit is not None and candidate_rescue_limit <= top_k:
         raise ValueError("candidate_rescue_limit must be greater than top_k")
+    if (provider_zero_rescue_fn is None) != (provider_zero_rescue_limit is None):
+        raise ValueError(
+            "provider-zero rescue function and limit must be configured together"
+        )
+    if provider_zero_rescue_limit is not None and provider_zero_rescue_limit < 1:
+        raise ValueError("provider_zero_rescue_limit must be positive")
+    if provider_zero_rescue_safe_limit < 1:
+        raise ValueError("provider_zero_rescue_safe_limit must be positive")
     if action_temperature < 0.0:
         raise ValueError("action_temperature must be non-negative")
     if temperature_drop_step is not None and temperature_drop_step < 0:
@@ -219,7 +244,8 @@ def build_physical_puct_search(
     wider_limit = max(
         (
             limit for limit in (
-                candidate_audit_limit, candidate_rescue_limit
+                candidate_audit_limit, candidate_rescue_limit,
+                provider_zero_rescue_limit,
             )
             if limit is not None
         ),
@@ -258,6 +284,9 @@ def build_physical_puct_search(
         candidate_exhaustion_audits: list[dict[str, Any]] = []
         multi_head_branch_samples: list[dict[str, Any]] = []
         candidate_rescue_summary: collections.Counter[str] = (
+            collections.Counter()
+        )
+        provider_zero_rescue_summary: collections.Counter[str] = (
             collections.Counter()
         )
         exhaustion_shadow_summary: collections.Counter[str] = (
@@ -389,6 +418,69 @@ def build_physical_puct_search(
                                     candidate for candidate in wider_legal
                                     if candidate_id(candidate) in rescue_ids
                                 ]
+                            provider_zero_proposals = []
+                            provider_zero_legal = []
+                            provider_zero_audit = {
+                                "checked_count": 0,
+                                "unchecked_count": 0,
+                                "rejected_count": 0,
+                            }
+                            if (
+                                not proposals
+                                and not wider_proposals
+                                and prefix_matches
+                                and provider_zero_rescue_fn is not None
+                                and provider_zero_rescue_limit is not None
+                            ):
+                                provider_zero_rescue_summary[
+                                    "attempted_nodes"
+                                ] += 1
+                                provider_zero_proposals = list(
+                                    provider_zero_rescue_fn(
+                                        simulation_env,
+                                        simulation_observation,
+                                        int(provider_zero_rescue_limit),
+                                    )
+                                )
+                                provider_zero_rescue_summary[
+                                    "generated_candidates"
+                                ] += len(provider_zero_proposals)
+                                if provider_zero_proposals:
+                                    (
+                                        provider_zero_legal,
+                                        provider_zero_audit,
+                                    ) = legal_filter_fn(
+                                        env=simulation_env,
+                                        observation=simulation_observation,
+                                        candidates=provider_zero_proposals,
+                                        actions=list(simulation_actions),
+                                        step=int(step) + depth,
+                                        max_safe_candidates=(
+                                            provider_zero_rescue_safe_limit
+                                        ),
+                                    )
+                                    provider_zero_legal = list(
+                                        provider_zero_legal
+                                    )
+                                provider_zero_rescue_summary[
+                                    "physical_checks"
+                                ] += int(
+                                    provider_zero_audit.get(
+                                        "checked_count",
+                                        len(
+                                            provider_zero_audit.get(
+                                                "candidates", []
+                                            )
+                                        ),
+                                    )
+                                )
+                                provider_zero_rescue_summary[
+                                    "physical_rejections"
+                                ] += int(
+                                    provider_zero_audit.get(
+                                        "rejected_count", 0
+                                    )
+                                )
                             exhaustion_shadow_summary["audited_nodes"] += 1
                             exhaustion_shadow_summary[
                                 "top_k_proposal_empty_nodes"
@@ -444,7 +536,9 @@ def build_physical_puct_search(
                                 ),
                                 "wider_limit": int(wider_limit),
                                 "candidate_rescue_limit": candidate_rescue_limit,
-                                "search_widening_applied": bool(rescue_legal),
+                                "search_widening_applied": bool(
+                                    rescue_legal or provider_zero_legal
+                                ),
                                 "top_k_proposal_count": len(proposals),
                                 "top_k_safe_count": len(legal),
                                 "top_k_rejected_count": int(
@@ -457,6 +551,27 @@ def build_physical_puct_search(
                                 ),
                                 "prefix_matches": prefix_matches,
                                 "recovered_candidate_ids": recovered_ids,
+                                "provider_zero_rescue_limit": (
+                                    provider_zero_rescue_limit
+                                ),
+                                "provider_zero_rescue_safe_limit": (
+                                    provider_zero_rescue_safe_limit
+                                ),
+                                "provider_zero_rescue_proposal_count": len(
+                                    provider_zero_proposals
+                                ),
+                                "provider_zero_rescue_safe_count": len(
+                                    provider_zero_legal
+                                ),
+                                "provider_zero_rescue_checked_count": int(
+                                    provider_zero_audit.get(
+                                        "checked_count", 0
+                                    )
+                                ),
+                                "provider_zero_rescued_candidate_ids": [
+                                    candidate_id(candidate)
+                                    for candidate in provider_zero_legal
+                                ],
                             })
                             if rescue_legal:
                                 candidate_cache[node_key] = list(rescue_legal)
@@ -466,6 +581,21 @@ def build_physical_puct_search(
                                 ] += len(rescue_legal)
                                 search_prefilter_rejections += int(
                                     wider_audit.get("rejected_count", 0)
+                                )
+                            elif provider_zero_legal:
+                                candidate_cache[node_key] = list(
+                                    provider_zero_legal
+                                )
+                                provider_zero_rescue_summary[
+                                    "applied_nodes"
+                                ] += 1
+                                provider_zero_rescue_summary[
+                                    "recovered_candidates"
+                                ] += len(provider_zero_legal)
+                                search_prefilter_rejections += int(
+                                    provider_zero_audit.get(
+                                        "rejected_count", 0
+                                    )
                                 )
                     node_candidates = candidate_cache[node_key]
                     if not node_candidates:
@@ -654,6 +784,22 @@ def build_physical_puct_search(
             "candidate_rescue_summary": {
                 key: int(candidate_rescue_summary.get(key, 0))
                 for key in ("applied_nodes", "recovered_candidates")
+            },
+            "provider_zero_rescue_limit": provider_zero_rescue_limit,
+            "provider_zero_rescue_safe_limit": (
+                provider_zero_rescue_safe_limit
+                if provider_zero_rescue_fn is not None else None
+            ),
+            "provider_zero_rescue_summary": {
+                key: int(provider_zero_rescue_summary.get(key, 0))
+                for key in (
+                    "attempted_nodes",
+                    "applied_nodes",
+                    "generated_candidates",
+                    "recovered_candidates",
+                    "physical_checks",
+                    "physical_rejections",
+                )
             },
             "candidate_exhaustion_unique_nodes": len(exhaustion_node_keys),
             "candidate_exhaustion_shadow_summary": {

@@ -11,8 +11,16 @@ on:
         description: Searchable rescue width after Top-K physical exhaustion; 0 keeps shadow-only widening
         required: false
         default: "0"
+      provider_zero_rescue_stride:
+        description: Equal-budget stride used only after width-64 provider-zero; 0 disables
+        required: false
+        default: "0"
+      provider_zero_rescue_safe_limit:
+        description: Lazy PyBullet validation stops after this many safe rescue candidates
+        required: false
+        default: "1"
       baseline_convergence_run_id:
-        description: Fixed Top-K convergence run used for paired rescue comparison
+        description: Convergence run used as the paired candidate-support baseline
         required: false
         default: "32553551810"
   push:
@@ -87,6 +95,9 @@ jobs:
           --expected-roots 58
           --candidate-audit-limit 64
           --candidate-rescue-limit ${{ inputs.candidate_rescue_limit || '0' }}
+          --provider-zero-rescue-stride ${{ inputs.provider_zero_rescue_stride || '0' }}
+          --provider-zero-rescue-limit 64
+          --provider-zero-rescue-safe-limit ${{ inputs.provider_zero_rescue_safe_limit || '1' }}
           --shard-index ${{ matrix.shard_index }}
           --shard-count 8
           --output reports/puct-convergence/convergence-shard-${{ matrix.shard_index }}.json
@@ -102,7 +113,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Download fixed Top-K convergence baseline
+      - name: Download paired candidate-support baseline
         shell: bash
         run: >-
           gh run download "${{ inputs.baseline_convergence_run_id || '32553551810' }}"
@@ -129,8 +140,10 @@ jobs:
           --expected-roots 58
           --json-output reports/puct-convergence/adaptive-schedule.json
           --markdown-output reports/puct-convergence/adaptive-schedule.md
-      - name: Compare searchable rescue with fixed Top-K
-        if: ${{ (inputs.candidate_rescue_limit || '0') != '0' }}
+      - name: Compare searchable candidate-support arms
+        if: >-
+          ${{ (inputs.candidate_rescue_limit || '0') != '0' ||
+              (inputs.provider_zero_rescue_stride || '0') != '0' }}
         run: >-
           python scripts/compare_self_play_puct_rescue.py
           --baseline reports/baseline-puct-convergence/aggregate.json
@@ -144,7 +157,9 @@ jobs:
           reports/puct-convergence/adaptive-schedule.md
           >> "$GITHUB_STEP_SUMMARY"
       - name: Publish searchable-rescue comparison
-        if: ${{ (inputs.candidate_rescue_limit || '0') != '0' }}
+        if: >-
+          ${{ (inputs.candidate_rescue_limit || '0') != '0' ||
+              (inputs.provider_zero_rescue_stride || '0') != '0' }}
         shell: bash
         run: cat reports/puct-convergence/rescue-comparison.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

@@ -26,11 +26,17 @@ class SelfPlayPuctConvergenceWorkflowTests(unittest.TestCase):
         self.assertIn("--candidate-audit-limit 64", text)
         self.assertIn("candidate_rescue_limit", text)
         self.assertIn("--candidate-rescue-limit", text)
+        self.assertIn("provider_zero_rescue_stride", text)
+        self.assertIn("--provider-zero-rescue-stride", text)
+        self.assertIn("--provider-zero-rescue-safe-limit", text)
         self.assertIn("baseline_convergence_run_id", text)
         self.assertIn("compare_self_play_puct_rescue.py", text)
         self.assertIn("evaluate_adaptive_puct_schedule.py", text)
         self.assertIn("rescue-comparison.md", text)
         self.assertIn("rescue_candidates_searchable", (
+            ROOT / "scripts" / "rerun_self_play_puct_roots.py"
+        ).read_text(encoding="utf-8"))
+        self.assertIn("provider_zero_rescue_stride", (
             ROOT / "scripts" / "rerun_self_play_puct_roots.py"
         ).read_text(encoding="utf-8"))
         self.assertIn(

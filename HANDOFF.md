@@ -128,15 +128,28 @@ candidates, and 1,169 (86.1%) remained provider-empty even at width 64. Those
 1,169 nodes correspond to 521 unique board fingerprints, not one repeated
 state: 248 single-empty-shelf, 149 dual-preloaded-dedicated, 97
 single-empty-noshelf and 27 dual-shelf-mixed. A durable replay corpus is in
-`reports/self-play-packing/provider-zero-corpus-32572648489.json`. The next
-experiment is a stratified 49-board physical rescue benchmark (up to eight
-boards per case x effective-step band). The source manifest fixes the original
-budget at 128 attempts per item; the benchmark compares 4x/16x deep scans with
-equal-budget stride-4 and stride-16 global anchor coverage. Every emitted
-proposal remains behind fresh PyBullet hard
-filtering; direct and stack-aware soft/priority coverage plus priority routing
-are separate heads. This is a provider-recall capability test, not a policy or
-score-improvement claim.
+`reports/self-play-packing/provider-zero-corpus-32572648489.json`.
+
+The preregistered 49-board physical rescue benchmark completed in Actions run
+`32584608725` (8/8 shards plus aggregate). All 49 unique boards and all 109
+represented exhausted-node occurrences replayed the original provider as
+empty. Equal-budget stride-4 and stride-16, plus 4x and 16x deep scans, each
+recovered at least one PyBullet-safe candidate on 49/49 boards and every one of
+the four scenario families. Stride-4 was fastest at 3.350 s generation per
+board versus 3.812 for stride-16, 13.407 for 4x deep and 49.712 for 16x deep.
+The safe rank-0 candidate was present on 49/49 boards for every arm, so a lazy
+filter would require 49 checks instead of eagerly checking roughly 1,400
+candidates per arm on this sample. Clean safe-candidate rates, keeping all
+direct/stack soft/priority and routing heads separate, were 42.4% stride-4,
+72.0% stride-16, 58.2% 4x deep and 90.0% 16x deep; every arm still had at least
+one fully clean safe candidate on every board. This identifies equal-budget
+anchor-order/coverage starvation on this targeted provider-zero population;
+it does not establish on-policy score gain. Compact evidence is in
+`provider-zero-rescue-32584608725.{json,md}`. The next bounded-search arm uses
+stride-4 only after width-64 confirms the original provider remains empty and
+stops physical validation after the first safe rescue; stride-16 remains an
+explicit alternative rather than being selected through an invented
+soft/priority exchange rate.
 
 The instrument and the first Linux physical H3 condition matrix are complete:
 

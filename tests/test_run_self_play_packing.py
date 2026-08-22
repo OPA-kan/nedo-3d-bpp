@@ -455,6 +455,85 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             2,
         )
 
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_provider_zero_uses_stride_rescue_with_lazy_physics(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+        root = {
+            "candidate_id": "root", "selection": {"rank": 0},
+            "command_action": {
+                "item_idx": 0, "container_idx": 0,
+                "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+            },
+        }
+        rescue = [{
+            "candidate_id": "stride-safe", "selection": {"rank": 0},
+            "command_action": {
+                "item_idx": 1, "container_idx": 0,
+                "place_pos": [0.1, 0.0, 0.5], "orientation": 0,
+            },
+        }]
+
+        class SimulationEnv:
+            def __init__(self):
+                self.actions = []
+
+            def step(self, action):
+                self.actions.append(action["item_idx"])
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        lazy_limits = []
+
+        def legal_filter(**context):
+            lazy_limits.append(context.get("max_safe_candidates"))
+            return list(context["candidates"][:1]), {
+                "rejected_count": 0, "checked_count": 1,
+                "unchecked_count": max(0, len(context["candidates"]) - 1),
+            }
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=lambda *_args: [],
+            provider_zero_rescue_fn=lambda *_args: rescue,
+            provider_zero_rescue_limit=64,
+            provider_zero_rescue_safe_limit=1,
+            legal_filter_fn=legal_filter,
+            rules=GameRules(minimum_block=10), top_k=1,
+            simulations=1, horizon=2, action_temperature=0.0,
+            metrics_fn=lambda _env: {}, env_factory=SimulationEnv,
+        )
+
+        _chosen, result = search(
+            env=object(), observation={}, candidates=[root], actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        self.assertIn(1, lazy_limits)
+        self.assertEqual(
+            1, result["provider_zero_rescue_summary"]["applied_nodes"]
+        )
+        self.assertEqual(
+            1, result["provider_zero_rescue_summary"]["physical_checks"]
+        )
+        self.assertEqual(0, result["candidate_exhaustion_unique_nodes"])
+
     def test_search_policy_selects_action_and_emits_pi_and_return_target(self):
         def two_candidates(_env, _observation, _limit):
             return [
@@ -602,6 +681,65 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         self.assertEqual(audit["candidates"][0]["status"], statuses[0])
         self.assertTrue(all(preview.closed for preview in previews))
         self.assertEqual(replay.call_count, 2)
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_exact_filter_stops_after_requested_safe_count(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+        statuses = [
+            {"is_included": True, "is_valid": False, "is_placed_safe": False},
+            {"is_included": True, "is_valid": True, "is_placed_safe": True},
+        ]
+        previews = []
+
+        class Preview:
+            def __init__(self, status):
+                self.status = status
+
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": self.status}
+
+            def close(self):
+                pass
+
+        def factory():
+            preview = Preview(statuses[len(previews)])
+            previews.append(preview)
+            return preview
+
+        candidates = [
+            {
+                "candidate_id": f"c-{rank}",
+                "selection": {"rank": rank},
+                "command_action": {
+                    "item_idx": rank, "container_idx": 0,
+                    "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+                },
+            }
+            for rank in range(3)
+        ]
+        legal_filter = build_exact_physical_legal_filter(
+            {}, case_id="case", environment_seed=42, env_factory=factory
+        )
+
+        retained, audit = legal_filter(
+            env=object(), observation={}, candidates=candidates,
+            actions=[], step=0, max_safe_candidates=1,
+        )
+
+        self.assertEqual(["c-1"], [row["candidate_id"] for row in retained])
+        self.assertEqual(2, audit["checked_count"])
+        self.assertEqual(1, audit["unchecked_count"])
+        self.assertEqual(1, audit["rejected_count"])
+        self.assertEqual(2, replay.call_count)
 
     def test_policy_selects_only_from_prefiltered_legal_moves(self):
         def two_candidates(_env, _observation, _limit):

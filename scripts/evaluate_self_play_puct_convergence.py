@@ -163,6 +163,9 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
         "candidate_exhaustion_shadow_summary", {}
     )
     reference_rescue = reference_search.get("candidate_rescue_summary", {})
+    reference_provider_zero = reference_search.get(
+        "provider_zero_rescue_summary", {}
+    )
     reference_signature = policy_signature(reference)
     reference_q_values = {
         round(float(row["q"]), 12)
@@ -241,6 +244,32 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
             if reference_search.get("candidate_rescue_limit") is not None
             else None
         ),
+        "reference_provider_zero_rescue_summary": {
+            key: int(reference_provider_zero.get(key, 0))
+            for key in (
+                "attempted_nodes",
+                "applied_nodes",
+                "generated_candidates",
+                "recovered_candidates",
+                "physical_checks",
+                "physical_rejections",
+            )
+        },
+        "reference_provider_zero_rescue_limit": (
+            int(reference_search["provider_zero_rescue_limit"])
+            if reference_search.get("provider_zero_rescue_limit") is not None
+            else None
+        ),
+        "reference_provider_zero_rescue_safe_limit": (
+            int(reference_search["provider_zero_rescue_safe_limit"])
+            if reference_search.get("provider_zero_rescue_safe_limit") is not None
+            else None
+        ),
+        "reference_provider_zero_rescue_stride": (
+            int(reference_search["provider_zero_rescue_stride"])
+            if reference_search.get("provider_zero_rescue_stride") is not None
+            else None
+        ),
         "comparisons": comparisons,
     }
 
@@ -300,6 +329,36 @@ def aggregate_convergence(
         for row in rows
         if row["reference_candidate_rescue_limit"] is not None
     })
+    provider_zero_keys = (
+        "attempted_nodes",
+        "applied_nodes",
+        "generated_candidates",
+        "recovered_candidates",
+        "physical_checks",
+        "physical_rejections",
+    )
+    reference_provider_zero_rescue_summary = {
+        key: sum(
+            row["reference_provider_zero_rescue_summary"][key]
+            for row in rows
+        )
+        for key in provider_zero_keys
+    }
+    reference_provider_zero_rescue_limits = sorted({
+        row["reference_provider_zero_rescue_limit"]
+        for row in rows
+        if row["reference_provider_zero_rescue_limit"] is not None
+    })
+    reference_provider_zero_rescue_safe_limits = sorted({
+        row["reference_provider_zero_rescue_safe_limit"]
+        for row in rows
+        if row["reference_provider_zero_rescue_safe_limit"] is not None
+    })
+    reference_provider_zero_rescue_strides = sorted({
+        row["reference_provider_zero_rescue_stride"]
+        for row in rows
+        if row["reference_provider_zero_rescue_stride"] is not None
+    })
     return {
         "schema_version": 1,
         "experiment": "targeted_physical_puct_convergence",
@@ -351,6 +410,18 @@ def aggregate_convergence(
         "reference_candidate_rescue_limits": (
             reference_candidate_rescue_limits
         ),
+        "reference_provider_zero_rescue_summary": (
+            reference_provider_zero_rescue_summary
+        ),
+        "reference_provider_zero_rescue_limits": (
+            reference_provider_zero_rescue_limits
+        ),
+        "reference_provider_zero_rescue_safe_limits": (
+            reference_provider_zero_rescue_safe_limits
+        ),
+        "reference_provider_zero_rescue_strides": (
+            reference_provider_zero_rescue_strides
+        ),
         "bounded_search_stable_fraction": stable / len(rows) if rows else 0.0,
         "caveat": (
             "Stability means agreement inside the measured bounded PUCT schedule; "
@@ -363,6 +434,7 @@ def aggregate_convergence(
 def render_markdown(result: dict[str, Any]) -> str:
     shadow = result["reference_exhaustion_shadow_summary"]
     rescue = result["reference_candidate_rescue_summary"]
+    provider_zero = result["reference_provider_zero_rescue_summary"]
     lines = [
         "# Targeted physical-PUCT convergence",
         "",
@@ -388,6 +460,9 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- wider proposals all physically rejected: {shadow['wider_all_rejected_nodes']}",
         f"- shadow prefix mismatches: {shadow['prefix_mismatch_nodes']}",
         f"- searchable rescue nodes at reference: {rescue['applied_nodes']}",
+        f"- provider-zero stride rescue nodes: {provider_zero['applied_nodes']}",
+        f"- provider-zero lazy physical checks: {provider_zero['physical_checks']}",
+        f"- provider-zero physical rejections before first safe: {provider_zero['physical_rejections']}",
         f"- searchable recovered candidates: {rescue['recovered_candidates']}",
         "",
         f"> {result['caveat']}",

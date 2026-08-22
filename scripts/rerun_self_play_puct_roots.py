@@ -142,6 +142,9 @@ def load_task_config(path: pathlib.Path, case_id: str) -> dict[str, Any]:
 def _run_root(
     root: dict[str, Any], agent_module, *, candidate_audit_limit: int | None,
     candidate_rescue_limit: int | None,
+    provider_zero_rescue_stride: int | None,
+    provider_zero_rescue_limit: int | None,
+    provider_zero_rescue_safe_limit: int,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -155,6 +158,15 @@ def _run_root(
         agent_module,
         attempt_budget=int(candidate_contract["attempt_budget"]),
         scan_all_visible_items=True,
+    )
+    provider_zero_rescue = (
+        build_candidate_provider(
+            agent_module,
+            attempt_budget=int(candidate_contract["attempt_budget"]),
+            scan_all_visible_items=True,
+            candidate_stride=int(provider_zero_rescue_stride),
+        )
+        if provider_zero_rescue_stride is not None else None
     )
     legal_filter = build_exact_physical_legal_filter(
         task_config, case_id=root["case_id"], environment_seed=environment_seed,
@@ -196,6 +208,11 @@ def _run_root(
                 case_id=root["case_id"],
                 environment_seed=environment_seed,
                 candidate_provider=provider,
+                provider_zero_rescue_fn=provider_zero_rescue,
+                provider_zero_rescue_limit=provider_zero_rescue_limit,
+                provider_zero_rescue_safe_limit=(
+                    provider_zero_rescue_safe_limit
+                ),
                 legal_filter_fn=legal_filter,
                 rules=rules,
                 top_k=int(candidate_contract["top_k"]),
@@ -219,6 +236,9 @@ def _run_root(
                 state=state,
                 step=root["step"],
                 policy_rng=random.Random(seed + 1),
+            )
+            result["provider_zero_rescue_stride"] = (
+                provider_zero_rescue_stride
             )
             conditions[label] = result
 
@@ -284,9 +304,31 @@ def main() -> int:
             "candidate; zero preserves the fixed Top-K search"
         ),
     )
+    parser.add_argument(
+        "--provider-zero-rescue-stride", type=int, default=0,
+        help=(
+            "Opt-in equal-budget anchor stride used only after the original "
+            "provider remains empty at the wider audit limit"
+        ),
+    )
+    parser.add_argument(
+        "--provider-zero-rescue-limit", type=int, default=64,
+        help="Maximum strided proposals generated at a confirmed provider-zero node",
+    )
+    parser.add_argument(
+        "--provider-zero-rescue-safe-limit", type=int, default=1,
+        help="Stop physical validation after this many safe strided candidates",
+    )
     args = parser.parse_args()
     if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
         raise SystemExit("invalid shard index/count")
+    if args.provider_zero_rescue_stride < 0:
+        raise SystemExit("provider-zero rescue stride must be non-negative")
+    if args.provider_zero_rescue_stride > 0 and (
+        args.provider_zero_rescue_limit < 1
+        or args.provider_zero_rescue_safe_limit < 1
+    ):
+        raise SystemExit("provider-zero rescue limits must be positive")
     roots = discover_roots(args.source_root)
     if args.expected_roots is not None and len(roots) != args.expected_roots:
         raise SystemExit(f"expected {args.expected_roots} roots, got {len(roots)}")
@@ -322,6 +364,18 @@ def main() -> int:
             "rescue_candidates_searchable": bool(
                 args.candidate_rescue_limit > 0
             ),
+            "provider_zero_rescue_stride": (
+                int(args.provider_zero_rescue_stride)
+                if args.provider_zero_rescue_stride > 0 else None
+            ),
+            "provider_zero_rescue_limit": (
+                int(args.provider_zero_rescue_limit)
+                if args.provider_zero_rescue_stride > 0 else None
+            ),
+            "provider_zero_rescue_safe_limit": (
+                int(args.provider_zero_rescue_safe_limit)
+                if args.provider_zero_rescue_stride > 0 else None
+            ),
         },
         "assigned_root_count": len(assigned),
         "complete": False,
@@ -339,6 +393,17 @@ def main() -> int:
             candidate_rescue_limit=(
                 int(args.candidate_rescue_limit)
                 if args.candidate_rescue_limit > 0 else None
+            ),
+            provider_zero_rescue_stride=(
+                int(args.provider_zero_rescue_stride)
+                if args.provider_zero_rescue_stride > 0 else None
+            ),
+            provider_zero_rescue_limit=(
+                int(args.provider_zero_rescue_limit)
+                if args.provider_zero_rescue_stride > 0 else None
+            ),
+            provider_zero_rescue_safe_limit=int(
+                args.provider_zero_rescue_safe_limit
             ),
         ))
         _write_payload(args.output, payload)

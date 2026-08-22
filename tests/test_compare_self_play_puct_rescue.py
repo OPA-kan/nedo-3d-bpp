@@ -3,7 +3,9 @@ import unittest
 from scripts.compare_self_play_puct_rescue import compare_rescue
 
 
-def _aggregate(*, q_top, visit_top, exhausted, stable, rescued=0):
+def _aggregate(
+    *, q_top, visit_top, exhausted, stable, rescued=0, provider_zero=0,
+):
     return {
         "root_count": 1,
         "reference_candidate_rescue_limits": [64] if rescued else [],
@@ -15,6 +17,12 @@ def _aggregate(*, q_top, visit_top, exhausted, stable, rescued=0):
         "reference_candidate_rescue_summary": {
             "applied_nodes": rescued,
             "recovered_candidates": rescued,
+        },
+        "reference_provider_zero_rescue_limits": [64] if provider_zero else [],
+        "reference_provider_zero_rescue_summary": {
+            "applied_nodes": provider_zero,
+            "recovered_candidates": provider_zero,
+            "physical_checks": provider_zero,
         },
         "roots": [{
             "root_id": "root-a",
@@ -59,6 +67,20 @@ class ComparePuctRescueTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "root sets differ"):
             compare_rescue(baseline, rescue)
+
+    def test_accepts_lazy_provider_zero_rescue_without_adaptive_k_rescue(self):
+        baseline = _aggregate(
+            q_top="a", visit_top="a", exhausted=5, stable=False
+        )
+        rescue = _aggregate(
+            q_top="a", visit_top="a", exhausted=2, stable=True,
+            provider_zero=3,
+        )
+
+        result = compare_rescue(baseline, rescue)
+
+        self.assertEqual(result["provider_zero_rescue_nodes"], 3)
+        self.assertEqual(result["provider_zero_physical_checks"], 3)
 
     def test_rejects_a_fixed_top_k_run_mislabeled_as_rescue(self):
         baseline = _aggregate(

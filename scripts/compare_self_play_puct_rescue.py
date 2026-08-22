@@ -1,4 +1,4 @@
-"""Compare fixed-Top-K and searchable-rescue PUCT convergence aggregates."""
+"""Compare two candidate-support PUCT convergence aggregates."""
 
 from __future__ import annotations
 
@@ -16,9 +16,17 @@ def compare_rescue(
         for value in rescue.get("reference_candidate_rescue_limits", [])
         if value is not None and int(value) > 0
     ]
-    if not rescue_limits:
+    provider_zero_limits = [
+        int(value)
+        for value in rescue.get(
+            "reference_provider_zero_rescue_limits", []
+        )
+        if value is not None and int(value) > 0
+    ]
+    if not rescue_limits and not provider_zero_limits:
         raise ValueError(
-            "rescue aggregate does not declare a positive candidate rescue limit"
+            "rescue aggregate does not declare a positive candidate rescue "
+            "limit or provider-zero rescue limit"
         )
     baseline_roots = {
         str(row["root_id"]): row for row in baseline.get("roots", [])
@@ -59,11 +67,20 @@ def compare_rescue(
         })
 
     rescue_summary = rescue.get("reference_candidate_rescue_summary", {})
+    provider_zero_summary = rescue.get(
+        "reference_provider_zero_rescue_summary", {}
+    )
     result = {
         "schema_version": 1,
-        "experiment": "searchable_candidate_rescue_vs_fixed_top_k",
+        "experiment": "searchable_candidate_support_comparison",
         "matched_roots": len(rows),
         "candidate_rescue_limits": sorted(set(rescue_limits)),
+        "provider_zero_rescue_limits": sorted(set(provider_zero_limits)),
+        "provider_zero_rescue_strides": [
+            int(value) for value in rescue.get(
+                "reference_provider_zero_rescue_strides", []
+            )
+        ],
         "baseline_censored_exhaustion_events": int(
             baseline.get("reference_censored_exhaustion_events", 0)
         ),
@@ -87,6 +104,18 @@ def compare_rescue(
         ),
         "searchable_recovered_candidates": int(
             rescue_summary.get("recovered_candidates", 0)
+        ),
+        "provider_zero_rescue_nodes": int(
+            provider_zero_summary.get("applied_nodes", 0)
+        ),
+        "provider_zero_recovered_candidates": int(
+            provider_zero_summary.get("recovered_candidates", 0)
+        ),
+        "provider_zero_physical_checks": int(
+            provider_zero_summary.get("physical_checks", 0)
+        ),
+        "provider_zero_physical_rejections": int(
+            provider_zero_summary.get("physical_rejections", 0)
         ),
         "reference_q_top_changed_roots": sum(
             row["q_top_changed"] for row in rows
@@ -115,13 +144,17 @@ def compare_rescue(
 
 def render_markdown(result: dict[str, Any]) -> str:
     return "\n".join([
-        "# Searchable candidate rescue vs fixed Top-K",
+        "# Searchable candidate-support comparison",
         "",
         f"- matched roots: {result['matched_roots']}",
         f"- censored exhaustion events: {result['baseline_censored_exhaustion_events']} -> {result['rescue_censored_exhaustion_events']} ({result['censored_exhaustion_event_delta']:+d})",
         f"- unique exhausted nodes: {result['baseline_unique_exhausted_nodes']} -> {result['rescue_unique_exhausted_nodes']} ({result['unique_exhausted_node_delta']:+d})",
         f"- searchable rescue nodes: {result['searchable_rescue_nodes']}",
         f"- recovered candidates entering search: {result['searchable_recovered_candidates']}",
+        f"- provider-zero stride rescue nodes: {result['provider_zero_rescue_nodes']}",
+        f"- provider-zero rescue strides: {result['provider_zero_rescue_strides']}",
+        f"- provider-zero lazy physical checks: {result['provider_zero_physical_checks']}",
+        f"- provider-zero physical rejections: {result['provider_zero_physical_rejections']}",
         f"- deep-reference Q-top changed roots: {result['reference_q_top_changed_roots']}",
         f"- deep-reference visit-top changed roots: {result['reference_visit_top_changed_roots']}",
         f"- bounded Q-top stability delta: {result['bounded_q_top_stable_root_delta']:+d}",

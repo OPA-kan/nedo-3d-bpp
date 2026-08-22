@@ -42,6 +42,29 @@ def _attribute_counts(candidates: list[dict[str, Any]]) -> dict[str, int]:
     return result
 
 
+ATTRIBUTE_KEYS = (
+    "priority_routing_violation",
+    "priority_violations_direct",
+    "soft_violations_direct",
+    "priority_violations_stack",
+    "soft_violations_stack",
+)
+
+
+def _is_clean(candidate: dict[str, Any]) -> bool:
+    selection = candidate.get("selection", {})
+    return all(selection.get(key) == 0 for key in ATTRIBUTE_KEYS)
+
+
+def _first_safe_rank(row: dict[str, Any], name: str) -> int | None:
+    ranks = [
+        candidate.get("selection", {}).get("rank")
+        for candidate in row["strategies"][name]["safe_candidates"]
+    ]
+    numeric = [int(rank) for rank in ranks if rank is not None]
+    return min(numeric) if numeric else None
+
+
 def evaluate(payloads: list[dict[str, Any]]) -> dict[str, Any]:
     incomplete = [
         payload.get("shard_index") for payload in payloads
@@ -69,6 +92,26 @@ def evaluate(payloads: list[dict[str, Any]]) -> dict[str, Any]:
             for row in rows
             for candidate in row["strategies"][name]["safe_candidates"]
         ]
+        first_safe_ranks = {
+            str(row["board_fingerprint"]): _first_safe_rank(row, name)
+            for row in rows
+        }
+        rank0_safe_boards = sum(
+            rank == 0 for rank in first_safe_ranks.values()
+        )
+        lazy_checks = sum(
+            (
+                int(first_safe_ranks[str(row["board_fingerprint"])]) + 1
+                if first_safe_ranks[str(row["board_fingerprint"])] is not None
+                else int(row["strategies"][name]["proposal_count"])
+            )
+            for row in rows
+        )
+        clean_candidates = [row for row in candidates if _is_clean(row)]
+        clean_boards = sum(
+            any(_is_clean(candidate) for candidate in row["strategies"][name]["safe_candidates"])
+            for row in rows
+        )
         by_case = {}
         for case_id in sorted({str(row["case_id"]) for row in rows}):
             case_rows = [row for row in rows if row["case_id"] == case_id]
@@ -95,6 +138,20 @@ def evaluate(payloads: list[dict[str, Any]]) -> dict[str, Any]:
                 row["strategies"][name]["proposal_count"] for row in rows
             ),
             "safe_candidate_count": len(candidates),
+            "rank0_safe_boards": int(rank0_safe_boards),
+            "rank0_safe_board_rate": (
+                rank0_safe_boards / len(rows) if rows else 0.0
+            ),
+            "lazy_physical_checks_to_first_safe": int(lazy_checks),
+            "mean_lazy_physical_checks_per_board": (
+                lazy_checks / len(rows) if rows else 0.0
+            ),
+            "clean_safe_candidate_count": len(clean_candidates),
+            "clean_safe_candidate_rate": (
+                len(clean_candidates) / len(candidates)
+                if candidates else 0.0
+            ),
+            "boards_with_clean_safe_candidate": int(clean_boards),
             "mean_generation_seconds": (
                 sum(row["strategies"][name]["generation_seconds"] for row in rows)
                 / len(rows) if rows else 0.0
@@ -150,14 +207,18 @@ def markdown(result: dict[str, Any]) -> str:
         f"{result['all_baselines_confirmed_empty']}",
         "",
         "| strategy | rescued boards | board recall | node-weighted recall | "
-        "safe candidates | mean generation s | mean physics-filter s |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "rank-0 safe | lazy checks | clean safe rate | safe candidates | "
+        "mean generation s | mean physics-filter s |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name in result["strategy_ranking"]:
         row = result["strategies"][name]
         lines.append(
             f"| {name} | {row['rescued_boards']}/{row['boards']} | "
             f"{row['board_recall']:.3f} | {row['node_weighted_recall']:.3f} | "
+            f"{row['rank0_safe_boards']}/{row['boards']} | "
+            f"{row['lazy_physical_checks_to_first_safe']} | "
+            f"{row['clean_safe_candidate_rate']:.3f} | "
             f"{row['safe_candidate_count']} | "
             f"{row['mean_generation_seconds']:.3f} | "
             f"{row['mean_physical_filter_seconds']:.3f} |"

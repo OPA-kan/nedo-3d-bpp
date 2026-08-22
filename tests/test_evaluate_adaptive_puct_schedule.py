@@ -16,7 +16,10 @@ def _policy(q_top, visit_top):
     return rows
 
 
-def _condition(q_top, visit_top, *, rescue_limit=None, rescued=0):
+def _condition(
+    q_top, visit_top, *, rescue_limit=None, rescued=0,
+    provider_zero_limit=None, provider_zero_rescued=0,
+):
     result = {
         "policy_target": _policy(q_top, visit_top),
         "candidate_exhaustion_shadow_summary": {
@@ -24,9 +27,15 @@ def _condition(q_top, visit_top, *, rescue_limit=None, rescued=0):
             "wider_safe_recovered_nodes": 1,
         },
         "candidate_rescue_summary": {"applied_nodes": rescued},
+        "provider_zero_rescue_summary": {
+            "applied_nodes": provider_zero_rescued,
+        },
     }
     if rescue_limit is not None:
         result["candidate_rescue_limit"] = rescue_limit
+    if provider_zero_limit is not None:
+        result["provider_zero_rescue_limit"] = provider_zero_limit
+        result["provider_zero_rescue_stride"] = 4
     return result
 
 
@@ -132,6 +141,31 @@ class AdaptivePuctScheduleTests(unittest.TestCase):
             "conditional on that enlarged support" in caveat
             for caveat in result["caveats"]
         ))
+        self.assertFalse(any(
+            "shadow-only" in caveat for caveat in result["caveats"]
+        ))
+
+    def test_caveat_tracks_provider_zero_stride_rescue(self):
+        conditions = {
+            label: _condition(
+                "a", "a", provider_zero_limit=64,
+                provider_zero_rescued=3,
+            )
+            for label in (
+                "h2-s24", "h2-s48", "h3-s48", "h5-s48"
+            )
+        }
+        payload = {"complete": True, "roots": [{
+            "root_id": "provider-zero-rescued",
+            "promoted": False,
+            "conditions": conditions,
+        }]}
+
+        result = evaluate_adaptive_schedule([payload], expected_roots=1)
+
+        self.assertEqual(result["reference_provider_zero_rescue_limits"], [64])
+        self.assertEqual(result["reference_provider_zero_rescue_strides"], [4])
+        self.assertEqual(result["reference_provider_zero_rescue_nodes"], 3)
         self.assertFalse(any(
             "shadow-only" in caveat for caveat in result["caveats"]
         ))

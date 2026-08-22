@@ -3708,6 +3708,22 @@
         "proxy_reading": "every per-case delta is within simultaneous base spread; no causal score interpretation",
         "verdict": "telemetry-only; no enforce canary and no submission promotion"
       }
+    },
+    {
+      "id": "provider-zero-is-equal-budget-anchor-coverage-starvation",
+      "topic": "search",
+      "date": "2026-08-23",
+      "status": "active",
+      "claim": "On the preregistered provider-zero capability sample, the old generator was not structurally unable to act and did not need more attempts: changing only anchor stride at the same 128 attempts per item recovered at least one independently PyBullet-safe action on every board. Run 32584608725 completed 8/8 shards plus aggregate over 49 unique boards representing 109 exhausted-node occurrences. The original stride-1 provider replayed empty on 49/49; stride-4 and stride-16 each rescued 49/49 across all four scenario families. Every strategy's rank-0 proposal was safe on 49/49, supporting lazy physical validation for minimum-one-action rescue. This identifies bounded anchor-order/coverage starvation on this targeted population, not on-policy score or trajectory improvement.",
+      "source": "Actions run 32584608725; reports/self-play-packing/provider-zero-rescue-32584608725.{json,md}; deterministic evaluator rerun produced byte-identical JSON and Markdown (SHA-256 23E7CB3B6E9F1C7B6E020B3CF5747D03B887E9392E5EFD7ED0A2F73A6A06A417 and 01A3C599AAF1C9C92185136782E91DCDE2A7B7485708D4E94B58222443115248)",
+      "values": {
+        "population": "49 unique boards; 109 represented exhausted-node occurrences; 4 scenario families",
+        "physical_recall": "stride4 49/49; stride16 49/49; deep4x 49/49; deep16x 49/49",
+        "mean_generation_seconds": "stride4 3.350; stride16 3.812; deep4x 13.407; deep16x 49.712",
+        "rank0_safe": "49/49 boards for every strategy; replay-derived lazy checks 49 per arm",
+        "clean_safe_candidate_rate": "stride4 42.4%; stride16 72.0%; deep4x 58.2%; deep16x 90.0%; every arm has >=1 clean safe candidate on 49/49 boards",
+        "verdict": "use equal-budget strided provider-zero rescue; retain soft/priority heads separately; require bounded-search and trajectory evaluation before policy claims"
+      }
     }
   ]
 }

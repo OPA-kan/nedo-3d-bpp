@@ -164,6 +164,15 @@ def evaluate_adaptive_schedule(
         reference_rescue_limit = root["conditions"][reference_label].get(
             "candidate_rescue_limit"
         )
+        reference_provider_zero = root["conditions"][reference_label].get(
+            "provider_zero_rescue_summary", {}
+        )
+        reference_provider_zero_limit = root["conditions"][
+            reference_label
+        ].get("provider_zero_rescue_limit")
+        reference_provider_zero_stride = root["conditions"][
+            reference_label
+        ].get("provider_zero_rescue_stride")
         selected_counts[selected_label] += 1
         for rule_name, choose in RULES.items():
             rule_label, rule_stop, rule_used = choose(root)
@@ -219,6 +228,17 @@ def evaluate_adaptive_schedule(
                 int(reference_rescue_limit)
                 if reference_rescue_limit is not None else None
             ),
+            "reference_provider_zero_rescue_nodes": int(
+                reference_provider_zero.get("applied_nodes", 0)
+            ),
+            "reference_provider_zero_rescue_limit": (
+                int(reference_provider_zero_limit)
+                if reference_provider_zero_limit is not None else None
+            ),
+            "reference_provider_zero_rescue_stride": (
+                int(reference_provider_zero_stride)
+                if reference_provider_zero_stride is not None else None
+            ),
         })
 
     count = len(rows)
@@ -259,11 +279,26 @@ def evaluate_adaptive_schedule(
         row["reference_candidate_rescue_limit"] for row in rows
         if row["reference_candidate_rescue_limit"] is not None
     })
+    provider_zero_rescue_nodes = sum(
+        row["reference_provider_zero_rescue_nodes"] for row in rows
+    )
+    provider_zero_rescue_limits = sorted({
+        row["reference_provider_zero_rescue_limit"] for row in rows
+        if row["reference_provider_zero_rescue_limit"] is not None
+    })
+    provider_zero_rescue_strides = sorted({
+        row["reference_provider_zero_rescue_stride"] for row in rows
+        if row["reference_provider_zero_rescue_stride"] is not None
+    })
+    enlarged_support = bool(rescue_limits or provider_zero_rescue_limits)
     widening_caveat = (
-        "The reference search used candidate rescue at exhausted Top-K "
-        f"nodes (limits={rescue_limits}, applied nodes={searchable_rescue_nodes}); "
+        "The reference search used searchable rescue at exhausted Top-K "
+        f"nodes (adaptive-K limits={rescue_limits}, "
+        f"provider-zero limits={provider_zero_rescue_limits}, "
+        f"provider-zero strides={provider_zero_rescue_strides}, "
+        f"applied nodes={searchable_rescue_nodes + provider_zero_rescue_nodes}); "
         "adaptive H/S agreement is conditional on that enlarged support."
-        if rescue_limits else
+        if enlarged_support else
         "The existing width-64 audit is shadow-only at exhausted Top-3 "
         "nodes, so it can identify rescue opportunities but cannot measure "
         "action changes from adaptive K."
@@ -294,6 +329,9 @@ def evaluate_adaptive_schedule(
         ),
         "reference_searchable_rescue_nodes": searchable_rescue_nodes,
         "reference_candidate_rescue_limits": rescue_limits,
+        "reference_provider_zero_rescue_nodes": provider_zero_rescue_nodes,
+        "reference_provider_zero_rescue_limits": provider_zero_rescue_limits,
+        "reference_provider_zero_rescue_strides": provider_zero_rescue_strides,
         "caveats": [
             "All three stopping rules are posthoc development diagnostics on these same 58 roots; none is a preregistered or independently confirmed policy.",
             "The full-order guarded rule reproduces 58/58 by construction because it uses the promotion rule that defines the measured deep reference.",

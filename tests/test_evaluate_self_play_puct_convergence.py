@@ -126,6 +126,17 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
                     "recovered_candidates": 2,
                 },
                 "candidate_rescue_limit": 64,
+                "provider_zero_rescue_summary": {
+                    "attempted_nodes": 3,
+                    "applied_nodes": 3,
+                    "generated_candidates": 90,
+                    "recovered_candidates": 3,
+                    "physical_checks": 3,
+                    "physical_rejections": 0,
+                },
+                "provider_zero_rescue_limit": 64,
+                "provider_zero_rescue_safe_limit": 1,
+                "provider_zero_rescue_stride": 4,
             }
 
         base = {
@@ -173,6 +184,12 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
             2,
         )
         self.assertEqual(result["reference_candidate_rescue_limits"], [64])
+        self.assertEqual(result["reference_provider_zero_rescue_limits"], [64])
+        self.assertEqual(result["reference_provider_zero_rescue_strides"], [4])
+        self.assertEqual(
+            result["reference_provider_zero_rescue_summary"]["physical_checks"],
+            3,
+        )
 
 
 if __name__ == "__main__":
