@@ -118,7 +118,9 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
         }
         payload = {"complete": True, "roots": [{
             "root_id": "root-a", "game_state_signature": "state-a",
-            "promoted": True, "conditions": base,
+            "promoted": True,
+            "original_search": {"policy_target": _policy((0.2, 0.1, 0.0))},
+            "conditions": base,
         }]}
 
         result = aggregate_convergence([payload], expected_roots=1)
@@ -127,7 +129,9 @@ class SelfPlayPuctConvergenceTests(unittest.TestCase):
         self.assertEqual(result["promoted_roots"], 1)
         self.assertEqual(result["bounded_search_stable_roots"], 1)
         self.assertEqual(result["bounded_search_stable_game_state_groups"], 1)
-        self.assertEqual(result["reference_consistent_game_state_groups"], 1)
+        self.assertEqual(result["bounded_q_top_stable_roots"], 1)
+        self.assertEqual(result["bounded_visit_top_stable_roots"], 1)
+        self.assertEqual(result["bounded_q_order_stable_roots"], 1)
 
 
 if __name__ == "__main__":

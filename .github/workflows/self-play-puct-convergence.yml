@@ -27,6 +27,9 @@ concurrency:
 
 jobs:
   targeted-rerun:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.head_commit.message, '[skip convergence]')
     strategy:
       fail-fast: false
       matrix:

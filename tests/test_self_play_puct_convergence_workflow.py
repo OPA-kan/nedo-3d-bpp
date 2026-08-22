@@ -15,6 +15,7 @@ class SelfPlayPuctConvergenceWorkflowTests(unittest.TestCase):
         self.assertIn("source_run_id", text)
         self.assertIn("experiment/counterfactual-graph", text)
         self.assertIn("inputs.source_run_id || '32515349437'", text)
+        self.assertIn("[skip convergence]", text)
         self.assertIn("actions: read", text)
         self.assertIn("gh run download", text)
         self.assertIn("self-play-puct-matrix-aggregate-", text)

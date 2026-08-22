@@ -75,6 +75,16 @@ def _same_signature(conditions: dict[str, dict[str, Any]], labels: tuple[str, ..
     return all(signature == signatures[0] for signature in signatures[1:])
 
 
+def _same_component(
+    conditions: dict[str, dict[str, Any]], labels: tuple[str, ...], key: str,
+) -> bool:
+    values = [
+        policy_signature(conditions[label]["policy_target"])[key]
+        for label in labels
+    ]
+    return all(value == values[0] for value in values[1:])
+
+
 def _distribution(policy_target: list[dict[str, Any]]) -> dict[str, float]:
     rows = {str(row["candidate_id"]): float(row.get("probability", 0.0)) for row in policy_target}
     total = sum(rows.values())
@@ -130,7 +140,27 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
         deepest_budget_stable = None
         bounded_search_stable = base_budget_stable and base_horizon_stable
         reference_label = "h5-s48"
+    if promoted:
+        bounded_labels = ("h2-s96", "h3-s96", "h5-s96")
+        deepest_labels = ("h5-s48", "h5-s96")
+    else:
+        bounded_labels = ("h2-s24", "h2-s48", "h3-s48", "h5-s48")
+        deepest_labels = ()
+    bounded_components = {}
+    for key in ("q_top", "visit_top", "q_relations"):
+        bounded_components[key] = _same_component(
+            conditions, bounded_labels, key
+        ) and (
+            not deepest_labels
+            or _same_component(conditions, deepest_labels, key)
+        )
     reference = conditions[reference_label]["policy_target"]
+    reference_signature = policy_signature(reference)
+    reference_q_values = {
+        round(float(row["q"]), 12)
+        for row in reference
+        if row.get("q") is not None and int(row.get("visits", 0)) > 0
+    }
     comparisons = {}
     for label, condition in sorted(conditions.items()):
         if label == reference_label:
@@ -161,8 +191,19 @@ def _root_result(root: dict[str, Any]) -> dict[str, Any]:
         "high_budget_horizon_stable": high_horizon_stable,
         "deepest_horizon_budget_stable": deepest_budget_stable,
         "bounded_search_stable": bounded_search_stable,
+        "bounded_q_top_stable": bounded_components["q_top"],
+        "bounded_visit_top_stable": bounded_components["visit_top"],
+        "bounded_q_order_stable": bounded_components["q_relations"],
         "reference_condition": reference_label,
-        "reference_signature": policy_signature(reference),
+        "reference_signature": reference_signature,
+        "reference_q_discriminating": len(reference_q_values) > 1,
+        "reference_q_top_matches_visit_top": (
+            reference_signature["q_top"] == reference_signature["visit_top"]
+        ),
+        "original_q_top_matches_reference": (
+            policy_signature(root["original_search"]["policy_target"])["q_top"]
+            == reference_signature["q_top"]
+        ),
         "comparisons": comparisons,
     }
 
@@ -194,13 +235,6 @@ def aggregate_convergence(
         all(row["bounded_search_stable"] for row in group)
         for group in state_groups.values()
     )
-    consistent_state_groups = sum(
-        len({
-            json.dumps(row["reference_signature"], sort_keys=True)
-            for row in group
-        }) == 1
-        for group in state_groups.values()
-    )
     return {
         "schema_version": 1,
         "experiment": "targeted_physical_puct_convergence",
@@ -214,7 +248,6 @@ def aggregate_convergence(
             for row in rows if row.get("game_state_signature")
         }),
         "game_state_group_count": len(state_groups),
-        "reference_consistent_game_state_groups": consistent_state_groups,
         "bounded_search_stable_game_state_groups": stable_state_groups,
         "deterministic_repeat_roots": deterministic,
         "instrument_deterministic": deterministic == len(rows),
@@ -222,6 +255,24 @@ def aggregate_convergence(
         "base_horizon_stable_roots": sum(row["base_horizon_stable"] for row in rows),
         "promoted_roots": promoted,
         "bounded_search_stable_roots": stable,
+        "bounded_q_top_stable_roots": sum(
+            row["bounded_q_top_stable"] for row in rows
+        ),
+        "bounded_visit_top_stable_roots": sum(
+            row["bounded_visit_top_stable"] for row in rows
+        ),
+        "bounded_q_order_stable_roots": sum(
+            row["bounded_q_order_stable"] for row in rows
+        ),
+        "reference_q_discriminating_roots": sum(
+            row["reference_q_discriminating"] for row in rows
+        ),
+        "reference_q_top_matches_visit_top_roots": sum(
+            row["reference_q_top_matches_visit_top"] for row in rows
+        ),
+        "original_q_top_matches_reference_roots": sum(
+            row["original_q_top_matches_reference"] for row in rows
+        ),
         "bounded_search_stable_fraction": stable / len(rows) if rows else 0.0,
         "caveat": (
             "Stability means agreement inside the measured bounded PUCT schedule; "
@@ -243,8 +294,12 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"- stable across H2/H3/H5 at S48: {result['base_horizon_stable_roots']} / {result['root_count']}",
         f"- promoted to S96: {result['promoted_roots']}",
         f"- bounded-search stable after schedule: {result['bounded_search_stable_roots']} / {result['root_count']}",
+        f"- bounded Q-top stable: {result['bounded_q_top_stable_roots']} / {result['root_count']}",
+        f"- bounded visit-top stable: {result['bounded_visit_top_stable_roots']} / {result['root_count']}",
+        f"- bounded full Q-order stable: {result['bounded_q_order_stable_roots']} / {result['root_count']}",
+        f"- still Q-discriminating at reference: {result['reference_q_discriminating_roots']} / {result['root_count']}",
+        f"- original Q-top agrees with reference: {result['original_q_top_matches_reference_roots']} / {result['root_count']}",
         f"- stable unique game-state groups: {result['bounded_search_stable_game_state_groups']} / {result['game_state_group_count']}",
-        f"- duplicate groups with one reference answer: {result['reference_consistent_game_state_groups']} / {result['game_state_group_count']}",
         "",
         f"> {result['caveat']}",
         "",
