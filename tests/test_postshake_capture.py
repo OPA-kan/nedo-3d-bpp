@@ -9,6 +9,7 @@ adjudicated on recorded episodes by scripts/adjudicate_postshake.py.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 import pathlib
 import sys
@@ -21,6 +22,23 @@ if str(ROOT / "simulator") not in sys.path:
     sys.path.insert(0, str(ROOT / "simulator"))
 
 from scripts import postshake_capture  # noqa: E402
+
+PYBULLET_AVAILABLE = importlib.util.find_spec("pybullet") is not None
+
+
+def _require_evaluator() -> None:
+    # The install no-op tests import the official Evaluator, which imports
+    # pybullet at module scope. Same convention as the e2e suites: skip
+    # without pybullet, fail loudly when integration coverage is required.
+    if not PYBULLET_AVAILABLE:
+        if os.environ.get("NEDO_REQUIRE_INTEGRATION") == "1":
+            raise RuntimeError(
+                "NEDO_REQUIRE_INTEGRATION=1 but pybullet is unavailable"
+            )
+        raise unittest.SkipTest(
+            "pybullet not installed; integration CI must run this test "
+            "without skip"
+        )
 
 
 class AttributeProjectionTests(unittest.TestCase):
@@ -173,6 +191,7 @@ class InstallTests(unittest.TestCase):
         postshake_capture._INSTALLED = False
 
     def test_install_is_a_noop_without_the_variable(self):
+        _require_evaluator()
         os.environ.pop("NEDO_POSTSHAKE_CAPTURE", None)
         from src.ground_handling.evaluator import Evaluator
 
@@ -181,6 +200,7 @@ class InstallTests(unittest.TestCase):
         self.assertIs(Evaluator.shake_test, before)
 
     def test_install_is_a_noop_for_a_blank_variable(self):
+        _require_evaluator()
         os.environ["NEDO_POSTSHAKE_CAPTURE"] = "   "
         from src.ground_handling.evaluator import Evaluator
 

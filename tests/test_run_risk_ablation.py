@@ -849,6 +849,7 @@ class PolicyTraceSummaryTests(unittest.TestCase):
                 "residual_affordance_would_change_item_count": 0,
                 "residual_affordance_guarded_change_count": 0,
                 "residual_affordance_guarded_item_change_count": 0,
+                "residual_affordance_enforced_count": 0,
                 "residual_affordance_attr_blocked_count": 0,
                 "residual_affordance_contract_regression_count": 0,
                 "residual_affordance_incumbent_unchanged_count": 0,
