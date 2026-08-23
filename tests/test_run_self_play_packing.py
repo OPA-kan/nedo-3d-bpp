@@ -493,6 +493,113 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
     @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
     @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
     @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch(
+        "scripts.run_self_play_packing.capture_replay_contract",
+        return_value={"future_stream_id": "stream-1"},
+    )
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_paired_round_robin_forces_complete_root_world_blocks(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        def row(name, item_idx, rank):
+            return {
+                "candidate_id": name, "selection": {"rank": rank},
+                "command_action": {
+                    "item_idx": item_idx, "container_idx": 0,
+                    "place_pos": [item_idx * 0.1, 0.0, 0.5],
+                    "orientation": 0,
+                },
+            }
+
+        class SimulationEnv:
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=lambda *_args: [],
+            legal_filter_fn=lambda **context: (context["candidates"], {}),
+            rules=GameRules(minimum_block=10), top_k=2,
+            simulations=4, horizon=1, action_temperature=0.0,
+            metrics_fn=lambda _env: {}, env_factory=SimulationEnv,
+            search_seed=91, root_allocation_mode="paired_round_robin",
+        )
+        candidates = [row("rank0", 0, 0), row("rank1", 1, 1)]
+
+        chosen, result = search(
+            env=object(), observation={}, candidates=candidates, actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        samples = result["multi_head_branch_samples"]
+        self.assertEqual(
+            [row["root_candidate_id"] for row in samples],
+            ["rank0", "rank1", "rank0", "rank1"],
+        )
+        self.assertEqual(
+            [row["exogenous_world_sample_index"] for row in samples],
+            [0, 0, 1, 1],
+        )
+        self.assertEqual(result["policy_target"], [])
+        self.assertFalse(result["policy_target_eligible"])
+        self.assertEqual(result["root_allocation_mode"], "paired_round_robin")
+        self.assertEqual(
+            result["execution_policy"], "baseline_rank0_not_search_improvement"
+        )
+        self.assertEqual(
+            samples[0]["search_allocation"]["reason"],
+            "paired_round_robin_root_scalar_puct_continuation",
+        )
+        self.assertEqual(chosen["candidate_id"], "rank0")
+
+        incomplete_search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=lambda *_args: [],
+            legal_filter_fn=lambda **context: (context["candidates"], {}),
+            rules=GameRules(minimum_block=10), top_k=2,
+            simulations=3, horizon=1, action_temperature=0.0,
+            metrics_fn=lambda _env: {}, env_factory=SimulationEnv,
+            search_seed=91, root_allocation_mode="paired_round_robin",
+        )
+        with self.assertRaisesRegex(ValueError, "multiple of the root candidate"):
+            incomplete_search(
+                env=object(), observation={}, candidates=candidates, actions=[],
+                state=SimpleNamespace(
+                    current_player=0, block_length=0,
+                    placements=0, handoff_count=0,
+                ), step=0, policy_rng=random.Random(3),
+            )
+
+    def test_paired_round_robin_rejects_root_dirichlet_noise(self):
+        with self.assertRaisesRegex(ValueError, "does not use root Dirichlet"):
+            build_physical_puct_search(
+                {}, case_id="case", environment_seed=42,
+                candidate_provider=lambda *_args: [],
+                legal_filter_fn=lambda **context: (context["candidates"], {}),
+                rules=GameRules(minimum_block=10), top_k=2,
+                simulations=4, horizon=1, action_temperature=0.0,
+                metrics_fn=lambda _env: {}, env_factory=lambda: object(),
+                search_seed=91, root_allocation_mode="paired_round_robin",
+                root_dirichlet_alpha=0.3, root_dirichlet_epsilon=0.25,
+            )
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
     @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
     @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
     def test_opt_in_candidate_rescue_makes_wider_safe_branch_searchable(

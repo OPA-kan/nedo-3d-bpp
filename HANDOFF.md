@@ -188,6 +188,17 @@ bit-identical to pre-v2 runs. Any comparison must regenerate both arms under
 the same exogenous-world contract rather than treating old artifacts as a
 control.
 
+The comparison instrument is now implemented as the opt-in
+`--mcts-root-allocation-mode paired_round_robin`. It requires complete
+world-by-candidate blocks, forces every root action once per world, leaves the
+deeper continuation on scalar PUCT, disables the visit policy target, and
+executes the baseline rank-0 action after collection. The default remains
+scalar PUCT. `scripts/vector_search.py` computes joint same-world dominance
+probabilities, Wilson lower bounds and a confidence Pareto frontier without
+head-independence assumptions or a weighted sum. This is instrument-only: it
+has not yet run a fresh Linux/PyBullet physical matrix and does not license an
+improved policy.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are

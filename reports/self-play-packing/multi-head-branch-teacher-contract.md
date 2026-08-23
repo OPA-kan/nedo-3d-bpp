@@ -70,6 +70,14 @@ PUCT still decides which candidates receive rollouts, so some sibling pairs
 may have no overlapping world index. A later paired round-robin instrument is
 required before claiming complete common-random-number coverage.
 
+That comparison instrument is now available as the opt-in
+`--mcts-root-allocation-mode paired_round_robin`. Its simulation budget must be
+a multiple of the root candidate count. Within each world block it forces each
+root action exactly once; deeper continuation remains scalar PUCT. Root visits
+are explicitly ineligible as a policy teacher, and the real trajectory keeps
+the rank-0 baseline action. Raw per-candidate summaries remain available for
+offline comparison. The default remains `scalar_puct`.
+
 Old and new PUCT runs must not be pooled as repeated samples of one instrument.
 Any decision-quality comparison after this migration requires a fresh paired
 baseline generated under this same exogenous-world contract.
@@ -79,6 +87,20 @@ of proposal order, source, policy probability, and mixture weight. Those are
 stored separately in `proposal_provenance`. The current legacy provider is
 labelled `legacy_provider`; widening and provider-zero actions are labelled
 `widening_rescue` and `provider_zero_rescue` when they enter a path.
+
+## Confidence Pareto
+
+`scripts/vector_search.py` forms candidate differences only where both actions
+have eligible vectors under the same `exogenous_world_id`. For every paired
+world it evaluates the joint event that all configured axes are non-worse and
+at least one axis is strictly better, with optional per-axis measurement
+tolerances. The reported dominance probability uses that joint event directly;
+it does not multiply marginal probabilities or assume independent heads.
+
+A Wilson lower confidence bound plus a minimum-pair gate determines whether an
+action may be removed from the confidence Pareto frontier. This is an offline
+comparison contract, not a licensed root selector, and no official component
+weights or proxy exchange rates are introduced.
 
 ## Censoring
 

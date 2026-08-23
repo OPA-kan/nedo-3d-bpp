@@ -237,6 +237,7 @@ def build_physical_puct_search(
     temperature_drop_step: int | None = None,
     root_dirichlet_alpha: float = 0.0,
     root_dirichlet_epsilon: float = 0.0,
+    root_allocation_mode: str = "scalar_puct",
     search_seed: int = 0,
     metrics_fn: Callable[[Any], dict[str, Any]] = cumulative_metrics,
     leaf_value_fn: Callable[..., float] | None = None,
@@ -267,6 +268,13 @@ def build_physical_puct_search(
         raise ValueError("root_dirichlet_epsilon must be in [0, 1]")
     if bool(root_dirichlet_alpha) != bool(root_dirichlet_epsilon):
         raise ValueError("Dirichlet alpha and epsilon must both be zero or positive")
+    if root_allocation_mode not in {"scalar_puct", "paired_round_robin"}:
+        raise ValueError(f"unsupported root allocation mode: {root_allocation_mode}")
+    if (
+        root_allocation_mode == "paired_round_robin"
+        and root_dirichlet_epsilon > 0.0
+    ):
+        raise ValueError("paired round-robin does not use root Dirichlet noise")
     if env_factory is None:
         from src.ground_handling.env import GroundHandlingEnv
 
@@ -310,6 +318,17 @@ def build_physical_puct_search(
             "block_length": state.block_length,
         })
         root_candidate_set_id = _candidate_set_id(list(candidates))
+        paired_root_candidates = sorted(
+            list(candidates), key=lambda candidate: candidate_id(candidate)
+        )
+        if (
+            root_allocation_mode == "paired_round_robin"
+            and simulations % len(paired_root_candidates) != 0
+        ):
+            raise ValueError(
+                "paired round-robin simulations must be a multiple of the "
+                f"root candidate count ({len(paired_root_candidates)})"
+            )
         root_noise = None
         if root_dirichlet_epsilon > 0.0:
             root_noise = tree.add_dirichlet_noise(
@@ -680,8 +699,15 @@ def build_physical_puct_search(
                         break
 
                     mover = simulation_state.current_player
-                    selected = tree.select(
-                        node_key, player=mover, candidates=node_candidates
+                    selected = (
+                        paired_root_candidates[
+                            _simulation % len(paired_root_candidates)
+                        ]
+                        if depth == 0
+                        and root_allocation_mode == "paired_round_robin"
+                        else tree.select(
+                            node_key, player=mover, candidates=node_candidates
+                        )
                     )
                     selected_id = candidate_id(selected)
                     search_path.append((node_key, selected_id, mover))
@@ -801,7 +827,11 @@ def build_physical_puct_search(
                     ),
                     "exogenous_world": exogenous_world.identity,
                     "search_allocation": {
-                        "reason": "scalar_puct_traversal",
+                        "reason": (
+                            "paired_round_robin_root_scalar_puct_continuation"
+                            if root_allocation_mode == "paired_round_robin"
+                            else "scalar_puct_traversal"
+                        ),
                         "configured_simulations": int(simulations),
                         "configured_horizon": int(horizon),
                         "simulation_index": int(_simulation),
@@ -857,7 +887,13 @@ def build_physical_puct_search(
                     },
                 )
                 multi_head_branch_samples.append(sample)
-                tree.backup(search_path, normalized)
+                tree.backup(
+                    search_path, normalized,
+                    candidates=(
+                        list(candidates)
+                        if root_allocation_mode == "paired_round_robin" else None
+                    ),
+                )
             finally:
                 simulation_env.close()
 
@@ -867,23 +903,42 @@ def build_physical_puct_search(
             and int(step) >= temperature_drop_step
             else action_temperature
         )
-        chosen = tree.choose(
-            root_key, list(candidates),
-            temperature=effective_action_temperature, rng=policy_rng,
-        )
-        policy_target = tree.policy(root_key)
+        candidate_outcome_summaries = tree.policy(root_key)
+        if root_allocation_mode == "paired_round_robin":
+            chosen = min(
+                candidates,
+                key=lambda candidate: (
+                    int(_candidate_selection(candidate).get("rank", 10**9)),
+                    candidate_id(candidate),
+                ),
+            )
+            policy_target = []
+        else:
+            chosen = tree.choose(
+                root_key, list(candidates),
+                temperature=effective_action_temperature, rng=policy_rng,
+            )
+            policy_target = candidate_outcome_summaries
         samples_by_root_candidate: dict[str, list[dict[str, Any]]] = (
             collections.defaultdict(list)
         )
         for sample in multi_head_branch_samples:
             samples_by_root_candidate[sample["root_candidate_id"]].append(sample)
-        for row in policy_target:
+        for row in candidate_outcome_summaries:
             row["multi_head_target"] = summarize_multi_head_branch_samples(
                 samples_by_root_candidate.get(row["candidate_id"], [])
             )
         return chosen, {
             "schema_version": 3,
             "algorithm": "open_loop_physical_puct",
+            "root_allocation_mode": root_allocation_mode,
+            "policy_target_eligible": root_allocation_mode == "scalar_puct",
+            "execution_policy": (
+                "baseline_rank0_not_search_improvement"
+                if root_allocation_mode == "paired_round_robin"
+                else "search_visit_policy"
+            ),
+            "candidate_outcome_summaries": candidate_outcome_summaries,
             "candidate_set_id": root_candidate_set_id,
             "exogenous_world_contract": (
                 "semantic_hash_v1_root_candidate_replica_paired"
@@ -1190,6 +1245,7 @@ def run_physical_game(
     mcts_temperature_drop_step: int | None = None,
     mcts_root_dirichlet_alpha: float = 0.0,
     mcts_root_dirichlet_epsilon: float = 0.0,
+    mcts_root_allocation_mode: str = "scalar_puct",
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -1217,6 +1273,7 @@ def run_physical_game(
             temperature_drop_step=mcts_temperature_drop_step,
             root_dirichlet_alpha=mcts_root_dirichlet_alpha,
             root_dirichlet_epsilon=mcts_root_dirichlet_epsilon,
+            root_allocation_mode=mcts_root_allocation_mode,
             search_seed=policy_seed + 20000,
         )
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1243,6 +1300,7 @@ def run_physical_game(
                     "temperature_drop_step": mcts_temperature_drop_step,
                     "root_dirichlet_alpha": mcts_root_dirichlet_alpha,
                     "root_dirichlet_epsilon": mcts_root_dirichlet_epsilon,
+                    "root_allocation_mode": mcts_root_allocation_mode,
                     "leaf_value_model": "zero_untrained",
                     "bounded_candidate_exhaustion_value": (
                         "censored_zero_continuation"
@@ -1374,6 +1432,11 @@ def main() -> int:
     )
     parser.add_argument("--mcts-root-dirichlet-alpha", type=float, default=0.0)
     parser.add_argument("--mcts-root-dirichlet-epsilon", type=float, default=0.0)
+    parser.add_argument(
+        "--mcts-root-allocation-mode",
+        choices=("scalar_puct", "paired_round_robin"),
+        default="scalar_puct",
+    )
     parser.add_argument("--policy-generation", default="pi0")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -1417,6 +1480,7 @@ def main() -> int:
             ),
             mcts_root_dirichlet_alpha=args.mcts_root_dirichlet_alpha,
             mcts_root_dirichlet_epsilon=args.mcts_root_dirichlet_epsilon,
+            mcts_root_allocation_mode=args.mcts_root_allocation_mode,
         ))
     manifest = {
         "schema_version": 1,
@@ -1458,6 +1522,7 @@ def main() -> int:
                     ),
                     "root_dirichlet_alpha": args.mcts_root_dirichlet_alpha,
                     "root_dirichlet_epsilon": args.mcts_root_dirichlet_epsilon,
+                    "root_allocation_mode": args.mcts_root_allocation_mode,
                     "leaf_value_model": "zero_untrained",
                     "bounded_candidate_exhaustion_value": (
                         "censored_zero_continuation"
