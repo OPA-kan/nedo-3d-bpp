@@ -89,6 +89,16 @@ class CoverageActionSamplerTests(unittest.TestCase):
             candidate["command_action"]["container_idx"], 1
         )
 
+    def test_candidate_ids_are_unique_across_strata_and_indices(self):
+        obs = {
+            "pool_list": [item(index=1), item(index=2)],
+            "container_list": [container()],
+        }
+        candidates = coverage_candidates(obs, coverage_seed=3, budget=30)
+
+        identifiers = [c["candidate_id"] for c in candidates]
+        self.assertEqual(len(identifiers), len(set(identifiers)))
+
     def test_round_robin_balances_strata_within_any_prefix(self):
         obs = {
             "pool_list": [item(index=1), item(index=2)],

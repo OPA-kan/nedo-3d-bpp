@@ -193,12 +193,14 @@ def sample_stratum(
         "dedup_multiplicity": 1,
     }
     return {
-        "candidate_id": "coverage-" + stable_id("coverage-candidate-v1", {
+        # stable_id returns "namespace-hash"; never truncate it from the
+        # front or every candidate collapses onto the namespace prefix.
+        "candidate_id": stable_id("coverage-candidate-v1", {
             "seed": int(coverage_seed),
             "stratum": stratum["stratum_key"],
             "sequence_index": int(sequence_index),
             "z_mode": z_mode,
-        })[:20],
+        }),
         "command_action": command,
         "selection": {
             "provider": COVERAGE_GENERATOR,
