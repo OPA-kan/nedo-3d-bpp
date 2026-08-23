@@ -277,6 +277,43 @@ H4 arm over the already-probed 20 roots would measure
 tau(H4, terminal) directly if the question returns. Terminal probes on
 sampled roots become the standing reference arm for future gates.
 
+### Frozen roadmap (2026-08-23, agreed after the depth-ladder inversion)
+
+Phase 0 (measurement instruments, terminal probe, the V shadow
+interface) is **frozen** — do not spend compute polishing it. The
+current V was trained on the legacy-generator/rank-0 distribution that
+the roadmap is about to abandon, so precising its effect size now would
+be estimating a quantity that changes at the next phase; a 1-2 cell
+regression smoke is the only V/terminal-probe run that stays justified.
+The two-player game-loop handoff RNG is legacy plumbing and is not
+upgraded to semantic addressing: the mainline drops player/handoff
+entirely at Phase 2.
+
+| phase | work | state |
+|---|---|---|
+| 0 | measurement / terminal probe / V interface | frozen |
+| 1A | objective-neutral coverage sampler | **next** |
+| 1B | coverage + legacy/rescue union audited in PyBullet | next |
+| 2 | mainline to a single-agent contract | next |
+| 3 | learned proposal beta on coverage support | open |
+| 4 | vector edge stats / vector backup | open |
+| 5 | adaptive depth / allocation | open |
+| 6 | PoC-3: execute search actions | here, not earlier |
+| 7 | strategic policy pi | open |
+| 8 | close the Expert Iteration loop (Zero) | open |
+| 9 | retrain V / paired-difference on the new distribution | follows |
+| 10 | official W/G/tau calibration | late |
+
+The near-term deliverable is action support:
+`A_legacy -> A_coverage (+ A_learned later)`. Phase 1B's first
+measurements are P(safe | A_coverage) and how much of the legacy/rescue
+safe region coverage recovers; only after that does
+`A_legacy ∪ A_coverage` start feeding physical outcomes, and only that
+data may train a proposal beta that is not a legacy-generator
+distillation. PoC-3 execution comparison happens at Phase 6, after the
+single-agent skeleton and the union support exist — not with the
+current V composite as an execution policy.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
