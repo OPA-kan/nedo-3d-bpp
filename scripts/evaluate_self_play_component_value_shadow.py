@@ -54,6 +54,27 @@ def _moments(values: list[float]) -> dict[str, float]:
     return {"mean": mean, "std": math.sqrt(variance), "samples": len(values)}
 
 
+def _component_summary(
+    member_samples: list[list[float]], branch_means: list[float],
+) -> dict[str, Any]:
+    if not member_samples or any(not values for values in member_samples):
+        raise ValueError("component estimate has an incomplete ensemble")
+    member_means = [
+        sum(values) / len(values) for values in member_samples
+    ]
+    epistemic = _moments(member_means)
+    chance = _moments(branch_means)
+    return {
+        "mean": epistemic["mean"],
+        "member_means": member_means,
+        "epistemic_std": epistemic["std"],
+        "chance_standard_error": (
+            chance["std"] / math.sqrt(len(branch_means))
+        ),
+        "branches": len(branch_means),
+    }
+
+
 def _incumbent(policy: list[dict[str, Any]]) -> str:
     eligible = [row for row in policy if int(row.get("visits") or 0) > 0]
     if not eligible:
@@ -78,8 +99,13 @@ def estimate_candidates(
     """Compose branch deltas and suffix predictions per root candidate."""
     if ensemble_size < 3:
         raise ValueError("component confidence requires at least 3 members")
-    values: dict[str, dict[str, list[float]]] = collections.defaultdict(
-        lambda: collections.defaultdict(list)
+    values: dict[str, dict[str, dict[str, Any]]] = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: {
+                "member_samples": [[] for _ in range(ensemble_size)],
+                "branch_means": [],
+            }
+        )
     )
     branch_counts: collections.Counter[str] = collections.Counter()
     censored_counts: collections.Counter[str] = collections.Counter()
@@ -108,8 +134,11 @@ def estimate_candidates(
                     f"expected {ensemble_size} members for {suffix_head}"
                 )
             observed = float(delta["value"])
-            values[candidate_id][name].extend(
-                observed + float(member) for member in members
+            totals = [observed + float(member) for member in members]
+            for index, total in enumerate(totals):
+                values[candidate_id][name]["member_samples"][index].append(total)
+            values[candidate_id][name]["branch_means"].append(
+                sum(totals) / len(totals)
             )
     result = {}
     for candidate_id, heads in values.items():
@@ -119,7 +148,9 @@ def estimate_candidates(
             "branches": int(branch_counts[candidate_id]),
             "censored_branches": int(censored_counts[candidate_id]),
             "components": {
-                name: {**_moments(samples), "values": samples}
+                name: _component_summary(
+                    samples["member_samples"], samples["branch_means"]
+                )
                 for name, samples in heads.items()
             },
         }
@@ -138,22 +169,37 @@ def dominance(
         left = candidate["components"][name]
         right = incumbent["components"][name]
         delta = float(left["mean"]) - float(right["mean"])
-        delta_std = math.sqrt(float(left["std"]) ** 2 + float(right["std"]) ** 2)
+        member_deltas = [
+            float(mine) - float(theirs)
+            for mine, theirs in zip(
+                left["member_means"], right["member_means"], strict=True
+            )
+        ]
+        epistemic_delta_std = _moments(member_deltas)["std"]
+        chance_delta_se = math.sqrt(
+            float(left["chance_standard_error"]) ** 2
+            + float(right["chance_standard_error"]) ** 2
+        )
+        delta_uncertainty = math.sqrt(
+            epistemic_delta_std ** 2 + chance_delta_se ** 2
+        )
         if role == "diagnostic":
             axes[name] = {
                 "objective": objective,
                 "role": role,
                 "mean_delta": delta,
-                "delta_std": delta_std,
+                "epistemic_delta_std": epistemic_delta_std,
+                "chance_delta_standard_error": chance_delta_se,
+                "delta_uncertainty": delta_uncertainty,
             }
             continue
         if objective == "maximize":
-            bound = delta - beta * delta_std
+            bound = delta - beta * delta_uncertainty
             axis_nonworse = bound >= -1e-12
             axis_strict = bound > 1e-12
             bound_name = "lower_delta"
         else:
-            bound = delta + beta * delta_std
+            bound = delta + beta * delta_uncertainty
             axis_nonworse = bound <= 1e-12
             axis_strict = bound < -1e-12
             bound_name = "upper_delta"
@@ -165,7 +211,9 @@ def dominance(
             "objective": objective,
             "role": role,
             "mean_delta": delta,
-            "delta_std": delta_std,
+            "epistemic_delta_std": epistemic_delta_std,
+            "chance_delta_standard_error": chance_delta_se,
+            "delta_uncertainty": delta_uncertainty,
             bound_name: bound,
             "nonworse": axis_nonworse,
             "strict": axis_strict,

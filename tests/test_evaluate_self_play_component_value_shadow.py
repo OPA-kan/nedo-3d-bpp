@@ -24,7 +24,13 @@ def _estimate(
     }
     return {
         "components": {
-            name: {"mean": value, "std": std, "samples": 3, "values": [value] * 3}
+            name: {
+                "mean": value,
+                "member_means": [value - std, value, value + std],
+                "epistemic_std": std,
+                "chance_standard_error": 0.0,
+                "branches": 1,
+            }
             for name, value in values.items()
         }
     }
@@ -69,7 +75,7 @@ class ComponentValueShadowTests(unittest.TestCase):
 
     def test_uncertainty_can_block_mean_dominance(self):
         incumbent = _estimate(5.0, 4.0, 0.0, std=0.5)
-        candidate = _estimate(5.2, 4.2, 0.0, std=0.5)
+        candidate = _estimate(5.2, 4.2, 0.0, std=1.0)
 
         self.assertTrue(dominance(candidate, incumbent, beta=0.0)["dominates"])
         self.assertFalse(dominance(candidate, incumbent, beta=1.0)["dominates"])
