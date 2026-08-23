@@ -314,6 +314,21 @@ distillation. PoC-3 execution comparison happens at Phase 6, after the
 single-agent skeleton and the union support exist — not with the
 current V composite as an execution policy.
 
+Phase 1A/1B pilot results
+(`reports/self-play-packing/coverage-support-audit-20260823.md`): the
+sampler covers the simulator-published polytope domain with seeded
+scrambled Halton under the frozen provenance contract. On 12 roots x
+1152 samples per mode: P(safe|volume) = 6.5% with 69 coverage-only safe
+strata (safe support legacy never emitted); release-from-top is 0/1152
+— the settle validator rejects large drops, so the safe set is a thin
+manifold hugging contact surfaces, now measured. Legacy-safe recovery
+at 96 samples/root is 0% (a density result: <1 sample/stratum, nearest
+in-plane neighbors 0.27-1.0 m). Open contract decision: a depth-map
+contact z mode (simulator-published state, but encodes "place at
+contact") vs scaling the 6.5% stream vs leaving manifold discovery to
+beta. Collection of `A_legacy ∪ A_coverage` physical outcomes can start
+with the sampler as-is.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
