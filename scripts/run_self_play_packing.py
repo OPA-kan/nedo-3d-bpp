@@ -223,6 +223,38 @@ def build_exact_physical_legal_filter(
     return legal_filter
 
 
+class BehaviorVectorLeaf:
+    """Predict the leaf->terminal multi-head suffix vector at horizon leaves.
+
+    Wraps the frozen V^pi_behavior ensemble. The prediction is recorded on
+    the branch sample only — it never enters the scalar backup, the visit
+    policy, or the executed action, so search behavior is bit-identical to
+    a run without it.
+    """
+
+    contract = "V_pi_behavior_leaf_bootstrap_v1"
+
+    def __init__(self, model_dir: pathlib.Path):
+        from scripts.train_self_play_set_value import BehaviorValueEnsemble
+
+        self.model_dir = str(model_dir)
+        self.ensemble = BehaviorValueEnsemble(pathlib.Path(model_dir))
+        self.calls = 0
+
+    def __call__(
+        self, *, state_tensor: dict[str, Any], game_state: Any,
+    ) -> dict[str, Any]:
+        self.calls += 1
+        prediction = self.ensemble.predict(state_tensor, game_state)
+        return {
+            "prediction_contract": self.contract,
+            "semantics": "V_pi_behavior_not_V_star",
+            "model_dir": self.model_dir,
+            "ensemble_size": len(self.ensemble.members),
+            "heads": prediction,
+        }
+
+
 def build_physical_puct_search(
     task_config: dict[str, Any], *, case_id: str, environment_seed: int,
     candidate_provider: Callable, legal_filter_fn: Callable,
@@ -241,6 +273,7 @@ def build_physical_puct_search(
     search_seed: int = 0,
     metrics_fn: Callable[[Any], dict[str, Any]] = cumulative_metrics,
     leaf_value_fn: Callable[..., float] | None = None,
+    leaf_vector_fn: Callable[..., dict[str, Any]] | None = None,
     env_factory: Callable[[], Any] | None = None,
 ) -> Callable[..., tuple[Any, dict[str, Any]]]:
     """Build open-loop PUCT whose transitions are authoritative PyBullet steps."""
@@ -803,6 +836,20 @@ def build_physical_puct_search(
                     root_player=search_path[0][2],
                     termination=termination,
                 )
+                predicted_leaf_value = None
+                if leaf_vector_fn is not None:
+                    # A leaf->terminal bootstrap only makes sense where the
+                    # continuation exists and is unobserved: the horizon cut.
+                    # Censored terminations keep None with the reason.
+                    if termination == "horizon":
+                        predicted_leaf_value = leaf_vector_fn(
+                            state_tensor=leaf_state,
+                            game_state=simulation_state,
+                        )
+                    else:
+                        predicted_leaf_value = {
+                            "skipped_reason": termination,
+                        }
                 sample = {
                     "schema_version": 2,
                     "joint_outcome_contract_version": 2,
@@ -875,6 +922,10 @@ def build_physical_puct_search(
                         name: bool(head.get("target_eligible"))
                         for name, head in heads.items()
                     },
+                    # Predicted leaf->terminal suffix vector, kept strictly
+                    # separate from the measured heads above. None when no
+                    # leaf model is injected.
+                    "predicted_leaf_value": predicted_leaf_value,
                 }
                 sample["outcome_sample_id"] = stable_id(
                     "joint-outcome-sample-v2", {
@@ -956,6 +1007,12 @@ def build_physical_puct_search(
             "root_dirichlet_noise": root_noise,
             "leaf_value_model": (
                 "zero_untrained" if leaf_value_fn is None else "injected"
+            ),
+            "leaf_vector_model": (
+                None if leaf_vector_fn is None
+                else getattr(
+                    leaf_vector_fn, "contract", "injected_leaf_vector"
+                )
             ),
             "leaf_value_calls": leaf_value_calls,
             "expanded_nodes": tree.node_count,
@@ -1246,6 +1303,7 @@ def run_physical_game(
     mcts_root_dirichlet_alpha: float = 0.0,
     mcts_root_dirichlet_epsilon: float = 0.0,
     mcts_root_allocation_mode: str = "scalar_puct",
+    mcts_leaf_vector_model_dir: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -1260,6 +1318,9 @@ def run_physical_game(
         task_config, case_id=case_id, environment_seed=environment_seed,
     )
     search_fn = None
+    leaf_vector_fn = None
+    if selection_mode == "mcts" and mcts_leaf_vector_model_dir is not None:
+        leaf_vector_fn = BehaviorVectorLeaf(mcts_leaf_vector_model_dir)
     if selection_mode == "mcts":
         search_fn = build_physical_puct_search(
             task_config, case_id=case_id,
@@ -1274,6 +1335,7 @@ def run_physical_game(
             root_dirichlet_alpha=mcts_root_dirichlet_alpha,
             root_dirichlet_epsilon=mcts_root_dirichlet_epsilon,
             root_allocation_mode=mcts_root_allocation_mode,
+            leaf_vector_fn=leaf_vector_fn,
             search_seed=policy_seed + 20000,
         )
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1304,6 +1366,16 @@ def run_physical_game(
                     "leaf_value_model": "zero_untrained",
                     "bounded_candidate_exhaustion_value": (
                         "censored_zero_continuation"
+                    ),
+                    # Included only when set so existing trajectory ids
+                    # stay stable for runs without a leaf vector model.
+                    **(
+                        {
+                            "leaf_vector_model_dir": str(
+                                mcts_leaf_vector_model_dir
+                            ),
+                        }
+                        if mcts_leaf_vector_model_dir is not None else {}
                     ),
                 }
                 if selection_mode == "mcts" else None
@@ -1437,6 +1509,12 @@ def main() -> int:
         choices=("scalar_puct", "paired_round_robin"),
         default="scalar_puct",
     )
+    parser.add_argument(
+        "--mcts-leaf-vector-model-dir", type=pathlib.Path, default=None,
+        help="frozen V^pi_behavior ensemble directory; when set, horizon "
+        "leaves record a predicted leaf->terminal suffix vector on each "
+        "branch sample (shadow only: backup and execution are unchanged)",
+    )
     parser.add_argument("--policy-generation", default="pi0")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -1481,6 +1559,7 @@ def main() -> int:
             mcts_root_dirichlet_alpha=args.mcts_root_dirichlet_alpha,
             mcts_root_dirichlet_epsilon=args.mcts_root_dirichlet_epsilon,
             mcts_root_allocation_mode=args.mcts_root_allocation_mode,
+            mcts_leaf_vector_model_dir=args.mcts_leaf_vector_model_dir,
         ))
     manifest = {
         "schema_version": 1,
@@ -1524,6 +1603,10 @@ def main() -> int:
                     "root_dirichlet_epsilon": args.mcts_root_dirichlet_epsilon,
                     "root_allocation_mode": args.mcts_root_allocation_mode,
                     "leaf_value_model": "zero_untrained",
+                    "leaf_vector_model_dir": (
+                        None if args.mcts_leaf_vector_model_dir is None
+                        else str(args.mcts_leaf_vector_model_dir)
+                    ),
                     "bounded_candidate_exhaustion_value": (
                         "censored_zero_continuation"
                     ),

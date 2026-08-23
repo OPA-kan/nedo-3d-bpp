@@ -63,10 +63,12 @@ def _candidate_rows(record: dict[str, Any], target: dict[str, Any]) -> list[dict
     return result
 
 
-def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def build_rows(
+    root: pathlib.Path, *, manifest_glob: str = "mcts/manifest.json",
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     rows = []
     trajectory_ids = set()
-    for manifest_path in sorted(root.rglob("mcts/manifest.json")):
+    for manifest_path in sorted(root.rglob(manifest_glob)):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         pair_id = manifest_path.parents[1].name
         for game_index, game in enumerate(manifest.get("games", [])):
@@ -234,8 +236,13 @@ def main() -> int:
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--summary", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--manifest-glob", default="mcts/manifest.json",
+        help="manifest pattern below --root (e.g. rank0/manifest.json for "
+        "complete rank-0 value trajectories)",
+    )
     args = parser.parse_args()
-    rows, summary = build_rows(args.root)
+    rows, summary = build_rows(args.root, manifest_glob=args.manifest_glob)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
         for row in rows:
