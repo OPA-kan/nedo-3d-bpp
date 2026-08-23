@@ -329,6 +329,19 @@ contact") vs scaling the 6.5% stream vs leaving manifold discovery to
 beta. Collection of `A_legacy ∪ A_coverage` physical outcomes can start
 with the sampler as-is.
 
+The depth-map contact z mode was then **rejected by decision**, not
+deferred: the domain is not narrowed from our side — the thin safe
+manifold is physics, its discovery is the learned proposal's job, and
+the unsafe samples are its negative signal. Phase 1B closed the same
+day (`reports/self-play-packing/union-collection-pilot-20260823.md`):
+coverage candidates union into the searched support behind the same
+physical filter while execution/termination stay pinned to legacy
+rank-0 — verified bit-exact against the legacy-only trajectories — and
+the pilot produced the project's first 69 outside-legacy-support
+JointOutcomeSample v2 rows (all eligible, coverage provenance intact
+through the dataset builder). Next: Phase 2, the single-agent mainline
+contract, with the union pipeline as the behavior it must reproduce.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
