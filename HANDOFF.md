@@ -342,6 +342,23 @@ JointOutcomeSample v2 rows (all eligible, coverage provenance intact
 through the dataset builder). Next: Phase 2, the single-agent mainline
 contract, with the union pipeline as the behavior it must reproduce.
 
+Phase 2 closed the same day
+(`reports/self-play-packing/single-agent-mainline-contract.md`,
+`single-agent-pilot-20260823.md`, `scripts/single_agent_packing.py`,
+`scripts/run_single_agent_packing.py`). The mainline is now
+single-agent: no players, handoff, zero-sum rewards, terminal prize, or
+scalar objective; chance is redefined as the unseen stream suffix with
+ExogenousWorld as its address (declared degenerate in dev configs).
+Verification: full-episode executed actions bit-match the two-player
+rank-0 runs — against a *different game seed*, proving handoff was pure
+bookkeeping and all collected rank-0 trajectories reinterpret as
+single-agent data. The pilot emitted JointOutcomeSample v3
+(`single_agent_v1`): 140 safe component-outcome rows (75 legacy, 65
+coverage), 1135 unsafe coverage attempts as negative evidence, and
+eligible suffix value targets with terminal stability at all 25 visited
+states. Next: Phase 3 — collection scale-up and the learned-proposal
+beta contract on this union support.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
