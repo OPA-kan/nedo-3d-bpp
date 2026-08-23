@@ -26,9 +26,11 @@ from scripts.build_paired_search_follow import (  # noqa: E402
     compare_arms,
     run_arm,
 )
+from scripts.build_counterfactual_graph import build_candidate_provider  # noqa: E402
 from scripts.build_replay_dataset import load_agent_module, require_supported_python  # noqa: E402
 from scripts.counterfactual_graph import canonical_action  # noqa: E402
 from scripts.evaluate_self_play_component_value_shadow import select_candidate  # noqa: E402
+from scripts.run_self_play_packing import build_exact_physical_legal_filter  # noqa: E402
 
 
 def _read_jsonl(path: pathlib.Path) -> list[dict[str, Any]]:
@@ -118,6 +120,38 @@ def run_proposal(
     config = json.loads(config_path.read_text(encoding="utf-8"))
     task_config = config[proposal["case_id"]]
     agent_module = load_agent_module()
+    provider = build_candidate_provider(
+        agent_module, attempt_budget=128, scan_all_visible_items=True,
+    )
+    rescue_provider = build_candidate_provider(
+        agent_module, attempt_budget=128, scan_all_visible_items=True,
+        candidate_stride=4,
+    )
+    legal_filter = build_exact_physical_legal_filter(
+        task_config, case_id=proposal["case_id"],
+        environment_seed=int(snapshot["replay_contract"]["seed"]),
+    )
+
+    def deterministic_continuation(*, env, observation, actions, step):
+        proposals = list(provider(env, observation, 64))
+        rescue_used = False
+        if not proposals:
+            proposals = list(rescue_provider(env, observation, 64))
+            rescue_used = True
+        legal, audit = legal_filter(
+            env=env, observation=observation, candidates=proposals,
+            actions=actions, step=step, max_safe_candidates=1,
+        )
+        audit = {
+            **audit,
+            "candidate_support": (
+                "fixed128-stride4-provider-zero-rescue"
+                if rescue_used else "fixed128-item-stratified"
+            ),
+        }
+        action = None if not legal else legal[0].command_action
+        return action, audit
+
     root_dir = output_dir / f"{proposal['pair_id']}-step-{proposal['step']:03d}"
     common = {
         "agent_module": agent_module,
@@ -128,6 +162,8 @@ def run_proposal(
         # root to keep its internal state synchronized before continuation.
         "incumbent_action": proposal["incumbent_action"],
         "require_live_incumbent": False,
+        "synchronize_live_policy": False,
+        "continuation_action_fn": deterministic_continuation,
         "capture_offsets": {3, 6},
         "policy_generation": policy_generation,
     }
@@ -149,6 +185,10 @@ def run_proposal(
     return {
         **proposal,
         "snapshot_path": snapshot_path.as_posix(),
+        "continuation_policy": (
+            "fixed128-item-stratified-rank0-lazy-pybullet-"
+            "provider-zero-stride4"
+        ),
         "execution_valid": execution_valid,
         "arms": {"incumbent": incumbent, "candidate": candidate},
         "comparison": compare_arms(incumbent, candidate),
@@ -172,6 +212,10 @@ def summarize(
         "schema_version": 1,
         "experiment": "paired_component_value_continuation",
         "scalarization": False,
+        "continuation_policy": (
+            "fixed128-item-stratified-rank0-lazy-pybullet-"
+            "provider-zero-stride4"
+        ),
         "discovery_beta": float(beta),
         "proposal_count": int(proposal_count),
         "executed_records": len(records),

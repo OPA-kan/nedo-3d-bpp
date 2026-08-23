@@ -91,6 +91,7 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         )
 
         self.assertFalse(result["official_score_claim"])
+        self.assertIn("fixed128", result["continuation_policy"])
         self.assertEqual(
             result["mean_candidate_minus_incumbent"]["fill"], 2.0
         )
@@ -145,6 +146,10 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         self.assertIn("--beta 0.25", text)
         self.assertIn("shard_index: [0, 1]", text)
         self.assertIn("--expected-proposals", text)
+        self.assertIn("fixed128-item-stratified", (
+            root / "scripts"
+            / "evaluate_self_play_component_paired_continuation.py"
+        ).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

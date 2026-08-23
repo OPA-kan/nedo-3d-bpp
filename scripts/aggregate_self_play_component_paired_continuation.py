@@ -24,6 +24,10 @@ def _summarize(records: list[dict], *, beta: float, proposal_count: int) -> dict
         "schema_version": 1,
         "experiment": "paired_component_value_continuation",
         "scalarization": False,
+        "continuation_policy": (
+            "fixed128-item-stratified-rank0-lazy-pybullet-"
+            "provider-zero-stride4"
+        ),
         "discovery_beta": float(beta),
         "proposal_count": int(proposal_count),
         "executed_records": len(records),

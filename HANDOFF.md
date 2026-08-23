@@ -207,6 +207,24 @@ hard legality and no invented exchange rate, followed by paired continuation;
 it is not another scalar-V retry. Full evidence and the one-step shake result
 are in `reports/self-play-packing/behavior-value-gate-20260823.md`.
 
+That component gate is now also closed for policy use. Run `32621960562`
+nominated 13 mean-dominant roots at beta 0, two at beta 0.25 and none at beta
+0.5 or above. The two frozen beta-0.25 roots were replayed to terminal in
+paired physical continuations in runs `32623583899` and green replicate
+`32623930649`. All four comparisons were Pareto-incomparable and none was
+candidate-dominant. The step-6 result reproduced exactly (gate +0.073, fill
+-1.496, peak KE +31.583, one additional topple). The step-4 result did not: a
+complete tie became a tradeoff with fill +6.198 and KE -77.435 but CoG-z
++0.148. The current hand-coded continuation retains wall-clock-dependent
+search and is not deterministic enough for a causal action-effect estimate.
+The adoption gate still fails, but do not generalize these two roots into a
+claim that component V is intrinsically useless. High per-head state-value OOF
+signal does not establish calibrated sibling-action differences. Keep
+component-V selection, progressive widening and P closed. Next use a
+fixed-attempt deterministic continuation and, if learning continues, target
+paired counterfactual component deltas or search improvement directly. Do not
+scalarize the official axes; placed is the activation gate, not a score term.
+
 The instrument and the first Linux physical H3 condition matrix are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,

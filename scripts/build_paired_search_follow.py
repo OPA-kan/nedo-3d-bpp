@@ -280,6 +280,7 @@ def run_arm(
     arm: str, root_action: dict[str, Any], incumbent_action: dict[str, Any],
     capture_offsets: set[int], output_dir: pathlib.Path,
     policy_generation: str, require_live_incumbent: bool = True,
+    continuation_action_fn=None, synchronize_live_policy: bool = True,
 ) -> dict[str, Any]:
     """Replay an exact root, force one action, then return to the policy."""
     from src.ground_handling.env import GroundHandlingEnv
@@ -292,19 +293,23 @@ def run_arm(
     env = GroundHandlingEnv(
         config=copy.deepcopy(task_config), verbose=False, render_mode=None
     )
-    solver = agent_module.Agent("")
+    solver = agent_module.Agent("") if synchronize_live_policy else None
     executed_actions: list[dict[str, Any]] = []
     captures = []
+    continuation_audits = []
+    continuation_exhausted = False
     output_dir.mkdir(parents=True, exist_ok=True)
     try:
         env.reset_settings()
-        solver.get_init_states(env.get_init_states())
+        if solver is not None:
+            solver.get_init_states(env.get_init_states())
         env.reset_item_stream()
         raw_observation, _info = env.reset(seed=int(contract["seed"]))
         terminated = truncated = False
         for prefix_action in contract["action_prefix"]:
             observation = policy_observation(env, raw_observation)
-            solver.policy(observation)
+            if solver is not None:
+                solver.policy(observation)
             command = canonical_action(prefix_action)
             raw_observation, _reward, terminated, truncated, _info = env.step(command)
             if terminated or truncated:
@@ -321,8 +326,14 @@ def run_arm(
         )
         if observed_fingerprint != expected_fingerprint:
             raise RuntimeError("replayed root board fingerprint does not match snapshot")
-        live_action = canonical_action(solver.policy(observation))
-        live_matches_incumbent = _action_key(live_action) == _action_key(incumbent_action)
+        live_action = (
+            canonical_action(solver.policy(observation))
+            if solver is not None else None
+        )
+        live_matches_incumbent = bool(
+            live_action is not None
+            and _action_key(live_action) == _action_key(incumbent_action)
+        )
         if require_live_incumbent and not live_matches_incumbent:
             raise RuntimeError("live policy action does not match graph rank-0 incumbent")
 
@@ -378,7 +389,24 @@ def run_arm(
                         "model_visible_state_signature"
                     ],
                 })
-            action = canonical_action(solver.policy(observation))
+            if continuation_action_fn is None:
+                if solver is None:
+                    raise RuntimeError("continuation has no policy")
+                action = canonical_action(solver.policy(observation))
+            else:
+                choice = continuation_action_fn(
+                    env=env, observation=raw_observation,
+                    actions=list(executed_actions), step=step,
+                )
+                if isinstance(choice, tuple):
+                    action, audit = choice
+                    continuation_audits.append(json_safe(audit))
+                else:
+                    action = choice
+                if action is None:
+                    continuation_exhausted = True
+                    break
+                action = canonical_action(action)
             raw_observation, _reward, terminated, truncated, _info = env.step(action)
             executed_actions.append(action)
             step += 1
@@ -396,6 +424,9 @@ def run_arm(
         "root_fingerprint_matches": True,
         "live_action_matches_incumbent": bool(live_matches_incumbent),
         "live_incumbent_required": bool(require_live_incumbent),
+        "live_policy_synchronized": bool(synchronize_live_policy),
+        "continuation_exhausted": bool(continuation_exhausted),
+        "continuation_audits": continuation_audits,
         "captures": captures,
         "missing_capture_offsets": sorted(
             capture_offsets - {int(row["offset"]) for row in captures}
