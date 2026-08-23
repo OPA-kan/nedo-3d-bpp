@@ -210,6 +210,25 @@ at threshold 0.8 needs at least 16 paired worlds per comparison even under
 perfect observed dominance, so elimination runs must budget 48+ simulations
 per root at top-3 or preregister a weaker pilot gate.
 
+PoC-2 ran the same day on 13 paired cells (1368 samples, 102 roots, every
+cell passing the contract audit). The joint outcome scorer F(s, a) —
+contract in `reports/self-play-packing/joint-outcome-scorer-contract.md`,
+result in `joint-outcome-scorer-poc2-20260823.md` — transfers candidate
+*ranking* to held-out roots (fill_gain Kendall tau +0.73, top pick
+zero-regret on 89% of roots) but its unpaired predictive distribution
+carries zero dominance signal (AUC 0.506): world-level variance that
+same-world pairing cancels swamps independent sampling. A learned scorer
+can therefore prune candidates before physical rollouts, but paired
+physical rollouts remain the only dominance certificate. The next slice
+is a paired-difference head (same state, two actions, predict the joint
+outcome difference) trained on the world-aligned pairs the dataset
+already contains — before any vector-search integration. Also recorded
+there: at horizon 2 most joint heads are inert (soft/priority/survival
+tie at nearly every root), `command_action.item_idx` is pool-positional
+(join items by `selection.stable_item_index`), and empty-board
+fingerprints collide across scenarios so root ids are not cross-run
+identities.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
