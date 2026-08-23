@@ -359,6 +359,25 @@ eligible suffix value targets with terminal stability at all 25 visited
 states. Next: Phase 3 — collection scale-up and the learned-proposal
 beta contract on this union support.
 
+The beta contract is now frozen
+(`reports/self-play-packing/learned-proposal-beta-contract.md`) after a
+design review that corrected two technical errors on record (dominance
+probability is not antisymmetric — the paired primitive is the
+difference vector DeltaY with architectural antisymmetry; and
+prod(1-D) is not a frontier probability — set-level quantities are
+frequencies of actual Pareto judgments over ensemble/world
+realizations) and one phase-order danger: weighting beta by dominance
+before Vector MCTS exists would distill Q under rank-0 continuation
+into the proposal. Hence 3A trains and uses only the feasibility head
+(coverage floor permanent, gates = safe yield AND diversity AND
+discovery AND recall, no single-number target), 3B trains the paired
+DeltaY head shadow-only (sign accuracy, within-root tau, same-world
+dominance, incomparability recognition), and beta is Pareto-ized only
+after Phase 4, with the search-discovered frontier as its strategic
+teacher. Resampled-proposal provenance claims only what is true:
+the generated finite set plus conditional resampling probabilities,
+never a continuous density.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
