@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       experiment:
-        description: convergence, value, shake, shadow, or component
+        description: convergence, value, shake, shadow, component, or component-pair
         required: true
         default: "convergence"
       source_run_id:
@@ -46,12 +46,15 @@ on:
       - scripts/rerun_self_play_puct_roots.py
       - scripts/run_self_play_packing.py
       - scripts/evaluate_self_play_component_value_shadow.py
+      - scripts/evaluate_self_play_component_paired_continuation.py
+      - scripts/aggregate_self_play_component_paired_continuation.py
       - tests/test_evaluate_self_play_puct_convergence.py
       - tests/test_evaluate_adaptive_puct_schedule.py
       - tests/test_compare_self_play_puct_rescue.py
       - tests/test_self_play_puct_convergence_workflow.py
       - tests/test_run_self_play_packing.py
       - tests/test_evaluate_self_play_component_value_shadow.py
+      - tests/test_evaluate_self_play_component_paired_continuation.py
 
 permissions:
   contents: read
@@ -428,3 +431,87 @@ jobs:
         with:
           name: self-play-component-value-shadow-${{ github.run_id }}
           path: reports/component-value-shadow/
+
+  component-paired-continuation:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.experiment == 'component-pair'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify paired component contracts
+        run: >-
+          python -m unittest
+          tests.test_evaluate_self_play_component_value_shadow
+          tests.test_evaluate_self_play_component_paired_continuation
+          tests.test_build_paired_search_follow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Download fresh source trajectories
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/component-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download frozen component shadow
+        run: >-
+          gh run download "${{ inputs.value_run_id }}"
+          --name "self-play-component-value-shadow-${{ inputs.value_run_id }}"
+          --dir reports/component-shadow
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Run paired terminal continuations and shake
+        run: >-
+          python scripts/evaluate_self_play_component_paired_continuation.py
+          --shadow reports/component-shadow/result.json
+          --dataset reports/component-source/pv-dataset.jsonl
+          --source-root reports/component-source
+          --beta 0.25
+          --shard-index "${{ matrix.shard_index }}" --shard-count 2
+          --output-dir reports/component-paired/shard-${{ matrix.shard_index }}
+          --json-output reports/component-paired/shard-${{ matrix.shard_index }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: component-paired-shard-${{ matrix.shard_index }}
+          path: reports/component-paired/
+
+  aggregate-component-paired:
+    needs: component-paired-continuation
+    if: >-
+      always() && needs.component-paired-continuation.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: component-paired-shard-*
+          path: reports/component-paired
+          merge-multiple: true
+      - name: Aggregate component-vector evidence
+        run: >-
+          python scripts/aggregate_self_play_component_paired_continuation.py
+          --root reports/component-paired
+          --expected-proposals "${{ inputs.expected_pairs }}"
+          --json-output reports/component-paired/aggregate.json
+          --markdown-output reports/component-paired/aggregate.md
+      - run: cat reports/component-paired/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-component-paired-${{ github.run_id }}
+          path: reports/component-paired/

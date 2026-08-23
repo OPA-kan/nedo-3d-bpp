@@ -138,11 +138,11 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parents[1]
         text = (
             root / ".github" / "workflows"
-            / "self-play-component-paired-continuation.yml"
+            / "self-play-puct-convergence.yml"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('default: "0.25"', text)
-        self.assertIn('default: "2"', text)
+        self.assertIn("inputs.experiment == 'component-pair'", text)
+        self.assertIn("--beta 0.25", text)
         self.assertIn("shard_index: [0, 1]", text)
         self.assertIn("--expected-proposals", text)
 
