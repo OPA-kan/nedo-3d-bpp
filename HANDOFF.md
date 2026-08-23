@@ -254,6 +254,25 @@ same paired worlds, and behavior-policy terminal continuations from
 counterfactual sibling leaves to score V(s'_i) within-root against
 realized suffixes.
 
+Both measurements ran the same day
+(`reports/self-play-packing/terminal-probe-depth-ladder-20260823.md`)
+and inverted the gate's direction. Terminal probes (rank-0
+continuations from every sibling leaf; 60/60 genuine terminals; under
+rank-0 the handoff draws only reassign the mover, so one continuation
+covers all paired worlds) show fill tau vs terminal of +0.333 for H1,
++0.111 for H2 — the H1~H2 agreement was two shallow measurements
+agreeing — while the **H1+V composite reaches +0.600**: the V that the
+H2-referenced gate scored as damage is the best terminal-ordering
+estimator measured so far. Within-root V validation exposed a total
+global/local dissociation (fill: pearson 0.983 vs sibling pairwise
+accuracy 0.708; priority_covered: pearson 0.431 vs perfect
+discrimination), so within-root pairwise accuracy is now the V
+acceptance metric. Scope: 20 roots, 2 cells, one seed; direction is
+clear, magnitudes are not. Integration of V stays unlicensed until the
+gate is re-run at scale against terminal references; bounded H4/H8 arms
+look pointless (depth 2 already added nothing); terminal probes on
+sampled roots become the standing reference arm for future gates.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are

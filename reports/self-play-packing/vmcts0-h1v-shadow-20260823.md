@@ -1,5 +1,12 @@
 # V-MCTS-0 shadow result: H1+V vs H2 physical measurement
 
+> **Superseded in direction (same day):** the terminal probe
+> (`terminal-probe-depth-ladder-20260823.md`) showed the H2 reference
+> used here was too shallow — against realized terminal outcomes the
+> H1+V composite orders *better* than H1 alone (+0.600 vs +0.333),
+> inverting this gate's verdict. This report stays as the record of the
+> H2-referenced measurement and of why a shallow reference misleads.
+
 Date: 2026-08-23 (Linux, PyBullet 3.2.7, torch CPU)
 Comparison JSON: `reports/self-play-paired-physical/vmcts0-h1v-20260823/h1v-vs-h2-shadow.json`
 Instrument: `scripts/compare_h1v_shadow.py` (member-wise same-world vote)
