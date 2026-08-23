@@ -3,15 +3,46 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import pathlib
-import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
-from scripts.evaluate_self_play_component_paired_continuation import summarize
+def _summarize(records: list[dict], *, beta: float, proposal_count: int) -> dict:
+    """Pure-stdlib summary; aggregate runners need no simulator stack."""
+    valid = [row for row in records if row.get("execution_valid")]
+    relations = collections.Counter(
+        row["comparison"]["pareto_relation"] for row in valid
+    )
+    deltas = [row["comparison"]["raw_deltas"] for row in valid]
+
+    def mean(name: str) -> float | None:
+        values = [float(row[name]) for row in deltas if row.get(name) is not None]
+        return sum(values) / len(values) if values else None
+
+    return {
+        "schema_version": 1,
+        "experiment": "paired_component_value_continuation",
+        "scalarization": False,
+        "discovery_beta": float(beta),
+        "proposal_count": int(proposal_count),
+        "executed_records": len(records),
+        "valid_records": len(valid),
+        "pareto_relations": dict(sorted(relations.items())),
+        "mean_candidate_minus_incumbent": {
+            name: mean(name) for name in (
+                "fill", "cog", "placement", "soft", "gate",
+                "stability.max_shift", "stability.peak_kinetic_energy",
+                "stability.items_shifted", "stability.items_toppled",
+            )
+        },
+        "official_score_claim": False,
+        "reason": (
+            "official component normalization and weights are unpublished; "
+            "local stability is a deterministic proxy"
+        ),
+        "records": records,
+    }
 
 
 def aggregate(
@@ -37,7 +68,7 @@ def aggregate(
         raise ValueError(
             f"expected {proposal_count} executed proposals, observed {len(records)}"
         )
-    return summarize(records, beta=beta, proposal_count=proposal_count)
+    return _summarize(records, beta=beta, proposal_count=proposal_count)
 
 
 def render_markdown(result: dict) -> str:
@@ -73,7 +104,7 @@ def main() -> int:
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
     args = parser.parse_args()
-    paths = sorted(args.root.glob("shard-*.json"))
+    paths = sorted(args.root.rglob("shard-*.json"))
     result = aggregate(
         [json.loads(path.read_text(encoding="utf-8")) for path in paths],
         expected_proposals=args.expected_proposals,
