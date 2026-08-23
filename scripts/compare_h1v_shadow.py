@@ -222,7 +222,9 @@ def compare_cell(
         h2_dominated = {pair[1] for pair, held in h2_relations.items() if held}
         h1v_dominated = {pair[1] for pair, held in voted.items() if held}
         candidates = sorted(h2)
+        h1_measured = _measured_vectors(h1v_roots[key]["samples"])
         taus = {}
+        measured_only_taus = {}
         for head in COMPOSITE_HEADS:
             h2_means = _candidate_means(h2, head)
             ensemble_means: dict[str, float] = {}
@@ -237,6 +239,14 @@ def compare_cell(
             tau = _kendall_tau(h2_means, ensemble_means)
             if tau is not None:
                 taus[head] = tau
+            # Ablation baseline: does the measured H1 delta alone already
+            # reproduce the H2 ordering? Separates the value of the second
+            # physical step from the value (or damage) of the V bootstrap.
+            baseline = _kendall_tau(
+                h2_means, _candidate_means(h1_measured, head)
+            )
+            if baseline is not None:
+                measured_only_taus[head] = baseline
         rows.append({
             "candidate_set_id": key,
             "step": h2_roots[key]["step"],
@@ -247,6 +257,7 @@ def compare_cell(
             "h1v_dominated": sorted(h1v_dominated),
             "pareto_agree": h2_dominated == h1v_dominated,
             "ordering_tau": taus,
+            "ordering_tau_measured_only": measured_only_taus,
             "h2_physical_steps": (
                 h2_roots[key]["simulations"] * h2_roots[key]["horizon"]
             ),
@@ -267,9 +278,12 @@ def summarize(cells: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if not rows:
         raise ValueError("no shared roots between the two arms")
     tau_by_head = collections.defaultdict(list)
+    baseline_by_head = collections.defaultdict(list)
     for row in rows:
         for head, tau in row["ordering_tau"].items():
             tau_by_head[head].append(tau)
+        for head, tau in row.get("ordering_tau_measured_only", {}).items():
+            baseline_by_head[head].append(tau)
     relation_pairs = sum(row["relation_pairs"] for row in rows)
     relation_matches = sum(row["relation_matches"] for row in rows)
     h2_positive = sum(len(row["h2_dominated"]) for row in rows)
@@ -286,6 +300,13 @@ def summarize(cells: dict[str, dict[str, Any]]) -> dict[str, Any]:
                 "count": len(values),
             }
             for head, values in sorted(tau_by_head.items())
+        },
+        "ordering_tau_measured_only": {
+            head: {
+                "mean": sum(values) / len(values),
+                "count": len(values),
+            }
+            for head, values in sorted(baseline_by_head.items())
         },
         "dominance_relation_agreement": (
             relation_matches / relation_pairs if relation_pairs else None

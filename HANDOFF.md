@@ -229,6 +229,24 @@ tie at nearly every root), `command_action.item_idx` is pool-positional
 fingerprints collide across scenarios so root ids are not cross-run
 identities.
 
+The V-MCTS-0 shadow gate then ran the same day
+(`reports/self-play-packing/vmcts0-h1v-shadow-20260823.md`): a
+V^pi_behavior ensemble trained on 24 complete rank-0 episodes (276
+suffix states, terminal stability measured; fill_return pearson 0.93
+group-held-out) was recorded shadow-only at horizon-1 leaves via
+`--mcts-leaf-vector-model-dir`, and compared against the H2 physical arm
+on 35 shared roots with identical exogenous worlds. Verdict: the gate
+failed in an instructive way. The H1 measured delta alone reproduces the
+H2 fill ordering at tau +0.889 (H2 split-half self-consistency is
++1.000), while adding the V bootstrap *degrades* it to +0.630 — this V
+is too weak to pay its way, so it must not enter search yet. Dominance
+certification stayed physical-only (unanimous member vote recall 0.043).
+Practical consequence: for ordering-only physical matrices, horizon 1
+halves the budget at almost no cost, which doubles paired worlds per
+root toward the 16-world Wilson-LCB elimination requirement. V's path
+forward is more complete trajectories (one command per cell now) and
+paired-difference calibration, re-gated by the same shadow instrument.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
