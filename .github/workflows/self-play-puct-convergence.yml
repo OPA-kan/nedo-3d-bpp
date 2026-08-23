@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       experiment:
-        description: convergence, value, shake, or shadow
+        description: convergence, value, shake, shadow, or component
         required: true
         default: "convergence"
       source_run_id:
@@ -45,11 +45,13 @@ on:
       - scripts/compare_self_play_puct_rescue.py
       - scripts/rerun_self_play_puct_roots.py
       - scripts/run_self_play_packing.py
+      - scripts/evaluate_self_play_component_value_shadow.py
       - tests/test_evaluate_self_play_puct_convergence.py
       - tests/test_evaluate_adaptive_puct_schedule.py
       - tests/test_compare_self_play_puct_rescue.py
       - tests/test_self_play_puct_convergence_workflow.py
       - tests/test_run_self_play_packing.py
+      - tests/test_evaluate_self_play_component_value_shadow.py
 
 permissions:
   contents: read
@@ -377,3 +379,52 @@ jobs:
         with:
           name: self-play-value-shadow-aggregate-${{ github.run_id }}
           path: reports/value-shadow/
+
+  component-value-shadow:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.experiment == 'component'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-learning.txt
+      - run: pip install -r requirements.txt -r requirements-learning.txt
+      - name: Verify component-value contracts
+        run: >-
+          python -m unittest
+          tests.test_evaluate_self_play_component_value_shadow
+          tests.test_train_self_play_set_value -v
+      - name: Download fresh multi-head source dataset
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/component-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download group-excluded multi-head ensemble
+        run: >-
+          gh run download "${{ inputs.value_run_id }}"
+          --name "self-play-set-value-${{ inputs.value_run_id }}"
+          --dir reports/component-model
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Evaluate partial official-vector proposals
+        run: >-
+          python scripts/evaluate_self_play_component_value_shadow.py
+          --dataset reports/component-source/pv-dataset.jsonl
+          --model-dir reports/component-model/model
+          --beta 1.0
+          --json-output reports/component-value-shadow/result.json
+          --markdown-output reports/component-value-shadow/result.md
+      - run: cat reports/component-value-shadow/result.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-component-value-shadow-${{ github.run_id }}
+          path: reports/component-value-shadow/
