@@ -128,6 +128,10 @@ def measure_candidates(
                 "root_candidate_id": _candidate_record(candidate)[
                     "candidate_id"
                 ],
+                "command_action": action,
+                "stable_item_index": _candidate_selection(candidate).get(
+                    "stable_item_index"
+                ),
                 "root_candidate_provenance": _candidate_record(candidate)[
                     "proposal_provenance"
                 ],

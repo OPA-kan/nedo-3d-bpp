@@ -77,7 +77,7 @@ def _candidate_provenance(
         else getattr(candidate, "proposal_provenance", {})
     ) or {}
     selection = _candidate_selection(candidate)
-    return {
+    result = {
         "schema_version": 1,
         "source": str(explicit.get("source", fallback_source)),
         "provider": explicit.get("provider", selection.get("provider")),
@@ -88,6 +88,15 @@ def _candidate_provenance(
         "coverage_sequence_index": explicit.get("coverage_sequence_index"),
         "dedup_multiplicity": explicit.get("dedup_multiplicity", 1),
     }
+    # Optional honest-provenance fields (beta contract): carried only
+    # when the proposer recorded them.
+    for key in (
+        "coverage_z_mode", "acceptance_model_id",
+        "conditional_resampling_probability", "beta_stage",
+    ):
+        if key in explicit:
+            result[key] = explicit[key]
+    return result
 
 
 def _candidate_record(
