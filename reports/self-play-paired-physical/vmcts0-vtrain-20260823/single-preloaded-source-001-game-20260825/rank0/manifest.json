@@ -1,0 +1,3623 @@
+{
+  "schema_version": 1,
+  "experiment": "self-play packing game",
+  "case_id": "m-single-preloaded",
+  "policy_generation": "pi0",
+  "rules": {
+    "minimum_block": 3,
+    "handoff_probability": 0.6,
+    "terminal_reward": 50.0,
+    "attribute_penalty": 5.0
+  },
+  "candidate_contract": {
+    "provider": "placement_core_item_stratified_fixed_attempts",
+    "attempt_budget": 128,
+    "top_k": 3,
+    "legal_filter": "fresh_pybullet_prefix_replay",
+    "legal_definition": "all status flags true: is_included, is_valid, is_placed_safe",
+    "rejected_proposals_retained_for_audit": true,
+    "soft_priority": "dense_zero_sum_penalty_not_hard_filter"
+  },
+  "selection": {
+    "mode": "rank0",
+    "temperature": 1.5,
+    "shared_between_players": true,
+    "mcts": null
+  },
+  "games": [
+    {
+      "starting_player": 0,
+      "steps": 5,
+      "placements": 5,
+      "handoff_count": 1,
+      "completed_block_lengths": [
+        3
+      ],
+      "final_block_length": 2,
+      "terminal_reason": "no_retained_candidate",
+      "training_eligible": true,
+      "outcome_target_eligible": true,
+      "loser": 1,
+      "winner": 0,
+      "rewards": [
+        50.0,
+        -50.0
+      ],
+      "zero_sum_error": 0.0,
+      "new_attribute_violations": 0.0,
+      "non_rank0_action_count": 0,
+      "legal_move_audits": [
+        {
+          "schema_version": 1,
+          "mode": "fresh_pybullet_prefix_replay",
+          "step": 0,
+          "proposal_count": 3,
+          "checked_count": 3,
+          "unchecked_count": 0,
+          "safe_count": 3,
+          "rejected_count": 0,
+          "max_safe_candidates": null,
+          "candidates": [
+            {
+              "candidate_id": "candidate-e9997ea3b062cd952eaf",
+              "command_action": {
+                "item_idx": 26,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.4899902045726776
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 26,
+                "stable_item_index": 29,
+                "score": 2.1021317466155858,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 0,
+              "prefix_fingerprint": "board-e4257cf35b0678352177"
+            },
+            {
+              "candidate_id": "candidate-b97e76dc7d2e6f69618b",
+              "command_action": {
+                "item_idx": 38,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.4899902045726776
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 38,
+                "stable_item_index": 41,
+                "score": 2.1021317466155858,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 0,
+              "prefix_fingerprint": "board-e4257cf35b0678352177"
+            },
+            {
+              "candidate_id": "candidate-537ce2f6e6933a497dd5",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.40999022126197815
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 2.0673282238489508,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 0,
+              "prefix_fingerprint": "board-e4257cf35b0678352177"
+            }
+          ]
+        },
+        {
+          "schema_version": 1,
+          "mode": "fresh_pybullet_prefix_replay",
+          "step": 1,
+          "proposal_count": 3,
+          "checked_count": 3,
+          "unchecked_count": 0,
+          "safe_count": 3,
+          "rejected_count": 0,
+          "max_safe_candidates": null,
+          "candidates": [
+            {
+              "candidate_id": "candidate-5f8b567b1b02af66d8c2",
+              "command_action": {
+                "item_idx": 37,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6471036076545715,
+                  0.002091418718919158,
+                  0.479990690946579
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 37,
+                "stable_item_index": 41,
+                "score": 2.019096299047047,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 1,
+              "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+            },
+            {
+              "candidate_id": "candidate-56e6ae22edd441646912",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6690000295639038,
+                  0.002091418718919158,
+                  0.3999907076358795
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 1.966779639007708,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 1,
+              "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+            },
+            {
+              "candidate_id": "candidate-78ee92e25ab84d0ec5bf",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6690000295639038,
+                  0.002091418718919158,
+                  0.3999907076358795
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 1.966779639007708,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 1,
+              "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+            }
+          ]
+        },
+        {
+          "schema_version": 1,
+          "mode": "fresh_pybullet_prefix_replay",
+          "step": 2,
+          "proposal_count": 3,
+          "checked_count": 3,
+          "unchecked_count": 0,
+          "safe_count": 3,
+          "rejected_count": 0,
+          "max_safe_candidates": null,
+          "candidates": [
+            {
+              "candidate_id": "candidate-a9fdbb9c53d5525adf81",
+              "command_action": {
+                "item_idx": 35,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.718999981880188,
+                  0.5189999938011169,
+                  0.9959999918937683
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 35,
+                "stable_item_index": 39,
+                "score": 1.4533144444444444,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 2,
+              "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+            },
+            {
+              "candidate_id": "candidate-f6171bcef14c2f7e66dd",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.4690000116825104,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 0.869688181818181,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 2,
+              "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+            },
+            {
+              "candidate_id": "candidate-d8c333cff86e3d3d6584",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.4690000116825104,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 0.869688181818181,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 2,
+              "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+            }
+          ]
+        },
+        {
+          "schema_version": 1,
+          "mode": "fresh_pybullet_prefix_replay",
+          "step": 3,
+          "proposal_count": 3,
+          "checked_count": 3,
+          "unchecked_count": 0,
+          "safe_count": 3,
+          "rejected_count": 0,
+          "max_safe_candidates": null,
+          "candidates": [
+            {
+              "candidate_id": "candidate-879f973a111d0925e6c5",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 3,
+              "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+            },
+            {
+              "candidate_id": "candidate-0532e65a8581b98da60f",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 3,
+              "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+            },
+            {
+              "candidate_id": "candidate-e81c1bf403fa2da541f3",
+              "command_action": {
+                "item_idx": 9,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 9,
+                "stable_item_index": 12,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 3,
+              "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+            }
+          ]
+        },
+        {
+          "schema_version": 1,
+          "mode": "fresh_pybullet_prefix_replay",
+          "step": 4,
+          "proposal_count": 3,
+          "checked_count": 3,
+          "unchecked_count": 0,
+          "safe_count": 3,
+          "rejected_count": 0,
+          "max_safe_candidates": null,
+          "candidates": [
+            {
+              "candidate_id": "candidate-fc251622b5918bd9a5eb",
+              "command_action": {
+                "item_idx": 7,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 7,
+                "stable_item_index": 11,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 4,
+              "prefix_fingerprint": "board-60293ef7b674aea939e8"
+            },
+            {
+              "candidate_id": "candidate-b5cf38d4c84406a8e4f5",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 8,
+                "stable_item_index": 12,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 4,
+              "prefix_fingerprint": "board-60293ef7b674aea939e8"
+            },
+            {
+              "candidate_id": "candidate-91984ca2e9f5203da895",
+              "command_action": {
+                "item_idx": 9,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 9,
+                "stable_item_index": 13,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              },
+              "safe": true,
+              "status": {
+                "is_included": true,
+                "is_valid": true,
+                "is_placed_safe": true
+              },
+              "terminated": false,
+              "truncated": false,
+              "prefix_actions_replayed": 4,
+              "prefix_fingerprint": "board-60293ef7b674aea939e8"
+            }
+          ]
+        },
+        {
+          "schema_version": 1,
+          "mode": "unfiltered",
+          "step": 5,
+          "proposal_count": 0,
+          "safe_count": 0,
+          "rejected_count": 0,
+          "candidates": []
+        }
+      ],
+      "candidate_proposals": 15,
+      "legal_candidates": 15,
+      "prefilter_rejections": 0,
+      "records": [
+        {
+          "step": 0,
+          "player": 0,
+          "block_length_before": 0,
+          "proposal_count": 3,
+          "candidate_count": 3,
+          "candidate_set_id": "candidate-set-v1-b4190db28ba56d6acd29",
+          "candidate_set": [
+            {
+              "candidate_id": "candidate-e9997ea3b062cd952eaf",
+              "command_action": {
+                "item_idx": 26,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.4899902045726776
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 26,
+                "stable_item_index": 29,
+                "score": 2.1021317466155858,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-b97e76dc7d2e6f69618b",
+              "command_action": {
+                "item_idx": 38,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.4899902045726776
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 38,
+                "stable_item_index": 41,
+                "score": 2.1021317466155858,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-537ce2f6e6933a497dd5",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  0.0,
+                  0.06889752298593521,
+                  0.40999022126197815
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 2.0673282238489508,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            }
+          ],
+          "legal_move_audit": {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": 0,
+            "proposal_count": 3,
+            "checked_count": 3,
+            "unchecked_count": 0,
+            "safe_count": 3,
+            "rejected_count": 0,
+            "max_safe_candidates": null,
+            "candidates": [
+              {
+                "candidate_id": "candidate-e9997ea3b062cd952eaf",
+                "command_action": {
+                  "item_idx": 26,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.0,
+                    0.06889752298593521,
+                    0.4899902045726776
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 0,
+                  "pool_index": 26,
+                  "stable_item_index": 29,
+                  "score": 2.1021317466155858,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 0,
+                "prefix_fingerprint": "board-e4257cf35b0678352177"
+              },
+              {
+                "candidate_id": "candidate-b97e76dc7d2e6f69618b",
+                "command_action": {
+                  "item_idx": 38,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.0,
+                    0.06889752298593521,
+                    0.4899902045726776
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 1,
+                  "pool_index": 38,
+                  "stable_item_index": 41,
+                  "score": 2.1021317466155858,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 0,
+                "prefix_fingerprint": "board-e4257cf35b0678352177"
+              },
+              {
+                "candidate_id": "candidate-537ce2f6e6933a497dd5",
+                "command_action": {
+                  "item_idx": 1,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.0,
+                    0.06889752298593521,
+                    0.40999022126197815
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 2,
+                  "pool_index": 1,
+                  "stable_item_index": 4,
+                  "score": 2.0673282238489508,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 0,
+                "prefix_fingerprint": "board-e4257cf35b0678352177"
+              }
+            ]
+          },
+          "selected_candidate_id": "candidate-e9997ea3b062cd952eaf",
+          "selected_rank": 0,
+          "selection": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "rank": 0,
+            "pool_index": 26,
+            "stable_item_index": 29,
+            "score": 2.1021317466155858,
+            "candidate_kind": "settled_candidate",
+            "attempt_budget": 128,
+            "attempt_budget_scope": "per_item",
+            "candidate_stride": 1,
+            "risk_lambda": 1.0,
+            "release_fallbacks_included": false,
+            "all_visible_items_scanned": true,
+            "priority_routing_violation": 0,
+            "priority_violations_direct": 0,
+            "soft_violations_direct": 0,
+            "priority_violations_stack": 0,
+            "soft_violations_stack": 0
+          },
+          "action": {
+            "item_idx": 26,
+            "container_idx": 0,
+            "place_pos": [
+              0.0,
+              0.06889752298593521,
+              0.4899902045726776
+            ],
+            "orientation": 0
+          },
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "state_snapshot_path": "step-000-state.json",
+          "attribute_reward": {
+            "violation_deltas": {
+              "soft_covered_by_other": 0.0,
+              "priority_covered_by_other": 0.0,
+              "priority_misrouted": 0.0
+            },
+            "new_violations": 0.0,
+            "reward_delta": [
+              0.0,
+              0.0
+            ]
+          },
+          "mover": 0,
+          "handoff_eligible": false,
+          "handoff": false,
+          "completed_block_length": null,
+          "next_player": 0,
+          "next_block_length": 1
+        },
+        {
+          "step": 1,
+          "player": 0,
+          "block_length_before": 1,
+          "proposal_count": 3,
+          "candidate_count": 3,
+          "candidate_set_id": "candidate-set-v1-f594a0398b59510d7214",
+          "candidate_set": [
+            {
+              "candidate_id": "candidate-5f8b567b1b02af66d8c2",
+              "command_action": {
+                "item_idx": 37,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6471036076545715,
+                  0.002091418718919158,
+                  0.479990690946579
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 37,
+                "stable_item_index": 41,
+                "score": 2.019096299047047,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-56e6ae22edd441646912",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6690000295639038,
+                  0.002091418718919158,
+                  0.3999907076358795
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 1.966779639007708,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-78ee92e25ab84d0ec5bf",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  0.6690000295639038,
+                  0.002091418718919158,
+                  0.3999907076358795
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 1.966779639007708,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            }
+          ],
+          "legal_move_audit": {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": 1,
+            "proposal_count": 3,
+            "checked_count": 3,
+            "unchecked_count": 0,
+            "safe_count": 3,
+            "rejected_count": 0,
+            "max_safe_candidates": null,
+            "candidates": [
+              {
+                "candidate_id": "candidate-5f8b567b1b02af66d8c2",
+                "command_action": {
+                  "item_idx": 37,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.6471036076545715,
+                    0.002091418718919158,
+                    0.479990690946579
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 0,
+                  "pool_index": 37,
+                  "stable_item_index": 41,
+                  "score": 2.019096299047047,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 1,
+                "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+              },
+              {
+                "candidate_id": "candidate-56e6ae22edd441646912",
+                "command_action": {
+                  "item_idx": 1,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.6690000295639038,
+                    0.002091418718919158,
+                    0.3999907076358795
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 1,
+                  "pool_index": 1,
+                  "stable_item_index": 4,
+                  "score": 1.966779639007708,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 1,
+                "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+              },
+              {
+                "candidate_id": "candidate-78ee92e25ab84d0ec5bf",
+                "command_action": {
+                  "item_idx": 8,
+                  "container_idx": 0,
+                  "place_pos": [
+                    0.6690000295639038,
+                    0.002091418718919158,
+                    0.3999907076358795
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 2,
+                  "pool_index": 8,
+                  "stable_item_index": 11,
+                  "score": 1.966779639007708,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 1,
+                "prefix_fingerprint": "board-9dbeb2afc24d6d6c1a72"
+              }
+            ]
+          },
+          "selected_candidate_id": "candidate-5f8b567b1b02af66d8c2",
+          "selected_rank": 0,
+          "selection": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "rank": 0,
+            "pool_index": 37,
+            "stable_item_index": 41,
+            "score": 2.019096299047047,
+            "candidate_kind": "settled_candidate",
+            "attempt_budget": 128,
+            "attempt_budget_scope": "per_item",
+            "candidate_stride": 1,
+            "risk_lambda": 1.0,
+            "release_fallbacks_included": false,
+            "all_visible_items_scanned": true,
+            "priority_routing_violation": 0,
+            "priority_violations_direct": 0,
+            "soft_violations_direct": 0,
+            "priority_violations_stack": 0,
+            "soft_violations_stack": 0
+          },
+          "action": {
+            "item_idx": 37,
+            "container_idx": 0,
+            "place_pos": [
+              0.6471036076545715,
+              0.002091418718919158,
+              0.479990690946579
+            ],
+            "orientation": 0
+          },
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "state_snapshot_path": "step-001-state.json",
+          "attribute_reward": {
+            "violation_deltas": {
+              "soft_covered_by_other": 0.0,
+              "priority_covered_by_other": 0.0,
+              "priority_misrouted": 0.0
+            },
+            "new_violations": 0.0,
+            "reward_delta": [
+              0.0,
+              0.0
+            ]
+          },
+          "mover": 0,
+          "handoff_eligible": false,
+          "handoff": false,
+          "completed_block_length": null,
+          "next_player": 0,
+          "next_block_length": 2
+        },
+        {
+          "step": 2,
+          "player": 0,
+          "block_length_before": 2,
+          "proposal_count": 3,
+          "candidate_count": 3,
+          "candidate_set_id": "candidate-set-v1-3597e93a1181a58f52ca",
+          "candidate_set": [
+            {
+              "candidate_id": "candidate-a9fdbb9c53d5525adf81",
+              "command_action": {
+                "item_idx": 35,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.718999981880188,
+                  0.5189999938011169,
+                  0.9959999918937683
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 35,
+                "stable_item_index": 39,
+                "score": 1.4533144444444444,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-f6171bcef14c2f7e66dd",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.4690000116825104,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 0.869688181818181,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-d8c333cff86e3d3d6584",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.4690000116825104,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 0.869688181818181,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            }
+          ],
+          "legal_move_audit": {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": 2,
+            "proposal_count": 3,
+            "checked_count": 3,
+            "unchecked_count": 0,
+            "safe_count": 3,
+            "rejected_count": 0,
+            "max_safe_candidates": null,
+            "candidates": [
+              {
+                "candidate_id": "candidate-a9fdbb9c53d5525adf81",
+                "command_action": {
+                  "item_idx": 35,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.718999981880188,
+                    0.5189999938011169,
+                    0.9959999918937683
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 0,
+                  "pool_index": 35,
+                  "stable_item_index": 39,
+                  "score": 1.4533144444444444,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 2,
+                "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+              },
+              {
+                "candidate_id": "candidate-f6171bcef14c2f7e66dd",
+                "command_action": {
+                  "item_idx": 1,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6690000295639038,
+                    0.4690000116825104,
+                    1.0160000324249268
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 1,
+                  "pool_index": 1,
+                  "stable_item_index": 4,
+                  "score": 0.869688181818181,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 2,
+                "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+              },
+              {
+                "candidate_id": "candidate-d8c333cff86e3d3d6584",
+                "command_action": {
+                  "item_idx": 8,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6690000295639038,
+                    0.4690000116825104,
+                    1.0160000324249268
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 2,
+                  "pool_index": 8,
+                  "stable_item_index": 11,
+                  "score": 0.869688181818181,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 2,
+                "prefix_fingerprint": "board-08ee0fa013019cccfff9"
+              }
+            ]
+          },
+          "selected_candidate_id": "candidate-a9fdbb9c53d5525adf81",
+          "selected_rank": 0,
+          "selection": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "rank": 0,
+            "pool_index": 35,
+            "stable_item_index": 39,
+            "score": 1.4533144444444444,
+            "candidate_kind": "settled_candidate",
+            "attempt_budget": 128,
+            "attempt_budget_scope": "per_item",
+            "candidate_stride": 1,
+            "risk_lambda": 1.0,
+            "release_fallbacks_included": false,
+            "all_visible_items_scanned": true,
+            "priority_routing_violation": 0,
+            "priority_violations_direct": 0,
+            "soft_violations_direct": 0,
+            "priority_violations_stack": 0,
+            "soft_violations_stack": 0
+          },
+          "action": {
+            "item_idx": 35,
+            "container_idx": 0,
+            "place_pos": [
+              -0.718999981880188,
+              0.5189999938011169,
+              0.9959999918937683
+            ],
+            "orientation": 0
+          },
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "state_snapshot_path": "step-002-state.json",
+          "attribute_reward": {
+            "violation_deltas": {
+              "soft_covered_by_other": 0.0,
+              "priority_covered_by_other": 0.0,
+              "priority_misrouted": 0.0
+            },
+            "new_violations": 0.0,
+            "reward_delta": [
+              0.0,
+              0.0
+            ]
+          },
+          "mover": 0,
+          "handoff_eligible": true,
+          "handoff": true,
+          "completed_block_length": 3,
+          "next_player": 1,
+          "next_block_length": 0
+        },
+        {
+          "step": 3,
+          "player": 1,
+          "block_length_before": 0,
+          "proposal_count": 3,
+          "candidate_count": 3,
+          "candidate_set_id": "candidate-set-v1-40e91f62b4531c58424c",
+          "candidate_set": [
+            {
+              "candidate_id": "candidate-879f973a111d0925e6c5",
+              "command_action": {
+                "item_idx": 1,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 1,
+                "stable_item_index": 4,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-0532e65a8581b98da60f",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 8,
+                "stable_item_index": 11,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-e81c1bf403fa2da541f3",
+              "command_action": {
+                "item_idx": 9,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6690000295639038,
+                  0.0,
+                  1.0160000324249268
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 9,
+                "stable_item_index": 12,
+                "score": 0.7055381818181812,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            }
+          ],
+          "legal_move_audit": {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": 3,
+            "proposal_count": 3,
+            "checked_count": 3,
+            "unchecked_count": 0,
+            "safe_count": 3,
+            "rejected_count": 0,
+            "max_safe_candidates": null,
+            "candidates": [
+              {
+                "candidate_id": "candidate-879f973a111d0925e6c5",
+                "command_action": {
+                  "item_idx": 1,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6690000295639038,
+                    0.0,
+                    1.0160000324249268
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 0,
+                  "pool_index": 1,
+                  "stable_item_index": 4,
+                  "score": 0.7055381818181812,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 3,
+                "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+              },
+              {
+                "candidate_id": "candidate-0532e65a8581b98da60f",
+                "command_action": {
+                  "item_idx": 8,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6690000295639038,
+                    0.0,
+                    1.0160000324249268
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 1,
+                  "pool_index": 8,
+                  "stable_item_index": 11,
+                  "score": 0.7055381818181812,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 3,
+                "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+              },
+              {
+                "candidate_id": "candidate-e81c1bf403fa2da541f3",
+                "command_action": {
+                  "item_idx": 9,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6690000295639038,
+                    0.0,
+                    1.0160000324249268
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 2,
+                  "pool_index": 9,
+                  "stable_item_index": 12,
+                  "score": 0.7055381818181812,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 3,
+                "prefix_fingerprint": "board-8bf4dea937cfe688e7f8"
+              }
+            ]
+          },
+          "selected_candidate_id": "candidate-879f973a111d0925e6c5",
+          "selected_rank": 0,
+          "selection": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "rank": 0,
+            "pool_index": 1,
+            "stable_item_index": 4,
+            "score": 0.7055381818181812,
+            "candidate_kind": "settled_candidate",
+            "attempt_budget": 128,
+            "attempt_budget_scope": "per_item",
+            "candidate_stride": 1,
+            "risk_lambda": 1.0,
+            "release_fallbacks_included": false,
+            "all_visible_items_scanned": true,
+            "priority_routing_violation": 0,
+            "priority_violations_direct": 0,
+            "soft_violations_direct": 0,
+            "priority_violations_stack": 0,
+            "soft_violations_stack": 0
+          },
+          "action": {
+            "item_idx": 1,
+            "container_idx": 0,
+            "place_pos": [
+              -0.6690000295639038,
+              0.0,
+              1.0160000324249268
+            ],
+            "orientation": 0
+          },
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "state_snapshot_path": "step-003-state.json",
+          "attribute_reward": {
+            "violation_deltas": {
+              "soft_covered_by_other": 0.0,
+              "priority_covered_by_other": 0.0,
+              "priority_misrouted": 0.0
+            },
+            "new_violations": 0.0,
+            "reward_delta": [
+              0.0,
+              0.0
+            ]
+          },
+          "mover": 1,
+          "handoff_eligible": false,
+          "handoff": false,
+          "completed_block_length": null,
+          "next_player": 1,
+          "next_block_length": 1
+        },
+        {
+          "step": 4,
+          "player": 1,
+          "block_length_before": 1,
+          "proposal_count": 3,
+          "candidate_count": 3,
+          "candidate_set_id": "candidate-set-v1-17c847cb57fd9df88a2c",
+          "candidate_set": [
+            {
+              "candidate_id": "candidate-fc251622b5918bd9a5eb",
+              "command_action": {
+                "item_idx": 7,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 0,
+                "pool_index": 7,
+                "stable_item_index": 11,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-b5cf38d4c84406a8e4f5",
+              "command_action": {
+                "item_idx": 8,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 1,
+                "pool_index": 8,
+                "stable_item_index": 12,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            },
+            {
+              "candidate_id": "candidate-91984ca2e9f5203da895",
+              "command_action": {
+                "item_idx": 9,
+                "container_idx": 0,
+                "place_pos": [
+                  -0.6689990758895874,
+                  2.679515318959602e-06,
+                  1.2049905061721802
+                ],
+                "orientation": 0
+              },
+              "selection": {
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "rank": 2,
+                "pool_index": 9,
+                "stable_item_index": 13,
+                "score": 0.8181347066259665,
+                "candidate_kind": "settled_candidate",
+                "attempt_budget": 128,
+                "attempt_budget_scope": "per_item",
+                "candidate_stride": 1,
+                "risk_lambda": 1.0,
+                "release_fallbacks_included": false,
+                "all_visible_items_scanned": true,
+                "priority_routing_violation": 0,
+                "priority_violations_direct": 0,
+                "soft_violations_direct": 0,
+                "priority_violations_stack": 0,
+                "soft_violations_stack": 0
+              },
+              "proposal_provenance": {
+                "schema_version": 1,
+                "source": "legacy_provider",
+                "provider": "placement_core_item_stratified_fixed_attempts",
+                "mixture_weight": null,
+                "proposal_probability": null,
+                "proposal_log_probability": null,
+                "coverage_seed": null,
+                "coverage_sequence_index": null,
+                "dedup_multiplicity": 1
+              }
+            }
+          ],
+          "legal_move_audit": {
+            "schema_version": 1,
+            "mode": "fresh_pybullet_prefix_replay",
+            "step": 4,
+            "proposal_count": 3,
+            "checked_count": 3,
+            "unchecked_count": 0,
+            "safe_count": 3,
+            "rejected_count": 0,
+            "max_safe_candidates": null,
+            "candidates": [
+              {
+                "candidate_id": "candidate-fc251622b5918bd9a5eb",
+                "command_action": {
+                  "item_idx": 7,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6689990758895874,
+                    2.679515318959602e-06,
+                    1.2049905061721802
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 0,
+                  "pool_index": 7,
+                  "stable_item_index": 11,
+                  "score": 0.8181347066259665,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 4,
+                "prefix_fingerprint": "board-60293ef7b674aea939e8"
+              },
+              {
+                "candidate_id": "candidate-b5cf38d4c84406a8e4f5",
+                "command_action": {
+                  "item_idx": 8,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6689990758895874,
+                    2.679515318959602e-06,
+                    1.2049905061721802
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 1,
+                  "pool_index": 8,
+                  "stable_item_index": 12,
+                  "score": 0.8181347066259665,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 4,
+                "prefix_fingerprint": "board-60293ef7b674aea939e8"
+              },
+              {
+                "candidate_id": "candidate-91984ca2e9f5203da895",
+                "command_action": {
+                  "item_idx": 9,
+                  "container_idx": 0,
+                  "place_pos": [
+                    -0.6689990758895874,
+                    2.679515318959602e-06,
+                    1.2049905061721802
+                  ],
+                  "orientation": 0
+                },
+                "selection": {
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "rank": 2,
+                  "pool_index": 9,
+                  "stable_item_index": 13,
+                  "score": 0.8181347066259665,
+                  "candidate_kind": "settled_candidate",
+                  "attempt_budget": 128,
+                  "attempt_budget_scope": "per_item",
+                  "candidate_stride": 1,
+                  "risk_lambda": 1.0,
+                  "release_fallbacks_included": false,
+                  "all_visible_items_scanned": true,
+                  "priority_routing_violation": 0,
+                  "priority_violations_direct": 0,
+                  "soft_violations_direct": 0,
+                  "priority_violations_stack": 0,
+                  "soft_violations_stack": 0
+                },
+                "proposal_provenance": {
+                  "schema_version": 1,
+                  "source": "legacy_provider",
+                  "provider": "placement_core_item_stratified_fixed_attempts",
+                  "mixture_weight": null,
+                  "proposal_probability": null,
+                  "proposal_log_probability": null,
+                  "coverage_seed": null,
+                  "coverage_sequence_index": null,
+                  "dedup_multiplicity": 1
+                },
+                "safe": true,
+                "status": {
+                  "is_included": true,
+                  "is_valid": true,
+                  "is_placed_safe": true
+                },
+                "terminated": false,
+                "truncated": false,
+                "prefix_actions_replayed": 4,
+                "prefix_fingerprint": "board-60293ef7b674aea939e8"
+              }
+            ]
+          },
+          "selected_candidate_id": "candidate-fc251622b5918bd9a5eb",
+          "selected_rank": 0,
+          "selection": {
+            "provider": "placement_core_item_stratified_fixed_attempts",
+            "rank": 0,
+            "pool_index": 7,
+            "stable_item_index": 11,
+            "score": 0.8181347066259665,
+            "candidate_kind": "settled_candidate",
+            "attempt_budget": 128,
+            "attempt_budget_scope": "per_item",
+            "candidate_stride": 1,
+            "risk_lambda": 1.0,
+            "release_fallbacks_included": false,
+            "all_visible_items_scanned": true,
+            "priority_routing_violation": 0,
+            "priority_violations_direct": 0,
+            "soft_violations_direct": 0,
+            "priority_violations_stack": 0,
+            "soft_violations_stack": 0
+          },
+          "action": {
+            "item_idx": 7,
+            "container_idx": 0,
+            "place_pos": [
+              -0.6689990758895874,
+              2.679515318959602e-06,
+              1.2049905061721802
+            ],
+            "orientation": 0
+          },
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "state_snapshot_path": "step-004-state.json",
+          "attribute_reward": {
+            "violation_deltas": {
+              "soft_covered_by_other": 0.0,
+              "priority_covered_by_other": 0.0,
+              "priority_misrouted": 0.0
+            },
+            "new_violations": 0.0,
+            "reward_delta": [
+              0.0,
+              0.0
+            ]
+          },
+          "mover": 1,
+          "handoff_eligible": false,
+          "handoff": false,
+          "completed_block_length": null,
+          "next_player": 1,
+          "next_block_length": 2
+        }
+      ],
+      "captures": [
+        {
+          "step": 0,
+          "handoff_count": 0,
+          "is_handoff_state": false,
+          "snapshot_path": "step-000-state.json",
+          "board_fingerprint": "board-e4257cf35b0678352177",
+          "model_visible_state_signature": "model-state-ac1809625b9facec6868",
+          "game_state_signature": "self-play-game-state-b8e45fdb009124597050",
+          "player_to_move": 0,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 3,
+            "placed_mass": 29.0,
+            "placed_volume": 0.17872500000000002,
+            "fill_score_proxy": 4.460346156303406,
+            "fill_percent_proxy": 4.460346156303406,
+            "center_of_mass_z": 0.20114715252944163,
+            "com_z": 0.20114715252944163,
+            "com_z_above_floor": 0.16114715252944162,
+            "com_height_ratio": 0.10532493629375268,
+            "surface_height_std": 0.32511425214120665,
+            "surface_total_variation": 0.007939658560108972,
+            "flat_support_edge_ratio": 0.9798211419399221,
+            "priority_items": 0,
+            "soft_items": 0,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        },
+        {
+          "step": 1,
+          "handoff_count": 0,
+          "is_handoff_state": false,
+          "snapshot_path": "step-001-state.json",
+          "board_fingerprint": "board-9dbeb2afc24d6d6c1a72",
+          "model_visible_state_signature": "model-state-a51a857ce223f1c2f005",
+          "game_state_signature": "self-play-game-state-707f853cc0a8addf9680",
+          "player_to_move": 0,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 4,
+            "placed_mass": 39.0,
+            "placed_volume": 0.25872500000000004,
+            "fill_score_proxy": 6.456864228784998,
+            "fill_percent_proxy": 6.456864228784998,
+            "center_of_mass_z": 0.273134229914869,
+            "com_z": 0.273134229914869,
+            "com_z_above_floor": 0.233134229914869,
+            "com_height_ratio": 0.15237531366984902,
+            "surface_height_std": 0.34207055557454386,
+            "surface_total_variation": 0.01075551547805832,
+            "flat_support_edge_ratio": 0.9730184208514867,
+            "priority_items": 0,
+            "soft_items": 1,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        },
+        {
+          "step": 2,
+          "handoff_count": 0,
+          "is_handoff_state": false,
+          "snapshot_path": "step-002-state.json",
+          "board_fingerprint": "board-08ee0fa013019cccfff9",
+          "model_visible_state_signature": "model-state-c98643675ba3fe0ee36c",
+          "game_state_signature": "self-play-game-state-102ca83faa68891de2ac",
+          "player_to_move": 0,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 5,
+            "placed_mass": 49.0,
+            "placed_volume": 0.33872500000000005,
+            "fill_score_proxy": 8.45338230126659,
+            "fill_percent_proxy": 8.45338230126659,
+            "center_of_mass_z": 0.313675472750897,
+            "com_z": 0.313675472750897,
+            "com_z_above_floor": 0.27367547275089704,
+            "com_height_ratio": 0.17887285800712224,
+            "surface_height_std": 0.3543867234477467,
+            "surface_total_variation": 0.01353898811461762,
+            "flat_support_edge_ratio": 0.9714132844148895,
+            "priority_items": 0,
+            "soft_items": 2,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        },
+        {
+          "step": 3,
+          "handoff_count": 1,
+          "is_handoff_state": true,
+          "snapshot_path": "step-003-state.json",
+          "board_fingerprint": "board-8bf4dea937cfe688e7f8",
+          "model_visible_state_signature": "model-state-c1b90add3ebbfdc425c3",
+          "game_state_signature": "self-play-game-state-894df7c33ff5df9103be",
+          "player_to_move": 1,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 6,
+            "placed_mass": 54.0,
+            "placed_volume": 0.3657250000000001,
+            "fill_score_proxy": 9.127207150729127,
+            "fill_percent_proxy": 9.127207150729127,
+            "center_of_mass_z": 0.3715514522823702,
+            "com_z": 0.3715514522823702,
+            "com_z_above_floor": 0.3315514522823702,
+            "com_height_ratio": 0.2167002956093923,
+            "surface_height_std": 0.37297730247364785,
+            "surface_total_variation": 0.014733588526739892,
+            "flat_support_edge_ratio": 0.967744401131239,
+            "priority_items": 0,
+            "soft_items": 3,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        },
+        {
+          "step": 4,
+          "handoff_count": 1,
+          "is_handoff_state": false,
+          "snapshot_path": "step-004-state.json",
+          "board_fingerprint": "board-60293ef7b674aea939e8",
+          "model_visible_state_signature": "model-state-e014f21a553e92a9d91b",
+          "game_state_signature": "self-play-game-state-9022bc609e789e816e6e",
+          "player_to_move": 1,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 7,
+            "placed_mass": 62.0,
+            "placed_volume": 0.41852500000000004,
+            "fill_score_proxy": 10.44490907856698,
+            "fill_percent_proxy": 10.44490907856698,
+            "center_of_mass_z": 0.4481187177170006,
+            "com_z": 0.4481187177170006,
+            "com_z_above_floor": 0.40811871771700065,
+            "com_height_ratio": 0.26674425994575207,
+            "surface_height_std": 0.41034457186447293,
+            "surface_total_variation": 0.016484653108019637,
+            "flat_support_edge_ratio": 0.9638462126423604,
+            "priority_items": 0,
+            "soft_items": 3,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        },
+        {
+          "step": 5,
+          "handoff_count": 1,
+          "is_handoff_state": false,
+          "snapshot_path": "step-005-state.json",
+          "board_fingerprint": "board-cb2ec4aa4ad3af997eb3",
+          "model_visible_state_signature": "model-state-dcd18477da2b7cf88387",
+          "game_state_signature": "self-play-game-state-82d5af3d41f317ce14b9",
+          "player_to_move": 1,
+          "rewards_before": [
+            0.0,
+            0.0
+          ],
+          "cumulative_metrics_before": {
+            "placed_count": 8,
+            "placed_mass": 70.0,
+            "placed_volume": 0.47132500000000005,
+            "fill_score_proxy": 11.76261100640483,
+            "fill_percent_proxy": 11.76261100640483,
+            "center_of_mass_z": 0.5346146346690313,
+            "com_z": 0.5346146346690313,
+            "com_z_above_floor": 0.4946146346690313,
+            "com_height_ratio": 0.32327753899936684,
+            "surface_height_std": 0.45085741715286126,
+            "surface_total_variation": 0.017933786878946107,
+            "flat_support_edge_ratio": 0.9638462126423604,
+            "priority_items": 0,
+            "soft_items": 3,
+            "priority_covered_by_other": 0,
+            "priority_misrouted": 0,
+            "soft_covered_by_other": 0
+          }
+        }
+      ],
+      "learning_targets": [
+        {
+          "step": 0,
+          "snapshot_path": "step-000-state.json",
+          "player_to_move": 0,
+          "policy_target": [
+            {
+              "candidate_id": "candidate-e9997ea3b062cd952eaf",
+              "probability": 1.0,
+              "visits": null
+            }
+          ],
+          "policy_target_eligible": true,
+          "return_to_go": 50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": 50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 7.302264850101424,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 5.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.33346748213958965,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.009994128318837135,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        },
+        {
+          "step": 1,
+          "snapshot_path": "step-001-state.json",
+          "player_to_move": 0,
+          "policy_target": [
+            {
+              "candidate_id": "candidate-5f8b567b1b02af66d8c2",
+              "probability": 1.0,
+              "visits": null
+            }
+          ],
+          "policy_target_eligible": true,
+          "return_to_go": 50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": 50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 5.305746777619832,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 4.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.26148040475416223,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.0071782714008877865,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        },
+        {
+          "step": 2,
+          "snapshot_path": "step-002-state.json",
+          "player_to_move": 0,
+          "policy_target": [
+            {
+              "candidate_id": "candidate-a9fdbb9c53d5525adf81",
+              "probability": 1.0,
+              "visits": null
+            }
+          ],
+          "policy_target_eligible": true,
+          "return_to_go": 50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": 50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 3.3092287051382403,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 3.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.22093916191813423,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.004394798764328488,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        },
+        {
+          "step": 3,
+          "snapshot_path": "step-003-state.json",
+          "player_to_move": 1,
+          "policy_target": [
+            {
+              "candidate_id": "candidate-879f973a111d0925e6c5",
+              "probability": 1.0,
+              "visits": null
+            }
+          ],
+          "policy_target_eligible": true,
+          "return_to_go": -50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": -50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 2.635403855675703,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 2.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.16306318238666107,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.003200198352206215,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        },
+        {
+          "step": 4,
+          "snapshot_path": "step-004-state.json",
+          "player_to_move": 1,
+          "policy_target": [
+            {
+              "candidate_id": "candidate-fc251622b5918bd9a5eb",
+              "probability": 1.0,
+              "visits": null
+            }
+          ],
+          "policy_target_eligible": true,
+          "return_to_go": -50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": -50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 1.3177019278378506,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 1.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.08649591695203063,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.0014491337709264702,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        },
+        {
+          "step": 5,
+          "snapshot_path": "step-005-state.json",
+          "player_to_move": 1,
+          "policy_target": [],
+          "policy_target_eligible": false,
+          "return_to_go": -50.0,
+          "return_to_go_player0": 50.0,
+          "value_target_eligible": true,
+          "discount": 1.0,
+          "value_heads": {
+            "game_return": {
+              "value": -50.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "fill_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "placed_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "stream_completed": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "maximize"
+            },
+            "soft_violation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_covered_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "priority_misrouted_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "center_of_mass_z_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "diagnostic"
+            },
+            "surface_total_variation_return": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize_proxy"
+            },
+            "terminal_stability_max_shift": {
+              "value": 0.05770967888680136,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_peak_kinetic_energy": {
+              "value": 1.4947350421091516,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            },
+            "terminal_stability_items_toppled": {
+              "value": 0.0,
+              "target_eligible": true,
+              "censor_reason": null,
+              "objective": "minimize"
+            }
+          }
+        }
+      ],
+      "evaluation": {
+        "fill_score": 7.302264850101422,
+        "num_placed_items": 0.19047619047619047,
+        "shake_response": {
+          "shake_items": 8,
+          "shake_items_lost": 0,
+          "shake_max_shift": 0.05770967888680136,
+          "shake_mean_shift": 0.01721378001967861,
+          "shake_max_rotation_deg": 3.0963036252576748,
+          "shake_items_shifted": 1,
+          "shake_items_toppled": 0,
+          "shake_peak_kinetic_energy": 1.4947350421091516
+        },
+        "terminal_step_metrics": {
+          "placed_count": 8,
+          "placed_mass": 70.0,
+          "placed_volume": 0.47132500000000005,
+          "fill_percent_proxy": 11.76261100640483,
+          "center_of_mass_z": 0.5346146346690313,
+          "remaining_volume": 3.5356510000000005,
+          "remaining_volume_ratio": 0.8823738899359517,
+          "surface_height_std": 0.45085741715286126,
+          "surface_total_variation": 0.017933786878946107,
+          "flat_support_edge_ratio": 0.9638462126423604,
+          "depth_occupancy_profile": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.08333264378781909,
+            0.39311313468056086,
+            0.43204973445912,
+            0.43204973445912,
+            0.4320497344591201,
+            0.28099426333948163,
+            0.017483032268524643,
+            0.021185929341189295,
+            0.030681400550464442,
+            0.030681400550464442,
+            0.02496064938405704
+          ],
+          "front_depth_occupancy_mean": 0.1135619391159375,
+          "back_depth_occupancy_mean": 0.1587607680440527,
+          "occupied_depth_center_normalized": 0.07558719407712462,
+          "priority_items": 0,
+          "soft_items": 3,
+          "has_priority_container": false,
+          "priority_covered_by_other": 0,
+          "priority_misrouted": 0,
+          "soft_covered_by_other": 0,
+          "priority_clean_ratio": null,
+          "soft_clean_ratio": 1.0,
+          "com_z": 0.5346146346690313,
+          "com_z_above_floor": 0.4946146346690313,
+          "com_height_ratio": 0.32327753899936684,
+          "com_contract": "RAW quantity, not a score. The official cog_score normalisation is unpublished, so this cannot be compared across containers or configs and must never be presented as the official number. Comparable between arms on the SAME config only. com_height_ratio uses the tallest container's interior height as an arbitrary but fixed reference; lower is better in all three fields.",
+          "step": 4,
+          "selected_item_index": 11,
+          "selected_pool_index": 7,
+          "container_index": 0,
+          "orientation": 0,
+          "place_pos": [
+            -0.6689990758895874,
+            2.679515318959602e-06,
+            1.2049905061721802
+          ],
+          "status": {
+            "is_included": true,
+            "is_valid": true,
+            "is_placed_safe": true
+          },
+          "settle_attempted": true,
+          "settle_displacement_xyz": [
+            3.8503521981536615e-05,
+            -3.355476565610998e-05,
+            -2.0331660175232358e-05
+          ],
+          "settle_displacement_norm": 5.49710824770648e-05,
+          "settle_angle_deg": 0.0027086189266600567,
+          "settle_final_position": [
+            -0.6689605723676059,
+            -3.087525033715038e-05,
+            1.204970174512005
+          ],
+          "settle_final_quaternion": [
+            2.3090208504279703e-05,
+            4.3427749926081825e-07,
+            -5.036757699702135e-06,
+            0.9999999997206424
+          ],
+          "settle_aabb_dimensions": [
+            0.5500042377834431,
+            0.40001662327674536,
+            0.24001894974222093
+          ]
+        }
+      },
+      "trajectory_id": "self-play-trajectory-e108d8825ec361d20a08",
+      "environment_seed": 42,
+      "handoff_seed": 20260825,
+      "policy_seed": 20270825,
+      "selection_mode": "rank0",
+      "task_config_signature": "self-play-task-config-ec2218ba5216921ded5c"
+    }
+  ]
+}

@@ -105,6 +105,29 @@ def _audit_search_record(record: dict[str, Any]) -> dict[str, Any]:
         identity = sample.get("exogenous_world") or {}
         if identity.get("sample_index") != replica:
             violations.append("world identity sample_index disagrees with sample")
+        predicted = sample.get("predicted_leaf_value")
+        if predicted is not None:
+            if predicted.get("skipped_reason") is not None:
+                if sample.get("termination") == "horizon":
+                    violations.append(
+                        "horizon sample skipped its leaf vector prediction"
+                    )
+            else:
+                if sample.get("termination") != "horizon":
+                    violations.append(
+                        "leaf vector predicted on a censored termination"
+                    )
+                size = predicted.get("ensemble_size")
+                heads = predicted.get("heads") or {}
+                if not isinstance(size, int) or size < 2 or not heads:
+                    violations.append("leaf vector prediction is malformed")
+                elif any(
+                    len(head.get("members") or []) != size
+                    for head in heads.values()
+                ):
+                    violations.append(
+                        "leaf vector member count disagrees with ensemble size"
+                    )
 
     if candidate_ids and sorted(by_candidate) != candidate_ids:
         violations.append(

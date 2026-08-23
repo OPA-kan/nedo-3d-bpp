@@ -115,6 +115,30 @@ class AuditPairedPhysicalContractTests(unittest.TestCase):
             for violation in report["roots"][0]["violations"]
         ))
 
+    def test_leaf_vector_prediction_contract_is_checked(self):
+        good = branch_sample("a", 0)
+        good["termination"] = "horizon"
+        good["predicted_leaf_value"] = {
+            "prediction_contract": "V_pi_behavior_leaf_bootstrap_v1",
+            "ensemble_size": 3,
+            "heads": {"fill_return": {"members": [1.0, 2.0, 3.0]}},
+        }
+        bad = branch_sample("b", 0)
+        bad["termination"] = "horizon"
+        bad["predicted_leaf_value"] = {
+            "prediction_contract": "V_pi_behavior_leaf_bootstrap_v1",
+            "ensemble_size": 3,
+            "heads": {"fill_return": {"members": [1.0]}},
+        }
+        record = search_record([good, bad], ["a", "b"], simulations=2)
+
+        report = audit_manifest(manifest([record]))
+
+        self.assertFalse(report["passed"])
+        joined = " ".join(report["roots"][0]["violations"])
+        self.assertIn("member count disagrees", joined)
+        self.assertNotIn("malformed", joined)
+
     def test_non_paired_manifest_is_rejected(self):
         bad = manifest([])
         bad["selection"]["mcts"]["root_allocation_mode"] = "scalar_puct"

@@ -51,8 +51,10 @@ def _candidate_rows(record: dict[str, Any], target: dict[str, Any]) -> list[dict
             "proposal_provenance": dict(
                 candidate.get("proposal_provenance") or {}
             ),
-            "visits": int(policy.get("visits", 0)),
-            "probability": float(policy.get("probability", 0.0)),
+            # rank-0 behavior targets carry probabilities without search
+            # visit counts; treat an absent count as zero visits.
+            "visits": int(policy.get("visits") or 0),
+            "probability": float(policy.get("probability") or 0.0),
             "search_q": (
                 None if policy.get("q") is None else float(policy["q"])
             ),
