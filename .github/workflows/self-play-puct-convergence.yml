@@ -43,6 +43,14 @@ on:
         description: Expected proposals after component selection and root-fill gate
         required: false
         default: "2"
+      component_beta:
+        description: Confidence multiplier for component proposal discovery
+        required: false
+        default: "0.25"
+      component_discovery_scope:
+        description: All selected roots or only roots newly enabled by fill-first
+        required: false
+        default: "all"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -488,8 +496,9 @@ jobs:
           --shadow reports/component-shadow/result.json
           --dataset reports/component-source/pv-dataset.jsonl
           --source-root reports/component-source
-          --beta 0.25
+          --beta "${{ inputs.component_beta }}"
           --selection-contract "${{ inputs.component_selection_contract }}"
+          --discovery-scope "${{ inputs.component_discovery_scope }}"
           --max-root-fill-percent 25
           --shard-index "${{ matrix.shard_index }}" --shard-count 2
           --output-dir reports/component-paired/shard-${{ matrix.shard_index }}

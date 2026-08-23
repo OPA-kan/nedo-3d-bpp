@@ -101,6 +101,44 @@ class ComponentPairedContinuationTests(unittest.TestCase):
             proposals[0]["selection_contract"], "sparse_fill_first_guarded"
         )
 
+    def test_fill_first_only_scope_excludes_pareto_changed_roots(self):
+        shadow = {"records": [
+            {
+                "eligible": True, "pair_id": "pareto", "step": 1,
+                "incumbent_candidate_id": "a",
+                "candidate_estimates": {
+                    "a": _estimate(5.0, 4.0, 0.0, cog=0.4),
+                    "b": _estimate(6.0, 4.0, -1.0, cog=0.3),
+                },
+            },
+            {
+                "eligible": True, "pair_id": "fill-only", "step": 2,
+                "incumbent_candidate_id": "a",
+                "candidate_estimates": {
+                    "a": _estimate(5.0, 4.0, 0.0, cog=0.4),
+                    "b": _estimate(6.0, 4.0, -1.0, cog=0.8),
+                },
+            },
+        ]}
+        dataset = [{
+            "pair_id": pair, "case_id": "m-case", "step": step,
+            "trajectory_group": pair, "future_stream_id": "stream",
+            "policy_target": [
+                {"candidate_id": "a", "command_action": action(1)},
+                {"candidate_id": "b", "command_action": action(2)},
+            ],
+        } for pair, step in (("pareto", 1), ("fill-only", 2))]
+
+        proposals = discovery_proposals(
+            shadow, dataset, beta=0.0,
+            selection_contract="sparse_fill_first_guarded",
+            discovery_scope="fill_first_only",
+        )
+
+        self.assertEqual([(row["pair_id"], row["step"]) for row in proposals], [
+            ("fill-only", 2)
+        ])
+
     def test_summary_keeps_official_axes_and_stability_separate(self):
         result = summarize(
             [{
@@ -180,7 +218,7 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         self.assertEqual(result["executed_records"], 2)
         self.assertEqual(result["valid_records"], 2)
 
-    def test_workflow_freezes_two_shard_beta_quarter_pilot(self):
+    def test_workflow_freezes_two_shard_configurable_component_pilot(self):
         root = pathlib.Path(__file__).resolve().parents[1]
         text = (
             root / ".github" / "workflows"
@@ -188,7 +226,8 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("inputs.experiment == 'component-pair'", text)
-        self.assertIn("--beta 0.25", text)
+        self.assertIn('--beta "${{ inputs.component_beta }}"', text)
+        self.assertIn('default: "0.25"', text)
         self.assertIn("shard_index: [0, 1]", text)
         self.assertIn("--expected-proposals", text)
         self.assertIn("inputs.expected_component_pairs", text)

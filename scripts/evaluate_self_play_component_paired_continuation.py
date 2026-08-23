@@ -46,11 +46,31 @@ def _read_jsonl(path: pathlib.Path) -> list[dict[str, Any]]:
 def discovery_proposals(
     shadow: dict[str, Any], dataset: list[dict[str, Any]], *, beta: float,
     selection_contract: str = "pareto",
+    discovery_scope: str = "all",
 ) -> list[dict[str, Any]]:
     """Join stored estimates to replay actions and reapply a declared beta."""
     source = {
         (str(row["pair_id"]), int(row["step"])): row for row in dataset
     }
+    if discovery_scope not in ("all", "fill_first_only"):
+        raise ValueError(f"unknown discovery scope: {discovery_scope}")
+    pareto_changed_roots = set()
+    if discovery_scope == "fill_first_only":
+        if selection_contract != "sparse_fill_first_guarded":
+            raise ValueError("fill_first_only requires sparse fill-first selection")
+        for record in shadow.get("records", []):
+            if not record.get("eligible"):
+                continue
+            incumbent_id = str(record["incumbent_candidate_id"])
+            baseline = select_candidate(
+                record["candidate_estimates"],
+                incumbent_id=incumbent_id,
+                beta=beta,
+            )
+            if baseline["changed"]:
+                pareto_changed_roots.add(
+                    (str(record["pair_id"]), int(record["step"]))
+                )
     proposals = []
     for record in shadow.get("records", []):
         if not record.get("eligible"):
@@ -70,6 +90,8 @@ def discovery_proposals(
         if not decision["changed"]:
             continue
         key = (str(record["pair_id"]), int(record["step"]))
+        if key in pareto_changed_roots:
+            continue
         row = source.get(key)
         if row is None:
             raise ValueError(f"shadow root is absent from dataset: {key}")
@@ -97,6 +119,7 @@ def discovery_proposals(
             "incumbent_action": actions[incumbent_id],
             "selected_action": actions[selected_id],
             "selection_contract": selection_contract,
+            "discovery_scope": discovery_scope,
             "shadow_comparison": decision["comparisons_to_incumbent"][selected_id],
         })
     return sorted(
@@ -275,6 +298,9 @@ def main() -> int:
         default="pareto",
     )
     parser.add_argument("--max-root-fill-percent", type=float)
+    parser.add_argument(
+        "--discovery-scope", choices=("all", "fill_first_only"), default="all"
+    )
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--policy-generation", default="pi0-component-pilot")
@@ -290,6 +316,7 @@ def main() -> int:
     proposals = discovery_proposals(
         shadow, _read_jsonl(args.dataset), beta=args.beta,
         selection_contract=args.selection_contract,
+        discovery_scope=args.discovery_scope,
     )
     for proposal in proposals:
         snapshot_path, _ = _source_paths(args.source_root, proposal)
