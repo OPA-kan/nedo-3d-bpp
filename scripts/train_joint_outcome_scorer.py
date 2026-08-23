@@ -96,6 +96,13 @@ def split_by_cell(
         raise ValueError(
             f"cell split is degenerate: {len(train)} train / {len(held)} held"
         )
+    # Empty-board fingerprints collide across scenarios, so the same
+    # root_id can appear in a training and a held-out cell. Those roots
+    # are not held out in any meaningful sense; drop them from evaluation.
+    train_roots = {row["root_id"] for row in train}
+    held = [row for row in held if row["root_id"] not in train_roots]
+    if not held:
+        raise ValueError("every held-out root also appears in training cells")
     return train, held
 
 
