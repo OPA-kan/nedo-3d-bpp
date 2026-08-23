@@ -3724,6 +3724,21 @@
         "clean_safe_candidate_rate": "stride4 42.4%; stride16 72.0%; deep4x 58.2%; deep16x 90.0%; every arm has >=1 clean safe candidate on 49/49 boards",
         "verdict": "use equal-budget strided provider-zero rescue; retain soft/priority heads separately; require bounded-search and trajectory evaluation before policy claims"
       }
+    },
+    {
+      "id": "provider-zero-rescue-repairs-support-but-exposes-value-allocation-bottleneck",
+      "topic": "search",
+      "date": "2026-08-23",
+      "status": "active",
+      "claim": "Equal-budget stride-4 provider-zero rescue is now integrated into physical PUCT and removes most bounded candidate-exhaustion censoring, but it does not make the enlarged search policy stable. Run 32603397325 completed 8/8 shards plus aggregate on the frozen 58 roots. Relative to the adaptive-K reference, deepest censored exhaustion fell 2473 to 310 and unique exhausted nodes 1206 to 116; 2701 provider-zero rescue applications used 3523 lazy physical checks, rejected 822 candidates before finding a safe one, and admitted 1939 recovered candidates. Deep Q-top and visit-top changed on 15/58 and 14/58 roots with zero prefix mismatches. Under the enlarged support, H2/H3/H5 S48 stability is only 15/58 and the aggressive no-NN schedule matches both deep tops on 45/58, down from 54/58 before provider-zero rescue. Therefore candidate support is frozen, visit-policy learning remains closed, and the next isolated gate is fixed-support H2 plus observed behavior-policy suffix V versus H2 plus zero.",
+      "source": "Actions run 32603397325; reports/self-play-packing/provider-zero-search-integration-32603397325.md; reports/self-play-packing/behavior-value-set-transformer-protocol.md",
+      "values": {
+        "support_repair": "censored events 2473->310; unique exhausted nodes 1206->116; recovered candidates 1939",
+        "lazy_physics": "2701 applications; 3523 checks; 822 rejections before first safe candidate",
+        "root_effect": "deep Q-top changed 15/58; visit-top changed 14/58; prefix mismatch 0",
+        "remaining_instability": "H2 S24/S48 40/58; H2/H3/H5 S48 15/58; bounded Q/visit/order 39/43/16 of 58",
+        "verdict": "freeze rescued support; no P target; test V^pi_behavior under fixed H2 before uncertainty allocation or progressive widening"
+      }
     }
   ]
 }

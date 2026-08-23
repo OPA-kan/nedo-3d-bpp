@@ -58,9 +58,34 @@ def build_payload(manifest_path: pathlib.Path, game_index: int) -> dict[str, Any
         record = records.get(step, {})
         legal_audit = record.get("legal_move_audit", audits.get(step, {}))
         attribute = record.get("attribute_reward", {})
+        board_metric_keys = (
+            "soft_covered_by_other",
+            "priority_covered_by_other",
+            "priority_misrouted",
+        )
+        board_metrics = capture.get("cumulative_metrics_before")
+        board_metrics_available = isinstance(board_metrics, dict) and any(
+            key in board_metrics for key in board_metric_keys
+        )
+        board_attribute_violations = (
+            {
+                key: float(board_metrics.get(key, 0) or 0)
+                for key in board_metric_keys
+            }
+            if board_metrics_available else None
+        )
         search = record.get("search", {})
         frames.append({
             "step": step,
+            # Captures are state snapshots taken immediately before this
+            # step's selected action. Keep the phase explicit so a renderer
+            # cannot present the action's outcome as a property of this board.
+            "board_phase": "before_action",
+            "board_attribute_violations": board_attribute_violations,
+            "board_attribute_violation_total": (
+                sum(board_attribute_violations.values())
+                if board_attribute_violations is not None else None
+            ),
             "player": int(context.get("player_to_move", record.get("player", 0))),
             "block_length": int(context.get("block_length", 0)),
             "is_handoff_state": bool(context.get("is_handoff_state")),
@@ -136,7 +161,7 @@ function line(points,stroke,width=1){ctx.beginPath();points.forEach((p,i)=>(i?ct
 function box(x,y,z,l,w,h,color,s,ox,oy){let p=(a,b,c)=>proj(a,b,c,s,ox,oy),A=p(x-l/2,y-w/2,z-h/2),B=p(x+l/2,y-w/2,z-h/2),C=p(x+l/2,y+w/2,z-h/2),D=p(x-l/2,y+w/2,z-h/2),E=p(x-l/2,y-w/2,z+h/2),F=p(x+l/2,y-w/2,z+h/2),G=p(x+l/2,y+w/2,z+h/2),H=p(x-l/2,y+w/2,z+h/2);poly([D,C,G,H],color+'aa','#dff3ff');poly([B,C,G,F],color+'cc','#dff3ff');poly([E,F,G,H],color,'#fff')}
 function containerWire(c,s,ox,oy){let x0=-c.length/2,x1=c.length/2,y0=-c.width/2,y1=c.width/2,profile=[[x0+c.cut_x,0],[x1,0],[x1,c.height],[x0,c.height],[x0,c.cut_y]],stroke=c.is_prioritized?'#ffd45c':'#52769a';[y0,y1].forEach(y=>line([...profile,profile[0]].map(q=>proj(q[0],y,q[1],s,ox,oy)),stroke,2));profile.forEach(q=>line([proj(q[0],y0,q[1],s,ox,oy),proj(q[0],y1,q[1],s,ox,oy)],stroke,1));let t=c.thickness||.04;if(c.cut_x>0)box(x0+c.cut_x/2+t,0,c.height/2+t/2,c.cut_x,Math.max(0,c.width-2*t),t,'#b94f5f',s,ox,oy);if(c.has_shelf)box(0,c.width/4,c.height/2+t/2,Math.max(0,c.length-t),Math.max(0,c.width/2-2*t),t,'#355cff',s,ox,oy)}
 function render(){let f=data.frames[at];ctx.clearRect(0,0,cv.width,cv.height);if(!f)return;let n=Math.max(1,f.containers.length),panel=cv.width/n,s=Math.min(170,panel/3.2,cv.height/3.4);f.containers.forEach((c,i)=>{let ox=panel*(i+.5),oy=cv.height*.72,cc=c.center||[0,0,0];ctx.fillStyle=c.is_prioritized?'#ffd45c':'#8eb5dc';ctx.font='bold 16px system-ui';ctx.textAlign='center';ctx.fillText(`C${c.index} ${c.is_prioritized?'PRIORITY':'GENERAL'}${c.has_shelf?' + SHELF':''} · ULD CUT PROFILE`,ox,42);containerWire(c,s,ox,oy);[...c.items].sort((a,b)=>a.pos[2]-b.pos[2]).forEach(it=>{let col=it.is_soft&&it.is_prioritized?'#ff8a4c':it.is_soft?'#ff73c7':it.is_prioritized?'#ffd45c':'#49a7ff';box(it.pos[0]-cc[0],it.pos[1]-cc[1],it.pos[2],it.length,it.width,it.height,col,s,ox,oy)})});
-document.getElementById('counter').textContent=`${at+1} / ${data.frames.length}`;let terminal=at===data.frames.length-1?`<br><b>terminal: ${data.game.terminal_reason}</b>`:'';let critical=data.critical?`<br><b>critical ${data.critical.score.toFixed(1)}</b>: ${data.critical.reasons.join(' · ')}`:'';let filtered=f.prefilter_rejections?` · filtered ${f.prefilter_rejections}`:'';let search=f.search?`<br>PUCT ${f.search.simulations}×H${f.search.horizon} · π ${f.search.policy.map(p=>`r${p.rank}:${p.visits}`).join(' ')}`:'';document.getElementById('hud').innerHTML=`<b>STEP ${f.step}</b><br>Player <b style="color:${f.player?'#ff73c7':'#51d6ff'}">${f.player}</b> · block ${f.block_length}<br>rank ${f.selected_rank??'terminal'} / legal ${f.candidate_count} of ${f.proposal_count}${filtered}${search}<br>${f.is_handoff_state?'🔁 HANDOFF STATE<br>':''}${f.handoff_after?'handoff after move<br>':''}${f.new_violations?`⚠ attribute violation +${f.new_violations}`:'attribute clean'}${terminal}${critical}`;slider.value=at}
+document.getElementById('counter').textContent=`${at+1} / ${data.frames.length}`;let terminal=at===data.frames.length-1?`<br><b>terminal: ${data.game.terminal_reason} (after shown action)</b>`:'';let critical=data.critical?`<br><b>critical ${data.critical.score.toFixed(1)}</b>: ${data.critical.reasons.join(' · ')}`:'';let filtered=f.prefilter_rejections?` · filtered ${f.prefilter_rejections}`:'';let search=f.search?`<br>PUCT ${f.search.simulations}×H${f.search.horizon} · π ${f.search.policy.map(p=>`r${p.rank}:${p.visits}`).join(' ')}`:'';let board=f.board_attribute_violations,boardKnown=board!==null&&board!==undefined,boardTotal=boardKnown?Number(f.board_attribute_violation_total||0):null,boardDetail=boardKnown?`soft ${Number(board.soft_covered_by_other||0)} · priority-cover ${Number(board.priority_covered_by_other||0)} · priority-route ${Number(board.priority_misrouted||0)}`:'metrics unavailable',boardLine=boardKnown?`<b>${boardTotal?'⚠':'✓'} current board violations: ${boardTotal}</b> · ${boardDetail}`:`current board violations: ${boardDetail}`;let actionDelta=Number(f.new_violations||0);document.getElementById('hud').innerHTML=`<b>STEP ${f.step} · BOARD BEFORE ACTION</b><br>Player <b style="color:${f.player?'#ff73c7':'#51d6ff'}">${f.player}</b> · block ${f.block_length}<br>${boardLine}<br>shown action r${f.selected_rank??'none'} / legal ${f.candidate_count} of ${f.proposal_count}${filtered}${search}<br>${f.is_handoff_state?'🔁 HANDOFF STATE<br>':''}${f.handoff_after?'handoff after shown action<br>':''}${actionDelta?`⚠ shown action adds ${actionDelta} violation${actionDelta===1?'':'s'}`:'shown action adds 0 violations'}${terminal}${critical}`;slider.value=at}
 function go(v){at=Math.max(0,Math.min(data.frames.length-1,v));render()}function play(){if(timer){clearInterval(timer);timer=null;document.getElementById('play').textContent='▶ Play'}else{document.getElementById('play').textContent='⏸ Pause';timer=setInterval(()=>go(at+1<data.frames.length?at+1:0),+document.getElementById('speed').value)}}
 document.getElementById('play').onclick=play;document.getElementById('back').onclick=()=>go(at-1);document.getElementById('next').onclick=()=>go(at+1);slider.oninput=()=>go(+slider.value);document.getElementById('speed').onchange=()=>{if(timer){play();play()}};
 function resize(){cv.width=cv.clientWidth*devicePixelRatio;cv.height=cv.clientHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);cv.width=cv.clientWidth;cv.height=cv.clientHeight;render()}addEventListener('resize',resize);resize();

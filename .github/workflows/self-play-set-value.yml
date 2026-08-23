@@ -1,0 +1,74 @@
+name: Self-Play multi-head Set Transformer V
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Self-Play matrix run supplying played-state suffix targets
+        required: true
+        default: "32515349437"
+      ensemble_size:
+        description: Independent group-bootstrap members (3-5)
+        required: true
+        default: "3"
+      epochs:
+        description: Full-batch epochs per member
+        required: true
+        default: "120"
+      folds:
+        description: Whole-trajectory-group evaluation folds
+        required: true
+        default: "5"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  train-value:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-learning.txt
+      - run: pip install -r requirements.txt -r requirements-learning.txt
+      - name: Verify behavior-value and Set Transformer contracts
+        run: >-
+          python -m unittest
+          tests.test_build_self_play_pv_dataset
+          tests.test_train_self_play_set_value
+          -v
+      - name: Download played Self-Play trajectories
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/source-puct-matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Rebuild schema-v3 behavior-policy value dataset
+        run: >-
+          python scripts/build_self_play_pv_dataset.py
+          --root reports/source-puct-matrix
+          --output reports/self-play-set-value/pv-dataset.jsonl
+          --summary reports/self-play-set-value/pv-dataset-summary.json
+      - name: Train and group-holdout audit ensemble V
+        run: >-
+          python scripts/train_self_play_set_value.py
+          --dataset reports/self-play-set-value/pv-dataset.jsonl
+          --output-dir reports/self-play-set-value/model
+          --ensemble-size "${{ inputs.ensemble_size }}"
+          --epochs "${{ inputs.epochs }}"
+          --folds "${{ inputs.folds }}"
+      - name: Publish model audit
+        run: python -m json.tool reports/self-play-set-value/model/manifest.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-set-value-${{ github.run_id }}
+          path: reports/self-play-set-value/

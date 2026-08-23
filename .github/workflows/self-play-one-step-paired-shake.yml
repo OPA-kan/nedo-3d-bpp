@@ -1,0 +1,90 @@
+name: One-step paired shake after PUCT rescue
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Self-Play PUCT matrix run containing the frozen roots
+        required: true
+        default: "32515349437"
+      baseline_convergence_run_id:
+        description: Adaptive-K convergence baseline
+        required: true
+        default: "32572648489"
+      rescue_convergence_run_id:
+        description: Provider-zero rescue convergence run
+        required: true
+        default: "32603397325"
+      expected_pairs:
+        description: Expected deep Q-top action changes
+        required: true
+        default: "15"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: self-play-one-step-paired-shake-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  paired-shake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify one-step paired-shake contracts
+        run: >-
+          python -m unittest
+          tests.test_evaluate_one_step_paired_shake
+          tests.test_evaluate_paired_matched_shake
+          tests.test_postshake_capture
+          tests.test_attribute_placement_pybullet_e2e
+          tests.test_replay_integration
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Download frozen source roots
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/source-puct-matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download baseline convergence aggregate
+        run: >-
+          gh run download "${{ inputs.baseline_convergence_run_id }}"
+          --name "self-play-puct-convergence-aggregate-${{ inputs.baseline_convergence_run_id }}"
+          --dir reports/baseline-puct-convergence
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download rescue convergence aggregate
+        run: >-
+          gh run download "${{ inputs.rescue_convergence_run_id }}"
+          --name "self-play-puct-convergence-aggregate-${{ inputs.rescue_convergence_run_id }}"
+          --dir reports/rescue-puct-convergence
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Force each changed action once and shake immediately
+        run: >-
+          python scripts/evaluate_one_step_paired_shake.py
+          --source-root reports/source-puct-matrix
+          --baseline reports/baseline-puct-convergence/aggregate.json
+          --rescue reports/rescue-puct-convergence/aggregate.json
+          --expected-pairs "${{ inputs.expected_pairs }}"
+          --json-output reports/one-step-paired-shake/result.json
+          --markdown-output reports/one-step-paired-shake/result.md
+      - name: Publish paired-shake result
+        run: cat reports/one-step-paired-shake/result.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-one-step-paired-shake-${{ github.run_id }}
+          path: reports/one-step-paired-shake/

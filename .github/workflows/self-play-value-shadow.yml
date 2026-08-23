@@ -1,0 +1,116 @@
+name: Fixed-support H2 behavior-value shadow
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Self-Play PUCT matrix run containing the frozen 58 roots
+        required: true
+        default: "32515349437"
+      reference_run_id:
+        description: Provider-rescued deep physical convergence reference
+        required: true
+        default: "32603397325"
+      value_run_id:
+        description: Successful multi-head Set Transformer V run
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: self-play-value-shadow-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3, 4, 5, 6, 7]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-simulator.txt
+            requirements-learning.txt
+      - run: pip install -r requirements-simulator.txt -r requirements-learning.txt
+      - name: Verify fixed-support leaf-value contracts
+        run: >-
+          python -m unittest
+          tests.test_train_self_play_set_value
+          tests.test_evaluate_self_play_value_shadow
+          tests.test_run_self_play_packing
+          tests.test_self_play_value_shadow_workflow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Download frozen source roots
+        run: >-
+          gh run download "${{ inputs.source_run_id }}"
+          --name "self-play-puct-matrix-aggregate-${{ inputs.source_run_id }}"
+          --dir reports/source-puct-matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download frozen deep reference
+        run: >-
+          gh run download "${{ inputs.reference_run_id }}"
+          --name "self-play-puct-convergence-aggregate-${{ inputs.reference_run_id }}"
+          --dir reports/reference-puct-convergence
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download behavior-value ensemble
+        run: >-
+          gh run download "${{ inputs.value_run_id }}"
+          --name "self-play-set-value-${{ inputs.value_run_id }}"
+          --dir reports/self-play-set-value
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Compare H2+V with H2+0 under identical support
+        run: >-
+          python scripts/evaluate_self_play_value_shadow.py
+          --source-root reports/source-puct-matrix
+          --reference reports/reference-puct-convergence/aggregate.json
+          --model-dir reports/self-play-set-value/model
+          --expected-roots 58
+          --shard-index ${{ matrix.shard_index }}
+          --shard-count 8
+          --output reports/value-shadow/value-shadow-shard-${{ matrix.shard_index }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-value-shadow-shard-${{ matrix.shard_index }}
+          path: reports/value-shadow/
+
+  aggregate:
+    needs: shadow
+    if: always() && needs.shadow.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: self-play-value-shadow-shard-*
+          path: reports/value-shadow
+          merge-multiple: true
+      - name: Aggregate paired shadow evidence
+        run: >-
+          python scripts/aggregate_self_play_value_shadow.py
+          --root reports/value-shadow
+          --expected-roots 58
+          --json-output reports/value-shadow/aggregate.json
+          --markdown-output reports/value-shadow/aggregate.md
+      - run: cat reports/value-shadow/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-play-value-shadow-aggregate-${{ github.run_id }}
+          path: reports/value-shadow/

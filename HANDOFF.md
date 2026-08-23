@@ -151,6 +151,45 @@ stops physical validation after the first safe rescue; stride-16 remains an
 explicit alternative rather than being selected through an invented
 soft/priority exchange rate.
 
+Searchable integration then completed in Actions run `32603397325` (8/8
+shards plus aggregate). Relative to the adaptive-K reference, deepest-search
+censored exhaustion fell 2,473 -> 310 and unique exhausted nodes 1,206 ->
+116. Stride-4 provider-zero rescue was applied at 2,701 nodes; lazy physical
+validation used 3,523 checks, rejected 822 actions before the first safe one,
+and admitted 1,939 recovered candidates. The deep Q-top/visit-top changed on
+15/58 and 14/58 roots with zero replay-prefix mismatches. This freezes
+Top-3 plus exhaustion K64 plus equal-budget stride-4 provider-zero rescue as
+the bounded candidate-support contract. It does not license those changed
+actions as better trajectories.
+
+The larger support exposed the next bottleneck rather than solving search:
+H2 S24-to-S48 stability was 40/58, H2/H3/H5 S48 stability 15/58, bounded
+Q-top/visit-top/full-order stability 39/58, 43/58 and 16/58. The aggressive
+no-NN schedule matched both deep tops on 45/58 roots at mean rollout-step
+upper bound 151.4, versus 54/58 before provider-zero rescue. Do not train a
+policy head from these unstable visit counts.
+
+The next learner is now specified and instrumented as a masked multi-head
+Set Transformer ensemble estimating observed suffix
+`V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
+the split unit; three to five group-bootstrap members provide per-head
+epistemic variance. Ranker/immediate score/rank/prior are forbidden inputs.
+Only the player-to-move game return head is adapted to player-0 scalar PUCT;
+fill/soft/priority/stability remain separate diagnostic heads with no invented
+exchange rate. The first gate holds support and H2 S48 fixed and compares
+`H2+V` with `H2+0` against run `32603397325`'s deep physical reference.
+Every root uses only the fold ensemble that excluded its complete trajectory
+group; the all-data final ensemble is not admissible for this gate.
+Progressive widening, P and proposal heads remain closed until that paired
+gate passes. See `behavior-value-set-transformer-protocol.md`.
+
+A companion one-step paired-shake instrument is also ready for the 15 deep
+Q-top changes: reconstruct the same root twice, force old/rescued actions once
+and shake immediately, with no continuation policy. It reports maximum
+instantaneous aggregate KE, KE/item, KE/mass, displacement, topple and
+post-shake attribute axes separately. This isolates immediate action
+stability before any later trajectory divergence.
+
 The instrument and the first Linux physical H3 condition matrix are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,

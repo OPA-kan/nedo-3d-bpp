@@ -112,13 +112,24 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
                                 f"legal set: {identifier}"
                             )
                 game_state = snapshot.get("self_play_game") or {}
+                replay_contract = snapshot.get("replay_contract") or {}
+                value_heads = dict(target.get("value_heads") or {})
                 row = {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "trajectory_group": trajectory_group,
+                    # Every row from the same physical trajectory stays in
+                    # one fold.  Step-level random splits would leak nearly
+                    # identical prefix boards across train and evaluation.
+                    "split_group": trajectory_group,
                     "root_trajectory_id": trajectory_id,
                     "pair_id": pair_id,
                     "case_id": manifest.get("case_id"),
                     "policy_generation": manifest.get("policy_generation"),
+                    "behavior_policy": {
+                        "policy_generation": manifest.get("policy_generation"),
+                        "behavior_source": game_state.get("behavior_source"),
+                    },
+                    "future_stream_id": replay_contract.get("future_stream_id"),
                     "step": step,
                     "model_visible_state_signature": capture.get(
                         "model_visible_state_signature"
@@ -138,8 +149,15 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
                     "value_target_eligible": bool(
                         target.get("value_target_eligible")
                     ),
+                    "value_target_semantics": (
+                        "V^pi_behavior_observed_suffix_not_V_star"
+                    ),
                     "return_to_go": float(target.get("return_to_go", 0.0)),
-                    "value_heads": dict(target.get("value_heads") or {}),
+                    "value_heads": value_heads,
+                    "value_head_eligibility": {
+                        name: bool(head.get("target_eligible"))
+                        for name, head in value_heads.items()
+                    },
                 }
                 hits = _forbidden_key_hits(row)
                 if hits:
@@ -174,12 +192,18 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
     multi_head_branch_samples = sum(
         len(row["bounded_branch_outcomes"]) for row in rows
     )
+    eligible_value_heads: dict[str, int] = {}
+    for row in rows:
+        for name, eligible in row["value_head_eligibility"].items():
+            if eligible:
+                eligible_value_heads[name] = eligible_value_heads.get(name, 0) + 1
     summary = {
-        "schema_version": 2,
+        "schema_version": 3,
         "contract": (
-            "physical_search_pi_multi_head_branch_and_terminal_suffix_return_"
-            "no_ranker_score"
+            "physical_search_pi_branch_QH_and_behavior_policy_suffix_V_"
+            "with_head_masks_no_ranker_score"
         ),
+        "value_target_semantics": "V^pi_behavior_observed_suffix_not_V_star",
         "rows": len(rows),
         "trajectory_groups": len(trajectory_ids),
         "unique_game_states": len({
@@ -192,6 +216,7 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
         "multi_head_policy_rows": len(multi_head_policy_rows),
         "multi_head_branch_samples": multi_head_branch_samples,
         "value_rows": len(value_rows),
+        "eligible_value_heads": dict(sorted(eligible_value_heads.items())),
         "forbidden_heuristic_key_hits": 0,
         "forbidden_keys": sorted(FORBIDDEN_KEYS),
     }

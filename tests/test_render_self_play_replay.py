@@ -42,6 +42,11 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
                     "rewards": [-5, 5],
                     "captures": [{
                         "step": 0, "snapshot_path": "step-000-state.json",
+                        "cumulative_metrics_before": {
+                            "soft_covered_by_other": 2,
+                            "priority_covered_by_other": 1,
+                            "priority_misrouted": 0,
+                        },
                     }, {
                         "step": 1, "snapshot_path": "step-001-state.json",
                     }],
@@ -81,6 +86,16 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertEqual(frame["containers"][0]["cut_y"], .4)
         self.assertEqual(frame["containers"][0]["thickness"], .04)
         self.assertEqual(frame["new_violations"], 1)
+        self.assertEqual(frame["board_phase"], "before_action")
+        self.assertEqual(frame["board_attribute_violation_total"], 3)
+        self.assertEqual(
+            frame["board_attribute_violations"],
+            {
+                "soft_covered_by_other": 2.0,
+                "priority_covered_by_other": 1.0,
+                "priority_misrouted": 0.0,
+            },
+        )
         self.assertEqual(frame["candidate_count"], 2)
         self.assertEqual(frame["proposal_count"], 3)
         self.assertEqual(frame["prefilter_rejections"], 1)
@@ -88,6 +103,9 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertEqual(frame["search"]["policy"][1]["visits"], 4)
         self.assertEqual(payload["frames"][1]["proposal_count"], 2)
         self.assertEqual(payload["frames"][1]["prefilter_rejections"], 2)
+        self.assertIsNone(
+            payload["frames"][1]["board_attribute_violation_total"]
+        )
 
     def test_html_is_standalone_and_has_replay_controls(self):
         html = render_html({"title": "demo", "frames": [], "game": {}})
@@ -100,6 +118,10 @@ class SelfPlayReplayRendererTests(unittest.TestCase):
         self.assertIn("function containerWire", html)
         self.assertIn("ULD CUT PROFILE", html)
         self.assertIn("terminal:", html)
+        self.assertIn("BOARD BEFORE ACTION", html)
+        self.assertIn("current board violations", html)
+        self.assertIn("shown action adds", html)
+        self.assertNotIn("attribute clean", html)
         self.assertNotIn("https://", html)
 
 

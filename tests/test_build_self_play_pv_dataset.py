@@ -24,7 +24,11 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
                     }],
                 },
                 "physics": {"packed_items": []},
-                "self_play_game": {"block_length": 2, "handoff_count": 1},
+                "self_play_game": {
+                    "block_length": 2, "handoff_count": 1,
+                    "behavior_source": "self_play:mcts",
+                },
+                "replay_contract": {"future_stream_id": "stream-1"},
             }
             (game_dir / "step-000-state.json").write_text(
                 json.dumps(snapshot), encoding="utf-8"
@@ -115,10 +119,31 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
             rows, summary = build_rows(pathlib.Path(directory))
 
         self.assertEqual(summary["trajectory_groups"], 1)
+        self.assertEqual(
+            summary["value_target_semantics"],
+            "V^pi_behavior_observed_suffix_not_V_star",
+        )
+        self.assertEqual(summary["eligible_value_heads"], {"fill_return": 1})
         self.assertEqual(summary["policy_rows"], 1)
         self.assertEqual(summary["value_rows"], 1)
         self.assertEqual(summary["forbidden_heuristic_key_hits"], 0)
         self.assertEqual(rows[0]["return_to_go"], -45.0)
+        self.assertEqual(
+            rows[0]["value_target_semantics"],
+            "V^pi_behavior_observed_suffix_not_V_star",
+        )
+        self.assertEqual(rows[0]["split_group"], rows[0]["trajectory_group"])
+        self.assertEqual(rows[0]["future_stream_id"], "stream-1")
+        self.assertEqual(
+            rows[0]["behavior_policy"],
+            {
+                "policy_generation": "pi0-puct0",
+                "behavior_source": "self_play:mcts",
+            },
+        )
+        self.assertEqual(
+            rows[0]["value_head_eligibility"], {"fill_return": True}
+        )
         self.assertEqual(rows[0]["value_heads"]["fill_return"]["value"], 7.0)
         branch_target = rows[0]["policy_target"][0]["multi_head_target"]
         self.assertEqual(branch_target["complete_samples"], 8)
