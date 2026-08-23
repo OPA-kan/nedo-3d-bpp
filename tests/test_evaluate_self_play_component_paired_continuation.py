@@ -191,6 +191,7 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         self.assertIn("--beta 0.25", text)
         self.assertIn("shard_index: [0, 1]", text)
         self.assertIn("--expected-proposals", text)
+        self.assertIn("inputs.expected_component_pairs", text)
         self.assertIn("fixed128-item-stratified", (
             root / "scripts"
             / "evaluate_self_play_component_paired_continuation.py"

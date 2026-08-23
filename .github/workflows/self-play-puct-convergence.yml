@@ -39,6 +39,10 @@ on:
         description: Pareto or sparse fill-first guarded component selector
         required: false
         default: "sparse_fill_first_guarded"
+      expected_component_pairs:
+        description: Expected proposals after component selection and root-fill gate
+        required: false
+        default: "2"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -512,7 +516,7 @@ jobs:
         run: >-
           python scripts/aggregate_self_play_component_paired_continuation.py
           --root reports/component-paired
-          --expected-proposals "${{ inputs.expected_pairs }}"
+          --expected-proposals "${{ inputs.expected_component_pairs }}"
           --json-output reports/component-paired/aggregate.json
           --markdown-output reports/component-paired/aggregate.md
       - run: cat reports/component-paired/aggregate.md >> "$GITHUB_STEP_SUMMARY"
