@@ -185,6 +185,12 @@ def analyze_row(
     ensemble_size: int,
     beta: float,
 ) -> dict[str, Any]:
+    if not row.get("policy_target_eligible", True) or not row.get("policy_target"):
+        return {
+            "eligible": False,
+            "reason": "state_has_no_search_policy_target",
+            "incumbent_candidate_id": None,
+        }
     estimates = estimate_candidates(
         row, predictor, ensemble_size=ensemble_size
     )
@@ -330,10 +336,17 @@ def main() -> int:
             ensembles[fold] = BehaviorValueEnsemble(
                 args.model_dir, excluded_group=group
             )
-        analyzed = analyze_row(
-            row, ensembles[fold].predict,
-            ensemble_size=ensemble_size, beta=args.beta,
-        )
+        if not row.get("policy_target_eligible") or not row.get("policy_target"):
+            analyzed = {
+                "eligible": False,
+                "reason": "state_has_no_search_policy_target",
+                "incumbent_candidate_id": None,
+            }
+        else:
+            analyzed = analyze_row(
+                row, ensembles[fold].predict,
+                ensemble_size=ensemble_size, beta=args.beta,
+            )
         output_rows.append({
             "trajectory_group": group,
             "pair_id": row["pair_id"],

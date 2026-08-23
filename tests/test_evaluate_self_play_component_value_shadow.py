@@ -56,6 +56,17 @@ class ComponentValueShadowTests(unittest.TestCase):
             dominance(soft_tradeoff, incumbent, beta=0.0)["dominates"]
         )
 
+    def test_terminal_value_row_without_policy_is_ineligible(self):
+        result = analyze_row(
+            {"policy_target_eligible": False, "policy_target": []},
+            lambda *_args: self.fail("terminal row must not call predictor"),
+            ensemble_size=3,
+            beta=1.0,
+        )
+
+        self.assertFalse(result["eligible"])
+        self.assertEqual(result["reason"], "state_has_no_search_policy_target")
+
     def test_uncertainty_can_block_mean_dominance(self):
         incumbent = _estimate(5.0, 4.0, 0.0, std=0.5)
         candidate = _estimate(5.2, 4.2, 0.0, std=0.5)
