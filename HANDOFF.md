@@ -195,9 +195,20 @@ deeper continuation on scalar PUCT, disables the visit policy target, and
 executes the baseline rank-0 action after collection. The default remains
 scalar PUCT. `scripts/vector_search.py` computes joint same-world dominance
 probabilities, Wilson lower bounds and a confidence Pareto frontier without
-head-independence assumptions or a weighted sum. This is instrument-only: it
-has not yet run a fresh Linux/PyBullet physical matrix and does not license an
-improved policy.
+head-independence assumptions or a weighted sum. This is instrument-only and
+does not license an improved policy.
+
+The first real-physics audit of that instrument passed on 2026-08-23
+(Linux container, PyBullet 3.2.7): 8 searched roots, 0 violations, and the
+executed paired trajectory bit-matched the independent rank-0 control. See
+`reports/self-play-packing/paired-exogenous-physical-audit-20260823.md` and
+`scripts/audit_paired_physical_contract.py`. Two constraints surfaced: the
+post-shake stability heads are structurally unmeasured inside branch rollouts
+(joint objectives must exclude them or the branch needs its own shake pass),
+and 4 replicas per candidate cannot certify elimination — the Wilson LCB gate
+at threshold 0.8 needs at least 16 paired worlds per comparison even under
+perfect observed dominance, so elimination runs must budget 48+ simulations
+per root at top-3 or preregister a weaker pilot gate.
 
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
