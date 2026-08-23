@@ -236,16 +236,23 @@ suffix states, terminal stability measured; fill_return pearson 0.93
 group-held-out) was recorded shadow-only at horizon-1 leaves via
 `--mcts-leaf-vector-model-dir`, and compared against the H2 physical arm
 on 35 shared roots with identical exogenous worlds. Verdict: the gate
-failed in an instructive way. The H1 measured delta alone reproduces the
-H2 fill ordering at tau +0.889 (H2 split-half self-consistency is
-+1.000), while adding the V bootstrap *degrades* it to +0.630 — this V
-is too weak to pay its way, so it must not enter search yet. Dominance
-certification stayed physical-only (unanimous member vote recall 0.043).
-Practical consequence: for ordering-only physical matrices, horizon 1
-halves the budget at almost no cost, which doubles paired worlds per
-root toward the 16-world Wilson-LCB elimination requirement. V's path
-forward is more complete trajectories (one command per cell now) and
-paired-difference calibration, re-gated by the same shadow instrument.
+failed — adding the V bootstrap degrades fill-ordering agreement with
+the H2 arm (tau +0.630 vs +0.889 for the measured H1 delta alone, n=18
+non-tied roots), so this V must not enter search. Scope discipline
+(second pass, same day): that is the *whole* claim. "H1 is enough" is
+NOT established — the H2 reference's second step is the old scalar-PUCT
+continuation, so H1 ~ H2 may only mean bounded depth-2 fill is
+volume-dominated, while residual-space futures diverge deeper; the H2
+split-half tau of +1.000 is a measurement-noise ceiling, not
+ground truth; and the V audit's global pearson (0.93 on fill_return) was
+the wrong yardstick because search needs within-root sibling
+discrimination, which a globally-correlated model can still lack.
+Dominance certification stayed physical-only (unanimous vote recall
+0.043). Next two measurements, fixed before any budget or V decision: a
+depth ladder tau(H1, H_d) / tau(H2, H_d) on a small root set with the
+same paired worlds, and behavior-policy terminal continuations from
+counterfactual sibling leaves to score V(s'_i) within-root against
+realized suffixes.
 
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix

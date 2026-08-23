@@ -22,29 +22,53 @@ Instrument: `scripts/compare_h1v_shadow.py` (member-wise same-world vote)
   arm, so (candidate, world) blocks align exactly: 35 shared roots,
   420 vs 840 physical steps.
 
-## Headline: the second physical step was cheap to replace — but by
-## nothing, not by V
+## Headline (scope-corrected 2026-08-23, second pass)
 
-Fill ordering against the H2 reference (which is itself noiseless here:
-split-half self-consistency tau +1.000 over 16 roots):
+Fill ordering agreement between the arms, on the 18 of 35 shared roots
+where fill means are not tied (the only heads with more than one
+comparable root are fill; `game` and `priority_covered` each produced a
+single root):
 
-| arm | fill ordering tau vs H2 | physical budget |
+| arm | fill ordering tau vs the H2 arm | physical budget |
 |---|---|---|
-| H1 measured only (V discarded) | **+0.889** | half |
-| H1 + V composite | +0.630 | half |
+| H1 measured only (V discarded) | +0.889 (n=18) | half |
+| H1 + V composite | +0.630 (n=18) | half |
 
-Two conclusions, both real:
+What this does and does not establish:
 
-1. **The one-step measured delta already reproduces the two-step
-   ordering almost perfectly.** For fill at these depths the first
-   physical step carries nearly all the discriminating information; H2's
-   second step is mostly spent re-measuring what H1 knew.
-2. **Adding the current V bootstrap makes the composite *worse*, not
-   better.** V's leaf prediction error (trained on 276 rows, evaluated
-   one action off-trajectory) exceeds the marginal information the
-   suffix adds. The V-as-leaf-bootstrap design is not wrong — this V is
-   simply too weak to pay its way yet, exactly the failure mode the
-   shadow protocol exists to catch before any search integration.
+1. **Established:** on these 18 roots, the one-step measured fill delta
+   reproduces the *H2 arm's* fill ordering, and adding the current V
+   bootstrap degrades that agreement. The V-as-leaf-bootstrap gate
+   therefore fails: this V must not enter search.
+2. **Not established: "H1 is enough" or "the second step carries no
+   information."** The H2 reference is itself shallow — its second step
+   is the existing scalar-PUCT continuation, not a deep or terminal
+   outcome. H1 ~ H2 is equally consistent with "immediate fill dominates
+   bounded fill at depth 2" (plausible in 3D-BPP: one-step fill deltas
+   are volume-dominated, and if second-step volumes are similar across
+   siblings the ordering cannot move) *and* with "H2 is too shallow to
+   see residual-space futures diverge" — which is the very reason search
+   exists. Distinguishing these requires a depth ladder
+   (tau of H1/H2 orderings against deeper and terminal outcomes on the
+   same paired worlds), not more H1-vs-H2 cells.
+3. The H2 split-half self-consistency (tau +1.000 over 16 roots) is a
+   **measurement-noise ceiling only**: it says the H2 arm's fill
+   ordering is reproducible across its worlds, not that it is correct
+   with respect to the terminal objective. A consistently myopic
+   ordering also reproduces perfectly.
+
+## Why "pearson 0.93" and "V degrades ordering" do not contradict
+
+The held-out audit's fill_return pearson 0.93 is a *global* statistic:
+suffix fill varies enormously across trajectory positions (early states
+have most of their fill ahead, late states almost none), so a model that
+tracks board progress scores high while still misranking the three
+nearly identical sibling leaves that grow from one root. What V-MCTS
+actually needs is **within-root discrimination** — pairwise accuracy /
+tau between V(s'_i) and the true suffix outcome of each sibling leaf —
+and that quantity was never measured before this gate ran. The audit
+metric was the wrong yardstick for this use; the shadow gate is the
+first metric that tested the real requirement, and it said no.
 
 ## Dominance and Pareto
 
@@ -69,16 +93,24 @@ probe set or terminal-linked trajectories through the same roots.
 ## Decision guidance
 
 - **Do not integrate V into search yet.** The gate failed on its own
-  terms: H1+V is dominated by plain H1 at equal budget.
-- **The cheap win is H1 itself:** for candidate ordering, halving the
-  branch horizon loses almost nothing today. If the next physical matrix
-  only needs ordering (not dominance certification), H1 doubles the
-  replica count per root at constant budget — which is exactly what the
-  Wilson-LCB elimination gate is starved for (16+ paired worlds).
-- V improvement path, in order of expected value: 10-20x more complete
-  rank-0 trajectories (the trainer and collection scripts now make this
-  one command per cell); paired-difference calibration at leaves; only
-  then revisit the composite gate.
+  terms: H1+V is dominated by plain H1 at equal budget against the H2
+  reference.
+- **Do not conclude "H1 is enough."** That claim needs the depth
+  ladder: on a small root set with the same paired worlds, collect
+  H1/H2/deeper/terminal outcomes and compute tau(H1, H_d) and
+  tau(H2, H_d) as depth grows. If tau(H1, terminal) collapses, H2 was
+  simply too shallow a reference and the whole H1-vs-H2 agreement was
+  about bounded fill only.
+- **V's next verdict needs the right metric:** run behavior-policy
+  continuations from counterfactual sibling leaves ((s, a_i) -> s'_i ->
+  pi_b to genuine termination, same exogenous worlds) and compare
+  V(s'_i) against the realized suffix within each root. That separates
+  off-distribution failure, global-vs-local correlation, and composition
+  errors — and doubles as the terminal rung of the depth ladder.
+- Only after those two measurements: decide between deeper physical
+  matrices and V retraining (more complete rank-0 trajectories;
+  paired-difference calibration), re-gated by this same shadow
+  instrument.
 
 ## Repro
 
