@@ -378,6 +378,29 @@ teacher. Resampled-proposal provenance claims only what is true:
 the generated finite set plus conditional resampling probabilities,
 never a continuous density.
 
+Phases 3 and 4 then ran overnight (2026-08-23/24), and the loop closed
+once. Phase 3
+(`reports/self-play-packing/phase3-beta-results-20260823.md`): 12-cell
+single-agent collection (6422 rows, 730 safe), feasibility head
+held-out AUC 0.930 — the contact manifold learned from experience — and
+the beta-3A conjunction gates all pass on held-out cells (safe yield
+10.9%->15.1%, entropy preserved, discoveries 21->28, recall up). Shadow
+DeltaY: fill sign accuracy 0.985, incomparable recall 0.985, errors run
+conservatively toward incomparable. Phase 4 + loop
+(`phase4-closed-loop-20260824.md`): vector MCTS (additive vector
+backup, Pareto-frontier-first allocation, depth 3, 10 expansions) ran
+on 35 roots with beta_0 proposals in the unions, produced search-Pareto
+labels, trained the acceptance head, and evaluated beta_1 = F x A on
+held-out roots. **Honest null**: recall@4 is ~0.57 for coverage order,
+beta_0 and beta_1 alike, because the label is not discriminative yet —
+soft/priority fire in ~1% of vectors so the dominance space is
+effectively 2-D at depth <= 3, and 53% of candidates sit on that fat
+frontier. The NN_0 -> MCTS_0 -> NN_1 machinery is now a runnable,
+committed pipeline; the next work is sharpening its teacher (deeper
+search, terminal-connected stability via the Phase 9 V retrain,
+scenarios where soft/priority events fire, more roots), not more
+plumbing.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
