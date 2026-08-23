@@ -117,19 +117,33 @@ The first aggregate job failed only because its clean runner imported the
 simulator stack without NumPy; its artifacts were recovered. The aggregate was
 made pure-stdlib and run `32623930649` completed 2/2 shards plus aggregate.
 
+The continuation was then replaced by the frozen candidate-support contract:
+fixed 128 attempts per visible item, rank-0 from width 64, stride-4 rescue only
+when the provider is empty, and lazy fresh-PyBullet hard filtering. Runs
+`32624458653` and `32624566731` completed 2/2 shards plus aggregate under that
+fixed-work policy. Their decision vectors, continuation audits and Markdown
+summary matched exactly; the only JSON difference was a 2e-21 floating-point
+rounding difference in a non-decision settle diagnostic.
+
+The deterministic result is again 2/2 incomparable. One root ties exactly.
+On the other, the V candidate improves fill +1.293, lowers CoG-z by 0.0404,
+removes one priority violation and raises the placed gate +0.0244, but creates
+four soft violations, raises shake peak KE +47.250, raises max shift +0.620 and
+topples four additional items. This is direct evidence that learnable future
+fill/geometry signal can coexist with unacceptable official-axis tradeoffs.
+
 ## Next gate
 
 1. Keep exact PyBullet legality and immediate soft/priority accounting.
 2. Keep the current component-V action selector closed: even the two beta-0.25
    proposals failed paired terminal dominance.
-3. Replace the wall-clock-dependent continuation with a fixed-attempt,
-   deterministic continuation policy before drawing a causal action-effect
-   conclusion. Diagnose action-difference calibration explicitly: strong
-   per-state OOF correlations do not establish that subtracting two leaf
-   predictions ranks sibling actions correctly.
+3. Diagnose action-difference calibration explicitly: strong per-state OOF
+   correlations do not establish that subtracting two leaf predictions ranks
+   sibling actions correctly, and the deterministic pilot exposed soft and
+   stability tradeoffs absent from the learned leaf decision.
 4. The next learner, if pursued, must target paired counterfactual component
    deltas/search improvement and be evaluated on whole unseen trajectories;
-   stability remains a separately measured head/gate.
+   soft, priority and stability remain separate heads/gates.
 5. Progressive widening, P and proposal heads remain closed until a learned
    selector beats the fixed-support physical incumbent on fresh paired roots.
 

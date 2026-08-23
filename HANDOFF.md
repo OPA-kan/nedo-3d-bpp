@@ -225,6 +225,18 @@ fixed-attempt deterministic continuation and, if learning continues, target
 paired counterfactual component deltas or search improvement directly. Do not
 scalarize the official axes; placed is the activation gate, not a score term.
 
+The continuation has now been determinized. Runs `32624458653` and
+`32624566731` use the frozen support contract (fixed 128 attempts per item,
+width 64 rank-0, stride-4 only on provider-zero, lazy fresh-PyBullet hard
+filter) and reproduce the complete decision vector and audits. Both roots are
+again incomparable. One ties. On the other, the component-V candidate gains
+fill +1.293, CoG-z -0.0404, priority violations -1 and gate +0.0244, but adds
+four soft violations, peak KE +47.250, max shift +0.620 and four topples. This
+is the final current gate: learnable future fill/geometry is real, but the
+current leaf selector turns it into an unacceptable official-axis tradeoff.
+No learned agent is licensed. Next target paired action deltas with explicit
+soft/priority/stability heads; widening and P remain closed.
+
 The instrument and the first Linux physical H3 condition matrix are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,

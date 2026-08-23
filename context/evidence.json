@@ -3774,7 +3774,8 @@
       "id": "component-value-action-gate-fails-and-continuation-needs-determinization",
       "topic": "learning",
       "date": "2026-08-23",
-      "status": "active",
+      "status": "superseded",
+      "superseded_by": "component-value-action-gate-fails-under-fixed-work-continuation",
       "claim": "The group-excluded multi-head Set Transformer contains strong per-state suffix signal, but its confidence-bounded partial official-vector proposals do not pass the paired terminal action-adoption gate. Run 32621960562 changed 0/348 eligible roots at beta 1.0; stored-estimate discovery nominated 13 roots at beta 0, two at beta 0.25 and none at beta >=0.5. Runs 32623583899 and 32623930649 each replayed the frozen two beta-0.25 roots from identical prefixes, forced incumbent or candidate once, returned both arms to the unchanged hand-coded policy, and shook at terminal. All four comparisons were Pareto-incomparable and none candidate-dominant. However, only the step-6 vector reproduced; step-4 changed from a complete tie to a fill/stability gain versus CoG loss. Therefore component-V selection remains closed, but the current wall-clock-dependent continuation must be replaced by a fixed-attempt deterministic policy before inferring causal action effects or declaring the model family intrinsically invalid.",
       "source": "Actions runs 32621960562, 32623583899 and 32623930649; reports/self-play-packing/behavior-value-gate-20260823.md",
       "values": {
@@ -3782,6 +3783,21 @@
         "paired_relations": "two runs x two roots: 4/4 incomparable; 0 candidate-dominant",
         "reproducibility": "step6 exact replicate: fill -1.496, gate +0.073, KE +31.583, toppled +1; step4 tie then tradeoff fill +6.198, CoG-z +0.148, KE -77.435",
         "verdict": "adoption FAIL; no score-improvement claim; determinize continuation, then train/evaluate paired action differences before reopening widening or P"
+      }
+    },
+    {
+      "id": "component-value-action-gate-fails-under-fixed-work-continuation",
+      "topic": "learning",
+      "date": "2026-08-23",
+      "status": "active",
+      "claim": "The partial official-vector component-V selector fails its action-adoption gate under a reproducible fixed-work physical continuation. Runs 32624458653 and 32624566731 used the frozen candidate-support contract after the forced root action: fixed 128 attempts per visible item, width-64 rank-0, stride-4 only on provider-zero, and lazy fresh-PyBullet hard filtering. Both runs completed 2/2 shards plus aggregate and matched on decision vectors and continuation audits. Both beta-0.25 candidates were Pareto-incomparable, never dominant. One tied. The other gained fill, lower CoG-z, one fewer priority violation and placed gate, but created four soft violations and sharply worsened shake energy, shift and topples. Thus future fill/geometry signal is real but insufficient for action choice when unlearned or weakly constrained official axes remain; no component-V policy or score-improvement claim is licensed.",
+      "source": "Actions runs 32621960562, 32624458653 and 32624566731; reports/self-play-packing/behavior-value-gate-20260823.md",
+      "values": {
+        "continuation": "fixed128 per item; width64 rank0; provider-zero stride4; lazy fresh-PyBullet hard filter",
+        "reproducibility": "decision vectors and audits exact across two runs; Markdown SHA-256 43BB25AD3664BF213F21CEB55D77179387CCEBC1D5BD1C52306F4A7B202C0408",
+        "paired_relations": "2/2 incomparable; 0 candidate-dominant",
+        "nontrivial_root_delta": "fill +1.293; CoG-z -0.0404; priority -1; gate +0.0244; soft +4; peak KE +47.250; max shift +0.620; toppled +4",
+        "verdict": "FAIL; no learned action-selection or score-improvement claim; next target paired component action deltas with soft/priority/stability gates"
       }
     }
   ]
