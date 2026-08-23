@@ -1,8 +1,22 @@
 import pathlib
+import subprocess
+import sys
 import unittest
 
 
 class SelfPlayValueShadowWorkflowTests(unittest.TestCase):
+    def test_aggregate_script_can_be_invoked_by_path(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        completed = subprocess.run(
+            [sys.executable, "scripts/aggregate_self_play_value_shadow.py", "--help"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
     def test_freezes_support_and_separates_training_from_shadow(self):
         root = pathlib.Path(__file__).resolve().parents[1]
         workflow = (

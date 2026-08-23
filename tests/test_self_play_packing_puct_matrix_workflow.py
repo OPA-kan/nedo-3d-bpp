@@ -48,6 +48,9 @@ class SelfPlayPackingPuctMatrixWorkflowTests(unittest.TestCase):
         self.assertIn("policy-bootstrap-q.md", text)
         self.assertIn("replays/mcts.html", text)
         self.assertIn("upload-artifact@v4", text)
+        aggregate = text.split("  aggregate:", 1)[1]
+        self.assertIn("actions/setup-python@v5", aggregate)
+        self.assertIn("pip install -r requirements.txt", aggregate)
 
 
 if __name__ == "__main__":

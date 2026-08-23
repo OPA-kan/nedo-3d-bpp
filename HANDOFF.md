@@ -190,6 +190,23 @@ instantaneous aggregate KE, KE/item, KE/mass, displacement, topple and
 post-shake attribute axes separately. This isolates immediate action
 stability before any later trajectory divergence.
 
+That gate is now complete. Run `32618598497` finished all eight 58-root
+physical shards, but scalar `V^pi_behavior` decisively failed under frozen
+support: Q-top agreement with the deep reference fell 46/58 -> 22/58 and the
+paired improved/regressed count was 2/26. An uncertainty threshold sweep was
+also unable to beat the no-V arm. Do not inject the scalar terminal-return
+head and do not open progressive widening or P from this result.
+
+The fresh schema-v3 matrix `32618609173` and group-excluded ensemble run
+`32620348564` clarify why. Terminal game return is not learned (OOF Pearson
+0.127, RMSE 55.08 versus constant 48.17), while separate suffix components
+are highly predictable: fill 0.950, placed 0.927, soft violation 0.887, CoM-z
+0.966 and surface variation 0.934. Terminal shake heads remain unlearned. The
+next gate is therefore a confidence-bounded component/Pareto shadow with exact
+hard legality and no invented exchange rate, followed by paired continuation;
+it is not another scalar-V retry. Full evidence and the one-step shake result
+are in `reports/self-play-packing/behavior-value-gate-20260823.md`.
+
 The instrument and the first Linux physical H3 condition matrix are complete:
 
 - `scripts/counterfactual_graph.py` defines horizon 3–5, deterministic IDs,

@@ -5,6 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import sys
+
+# GitHub Actions invokes this file directly (``python scripts/...py``).  In
+# that mode Python puts ``scripts/`` rather than the repository root on
+# ``sys.path``, so the package-qualified import below would fail on Linux.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from scripts.evaluate_self_play_value_shadow import (
     compare_shadow_rows,
