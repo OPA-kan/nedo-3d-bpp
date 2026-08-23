@@ -6,6 +6,7 @@ import unittest
 from scripts.evaluate_self_play_component_value_shadow import (
     analyze_row,
     dominance,
+    select_candidate,
 )
 
 
@@ -125,6 +126,22 @@ class ComponentValueShadowTests(unittest.TestCase):
 
         self.assertTrue(result["changed"])
         self.assertEqual(result["selected_candidate_id"], "b")
+
+    def test_stored_estimates_can_be_reselected_at_a_declared_beta(self):
+        estimates = {
+            "a": _estimate(5.0, 4.0, 0.0, std=0.5),
+            "b": _estimate(5.2, 4.2, 0.0, std=1.0),
+        }
+
+        mean_decision = select_candidate(
+            estimates, incumbent_id="a", beta=0.0
+        )
+        conservative = select_candidate(
+            estimates, incumbent_id="a", beta=1.0
+        )
+
+        self.assertEqual(mean_decision["selected_candidate_id"], "b")
+        self.assertEqual(conservative["selected_candidate_id"], "a")
 
     @staticmethod
     def _branch(candidate_id, tag):

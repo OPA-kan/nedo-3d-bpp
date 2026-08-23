@@ -279,7 +279,7 @@ def run_arm(
     agent_module, task_config: dict[str, Any], snapshot: dict[str, Any], *,
     arm: str, root_action: dict[str, Any], incumbent_action: dict[str, Any],
     capture_offsets: set[int], output_dir: pathlib.Path,
-    policy_generation: str,
+    policy_generation: str, require_live_incumbent: bool = True,
 ) -> dict[str, Any]:
     """Replay an exact root, force one action, then return to the policy."""
     from src.ground_handling.env import GroundHandlingEnv
@@ -323,7 +323,7 @@ def run_arm(
             raise RuntimeError("replayed root board fingerprint does not match snapshot")
         live_action = canonical_action(solver.policy(observation))
         live_matches_incumbent = _action_key(live_action) == _action_key(incumbent_action)
-        if not live_matches_incumbent:
+        if require_live_incumbent and not live_matches_incumbent:
             raise RuntimeError("live policy action does not match graph rank-0 incumbent")
 
         command = canonical_action(root_action)
@@ -394,7 +394,8 @@ def run_arm(
         "root_action": canonical_action(root_action),
         "root_action_accepted": bool(root_action_accepted),
         "root_fingerprint_matches": True,
-        "live_action_matches_incumbent": True,
+        "live_action_matches_incumbent": bool(live_matches_incumbent),
+        "live_incumbent_required": bool(require_live_incumbent),
         "captures": captures,
         "missing_capture_offsets": sorted(
             capture_offsets - {int(row["offset"]) for row in captures}

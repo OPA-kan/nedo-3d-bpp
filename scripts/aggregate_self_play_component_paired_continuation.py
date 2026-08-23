@@ -1,0 +1,91 @@
+"""Aggregate sharded paired component-value continuation evidence."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.evaluate_self_play_component_paired_continuation import summarize
+
+
+def aggregate(
+    shards: list[dict], *, expected_proposals: int | None = None,
+) -> dict:
+    if not shards:
+        raise ValueError("no paired-continuation shards")
+    beta = float(shards[0]["discovery_beta"])
+    proposal_count = int(shards[0]["proposal_count"])
+    if any(float(row["discovery_beta"]) != beta for row in shards):
+        raise ValueError("shards use different discovery beta values")
+    if any(int(row["proposal_count"]) != proposal_count for row in shards):
+        raise ValueError("shards disagree on proposal count")
+    if expected_proposals is not None and proposal_count != expected_proposals:
+        raise ValueError(
+            f"expected {expected_proposals} proposals, observed {proposal_count}"
+        )
+    records = [record for shard in shards for record in shard.get("records", [])]
+    keys = [(row["pair_id"], int(row["step"])) for row in records]
+    if len(keys) != len(set(keys)):
+        raise ValueError("paired root appears in multiple shards")
+    if len(records) != proposal_count:
+        raise ValueError(
+            f"expected {proposal_count} executed proposals, observed {len(records)}"
+        )
+    return summarize(records, beta=beta, proposal_count=proposal_count)
+
+
+def render_markdown(result: dict) -> str:
+    relations = ", ".join(
+        f"{name}={count}"
+        for name, count in result["pareto_relations"].items()
+    ) or "none"
+    means = result["mean_candidate_minus_incumbent"]
+    return "\n".join([
+        "# Paired component-value continuation",
+        "",
+        f"- discovery beta: {result['discovery_beta']}",
+        f"- proposals / valid: {result['proposal_count']} / {result['valid_records']}",
+        f"- Pareto relations: {relations}",
+        f"- mean fill delta: {means['fill']}",
+        f"- mean CoG-z delta: {means['cog']}",
+        f"- mean soft delta: {means['soft']}",
+        f"- mean priority delta: {means['placement']}",
+        f"- mean placed-gate delta: {means['gate']}",
+        f"- mean shake peak-KE delta: {means['stability.peak_kinetic_energy']}",
+        "- cross-axis scalarization: **disabled**",
+        "- official score improvement claim: **disabled**",
+        "",
+        "> These are deterministic local paired measurements; official normalization and weights remain unpublished.",
+        "",
+    ])
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=pathlib.Path, required=True)
+    parser.add_argument("--expected-proposals", type=int)
+    parser.add_argument("--json-output", type=pathlib.Path, required=True)
+    parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    args = parser.parse_args()
+    paths = sorted(args.root.glob("shard-*.json"))
+    result = aggregate(
+        [json.loads(path.read_text(encoding="utf-8")) for path in paths],
+        expected_proposals=args.expected_proposals,
+    )
+    args.json_output.parent.mkdir(parents=True, exist_ok=True)
+    args.json_output.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    args.markdown_output.write_text(render_markdown(result), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

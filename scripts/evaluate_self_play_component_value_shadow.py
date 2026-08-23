@@ -249,6 +249,23 @@ def analyze_row(
             "reason": "incumbent_has_no_uncensored_complete_component_estimate",
             "incumbent_candidate_id": incumbent_id,
         }
+    selection = select_candidate(
+        estimates, incumbent_id=incumbent_id, beta=beta
+    )
+    return {
+        "eligible": True,
+        "incumbent_candidate_id": incumbent_id,
+        "candidate_estimates": estimates,
+        **selection,
+    }
+
+
+def select_candidate(
+    estimates: dict[str, dict[str, Any]], *, incumbent_id: str, beta: float,
+) -> dict[str, Any]:
+    """Select only an unambiguously dominating candidate without weights."""
+    if incumbent_id not in estimates:
+        raise ValueError("incumbent is absent from component estimates")
     comparisons = {}
     dominating = []
     for candidate_id, estimate in estimates.items():
@@ -281,13 +298,10 @@ def analyze_row(
         else:
             abstained_tradeoff = True
     return {
-        "eligible": True,
-        "incumbent_candidate_id": incumbent_id,
         "selected_candidate_id": selected,
         "changed": selected != incumbent_id,
         "abstained_due_to_incomparable_dominators": abstained_tradeoff,
         "dominating_candidate_ids": sorted(dominating),
-        "candidate_estimates": estimates,
         "comparisons_to_incumbent": comparisons,
     }
 
