@@ -37,6 +37,7 @@ from scripts.counterfactual_graph import (  # noqa: E402
     stable_id,
     state_tensor_from_snapshot,
 )
+from scripts.exogenous_world import ExogenousWorld  # noqa: E402
 from scripts.self_play_packing_game import (  # noqa: E402
     GameRules,
     GameState,
@@ -66,7 +67,31 @@ def _candidate_selection(candidate: Any) -> dict[str, Any]:
     return dict(candidate.selection)
 
 
-def _candidate_record(candidate: Any) -> dict[str, Any]:
+def _candidate_provenance(
+    candidate: Any, *, fallback_source: str = "legacy_provider",
+) -> dict[str, Any]:
+    explicit = (
+        candidate.get("proposal_provenance", {})
+        if isinstance(candidate, dict)
+        else getattr(candidate, "proposal_provenance", {})
+    ) or {}
+    selection = _candidate_selection(candidate)
+    return {
+        "schema_version": 1,
+        "source": str(explicit.get("source", fallback_source)),
+        "provider": explicit.get("provider", selection.get("provider")),
+        "mixture_weight": explicit.get("mixture_weight"),
+        "proposal_probability": explicit.get("proposal_probability"),
+        "proposal_log_probability": explicit.get("proposal_log_probability"),
+        "coverage_seed": explicit.get("coverage_seed"),
+        "coverage_sequence_index": explicit.get("coverage_sequence_index"),
+        "dedup_multiplicity": explicit.get("dedup_multiplicity", 1),
+    }
+
+
+def _candidate_record(
+    candidate: Any, *, fallback_source: str = "legacy_provider",
+) -> dict[str, Any]:
     candidate_id = (
         candidate.get("candidate_id")
         if isinstance(candidate, dict)
@@ -76,7 +101,22 @@ def _candidate_record(candidate: Any) -> dict[str, Any]:
         "candidate_id": candidate_id,
         "command_action": _candidate_action(candidate),
         "selection": _candidate_selection(candidate),
+        "proposal_provenance": _candidate_provenance(
+            candidate, fallback_source=fallback_source,
+        ),
     }
+
+
+def _candidate_set_id(candidates: list[Any]) -> str:
+    # This identifies action support, not the policy/proposal distribution that
+    # happened to produce it. Provenance and behavior probabilities are stored
+    # beside each candidate and may change without changing the support ID.
+    actions_by_id = {
+        stable_id("candidate-action-v1", action): action
+        for action in (_candidate_action(candidate) for candidate in candidates)
+    }
+    actions = [actions_by_id[key] for key in sorted(actions_by_id)]
+    return stable_id("candidate-set-v1", actions)
 
 
 def _status(info: Any) -> dict[str, Any]:
@@ -236,7 +276,6 @@ def build_physical_puct_search(
                 render_mode=None,
             )
 
-    chance_rng = random.Random(search_seed)
     root_noise_rng = random.Random(search_seed + 1)
     value_scale = max(
         1.0, float(rules.terminal_reward), float(rules.attribute_penalty)
@@ -270,6 +309,7 @@ def build_physical_puct_search(
             "player": state.current_player,
             "block_length": state.block_length,
         })
+        root_candidate_set_id = _candidate_set_id(list(candidates))
         root_noise = None
         if root_dirichlet_epsilon > 0.0:
             root_noise = tree.add_dirichlet_noise(
@@ -277,6 +317,15 @@ def build_physical_puct_search(
                 epsilon=root_dirichlet_epsilon, rng=root_noise_rng,
             )
         candidate_cache: dict[str, list[Any]] = {root_key: list(candidates)}
+        candidate_provenance_cache: dict[str, dict[str, dict[str, Any]]] = {
+            root_key: {
+                candidate_id(candidate): _candidate_provenance(candidate)
+                for candidate in candidates
+            }
+        }
+        root_world_replica_counts: collections.Counter[str] = (
+            collections.Counter()
+        )
         terminal_reasons: collections.Counter[str] = collections.Counter()
         search_prefilter_rejections = 0
         leaf_value_calls = 0
@@ -317,6 +366,8 @@ def build_physical_puct_search(
                 relative_actions: list[dict[str, Any]] = []
                 simulation_rewards = [0.0, 0.0]
                 search_path: list[tuple[str, str, int]] = []
+                path_candidate_provenance: list[dict[str, Any]] = []
+                exogenous_world: ExogenousWorld | None = None
                 root_metrics = metrics_fn(simulation_env)
                 ended = False
                 termination = None
@@ -348,6 +399,10 @@ def build_physical_puct_search(
                             audit.get("rejected_count", 0)
                         )
                         candidate_cache[node_key] = list(legal)
+                        candidate_provenance_cache[node_key] = {
+                            candidate_id(candidate): _candidate_provenance(candidate)
+                            for candidate in legal
+                        }
                         if (
                             not legal
                             and wider_limit is not None
@@ -575,6 +630,12 @@ def build_physical_puct_search(
                             })
                             if rescue_legal:
                                 candidate_cache[node_key] = list(rescue_legal)
+                                candidate_provenance_cache[node_key] = {
+                                    candidate_id(candidate): _candidate_provenance(
+                                        candidate, fallback_source="widening_rescue",
+                                    )
+                                    for candidate in rescue_legal
+                                }
                                 candidate_rescue_summary["applied_nodes"] += 1
                                 candidate_rescue_summary[
                                     "recovered_candidates"
@@ -586,6 +647,13 @@ def build_physical_puct_search(
                                 candidate_cache[node_key] = list(
                                     provider_zero_legal
                                 )
+                                candidate_provenance_cache[node_key] = {
+                                    candidate_id(candidate): _candidate_provenance(
+                                        candidate,
+                                        fallback_source="provider_zero_rescue",
+                                    )
+                                    for candidate in provider_zero_legal
+                                }
                                 provider_zero_rescue_summary[
                                     "applied_nodes"
                                 ] += 1
@@ -615,7 +683,21 @@ def build_physical_puct_search(
                     selected = tree.select(
                         node_key, player=mover, candidates=node_candidates
                     )
-                    search_path.append((node_key, candidate_id(selected), mover))
+                    selected_id = candidate_id(selected)
+                    search_path.append((node_key, selected_id, mover))
+                    selected_provenance = candidate_provenance_cache[node_key][
+                        selected_id
+                    ]
+                    path_candidate_provenance.append(selected_provenance)
+                    if depth == 0:
+                        sample_index = int(root_world_replica_counts[selected_id])
+                        root_world_replica_counts[selected_id] += 1
+                        exogenous_world = ExogenousWorld(
+                            base_seed=search_seed,
+                            root_id=root_key,
+                            sample_index=sample_index,
+                            future_stream_id=contract.get("future_stream_id"),
+                        )
                     action = _candidate_action(selected)
                     before = metrics_fn(simulation_env)
                     (
@@ -645,8 +727,13 @@ def build_physical_puct_search(
                         termination = "stream_exhausted"
                         ended = True
                         break
+                    if exogenous_world is None:
+                        raise RuntimeError("root action did not bind an exogenous world")
                     advance_after_placement(
-                        simulation_state, rules, chance_rng
+                        simulation_state, rules,
+                        exogenous_world.event_rng(
+                            "handoff_after_placement", int(depth)
+                        ),
                     )
 
                 normalized = [
@@ -681,8 +768,20 @@ def build_physical_puct_search(
                 )
                 leaf_state = state_tensor_from_snapshot(leaf_snapshot)
                 leaf_metrics = metrics_fn(simulation_env)
-                multi_head_branch_samples.append({
-                    "schema_version": 1,
+                if exogenous_world is None:
+                    raise RuntimeError("physical branch has no exogenous world")
+                heads = build_multi_head_branch_sample(
+                    root_metrics=root_metrics,
+                    leaf_metrics=leaf_metrics,
+                    rewards=simulation_rewards,
+                    root_player=search_path[0][2],
+                    termination=termination,
+                )
+                sample = {
+                    "schema_version": 2,
+                    "joint_outcome_contract_version": 2,
+                    "metric_contract_version": "physical_branch_heads_v1",
+                    "objective_contract_version": "vector_no_weighted_sum_v1",
                     "contract": (
                         "replayable_bounded_physical_branch_multi_head"
                     ),
@@ -691,8 +790,22 @@ def build_physical_puct_search(
                     ),
                     "simulation_index": int(_simulation),
                     "root_id": root_key,
+                    "candidate_set_id": root_candidate_set_id,
                     "root_candidate_id": search_path[0][1],
+                    "root_candidate_provenance": path_candidate_provenance[0],
                     "path_candidate_ids": [row[1] for row in search_path],
+                    "path_candidate_provenance": path_candidate_provenance,
+                    "exogenous_world_id": exogenous_world.world_id,
+                    "exogenous_world_sample_index": int(
+                        exogenous_world.sample_index
+                    ),
+                    "exogenous_world": exogenous_world.identity,
+                    "search_allocation": {
+                        "reason": "scalar_puct_traversal",
+                        "configured_simulations": int(simulations),
+                        "configured_horizon": int(horizon),
+                        "simulation_index": int(_simulation),
+                    },
                     "relative_action_prefix": list(relative_actions),
                     "absolute_action_prefix": list(simulation_actions),
                     "termination": termination,
@@ -724,14 +837,26 @@ def build_physical_puct_search(
                     ),
                     "root_metrics": root_metrics,
                     "leaf_metrics": leaf_metrics,
-                    "heads": build_multi_head_branch_sample(
-                        root_metrics=root_metrics,
-                        leaf_metrics=leaf_metrics,
-                        rewards=simulation_rewards,
-                        root_player=search_path[0][2],
-                        termination=termination,
-                    ),
-                })
+                    "heads": heads,
+                    "raw_outcome_vector": {
+                        name: head.get("value") for name, head in heads.items()
+                    },
+                    "head_eligibility": {
+                        name: bool(head.get("target_eligible"))
+                        for name, head in heads.items()
+                    },
+                }
+                sample["outcome_sample_id"] = stable_id(
+                    "joint-outcome-sample-v2", {
+                        "root_id": root_key,
+                        "candidate_set_id": root_candidate_set_id,
+                        "root_candidate_id": search_path[0][1],
+                        "exogenous_world_id": exogenous_world.world_id,
+                        "path_candidate_ids": sample["path_candidate_ids"],
+                        "termination": termination,
+                    },
+                )
+                multi_head_branch_samples.append(sample)
                 tree.backup(search_path, normalized)
             finally:
                 simulation_env.close()
@@ -759,6 +884,10 @@ def build_physical_puct_search(
         return chosen, {
             "schema_version": 3,
             "algorithm": "open_loop_physical_puct",
+            "candidate_set_id": root_candidate_set_id,
+            "exogenous_world_contract": (
+                "semantic_hash_v1_root_candidate_replica_paired"
+            ),
             "simulations": int(simulations),
             "horizon": int(horizon),
             "cpuct": float(cpuct),
@@ -926,6 +1055,7 @@ def play_game(
             "block_length_before": state.block_length,
             "proposal_count": len(proposals),
             "candidate_count": len(candidates),
+            "candidate_set_id": _candidate_set_id(candidates),
             "candidate_set": [_candidate_record(row) for row in candidates],
             "legal_move_audit": legal_audit,
             "selected_candidate_id": selected_candidate["candidate_id"],

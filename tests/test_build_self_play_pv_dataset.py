@@ -40,6 +40,12 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
                     "place_pos": [0.1, 0.2, 0.3], "orientation": 1,
                 },
                 "selection": {"rank": 0, "score": 999.0},
+                "proposal_provenance": {
+                    "source": "coverage",
+                    "mixture_weight": 0.25,
+                    "coverage_seed": 12,
+                    "coverage_sequence_index": 4,
+                },
             }]
             manifest = {
                 "case_id": "m-case", "policy_generation": "pi0-puct0",
@@ -47,6 +53,7 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
                     "trajectory_id": "trajectory-1",
                     "records": [{
                         "step": 0,
+                        "candidate_set_id": "candidate-set-1",
                         "candidate_set": candidate_set,
                         "search": {
                             "multi_head_branch_samples": [{
@@ -134,6 +141,11 @@ class SelfPlayPvDatasetTests(unittest.TestCase):
         )
         self.assertEqual(rows[0]["split_group"], rows[0]["trajectory_group"])
         self.assertEqual(rows[0]["future_stream_id"], "stream-1")
+        self.assertEqual(rows[0]["candidate_set_id"], "candidate-set-1")
+        self.assertEqual(
+            rows[0]["policy_target"][0]["proposal_provenance"]["source"],
+            "coverage",
+        )
         self.assertEqual(
             rows[0]["behavior_policy"],
             {

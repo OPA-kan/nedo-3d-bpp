@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from scripts.run_self_play_packing import (
+    _candidate_set_id,
     build_exact_physical_legal_filter,
     build_physical_puct_search,
     play_game,
@@ -47,6 +48,35 @@ def metrics(env):
 
 
 class SelfPlayPackingDriverTests(unittest.TestCase):
+    def test_candidate_set_id_tracks_support_not_order_or_provenance(self):
+        action_a = {
+            "item_idx": 0, "container_idx": 0,
+            "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+        }
+        action_b = {
+            "item_idx": 1, "container_idx": 0,
+            "place_pos": [0.1, 0.0, 0.5], "orientation": 1,
+        }
+
+        def row(name, action, source):
+            return {
+                "candidate_id": name,
+                "command_action": action,
+                "selection": {"rank": 0},
+                "proposal_provenance": {
+                    "source": source, "proposal_probability": 0.25,
+                },
+            }
+
+        left = [row("a", action_a, "learned"), row("b", action_b, "coverage")]
+        right = [
+            row("other-b", action_b, "learned"),
+            row("other-a", action_a, "rescue"),
+            row("duplicate-a", action_a, "coverage"),
+        ]
+
+        self.assertEqual(_candidate_set_id(left), _candidate_set_id(right))
+
     @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
     @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
     @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
@@ -337,6 +367,26 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         )
 
         sample = result["multi_head_branch_samples"][0]
+        self.assertEqual(sample["schema_version"], 2)
+        self.assertEqual(sample["joint_outcome_contract_version"], 2)
+        self.assertEqual(
+            sample["objective_contract_version"], "vector_no_weighted_sum_v1"
+        )
+        self.assertEqual(
+            sample["search_allocation"]["reason"], "scalar_puct_traversal"
+        )
+        self.assertTrue(sample["outcome_sample_id"])
+        self.assertTrue(sample["exogenous_world_id"])
+        self.assertEqual(sample["exogenous_world_sample_index"], 0)
+        self.assertEqual(sample["candidate_set_id"], result["candidate_set_id"])
+        self.assertEqual(
+            sample["raw_outcome_vector"]["fill_gain"], 10.0
+        )
+        self.assertTrue(sample["head_eligibility"]["fill_gain"])
+        self.assertEqual(
+            sample["root_candidate_provenance"]["source"],
+            "legacy_provider",
+        )
         self.assertEqual(sample["root_candidate_id"], "root")
         self.assertEqual(
             sample["target_semantics"],
@@ -362,6 +412,82 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         self.assertEqual(aggregate["complete_samples"], 1)
         self.assertEqual(
             aggregate["heads"]["fill_gain"]["mean"], 10.0
+        )
+        self.assertEqual(aggregate["schema_version"], 2)
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch("scripts.run_self_play_packing.policy_observation", side_effect=lambda _e, o: o)
+    @mock.patch(
+        "scripts.run_self_play_packing.capture_replay_contract",
+        return_value={"future_stream_id": "stream-1"},
+    )
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_root_candidate_replicas_share_exogenous_world_indices(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, observation={}, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        def row(name, item_idx, rank):
+            return {
+                "candidate_id": name,
+                "selection": {"rank": rank},
+                "command_action": {
+                    "item_idx": item_idx, "container_idx": 0,
+                    "place_pos": [item_idx * 0.1, 0.0, 0.5],
+                    "orientation": 0,
+                },
+            }
+
+        class SimulationEnv:
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True, "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        search = build_physical_puct_search(
+            {}, case_id="case", environment_seed=42,
+            candidate_provider=lambda *_args: [],
+            legal_filter_fn=lambda **context: (context["candidates"], {}),
+            rules=GameRules(minimum_block=1, handoff_probability=0.5),
+            top_k=2, simulations=2, horizon=1, cpuct=100.0,
+            action_temperature=0.0, metrics_fn=lambda _env: {},
+            env_factory=SimulationEnv, search_seed=91,
+        )
+
+        _chosen, result = search(
+            env=object(), observation={},
+            candidates=[row("a", 0, 0), row("b", 1, 1)], actions=[],
+            state=SimpleNamespace(
+                current_player=0, block_length=0,
+                placements=0, handoff_count=0,
+            ), step=0, policy_rng=random.Random(3),
+        )
+
+        samples = result["multi_head_branch_samples"]
+        self.assertEqual({row["root_candidate_id"] for row in samples}, {"a", "b"})
+        self.assertEqual(
+            {row["exogenous_world_sample_index"] for row in samples}, {0}
+        )
+        self.assertEqual(
+            len({row["exogenous_world_id"] for row in samples}), 1
+        )
+        self.assertEqual(
+            len({
+                (
+                    row["leaf_game_state"]["player_to_move"],
+                    row["leaf_game_state"]["handoff_count"],
+                )
+                for row in samples
+            }),
+            1,
         )
 
     @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
@@ -449,6 +575,12 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             ["root", "wide-safe"],
         )
         self.assertEqual(
+            result["multi_head_branch_samples"][0][
+                "path_candidate_provenance"
+            ][1]["source"],
+            "widening_rescue",
+        )
+        self.assertEqual(
             result["multi_head_branch_samples"][0]["leaf_game_state"][
                 "placements"
             ],
@@ -533,6 +665,12 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
             1, result["provider_zero_rescue_summary"]["physical_checks"]
         )
         self.assertEqual(0, result["candidate_exhaustion_unique_nodes"])
+        self.assertEqual(
+            result["multi_head_branch_samples"][0][
+                "path_candidate_provenance"
+            ][1]["source"],
+            "provider_zero_rescue",
+        )
 
     def test_search_policy_selects_action_and_emits_pi_and_return_target(self):
         def two_candidates(_env, _observation, _limit):

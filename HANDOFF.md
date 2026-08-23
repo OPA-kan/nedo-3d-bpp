@@ -169,6 +169,25 @@ no-NN schedule matched both deep tops on 45/58 roots at mean rollout-step
 upper bound 151.4, versus 54/58 before provider-zero rescue. Do not train a
 policy head from these unstable visit counts.
 
+Joint-outcome sample schema v2 is now implemented on this branch. Each raw
+physical branch retains a stable outcome ID, canonical action-support
+`candidate_set_id`, candidate/path proposal provenance, the complete raw head
+vector and eligibility mask, and a semantic-hash `exogenous_world_id`. For
+each root candidate, its nth rollout receives the same world index as the nth
+rollout of every sibling; handoff chance is addressed by event type and
+post-root placement ordinal instead of consuming one shared sequential RNG.
+This enables paired differences wherever sibling world indices overlap. It
+does not make the current scalar-PUCT allocation neutral or guarantee that all
+siblings receive the same number of worlds. The next collection instrument is
+paired round-robin allocation with confidence-Pareto elimination; no policy
+adoption is licensed by this schema change. Candidate-set identity excludes
+proposal probabilities and sources, which are recorded separately. See
+`reports/self-play-packing/multi-head-branch-teacher-contract.md`.
+The scalar PUCT formula is unchanged, but its chance realizations are not
+bit-identical to pre-v2 runs. Any comparison must regenerate both arms under
+the same exogenous-world contract rather than treating old artifacts as a
+control.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are

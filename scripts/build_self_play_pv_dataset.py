@@ -48,6 +48,9 @@ def _candidate_rows(record: dict[str, Any], target: dict[str, Any]) -> list[dict
         row = {
             "candidate_id": identifier,
             "command_action": canonical_action(candidate["command_action"]),
+            "proposal_provenance": dict(
+                candidate.get("proposal_provenance") or {}
+            ),
             "visits": int(policy.get("visits", 0)),
             "probability": float(policy.get("probability", 0.0)),
             "search_q": (
@@ -130,6 +133,9 @@ def build_rows(root: pathlib.Path) -> tuple[list[dict[str, Any]], dict[str, Any]
                         "behavior_source": game_state.get("behavior_source"),
                     },
                     "future_stream_id": replay_contract.get("future_stream_id"),
+                    "candidate_set_id": (
+                        None if record is None else record.get("candidate_set_id")
+                    ),
                     "step": step,
                     "model_visible_state_signature": capture.get(
                         "model_visible_state_signature"

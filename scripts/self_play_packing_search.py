@@ -142,8 +142,9 @@ def summarize_multi_head_branch_samples(
         for sample in samples
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "contract": "bounded_physical_rollout_multi_head_no_weighted_sum",
+        "joint_samples_retained_separately": True,
         "samples": len(samples),
         "complete_samples": complete,
         "censored_samples": len(samples) - complete,
