@@ -306,6 +306,55 @@ def select_candidate(
     }
 
 
+def select_sparse_fill_candidate(
+    estimates: dict[str, dict[str, Any]], *, incumbent_id: str, beta: float,
+) -> dict[str, Any]:
+    """Select a fill improvement behind attribute and survival guards.
+
+    This is deliberately not a weighted official-score surrogate.  It is a
+    capability rule for sparse boards: maximize the confidence-lower-bound
+    fill return while requiring placed/survival and the modeled soft/priority
+    violations to be confidence-nonworse.  CoG and surface/stability proxies
+    remain reported diagnostics and cannot veto a sparse-board fill gain.
+    """
+    if incumbent_id not in estimates:
+        raise ValueError("incumbent is absent from component estimates")
+    comparisons = {}
+    feasible: list[tuple[float, str]] = []
+    for candidate_id, estimate in estimates.items():
+        if candidate_id == incumbent_id:
+            continue
+        comparison = dominance(
+            estimate, estimates[incumbent_id], beta=beta
+        )
+        comparisons[candidate_id] = comparison
+        axes = comparison["axes"]
+        fill_bound = float(axes["fill"]["lower_delta"])
+        if (
+            fill_bound > 1e-12
+            and bool(axes["placed_gate"]["nonworse"])
+            and bool(axes["soft_violation"]["nonworse"])
+            and bool(axes["priority_covered"]["nonworse"])
+            and bool(axes["priority_misrouted"]["nonworse"])
+        ):
+            feasible.append((fill_bound, candidate_id))
+    selected = incumbent_id
+    if feasible:
+        # Fill is the sole ordering objective in this sparse-board contract.
+        # Candidate id makes exact ties deterministic without mixing axes.
+        selected = max(feasible, key=lambda item: (item[0], item[1]))[1]
+    return {
+        "selection_contract": "sparse_fill_first_guarded",
+        "selected_candidate_id": selected,
+        "changed": selected != incumbent_id,
+        "feasible_candidate_ids": sorted(identifier for _, identifier in feasible),
+        "comparisons_to_incumbent": comparisons,
+        "diagnostic_only_axes": [
+            "center_of_mass_z", "surface_total_variation", "stability",
+        ],
+    }
+
+
 def summarize(rows: list[dict[str, Any]], *, beta: float) -> dict[str, Any]:
     eligible = [row for row in rows if row.get("eligible")]
     changed = [row for row in eligible if row.get("changed")]

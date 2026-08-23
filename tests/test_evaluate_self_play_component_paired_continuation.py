@@ -5,6 +5,7 @@ import unittest
 
 from scripts.evaluate_self_play_component_paired_continuation import (
     discovery_proposals,
+    nominal_root_fill_percent,
     summarize,
 )
 from scripts.aggregate_self_play_component_paired_continuation import aggregate
@@ -67,6 +68,39 @@ class ComponentPairedContinuationTests(unittest.TestCase):
         self.assertEqual(proposals[0]["selected_candidate_id"], "b")
         self.assertEqual(proposals[0]["selected_action"], action(2))
 
+    def test_discovery_can_use_sparse_fill_first_contract(self):
+        shadow = {
+            "records": [{
+                "eligible": True,
+                "pair_id": "pair-1",
+                "step": 4,
+                "incumbent_candidate_id": "a",
+                "candidate_estimates": {
+                    "a": _estimate(5.0, 4.0, 0.0, cog=0.4),
+                    "b": _estimate(6.0, 4.0, 0.0, cog=0.8),
+                },
+            }]
+        }
+        dataset = [{
+            "pair_id": "pair-1", "case_id": "m-case", "step": 4,
+            "trajectory_group": "trajectory-1", "future_stream_id": "stream-1",
+            "policy_target": [
+                {"candidate_id": "a", "command_action": action(1)},
+                {"candidate_id": "b", "command_action": action(2)},
+            ],
+        }]
+
+        proposals = discovery_proposals(
+            shadow, dataset, beta=0.0,
+            selection_contract="sparse_fill_first_guarded",
+        )
+
+        self.assertEqual(len(proposals), 1)
+        self.assertEqual(proposals[0]["selected_candidate_id"], "b")
+        self.assertEqual(
+            proposals[0]["selection_contract"], "sparse_fill_first_guarded"
+        )
+
     def test_summary_keeps_official_axes_and_stability_separate(self):
         result = summarize(
             [{
@@ -99,6 +133,17 @@ class ComponentPairedContinuationTests(unittest.TestCase):
             result["mean_candidate_minus_incumbent"]["stability.max_shift"],
             0.2,
         )
+
+    def test_nominal_root_fill_uses_item_and_container_volumes(self):
+        snapshot = {"observation": {"container_list": [{
+            "volume": 4.0,
+            "packed_items": [
+                {"length": 1.0, "width": 0.5, "height": 0.4},
+                {"length": 0.5, "width": 0.5, "height": 0.4},
+            ],
+        }]}}
+
+        self.assertAlmostEqual(nominal_root_fill_percent(snapshot), 7.5)
 
     def test_aggregate_requires_every_frozen_proposal_exactly_once(self):
         comparison = {

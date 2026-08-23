@@ -35,6 +35,10 @@ on:
         description: Expected changed root actions in one-step shake mode
         required: false
         default: "15"
+      component_selection_contract:
+        description: Pareto or sparse fill-first guarded component selector
+        required: false
+        default: "sparse_fill_first_guarded"
   push:
     branches:
       - experiment/counterfactual-graph
@@ -481,6 +485,8 @@ jobs:
           --dataset reports/component-source/pv-dataset.jsonl
           --source-root reports/component-source
           --beta 0.25
+          --selection-contract "${{ inputs.component_selection_contract }}"
+          --max-root-fill-percent 25
           --shard-index "${{ matrix.shard_index }}" --shard-count 2
           --output-dir reports/component-paired/shard-${{ matrix.shard_index }}
           --json-output reports/component-paired/shard-${{ matrix.shard_index }}.json

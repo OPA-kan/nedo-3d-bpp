@@ -29,7 +29,10 @@ from scripts.build_paired_search_follow import (  # noqa: E402
 from scripts.build_counterfactual_graph import build_candidate_provider  # noqa: E402
 from scripts.build_replay_dataset import load_agent_module, require_supported_python  # noqa: E402
 from scripts.counterfactual_graph import canonical_action  # noqa: E402
-from scripts.evaluate_self_play_component_value_shadow import select_candidate  # noqa: E402
+from scripts.evaluate_self_play_component_value_shadow import (  # noqa: E402
+    select_candidate,
+    select_sparse_fill_candidate,
+)
 from scripts.run_self_play_packing import build_exact_physical_legal_filter  # noqa: E402
 
 
@@ -42,6 +45,7 @@ def _read_jsonl(path: pathlib.Path) -> list[dict[str, Any]]:
 
 def discovery_proposals(
     shadow: dict[str, Any], dataset: list[dict[str, Any]], *, beta: float,
+    selection_contract: str = "pareto",
 ) -> list[dict[str, Any]]:
     """Join stored estimates to replay actions and reapply a declared beta."""
     source = {
@@ -52,7 +56,13 @@ def discovery_proposals(
         if not record.get("eligible"):
             continue
         incumbent_id = str(record["incumbent_candidate_id"])
-        decision = select_candidate(
+        selector = {
+            "pareto": select_candidate,
+            "sparse_fill_first_guarded": select_sparse_fill_candidate,
+        }.get(selection_contract)
+        if selector is None:
+            raise ValueError(f"unknown selection contract: {selection_contract}")
+        decision = selector(
             record["candidate_estimates"],
             incumbent_id=incumbent_id,
             beta=beta,
@@ -86,6 +96,7 @@ def discovery_proposals(
             "selected_candidate_id": selected_id,
             "incumbent_action": actions[incumbent_id],
             "selected_action": actions[selected_id],
+            "selection_contract": selection_contract,
             "shadow_comparison": decision["comparisons_to_incumbent"][selected_id],
         })
     return sorted(
@@ -109,6 +120,19 @@ def _source_paths(
         if not path.is_file():
             raise FileNotFoundError(path)
     return snapshot, config
+
+
+def nominal_root_fill_percent(snapshot: dict[str, Any]) -> float:
+    """Return packed item volume / declared container volume at the root."""
+    containers = snapshot["observation"]["container_list"]
+    capacity = sum(float(container["volume"]) for container in containers)
+    if capacity <= 0.0:
+        raise ValueError("root has no positive container capacity")
+    packed_volume = sum(
+        float(item["length"]) * float(item["width"]) * float(item["height"])
+        for container in containers for item in container.get("packed_items", [])
+    )
+    return 100.0 * packed_volume / capacity
 
 
 def run_proposal(
@@ -197,6 +221,7 @@ def run_proposal(
 
 def summarize(
     records: list[dict[str, Any]], *, beta: float, proposal_count: int,
+    selection_contract: str = "pareto",
 ) -> dict[str, Any]:
     valid = [row for row in records if row.get("execution_valid")]
     relations = collections.Counter(
@@ -218,6 +243,7 @@ def summarize(
         ),
         "discovery_beta": float(beta),
         "proposal_count": int(proposal_count),
+        "selection_contract": selection_contract,
         "executed_records": len(records),
         "valid_records": len(valid),
         "pareto_relations": dict(sorted(relations.items())),
@@ -243,6 +269,12 @@ def main() -> int:
     parser.add_argument("--dataset", type=pathlib.Path, required=True)
     parser.add_argument("--source-root", type=pathlib.Path, required=True)
     parser.add_argument("--beta", type=float, default=0.25)
+    parser.add_argument(
+        "--selection-contract",
+        choices=("pareto", "sparse_fill_first_guarded"),
+        default="pareto",
+    )
+    parser.add_argument("--max-root-fill-percent", type=float)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--policy-generation", default="pi0-component-pilot")
@@ -256,8 +288,19 @@ def main() -> int:
         raise SystemExit("invalid shard")
     shadow = json.loads(args.shadow.read_text(encoding="utf-8"))
     proposals = discovery_proposals(
-        shadow, _read_jsonl(args.dataset), beta=args.beta
+        shadow, _read_jsonl(args.dataset), beta=args.beta,
+        selection_contract=args.selection_contract,
     )
+    for proposal in proposals:
+        snapshot_path, _ = _source_paths(args.source_root, proposal)
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        proposal["root_nominal_fill_percent"] = nominal_root_fill_percent(snapshot)
+    if args.max_root_fill_percent is not None:
+        proposals = [
+            proposal for proposal in proposals
+            if proposal["root_nominal_fill_percent"]
+            <= args.max_root_fill_percent + 1e-12
+        ]
     selected = [
         row for index, row in enumerate(proposals)
         if index % args.shard_count == args.shard_index
@@ -270,7 +313,10 @@ def main() -> int:
         )
         for row in selected
     ]
-    result = summarize(records, beta=args.beta, proposal_count=len(proposals))
+    result = summarize(
+        records, beta=args.beta, proposal_count=len(proposals),
+        selection_contract=args.selection_contract,
+    )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n",

@@ -7,6 +7,7 @@ from scripts.evaluate_self_play_component_value_shadow import (
     analyze_row,
     dominance,
     select_candidate,
+    select_sparse_fill_candidate,
 )
 
 
@@ -142,6 +143,35 @@ class ComponentValueShadowTests(unittest.TestCase):
 
         self.assertEqual(mean_decision["selected_candidate_id"], "b")
         self.assertEqual(conservative["selected_candidate_id"], "a")
+
+    def test_sparse_fill_selector_does_not_let_cog_veto_fill(self):
+        estimates = {
+            "a": _estimate(5.0, 4.0, 0.0, cog=0.4),
+            "b": _estimate(6.0, 4.0, 0.0, cog=0.8),
+        }
+
+        decision = select_sparse_fill_candidate(
+            estimates, incumbent_id="a", beta=0.0
+        )
+
+        self.assertEqual(decision["selected_candidate_id"], "b")
+        self.assertIn("center_of_mass_z", decision["diagnostic_only_axes"])
+
+    def test_sparse_fill_selector_keeps_attribute_and_placed_guards(self):
+        incumbent = _estimate(5.0, 4.0, 0.0)
+        estimates = {
+            "a": incumbent,
+            "soft-regression": _estimate(8.0, 4.0, 1.0),
+            "placed-regression": _estimate(9.0, 3.0, 0.0),
+            "clean-gain": _estimate(6.0, 4.0, -1.0),
+        }
+
+        decision = select_sparse_fill_candidate(
+            estimates, incumbent_id="a", beta=0.0
+        )
+
+        self.assertEqual(decision["selected_candidate_id"], "clean-gain")
+        self.assertEqual(decision["feasible_candidate_ids"], ["clean-gain"])
 
     @staticmethod
     def _branch(candidate_id, tag):
