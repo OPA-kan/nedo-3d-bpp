@@ -75,9 +75,13 @@ accuracy is now measured directly and becomes the V acceptance metric.
    best terminal-ordering estimator measured so far, but integration
    still requires re-running the gate at scale with the *terminal*
    reference (more cells, more roots, both seeds) rather than H2.
-2. Deeper bounded horizons (H4/H8) look unattractive: depth-2 already
-   added nothing over depth-1 against terminal. The budget question is
-   "physical step + V" vs "more replicas", not "how deep".
+2. Deeper bounded horizons (H4/H8) drop in priority but are not ruled
+   out: depth-2 added nothing over depth-1 against terminal *on these
+   roots*, but divergences that only appear around depth 4-8 (a corridor
+   blocked five placements later) are exactly what search exists for. If
+   the question returns, an H4 arm over the same 20 probed roots costs
+   little and measures tau(H4, terminal) directly. For now the budget
+   question is "physical step + V" vs "more replicas", not "how deep".
 3. The probe machinery is cheap enough (~38 s/candidate, zero censoring)
    to become the standing reference arm: terminal probes on sampled
    roots should accompany every future gate instead of bounded-horizon

@@ -269,8 +269,12 @@ accuracy 0.708; priority_covered: pearson 0.431 vs perfect
 discrimination), so within-root pairwise accuracy is now the V
 acceptance metric. Scope: 20 roots, 2 cells, one seed; direction is
 clear, magnitudes are not. Integration of V stays unlicensed until the
-gate is re-run at scale against terminal references; bounded H4/H8 arms
-look pointless (depth 2 already added nothing); terminal probes on
+gate is re-run at scale against terminal references. Bounded H4/H8 arms
+drop in priority but are not ruled out: depth 2 added nothing over depth
+1 here, yet corridor-blocking divergences that appear only around depth
+5 are exactly the packing failure mode search exists for, and a cheap
+H4 arm over the already-probed 20 roots would measure
+tau(H4, terminal) directly if the question returns. Terminal probes on
 sampled roots become the standing reference arm for future gates.
 
 The next learner is now specified and instrumented as a masked multi-head
