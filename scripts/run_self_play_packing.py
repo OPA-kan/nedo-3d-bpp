@@ -51,6 +51,7 @@ from scripts.self_play_packing_search import (  # noqa: E402
     build_multi_head_branch_sample,
     build_return_targets,
     candidate_id,
+    candidate_rank,
     summarize_multi_head_branch_samples,
 )
 
@@ -1075,8 +1076,21 @@ def play_game(
     evaluate_fn: Callable[[Any], dict[str, Any]] | None = None,
     legal_filter_fn: Callable[..., tuple[list[Any], dict[str, Any]]] | None = None,
     search_fn: Callable[..., tuple[Any, dict[str, Any]]] | None = None,
+    coverage_fn: Callable[..., list[Any]] | None = None,
+    coverage_per_step: int = 0,
+    paired_candidate_divisor: int | None = None,
 ) -> dict[str, Any]:
-    """Play one game through injected candidate and physics boundaries."""
+    """Play one game through injected candidate and physics boundaries.
+
+    ``coverage_fn`` unions strategy-free coverage proposals into every
+    step's candidate set for *measurement*: they pass the same physical
+    filter and enter the searched (and recorded) support, but execution
+    and termination stay on the ranked legacy support — a state where no
+    legacy candidate survives ends the game even if safe coverage
+    actions exist, so trajectories are bit-comparable with pre-union
+    runs. ``paired_candidate_divisor`` (the paired simulation count)
+    trims unranked coverage candidates so the union size divides it.
+    """
     if max_steps < 1 or top_k < 1:
         raise ValueError("max_steps and top_k must be positive")
     state = GameState(current_player=starting_player)
@@ -1107,24 +1121,32 @@ def play_game(
                 state_capture["cumulative_metrics_before"] = metrics_fn(env)
                 captures.append(state_capture)
         proposals = list(candidate_provider(env, observation, int(top_k)))
+        coverage_proposals = (
+            list(coverage_fn(env=env, observation=observation, step=step))
+            if coverage_fn is not None else []
+        )
+        all_proposals = proposals + coverage_proposals
         legal_audit = {
             "schema_version": 1,
             "mode": "unfiltered",
             "step": int(step),
-            "proposal_count": len(proposals),
-            "safe_count": len(proposals),
+            "proposal_count": len(all_proposals),
+            "safe_count": len(all_proposals),
             "rejected_count": 0,
-            "candidates": [_candidate_record(row) for row in proposals],
+            "candidates": [_candidate_record(row) for row in all_proposals],
         }
-        candidates = proposals
-        if proposals and legal_filter_fn is not None:
+        candidates = all_proposals
+        if all_proposals and legal_filter_fn is not None:
             candidates, legal_audit = legal_filter_fn(
-                env=env, observation=observation, candidates=proposals,
+                env=env, observation=observation, candidates=all_proposals,
                 actions=list(actions), step=step,
             )
             candidates = list(candidates)
         legal_move_audits.append(legal_audit)
-        if not candidates:
+        # Execution and termination live on the ranked legacy support only;
+        # coverage candidates are measured, never load-bearing for either.
+        legacy_safe = [c for c in candidates if candidate_rank(c) < 10**9]
+        if not legacy_safe:
             terminal_reason = (
                 "no_safe_retained_candidate" if proposals
                 else "no_retained_candidate"
@@ -1132,6 +1154,21 @@ def play_game(
             terminal = apply_terminal_loss(rewards, loser=mover, rules=rules)
             loser, winner = terminal["loser"], terminal["winner"]
             break
+        if coverage_fn is not None:
+            coverage_safe = [
+                c for c in candidates if candidate_rank(c) >= 10**9
+            ]
+            if coverage_per_step > 0:
+                coverage_safe = coverage_safe[:coverage_per_step]
+            if paired_candidate_divisor is not None:
+                total = len(legacy_safe) + len(coverage_safe)
+                while (
+                    total > len(legacy_safe)
+                    and paired_candidate_divisor % total != 0
+                ):
+                    total -= 1
+                coverage_safe = coverage_safe[:total - len(legacy_safe)]
+            candidates = legacy_safe + coverage_safe
         search_record = None
         if search_fn is not None:
             chosen, search_record = search_fn(
@@ -1304,6 +1341,9 @@ def run_physical_game(
     mcts_root_dirichlet_epsilon: float = 0.0,
     mcts_root_allocation_mode: str = "scalar_puct",
     mcts_leaf_vector_model_dir: pathlib.Path | None = None,
+    coverage_per_step: int = 0,
+    coverage_sample_budget: int = 0,
+    coverage_seed: int | None = None,
 ) -> dict[str, Any]:
     from src.ground_handling.env import GroundHandlingEnv
 
@@ -1318,6 +1358,24 @@ def run_physical_game(
         task_config, case_id=case_id, environment_seed=environment_seed,
     )
     search_fn = None
+    coverage_fn = None
+    if coverage_per_step > 0:
+        if coverage_sample_budget < coverage_per_step:
+            raise ValueError(
+                "coverage_sample_budget must cover coverage_per_step"
+            )
+        if coverage_seed is None:
+            raise ValueError("coverage collection needs an explicit seed")
+        from scripts.coverage_action_sampler import coverage_candidates
+
+        def coverage_fn(*, env, observation, step):
+            return coverage_candidates(
+                policy_observation(env, observation),
+                coverage_seed=int(coverage_seed) + int(step),
+                budget=int(coverage_sample_budget),
+                z_mode="volume",
+            )
+
     leaf_vector_fn = None
     if selection_mode == "mcts" and mcts_leaf_vector_model_dir is not None:
         leaf_vector_fn = BehaviorVectorLeaf(mcts_leaf_vector_model_dir)
@@ -1351,6 +1409,18 @@ def run_physical_game(
             "handoff_seed": handoff_seed,
             "policy_seed": policy_seed,
             "selection_mode": selection_mode,
+            # Included only when coverage union is on so pre-union
+            # trajectory ids stay stable.
+            **(
+                {
+                    "coverage_union": {
+                        "per_step": int(coverage_per_step),
+                        "sample_budget": int(coverage_sample_budget),
+                        "seed": int(coverage_seed),
+                    },
+                }
+                if coverage_per_step > 0 else {}
+            ),
             "mcts": (
                 {
                     "simulations": mcts_simulations,
@@ -1447,6 +1517,15 @@ def run_physical_game(
             evaluate_fn=lambda current: _compact_evaluation(current.evaluate()),
             legal_filter_fn=legal_filter,
             search_fn=search_fn,
+            coverage_fn=coverage_fn,
+            coverage_per_step=coverage_per_step,
+            paired_candidate_divisor=(
+                mcts_simulations
+                if selection_mode == "mcts"
+                and mcts_root_allocation_mode == "paired_round_robin"
+                and coverage_fn is not None
+                else None
+            ),
         )
         result.update({
             "trajectory_id": trajectory_id,
@@ -1510,6 +1589,14 @@ def main() -> int:
         default="scalar_puct",
     )
     parser.add_argument(
+        "--coverage-candidates-per-step", type=int, default=0,
+        help="max safe coverage candidates unioned into each step's "
+        "searched support (0 disables the union; execution stays rank-0 "
+        "legacy either way)",
+    )
+    parser.add_argument("--coverage-sample-budget", type=int, default=0)
+    parser.add_argument("--coverage-seed", type=int, default=None)
+    parser.add_argument(
         "--mcts-leaf-vector-model-dir", type=pathlib.Path, default=None,
         help="frozen V^pi_behavior ensemble directory; when set, horizon "
         "leaves record a predicted leaf->terminal suffix vector on each "
@@ -1560,6 +1647,9 @@ def main() -> int:
             mcts_root_dirichlet_epsilon=args.mcts_root_dirichlet_epsilon,
             mcts_root_allocation_mode=args.mcts_root_allocation_mode,
             mcts_leaf_vector_model_dir=args.mcts_leaf_vector_model_dir,
+            coverage_per_step=args.coverage_candidates_per_step,
+            coverage_sample_budget=args.coverage_sample_budget,
+            coverage_seed=args.coverage_seed,
         ))
     manifest = {
         "schema_version": 1,
@@ -1582,6 +1672,16 @@ def main() -> int:
             ),
             "rejected_proposals_retained_for_audit": True,
             "soft_priority": "dense_zero_sum_penalty_not_hard_filter",
+            "coverage_union": (
+                {
+                    "z_mode": "volume",
+                    "candidates_per_step": args.coverage_candidates_per_step,
+                    "sample_budget": args.coverage_sample_budget,
+                    "seed": args.coverage_seed,
+                    "execution_and_termination": "legacy_rank0_only",
+                }
+                if args.coverage_candidates_per_step > 0 else None
+            ),
         },
         "selection": {
             "mode": args.selection_mode,
