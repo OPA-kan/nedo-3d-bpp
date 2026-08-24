@@ -478,19 +478,31 @@ then chooses by uniform prior and low visits. V, learned interior support and
 learned priors remain closed. See
 `reports/self-play-packing/terminal-rollout-resurrection-oracle.md`.
 
-The next learner is now specified and instrumented as a masked multi-head
-Set Transformer ensemble estimating observed suffix
-`V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
-the split unit; three to five group-bootstrap members provide per-head
-epistemic variance. Ranker/immediate score/rank/prior are forbidden inputs.
-Only the player-to-move game return head is adapted to player-0 scalar PUCT;
-fill/soft/priority/stability remain separate diagnostic heads with no invented
-exchange rate. The first gate holds support and H2 S48 fixed and compares
-`H2+V` with `H2+0` against run `32603397325`'s deep physical reference.
-Every root uses only the fold ensemble that excluded its complete trajectory
-group; the all-data final ensemble is not admissible for this gate.
-Progressive widening, P and proposal heads remain closed until that paired
-gate passes. See `behavior-value-set-transformer-protocol.md`.
+That allocation-separated comparison completed in Actions run `32719101460`
+at commit `16bf610`: six/six physical cells plus aggregate succeeded, 10/10
+roots had complete paired terminal truth, censoring was zero, and 11 terminal-
+resurrection actions were observed. Pareto-PUCT deepened 11/11 versus v0's
+8/11 while using 772 versus 802 bounded-search physical steps. It recovered
+20/30 terminal-Pareto actions versus 18/30, but only 2/11 resurrection actions
+survived its measured search frontier (v0: 0/11). Allocation is therefore
+improved and frozen; leaf evaluation is now the identified bottleneck. Next
+compare fixed-support, fixed-Pareto-PUCT `H2+0` against `H2+V(s_H)` using the
+same deep physical reference. Do not add learned priors, progressive widening
+or proposal changes in that comparison.
+
+The current learner is a masked multi-head Set Transformer ensemble estimating
+observed suffix `V^pi_behavior(s)`, explicitly not `V*`. Unlike the closed
+two-player scalar-V experiment below, the active contract consumes only
+container, packed-item and visible-item sets: no player, block, handoff or
+scalar `return_to_go` enters either inputs or targets. P3A's committed selected
+afterstates reconstruct 114 played states from 12 complete trajectory groups;
+the 12 unavailable initial states are omitted rather than approximated.
+Complete trajectories are the split unit, three group-bootstrap members expose
+per-head epistemic variance, and every shadow root loads only the fold that
+excluded its trajectory. `H2+0` versus `H2+V` freezes Pareto-PUCT, candidate
+support, priors and depth; terminal rollout scores both arms but cannot guide
+either. Progressive widening, P and proposal heads remain closed. See
+`behavior-value-set-transformer-protocol.md`.
 
 A companion one-step paired-shake instrument is also ready for the 15 deep
 Q-top changes: reconstruct the same root twice, force old/rescued actions once

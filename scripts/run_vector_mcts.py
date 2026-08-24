@@ -37,6 +37,11 @@ inside search and runs the genuine-terminal continuation only for each safe
 root action after its one-step transition. Thus terminal outcomes can score
 ``frontier`` and ``pareto-puct`` without leaking oracle values into either
 allocation policy.
+
+The controlled ``--leaf-eval value`` arm is valid only with
+``--allocation pareto-puct``. It composes measured root-to-leaf component
+deltas with a group-excluded single-agent multi-head suffix V. Terminal-only
+stability predictions remain separate fields; no scalar utility is invented.
 """
 
 from __future__ import annotations
@@ -95,6 +100,15 @@ EPS = 1e-9
 GENUINE_TERMINATIONS = {
     "stream_exhausted", "no_retained_candidate", "no_safe_retained_candidate",
 }
+LEAF_SUFFIX_TO_COMPONENT = {
+    "fill_return": "fill_gain",
+    "placed_return": "placed_gain",
+    "soft_violation_return": "soft_violation_gain",
+    "priority_covered_return": "priority_covered_gain",
+    "priority_misrouted_return": "priority_misrouted_gain",
+    "center_of_mass_z_return": "center_of_mass_z_delta",
+    "surface_total_variation_return": "surface_total_variation_delta",
+}
 
 
 def _output_contract(
@@ -104,10 +118,14 @@ def _output_contract(
     if allocation not in {"frontier", "pareto-puct"}:
         raise ValueError(f"unsupported allocation: {allocation}")
     if terminal_audit:
-        if leaf_eval != "measured":
+        if leaf_eval == "rollout":
             raise ValueError(
-                "terminal_audit is the scoring-only companion to measured "
-                "allocation; rollout already supplies terminal evaluation"
+                "terminal_audit cannot accompany rollout-guided allocation"
+            )
+        if leaf_eval == "value":
+            return (
+                4, "pareto_puct_value_terminal_audit_v4",
+                "terminal_frontier_resurrection_v1",
             )
         return (
             3, "pareto_search_terminal_audit_v3",
@@ -122,6 +140,8 @@ def _output_contract(
             2, "pareto_tree_search_terminal_oracle_v2",
             "terminal_frontier_resurrection_v1",
         )
+    if leaf_eval == "value":
+        return 4, "vector_pareto_puct_value_shadow_v4", None
     raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
 
 
@@ -424,6 +444,33 @@ def _component_values(
     }
 
 
+def compose_leaf_value(
+    achieved: dict[str, float | None],
+    prediction: dict[str, dict[str, Any]],
+) -> dict[str, float | None]:
+    """Compose measured prefix deltas with remaining-delta/terminal heads."""
+    result = dict(achieved)
+    for suffix, component in LEAF_SUFFIX_TO_COMPONENT.items():
+        value = (prediction.get(suffix) or {}).get("mean")
+        prefix = result.get(component)
+        result[component] = (
+            None if prefix is None or not isinstance(value, (int, float))
+            else float(prefix) + float(value)
+        )
+    completed = (prediction.get("stream_completed") or {}).get("mean")
+    result["stream_completed_probability"] = (
+        float(completed) if isinstance(completed, (int, float)) else None
+    )
+    for name in (
+        "terminal_stability_max_shift",
+        "terminal_stability_peak_kinetic_energy",
+        "terminal_stability_items_toppled",
+    ):
+        value = (prediction.get(name) or {}).get("mean")
+        result[name] = float(value) if isinstance(value, (int, float)) else None
+    return result
+
+
 def _merge_terminal_shake(
     final_metrics: dict[str, Any], evaluation: Any,
 ) -> None:
@@ -580,8 +627,9 @@ def vector_search_root(
     terminal_audit: bool = False,
     allocation: str = "frontier", c_puct: float = 2.0,
     terminal_rollout_fn: Callable[[list[Any]], dict[str, Any]] | None = None,
+    leaf_vector_fn: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if leaf_eval not in {"measured", "rollout"}:
+    if leaf_eval not in {"measured", "rollout", "value"}:
         raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
     if rollout_top_k < 1:
         raise ValueError("rollout_top_k must be positive")
@@ -589,12 +637,16 @@ def vector_search_root(
         raise ValueError("rollout_max_steps must be non-negative")
     if not root_candidates:
         raise ValueError("vector search needs at least one root candidate")
-    if terminal_audit and leaf_eval != "measured":
-        raise ValueError("terminal_audit requires measured leaf allocation")
+    if terminal_audit and leaf_eval == "rollout":
+        raise ValueError("terminal_audit cannot accompany rollout leaf allocation")
     if allocation not in {"frontier", "pareto-puct"}:
         raise ValueError(f"unsupported allocation: {allocation}")
     if c_puct < 0.0:
         raise ValueError("c_puct must be non-negative")
+    if leaf_eval == "value" and allocation != "pareto-puct":
+        raise ValueError("value shadow requires frozen Pareto-PUCT allocation")
+    if leaf_eval == "value" and leaf_vector_fn is None:
+        raise ValueError("value leaf evaluation requires leaf_vector_fn")
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
@@ -653,12 +705,26 @@ def vector_search_root(
                 terminal_rollout_physical_steps += int(
                     terminal_result.get("physical_steps", 0)
                 )
-            evaluation_vector = (
-                accumulated if leaf_eval == "measured"
-                else terminal_result.get("terminal_vector")
-                if terminal_result and terminal_result.get("genuine_terminal")
-                else None
-            )
+            leaf_prediction = None
+            if leaf_eval == "measured":
+                evaluation_vector = accumulated
+            elif leaf_eval == "rollout":
+                evaluation_vector = (
+                    terminal_result.get("terminal_vector")
+                    if terminal_result
+                    and terminal_result.get("genuine_terminal")
+                    else None
+                )
+            elif ended:
+                evaluation_vector = accumulated
+            else:
+                leaf_prediction = leaf_vector_fn(
+                    env=env, observation=result["observation"],
+                    step=step + len(actions),
+                )
+                evaluation_vector = compose_leaf_value(
+                    accumulated, leaf_prediction
+                )
             candidates = []
             if not ended and len(actions) < max_depth:
                 observation = result["observation"]
@@ -672,6 +738,7 @@ def vector_search_root(
                 "actions": [json_safe(a) for a in actions],
                 "vector": accumulated,
                 "evaluation_vector": evaluation_vector,
+                "leaf_value_prediction": leaf_prediction,
                 "root_candidate_id": root_candidate_id,
                 "parent": parent,
                 "depth": len(actions),
@@ -858,6 +925,7 @@ def vector_search_root(
                 for field in (
                     "actions", "vector", "root_candidate_id", "depth",
                     "ended", "expanded", "evaluation_vector",
+                    "leaf_value_prediction",
                     "terminal_genuine", "terminal_termination",
                     "terminal_continuation_steps", "terminal_vector",
                     "terminal_metrics", "terminal_evaluation",
@@ -883,10 +951,11 @@ def main() -> int:
     parser.add_argument("--expansions", type=int, default=10)
     parser.add_argument("--max-depth", type=int, default=3)
     parser.add_argument(
-        "--leaf-eval", choices=("measured", "rollout"), default="measured",
+        "--leaf-eval", choices=("measured", "rollout", "value"),
+        default="measured",
         help=(
-            "Use measured bounded deltas or genuine-terminal rank-0 "
-            "rollouts to evaluate each newly reached leaf"
+            "Use measured deltas, genuine-terminal rank-0 rollouts, or a "
+            "single-agent multi-head suffix V at each reached leaf"
         ),
     )
     parser.add_argument("--rollout-top-k", type=int, default=3)
@@ -903,6 +972,7 @@ def main() -> int:
         default="frontier",
     )
     parser.add_argument("--c-puct", type=float, default=2.0)
+    parser.add_argument("--leaf-vector-model-dir", type=pathlib.Path)
     parser.add_argument("--max-roots", type=int, default=None)
     parser.add_argument("--beta-model-dir", type=pathlib.Path, default=None)
     parser.add_argument("--beta-proposals", type=int, default=6)
@@ -918,10 +988,22 @@ def main() -> int:
     episode = manifest["episodes"][0]
     agent_module = load_agent_module()
     beta_ensemble = None
+    leaf_adapter = None
     if args.beta_model_dir is not None:
         from scripts.train_feasibility_head import FeasibilityEnsemble
 
         beta_ensemble = FeasibilityEnsemble(args.beta_model_dir)
+    if args.leaf_eval == "value":
+        if args.leaf_vector_model_dir is None:
+            raise SystemExit("--leaf-eval value requires --leaf-vector-model-dir")
+        from scripts.train_self_play_set_value import (
+            BehaviorValueEnsemble, SingleAgentLeafVector,
+        )
+
+        excluded_group = f"{args.manifest.parent.name}:episode-000"
+        leaf_adapter = SingleAgentLeafVector(BehaviorValueEnsemble(
+            args.leaf_vector_model_dir, excluded_group=excluded_group,
+        ))
 
     env = _fresh_env(task_config)
     roots = []
@@ -988,6 +1070,7 @@ def main() -> int:
                 terminal_audit=args.terminal_audit,
                 allocation=args.allocation,
                 c_puct=args.c_puct,
+                leaf_vector_fn=leaf_adapter,
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
@@ -1027,6 +1110,16 @@ def main() -> int:
         "backup": "additive_component_vector_sets",
         "leaf_eval": args.leaf_eval,
         "terminal_audit": bool(args.terminal_audit),
+        "leaf_vector_model": (
+            None if leaf_adapter is None else {
+                "semantics": "V^pi_behavior_not_V_star",
+                "behavior_contract": "single_agent_v1",
+                "excluded_groups": list(
+                    leaf_adapter.ensemble.excluded_groups
+                ),
+                "calls": len(leaf_adapter.calls),
+            }
+        ),
         "terminal_rollout_policy": (
             {
                 "policy": "frozen_rank0_exact_physical_filter",

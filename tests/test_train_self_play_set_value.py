@@ -9,6 +9,7 @@ from unittest import mock
 from scripts.train_self_play_set_value import (
     BehaviorValueEnsemble,
     PlayerZeroLeafValue,
+    SingleAgentLeafVector,
     build_model,
     example_from_state,
     prepare_examples,
@@ -58,6 +59,14 @@ def row(group, *, fill=None, stability=None, eligible=True):
     }
 
 
+def single_agent_row(group, *, fill):
+    value = row(group, fill=fill)
+    value["behavior_contract"] = "single_agent_v1"
+    value.pop("return_to_go")
+    value.pop("game_features")
+    return value
+
+
 class SelfPlaySetValueTests(unittest.TestCase):
     def test_builds_masked_multi_head_behavior_value_examples(self):
         examples, contract = prepare_examples([
@@ -85,6 +94,24 @@ class SelfPlaySetValueTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "behavior-policy value"):
             prepare_examples([bad])
+
+    def test_single_agent_contract_has_no_game_input_or_scalar_return(self):
+        examples, contract = prepare_examples([
+            single_agent_row("g1", fill=1.0),
+            single_agent_row("g2", fill=2.0),
+        ])
+
+        self.assertEqual(contract["behavior_contract"], "single_agent_v1")
+        self.assertEqual(contract["game_features"], [])
+        self.assertEqual(contract["head_names"], ["fill_return"])
+        self.assertEqual(examples[0]["game"], [])
+        self.assertEqual(examples[0]["targets"], [1.0])
+
+    def test_rejects_mixed_single_agent_and_game_rows(self):
+        with self.assertRaisesRegex(ValueError, "cannot be mixed"):
+            prepare_examples([
+                single_agent_row("g1", fill=1.0), row("g2", fill=2.0),
+            ])
 
     def test_requires_three_to_five_ensemble_members(self):
         for size in (3, 4, 5):
@@ -165,6 +192,31 @@ class SelfPlaySetValueTests(unittest.TestCase):
         self.assertEqual(adapter.calls[0]["return_to_go_player0_mean"], -25.0)
         self.assertEqual(adapter.calls[0]["heads"]["fill_return"]["mean"], 3.0)
 
+    @mock.patch(
+        "scripts.counterfactual_graph.state_tensor_from_snapshot",
+        return_value={"tensor": True},
+    )
+    @mock.patch("scripts.build_replay_dataset.state_snapshot", return_value={})
+    @mock.patch("scripts.build_replay_dataset.policy_observation", return_value={})
+    def test_single_agent_leaf_vector_has_no_player_perspective(
+        self, _policy, _snapshot, _tensor,
+    ):
+        class Ensemble:
+            contract = {"behavior_contract": "single_agent_v1"}
+
+            def predict(self, state, game_state):
+                self.seen = (state, game_state)
+                return {"fill_return": {
+                    "mean": 4.0, "variance": 1.0, "members": [3.0, 4.0, 5.0],
+                }}
+
+        ensemble = Ensemble()
+        adapter = SingleAgentLeafVector(ensemble)
+        prediction = adapter(env=object(), observation={}, step=7)
+
+        self.assertEqual(prediction["fill_return"]["mean"], 4.0)
+        self.assertEqual(ensemble.seen, ({"tensor": True}, None))
+
     @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
     def test_set_transformer_emits_one_value_per_head(self):
         import torch
@@ -186,6 +238,25 @@ class SelfPlaySetValueTests(unittest.TestCase):
         self.assertEqual(
             tuple(model(batch).shape), (2, len(contract["head_names"]))
         )
+
+    @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
+    def test_single_agent_set_transformer_needs_no_game_tensor(self):
+        import torch
+
+        examples, contract = prepare_examples([
+            single_agent_row("g1", fill=1.0),
+            single_agent_row("g2", fill=2.0),
+        ])
+        model = build_model(torch, contract, dim=16)
+        batch = {
+            "container": torch.zeros((2, 1, 1)),
+            "container_mask": torch.zeros((2, 1), dtype=torch.bool),
+            "packed_item": torch.zeros((2, 1, 2)),
+            "packed_item_mask": torch.zeros((2, 1), dtype=torch.bool),
+            "visible_item": torch.zeros((2, 1, 1)),
+            "visible_item_mask": torch.zeros((2, 1), dtype=torch.bool),
+        }
+        self.assertEqual(tuple(model(batch).shape), (2, 1))
 
     @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
     def test_saved_oof_ensemble_excludes_group_and_runs_inference(self):

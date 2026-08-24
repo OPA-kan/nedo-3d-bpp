@@ -11,6 +11,7 @@ from scripts.run_vector_mcts import (
     _terminal_rollout,
     _update_edge_stat,
     build_resurrection_audit,
+    compose_leaf_value,
     pareto_frontier,
     summarize_resurrection_audits,
     vector_search_root,
@@ -40,6 +41,15 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         self.assertEqual(
             _output_contract("measured", allocation="pareto-puct"),
             (2, "vector_pareto_puct_search_v1", None),
+        )
+        self.assertEqual(
+            _output_contract(
+                "value", terminal_audit=True, allocation="pareto-puct"
+            ),
+            (
+                4, "pareto_puct_value_terminal_audit_v4",
+                "terminal_frontier_resurrection_v1",
+            ),
         )
 
     def test_rollout_oracle_cannot_masquerade_as_legacy_search_teacher(self):
@@ -80,6 +90,49 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         accumulated = _accumulate(base, delta)
         self.assertEqual(accumulated["fill_gain"], 3.0)
         self.assertIsNone(accumulated["soft_violation_gain"])
+
+    def test_leaf_value_composition_respects_head_semantics(self):
+        result = compose_leaf_value(
+            {
+                "fill_gain": 2.0, "placed_gain": 1.0,
+                "soft_violation_gain": 0.0,
+                "priority_covered_gain": 1.0,
+                "priority_misrouted_gain": 0.0,
+                "center_of_mass_z_delta": 0.2,
+                "surface_total_variation_delta": 0.3,
+            },
+            {
+                "fill_return": {"mean": 5.0},
+                "placed_return": {"mean": 3.0},
+                "soft_violation_return": {"mean": 1.0},
+                "priority_covered_return": {"mean": 0.0},
+                "priority_misrouted_return": {"mean": 2.0},
+                "center_of_mass_z_return": {"mean": -0.1},
+                "surface_total_variation_return": {"mean": 0.4},
+                "stream_completed": {"mean": 0.75},
+                "terminal_stability_max_shift": {"mean": 0.08},
+            },
+        )
+
+        self.assertEqual(result["fill_gain"], 7.0)
+        self.assertEqual(result["placed_gain"], 4.0)
+        self.assertEqual(result["soft_violation_gain"], 1.0)
+        self.assertAlmostEqual(result["center_of_mass_z_delta"], 0.1)
+        self.assertEqual(result["surface_total_variation_delta"], 0.7)
+        self.assertEqual(result["stream_completed_probability"], 0.75)
+        self.assertEqual(result["terminal_stability_max_shift"], 0.08)
+
+    def test_value_leaf_requires_puct_and_an_adapter(self):
+        common = dict(
+            agent_module=object(), task_config={}, case_id="m-test",
+            environment_seed=1, prefix_actions=[], root_candidates=[{}],
+            attempt_budget=1, deep_top_k=1, expansions=0, max_depth=2,
+            step=0, leaf_eval="value",
+        )
+        with self.assertRaisesRegex(ValueError, "Pareto-PUCT"):
+            vector_search_root(**common, allocation="frontier")
+        with self.assertRaisesRegex(ValueError, "leaf_vector_fn"):
+            vector_search_root(**common, allocation="pareto-puct")
 
     def test_resurrection_audit_separates_truth_frontier_and_expansion(self):
         nodes = {
@@ -374,6 +427,64 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             result["terminal_frontier_resurrection_candidates"], ["b"]
         )
         self.assertEqual(result["terminal_rollout_physical_steps"], 6)
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_value_leaf_uses_model_while_terminal_audit_stays_scoring_only(
+        self, measured_rollout, provider_builder,
+    ):
+        provider_builder.return_value = lambda *_args: []
+
+        class Env:
+            def close(self):
+                pass
+
+        def measured(*_args, actions, **_kwargs):
+            item = actions[0]["item_idx"]
+            return {
+                "safe": True, "terminated": False, "truncated": False,
+                "step_deltas": [{
+                    head: {"value": value}
+                    for head, value in vector(3.0 if item == 0 else 1.0).items()
+                }],
+                "observation": {"item": item}, "env": Env(),
+            }
+
+        measured_rollout.side_effect = measured
+        terminal = mock.Mock(side_effect=lambda actions: {
+            "termination": "stream_exhausted", "genuine_terminal": True,
+            "continuation_steps": 1, "physical_steps": 2,
+            "terminal_vector": vector(
+                4.0 if actions[0]["item_idx"] == 0 else 10.0
+            ),
+            "terminal_metrics": {}, "evaluation": {},
+        })
+
+        def leaf(*, observation, **_kwargs):
+            remaining = 0.0 if observation["item"] == 0 else 9.0
+            return {
+                "fill_return": {"mean": remaining},
+                "soft_violation_return": {"mean": 0.0},
+                "priority_covered_return": {"mean": 0.0},
+                "priority_misrouted_return": {"mean": 0.0},
+                "surface_total_variation_return": {"mean": 0.0},
+            }
+
+        result = vector_search_root(
+            object(), {}, case_id="case", environment_seed=42,
+            prefix_actions=[], root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=0,
+            max_depth=2, step=0, leaf_eval="value",
+            allocation="pareto-puct", leaf_vector_fn=leaf,
+            terminal_audit=True, terminal_rollout_fn=terminal,
+        )
+
+        self.assertEqual(result["measured_search_pareto_candidates"], ["a"])
+        self.assertEqual(result["evaluated_search_pareto_candidates"], ["b"])
+        self.assertEqual(result["terminal_pareto_candidates"], ["b"])
+        self.assertEqual(terminal.call_count, 2)
 
     @staticmethod
     def _candidate(name, item_idx):

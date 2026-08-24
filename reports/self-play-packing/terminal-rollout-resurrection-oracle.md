@@ -1,7 +1,7 @@
 # Terminal-rollout resurrection oracle
 
-Status: oracle validated on Linux/PyBullet; allocation-separated Pareto-PUCT
-benchmark implemented and pending its physical matrix.
+Status: oracle and allocation-separated Pareto-PUCT benchmark validated on
+Linux/PyBullet.
 
 The physical pilot is wired through
 `.github/workflows/terminal-resurrection-oracle.yml`: six preregistered Phase-4
@@ -120,10 +120,24 @@ initialized once.
   are recorded in terminal metrics/evaluation but are not silently added to the
   Pareto space.
 
-## Required allocation run
+## Allocation result
 
-Run paired measured v0 and measured Pareto-PUCT arms on the same fresh roots.
-The aggregate must validate identical H1 and terminal evidence and require
-complete genuine-terminal sibling sets before quoting allocation recall.
-Primary metrics are resurrection deepening recall, resurrection frontier
-recall, terminal-Pareto recall, false-frontier count and physical steps.
+Actions run `32719101460` completed all six physical cells and aggregate at
+commit `16bf610`. The comparison covered 10 roots, with complete terminal
+truth for 10/10 roots, zero censoring and identical H1/terminal evidence across
+both arms. Eleven root actions were outside `PF_H1` but inside `PF_terminal`.
+
+| metric | v0 frontier-first | Pareto-PUCT |
+|---|---:|---:|
+| resurrection actions deepened | 8/11 (72.7%) | **11/11 (100%)** |
+| resurrection actions retained on search frontier | 0/11 | **2/11 (18.2%)** |
+| terminal-Pareto actions recovered | 18/30 (60.0%) | **20/30 (66.7%)** |
+| false-frontier actions | 3 | 3 |
+| bounded-search physical steps | 802 | **772** |
+
+Pareto-PUCT therefore passes the allocation gate: it revisited every known
+resurrection action at slightly lower physical cost. It does **not** solve leaf
+evaluation. Nine of eleven resurrection actions still failed to survive the
+measured search frontier after being explored. The next controlled change is
+therefore leaf value only: freeze candidate support and Pareto-PUCT, then
+compare `H2+0` with `H2+V(s_H)` against the same deep physical reference.

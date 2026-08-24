@@ -1,6 +1,7 @@
 # Pareto search ablation program (amended 2026-08-24)
 
-Status: amended after terminal-oracle run `32682204705`. Governs
+Status: amended after terminal-oracle runs `32682204705` and `32719101460`.
+Governs
 how Pareto Tree Search v0 evolves toward a true vector search. The
 essence, fixed up front:
 
@@ -41,6 +42,14 @@ improves which branches receive depth. Terminal truth scores the finished
 search and cannot guide it. This isolates allocation benefit from value-model
 benefit; `v0+P+V` remains the next stage regardless of whether P alone can
 repair frontier recognition.
+
+Run `32719101460` completed that comparison. v0+P deepened 11/11 resurrection
+actions versus 8/11 for v0 while using 772 versus 802 bounded-search physical
+steps. Terminal-Pareto recall improved only from 18/30 to 20/30, and only 2/11
+resurrection actions survived the measured search frontier. Thus v0+P passes
+as the frozen allocation baseline for the next arm, while leaf evaluation is
+now the identified bottleneck. Proceed to v0+P+V without changing support,
+depth or priors.
 
 ### Prerequisite for v0+P+V: retrain V on the single-agent distribution
 

@@ -26,6 +26,7 @@ GAME_FEATURES = (
     "container_count", "packed_item_count", "visible_item_count",
 )
 SET_KEYS = ("container", "packed_item", "visible_item")
+SINGLE_AGENT_CONTRACT = "single_agent_v1"
 
 
 def validate_ensemble_size(size: int) -> None:
@@ -56,13 +57,18 @@ def prepare_examples(
             "Set value training requires explicit behavior-policy value "
             "semantics, never V* or branch-gain labels"
         )
+    behavior_contracts = {row.get("behavior_contract") for row in eligible}
+    single_agent = behavior_contracts == {SINGLE_AGENT_CONTRACT}
+    if SINGLE_AGENT_CONTRACT in behavior_contracts and not single_agent:
+        raise ValueError("single-agent and game value rows cannot be mixed")
     head_names = sorted({
         name
         for row in eligible
         for name, head in (row.get("value_heads") or {}).items()
         if _numeric_head_value(head) is not None
     })
-    head_names = ["return_to_go", *head_names]
+    if not single_agent:
+        head_names = ["return_to_go", *head_names]
     examples = []
     feature_contract = None
     for row in eligible:
@@ -75,14 +81,14 @@ def prepare_examples(
             feature_contract = current_contract
         elif current_contract != feature_contract:
             raise ValueError("state tensor feature contracts differ across rows")
-        values = [float(row["return_to_go"])]
-        mask = [True]
+        values = [] if single_agent else [float(row["return_to_go"])]
+        mask = [] if single_agent else [True]
         heads = row.get("value_heads") or {}
-        for name in head_names[1:]:
+        for name in (head_names if single_agent else head_names[1:]):
             value = _numeric_head_value(heads.get(name))
             values.append(0.0 if value is None else value)
             mask.append(value is not None)
-        game = row["game_features"]
+        game = row.get("game_features") or {}
         set_values = {
             key: [
                 list(map(float, token))
@@ -92,9 +98,11 @@ def prepare_examples(
         }
         examples.append({
             "group": str(row.get("split_group") or row["trajectory_group"]),
-            "game": [
-                float(game[name]) for name in GAME_FEATURES[:3]
-            ] + [float(len(set_values[key])) for key in SET_KEYS],
+            "game": (
+                [] if single_agent else [
+                    float(game[name]) for name in GAME_FEATURES[:3]
+                ] + [float(len(set_values[key])) for key in SET_KEYS]
+            ),
             **set_values,
             "targets": values,
             "target_mask": mask,
@@ -107,7 +115,10 @@ def prepare_examples(
         "semantics": MODEL_SEMANTICS,
         "source_semantics": DATASET_SEMANTICS,
         "head_names": head_names,
-        "game_features": list(GAME_FEATURES),
+        "game_features": [] if single_agent else list(GAME_FEATURES),
+        "behavior_contract": (
+            SINGLE_AGENT_CONTRACT if single_agent else "two_player_game_v1"
+        ),
         "set_features": feature_contract,
         "split_unit": "whole_trajectory_group",
         "groups": len(groups),
@@ -131,8 +142,9 @@ def _stats(
     examples: list[dict[str, Any]], contract: dict[str, Any],
 ) -> dict[str, Any]:
     stats: dict[str, Any] = {}
-    game = np.asarray([row["game"] for row in examples], dtype=np.float32)
-    stats["game"] = _mean_scale(game)
+    if contract.get("game_features"):
+        game = np.asarray([row["game"] for row in examples], dtype=np.float32)
+        stats["game"] = _mean_scale(game)
     for key in SET_KEYS:
         tokens = [token for row in examples for token in row[key]]
         if not tokens:
@@ -187,8 +199,9 @@ def _arrays(
     stats: dict[str, Any],
 ) -> dict[str, np.ndarray]:
     result: dict[str, np.ndarray] = {}
-    game = np.asarray([row["game"] for row in examples], dtype=np.float32)
-    result["game"] = (game - stats["game"][0]) / stats["game"][1]
+    if contract.get("game_features"):
+        game = np.asarray([row["game"] for row in examples], dtype=np.float32)
+        result["game"] = (game - stats["game"][0]) / stats["game"][1]
     for key in SET_KEYS:
         width = len(contract["set_features"][f"{key}_features"])
         values, mask = _pad_set(
@@ -247,11 +260,13 @@ def build_model(torch, contract: dict[str, Any], *, dim: int = 64):
                 ))
                 for key in SET_KEYS
             })
-            self.game = nn.Sequential(
-                nn.Linear(len(GAME_FEATURES), dim), nn.GELU()
+            game_width = len(contract.get("game_features") or [])
+            self.game = (
+                nn.Sequential(nn.Linear(game_width, dim), nn.GELU())
+                if game_width else None
             )
             self.trunk = nn.Sequential(
-                nn.Linear(4 * dim, 2 * dim), nn.GELU(),
+                nn.Linear((3 + bool(game_width)) * dim, 2 * dim), nn.GELU(),
                 nn.Dropout(0.1), nn.Linear(2 * dim, dim), nn.GELU(),
             )
             self.heads = nn.ModuleList([
@@ -263,7 +278,8 @@ def build_model(torch, contract: dict[str, Any], *, dim: int = 64):
                 self.encoders[key](batch[key], batch[f"{key}_mask"])
                 for key in SET_KEYS
             ]
-            blocks.append(self.game(batch["game"]))
+            if self.game is not None:
+                blocks.append(self.game(batch["game"]))
             state = self.trunk(torch.cat(blocks, dim=-1))
             return torch.cat([head(state) for head in self.heads], dim=1)
 
@@ -469,7 +485,8 @@ def _restore_stats(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def example_from_state(
-    state: dict[str, Any], game_state: Any,
+    state: dict[str, Any], game_state: Any, *,
+    contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one inference example using the exact training feature contract."""
     set_values = {
@@ -479,6 +496,7 @@ def example_from_state(
         ]
         for key in SET_KEYS
     }
+    game_features = list((contract or {}).get("game_features", GAME_FEATURES))
     aliases = {"player_to_move": "current_player"}
     if isinstance(game_state, dict):
         def read(name):
@@ -490,9 +508,11 @@ def example_from_state(
             ))
     return {
         "group": "inference",
-        "game": [
-            float(read(name)) for name in GAME_FEATURES[:3]
-        ] + [float(len(set_values[key])) for key in SET_KEYS],
+        "game": (
+            [] if not game_features else [
+                float(read(name)) for name in GAME_FEATURES[:3]
+            ] + [float(len(set_values[key])) for key in SET_KEYS]
+        ),
         **set_values,
         # _arrays also prepares targets. These placeholders are never read by
         # inference, but keeping one path prevents train/serve skew.
@@ -560,7 +580,7 @@ class BehaviorValueEnsemble:
     def predict(
         self, state: dict[str, Any], game_state: Any,
     ) -> dict[str, dict[str, Any]]:
-        example = example_from_state(state, game_state)
+        example = example_from_state(state, game_state, contract=self.contract)
         predictions = []
         with self.torch.no_grad():
             for model, stats in self.members:
@@ -624,6 +644,30 @@ class PlayerZeroLeafValue:
             "heads": prediction,
         })
         return normalized
+
+
+class SingleAgentLeafVector:
+    """Predict the raw multi-head remaining suffix from one physical leaf."""
+
+    def __init__(self, ensemble: BehaviorValueEnsemble):
+        if ensemble.contract.get("behavior_contract") != SINGLE_AGENT_CONTRACT:
+            raise ValueError("leaf vector requires a single-agent V ensemble")
+        self.ensemble = ensemble
+        self.calls: list[dict[str, Any]] = []
+
+    def __call__(self, *, env, observation, step: int) -> dict[str, Any]:
+        from scripts.build_replay_dataset import policy_observation, state_snapshot
+        from scripts.counterfactual_graph import state_tensor_from_snapshot
+
+        snapshot = state_snapshot(
+            env, policy_observation(env, observation),
+            case_id="single-agent-leaf-value-shadow", step=int(step),
+        )
+        prediction = self.ensemble.predict(
+            state_tensor_from_snapshot(snapshot), None
+        )
+        self.calls.append(prediction)
+        return prediction
 
 
 def main() -> int:

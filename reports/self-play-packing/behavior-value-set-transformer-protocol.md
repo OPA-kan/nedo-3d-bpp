@@ -12,9 +12,10 @@ used as leaf-state V labels.
 ## Split and masks
 
 - split unit: complete physical trajectory group;
-- state features: container, packed-item and visible-item sets plus player,
-  block, handoff and set counts;
-- targets: scalar return-to-go and every eligible numeric suffix head;
+- state features: container, packed-item and visible-item sets only; there is
+  no player, block, handoff or scalar-game feature in the single-agent arm;
+- targets: every eligible numeric component suffix head; no scalar
+  `return_to_go`;
 - missing or censored heads: masked, never converted to zero;
 - forbidden learner inputs: Ranker score, immediate score, rank, prior and
   selection fields.
@@ -22,7 +23,7 @@ used as leaf-state V labels.
 ## Model and uncertainty
 
 - three to five independently initialized, group-bootstrap members;
-- every 58-root shadow uses the fold ensemble that excluded that root's
+- every shadow uses the fold ensemble that excluded that root's
   complete trajectory group; the all-data final ensemble is not used there;
 - separate Set Transformer encoders for containers, packed items and visible
   items;
@@ -33,9 +34,9 @@ used as leaf-state V labels.
 ## Gates
 
 1. group-held-out model audit;
-2. fixed rescued candidate support, fixed K and H2 budget;
-3. compare `H2+V` against `H2+0` on distance to the frozen deep physical
-   reference;
+2. fixed rescued candidate support, fixed Pareto-PUCT and H2 budget;
+3. compare `H2+V` against `H2+0` on terminal-Pareto and resurrection
+   recovery under identical genuine-terminal root-action truth;
 4. only after the V effect is isolated, use uncertainty for depth allocation;
 5. progressive widening comes after that comparison;
 6. policy and proposal heads remain closed.
