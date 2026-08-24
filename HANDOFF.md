@@ -516,6 +516,19 @@ abstention: a suffix head contributes only with positive held-out Pearson and
 RMSE below its constant baseline; otherwise that axis remains H2 measured.
 This is a sensor-fidelity gate, not scalarization or objective weighting.
 
+That rerun is complete. Actions run `32723063464` at commit `08bfeb1`
+succeeded in training, all six physical cells and aggregate. Fidelity-gated
+`H2+V` recovered 10/11 resurrection and 29/30 terminal-Pareto actions versus
+`H2+0`'s 0/11 and 18/30 at the same 331 bounded-search physical steps, but
+false-frontier actions still rose 3 -> 10, so the adoption gate remains FAIL.
+Exact-node ablation shows why: fill V alone gives 2/11, 17/30 and 3 false;
+surface-TV V alone gives 5/11, 12/30 and 6 false; combining them gives 10/11,
+29/30 and 10 false. This is noisy-head Pareto union, not a reliable value
+oracle. Do not integrate V or open progressive widening yet. The next gate is
+held-out calibration/shrinkage plus paired root-action difference or joint
+dominance learning on more independent trajectory groups; only a
+discriminative shadow may then drive uncertainty-based depth allocation.
+
 A companion one-step paired-shake instrument is also ready for the 15 deep
 Q-top changes: reconstruct the same root twice, force old/rescued actions once
 and shake immediately, with no continuation policy. It reports maximum

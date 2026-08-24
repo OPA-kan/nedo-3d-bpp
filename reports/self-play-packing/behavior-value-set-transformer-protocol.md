@@ -60,6 +60,36 @@ therefore abstains from future prediction for any head whose group-held-out
 Pearson is non-positive or whose RMSE does not beat the training-fold constant.
 That axis keeps its measured H2 prefix; no weight or exchange rate is added.
 
+## Fidelity-gated rerun
+
+Run `32723063464` at commit `08bfeb1` completed training, all six physical
+cells and aggregation successfully. The 10 roots again had complete paired
+terminal truth with zero censoring and the same 11 resurrection actions:
+
+- `H2+0`: resurrection frontier 0/11; terminal-Pareto 18/30; false frontier 3;
+- fidelity-gated `H2+V`: resurrection frontier 10/11; terminal-Pareto 29/30;
+  false frontier 10.
+
+The binary OOF abstention removes the worst blow-up (15 to 10 false-frontier
+actions), but still fails the adoption gate because false frontier exceeds the
+measured arm. A post-hoc head ablation on the exact explored nodes localizes
+the failure:
+
+| evaluated suffix | resurrection frontier | terminal-Pareto | false frontier |
+|---|---:|---:|---:|
+| measured only | 0/11 | 18/30 | 3 |
+| fill V only | 2/11 | 17/30 | 3 |
+| surface-TV V only | 5/11 | 12/30 | 6 |
+| fill + surface-TV V | 10/11 | 29/30 | 10 |
+
+The apparent high recall is therefore not evidence that the current V is a
+good terminal evaluator. The two barely-above-constant heads make different
+errors; hard Pareto composition lets an action survive when either noisy axis
+looks favorable. Do not integrate this V or proceed to progressive widening.
+The next value gate must calibrate/shrink held-out predictions and train or
+evaluate paired root-action differences (or joint dominance probabilities) on
+more independent trajectory groups before uncertainty controls depth.
+
 ## Immediate shake companion
 
 For the 15 roots whose deep Q-top changed, rebuild the identical root twice,
