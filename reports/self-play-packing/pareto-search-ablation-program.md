@@ -1,6 +1,6 @@
-# Pareto search ablation program (frozen 2026-08-24)
+# Pareto search ablation program (amended 2026-08-24)
 
-Status: frozen experimental program for the next work cycle. Governs
+Status: amended after terminal-oracle run `32682204705`. Governs
 how Pareto Tree Search v0 evolves toward a true vector search. The
 essence, fixed up front:
 
@@ -14,10 +14,10 @@ essence, fixed up front:
 |---|---|---|
 | **v0 (baseline, frozen)** | none — depth 3, Pareto-frontier-first allocation, root union legacy ∪ coverage ∪ beta, interior legacy top-k, no leaf V | everything |
 | **v0+R (oracle/reference only)** | genuine-terminal frozen-rank0 rollout at every reached leaf; record `PF_H1`, measured/evaluated `PF_search`, `PF_terminal` and resurrection recall | v0 allocation, supports, no V; never an execution policy |
-| **v0+V** | leaf evaluation becomes `Q_H = DeltaY_{0:H} (+) V_sa(s_H)` with head-semantic composition (below) | depth, allocation, supports |
-| **v1 = (v0+V) + learned interior** | interior expansion support becomes `A_learned ∪ A_coverage`; legacy/rescue kept as audit arms only | depth, allocation, leaf V |
-| **v2 = v1 + Pareto-PUCT** | allocation becomes Pareto-PUCT (optimistic vectors, non-dominated selection, floor-mixed prior, iterated backup — see `prior-art-and-pareto-puct-notes.md`); beta teacher becomes the visit distribution | depth, supports, leaf V |
-| **v2(H = 3, 5, 8)** | depth ladder on v2 | everything else |
+| **v0+P** | measured leaf allocation becomes Pareto-PUCT; terminal rollout is scoring-only and identical in both arms | depth, supports, no V |
+| **v0+P+V** | leaf evaluation becomes `Q_H = DeltaY_{0:H} (+) V_sa(s_H)` with head-semantic composition (below) | depth, allocation, supports |
+| **v1 = (v0+P+V) + learned interior** | interior expansion support becomes `A_learned ∪ A_coverage`; legacy/rescue kept as audit arms only | depth, allocation, leaf V |
+| **v1(H = 3, 5, 8)** | depth ladder on v1 | everything else |
 
 Depth stays last on purpose: the prior art (Puche 2022; the
 shift-aware PUCT line) says search strength comes from
@@ -28,13 +28,21 @@ Never combine stages in one comparison: a joint improvement with mixed
 changes attributes nothing.
 
 `v0+R` is the oracle layer, not a candidate policy. It is deliberately placed
-before `v0+V`: first measure whether terminal frontier resurrection exists and
+before `v0+P`: first measure whether terminal frontier resurrection exists and
 whether v0 deepens or recovers it without model error. Only after the oracle is
 validated may `V_sa` be judged as an approximation to that terminal reference.
 The implementation contract is
 `reports/self-play-packing/terminal-rollout-resurrection-oracle.md`.
 
-### Prerequisite for v0+V: retrain V on the single-agent distribution
+Run `32682204705` licensed an amendment to the order. Resurrection exists at
+11/45 safe root actions; v0 deepened 8/11 but its bounded measured frontier
+recovered 0/11. Before fitting V, `v0+P` now tests whether count optimism alone
+improves which branches receive depth. Terminal truth scores the finished
+search and cannot guide it. This isolates allocation benefit from value-model
+benefit; `v0+P+V` remains the next stage regardless of whether P alone can
+repair frontier recognition.
+
+### Prerequisite for v0+P+V: retrain V on the single-agent distribution
 
 The frozen two-player V is unusable here twice over: it consumes game
 features (player_to_move, block_length, handoff_count) that the
@@ -56,7 +64,7 @@ roots with component returns and terminal stability, schema
 | terminal_stability_* | `V(s_H)` **replaces** — nothing measured to add | terminal-only quantity; adding a branch delta would double count |
 | stream_completed | `V(s_H)` alone | terminal-only |
 
-## Depth-ladder metrics (v2, H = 3/5/8)
+## Depth-ladder metrics (v1, H = 3/5/8)
 
 Frontier thinning is *secondary*. The primary questions are:
 
@@ -83,7 +91,7 @@ Frontier thinning is *secondary*. The primary questions are:
 The expectation from prior art (Zhao AAAI 2021 Fig. 8; the
 practically-feasible follow-up Fig. 9(b); Fang's monotone-in-N
 MPC-PCT) is: utilization improves with horizon **iff** allocation
-keeps search quality up — which is why this ladder runs on v2
+keeps search quality up — which is why this ladder runs on v1
 (Pareto-PUCT) and not on v0's exploitation-only allocation. Serial
 MCTS degrading beyond k>5 in Zhao is the published version of our own
 run `32469901132` (an H3 fill advantage that vanished at H4).

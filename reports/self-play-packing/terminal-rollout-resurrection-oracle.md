@@ -1,16 +1,35 @@
 # Terminal-rollout resurrection oracle
 
-Status: implemented instrument; no Linux/PyBullet matrix has run yet.
+Status: oracle validated on Linux/PyBullet; allocation-separated Pareto-PUCT
+benchmark implemented and pending its physical matrix.
 
-The first physical pilot is wired through
+The physical pilot is wired through
 `.github/workflows/terminal-resurrection-oracle.yml`: six preregistered Phase-4
-cells, two roots per cell by default, and paired `measured` / `rollout` arms.
-The aggregate refuses the comparison unless root ids, root candidate ids and
-all one-step measured vectors are identical between the two arms.
+cells and two roots per cell by default. The current workflow pairs measured
+v0 frontier-first with measured Pareto-PUCT. Genuine-terminal rollouts score
+root actions in both arms but are never exposed to allocation. The aggregate
+refuses the comparison unless root ids, candidate ids, H1 vectors, terminal
+vectors, censoring and terminal resurrection truth are identical.
+
+## First oracle result
+
+Actions run `32682204705` completed all six cells and aggregate. Ten roots and
+45 safe root actions had exact paired H1 evidence, 10/10 roots reached complete
+genuine-terminal sibling sets, and no root was censored. Eleven actions across
+6/10 roots were outside `PF_H1` but inside `PF_terminal`.
+
+The run's rollout-guided allocation deepened 11/11 resurrection actions and
+kept 10/11 on its evaluated frontier. A cross-arm audit of the independent
+measured arm found that v0 deepened 8/11 but kept 0/11 on its bounded measured
+frontier. The 90.9% number is therefore evidence that terminal information can
+recover the actions, not an unbiased estimate of search discovery: rollout had
+also guided that arm's allocation. This is why allocation and terminal scoring
+are now separate contracts.
 
 ## Question
 
-Before adding `V_sa` or Pareto-PUCT, establish whether the environment
+The original oracle gate, before adding `V_sa` or Pareto-PUCT, was to establish
+whether the environment
 contains root actions that look dominated after one physical step but are
 non-dominated under a frozen-policy genuine-terminal continuation, and whether
 the current search actually deepens or recovers those actions.
@@ -24,6 +43,9 @@ label licensed for the existing acceptance-head pipeline.
 
 ```text
 --leaf-eval measured|rollout
+--terminal-audit
+--allocation frontier|pareto-puct
+--c-puct 2.0
 --rollout-top-k 3
 --rollout-max-steps 40
 ```
@@ -32,6 +54,18 @@ label licensed for the existing acceptance-head pipeline.
 `vector_mcts_search_pareto_v1`. `rollout` uses the separate
 `pareto_tree_search_terminal_oracle_v2` contract, so an oracle result cannot be
 silently consumed as the old search-Pareto teacher.
+
+`measured --terminal-audit` uses
+`pareto_search_terminal_audit_v3`. Terminal rollouts run only for safe root
+actions; `evaluation_vector` remains measured at every tree node. Changing the
+allocation to `pareto-puct` therefore cannot see terminal truth.
+
+Pareto-PUCT keeps incoming-edge visits, online mean vectors and empirical
+dispersion. Sibling means are standardized by their observed per-head range;
+the count-confidence bonus is added equally to all standardized heads. This
+uses scale but no objective exchange rate. The optimistic non-dominated set is
+formed first; uniform prior and low visits choose within it. Learned prior
+mixing remains out of this slice.
 
 For every newly reached search node, rollout mode reconstructs the root prefix,
 forces that node's action path, then follows the frozen legacy rank-0 policy
@@ -74,20 +108,22 @@ three deliberately distinct recalls:
 This avoids calling a root action "found" merely because every root action was
 initialized once.
 
-## Frozen boundaries
+## Current allocation-benchmark boundaries
 
 - no `V` is loaded;
-- v0 allocation remains Pareto-frontier-first;
+- v0 remains Pareto-frontier-first and the comparison arm changes allocation
+  only to Pareto-PUCT;
 - tree-interior candidate support remains unchanged;
-- Pareto-PUCT edge statistics are not part of this slice;
+- terminal audit runs only at root actions and never enters allocation;
+- current priors are uniform; no learned proposal preference enters PUCT;
 - dominance uses the existing frozen dominance heads. Terminal shake metrics
   are recorded in terminal metrics/evaluation but are not silently added to the
   Pareto space.
 
-## Required first physical run
+## Required allocation run
 
-Run paired `measured` and `rollout` arms on the same fresh roots, including the
-standing future-sensitive positive-control root or its single-agent analogue.
-Validate deterministic replay and require complete genuine-terminal sibling
-sets before quoting resurrection prevalence or recall. The first output remains
-draft until that instrument check passes.
+Run paired measured v0 and measured Pareto-PUCT arms on the same fresh roots.
+The aggregate must validate identical H1 and terminal evidence and require
+complete genuine-terminal sibling sets before quoting allocation recall.
+Primary metrics are resurrection deepening recall, resurrection frontier
+recall, terminal-Pareto recall, false-frontier count and physical steps.

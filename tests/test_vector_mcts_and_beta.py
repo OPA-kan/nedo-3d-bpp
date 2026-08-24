@@ -4,9 +4,12 @@ from unittest import mock
 from scripts.run_vector_mcts import (
     _accumulate,
     _dominates,
+    _new_edge_stat,
     _oriented,
     _output_contract,
+    _pareto_puct_choice,
     _terminal_rollout,
+    _update_edge_stat,
     build_resurrection_audit,
     pareto_frontier,
     summarize_resurrection_audits,
@@ -26,6 +29,19 @@ def vector(fill, soft=0.0, pc=0.0, pm=0.0, tv=0.0):
 
 
 class VectorSearchPrimitiveTests(unittest.TestCase):
+    def test_terminal_audit_contract_is_separate_from_teacher_and_oracle_guidance(self):
+        self.assertEqual(
+            _output_contract("measured", terminal_audit=True),
+            (
+                3, "pareto_search_terminal_audit_v3",
+                "terminal_frontier_resurrection_v1",
+            ),
+        )
+        self.assertEqual(
+            _output_contract("measured", allocation="pareto-puct"),
+            (2, "vector_pareto_puct_search_v1", None),
+        )
+
     def test_rollout_oracle_cannot_masquerade_as_legacy_search_teacher(self):
         self.assertEqual(
             _output_contract("measured"),
@@ -304,6 +320,147 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         terminal.assert_not_called()
         self.assertEqual(result["search_pareto_candidates"], ["a"])
         self.assertFalse(result["terminal_truth_complete"])
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_terminal_audit_scores_roots_but_does_not_guide_allocation(
+        self, measured_rollout, provider_builder,
+    ):
+        provider_builder.return_value = lambda *_args: []
+
+        class Env:
+            def close(self):
+                pass
+
+        def measured(*_args, actions, **_kwargs):
+            fill = 3.0 if actions[0]["item_idx"] == 0 else 1.0
+            return {
+                "safe": True, "terminated": False, "truncated": False,
+                "step_deltas": [{
+                    head: {"value": value}
+                    for head, value in vector(fill).items()
+                }],
+                "observation": {}, "env": Env(),
+            }
+
+        measured_rollout.side_effect = measured
+        terminal = mock.Mock(side_effect=lambda actions: {
+            "termination": "stream_exhausted",
+            "genuine_terminal": True,
+            "continuation_steps": 2,
+            "physical_steps": 3,
+            "terminal_vector": vector(
+                4.0 if actions[0]["item_idx"] == 0 else 10.0
+            ),
+            "terminal_metrics": {},
+            "evaluation": {},
+        })
+
+        result = vector_search_root(
+            object(), {}, case_id="case", environment_seed=42,
+            prefix_actions=[],
+            root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=0,
+            max_depth=1, step=0, leaf_eval="measured",
+            terminal_audit=True, terminal_rollout_fn=terminal,
+        )
+
+        self.assertEqual(terminal.call_count, 2)
+        self.assertEqual(result["search_pareto_candidates"], ["a"])
+        self.assertEqual(result["terminal_pareto_candidates"], ["b"])
+        self.assertEqual(
+            result["terminal_frontier_resurrection_candidates"], ["b"]
+        )
+        self.assertEqual(result["terminal_rollout_physical_steps"], 6)
+
+    @staticmethod
+    def _candidate(name, item_idx):
+        return {
+            "candidate_id": name,
+            "command_action": {
+                "item_idx": item_idx, "container_idx": 0,
+                "place_pos": [0.0, 0.0, 0.0], "orientation": 0,
+            },
+            "selection": {"rank": item_idx, "stable_item_index": item_idx},
+            "proposal_provenance": {"source": "test"},
+        }
+
+    def test_pareto_puct_optimism_reopens_a_low_visit_dominated_edge(self):
+        edges = {
+            "a": _new_edge_stat(prior=0.5),
+            "b": _new_edge_stat(prior=0.5),
+        }
+        _update_edge_stat(edges["a"], vector(3.0))
+        _update_edge_stat(edges["b"], vector(1.0))
+        # Equal counts: exploitation keeps the currently dominant edge.
+        self.assertEqual(_pareto_puct_choice(edges, c_puct=2.0), "a")
+        # Evidence accumulated under a reduces its count bonus; b becomes
+        # optimistic and must be revisited despite its lower mean.
+        _update_edge_stat(edges["a"], vector(3.0))
+        _update_edge_stat(edges["a"], vector(3.0))
+        self.assertEqual(_pareto_puct_choice(edges, c_puct=2.0), "b")
+
+    def test_pareto_puct_tie_break_uses_prior_separately_from_optimism(self):
+        edges = {
+            "coverage": _new_edge_stat(prior=0.25),
+            "learned": _new_edge_stat(prior=0.75),
+        }
+        for edge in edges.values():
+            _update_edge_stat(edge, vector(2.0))
+        self.assertEqual(
+            _pareto_puct_choice(edges, c_puct=1.0), "learned"
+        )
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_pareto_puct_deepens_a_shallow_dominated_root_that_v0_drops(
+        self, measured_rollout, provider_builder,
+    ):
+        class Env:
+            def close(self):
+                pass
+
+        continuation = self._candidate("child", 9)
+        provider_builder.return_value = lambda _env, observation, _k: (
+            [continuation] if observation["depth"] < 3 else []
+        )
+
+        def measured(*_args, actions, **_kwargs):
+            root_fill = 3.0 if actions[0]["item_idx"] == 0 else 1.0
+            deltas = [vector(root_fill)] + [vector(0.0)] * (len(actions) - 1)
+            return {
+                "safe": True, "terminated": False, "truncated": False,
+                "step_deltas": [
+                    {head: {"value": value} for head, value in delta.items()}
+                    for delta in deltas
+                ],
+                "observation": {"depth": len(actions)}, "env": Env(),
+            }
+
+        measured_rollout.side_effect = measured
+        common = dict(
+            agent_module=object(), task_config={}, case_id="case",
+            environment_seed=42, prefix_actions=[],
+            root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=2,
+            max_depth=3, step=0, leaf_eval="measured",
+        )
+
+        v0 = vector_search_root(**common, allocation="frontier")
+        puct = vector_search_root(
+            **common, allocation="pareto-puct", c_puct=2.0
+        )
+
+        self.assertNotIn("b", v0["deepened_candidates"])
+        self.assertIn("b", puct["deepened_candidates"])
+        self.assertGreater(
+            puct["root_visit_counts"]["b"], v0["root_visit_counts"]["b"]
+        )
+        self.assertAlmostEqual(sum(puct["root_visit_policy"].values()), 1.0)
 
     @mock.patch("scripts.run_vector_mcts._compact_evaluation", side_effect=lambda x: x)
     @mock.patch("scripts.run_vector_mcts.cumulative_metrics")

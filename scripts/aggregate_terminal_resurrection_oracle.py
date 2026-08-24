@@ -1,4 +1,4 @@
-"""Aggregate paired measured/terminal-rollout vector-search oracle runs."""
+"""Aggregate terminal-scored v0 versus Pareto-PUCT physical searches."""
 from __future__ import annotations
 
 import argparse
@@ -8,116 +8,173 @@ from typing import Any
 
 
 def _root_map(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    roots = payload.get("roots") or []
-    return {str(root["root_id"]): root for root in roots}
+    return {
+        str(root["root_id"]): root for root in payload.get("roots") or []
+    }
 
 
-def _candidate_vectors(root: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _candidate_evidence(root: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {
         str(row["root_candidate_id"]): {
             "safe": bool(row.get("safe")),
             "one_step_vector": row.get("one_step_vector"),
+            "terminal_genuine": bool(row.get("terminal_genuine")),
+            "terminal_termination": row.get("terminal_termination"),
+            "terminal_vector": row.get("terminal_vector"),
         }
         for row in root.get("root_candidates") or []
     }
 
 
-def compare_pair(
-    measured: dict[str, Any], rollout: dict[str, Any], *, cell: str,
+def _arm_counts(
+    roots: dict[str, dict[str, Any]],
+    truth: dict[str, set[str]],
+) -> dict[str, int]:
+    counts = {
+        "deepened_resurrection_actions": 0,
+        "frontier_resurrection_actions": 0,
+        "terminal_pareto_actions": 0,
+        "terminal_pareto_recovered_actions": 0,
+        "search_frontier_actions": 0,
+        "false_frontier_actions": 0,
+        "physical_steps": 0,
+        "terminal_rollout_physical_steps": 0,
+    }
+    for root_id, root in roots.items():
+        resurrected = truth[root_id]
+        deepened = set(root.get("deepened_candidates") or [])
+        search = set(root.get("measured_search_pareto_candidates") or [])
+        terminal = set(root.get("terminal_pareto_candidates") or [])
+        counts["deepened_resurrection_actions"] += len(
+            resurrected & deepened
+        )
+        counts["frontier_resurrection_actions"] += len(
+            resurrected & search
+        )
+        counts["terminal_pareto_actions"] += len(terminal)
+        counts["terminal_pareto_recovered_actions"] += len(terminal & search)
+        counts["search_frontier_actions"] += len(search)
+        counts["false_frontier_actions"] += len(search - terminal)
+        counts["physical_steps"] += int(root.get("physical_steps", 0))
+        counts["terminal_rollout_physical_steps"] += int(
+            root.get("terminal_rollout_physical_steps", 0)
+        )
+    return counts
+
+
+def compare_allocation_pair(
+    v0: dict[str, Any], puct: dict[str, Any], *, cell: str,
 ) -> dict[str, Any]:
-    if measured.get("contract") != "vector_mcts_search_pareto_v1":
-        raise ValueError(f"{cell}: invalid measured contract")
-    if rollout.get("contract") != "pareto_tree_search_terminal_oracle_v2":
-        raise ValueError(f"{cell}: invalid rollout contract")
-    if rollout.get("oracle_contract") != "terminal_frontier_resurrection_v1":
-        raise ValueError(f"{cell}: invalid rollout oracle contract")
-    if measured.get("case_id") != rollout.get("case_id"):
+    for name, payload, allocation in (
+        ("v0", v0, "frontier"), ("puct", puct, "pareto-puct")
+    ):
+        if payload.get("contract") != "pareto_search_terminal_audit_v3":
+            raise ValueError(f"{cell}: invalid {name} contract")
+        if payload.get("oracle_contract") != (
+            "terminal_frontier_resurrection_v1"
+        ):
+            raise ValueError(f"{cell}: invalid {name} oracle contract")
+        if payload.get("leaf_eval") != "measured":
+            raise ValueError(f"{cell}: {name} allocation saw terminal values")
+        if payload.get("allocation_mode") != allocation:
+            raise ValueError(f"{cell}: invalid {name} allocation")
+    if v0.get("case_id") != puct.get("case_id"):
         raise ValueError(f"{cell}: case mismatch")
 
-    measured_roots = _root_map(measured)
-    rollout_roots = _root_map(rollout)
-    if measured_roots.keys() != rollout_roots.keys():
+    v0_roots = _root_map(v0)
+    puct_roots = _root_map(puct)
+    if v0_roots.keys() != puct_roots.keys():
         raise ValueError(f"{cell}: paired root ids differ")
 
     complete = 0
     censored = 0
-    resurrection: list[dict[str, str]] = []
-    for root_id in measured_roots:
-        measured_vectors = _candidate_vectors(measured_roots[root_id])
-        rollout_vectors = _candidate_vectors(rollout_roots[root_id])
-        if measured_vectors != rollout_vectors:
-            raise ValueError(f"{cell}/{root_id}: H1 candidate vectors differ")
-        oracle_root = rollout_roots[root_id]
-        if oracle_root.get("terminal_truth_complete"):
+    truth: dict[str, set[str]] = {}
+    resurrection_rows: list[dict[str, str]] = []
+    for root_id in v0_roots:
+        v0_root = v0_roots[root_id]
+        puct_root = puct_roots[root_id]
+        if _candidate_evidence(v0_root) != _candidate_evidence(puct_root):
+            raise ValueError(
+                f"{cell}/{root_id}: paired H1 or terminal evidence differs"
+            )
+        v0_resurrection = set(
+            v0_root.get("terminal_frontier_resurrection_candidates") or []
+        )
+        puct_resurrection = set(
+            puct_root.get("terminal_frontier_resurrection_candidates") or []
+        )
+        if v0_resurrection != puct_resurrection:
+            raise ValueError(f"{cell}/{root_id}: terminal truth differs")
+        if bool(v0_root.get("terminal_truth_complete")) != bool(
+            puct_root.get("terminal_truth_complete")
+        ):
+            raise ValueError(f"{cell}/{root_id}: censoring differs")
+        if v0_root.get("terminal_truth_complete"):
             complete += 1
+            truth[root_id] = v0_resurrection
+            resurrection_rows.extend(
+                {"root_id": root_id, "candidate_id": candidate}
+                for candidate in sorted(v0_resurrection)
+            )
         else:
             censored += 1
-        for candidate_id in (
-            oracle_root.get("terminal_frontier_resurrection_candidates") or []
-        ):
-            resurrection.append({
-                "root_id": root_id,
-                "candidate_id": str(candidate_id),
-            })
+            truth[root_id] = set()
 
-    summary = rollout.get("resurrection_summary") or {}
     return {
         "cell": cell,
-        "case_id": measured.get("case_id"),
-        "roots": len(measured_roots),
-        "paired_h1_vectors_identical": True,
+        "case_id": v0.get("case_id"),
+        "roots": len(v0_roots),
+        "paired_h1_and_terminal_evidence_identical": True,
         "complete_terminal_truth_roots": complete,
         "censored_terminal_truth_roots": censored,
-        "terminal_resurrection_actions": len(resurrection),
-        "resurrection_actions": resurrection,
-        "deepened_resurrection_actions": int(
-            summary.get("deepened_resurrection_actions", 0)
-        ),
-        "measured_frontier_resurrection_actions": int(
-            summary.get("measured_frontier_resurrection_actions", 0)
-        ),
-        "evaluated_frontier_resurrection_actions": int(
-            summary.get("evaluated_frontier_resurrection_actions", 0)
-        ),
+        "terminal_resurrection_actions": len(resurrection_rows),
+        "resurrection_actions": resurrection_rows,
+        "v0": _arm_counts(v0_roots, truth),
+        "pareto_puct": _arm_counts(puct_roots, truth),
     }
 
 
 def aggregate(root: pathlib.Path) -> dict[str, Any]:
     cells = []
-    for rollout_path in sorted(root.glob("*/rollout.json")):
-        cell = rollout_path.parent.name
-        measured_path = rollout_path.with_name("measured.json")
-        if not measured_path.exists():
-            raise FileNotFoundError(f"{cell}: missing measured.json")
-        cells.append(compare_pair(
-            json.loads(measured_path.read_text(encoding="utf-8")),
-            json.loads(rollout_path.read_text(encoding="utf-8")),
+    for puct_path in sorted(root.glob("*/puct.json")):
+        cell = puct_path.parent.name
+        v0_path = puct_path.with_name("v0.json")
+        if not v0_path.exists():
+            raise FileNotFoundError(f"{cell}: missing v0.json")
+        cells.append(compare_allocation_pair(
+            json.loads(v0_path.read_text(encoding="utf-8")),
+            json.loads(puct_path.read_text(encoding="utf-8")),
             cell=cell,
         ))
     if not cells:
-        raise ValueError(f"no paired oracle cells below {root}")
+        raise ValueError(f"no paired v0/Pareto-PUCT cells below {root}")
 
-    resurrection_total = sum(
-        cell["terminal_resurrection_actions"] for cell in cells
-    )
-    deepened_total = sum(
-        cell["deepened_resurrection_actions"] for cell in cells
-    )
-    measured_total = sum(
-        cell["measured_frontier_resurrection_actions"] for cell in cells
-    )
-    evaluated_total = sum(
-        cell["evaluated_frontier_resurrection_actions"] for cell in cells
-    )
+    truth = sum(cell["terminal_resurrection_actions"] for cell in cells)
 
-    def recall(numerator: int) -> float | None:
-        return numerator / resurrection_total if resurrection_total else None
+    def arm_summary(name: str) -> dict[str, Any]:
+        total: dict[str, Any] = {}
+        for cell in cells:
+            for key, value in cell[name].items():
+                total[key] = total.get(key, 0) + int(value)
+        total["deepened_resurrection_recall"] = (
+            total["deepened_resurrection_actions"] / truth if truth else None
+        )
+        total["frontier_resurrection_recall"] = (
+            total["frontier_resurrection_actions"] / truth if truth else None
+        )
+        terminal = total["terminal_pareto_actions"]
+        total["terminal_pareto_recall"] = (
+            total["terminal_pareto_recovered_actions"] / terminal
+            if terminal else None
+        )
+        return total
 
     return {
-        "schema_version": 1,
-        "contract": "terminal_resurrection_paired_matrix_v1",
-        "paired_h1_vectors_identical": all(
-            cell["paired_h1_vectors_identical"] for cell in cells
+        "schema_version": 2,
+        "contract": "terminal_scored_pareto_puct_matrix_v2",
+        "paired_h1_and_terminal_evidence_identical": all(
+            cell["paired_h1_and_terminal_evidence_identical"]
+            for cell in cells
         ),
         "cells": cells,
         "cell_count": len(cells),
@@ -128,40 +185,44 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
         "censored_terminal_truth_roots": sum(
             cell["censored_terminal_truth_roots"] for cell in cells
         ),
-        "terminal_resurrection_actions": resurrection_total,
-        "deepened_resurrection_actions": deepened_total,
-        "deepened_resurrection_recall": recall(deepened_total),
-        "measured_frontier_resurrection_actions": measured_total,
-        "measured_frontier_resurrection_recall": recall(measured_total),
-        "evaluated_frontier_resurrection_actions": evaluated_total,
-        "evaluated_frontier_resurrection_recall": recall(evaluated_total),
+        "terminal_resurrection_actions": truth,
+        "v0": arm_summary("v0"),
+        "pareto_puct": arm_summary("pareto_puct"),
     }
 
 
 def render_markdown(result: dict[str, Any]) -> str:
     rows = [
-        "# Terminal rollout resurrection oracle",
+        "# Terminal-scored Pareto-PUCT allocation",
         "",
         f"- cells: **{result['cell_count']}**",
         f"- roots: **{result['root_count']}**",
-        "- paired H1 vectors identical: "
-        f"**{result['paired_h1_vectors_identical']}**",
+        "- paired H1 and terminal evidence identical: "
+        f"**{result['paired_h1_and_terminal_evidence_identical']}**",
         "- complete terminal-truth roots: "
         f"**{result['complete_terminal_truth_roots']}**",
-        "- censored roots: "
-        f"**{result['censored_terminal_truth_roots']}**",
+        f"- censored roots: **{result['censored_terminal_truth_roots']}**",
         "- terminal resurrection actions: "
         f"**{result['terminal_resurrection_actions']}**",
-        "- deepened resurrection recall: "
-        f"**{result['deepened_resurrection_recall']}**",
-        "- measured-frontier resurrection recall: "
-        f"**{result['measured_frontier_resurrection_recall']}**",
-        "- rollout-evaluated frontier resurrection recall: "
-        f"**{result['evaluated_frontier_resurrection_recall']}**",
+        "",
+        "| arm | resurrection deepening | resurrection frontier | "
+        "terminal-Pareto recall | false frontier | physical steps |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for key, label in (("v0", "v0 frontier-first"),
+                       ("pareto_puct", "Pareto-PUCT")):
+        arm = result[key]
+        rows.append(
+            f"| {label} | {arm['deepened_resurrection_recall']} | "
+            f"{arm['frontier_resurrection_recall']} | "
+            f"{arm['terminal_pareto_recall']} | "
+            f"{arm['false_frontier_actions']} | {arm['physical_steps']} |"
+        )
+    rows.extend((
         "",
         "| cell | roots | complete | censored | resurrected |",
         "|---|---:|---:|---:|---:|",
-    ]
+    ))
     rows.extend(
         f"| {cell['cell']} | {cell['roots']} | "
         f"{cell['complete_terminal_truth_roots']} | "

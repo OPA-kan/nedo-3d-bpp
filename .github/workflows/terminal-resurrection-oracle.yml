@@ -1,4 +1,4 @@
-name: Terminal rollout resurrection oracle
+name: Terminal-scored Pareto-PUCT allocation
 
 on:
   workflow_dispatch:
@@ -19,6 +19,10 @@ on:
         description: Frozen-policy continuation cap; cap hits are censored
         required: false
         default: "40"
+      c_puct:
+        description: Objective-neutral count-optimism coefficient
+        required: false
+        default: "2.0"
   push:
     branches:
       - work/terminal-rollout-oracle
@@ -86,7 +90,7 @@ jobs:
           python scripts/build_scenario_matrix.py
           --stream-variant "${{ matrix.stream }}"
           --output-dir reports/terminal-oracle/configs
-      - name: Run paired measured and genuine-terminal arms
+      - name: Run terminal-scored v0 and Pareto-PUCT arms
         shell: bash
         run: |
           set -euo pipefail
@@ -104,17 +108,22 @@ jobs:
             --max-roots "${{ inputs.max_roots || '2' }}"
           )
           python scripts/run_vector_mcts.py \
-            "${common[@]}" --leaf-eval measured \
-            --output "$out/measured.json"
-          python scripts/run_vector_mcts.py \
-            "${common[@]}" --leaf-eval rollout \
+            "${common[@]}" --leaf-eval measured --terminal-audit \
+            --allocation frontier \
             --rollout-top-k 3 \
             --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}" \
-            --output "$out/rollout.json"
+            --output "$out/v0.json"
+          python scripts/run_vector_mcts.py \
+            "${common[@]}" --leaf-eval measured --terminal-audit \
+            --allocation pareto-puct \
+            --c-puct "${{ inputs.c_puct || '2.0' }}" \
+            --rollout-top-k 3 \
+            --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}" \
+            --output "$out/puct.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: terminal-resurrection-cell-${{ matrix.cell }}
+          name: terminal-puct-cell-${{ matrix.cell }}
           path: reports/terminal-oracle/${{ matrix.cell }}/
 
   aggregate:
@@ -128,7 +137,7 @@ jobs:
           python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
-          pattern: terminal-resurrection-cell-*
+          pattern: terminal-puct-cell-*
           path: reports/terminal-oracle/results
       - name: Verify pair identity and aggregate resurrection evidence
         run: >-
@@ -141,5 +150,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: terminal-resurrection-oracle-aggregate-${{ github.run_id }}
+          name: terminal-puct-aggregate-${{ github.run_id }}
           path: reports/terminal-oracle/

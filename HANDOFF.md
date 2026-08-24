@@ -458,21 +458,25 @@ terminal PF); the ratio across H separates signal from
 budget-starvation noise, and the dag-search root is the standing
 positive-control root.
 
-The terminal-rollout resurrection oracle is now implemented, but has not yet
-run a fresh Linux/PyBullet matrix. `scripts/run_vector_mcts.py` accepts
-`--leaf-eval measured|rollout`. Rollout mode reconstructs every reached leaf,
-forces its path, and follows the frozen rank-0 policy through the exact physical
-filter to a genuine terminal; caps/failures censor rather than fabricate a
-terminal vector. Each root saves separate `PF_H1`, measured/evaluated
-`PF_search`, `PF_terminal`, per-action maximum explored depth and terminal
-frontier resurrection. Aggregate recall distinguishes merely appearing in an
-evaluated frontier from actually being deepened. The measured default retains
-the old search-teacher contract, while rollout uses a separate oracle contract
-so it cannot silently train the existing acceptance head. V, learned interior
-support and Pareto-PUCT remain unchanged. See
-`reports/self-play-packing/terminal-rollout-resurrection-oracle.md`. The first
-physical output is draft until a deterministic/positive-control instrument
-check passes.
+The terminal-rollout resurrection oracle passed its fresh Linux/PyBullet matrix
+in Actions run `32682204705`: all six cells and aggregate succeeded, paired H1
+evidence was identical, all 10 roots had complete genuine-terminal sibling
+sets, and censoring was 0. Eleven of 45 safe root actions resurrected from
+outside `PF_H1` into `PF_terminal`, across 6/10 roots. The measured v0 arm
+deepened 8/11 but recovered 0/11 on its bounded measured frontier. The
+rollout-guided arm deepened 11/11 and kept 10/11, but that 90.9% is not an
+unbiased MCTS result because terminal rollout also guided allocation.
+
+The next contract therefore separates allocation from scoring. Both v0 and
+Pareto-PUCT use measured leaves; `--terminal-audit` rolls out only safe root
+actions and cannot enter `evaluation_vector`. Paired H1 vectors, terminal
+vectors, censoring and resurrection truth must match before comparison.
+Pareto-PUCT backs achieved vectors into incoming-edge visit/mean/dispersion
+statistics, standardizes sibling means by observed per-head range, adds an
+objective-neutral count bonus to every head, forms the optimistic Pareto set,
+then chooses by uniform prior and low visits. V, learned interior support and
+learned priors remain closed. See
+`reports/self-play-packing/terminal-rollout-resurrection-oracle.md`.
 
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix

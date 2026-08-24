@@ -1,16 +1,17 @@
 """Phase 4: vector search over the single-agent mainline.
 
-A depth-limited physical tree search with no scalar anywhere:
+A depth-limited physical tree search with vector-valued outcomes:
 
 - **Vector backup.** Component deltas are additive along a path, so
   every explored node carries the accumulated outcome vector from the
   root state; a root action's search value Q_search(s,a) is the *set*
   of vectors its explored subtree reached.
-- **Objective-neutral allocation.** The next node to expand is always a
-  frontier node: among unexpanded explored nodes whose accumulated
-  vector lies on the current global Pareto frontier (dominance heads
-  only), pick the least-deep, then lexicographically smallest — no
-  weights, no scalarized exploration bonus.
+- **Selectable allocation.** ``frontier`` preserves v0: among
+  unexpanded explored nodes on the current global Pareto frontier,
+  choose the least-deep node. ``pareto-puct`` instead backs up edge visit
+  counts and mean vectors, forms an optimistic Pareto set with a
+  count-based confidence bonus, then uses prior/low visits only within
+  that set. Neither mode introduces objective exchange weights.
 - **Search-Pareto labels.** After the budget, a root candidate is on
   the search frontier iff its subtree contributes at least one vector
   to the global frontier over all achieved vectors: "this action
@@ -30,12 +31,19 @@ continued by the frozen rank-0 policy to a genuine terminal, while one-step,
 bounded-search and terminal Pareto membership remain separately recorded.
 It does not load V and uses a distinct output contract so it cannot silently
 become the existing acceptance-head teacher.
+
+For allocation benchmarks, ``--terminal-audit`` keeps measured leaf values
+inside search and runs the genuine-terminal continuation only for each safe
+root action after its one-step transition. Thus terminal outcomes can score
+``frontier`` and ``pareto-puct`` without leaking oracle values into either
+allocation policy.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
 import sys
 from typing import Any, Callable
@@ -89,9 +97,26 @@ GENUINE_TERMINATIONS = {
 }
 
 
-def _output_contract(leaf_eval: str) -> tuple[int, str, str | None]:
-    if leaf_eval == "measured":
+def _output_contract(
+    leaf_eval: str, *, terminal_audit: bool = False,
+    allocation: str = "frontier",
+) -> tuple[int, str, str | None]:
+    if allocation not in {"frontier", "pareto-puct"}:
+        raise ValueError(f"unsupported allocation: {allocation}")
+    if terminal_audit:
+        if leaf_eval != "measured":
+            raise ValueError(
+                "terminal_audit is the scoring-only companion to measured "
+                "allocation; rollout already supplies terminal evaluation"
+            )
+        return (
+            3, "pareto_search_terminal_audit_v3",
+            "terminal_frontier_resurrection_v1",
+        )
+    if leaf_eval == "measured" and allocation == "frontier":
         return 1, "vector_mcts_search_pareto_v1", None
+    if leaf_eval == "measured":
+        return 2, "vector_pareto_puct_search_v1", None
     if leaf_eval == "rollout":
         return (
             2, "pareto_tree_search_terminal_oracle_v2",
@@ -125,6 +150,96 @@ def pareto_frontier(vectors: dict[str, tuple[float, ...]]) -> set[str]:
             for other in keys if other != key
         )
     }
+
+
+def _new_edge_stat(*, prior: float) -> dict[str, Any]:
+    """Create one objective-neutral vector edge-statistics record."""
+    if prior <= 0.0:
+        raise ValueError("Pareto-PUCT prior must be positive")
+    width = len(DOMINANCE_HEADS)
+    return {
+        "visits": 0,
+        "prior": float(prior),
+        "mean_oriented": [0.0] * width,
+        "m2_oriented": [0.0] * width,
+        "last_confidence_bonus": None,
+        "last_optimistic_vector": None,
+    }
+
+
+def _update_edge_stat(
+    edge: dict[str, Any], vector: dict[str, Any],
+) -> bool:
+    """Online-backup one achieved vector into an incoming tree edge."""
+    oriented = _oriented(vector)
+    if oriented is None:
+        return False
+    old_n = int(edge["visits"])
+    new_n = old_n + 1
+    means = list(edge["mean_oriented"])
+    m2 = list(edge["m2_oriented"])
+    for index, value in enumerate(oriented):
+        delta = value - means[index]
+        means[index] += delta / new_n
+        m2[index] += delta * (value - means[index])
+    edge["visits"] = new_n
+    edge["mean_oriented"] = means
+    edge["m2_oriented"] = m2
+    return True
+
+
+def _pareto_puct_choice(
+    edges: dict[str, dict[str, Any]], *, c_puct: float,
+) -> str:
+    """Choose an edge by optimistic Pareto membership, then prior/visits.
+
+    Confidence optimism and exploration prior are intentionally separate.
+    Sibling Q means are standardized by their observed per-head range, a
+    scale statistic rather than a utility exchange rate.  The same count
+    bonus is then added to every standardized head.
+    """
+    if c_puct < 0.0:
+        raise ValueError("c_puct must be non-negative")
+    eligible = {
+        key: edge for key, edge in edges.items()
+        if int(edge.get("visits", 0)) > 0
+    }
+    if not eligible:
+        raise ValueError("Pareto-PUCT needs at least one visited edge")
+    width = len(DOMINANCE_HEADS)
+    centers = []
+    scales = []
+    for index in range(width):
+        values = [
+            float(edge["mean_oriented"][index])
+            for edge in eligible.values()
+        ]
+        centers.append(sum(values) / len(values))
+        span = max(values) - min(values)
+        scales.append(span if span > EPS else 1.0)
+    total_visits = sum(int(edge["visits"]) for edge in eligible.values())
+    optimistic: dict[str, tuple[float, ...]] = {}
+    for key, edge in eligible.items():
+        visits = int(edge["visits"])
+        bonus = c_puct * math.sqrt(total_visits) / (1.0 + visits)
+        vector = tuple(
+            (
+                float(edge["mean_oriented"][index]) - centers[index]
+            ) / scales[index] + bonus
+            for index in range(width)
+        )
+        edge["last_confidence_bonus"] = [bonus] * width
+        edge["last_optimistic_vector"] = list(vector)
+        optimistic[key] = vector
+    frontier = pareto_frontier(optimistic)
+    return min(
+        frontier,
+        key=lambda key: (
+            int(eligible[key]["visits"]) / float(eligible[key]["prior"]),
+            int(eligible[key]["visits"]),
+            key,
+        ),
+    )
 
 
 def _candidate_frontier(
@@ -462,6 +577,8 @@ def vector_search_root(
     deep_top_k: int, expansions: int, max_depth: int, step: int,
     leaf_eval: str = "measured", rollout_top_k: int = 3,
     rollout_max_steps: int = 40,
+    terminal_audit: bool = False,
+    allocation: str = "frontier", c_puct: float = 2.0,
     terminal_rollout_fn: Callable[[list[Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if leaf_eval not in {"measured", "rollout"}:
@@ -472,11 +589,17 @@ def vector_search_root(
         raise ValueError("rollout_max_steps must be non-negative")
     if not root_candidates:
         raise ValueError("vector search needs at least one root candidate")
+    if terminal_audit and leaf_eval != "measured":
+        raise ValueError("terminal_audit requires measured leaf allocation")
+    if allocation not in {"frontier", "pareto-puct"}:
+        raise ValueError(f"unsupported allocation: {allocation}")
+    if c_puct < 0.0:
+        raise ValueError("c_puct must be non-negative")
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
     )
-    if leaf_eval == "rollout" and terminal_rollout_fn is None:
+    if (leaf_eval == "rollout" or terminal_audit) and terminal_rollout_fn is None:
         legal_filter = build_exact_physical_legal_filter(
             task_config, case_id=case_id, environment_seed=environment_seed,
         )
@@ -490,12 +613,15 @@ def vector_search_root(
                 max_continuation_steps=rollout_max_steps,
             )
     # node: key -> {actions, vector (accumulated), root_candidate_id,
-    #               depth, expanded, alive}
+    #               parent, depth, expanded, alive}.  Every node also owns
+    # the statistics for its incoming edge.
     nodes: dict[str, dict[str, Any]] = {}
+    edge_stats: dict[str, dict[str, Any]] = {}
+    children: dict[str | None, list[str]] = {None: []}
     physical_steps = 0
     terminal_rollout_physical_steps = 0
 
-    def try_action_path(actions, root_candidate_id):
+    def try_action_path(actions, root_candidate_id, *, parent=None, prior=1.0):
         nonlocal physical_steps, terminal_rollout_physical_steps
         result = _rollout(
             task_config, environment_seed=environment_seed,
@@ -516,7 +642,11 @@ def vector_search_root(
             })
             ended = result["terminated"] or result["truncated"]
             terminal_result = None
-            if leaf_eval == "rollout":
+            run_terminal = (
+                leaf_eval == "rollout"
+                or (terminal_audit and len(actions) == 1)
+            )
+            if run_terminal:
                 if terminal_rollout_fn is None:
                     raise RuntimeError("rollout leaf evaluator was not configured")
                 terminal_result = terminal_rollout_fn(list(actions))
@@ -543,6 +673,7 @@ def vector_search_root(
                 "vector": accumulated,
                 "evaluation_vector": evaluation_vector,
                 "root_candidate_id": root_candidate_id,
+                "parent": parent,
                 "depth": len(actions),
                 "ended": ended,
                 "continuations": candidates,
@@ -580,15 +711,25 @@ def vector_search_root(
                     if terminal_result else None
                 ),
             }
+            edge_stats[key] = _new_edge_stat(prior=prior)
+            children.setdefault(parent, []).append(key)
+            children.setdefault(key, [])
+            if _oriented(evaluation_vector or {}) is not None:
+                cursor: str | None = key
+                while cursor is not None:
+                    _update_edge_stat(edge_stats[cursor], evaluation_vector)
+                    cursor = nodes[cursor]["parent"]
             return key
         finally:
             env.close()
 
     root_rows = []
+    root_prior = 1.0 / len(root_candidates)
     for candidate in root_candidates:
         record = _candidate_record(candidate)
         key = try_action_path(
-            [_candidate_action(candidate)], record["candidate_id"]
+            [_candidate_action(candidate)], record["candidate_id"],
+            parent=None, prior=root_prior,
         )
         root_rows.append({
             "root_candidate_id": record["candidate_id"],
@@ -601,27 +742,53 @@ def vector_search_root(
             "node": key,
         })
 
-    for _expansion in range(expansions):
-        frontier_vectors = {
-            key: oriented
-            for key, node in nodes.items()
-            if not node["expanded"] and not node["ended"]
-            and node["continuations"]
-            and (
-                oriented := _oriented(node.get("evaluation_vector") or {})
-            ) is not None
-        }
-        if not frontier_vectors:
-            break
-        frontier = pareto_frontier(frontier_vectors)
-        chosen = min(
-            frontier, key=lambda key: (nodes[key]["depth"], key)
+    def expandable(key: str) -> bool:
+        node = nodes[key]
+        if node["ended"]:
+            return False
+        if not node["expanded"]:
+            return bool(node["continuations"])
+        return any(expandable(child) for child in children[key])
+
+    def choose_puct(parent: str | None = None) -> str | None:
+        active = [key for key in children[parent] if expandable(key)]
+        if not active:
+            return None
+        chosen_edge = _pareto_puct_choice(
+            {key: edge_stats[key] for key in active}, c_puct=c_puct
         )
+        if not nodes[chosen_edge]["expanded"]:
+            return chosen_edge
+        return choose_puct(chosen_edge)
+
+    for _expansion in range(expansions):
+        if allocation == "frontier":
+            frontier_vectors = {
+                key: oriented
+                for key, node in nodes.items()
+                if not node["expanded"] and not node["ended"]
+                and node["continuations"]
+                and (
+                    oriented := _oriented(node.get("evaluation_vector") or {})
+                ) is not None
+            }
+            if not frontier_vectors:
+                break
+            frontier = pareto_frontier(frontier_vectors)
+            chosen = min(
+                frontier, key=lambda key: (nodes[key]["depth"], key)
+            )
+        else:
+            chosen = choose_puct()
+            if chosen is None:
+                break
         node = nodes[chosen]
         node["expanded"] = True
+        continuation_prior = 1.0 / len(node["continuations"])
         for action in node["continuations"]:
             try_action_path(
-                [*(node["actions"]), action], node["root_candidate_id"]
+                [*(node["actions"]), action], node["root_candidate_id"],
+                parent=chosen, prior=continuation_prior,
             )
 
     achieved = {
@@ -655,9 +822,20 @@ def vector_search_root(
         row["frontier_audit"] = audit["candidate_audit"].get(
             str(row["root_candidate_id"]), {}
         )
+    root_visit_counts = {
+        str(row["root_candidate_id"]): (
+            int(edge_stats[row["node"]]["visits"])
+            if row.get("node") else 0
+        )
+        for row in root_rows
+    }
+    total_root_visits = sum(root_visit_counts.values())
     return {
         "step": int(step),
         "leaf_eval": leaf_eval,
+        "terminal_audit": bool(terminal_audit),
+        "allocation": allocation,
+        "c_puct": c_puct if allocation == "pareto-puct" else None,
         "search_horizon": int(max_depth),
         "root_candidates": root_rows,
         "explored_nodes": len(nodes),
@@ -665,6 +843,14 @@ def vector_search_root(
         "terminal_rollout_physical_steps": terminal_rollout_physical_steps,
         "global_frontier_size": len(global_frontier),
         "search_pareto_candidates": sorted(frontier_candidates),
+        "root_visit_counts": root_visit_counts,
+        "root_visit_policy": {
+            candidate: (
+                visits / total_root_visits if total_root_visits else 0.0
+            )
+            for candidate, visits in root_visit_counts.items()
+        },
+        "edge_statistics": edge_stats,
         **audit,
         "nodes": {
             key: {
@@ -705,6 +891,18 @@ def main() -> int:
     )
     parser.add_argument("--rollout-top-k", type=int, default=3)
     parser.add_argument("--rollout-max-steps", type=int, default=40)
+    parser.add_argument(
+        "--terminal-audit", action="store_true",
+        help=(
+            "Score every safe root action by genuine-terminal rollout "
+            "without exposing that result to measured search allocation"
+        ),
+    )
+    parser.add_argument(
+        "--allocation", choices=("frontier", "pareto-puct"),
+        default="frontier",
+    )
+    parser.add_argument("--c-puct", type=float, default=2.0)
     parser.add_argument("--max-roots", type=int, default=None)
     parser.add_argument("--beta-model-dir", type=pathlib.Path, default=None)
     parser.add_argument("--beta-proposals", type=int, default=6)
@@ -787,6 +985,9 @@ def main() -> int:
                 leaf_eval=args.leaf_eval,
                 rollout_top_k=args.rollout_top_k,
                 rollout_max_steps=args.rollout_max_steps,
+                terminal_audit=args.terminal_audit,
+                allocation=args.allocation,
+                c_puct=args.c_puct,
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
@@ -806,16 +1007,26 @@ def main() -> int:
     finally:
         env.close()
     resurrection_summary = summarize_resurrection_audits(roots)
-    schema_version, contract, oracle_contract = _output_contract(args.leaf_eval)
+    schema_version, contract, oracle_contract = _output_contract(
+        args.leaf_eval, terminal_audit=args.terminal_audit,
+        allocation=args.allocation,
+    )
     payload = {
         "schema_version": schema_version,
         "contract": contract,
         "oracle_contract": oracle_contract,
         "case_id": args.case,
         "dominance_heads": {k: v for k, v in DOMINANCE_HEADS.items()},
-        "allocation": "pareto_frontier_first_least_depth",
+        "allocation": (
+            "pareto_frontier_first_least_depth"
+            if args.allocation == "frontier"
+            else "pareto_puct_batched_expansion_v1"
+        ),
+        "allocation_mode": args.allocation,
+        "c_puct": args.c_puct if args.allocation == "pareto-puct" else None,
         "backup": "additive_component_vector_sets",
         "leaf_eval": args.leaf_eval,
+        "terminal_audit": bool(args.terminal_audit),
         "terminal_rollout_policy": (
             {
                 "policy": "frozen_rank0_exact_physical_filter",
@@ -823,7 +1034,7 @@ def main() -> int:
                 "max_continuation_steps": args.rollout_max_steps,
                 "censor_on_cap": True,
             }
-            if args.leaf_eval == "rollout" else None
+            if args.leaf_eval == "rollout" or args.terminal_audit else None
         ),
         "expansions_per_root": args.expansions,
         "max_depth": args.max_depth,
@@ -847,7 +1058,7 @@ def main() -> int:
         f"roots={len(roots)} labeled_candidates={labeled} "
         f"search_pareto={on_frontier}"
     )
-    if args.leaf_eval == "rollout":
+    if args.leaf_eval == "rollout" or args.terminal_audit:
         print(
             "terminal resurrection: "
             f"actions={resurrection_summary['terminal_resurrection_actions']} "
