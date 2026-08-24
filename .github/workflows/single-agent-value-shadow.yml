@@ -18,10 +18,12 @@ on:
       - scripts/build_single_agent_value_dataset.py
       - scripts/train_self_play_set_value.py
       - scripts/run_vector_mcts.py
+      - scripts/item_symmetry_transposition_shadow.py
       - scripts/aggregate_single_agent_value_shadow.py
       - tests/test_build_single_agent_value_dataset.py
       - tests/test_train_self_play_set_value.py
       - tests/test_vector_mcts_and_beta.py
+      - tests/test_item_symmetry_transposition_shadow.py
       - tests/test_aggregate_single_agent_value_shadow.py
 
 permissions:
@@ -109,6 +111,7 @@ jobs:
       - name: Rebuild frozen scenario
         run: >-
           python scripts/build_scenario_matrix.py
+          --look-ahead 40
           --stream-variant "${{ matrix.stream }}"
           --output-dir reports/value-shadow/configs
       - name: Run fixed-PUCT H2+0 and H2+V
@@ -125,6 +128,7 @@ jobs:
             --attempt-budget 128 --deep-top-k 3 --expansions 10 --max-depth 2
             --max-roots "${{ inputs.max_roots || '2' }}"
             --terminal-audit --allocation pareto-puct --c-puct 2.0
+            --item-symmetry-cache-shadow
             --rollout-top-k 3 --rollout-max-steps 40
           )
           python scripts/run_vector_mcts.py "${common[@]}" \

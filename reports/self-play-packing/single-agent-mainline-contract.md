@@ -111,6 +111,12 @@ It is shadow-only. Exact `board_fingerprint` remains the replay and DAG merge
 key until paired physical transition equivariance shows zero false merges;
 missing item metadata keeps the stable label and therefore fails closed.
 
+The six-cell paired gate subsequently passed at 64/64 transitions with zero
+false merges. `run_vector_mcts.py --item-symmetry-cache-shadow` therefore now
+measures root-local quotient-only leaf hits, potential V-call savings, and
+conflicting deterministic V signatures. It still executes every V call and
+does not merge nodes or alter candidate allocation.
+
 ## Compatibility with collected data
 
 Two-player artifacts are not converted and never silently mixed:

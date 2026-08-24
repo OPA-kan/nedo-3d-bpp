@@ -27,6 +27,12 @@ def payload(*, leaf):
             "evaluated_search_pareto_candidates": ["a"],
             "terminal_pareto_candidates": ["a"],
             "physical_steps": 2, "terminal_rollout_physical_steps": 3,
+            "item_symmetry_cache_shadow": {
+                "observations": 4,
+                "quotient_only_hits": 2,
+                "potential_evaluator_call_savings": 1 if leaf == "value" else 0,
+                "value_conflicts": 0,
+            },
         }],
     }
 
@@ -54,6 +60,24 @@ class SingleAgentValueShadowAggregateTests(unittest.TestCase):
         value["max_depth"] = 3
         with self.assertRaisesRegex(ValueError, "not H2"):
             compare_pair(zero, value, cell="c")
+
+    def test_preserves_item_symmetry_cache_shadow_telemetry(self):
+        result = compare_pair(
+            payload(leaf="measured"), payload(leaf="value"), cell="c"
+        )
+
+        self.assertEqual(
+            result["value"]["symmetry_shadow_quotient_only_hits"], 2
+        )
+        self.assertEqual(
+            result["value"][
+                "symmetry_shadow_potential_evaluator_call_savings"
+            ],
+            1,
+        )
+        self.assertEqual(
+            result["value"]["symmetry_shadow_value_conflicts"], 0
+        )
 
 
 if __name__ == "__main__":

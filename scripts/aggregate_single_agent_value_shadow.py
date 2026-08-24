@@ -30,6 +30,10 @@ def _arm_counts(
         "false_frontier_actions": 0,
         "physical_steps": 0,
         "terminal_rollout_physical_steps": 0,
+        "symmetry_shadow_observations": 0,
+        "symmetry_shadow_quotient_only_hits": 0,
+        "symmetry_shadow_potential_evaluator_call_savings": 0,
+        "symmetry_shadow_value_conflicts": 0,
     }
     for root_id, root in roots.items():
         resurrected = truth[root_id]
@@ -45,6 +49,19 @@ def _arm_counts(
         counts["physical_steps"] += int(root.get("physical_steps", 0))
         counts["terminal_rollout_physical_steps"] += int(
             root.get("terminal_rollout_physical_steps", 0)
+        )
+        symmetry = root.get("item_symmetry_cache_shadow") or {}
+        counts["symmetry_shadow_observations"] += int(
+            symmetry.get("observations", 0)
+        )
+        counts["symmetry_shadow_quotient_only_hits"] += int(
+            symmetry.get("quotient_only_hits", 0)
+        )
+        counts["symmetry_shadow_potential_evaluator_call_savings"] += int(
+            symmetry.get("potential_evaluator_call_savings", 0)
+        )
+        counts["symmetry_shadow_value_conflicts"] += int(
+            symmetry.get("value_conflicts", 0)
         )
     return counts
 
@@ -169,6 +186,16 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"{arm['physical_steps']} |"
         )
     rows.extend(("", f"- gate: **{'PASS' if result['accepted'] else 'FAIL'}**", ""))
+    value_shadow = result["value"]
+    rows.extend((
+        "## Identical-item leaf-cache shadow",
+        "",
+        f"- quotient-only state hits: **{value_shadow['symmetry_shadow_quotient_only_hits']}**",
+        f"- potential V calls saved: **{value_shadow['symmetry_shadow_potential_evaluator_call_savings']}**",
+        f"- conflicting V signatures: **{value_shadow['symmetry_shadow_value_conflicts']}**",
+        "- search behavior: **unchanged (all V calls still executed)**",
+        "",
+    ))
     return "\n".join(rows)
 
 

@@ -71,10 +71,15 @@ from scripts.build_replay_dataset import (  # noqa: E402
     state_snapshot,
 )
 from scripts.counterfactual_graph import (  # noqa: E402
+    board_fingerprint,
+    item_symmetry_board_fingerprint,
     state_tensor_from_snapshot,
     stable_id,
 )
 from scripts.coverage_action_sampler import coverage_candidates  # noqa: E402
+from scripts.item_symmetry_transposition_shadow import (  # noqa: E402
+    ItemSymmetryTranspositionShadow,
+)
 from scripts.run_self_play_packing import (  # noqa: E402
     _candidate_action,
     _candidate_record,
@@ -632,6 +637,8 @@ def vector_search_root(
     allocation: str = "frontier", c_puct: float = 2.0,
     terminal_rollout_fn: Callable[[list[Any]], dict[str, Any]] | None = None,
     leaf_vector_fn: Callable[..., dict[str, Any]] | None = None,
+    item_symmetry_cache_shadow: bool = False,
+    leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     if leaf_eval not in {"measured", "rollout", "value"}:
         raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
@@ -651,6 +658,16 @@ def vector_search_root(
         raise ValueError("value shadow requires frozen Pareto-PUCT allocation")
     if leaf_eval == "value" and leaf_vector_fn is None:
         raise ValueError("value leaf evaluation requires leaf_vector_fn")
+    if item_symmetry_cache_shadow and leaf_state_key_fn is None:
+        def leaf_state_key_fn(*, env, observation, state_step):
+            observed = policy_observation(env, observation)
+            snapshot = state_snapshot(
+                env, observed, case_id=case_id, step=int(state_step),
+            )
+            return (
+                board_fingerprint(snapshot),
+                item_symmetry_board_fingerprint(snapshot),
+            )
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
@@ -676,6 +693,10 @@ def vector_search_root(
     children: dict[str | None, list[str]] = {None: []}
     physical_steps = 0
     terminal_rollout_physical_steps = 0
+    symmetry_shadow = (
+        ItemSymmetryTranspositionShadow()
+        if item_symmetry_cache_shadow else None
+    )
 
     def try_action_path(actions, root_candidate_id, *, parent=None, prior=1.0):
         nonlocal physical_steps, terminal_rollout_physical_steps
@@ -697,6 +718,15 @@ def vector_search_root(
                 "actions": [json_safe(a) for a in actions],
             })
             ended = result["terminated"] or result["truncated"]
+            leaf_exact_fingerprint = None
+            leaf_symmetry_fingerprint = None
+            if symmetry_shadow is not None:
+                leaf_exact_fingerprint, leaf_symmetry_fingerprint = (
+                    leaf_state_key_fn(
+                        env=env, observation=result["observation"],
+                        state_step=step + len(actions),
+                    )
+                )
             terminal_result = None
             run_terminal = (
                 leaf_eval == "rollout"
@@ -729,6 +759,17 @@ def vector_search_root(
                 evaluation_vector = compose_leaf_value(
                     accumulated, leaf_prediction
                 )
+            symmetry_event = None
+            if symmetry_shadow is not None:
+                value_signature = (
+                    stable_id("leaf-value-shadow-v1", json_safe(leaf_prediction))
+                    if leaf_prediction is not None else None
+                )
+                symmetry_event = symmetry_shadow.observe(
+                    exact_key=leaf_exact_fingerprint,
+                    symmetry_key=leaf_symmetry_fingerprint,
+                    value_signature=value_signature,
+                )
             candidates = []
             if not ended and len(actions) < max_depth:
                 observation = result["observation"]
@@ -743,6 +784,9 @@ def vector_search_root(
                 "vector": accumulated,
                 "evaluation_vector": evaluation_vector,
                 "leaf_value_prediction": leaf_prediction,
+                "leaf_board_fingerprint": leaf_exact_fingerprint,
+                "leaf_item_symmetry_fingerprint": leaf_symmetry_fingerprint,
+                "item_symmetry_cache_shadow_event": symmetry_event,
                 "root_candidate_id": root_candidate_id,
                 "parent": parent,
                 "depth": len(actions),
@@ -912,6 +956,9 @@ def vector_search_root(
         "explored_nodes": len(nodes),
         "physical_steps": physical_steps,
         "terminal_rollout_physical_steps": terminal_rollout_physical_steps,
+        "item_symmetry_cache_shadow": (
+            symmetry_shadow.summary() if symmetry_shadow is not None else None
+        ),
         "global_frontier_size": len(global_frontier),
         "search_pareto_candidates": sorted(frontier_candidates),
         "root_visit_counts": root_visit_counts,
@@ -930,6 +977,9 @@ def vector_search_root(
                     "actions", "vector", "root_candidate_id", "depth",
                     "ended", "expanded", "evaluation_vector",
                     "leaf_value_prediction",
+                    "leaf_board_fingerprint",
+                    "leaf_item_symmetry_fingerprint",
+                    "item_symmetry_cache_shadow_event",
                     "terminal_genuine", "terminal_termination",
                     "terminal_continuation_steps", "terminal_vector",
                     "terminal_metrics", "terminal_evaluation",
@@ -977,6 +1027,13 @@ def main() -> int:
     )
     parser.add_argument("--c-puct", type=float, default=2.0)
     parser.add_argument("--leaf-vector-model-dir", type=pathlib.Path)
+    parser.add_argument(
+        "--item-symmetry-cache-shadow", action="store_true",
+        help=(
+            "Measure exact-versus-identical-item leaf cache reuse and value "
+            "conflicts without suppressing evaluator calls"
+        ),
+    )
     parser.add_argument("--max-roots", type=int, default=None)
     parser.add_argument("--beta-model-dir", type=pathlib.Path, default=None)
     parser.add_argument("--beta-proposals", type=int, default=6)
@@ -1075,6 +1132,7 @@ def main() -> int:
                 allocation=args.allocation,
                 c_puct=args.c_puct,
                 leaf_vector_fn=leaf_adapter,
+                item_symmetry_cache_shadow=args.item_symmetry_cache_shadow,
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
@@ -1114,6 +1172,9 @@ def main() -> int:
         "backup": "additive_component_vector_sets",
         "leaf_eval": args.leaf_eval,
         "terminal_audit": bool(args.terminal_audit),
+        "item_symmetry_cache_shadow_enabled": bool(
+            args.item_symmetry_cache_shadow
+        ),
         "leaf_vector_model": (
             None if leaf_adapter is None else {
                 "semantics": "V^pi_behavior_not_V_star",

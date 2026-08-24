@@ -21,6 +21,8 @@ class SingleAgentValueShadowWorkflowTests(unittest.TestCase):
         self.assertIn("--leaf-eval measured", self.workflow)
         self.assertIn("--leaf-eval value", self.workflow)
         self.assertIn("--terminal-audit", self.workflow)
+        self.assertIn("--item-symmetry-cache-shadow", self.workflow)
+        self.assertIn("--look-ahead 40", self.workflow)
         self.assertNotIn("progressive", self.workflow.lower())
 
     def test_has_six_cells_and_terminal_scored_aggregate(self):

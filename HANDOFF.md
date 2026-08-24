@@ -1971,8 +1971,12 @@ identical item pair. It requires a non-vacuous label change and exact agreement
 of safety, terminal status, cumulative metrics, and the symmetry child
 fingerprint at every step. Any trace-length mismatch is counted as a false
 merge. No search node is merged and no cache key changes until that physical
-equivariance gate passes. The protocol is in
-`reports/self-play-packing/item-symmetry-equivariance-protocol.md`.
+equivariance gate passes. Run `32740787738` passed all six non-vacuous cells:
+64/64 paired PyBullet transitions were equivariant and false merges were zero.
+The H2 value workflow now records quotient-only leaf hits, potential V-call
+savings, and conflicting V signatures while still executing every evaluator
+call. Search behavior and exact DAG identity remain unchanged. The protocol is
+in `reports/self-play-packing/item-symmetry-equivariance-protocol.md`.
 
 ### Current agent candidate (2026-08-13)
 

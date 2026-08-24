@@ -1,6 +1,7 @@
 # Identical-item symmetry equivariance protocol
 
-Status: implemented, physical result pending.
+Status: six-cell physical gate passed; leaf-cache reuse is being measured in
+shadow mode.
 
 ## Claim under test
 
@@ -39,13 +40,16 @@ once. A pair without that negative control is vacuous and cannot pass.
 ## Gate
 
 All six cells must be non-vacuous and the aggregate must contain zero
-false-merge transitions. Until that gate passes, the exact board fingerprint
-remains the only DAG/transposition-table merge key. Even after a pass, the
-first integration is candidate-orbit deduplication in shadow mode; it does not
-license container swaps, mirror transforms, or partial-order reduction.
+false-merge transitions. Run `32740787738` passed with 6/6 non-vacuous cells,
+64/64 equivariant transitions, and zero false merges. Exact board fingerprints
+still remain authoritative. The next integration records quotient-only leaf
+hits and deterministic V-signature conflicts while executing every original
+V call. It cannot affect search output and does not license container swaps,
+mirror transforms, or partial-order reduction.
 
 Implementation:
 
 - `scripts/audit_item_symmetry_equivariance.py`
 - `scripts/aggregate_item_symmetry_equivariance.py`
+- `scripts/item_symmetry_transposition_shadow.py`
 - `.github/workflows/item-symmetry-equivariance.yml`
