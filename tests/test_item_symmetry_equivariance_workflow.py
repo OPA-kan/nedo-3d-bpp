@@ -16,6 +16,9 @@ class ItemSymmetryEquivarianceWorkflowTests(unittest.TestCase):
         self.assertIn('NEDO_REQUIRE_INTEGRATION: "1"', self.text)
         self.assertIn("audit_item_symmetry_equivariance.py", self.text)
 
+    def test_replay_rebuilds_the_collection_pool_width(self):
+        self.assertIn("--look-ahead 40", self.text)
+
     def test_all_six_single_agent_cells_are_audited(self):
         for cell in (
             "dual-empty-original",

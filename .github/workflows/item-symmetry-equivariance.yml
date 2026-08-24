@@ -73,6 +73,7 @@ jobs:
       - name: Rebuild frozen scenario
         run: >-
           python scripts/build_scenario_matrix.py
+          --look-ahead 40
           --stream-variant "${{ matrix.stream }}"
           --output-dir reports/item-symmetry/configs
       - name: Replay an identical-item transposition pair
