@@ -21,6 +21,10 @@ class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
             self.text,
         )
         self.assertNotIn("- scripts/run_terminal_rollout_policy.py", self.text)
+        self.assertLess(
+            self.text.index("      rollout_max_steps:"),
+            self.text.index("  # A workflow_dispatch file"),
+        )
         self.assertEqual(self.text.count("--policy terminal-rollout"), 1)
         self.assertNotIn("--model-dir", self.text)
 
