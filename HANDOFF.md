@@ -419,6 +419,19 @@ generative — fresh state, beta proposes K from scratch, search judges
 execution after that. The breakthrough criterion is fixed: the first
 held-out NN_1 > NN_0 is the moment the self-improving agent starts.
 
+That program is now frozen with its ablation discipline in
+`reports/self-play-packing/pareto-search-ablation-program.md`: one
+change per stage (v0 frozen -> v0+V -> v1 with learned+coverage
+interior -> v1 at H=3/5/8), head-semantic-aware composition for
+DeltaY (+) V (terminal-only heads replace, additive heads add — never
+a blind vector sum), primary depth metrics tau(search ordering,
+terminal truth) and terminal-Pareto recall rather than frontier
+thinning, and a generative closed-loop evaluation (fresh state, beta
+proposes from scratch, search judges) before any episode execution.
+Prerequisite recorded: V_sa must be retrained on the single-agent
+suffix targets already collected in P3A — the frozen two-player V
+consumes game features the single-agent state does not have.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
