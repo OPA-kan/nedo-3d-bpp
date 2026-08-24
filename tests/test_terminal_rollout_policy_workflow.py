@@ -39,6 +39,8 @@ class TerminalRolloutPolicyWorkflowTests(unittest.TestCase):
         self.assertIn("--expected-cells 6", self.text)
         self.assertIn("baseline.json", self.text)
         self.assertIn("rollout.json", self.text)
+        self.assertIn("build_terminal_rollout_trigger_dataset.py", self.text)
+        self.assertIn("trigger-dataset.json", self.text)
 
 
 if __name__ == "__main__":

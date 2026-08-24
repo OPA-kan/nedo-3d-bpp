@@ -7,6 +7,7 @@ from scripts.aggregate_terminal_rollout_policy import (
     aggregate,
     compare_pair,
     render_markdown,
+    summarize_decision_timings,
 )
 
 
@@ -22,6 +23,18 @@ def manifest(policy, *, fill, soft, steps, switches=0):
             "steps": steps,
             "termination": "stream_exhausted",
             "genuine_termination": True,
+            "records": [
+                {"timing": {
+                    "contract": "decision_wall_clock_v1",
+                    "state_capture_seconds": 0.1,
+                    "provider_seconds": 0.2,
+                    "search_seconds": float(index + 1),
+                    "selection_seconds": 0.01,
+                    "live_action_seconds": 0.3,
+                    "decision_total_seconds": float(index + 2),
+                }}
+                for index in range(steps)
+            ],
             "final_metrics": {
                 "fill_score_proxy": fill,
                 "placed_count": steps,
@@ -49,6 +62,26 @@ def manifest(policy, *, fill, soft, steps, switches=0):
 
 
 class TerminalRolloutPolicyAggregateTests(unittest.TestCase):
+    def test_timing_summary_reports_percentiles_and_ten_second_sla(self):
+        summary = summarize_decision_timings([
+            {"timing": {
+                "decision_total_seconds": 2.0,
+                "provider_seconds": 0.5,
+            }},
+            {"timing": {
+                "decision_total_seconds": 12.0,
+                "provider_seconds": 1.5,
+            }},
+        ], sla_seconds=10.0)
+
+        self.assertEqual(summary["decision_count"], 2)
+        self.assertEqual(summary["p50_seconds"], 7.0)
+        self.assertEqual(summary["p95_seconds"], 11.5)
+        self.assertEqual(summary["max_seconds"], 12.0)
+        self.assertEqual(summary["within_sla_count"], 1)
+        self.assertEqual(summary["within_sla_rate"], 0.5)
+        self.assertEqual(summary["phase_total_seconds"]["provider_seconds"], 2.0)
+
     def test_pair_reports_vector_relation_without_scalar_score(self):
         baseline = manifest("legacy", fill=10.0, soft=1, steps=5)
         rollout = manifest(
@@ -99,7 +132,14 @@ class TerminalRolloutPolicyAggregateTests(unittest.TestCase):
             result["metric_summaries"]["soft_covered_by_other"]["losses"],
             1,
         )
+        self.assertEqual(
+            result["timing_summaries"]["rollout"]["decision_count"], 6
+        )
+        self.assertEqual(
+            result["timing_summaries"]["rollout"]["within_sla_count"], 6
+        )
         self.assertIn("No scalar utility", render_markdown(result))
+        self.assertIn("10.0s SLA", render_markdown(result))
 
 
 if __name__ == "__main__":

@@ -40,12 +40,65 @@ REPORT_DIRECTIONS = {
     "post_shake_items_toppled": -1.0,
 }
 EPS = 1e-9
+BEHAVIOR_CONTRACTS = {
+    "single_agent_terminal_rollout_policy_v2_item_symmetry",
+    "single_agent_terminal_rollout_policy_v3_wall_clock",
+}
+TIMING_PHASES = (
+    "state_capture_seconds",
+    "provider_seconds",
+    "search_seconds",
+    "selection_seconds",
+    "live_action_seconds",
+)
+
+
+def _percentile(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return round(
+        ordered[lower] * (1.0 - weight) + ordered[upper] * weight,
+        12,
+    )
+
+
+def summarize_decision_timings(
+    records: list[dict[str, Any]], *, sla_seconds: float = 10.0,
+) -> dict[str, Any]:
+    timings = [
+        record.get("timing") or {} for record in records
+        if isinstance((record.get("timing") or {}).get(
+            "decision_total_seconds"
+        ), (int, float))
+    ]
+    values = [float(row["decision_total_seconds"]) for row in timings]
+    within = sum(value <= sla_seconds for value in values)
+    return {
+        "contract": "decision_wall_clock_summary_v1",
+        "decision_count": len(values),
+        "sla_seconds": float(sla_seconds),
+        "mean_seconds": sum(values) / len(values) if values else None,
+        "p50_seconds": _percentile(values, 0.50),
+        "p90_seconds": _percentile(values, 0.90),
+        "p95_seconds": _percentile(values, 0.95),
+        "max_seconds": max(values) if values else None,
+        "within_sla_count": within,
+        "within_sla_rate": within / len(values) if values else None,
+        "phase_total_seconds": {
+            phase: sum(float(row.get(phase, 0.0)) for row in timings)
+            for phase in TIMING_PHASES
+        },
+        "decision_seconds": values,
+    }
 
 
 def _episode(payload: dict[str, Any], *, policy: str, cell: str):
-    if payload.get("behavior_contract") != (
-        "single_agent_terminal_rollout_policy_v2_item_symmetry"
-    ):
+    if payload.get("behavior_contract") not in BEHAVIOR_CONTRACTS:
         raise ValueError(f"{cell}: invalid behavior contract")
     if payload.get("policy") != policy:
         raise ValueError(f"{cell}: expected {policy} manifest")
@@ -126,7 +179,26 @@ def _arm(episode: dict[str, Any]) -> dict[str, Any]:
             )
         ),
         "final_metrics": episode.get("final_metrics") or {},
+        "decision_timing": summarize_decision_timings(
+            episode.get("records") or []
+        ),
     }
+
+
+def _combined_timing(cells: list[dict[str, Any]], arm: str) -> dict[str, Any]:
+    records = []
+    for cell in cells:
+        for value in cell[arm]["decision_timing"]["decision_seconds"]:
+            records.append({"timing": {"decision_total_seconds": value}})
+    summary = summarize_decision_timings(records)
+    summary["phase_total_seconds"] = {
+        phase: sum(
+            float(cell[arm]["decision_timing"]["phase_total_seconds"][phase])
+            for cell in cells
+        )
+        for phase in TIMING_PHASES
+    }
+    return summary
 
 
 def compare_pair(
@@ -201,10 +273,13 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
             "losses": sum(value < -EPS for value in oriented),
         }
     return {
-        "schema_version": 2,
-        "contract": "single_agent_terminal_rollout_policy_ablation_v2",
+        "schema_version": 3,
+        "contract": "single_agent_terminal_rollout_policy_ablation_v3_timing",
         "value_model": None,
         "selection": "terminal_pareto_dominance_switch_else_legacy_rank0",
+        "timing_sample_scope": (
+            "decisions_that_execute_a_live_action"
+        ),
         "scalar_utility": None,
         "cell_count": len(cells),
         "cells": cells,
@@ -254,6 +329,10 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
             cell["step_delta"] for cell in cells
         ) / len(cells),
         "metric_summaries": metric_summaries,
+        "timing_summaries": {
+            arm: _combined_timing(cells, arm)
+            for arm in ("baseline", "rollout")
+        },
     }
 
 
@@ -292,10 +371,26 @@ def render_markdown(result: dict[str, Any]) -> str:
         "- No scalar utility is constructed; final relations use the raw "
         "terminal component vector.",
         "",
+        "## Decision wall-clock",
+        "",
+        "| arm | decisions | p50 s | p90 s | p95 s | max s | <=10.0s SLA |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for arm in ("baseline", "rollout"):
+        timing = result["timing_summaries"][arm]
+        rows.append(
+            f"| {arm} | {timing['decision_count']} | "
+            f"{timing['p50_seconds']} | {timing['p90_seconds']} | "
+            f"{timing['p95_seconds']} | {timing['max_seconds']} | "
+            f"{timing['within_sla_count']}/{timing['decision_count']} "
+            f"({timing['within_sla_rate']}) |"
+        )
+    rows.extend([
+        "",
         "| cell | baseline steps | rollout steps | delta | switches | "
         "terminal relation |",
         "|---|---:|---:|---:|---:|---|",
-    ]
+    ])
     rows.extend(
         f"| {cell['cell']} | {cell['baseline']['steps']} | "
         f"{cell['rollout']['steps']} | {cell['step_delta']} | "

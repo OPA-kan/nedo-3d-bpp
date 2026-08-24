@@ -22,11 +22,13 @@ on:
       - .github/workflows/terminal-rollout-policy-ablation.yml
       - scripts/run_terminal_rollout_policy.py
       - scripts/aggregate_terminal_rollout_policy.py
+      - scripts/build_terminal_rollout_trigger_dataset.py
       - scripts/run_vector_mcts.py
       - scripts/run_self_play_packing.py
       - scripts/counterfactual_graph.py
       - tests/test_terminal_rollout_policy.py
       - tests/test_aggregate_terminal_rollout_policy.py
+      - tests/test_terminal_rollout_trigger_dataset.py
       - tests/test_terminal_rollout_policy_workflow.py
       - tests/test_run_self_play_packing.py
       - tests/test_item_symmetry_action_orbits.py
@@ -77,6 +79,7 @@ jobs:
           python -m unittest
           tests.test_terminal_rollout_policy
           tests.test_aggregate_terminal_rollout_policy
+          tests.test_terminal_rollout_trigger_dataset
           tests.test_terminal_rollout_policy_workflow
           tests.test_replay_integration
           tests.test_attribute_placement_pybullet_e2e
@@ -136,7 +139,14 @@ jobs:
           --expected-cells 6
           --json-output reports/terminal-rollout-policy/aggregate.json
           --markdown-output reports/terminal-rollout-policy/aggregate.md
+      - name: Build adaptive-rollout trigger dataset
+        run: >-
+          python scripts/build_terminal_rollout_trigger_dataset.py
+          --root reports/terminal-rollout-policy/results
+          --json-output reports/terminal-rollout-policy/trigger-dataset.json
+          --markdown-output reports/terminal-rollout-policy/trigger-dataset.md
       - run: cat reports/terminal-rollout-policy/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - run: cat reports/terminal-rollout-policy/trigger-dataset.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -12,7 +12,9 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import platform
 import sys
+import time
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -50,7 +52,8 @@ from scripts.run_vector_mcts import vector_search_root  # noqa: E402
 from scripts.single_agent_packing import GENUINE_TERMINATIONS  # noqa: E402
 
 POLICIES = {"legacy", "terminal-rollout"}
-BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v2_item_symmetry"
+BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v3_wall_clock"
+TIMING_CONTRACT = "decision_wall_clock_v1"
 
 
 def _rank_key(candidate: Any) -> tuple[int, str]:
@@ -156,6 +159,7 @@ def _search_record(result: dict[str, Any]) -> dict[str, Any]:
         "item_symmetry_terminal_cache": result.get(
             "item_symmetry_terminal_cache"
         ),
+        "timing": result.get("timing"),
         "root_candidates": [
             {
                 key: row.get(key)
@@ -197,6 +201,8 @@ def run_episode(
         records = []
         termination = None
         for step in range(max_steps):
+            decision_started = time.perf_counter()
+            phase_started = time.perf_counter()
             observed = policy_observation(env, observation)
             snapshot = state_snapshot(
                 env, observed, case_id=case_id, step=step,
@@ -215,11 +221,15 @@ def run_episode(
                 + "\n",
                 encoding="utf-8",
             )
+            state_capture_seconds = time.perf_counter() - phase_started
+            phase_started = time.perf_counter()
             candidates = list(provider(env, observation, int(top_k)))
+            provider_seconds = time.perf_counter() - phase_started
             if not candidates:
                 termination = "no_retained_candidate"
                 break
             leaf_eval = "rollout" if policy == "terminal-rollout" else "measured"
+            phase_started = time.perf_counter()
             search = vector_search_root(
                 agent_module, task_config, case_id=case_id,
                 environment_seed=environment_seed,
@@ -239,17 +249,33 @@ def run_episode(
                     policy == "terminal-rollout"
                 ),
             )
+            search_seconds = time.perf_counter() - phase_started
+            phase_started = time.perf_counter()
             chosen, selection = choose_root_candidate(
                 candidates, search, policy=policy,
             )
+            selection_seconds = time.perf_counter() - phase_started
             if chosen is None:
                 termination = "no_safe_retained_candidate"
                 break
             before = cumulative_metrics(env)
             action = _candidate_action(chosen)
+            phase_started = time.perf_counter()
             observation, _reward, terminated, truncated, info = env.step(action)
+            live_action_seconds = time.perf_counter() - phase_started
             executed.append(action)
             status = _status(info)
+            timing = {
+                "contract": TIMING_CONTRACT,
+                "state_capture_seconds": state_capture_seconds,
+                "provider_seconds": provider_seconds,
+                "search_seconds": search_seconds,
+                "selection_seconds": selection_seconds,
+                "live_action_seconds": live_action_seconds,
+                "decision_total_seconds": (
+                    time.perf_counter() - decision_started
+                ),
+            }
             records.append({
                 "step": int(step),
                 "root_id": root_id,
@@ -260,6 +286,7 @@ def run_episode(
                 "action": json_safe(action),
                 "metrics_before": before,
                 "search": _search_record(search),
+                "timing": timing,
                 "status": status,
             })
             if not _safe(status):
@@ -394,6 +421,18 @@ def main() -> int:
             if args.policy == "terminal-rollout" else "legacy_safe_rank0"
         ),
         "value_model": None,
+        "timing_contract": {
+            "decision": TIMING_CONTRACT,
+            "search": "vector_search_wall_clock_v1",
+            "sla_seconds": 10.0,
+            "clock": "time.perf_counter",
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "sample_scope": (
+                "decisions_that_execute_a_live_action; terminal provider-empty "
+                "checks without an action are not episode records"
+            ),
+        },
         "candidate_contract": {
             "provider": "placement_core_item_stratified_fixed_attempts",
             "attempt_budget": args.attempt_budget,

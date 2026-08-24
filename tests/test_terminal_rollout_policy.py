@@ -192,6 +192,15 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
         self.assertTrue(vector_search.call_args.kwargs[
             "item_symmetry_terminal_cache"
         ])
+        timing = episode["records"][0]["timing"]
+        self.assertEqual(timing["contract"], "decision_wall_clock_v1")
+        for phase in (
+            "state_capture_seconds", "provider_seconds", "search_seconds",
+            "selection_seconds", "live_action_seconds",
+            "decision_total_seconds",
+        ):
+            self.assertGreaterEqual(timing[phase], 0.0)
+        self.assertIn("timing", episode["records"][0]["search"])
         self.assertEqual(episode["termination"], "stream_exhausted")
 
 

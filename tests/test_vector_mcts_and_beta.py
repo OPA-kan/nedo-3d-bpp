@@ -698,6 +698,11 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
 
         self.assertEqual(terminal.call_count, 1)
         self.assertEqual(result["terminal_rollout_physical_steps"], 3)
+        timing = result["timing"]
+        self.assertEqual(timing["contract"], "vector_search_wall_clock_v1")
+        self.assertGreaterEqual(timing["search_total_seconds"], 0.0)
+        self.assertGreaterEqual(timing["root_rollout_total_seconds"], 0.0)
+        self.assertGreaterEqual(timing["terminal_rollout_total_seconds"], 0.0)
         self.assertEqual(
             result["terminal_rollout_legal_filter_symmetry_reused"], 2
         )

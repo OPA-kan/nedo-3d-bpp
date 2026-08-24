@@ -52,6 +52,7 @@ import json
 import math
 import pathlib
 import sys
+import time
 from typing import Any, Callable
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -503,12 +504,26 @@ def _terminal_rollout(
     max_continuation_steps: int,
 ) -> dict[str, Any]:
     """Force a search path, then follow frozen rank-0 to termination."""
+    rollout_started = time.perf_counter()
+    timing = {
+        "contract": "terminal_rollout_wall_clock_v1",
+        "setup_seconds": 0.0,
+        "prefix_replay_seconds": 0.0,
+        "forced_action_seconds": 0.0,
+        "continuation_provider_seconds": 0.0,
+        "continuation_legal_filter_seconds": 0.0,
+        "continuation_action_seconds": 0.0,
+        "terminal_evaluation_seconds": 0.0,
+    }
+    phase_started = time.perf_counter()
     env = _fresh_env(task_config)
     try:
         env.reset_settings()
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
+        timing["setup_seconds"] += time.perf_counter() - phase_started
         executed = []
+        phase_started = time.perf_counter()
         for action in prefix_actions:
             observation, _r, terminated, truncated, info = env.step(action)
             if not _safe(_status(info)) or terminated or truncated:
@@ -516,9 +531,13 @@ def _terminal_rollout(
                     f"terminal-rollout prefix failed at action {len(executed)}"
                 )
             executed.append(action)
+        timing["prefix_replay_seconds"] += (
+            time.perf_counter() - phase_started
+        )
         root_metrics = cumulative_metrics(env)
         termination = None
         forced_steps = 0
+        phase_started = time.perf_counter()
         for action in forced_actions:
             observation, _r, terminated, truncated, info = env.step(action)
             executed.append(action)
@@ -532,6 +551,9 @@ def _terminal_rollout(
             if terminated:
                 termination = "stream_exhausted"
                 break
+        timing["forced_action_seconds"] += (
+            time.perf_counter() - phase_started
+        )
         continuation_steps = 0
         continuation_actions = []
         legal_filter_physical_step_equivalents = 0
@@ -540,15 +562,23 @@ def _terminal_rollout(
             if continuation_steps >= max_continuation_steps:
                 termination = "continuation_cap"
                 break
+            phase_started = time.perf_counter()
             proposals = list(provider(env, observation, int(top_k)))
+            timing["continuation_provider_seconds"] += (
+                time.perf_counter() - phase_started
+            )
             if not proposals:
                 termination = "no_retained_candidate"
                 break
+            phase_started = time.perf_counter()
             retained, _audit = legal_filter(
                 env=env, observation=observation, candidates=proposals,
                 actions=list(executed),
                 step=root_step + forced_steps + continuation_steps,
                 max_safe_candidates=1,
+            )
+            timing["continuation_legal_filter_seconds"] += (
+                time.perf_counter() - phase_started
             )
             legal_filter_physical_step_equivalents += int(
                 _audit.get("physical_step_equivalents", 0)
@@ -560,7 +590,11 @@ def _terminal_rollout(
                 termination = "no_safe_retained_candidate"
                 break
             action = _candidate_action(retained[0])
+            phase_started = time.perf_counter()
             observation, _r, terminated, truncated, info = env.step(action)
+            timing["continuation_action_seconds"] += (
+                time.perf_counter() - phase_started
+            )
             executed.append(action)
             continuation_actions.append(action)
             if not _safe(_status(info)):
@@ -575,8 +609,15 @@ def _terminal_rollout(
         terminal_metrics = cumulative_metrics(env)
         evaluation = None
         if genuine:
+            phase_started = time.perf_counter()
             evaluation = _compact_evaluation(env.evaluate())
             _merge_terminal_shake(terminal_metrics, evaluation)
+            timing["terminal_evaluation_seconds"] += (
+                time.perf_counter() - phase_started
+            )
+        timing["rollout_total_seconds"] = (
+            time.perf_counter() - rollout_started
+        )
         return {
             "termination": termination,
             "genuine_terminal": genuine,
@@ -604,6 +645,7 @@ def _terminal_rollout(
             ),
             "terminal_metrics": terminal_metrics,
             "evaluation": evaluation,
+            "timing": timing,
         }
     finally:
         env.close()
@@ -613,21 +655,35 @@ def _rollout(
     task_config, *, environment_seed: int, prefix_actions, actions,
 ) -> dict[str, Any]:
     """Replay prefix + tree actions in a fresh env; step-by-step metrics."""
+    rollout_started = time.perf_counter()
+    timing = {
+        "contract": "root_physical_rollout_wall_clock_v1",
+        "setup_seconds": 0.0,
+        "prefix_replay_seconds": 0.0,
+        "action_evaluation_seconds": 0.0,
+    }
+    phase_started = time.perf_counter()
     env = _fresh_env(task_config)
     try:
         env.reset_settings()
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
+        timing["setup_seconds"] += time.perf_counter() - phase_started
         prefix_steps = 0
+        phase_started = time.perf_counter()
         for action in prefix_actions:
             observation, _r, terminated, truncated, info = env.step(action)
             prefix_steps += 1
             if not _safe(_status(info)) or terminated or truncated:
                 raise RuntimeError("prefix replay failed")
+        timing["prefix_replay_seconds"] += (
+            time.perf_counter() - phase_started
+        )
         vectors = []
         terminated = truncated = False
         safe = True
         attempted_steps = 0
+        phase_started = time.perf_counter()
         for action in actions:
             before = cumulative_metrics(env)
             observation, _r, terminated, truncated, info = env.step(action)
@@ -638,6 +694,12 @@ def _rollout(
             vectors.append(component_delta_vector(before, cumulative_metrics(env)))
             if terminated or truncated:
                 break
+        timing["action_evaluation_seconds"] += (
+            time.perf_counter() - phase_started
+        )
+        timing["rollout_total_seconds"] = (
+            time.perf_counter() - rollout_started
+        )
         return {
             "safe": safe,
             "terminated": terminated,
@@ -645,6 +707,7 @@ def _rollout(
             "step_deltas": vectors,
             "observation": observation,
             "physical_step_equivalents": prefix_steps + attempted_steps,
+            "timing": timing,
             "env": env,
         }
     except Exception:
@@ -667,6 +730,7 @@ def vector_search_root(
     item_symmetry_terminal_cache: bool = False,
     leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
+    search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
         raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
     if rollout_top_k < 1:
@@ -732,6 +796,20 @@ def vector_search_root(
     terminal_rollout_physical_steps = 0
     terminal_rollout_physical_step_equivalents = 0
     terminal_rollout_legal_filter_symmetry_reused = 0
+    timing_totals = {
+        "root_rollout_total_seconds": 0.0,
+        "root_setup_seconds": 0.0,
+        "root_prefix_replay_seconds": 0.0,
+        "root_action_evaluation_seconds": 0.0,
+        "terminal_rollout_total_seconds": 0.0,
+        "terminal_setup_seconds": 0.0,
+        "terminal_prefix_replay_seconds": 0.0,
+        "terminal_forced_action_seconds": 0.0,
+        "terminal_continuation_provider_seconds": 0.0,
+        "terminal_continuation_legal_filter_seconds": 0.0,
+        "terminal_continuation_action_seconds": 0.0,
+        "terminal_evaluation_seconds": 0.0,
+    }
     terminal_symmetry_cache: dict[tuple[str, int], dict[str, Any]] = {}
     terminal_symmetry_cache_stats = {
         "contract": "identical_item_terminal_rollout_cache_v1",
@@ -766,6 +844,19 @@ def vector_search_root(
         physical_steps += len(actions)
         physical_step_equivalents += int(
             result.get("physical_step_equivalents", len(actions))
+        )
+        root_timing = result.get("timing") or {}
+        timing_totals["root_rollout_total_seconds"] += float(
+            root_timing.get("rollout_total_seconds", 0.0)
+        )
+        timing_totals["root_setup_seconds"] += float(
+            root_timing.get("setup_seconds", 0.0)
+        )
+        timing_totals["root_prefix_replay_seconds"] += float(
+            root_timing.get("prefix_replay_seconds", 0.0)
+        )
+        timing_totals["root_action_evaluation_seconds"] += float(
+            root_timing.get("action_evaluation_seconds", 0.0)
         )
         env = result.pop("env")
         try:
@@ -840,6 +931,29 @@ def vector_search_root(
                     if cache_key is not None:
                         terminal_symmetry_cache_stats["misses"] += 1
                     terminal_result = terminal_rollout_fn(list(actions))
+                    terminal_timing = terminal_result.get("timing") or {}
+                    for target, source in (
+                        ("terminal_rollout_total_seconds", "rollout_total_seconds"),
+                        ("terminal_setup_seconds", "setup_seconds"),
+                        ("terminal_prefix_replay_seconds", "prefix_replay_seconds"),
+                        ("terminal_forced_action_seconds", "forced_action_seconds"),
+                        (
+                            "terminal_continuation_provider_seconds",
+                            "continuation_provider_seconds",
+                        ),
+                        (
+                            "terminal_continuation_legal_filter_seconds",
+                            "continuation_legal_filter_seconds",
+                        ),
+                        (
+                            "terminal_continuation_action_seconds",
+                            "continuation_action_seconds",
+                        ),
+                        ("terminal_evaluation_seconds", "terminal_evaluation_seconds"),
+                    ):
+                        timing_totals[target] += float(
+                            terminal_timing.get(source, 0.0)
+                        )
                     terminal_rollout_physical_steps += int(
                         terminal_result.get("physical_steps", 0)
                     )
@@ -1124,6 +1238,10 @@ def vector_search_root(
         for row in root_rows
     }
     total_root_visits = sum(root_visit_counts.values())
+    timing_totals["contract"] = "vector_search_wall_clock_v1"
+    timing_totals["search_total_seconds"] = (
+        time.perf_counter() - search_started
+    )
     return {
         "step": int(step),
         "leaf_eval": leaf_eval,
@@ -1142,6 +1260,7 @@ def vector_search_root(
         "terminal_rollout_legal_filter_symmetry_reused": (
             terminal_rollout_legal_filter_symmetry_reused
         ),
+        "timing": timing_totals,
         "item_symmetry_terminal_cache": terminal_symmetry_cache_stats,
         "item_symmetry_cache_shadow": (
             symmetry_shadow.summary() if symmetry_shadow is not None else None
