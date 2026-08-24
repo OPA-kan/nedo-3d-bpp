@@ -32,6 +32,61 @@ bandit/MCTS mapping below adds the implementation basis.
   the closed loop. The scalar-to-vector move is our genuine
   difficulty and our genuine novelty.
 
+## Depth-vs-outcome evidence (owner's survey 2026-08-24, recorded)
+
+Does deeper reading improve *final* space utilization in 3D-BPP? The
+literature answer is yes — conditionally:
+
+- **Zhao et al., AAAI 2021, Fig. 8**: BPP-k lookahead with MCTS,
+  x = lookahead k, y = average space utilization. Utilization rises
+  with k, and MCTS tracks the k! brute-force permutation search at a
+  fraction of the cost. Their stated mechanism is ours: reserve space
+  for future items — avoid the locally good move that kills the
+  corridor.
+- **Zhao et al., "Learning Practically Feasible Policies" (follow-up),
+  Fig. 9(b)**: k = 1..8; "the performance of MCTS improves with the
+  number of lookahead" — for *parallel* MCTS. The same figure shows
+  **serial MCTS degrading beyond k > 5**: fixed budget over an
+  exploding tree stops finding the good branches. Depth adds
+  information; it can still subtract search quality.
+- **Fang et al. (owner-reported, KDD 2026)**: "only the performance of
+  MPC-PCT improves consistently as N increases" — a *well-allocated*
+  MCTS is the arm whose utilization is monotone in horizon; at their
+  production N=4 it beats plain DRL, and >15% over the PCT baseline
+  under distribution shift.
+
+So the licensed claim is not "deeper always fills more" but:
+
+> **horizon ↑ improves final utilization iff allocation/budget keeps
+> search quality up.** Zhao already measured the failure branch.
+
+This maps exactly onto our own artifacts: the H3 fill advantage that
+vanished at H4 (`reports/paired-search-follow/run-32469901132.md`) is a
+measured false depth-preference; the one future-sensitive root where H3
+value inverts immediate fill and wins
+(`reports/counterfactual-dag-search/decision-32447121770.md`,
+`m-dual-shelf-mixed` step 12: rank-0 loses H1 fill 11.25 vs 11.51 but
+wins H3 fill 14.07 vs 13.33) is our single in-repo positive control for
+"a distant consequence flips the right move". Both poles of the
+literature result already exist here at n=1 each; the ladder's job is
+to measure their rates under a search that can actually explore.
+
+### The decisive event to hunt: frontier resurrection
+
+The evidence the program actually wants is not "H=8 beat H=3 on
+average" but the per-action event:
+
+    a not in PF_{H=shallow}  and  a in PF_{H=deep}  and,
+    under terminal probes,   a in PF_{terminal}
+
+— deep search resurrecting an action that shallow evaluation discards,
+confirmed by realized terminals. Its evil twin, **false resurrection**
+(`a in PF_deep` but `a not in PF_terminal`), is the Zhao serial-MCTS
+degradation made measurable per action. The depth ladder counts both;
+the ratio is the direct test of whether added depth is buying signal
+or noise at the current allocation quality. Preregistered in
+`pareto-search-ablation-program.md`.
+
 ## The bottleneck, restated
 
 Pareto Tree Search v0 has **no exploration principle**: frontier-first

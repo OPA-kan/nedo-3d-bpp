@@ -422,7 +422,8 @@ held-out NN_1 > NN_0 is the moment the self-improving agent starts.
 That program is now frozen with its ablation discipline in
 `reports/self-play-packing/pareto-search-ablation-program.md`: one
 change per stage (v0 frozen -> v0+V -> v1 with learned+coverage
-interior -> v1 at H=3/5/8), head-semantic-aware composition for
+interior -> v2 with Pareto-PUCT allocation -> v2 at H=3/5/8),
+head-semantic-aware composition for
 DeltaY (+) V (terminal-only heads replace, additive heads add — never
 a blind vector sum), primary depth metrics tau(search ordering,
 terminal truth) and terminal-Pareto recall rather than frontier
@@ -431,6 +432,31 @@ proposes from scratch, search judges) before any episode execution.
 Prerequisite recorded: V_sa must be retrained on the single-agent
 suffix targets already collected in P3A — the frozen two-player V
 consumes game features the single-agent state does not have.
+The v2 stage and its basis (Drugan/Nowe Pareto-UCB1 lifted to trees,
+floor-mixed prior, visit-distribution teacher, and the flagged
+dispersion-standardization contract question) are in
+`reports/self-play-packing/prior-art-and-pareto-puct-notes.md`.
+
+Depth-vs-outcome evidence was then audited on both sides (2026-08-24).
+In-repo: deeper reading changing the chosen move is well measured
+(58-root H2/H3/H5 audits), but "deep read -> better executed outcome"
+exists only as one positive control — `m-dual-shelf-mixed` step 12 in
+`counterfactual-dag-search/decision-32447121770.md`, where immediate
+fill inverts the H3-best action (1/19 constrained graphs) — alongside
+one measured false depth-preference (run `32469901132`: +0.339 H3 fill
+advantage exactly gone at H4). Literature (owner survey, recorded in
+the prior-art notes): Zhao AAAI 2021 Fig. 8 and the
+practically-feasible follow-up Fig. 9(b) show utilization rising with
+lookahead for parallel MCTS but *degrading beyond k>5 for serial
+MCTS*; Fang's MPC-PCT is monotone in horizon. Licensed claim: horizon
+helps iff allocation keeps search quality up — which is why depth is
+the last ladder stage, after Pareto-PUCT. The depth ladder's decisive
+per-action metric is preregistered in the ablation program: **frontier
+resurrection** (a not in PF_H3, in PF_H5/8, confirmed in PF_terminal
+by terminal probes) versus **false resurrection** (in deep PF, not in
+terminal PF); the ratio across H separates signal from
+budget-starvation noise, and the dag-search root is the standing
+positive-control root.
 
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix

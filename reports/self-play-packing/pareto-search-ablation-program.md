@@ -48,7 +48,7 @@ roots with component returns and terminal stability, schema
 | terminal_stability_* | `V(s_H)` **replaces** — nothing measured to add | terminal-only quantity; adding a branch delta would double count |
 | stream_completed | `V(s_H)` alone | terminal-only |
 
-## Depth-ladder metrics (v1, H = 3/5/8)
+## Depth-ladder metrics (v2, H = 3/5/8)
 
 Frontier thinning is *secondary*. The primary questions are:
 
@@ -56,8 +56,35 @@ Frontier thinning is *secondary*. The primary questions are:
   (rank-0 continuations, the standing reference arm) supply the truth;
 - **terminal-Pareto recall** — does the search frontier contain the
   actions whose realized terminal vectors are non-dominated?
+- **frontier resurrection vs false resurrection** (preregistered
+  2026-08-24; literature basis in
+  `prior-art-and-pareto-puct-notes.md`). Per root, per action:
+  - *resurrection*: `a not in PF_{H=3}`, `a in PF_{H=5 or 8}`, and
+    the terminal probe confirms `a in PF_terminal` — deep search
+    found a distant-consequence action that shallow evaluation
+    discards. This is the event the whole program exists to produce.
+  - *false resurrection*: `a in PF_{H=5 or 8}` but
+    `a not in PF_terminal` — Zhao's serial-MCTS degradation (deeper
+    horizon, starved allocation) measured per action.
+  - Report both counts and their ratio at each H. Depth earns its
+    physics budget only if resurrections appear and the ratio does
+    not collapse toward false resurrections as H grows. A rising
+    false-resurrection share at fixed budget is the preregistered
+    signature of budget starvation, not of "depth doesn't matter".
 
-Only if deeper search moves these does depth earn its physics budget.
+The expectation from prior art (Zhao AAAI 2021 Fig. 8; the
+practically-feasible follow-up Fig. 9(b); Fang's monotone-in-N
+MPC-PCT) is: utilization improves with horizon **iff** allocation
+keeps search quality up — which is why this ladder runs on v2
+(Pareto-PUCT) and not on v0's exploitation-only allocation. Serial
+MCTS degrading beyond k>5 in Zhao is the published version of our own
+run `32469901132` (an H3 fill advantage that vanished at H4).
+
+Standing regression root: `m-dual-shelf-mixed` step 12
+(`counterfactual-dag-search/decision-32447121770.md`) — the one
+measured root where immediate fill inverts the H3-best action. Any
+depth-ladder run should include it (or its single-agent analog) as a
+positive control: a working deep search must keep rank-0 there.
 
 ## Generative closed-loop evaluation (replaces recall-on-prevalidated)
 
