@@ -1,0 +1,145 @@
+name: Terminal rollout resurrection oracle
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_roots:
+        description: Roots per matrix cell (pilot default 2)
+        required: false
+        default: "2"
+      expansions:
+        description: Pareto Tree Search v0 expansions per root
+        required: false
+        default: "10"
+      max_depth:
+        description: Maximum bounded-search depth
+        required: false
+        default: "3"
+      rollout_max_steps:
+        description: Frozen-policy continuation cap; cap hits are censored
+        required: false
+        default: "40"
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/terminal-resurrection-oracle.yml
+      - scripts/run_vector_mcts.py
+      - scripts/aggregate_terminal_resurrection_oracle.py
+      - tests/test_vector_mcts_and_beta.py
+      - tests/test_aggregate_terminal_resurrection_oracle.py
+      - tests/test_terminal_resurrection_oracle_workflow.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminal-resurrection-oracle-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  paired-cell:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: dual-empty-original
+            scenario: dual-empty
+            stream: original
+          - cell: dual-preloaded-dedicated-source-001
+            scenario: dual-preloaded-dedicated
+            stream: source-001
+          - cell: dual-shelf-mixed-source-001
+            scenario: dual-shelf-mixed
+            stream: source-001
+          - cell: single-empty-noshelf-original
+            scenario: single-empty-noshelf
+            stream: original
+          - cell: single-empty-shelf-original
+            scenario: single-empty-shelf
+            stream: original
+          - cell: single-preloaded-original
+            scenario: single-preloaded
+            stream: original
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify terminal-oracle contracts
+        run: >-
+          python -m unittest
+          tests.test_vector_mcts_and_beta
+          tests.test_aggregate_terminal_resurrection_oracle
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Rebuild the frozen synthetic scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/terminal-oracle/configs
+      - name: Run paired measured and genuine-terminal arms
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="reports/terminal-oracle/${{ matrix.cell }}"
+          mkdir -p "$out"
+          common=(
+            --config "reports/terminal-oracle/configs/${{ matrix.scenario }}.json"
+            --case "m-${{ matrix.scenario }}"
+            --environment-seed 42
+            --manifest "reports/self-play-paired-physical/p3a-collection-20260823/${{ matrix.cell }}/manifest.json"
+            --attempt-budget 128
+            --deep-top-k 3
+            --expansions "${{ inputs.expansions || '10' }}"
+            --max-depth "${{ inputs.max_depth || '3' }}"
+            --max-roots "${{ inputs.max_roots || '2' }}"
+          )
+          python scripts/run_vector_mcts.py \
+            "${common[@]}" --leaf-eval measured \
+            --output "$out/measured.json"
+          python scripts/run_vector_mcts.py \
+            "${common[@]}" --leaf-eval rollout \
+            --rollout-top-k 3 \
+            --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}" \
+            --output "$out/rollout.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terminal-resurrection-cell-${{ matrix.cell }}
+          path: reports/terminal-oracle/${{ matrix.cell }}/
+
+  aggregate:
+    needs: paired-cell
+    if: always() && needs.paired-cell.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: terminal-resurrection-cell-*
+          path: reports/terminal-oracle/results
+      - name: Verify pair identity and aggregate resurrection evidence
+        run: >-
+          python scripts/aggregate_terminal_resurrection_oracle.py
+          --root reports/terminal-oracle/results
+          --expected-cells 6
+          --json-output reports/terminal-oracle/aggregate.json
+          --markdown-output reports/terminal-oracle/aggregate.md
+      - run: cat reports/terminal-oracle/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terminal-resurrection-oracle-aggregate-${{ github.run_id }}
+          path: reports/terminal-oracle/

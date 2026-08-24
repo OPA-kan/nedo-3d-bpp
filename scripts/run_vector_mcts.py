@@ -23,6 +23,13 @@ optional beta proposals) so the search also judges proposed actions;
 deeper nodes expand with legacy top-k only, keeping physics cost
 bounded. The environment is deterministic (degenerate world), so one
 rollout per action sequence is exact.
+
+The default ``--leaf-eval measured`` preserves v0.  The opt-in
+``--leaf-eval rollout`` is an oracle/reference arm: every reached node is
+continued by the frozen rank-0 policy to a genuine terminal, while one-step,
+bounded-search and terminal Pareto membership remain separately recorded.
+It does not load V and uses a distinct output contract so it cannot silently
+become the existing acceptance-head teacher.
 """
 
 from __future__ import annotations
@@ -31,7 +38,7 @@ import argparse
 import json
 import pathlib
 import sys
-from typing import Any
+from typing import Any, Callable
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -59,8 +66,10 @@ from scripts.run_self_play_packing import (  # noqa: E402
     _candidate_action,
     _candidate_record,
     _candidate_selection,
+    _compact_evaluation,
     _safe,
     _status,
+    build_exact_physical_legal_filter,
 )
 from scripts.run_single_agent_packing import _fresh_env  # noqa: E402
 from scripts.single_agent_packing import (  # noqa: E402
@@ -75,6 +84,20 @@ DOMINANCE_HEADS = {
     "surface_total_variation_delta": -1.0,
 }
 EPS = 1e-9
+GENUINE_TERMINATIONS = {
+    "stream_exhausted", "no_retained_candidate", "no_safe_retained_candidate",
+}
+
+
+def _output_contract(leaf_eval: str) -> tuple[int, str, str | None]:
+    if leaf_eval == "measured":
+        return 1, "vector_mcts_search_pareto_v1", None
+    if leaf_eval == "rollout":
+        return (
+            2, "pareto_tree_search_terminal_oracle_v2",
+            "terminal_frontier_resurrection_v1",
+        )
+    raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
 
 
 def _oriented(vector: dict[str, Any]) -> tuple[float, ...] | None:
@@ -104,6 +127,165 @@ def pareto_frontier(vectors: dict[str, tuple[float, ...]]) -> set[str]:
     }
 
 
+def _candidate_frontier(
+    vectors: dict[str, tuple[str, dict[str, Any] | None]],
+) -> set[str]:
+    """Map a frontier over achieved vectors back to root candidates."""
+    oriented = {
+        key: value
+        for key, (_candidate, raw) in vectors.items()
+        if raw is not None and (value := _oriented(raw)) is not None
+    }
+    return {
+        vectors[key][0] for key in pareto_frontier(oriented)
+    } if oriented else set()
+
+
+def _recall(found: set[str], truth: set[str]) -> float | None:
+    return len(found & truth) / len(truth) if truth else None
+
+
+def build_resurrection_audit(
+    root_rows: list[dict[str, Any]], nodes: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare shallow, searched and genuine-terminal Pareto membership.
+
+    Terminal truth is emitted only when every safe root candidate has a
+    genuine terminal rollout.  A capped or failed continuation therefore
+    censors the root audit instead of silently shrinking the comparison set.
+    """
+    root_nodes = {
+        str(row["root_candidate_id"]): nodes[row["node"]]
+        for row in root_rows if row.get("safe", True) and row.get("node")
+    }
+    root_candidates = set(root_nodes)
+    h1 = _candidate_frontier({
+        f"h1:{candidate}": (candidate, node.get("vector"))
+        for candidate, node in root_nodes.items()
+    })
+    measured_search = _candidate_frontier({
+        f"measured:{key}": (str(node["root_candidate_id"]), node.get("vector"))
+        for key, node in nodes.items()
+    })
+    evaluated_search = _candidate_frontier({
+        f"evaluated:{key}": (
+            str(node["root_candidate_id"]), node.get("evaluation_vector")
+        )
+        for key, node in nodes.items()
+    })
+    terminal_eligible = {
+        candidate for candidate, node in root_nodes.items()
+        if node.get("terminal_genuine") is True
+        and _oriented(node.get("terminal_vector") or {}) is not None
+    }
+    terminal_censored = root_candidates - terminal_eligible
+    terminal_truth_complete = (
+        bool(root_candidates) and not terminal_censored
+    )
+    terminal = (
+        _candidate_frontier({
+            f"terminal:{candidate}": (
+                candidate, root_nodes[candidate].get("terminal_vector")
+            )
+            for candidate in terminal_eligible
+        })
+        if terminal_truth_complete else set()
+    )
+    resurrected = terminal - h1
+    deepened = {
+        str(node["root_candidate_id"])
+        for node in nodes.values() if int(node.get("depth", 0)) > 1
+    }
+    measured_found = resurrected & measured_search
+    evaluated_found = resurrected & evaluated_search
+    deepened_found = resurrected & deepened
+    max_depth_by_candidate = {
+        candidate: max(
+            (
+                int(node.get("depth", 0)) for node in nodes.values()
+                if str(node["root_candidate_id"]) == candidate
+            ),
+            default=0,
+        )
+        for candidate in root_candidates
+    }
+    return {
+        "contract": "terminal_frontier_resurrection_v1",
+        "root_candidate_ids": sorted(root_candidates),
+        "h1_pareto_candidates": sorted(h1),
+        "measured_search_pareto_candidates": sorted(measured_search),
+        "evaluated_search_pareto_candidates": sorted(evaluated_search),
+        "terminal_truth_complete": terminal_truth_complete,
+        "terminal_eligible_candidates": sorted(terminal_eligible),
+        "terminal_censored_candidates": sorted(terminal_censored),
+        "terminal_pareto_candidates": sorted(terminal),
+        "terminal_frontier_resurrection_candidates": sorted(resurrected),
+        "deepened_candidates": sorted(deepened),
+        "deepened_resurrection_candidates": sorted(deepened_found),
+        "measured_frontier_resurrection_candidates": sorted(measured_found),
+        "evaluated_frontier_resurrection_candidates": sorted(evaluated_found),
+        "deepened_resurrection_recall": _recall(deepened, resurrected),
+        "measured_frontier_resurrection_recall": _recall(
+            measured_search, resurrected
+        ),
+        "evaluated_frontier_resurrection_recall": _recall(
+            evaluated_search, resurrected
+        ),
+        "candidate_audit": {
+            candidate: {
+                "in_h1_pareto": candidate in h1,
+                "in_measured_search_pareto": candidate in measured_search,
+                "in_evaluated_search_pareto": candidate in evaluated_search,
+                "terminal_eligible": candidate in terminal_eligible,
+                "in_terminal_pareto": candidate in terminal,
+                "terminal_frontier_resurrection": candidate in resurrected,
+                "max_explored_depth": max_depth_by_candidate[candidate],
+                "deepened": candidate in deepened,
+            }
+            for candidate in sorted(root_candidates)
+        },
+    }
+
+
+def summarize_resurrection_audits(
+    roots: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Aggregate action-level resurrection recall over complete roots."""
+    complete = [root for root in roots if root.get("terminal_truth_complete")]
+    truth = sum(
+        len(root.get("terminal_frontier_resurrection_candidates") or [])
+        for root in complete
+    )
+
+    def count(field: str) -> int:
+        return sum(len(root.get(field) or []) for root in complete)
+
+    deepened = count("deepened_resurrection_candidates")
+    measured = count("measured_frontier_resurrection_candidates")
+    evaluated = count("evaluated_frontier_resurrection_candidates")
+    return {
+        "contract": "terminal_frontier_resurrection_summary_v1",
+        "roots": len(roots),
+        "terminal_truth_complete_roots": len(complete),
+        "terminal_truth_censored_roots": len(roots) - len(complete),
+        "roots_with_terminal_resurrection": sum(
+            bool(root.get("terminal_frontier_resurrection_candidates"))
+            for root in complete
+        ),
+        "terminal_resurrection_actions": truth,
+        "deepened_resurrection_actions": deepened,
+        "measured_frontier_resurrection_actions": measured,
+        "evaluated_frontier_resurrection_actions": evaluated,
+        "deepened_resurrection_recall": deepened / truth if truth else None,
+        "measured_frontier_resurrection_recall": (
+            measured / truth if truth else None
+        ),
+        "evaluated_frontier_resurrection_recall": (
+            evaluated / truth if truth else None
+        ),
+    }
+
+
 def _accumulate(
     base: dict[str, float | None], delta: dict[str, dict[str, Any]],
 ) -> dict[str, float | None]:
@@ -116,6 +298,123 @@ def _accumulate(
             else float(prior) + float(value)
         )
     return result
+
+
+def _component_values(
+    before: dict[str, Any], after: dict[str, Any],
+) -> dict[str, float | None]:
+    return {
+        head: target.get("value")
+        for head, target in component_delta_vector(before, after).items()
+    }
+
+
+def _merge_terminal_shake(
+    final_metrics: dict[str, Any], evaluation: Any,
+) -> None:
+    if not isinstance(evaluation, dict):
+        return
+    shake = evaluation.get("shake_response") or {}
+    for source, target in (
+        ("shake_max_shift", "post_shake_max_shift"),
+        ("shake_peak_kinetic_energy", "post_shake_peak_kinetic_energy"),
+        ("shake_items_toppled", "post_shake_items_toppled"),
+    ):
+        if source in shake:
+            final_metrics[target] = shake[source]
+
+
+def _terminal_rollout(
+    task_config: dict[str, Any], *, environment_seed: int,
+    prefix_actions: list[Any], forced_actions: list[Any], provider,
+    legal_filter, top_k: int, root_step: int,
+    max_continuation_steps: int,
+) -> dict[str, Any]:
+    """Force a search path, then follow frozen rank-0 to termination."""
+    env = _fresh_env(task_config)
+    try:
+        env.reset_settings()
+        env.reset_item_stream()
+        observation, _info = env.reset(seed=environment_seed)
+        executed = []
+        for action in prefix_actions:
+            observation, _r, terminated, truncated, info = env.step(action)
+            if not _safe(_status(info)) or terminated or truncated:
+                raise RuntimeError(
+                    f"terminal-rollout prefix failed at action {len(executed)}"
+                )
+            executed.append(action)
+        root_metrics = cumulative_metrics(env)
+        termination = None
+        forced_steps = 0
+        for action in forced_actions:
+            observation, _r, terminated, truncated, info = env.step(action)
+            executed.append(action)
+            forced_steps += 1
+            if not _safe(_status(info)):
+                termination = "forced_action_failure"
+                break
+            if truncated:
+                termination = "simulator_truncated"
+                break
+            if terminated:
+                termination = "stream_exhausted"
+                break
+        continuation_steps = 0
+        continuation_actions = []
+        while termination is None:
+            if continuation_steps >= max_continuation_steps:
+                termination = "continuation_cap"
+                break
+            proposals = list(provider(env, observation, int(top_k)))
+            if not proposals:
+                termination = "no_retained_candidate"
+                break
+            retained, _audit = legal_filter(
+                env=env, observation=observation, candidates=proposals,
+                actions=list(executed),
+                step=root_step + forced_steps + continuation_steps,
+                max_safe_candidates=1,
+            )
+            if not retained:
+                termination = "no_safe_retained_candidate"
+                break
+            action = _candidate_action(retained[0])
+            observation, _r, terminated, truncated, info = env.step(action)
+            executed.append(action)
+            continuation_actions.append(action)
+            if not _safe(_status(info)):
+                termination = "selected_action_failure"
+                break
+            continuation_steps += 1
+            if truncated:
+                termination = "simulator_truncated"
+            elif terminated:
+                termination = "stream_exhausted"
+        genuine = termination in GENUINE_TERMINATIONS
+        terminal_metrics = cumulative_metrics(env)
+        evaluation = None
+        if genuine:
+            evaluation = _compact_evaluation(env.evaluate())
+            _merge_terminal_shake(terminal_metrics, evaluation)
+        return {
+            "termination": termination,
+            "genuine_terminal": genuine,
+            "continuation_steps": continuation_steps,
+            "physical_steps": forced_steps + continuation_steps,
+            "forced_actions": [json_safe(action) for action in forced_actions],
+            "continuation_actions": [
+                json_safe(action) for action in continuation_actions
+            ],
+            "terminal_vector": (
+                _component_values(root_metrics, terminal_metrics)
+                if genuine else None
+            ),
+            "terminal_metrics": terminal_metrics,
+            "evaluation": evaluation,
+        }
+    finally:
+        env.close()
 
 
 def _rollout(
@@ -161,18 +460,43 @@ def vector_search_root(
     environment_seed: int, prefix_actions: list[Any],
     root_candidates: list[dict[str, Any]], attempt_budget: int,
     deep_top_k: int, expansions: int, max_depth: int, step: int,
+    leaf_eval: str = "measured", rollout_top_k: int = 3,
+    rollout_max_steps: int = 40,
+    terminal_rollout_fn: Callable[[list[Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    if leaf_eval not in {"measured", "rollout"}:
+        raise ValueError(f"unsupported leaf evaluator: {leaf_eval}")
+    if rollout_top_k < 1:
+        raise ValueError("rollout_top_k must be positive")
+    if rollout_max_steps < 0:
+        raise ValueError("rollout_max_steps must be non-negative")
+    if not root_candidates:
+        raise ValueError("vector search needs at least one root candidate")
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
     )
+    if leaf_eval == "rollout" and terminal_rollout_fn is None:
+        legal_filter = build_exact_physical_legal_filter(
+            task_config, case_id=case_id, environment_seed=environment_seed,
+        )
+
+        def terminal_rollout_fn(actions: list[Any]) -> dict[str, Any]:
+            return _terminal_rollout(
+                task_config, environment_seed=environment_seed,
+                prefix_actions=prefix_actions, forced_actions=actions,
+                provider=provider, legal_filter=legal_filter,
+                top_k=rollout_top_k, root_step=step,
+                max_continuation_steps=rollout_max_steps,
+            )
     # node: key -> {actions, vector (accumulated), root_candidate_id,
     #               depth, expanded, alive}
     nodes: dict[str, dict[str, Any]] = {}
     physical_steps = 0
+    terminal_rollout_physical_steps = 0
 
     def try_action_path(actions, root_candidate_id):
-        nonlocal physical_steps
+        nonlocal physical_steps, terminal_rollout_physical_steps
         result = _rollout(
             task_config, environment_seed=environment_seed,
             prefix_actions=prefix_actions, actions=actions,
@@ -191,6 +515,20 @@ def vector_search_root(
                 "actions": [json_safe(a) for a in actions],
             })
             ended = result["terminated"] or result["truncated"]
+            terminal_result = None
+            if leaf_eval == "rollout":
+                if terminal_rollout_fn is None:
+                    raise RuntimeError("rollout leaf evaluator was not configured")
+                terminal_result = terminal_rollout_fn(list(actions))
+                terminal_rollout_physical_steps += int(
+                    terminal_result.get("physical_steps", 0)
+                )
+            evaluation_vector = (
+                accumulated if leaf_eval == "measured"
+                else terminal_result.get("terminal_vector")
+                if terminal_result and terminal_result.get("genuine_terminal")
+                else None
+            )
             candidates = []
             if not ended and len(actions) < max_depth:
                 observation = result["observation"]
@@ -203,11 +541,44 @@ def vector_search_root(
             nodes[key] = {
                 "actions": [json_safe(a) for a in actions],
                 "vector": accumulated,
+                "evaluation_vector": evaluation_vector,
                 "root_candidate_id": root_candidate_id,
                 "depth": len(actions),
                 "ended": ended,
                 "continuations": candidates,
                 "expanded": False,
+                "terminal_genuine": (
+                    bool(terminal_result.get("genuine_terminal"))
+                    if terminal_result else False
+                ),
+                "terminal_termination": (
+                    terminal_result.get("termination")
+                    if terminal_result else None
+                ),
+                "terminal_continuation_steps": (
+                    int(terminal_result.get("continuation_steps", 0))
+                    if terminal_result else None
+                ),
+                "terminal_vector": (
+                    terminal_result.get("terminal_vector")
+                    if terminal_result else None
+                ),
+                "terminal_metrics": (
+                    terminal_result.get("terminal_metrics")
+                    if terminal_result else None
+                ),
+                "terminal_evaluation": (
+                    terminal_result.get("evaluation")
+                    if terminal_result else None
+                ),
+                "terminal_forced_actions": (
+                    terminal_result.get("forced_actions")
+                    if terminal_result else None
+                ),
+                "terminal_continuation_actions": (
+                    terminal_result.get("continuation_actions")
+                    if terminal_result else None
+                ),
             }
             return key
         finally:
@@ -236,7 +607,9 @@ def vector_search_root(
             for key, node in nodes.items()
             if not node["expanded"] and not node["ended"]
             and node["continuations"]
-            and (oriented := _oriented(node["vector"])) is not None
+            and (
+                oriented := _oriented(node.get("evaluation_vector") or {})
+            ) is not None
         }
         if not frontier_vectors:
             break
@@ -254,7 +627,9 @@ def vector_search_root(
     achieved = {
         key: oriented
         for key, node in nodes.items()
-        if (oriented := _oriented(node["vector"])) is not None
+        if (
+            oriented := _oriented(node.get("evaluation_vector") or {})
+        ) is not None
     }
     global_frontier = pareto_frontier(achieved)
     frontier_candidates = {
@@ -265,20 +640,43 @@ def vector_search_root(
             row["safe"] and row["root_candidate_id"] in frontier_candidates
         )
         if row["node"]:
-            row["one_step_vector"] = nodes[row["node"]]["vector"]
+            root_node = nodes[row["node"]]
+            row["one_step_vector"] = root_node["vector"]
+            row["terminal_genuine"] = root_node["terminal_genuine"]
+            row["terminal_termination"] = root_node["terminal_termination"]
+            row["terminal_vector"] = root_node["terminal_vector"]
+            row["terminal_metrics"] = root_node["terminal_metrics"]
+            row["terminal_evaluation"] = root_node["terminal_evaluation"]
+            row["terminal_continuation_actions"] = root_node[
+                "terminal_continuation_actions"
+            ]
+    audit = build_resurrection_audit(root_rows, nodes)
+    for row in root_rows:
+        row["frontier_audit"] = audit["candidate_audit"].get(
+            str(row["root_candidate_id"]), {}
+        )
     return {
         "step": int(step),
+        "leaf_eval": leaf_eval,
+        "search_horizon": int(max_depth),
         "root_candidates": root_rows,
         "explored_nodes": len(nodes),
         "physical_steps": physical_steps,
+        "terminal_rollout_physical_steps": terminal_rollout_physical_steps,
         "global_frontier_size": len(global_frontier),
         "search_pareto_candidates": sorted(frontier_candidates),
+        **audit,
         "nodes": {
             key: {
                 field: node[field]
                 for field in (
                     "actions", "vector", "root_candidate_id", "depth",
-                    "ended", "expanded",
+                    "ended", "expanded", "evaluation_vector",
+                    "terminal_genuine", "terminal_termination",
+                    "terminal_continuation_steps", "terminal_vector",
+                    "terminal_metrics", "terminal_evaluation",
+                    "terminal_forced_actions",
+                    "terminal_continuation_actions",
                 )
             }
             for key, node in nodes.items()
@@ -298,6 +696,15 @@ def main() -> int:
     parser.add_argument("--deep-top-k", type=int, default=3)
     parser.add_argument("--expansions", type=int, default=10)
     parser.add_argument("--max-depth", type=int, default=3)
+    parser.add_argument(
+        "--leaf-eval", choices=("measured", "rollout"), default="measured",
+        help=(
+            "Use measured bounded deltas or genuine-terminal rank-0 "
+            "rollouts to evaluate each newly reached leaf"
+        ),
+    )
+    parser.add_argument("--rollout-top-k", type=int, default=3)
+    parser.add_argument("--rollout-max-steps", type=int, default=40)
     parser.add_argument("--max-roots", type=int, default=None)
     parser.add_argument("--beta-model-dir", type=pathlib.Path, default=None)
     parser.add_argument("--beta-proposals", type=int, default=6)
@@ -377,6 +784,9 @@ def main() -> int:
                 deep_top_k=args.deep_top_k,
                 expansions=args.expansions,
                 max_depth=args.max_depth, step=step,
+                leaf_eval=args.leaf_eval,
+                rollout_top_k=args.rollout_top_k,
+                rollout_max_steps=args.rollout_max_steps,
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
@@ -395,18 +805,32 @@ def main() -> int:
                 break
     finally:
         env.close()
+    resurrection_summary = summarize_resurrection_audits(roots)
+    schema_version, contract, oracle_contract = _output_contract(args.leaf_eval)
     payload = {
-        "schema_version": 1,
-        "contract": "vector_mcts_search_pareto_v1",
+        "schema_version": schema_version,
+        "contract": contract,
+        "oracle_contract": oracle_contract,
         "case_id": args.case,
         "dominance_heads": {k: v for k, v in DOMINANCE_HEADS.items()},
         "allocation": "pareto_frontier_first_least_depth",
         "backup": "additive_component_vector_sets",
+        "leaf_eval": args.leaf_eval,
+        "terminal_rollout_policy": (
+            {
+                "policy": "frozen_rank0_exact_physical_filter",
+                "top_k": args.rollout_top_k,
+                "max_continuation_steps": args.rollout_max_steps,
+                "censor_on_cap": True,
+            }
+            if args.leaf_eval == "rollout" else None
+        ),
         "expansions_per_root": args.expansions,
         "max_depth": args.max_depth,
         "beta_model": (
             None if beta_ensemble is None else beta_ensemble.model_id
         ),
+        "resurrection_summary": resurrection_summary,
         "roots": roots,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -423,6 +847,17 @@ def main() -> int:
         f"roots={len(roots)} labeled_candidates={labeled} "
         f"search_pareto={on_frontier}"
     )
+    if args.leaf_eval == "rollout":
+        print(
+            "terminal resurrection: "
+            f"actions={resurrection_summary['terminal_resurrection_actions']} "
+            "deepened_recall="
+            f"{resurrection_summary['deepened_resurrection_recall']} "
+            "measured_frontier_recall="
+            f"{resurrection_summary['measured_frontier_resurrection_recall']} "
+            "evaluated_frontier_recall="
+            f"{resurrection_summary['evaluated_frontier_resurrection_recall']}"
+        )
     return 0
 
 

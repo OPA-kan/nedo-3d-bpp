@@ -13,6 +13,7 @@ essence, fixed up front:
 | stage | change | held fixed |
 |---|---|---|
 | **v0 (baseline, frozen)** | none — depth 3, Pareto-frontier-first allocation, root union legacy ∪ coverage ∪ beta, interior legacy top-k, no leaf V | everything |
+| **v0+R (oracle/reference only)** | genuine-terminal frozen-rank0 rollout at every reached leaf; record `PF_H1`, measured/evaluated `PF_search`, `PF_terminal` and resurrection recall | v0 allocation, supports, no V; never an execution policy |
 | **v0+V** | leaf evaluation becomes `Q_H = DeltaY_{0:H} (+) V_sa(s_H)` with head-semantic composition (below) | depth, allocation, supports |
 | **v1 = (v0+V) + learned interior** | interior expansion support becomes `A_learned ∪ A_coverage`; legacy/rescue kept as audit arms only | depth, allocation, leaf V |
 | **v2 = v1 + Pareto-PUCT** | allocation becomes Pareto-PUCT (optimistic vectors, non-dominated selection, floor-mixed prior, iterated backup — see `prior-art-and-pareto-puct-notes.md`); beta teacher becomes the visit distribution | depth, supports, leaf V |
@@ -25,6 +26,13 @@ our v0 has no exploration principle at all.
 
 Never combine stages in one comparison: a joint improvement with mixed
 changes attributes nothing.
+
+`v0+R` is the oracle layer, not a candidate policy. It is deliberately placed
+before `v0+V`: first measure whether terminal frontier resurrection exists and
+whether v0 deepens or recovers it without model error. Only after the oracle is
+validated may `V_sa` be judged as an approximation to that terminal reference.
+The implementation contract is
+`reports/self-play-packing/terminal-rollout-resurrection-oracle.md`.
 
 ### Prerequisite for v0+V: retrain V on the single-agent distribution
 

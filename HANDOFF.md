@@ -458,6 +458,22 @@ terminal PF); the ratio across H separates signal from
 budget-starvation noise, and the dag-search root is the standing
 positive-control root.
 
+The terminal-rollout resurrection oracle is now implemented, but has not yet
+run a fresh Linux/PyBullet matrix. `scripts/run_vector_mcts.py` accepts
+`--leaf-eval measured|rollout`. Rollout mode reconstructs every reached leaf,
+forces its path, and follows the frozen rank-0 policy through the exact physical
+filter to a genuine terminal; caps/failures censor rather than fabricate a
+terminal vector. Each root saves separate `PF_H1`, measured/evaluated
+`PF_search`, `PF_terminal`, per-action maximum explored depth and terminal
+frontier resurrection. Aggregate recall distinguishes merely appearing in an
+evaluated frontier from actually being deepened. The measured default retains
+the old search-teacher contract, while rollout uses a separate oracle contract
+so it cannot silently train the existing acceptance head. V, learned interior
+support and Pareto-PUCT remain unchanged. See
+`reports/self-play-packing/terminal-rollout-resurrection-oracle.md`. The first
+physical output is draft until a deterministic/positive-control instrument
+check passes.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are
