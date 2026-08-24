@@ -1960,6 +1960,20 @@ suggestion to re-run a closed line.
 
 ## Verification and operating rules
 
+### Identical-item symmetry audit (2026-08-24)
+
+The next search-speed experiment is deliberately shadow-only. The exact board
+fingerprint remains the replay/DAG identity, while
+`item_symmetry_board_fingerprint` quotients only stable labels of items with
+the same physical and attribute signature. A six-cell Linux/PyBullet workflow
+replays frozen pool-positional actions after transposing one still-available
+identical item pair. It requires a non-vacuous label change and exact agreement
+of safety, terminal status, cumulative metrics, and the symmetry child
+fingerprint at every step. Any trace-length mismatch is counted as a false
+merge. No search node is merged and no cache key changes until that physical
+equivariance gate passes. The protocol is in
+`reports/self-play-packing/item-symmetry-equivariance-protocol.md`.
+
 ### Current agent candidate (2026-08-13)
 
 Run `31700909383` paired live-cap and all-visible scans on identical physical

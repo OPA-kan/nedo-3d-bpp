@@ -14,6 +14,7 @@ from scripts.counterfactual_graph import (
     board_fingerprint,
     boards_equivalent,
     capture_replay_contract,
+    item_symmetry_board_fingerprint,
     replay_action_prefix,
     state_tensor_from_snapshot,
     write_graph,
@@ -72,6 +73,62 @@ class CounterfactualGraphTests(unittest.TestCase):
         self.assertAlmostEqual(row[features.index("local_x")], 0.1)
         self.assertAlmostEqual(row[features.index("local_z")], 0.15)
         self.assertEqual(row[features.index("is_soft")], 1.0)
+
+    def test_item_symmetry_fingerprint_quotients_identical_item_labels(self):
+        def snapshot(packed_index, pool_index, *, pool_mass=3.0):
+            return {
+                "observation": {
+                    "container_list": [{
+                        "index": 0,
+                        "packed_items": [{
+                            "index": packed_index, "length": 0.4,
+                            "width": 0.3, "height": 0.2, "mass": 3.0,
+                        }],
+                    }],
+                    "pool_list": [{
+                        "index": pool_index, "length": 0.4, "width": 0.3,
+                        "height": 0.2, "mass": pool_mass,
+                    }],
+                },
+                "physics": {"packed_items": [{
+                    "container_index": 0, "item_index": packed_index,
+                    "position": [0.0, 0.0, 0.1],
+                    "quaternion": [0.0, 0.0, 0.0, 1.0],
+                }]},
+            }
+
+        left = snapshot(7, 9)
+        relabelled = snapshot(70, 90)
+        different_type = snapshot(70, 90, pool_mass=4.0)
+
+        self.assertNotEqual(board_fingerprint(left), board_fingerprint(relabelled))
+        self.assertEqual(
+            item_symmetry_board_fingerprint(left),
+            item_symmetry_board_fingerprint(relabelled),
+        )
+        self.assertNotEqual(
+            item_symmetry_board_fingerprint(left),
+            item_symmetry_board_fingerprint(different_type),
+        )
+
+    def test_item_symmetry_fingerprint_fails_closed_without_item_metadata(self):
+        def snapshot(item_index):
+            return {
+                "observation": {
+                    "container_list": [{"index": 0, "packed_items": []}],
+                    "pool_list": [],
+                },
+                "physics": {"packed_items": [{
+                    "container_index": 0, "item_index": item_index,
+                    "position": [0.0, 0.0, 0.1],
+                    "quaternion": [0.0, 0.0, 0.0, 1.0],
+                }]},
+            }
+
+        self.assertNotEqual(
+            item_symmetry_board_fingerprint(snapshot(7)),
+            item_symmetry_board_fingerprint(snapshot(70)),
+        )
 
     def test_executor_builds_three_step_physical_dag_from_fresh_envs(self):
         created = []

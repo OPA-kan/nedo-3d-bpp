@@ -43,6 +43,7 @@ from scripts.build_replay_dataset import (  # noqa: E402
 from scripts.counterfactual_graph import (  # noqa: E402
     board_fingerprint,
     capture_replay_contract,
+    item_symmetry_board_fingerprint,
     replay_action_prefix,
     stable_id,
     state_tensor_from_snapshot,
@@ -166,6 +167,9 @@ def measure_candidates(
                     },
                     "leaf_state": state_tensor_from_snapshot(leaf_snapshot),
                     "leaf_board_fingerprint": board_fingerprint(leaf_snapshot),
+                    "leaf_item_symmetry_fingerprint": (
+                        item_symmetry_board_fingerprint(leaf_snapshot)
+                    ),
                 })
             rows.append(row)
         finally:
@@ -198,12 +202,14 @@ def run_episode(
                 env, observed, case_id=case_id, step=step
             )
             fingerprint = board_fingerprint(snapshot)
+            symmetry_fingerprint = item_symmetry_board_fingerprint(snapshot)
             root_id = stable_id("single-agent-root", {
                 "board": fingerprint,
                 "placements": len(executed),
             })
             snapshot_path = output_dir / f"step-{step:03d}-state.json"
             snapshot["behavior_contract"] = BEHAVIOR_CONTRACT
+            snapshot["item_symmetry_fingerprint"] = symmetry_fingerprint
             snapshot_path.write_text(
                 json.dumps(json_safe(snapshot), ensure_ascii=False, indent=2)
                 + "\n",
@@ -298,6 +304,7 @@ def run_episode(
                 "root_id": root_id,
                 "snapshot_path": snapshot_path.name,
                 "board_fingerprint": fingerprint,
+                "item_symmetry_fingerprint": symmetry_fingerprint,
                 "candidate_set_id": candidate_set_id,
                 "candidate_count": len(measured),
                 "safe_candidate_count": len(safe_by_id),

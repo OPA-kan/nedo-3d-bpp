@@ -2,6 +2,7 @@ import unittest
 from unittest import mock
 
 from scripts.run_vector_mcts import (
+    DOMINANCE_HEADS,
     _accumulate,
     _dominates,
     _new_edge_stat,
@@ -30,6 +31,9 @@ def vector(fill, soft=0.0, pc=0.0, pm=0.0, tv=0.0):
 
 
 class VectorSearchPrimitiveTests(unittest.TestCase):
+    def test_raw_cog_is_diagnostic_not_a_pareto_axis(self):
+        self.assertNotIn("center_of_mass_z_delta", DOMINANCE_HEADS)
+
     def test_terminal_audit_contract_is_separate_from_teacher_and_oracle_guidance(self):
         self.assertEqual(
             _output_contract("measured", terminal_audit=True),

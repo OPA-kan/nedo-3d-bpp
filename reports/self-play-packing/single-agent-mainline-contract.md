@@ -91,6 +91,26 @@ Trajectory suffix value targets keep the component returns,
 `stream_completed`, and terminal stability heads; `return_to_go` and
 `game_return` end with the game that defined them.
 
+### Additive shadow measurements (2026-08-24)
+
+Attribute coverage is now retained at four resolutions for each of soft
+and priority cargo: direct-contact violated-item count, direct-contact
+violating-pair count, stack-aware violated-item count, and stack-aware
+violating-pair count. The original bundled direct/item counter remains the
+active published-rule proxy. The other readings are diagnostic value heads;
+they are not scalar penalties and do not enter the Pareto dominance set.
+
+Raw center-of-mass height remains in every terminal/component record but is
+also excluded from search dominance. More fill mechanically raises CoG even
+under an efficient bottom-up packing, so a conditional residual needs a
+separate calibration before CoG can discriminate search branches honestly.
+
+Single-agent records also carry an `item_symmetry_fingerprint` that removes
+stable labels only for items with identical model-visible physical features.
+It is shadow-only. Exact `board_fingerprint` remains the replay and DAG merge
+key until paired physical transition equivariance shows zero false merges;
+missing item metadata keeps the stable label and therefore fails closed.
+
 ## Compatibility with collected data
 
 Two-player artifacts are not converted and never silently mixed:

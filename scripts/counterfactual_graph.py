@@ -217,6 +217,68 @@ def board_fingerprint(snapshot: dict[str, Any], *, digits: int = 6) -> str:
     )
 
 
+def item_symmetry_board_fingerprint(
+    snapshot: dict[str, Any], *, digits: int = 6,
+) -> str:
+    """Shadow fingerprint invariant to labels of physically identical items.
+
+    Container labels, pool order by physical type, and every settled pose are
+    retained.  This is deliberately separate from ``board_fingerprint``:
+    replay validation still requires exact stable item IDs until transition
+    equivariance has been established with real physics.
+    """
+    observation = snapshot.get("observation", {})
+    containers = observation.get("container_list", [])
+    item_by_key = {
+        (int(container.get("index", -1)), int(item["index"])): item
+        for container in containers
+        for item in container.get("packed_items", [])
+    }
+
+    def item_type(item: dict[str, Any]) -> str:
+        return stable_id(
+            "physical-item-type-v1",
+            [round(value, digits) for value in _item_tensor_row(item)],
+        )
+
+    packed = []
+    for physical in snapshot.get("physics", {}).get("packed_items", []):
+        container_index = int(physical["container_index"])
+        item_index = int(physical["item_index"])
+        item_record = item_by_key.get((container_index, item_index))
+        packed.append({
+            "container_index": container_index,
+            # Missing observation metadata must not create false symmetry.
+            # Keep the stable label in that exceptional case (fail closed).
+            "item_type": (
+                item_type(item_record)
+                if item_record is not None
+                else stable_id("unresolved-item-label-v1", item_index)
+            ),
+            "position": [
+                round(float(value), digits)
+                for value in physical.get("position", [])
+            ],
+            "quaternion": [
+                round(float(value), digits)
+                for value in physical.get("quaternion", [])
+            ],
+        })
+    pool_types = [
+        item_type(item) for item in observation.get("pool_list", [])
+    ]
+    return stable_id("board-item-symmetry-v1", {
+        "packed": sorted(
+            packed,
+            key=lambda item: (
+                item["container_index"], item["item_type"],
+                item["position"], item["quaternion"],
+            ),
+        ),
+        "pool_types": pool_types,
+    })
+
+
 def board_difference(
     expected: dict[str, Any], observed: dict[str, Any]
 ) -> dict[str, Any]:

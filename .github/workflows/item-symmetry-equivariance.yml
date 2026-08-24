@@ -1,0 +1,124 @@
+name: Identical-item symmetry equivariance
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_steps:
+        description: Maximum recorded actions per cell (empty means full trajectory)
+        required: false
+        default: ""
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/item-symmetry-equivariance.yml
+      - scripts/audit_item_symmetry_equivariance.py
+      - scripts/aggregate_item_symmetry_equivariance.py
+      - scripts/counterfactual_graph.py
+      - scripts/attribute_violation_instrument.py
+      - tests/test_item_symmetry_equivariance.py
+      - tests/test_item_symmetry_equivariance_workflow.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: item-symmetry-equivariance-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  symmetry-cell:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: dual-empty-original
+            scenario: dual-empty
+            stream: original
+          - cell: dual-preloaded-dedicated-source-001
+            scenario: dual-preloaded-dedicated
+            stream: source-001
+          - cell: dual-shelf-mixed-source-001
+            scenario: dual-shelf-mixed
+            stream: source-001
+          - cell: single-empty-noshelf-original
+            scenario: single-empty-noshelf
+            stream: original
+          - cell: single-empty-shelf-original
+            scenario: single-empty-shelf
+            stream: original
+          - cell: single-preloaded-original
+            scenario: single-preloaded
+            stream: original
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify symmetry contracts with required PyBullet integration
+        run: >-
+          python -m unittest
+          tests.test_item_symmetry_equivariance
+          tests.test_counterfactual_graph
+          tests.test_attribute_violation_instrument
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Rebuild frozen scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/item-symmetry/configs
+      - name: Replay an identical-item transposition pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            --config "reports/item-symmetry/configs/${{ matrix.scenario }}.json"
+            --case "m-${{ matrix.scenario }}"
+            --manifest "reports/self-play-paired-physical/p3a-collection-20260823/${{ matrix.cell }}/manifest.json"
+            --environment-seed 42
+            --output "reports/item-symmetry/${{ matrix.cell }}/audit.json"
+          )
+          if [[ -n "${{ inputs.max_steps || '' }}" ]]; then
+            args+=(--max-steps "${{ inputs.max_steps }}")
+          fi
+          python scripts/audit_item_symmetry_equivariance.py "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: item-symmetry-cell-${{ matrix.cell }}
+          path: reports/item-symmetry/${{ matrix.cell }}/
+
+  aggregate:
+    needs: symmetry-cell
+    if: always() && needs.symmetry-cell.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: item-symmetry-cell-*
+          path: reports/item-symmetry/results
+      - name: Aggregate and enforce the zero-false-merge gate
+        run: >-
+          python scripts/aggregate_item_symmetry_equivariance.py
+          --root reports/item-symmetry/results
+          --expected-cells 6
+          --json-output reports/item-symmetry/aggregate.json
+          --markdown-output reports/item-symmetry/aggregate.md
+      - run: cat reports/item-symmetry/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: item-symmetry-aggregate-${{ github.run_id }}
+          path: reports/item-symmetry/

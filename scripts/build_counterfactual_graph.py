@@ -46,6 +46,9 @@ from scripts.postshake_capture import (  # noqa: E402
     ATTRIBUTE_KEYS,
     capture_shake_labels,
 )
+from scripts.attribute_violation_instrument import (  # noqa: E402
+    settled_attribute_violation_counters,
+)
 
 
 METRIC_KEYS = (
@@ -66,6 +69,14 @@ METRIC_KEYS = (
     "priority_covered_by_other",
     "priority_misrouted",
     "soft_covered_by_other",
+    "soft_direct_violated_items",
+    "soft_direct_violating_pairs",
+    "soft_stack_violated_items",
+    "soft_stack_violating_pairs",
+    "priority_direct_violated_items",
+    "priority_direct_violating_pairs",
+    "priority_stack_violated_items",
+    "priority_stack_violating_pairs",
 )
 
 POST_SHAKE_STABILITY_KEYS = (
@@ -141,6 +152,7 @@ def cumulative_metrics(
     metrics = env.evaluator.settled_snapshot(
         env.container_manager.containers
     )
+    metrics.update(settled_attribute_violation_counters(env))
     metrics["placed_count"] = sum(
         len(container.packed_items)
         for container in env.container_manager.containers
