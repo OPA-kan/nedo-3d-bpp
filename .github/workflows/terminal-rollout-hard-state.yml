@@ -7,6 +7,14 @@ on:
         description: Maximum live placements per trajectory
         required: false
         default: "40"
+  # A workflow_dispatch file is not addressable until it exists on the
+  # default branch.  Keep a branch-local bootstrap trigger scoped only to
+  # edits of this workflow; ordinary experiment-code pushes do not rerun it.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/terminal-rollout-hard-state.yml
       rollout_max_steps:
         description: Frozen rank-0 continuation cap; cap hits are censored
         required: false

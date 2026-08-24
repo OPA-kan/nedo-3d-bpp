@@ -13,9 +13,14 @@ class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
     def setUpClass(cls):
         cls.text = WORKFLOW.read_text(encoding="utf-8")
 
-    def test_is_manual_only_and_v_free(self):
+    def test_has_scoped_bootstrap_and_is_v_free(self):
         self.assertIn("workflow_dispatch", self.text)
-        self.assertNotIn("push:", self.text)
+        self.assertIn("push:", self.text)
+        self.assertIn(
+            "- .github/workflows/terminal-rollout-hard-state.yml",
+            self.text,
+        )
+        self.assertNotIn("- scripts/run_terminal_rollout_policy.py", self.text)
         self.assertEqual(self.text.count("--policy terminal-rollout"), 1)
         self.assertNotIn("--model-dir", self.text)
 
