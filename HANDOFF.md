@@ -401,6 +401,24 @@ search, terminal-connected stability via the Phase 9 V retrain,
 scenarios where soft/priority events fire, more roots), not more
 plumbing.
 
+The 2026-08-24 review corrected the record (details at the top of
+`phase4-closed-loop-20260824.md`): the search that ran is **Pareto
+best-first Tree Search v0**, not an MCTS — no visit statistics, no
+Monte Carlo sampling, no iterated edge-statistic backup — and below the
+root it expands legacy top-k only, so beta can find new entrances but
+not new deep continuations. Verdict labels: closed-loop architecture
+PASS, self-improvement NOT YET, true vector MCTS PARTIAL. The agreed
+next program, in order: freeze v0 as the baseline; put the
+`DeltaY_measured + V(s_H)` composite (the depth-ladder winner — this is
+where the frozen V-MCTS-0 interface pays off) back at the leaves; move
+the tree interior to `A_learned ∪ A_coverage`; then compare depth
+3/5/8 for frontier sharpening and terminal agreement; upgrade the
+closed-loop evaluation from re-ranking a pre-validated finite set to
+generative — fresh state, beta proposes K from scratch, search judges
+(frontier recall, safe yield, discovery, terminal outcome); episode
+execution after that. The breakthrough criterion is fixed: the first
+held-out NN_1 > NN_0 is the moment the self-improving agent starts.
+
 The next learner is now specified and instrumented as a masked multi-head
 Set Transformer ensemble estimating observed suffix
 `V^pi_behavior(s)`, explicitly not `V*`. Complete physical trajectories are

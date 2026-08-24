@@ -1,5 +1,34 @@
 # Phase 4 + closed loop: the machinery works, the signal is not yet sharp
 
+> **Assessment corrections (2026-08-24 review, on record).**
+> 1. *Naming*: what ran is **Pareto best-first Tree Search v0**, not an
+>    MCTS — there are no visit statistics N/Q/U, no Monte Carlo
+>    sampling, no iterated select/expand/evaluate/backup updating edge
+>    statistics. File names and the `vector_mcts` contract string stay
+>    as committed artifact ids; the honest name is this one.
+> 2. *Structural limit*: below the root the tree expands **legacy
+>    top-k only** — beta can discover new entrances but not new deep
+>    continuations. The interior must eventually take
+>    `A_learned ∪ A_coverage`.
+> 3. *Null-cause priority*, reordered: (1) no terminal information in
+>    the labels — the teacher is bounded `G_{0:H}` and omits the
+>    `DeltaY_measured + V(s_H)` composite that won the depth ladder,
+>    which is exactly why the frozen V-MCTS-0 interface was kept;
+>    (2) legacy interior support; (3) few active objectives;
+>    (4) depth 3. "Because depth 3" alone is not the diagnosis.
+> 4. *Evidence weight in Phase 3*: the strong result is held-out AUC
+>    0.930; the 10.9%->15.1% yield gain (192 proposals per arm) is
+>    supporting, not conclusive, at this sample size.
+> 5. *Closed-loop eval limitation*: recall@4 re-ranks a finite set the
+>    search had already validated as safe. The next evaluation must be
+>    generative — fresh state, beta proposes K from scratch, search
+>    judges — comparing frontier recall, safe yield, discovery and
+>    terminal outcome.
+>
+> Verdict labels: **closed-loop architecture PASS · self-improvement
+> NOT YET · true vector MCTS PARTIAL.** The breakthrough criterion is
+> fixed: the first held-out `NN_1 > NN_0`.
+
 Date: 2026-08-24 (Linux, PyBullet 3.2.7)
 Data: `reports/self-play-paired-physical/p4-vector-mcts-20260823/`
 Instruments: `run_vector_mcts.py`, `build_acceptance_dataset.py`,
