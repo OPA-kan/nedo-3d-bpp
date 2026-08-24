@@ -27,6 +27,18 @@ REPORT_METRICS = (
     "post_shake_peak_kinetic_energy",
     "post_shake_items_toppled",
 )
+REPORT_DIRECTIONS = {
+    "placed_count": +1.0,
+    "fill_score_proxy": +1.0,
+    "center_of_mass_z": -1.0,
+    "soft_covered_by_other": -1.0,
+    "priority_covered_by_other": -1.0,
+    "priority_misrouted": -1.0,
+    "surface_total_variation": -1.0,
+    "post_shake_max_shift": -1.0,
+    "post_shake_peak_kinetic_energy": -1.0,
+    "post_shake_items_toppled": -1.0,
+}
 EPS = 1e-9
 
 
@@ -153,12 +165,15 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
             cell["metric_deltas"][metric] for cell in cells
             if cell["metric_deltas"][metric] is not None
         ]
+        direction = REPORT_DIRECTIONS[metric]
+        oriented = [direction * value for value in values]
         metric_summaries[metric] = {
             "paired_cells": len(values),
             "mean_delta": sum(values) / len(values) if values else None,
-            "wins": sum(value > EPS for value in values),
-            "ties": sum(abs(value) <= EPS for value in values),
-            "losses": sum(value < -EPS for value in values),
+            "higher_is_better": direction > 0.0,
+            "wins": sum(value > EPS for value in oriented),
+            "ties": sum(abs(value) <= EPS for value in oriented),
+            "losses": sum(value < -EPS for value in oriented),
         }
     return {
         "schema_version": 1,

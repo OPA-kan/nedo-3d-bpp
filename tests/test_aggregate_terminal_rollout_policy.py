@@ -74,6 +74,10 @@ class TerminalRolloutPolicyAggregateTests(unittest.TestCase):
 
         self.assertEqual(result["relation_counts"]["incomparable"], 1)
         self.assertEqual(result["total_switches"], 1)
+        self.assertEqual(
+            result["metric_summaries"]["soft_covered_by_other"]["losses"],
+            1,
+        )
         self.assertIn("No scalar utility", render_markdown(result))
 
 

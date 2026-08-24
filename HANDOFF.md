@@ -540,6 +540,18 @@ six-cell workflow compares whole trajectories against legacy under identical
 scenario, stream, seed and physics while reporting physical rollout cost.  See
 `reports/self-play-packing/terminal-rollout-policy-contract.md`.
 
+That pilot passed in Actions run `32753033451` at commit `d78ee2f`: all six
+cells and aggregate succeeded, terminal truth was uncensored, and 882 rollout
+physical steps produced one conservative action switch.  Five trajectories
+were identical to legacy.  The switched `dual-preloaded-dedicated-source-001`
+trajectory improved 12 -> 13 live placements and fill `9.6279 -> 10.6318`,
+with lower CoG, surface variation and peak shake KE, unchanged direct
+soft/priority violations, and no topples.  Its final active component vector
+dominated legacy.  Exact rollout therefore passes the capability gate but is
+sparse and expensive; preserve it as the oracle and next reduce allocation
+cost without reintroducing the failed V shadow.  See
+`terminal-rollout-policy-results-20260825.md`.
+
 A companion one-step paired-shake instrument is also ready for the 15 deep
 Q-top changes: reconstruct the same root twice, force old/rescued actions once
 and shake immediately, with no continuation policy. It reports maximum

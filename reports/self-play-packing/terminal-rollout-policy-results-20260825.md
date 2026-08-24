@@ -1,0 +1,44 @@
+# V-free terminal-rollout policy pilot — 2026-08-25
+
+Actions run `32753033451` at commit `d78ee2f` completed all six physical
+scenario cells and the aggregate successfully.  The paired arms used the same
+scenario, item stream, environment seed and deterministic physics.  No value
+model or scalar utility participated in search or action selection.
+
+## Aggregate result
+
+| Measure | Result |
+|---|---:|
+| cells | 6/6 |
+| complete terminal-truth roots | all |
+| censored roots | 0 |
+| terminal-dominance switches | 1 |
+| terminal rollout physical steps | 882 |
+| mean live placed-step delta | +0.167 |
+| final Pareto relation | 1 rollout-dominates, 5 equal |
+
+Five cells exactly reproduced the legacy trajectory.  In
+`dual-preloaded-dedicated-source-001`, terminal rollout switched the action at
+live step 6.  That trajectory placed one additional item and improved fill
+from `9.6279` to `10.6318`.  CoG fell from `0.7874` to `0.6665`, surface total
+variation fell from `0.016080` to `0.015897`, peak shake KE fell from `4.5634`
+to `4.5121`, and direct published-rule soft/priority violations remained zero.
+Maximum shake shift increased by about `9.5e-6`; toppled items stayed zero.
+
+At the switching root, incumbent terminal continuation produced fill gain
+`4.1094` with six further placements, while the chosen candidate produced fill
+gain `5.1133` with seven.  The chosen candidate was non-worse on every active
+dominance head and strictly better on fill and surface variation.  Its
+stack-aware soft diagnostic increased, but the direct-contact published-rule
+soft metric stayed zero; stack telemetry is not used as an official violation
+surrogate.
+
+## Verdict
+
+This is a positive capability result, not yet a prevalence or production-cost
+result.  Exact rollout can discover a trajectory improvement that the legacy
+ranker misses, and the conservative dominance-only selector did not regress any
+of the six terminal vectors.  The effect is sparse (one switch) and expensive
+(882 simulated physical steps for 54 live rollout-policy placements), so the
+next experiment should preserve rollout as the oracle while reducing when and
+how many candidates receive full continuation.
