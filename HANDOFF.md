@@ -529,6 +529,17 @@ held-out calibration/shrinkage plus paired root-action difference or joint
 dominance learning on more independent trajectory groups; only a
 discriminative shadow may then drive uncertainty-based depth allocation.
 
+The active next arm deliberately pauses V and tests exact rollout as the live
+policy improvement mechanism.  At every state it rolls each retained safe root
+candidate to genuine terminal with frozen rank-0 continuation.  It keeps the
+legacy incumbent whenever terminal truth is censored or the incumbent remains
+on the terminal Pareto frontier; it switches only when complete sibling truth
+proves the incumbent dominated, choosing the lowest legacy-rank terminal-
+Pareto action.  There is no scalar utility and no model loading.  The paired
+six-cell workflow compares whole trajectories against legacy under identical
+scenario, stream, seed and physics while reporting physical rollout cost.  See
+`reports/self-play-packing/terminal-rollout-policy-contract.md`.
+
 A companion one-step paired-shake instrument is also ready for the 15 deep
 Q-top changes: reconstruct the same root twice, force old/rescued actions once
 and shake immediately, with no continuation policy. It reports maximum

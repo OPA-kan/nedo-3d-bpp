@@ -1,0 +1,140 @@
+name: V-free terminal-rollout policy ablation
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_steps:
+        description: Maximum live placements per episode
+        required: false
+        default: "40"
+      top_k:
+        description: Safe root candidates evaluated to terminal
+        required: false
+        default: "3"
+      rollout_max_steps:
+        description: Frozen rank-0 continuation cap; cap hits are censored
+        required: false
+        default: "40"
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/terminal-rollout-policy-ablation.yml
+      - scripts/run_terminal_rollout_policy.py
+      - scripts/aggregate_terminal_rollout_policy.py
+      - scripts/run_vector_mcts.py
+      - tests/test_terminal_rollout_policy.py
+      - tests/test_aggregate_terminal_rollout_policy.py
+      - tests/test_terminal_rollout_policy_workflow.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminal-rollout-policy-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  paired-cell:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: dual-empty-original
+            scenario: dual-empty
+            stream: original
+          - cell: dual-preloaded-dedicated-source-001
+            scenario: dual-preloaded-dedicated
+            stream: source-001
+          - cell: dual-shelf-mixed-source-001
+            scenario: dual-shelf-mixed
+            stream: source-001
+          - cell: single-empty-noshelf-original
+            scenario: single-empty-noshelf
+            stream: original
+          - cell: single-empty-shelf-original
+            scenario: single-empty-shelf
+            stream: original
+          - cell: single-preloaded-original
+            scenario: single-preloaded
+            stream: original
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify rollout-policy contracts
+        run: >-
+          python -m unittest
+          tests.test_terminal_rollout_policy
+          tests.test_aggregate_terminal_rollout_policy
+          tests.test_terminal_rollout_policy_workflow
+          tests.test_replay_integration
+          tests.test_attribute_placement_pybullet_e2e
+          -v
+        env:
+          NEDO_REQUIRE_INTEGRATION: "1"
+      - name: Rebuild the frozen synthetic scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/terminal-rollout-policy/configs
+      - name: Run paired legacy and V-free rollout policies
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="reports/terminal-rollout-policy/${{ matrix.cell }}"
+          mkdir -p "$out"
+          common=(
+            --config "reports/terminal-rollout-policy/configs/${{ matrix.scenario }}.json"
+            --case "m-${{ matrix.scenario }}"
+            --environment-seed 42
+            --attempt-budget 128
+            --top-k "${{ inputs.top_k || '3' }}"
+            --rollout-top-k 3
+            --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}"
+            --max-steps "${{ inputs.max_steps || '40' }}"
+          )
+          python scripts/run_terminal_rollout_policy.py \
+            "${common[@]}" --policy legacy --output-dir "$out/baseline"
+          python scripts/run_terminal_rollout_policy.py \
+            "${common[@]}" --policy terminal-rollout --output-dir "$out/rollout"
+          cp "$out/baseline/manifest.json" "$out/baseline.json"
+          cp "$out/rollout/manifest.json" "$out/rollout.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terminal-rollout-policy-cell-${{ matrix.cell }}
+          path: reports/terminal-rollout-policy/${{ matrix.cell }}/
+
+  aggregate:
+    needs: paired-cell
+    if: always() && needs.paired-cell.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: terminal-rollout-policy-cell-*
+          path: reports/terminal-rollout-policy/results
+      - name: Aggregate raw terminal-vector evidence
+        run: >-
+          python scripts/aggregate_terminal_rollout_policy.py
+          --root reports/terminal-rollout-policy/results
+          --expected-cells 6
+          --json-output reports/terminal-rollout-policy/aggregate.json
+          --markdown-output reports/terminal-rollout-policy/aggregate.md
+      - run: cat reports/terminal-rollout-policy/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terminal-rollout-policy-aggregate-${{ github.run_id }}
+          path: reports/terminal-rollout-policy/
