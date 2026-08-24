@@ -2007,10 +2007,19 @@ ordered pool-type sequence after removal. Logical candidates remain in support;
 only redundant physical checks are skipped. Both paths fail closed on missing
 metadata and report replay-inclusive physical-step equivalents separately.
 
+Run `32758581833` at commit `1e767da` then reproduced the prior six-cell result
+exactly: one rollout-dominating switch, five equal terminal vectors and zero
+censored roots. Terminal rollout work fell from 882 to 737 logical physical
+steps (145 saved, 16.4%) through 24 cache hits. Replay-inclusive accounting
+estimates 1,287 avoided step equivalents (17.8% of the uncached estimate).
+Legal-filter orbit reuse recorded zero hits in this particular workload because
+frozen continuation stops after its first safe candidate; no speedup is claimed
+for that path yet. Symmetry workflow `32758581451` and Linux CPU verification
+`32758581897` both passed.
+
 Search-node transposition, container exchange, reflection/rotation symmetry,
 partial-order reduction and learned-V caching remain unlicensed. Exact DAG
-identity remains unchanged. The fresh ablation must reproduce prior terminal
-decisions and outcomes before any speedup claim is made. The protocol is in
+identity remains unchanged. The protocol is in
 `reports/self-play-packing/item-symmetry-equivariance-protocol.md`.
 
 ### Current agent candidate (2026-08-13)

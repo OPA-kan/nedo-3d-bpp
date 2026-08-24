@@ -42,3 +42,24 @@ of the six terminal vectors.  The effect is sparse (one switch) and expensive
 (882 simulated physical steps for 54 live rollout-policy placements), so the
 next experiment should preserve rollout as the oracle while reducing when and
 how many candidates receive full continuation.
+
+## Identical-item symmetry ablation
+
+Actions run `32758581833` at commit `1e767da` repeated the same six cells after
+enabling exact identical-item reuse. It reproduced the original result exactly:
+one terminal-dominance switch in `dual-preloaded-dedicated-source-001`, one
+additional placement, one rollout-dominating terminal vector, five equal
+vectors, and zero censored roots.
+
+The root-local genuine-terminal cache recorded 24 hits and reduced executed
+terminal rollout steps from `882` to `737`: `145/882 = 16.4%`. It also reports
+`1,287` replay-inclusive physical-step equivalents avoided. The executed
+terminal workload was `5,959` replay-inclusive equivalents, so the estimated
+uncached workload is `7,246` and the corresponding reduction is `17.8%`.
+
+The exact legal-filter action-orbit reuse path recorded zero hits in this
+workload. Frozen rank-0 continuation asks the filter for only the first safe
+candidate and stops before a second identical alias is classified. The path is
+active for wider callers, but this run provides no empirical speedup claim for
+it. The separately rerun physical equivariance workflow `32758581451` remained
+green across all six cells; Linux CPU verification `32758581897` also passed.
