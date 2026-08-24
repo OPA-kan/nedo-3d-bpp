@@ -39,6 +39,11 @@ def _arm_counts(
         "false_frontier_actions": 0,
         "physical_steps": 0,
         "terminal_rollout_physical_steps": 0,
+        "symmetry_shadow_observations": 0,
+        "symmetry_shadow_quotient_only_hits": 0,
+        "symmetry_shadow_potential_state_reduction": 0,
+        "symmetry_shadow_potential_rollout_savings": 0,
+        "symmetry_shadow_rollout_conflicts": 0,
     }
     for root_id, root in roots.items():
         resurrected = truth[root_id]
@@ -58,6 +63,25 @@ def _arm_counts(
         counts["physical_steps"] += int(root.get("physical_steps", 0))
         counts["terminal_rollout_physical_steps"] += int(
             root.get("terminal_rollout_physical_steps", 0)
+        )
+        symmetry = root.get("item_symmetry_cache_shadow") or {}
+        rollout = (symmetry.get("evaluator_by_kind") or {}).get(
+            "rollout", {}
+        )
+        counts["symmetry_shadow_observations"] += int(
+            symmetry.get("observations", 0)
+        )
+        counts["symmetry_shadow_quotient_only_hits"] += int(
+            symmetry.get("quotient_only_hits", 0)
+        )
+        counts["symmetry_shadow_potential_state_reduction"] += int(
+            symmetry.get("potential_state_reduction", 0)
+        )
+        counts["symmetry_shadow_potential_rollout_savings"] += int(
+            rollout.get("potential_call_savings", 0)
+        )
+        counts["symmetry_shadow_rollout_conflicts"] += int(
+            rollout.get("conflicts", 0)
         )
     return counts
 
@@ -219,6 +243,26 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"{arm['false_frontier_actions']} | {arm['physical_steps']} |"
         )
     rows.extend((
+        "",
+        "## Identical-item physical rollout reuse shadow",
+        "",
+        "| arm | state observations | quotient-only hits | state reduction | "
+        "potential rollout calls saved | rollout conflicts |",
+        "|---|---:|---:|---:|---:|---:|",
+    ))
+    for key, label in (("v0", "v0 frontier-first"),
+                       ("pareto_puct", "Pareto-PUCT")):
+        arm = result[key]
+        rows.append(
+            f"| {label} | {arm['symmetry_shadow_observations']} | "
+            f"{arm['symmetry_shadow_quotient_only_hits']} | "
+            f"{arm['symmetry_shadow_potential_state_reduction']} | "
+            f"{arm['symmetry_shadow_potential_rollout_savings']} | "
+            f"{arm['symmetry_shadow_rollout_conflicts']} |"
+        )
+    rows.extend((
+        "",
+        "This is shadow-only: every physical rollout still executes.",
         "",
         "| cell | roots | complete | censored | resurrected |",
         "|---|---:|---:|---:|---:|",

@@ -761,14 +761,26 @@ def vector_search_root(
                 )
             symmetry_event = None
             if symmetry_shadow is not None:
-                value_signature = (
+                evaluator_signature = (
                     stable_id("leaf-value-shadow-v1", json_safe(leaf_prediction))
                     if leaf_prediction is not None else None
                 )
+                evaluator_kind = "value" if evaluator_signature else None
+                if (
+                    evaluator_signature is None
+                    and terminal_result is not None
+                    and terminal_result.get("genuine_terminal")
+                ):
+                    evaluator_signature = stable_id(
+                        "terminal-rollout-evaluation-v1",
+                        json_safe(evaluation_vector),
+                    )
+                    evaluator_kind = "rollout"
                 symmetry_event = symmetry_shadow.observe(
                     exact_key=leaf_exact_fingerprint,
                     symmetry_key=leaf_symmetry_fingerprint,
-                    value_signature=value_signature,
+                    evaluator_signature=evaluator_signature,
+                    evaluator_kind=evaluator_kind,
                 )
             candidates = []
             if not ended and len(actions) < max_depth:
@@ -1030,8 +1042,8 @@ def main() -> int:
     parser.add_argument(
         "--item-symmetry-cache-shadow", action="store_true",
         help=(
-            "Measure exact-versus-identical-item leaf cache reuse and value "
-            "conflicts without suppressing evaluator calls"
+            "Measure exact-versus-identical-item physical-state reuse and "
+            "per-evaluator conflicts without suppressing rollout or V calls"
         ),
     )
     parser.add_argument("--max-roots", type=int, default=None)

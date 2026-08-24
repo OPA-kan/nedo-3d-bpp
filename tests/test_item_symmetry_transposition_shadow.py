@@ -53,6 +53,28 @@ class ItemSymmetryTranspositionShadowTests(unittest.TestCase):
         self.assertFalse(event["quotient_only_hit"])
         self.assertEqual(shadow.summary()["potential_state_reduction"], 0)
 
+    def test_rollout_evaluator_reuse_is_reported_separately_from_value(self):
+        shadow = ItemSymmetryTranspositionShadow()
+        shadow.observe(
+            exact_key="label-a", symmetry_key="physical-q",
+            evaluator_signature="terminal-1", evaluator_kind="rollout",
+        )
+
+        event = shadow.observe(
+            exact_key="label-b", symmetry_key="physical-q",
+            evaluator_signature="terminal-1", evaluator_kind="rollout",
+        )
+        summary = shadow.summary()
+
+        self.assertTrue(event["quotient_only_hit"])
+        self.assertEqual(summary["evaluator_by_kind"]["rollout"][
+            "potential_call_savings"
+        ], 1)
+        self.assertEqual(
+            summary["evaluator_by_kind"]["rollout"]["conflicts"], 0
+        )
+        self.assertEqual(summary["value_conflicts"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

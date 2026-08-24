@@ -423,7 +423,7 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
                     head: {"value": value}
                     for head, value in vector(fill).items()
                 }],
-                "observation": {}, "env": Env(),
+                "observation": {"item": actions[0]["item_idx"]}, "env": Env(),
             }
 
         measured_rollout.side_effect = measured
@@ -448,6 +448,11 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             attempt_budget=1, deep_top_k=1, expansions=0,
             max_depth=1, step=0, leaf_eval="measured",
             terminal_audit=True, terminal_rollout_fn=terminal,
+            item_symmetry_cache_shadow=True,
+            leaf_state_key_fn=lambda **kwargs: (
+                f"exact-{kwargs['observation']['item']}",
+                "same-physical-state",
+            ),
         )
 
         self.assertEqual(terminal.call_count, 2)
@@ -457,6 +462,12 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             result["terminal_frontier_resurrection_candidates"], ["b"]
         )
         self.assertEqual(result["terminal_rollout_physical_steps"], 6)
+        rollout_shadow = result["item_symmetry_cache_shadow"][
+            "evaluator_by_kind"
+        ]["rollout"]
+        self.assertEqual(rollout_shadow["potential_call_savings"], 1)
+        # The two terminal vectors differ, proving the shadow fails closed.
+        self.assertEqual(rollout_shadow["conflicts"], 1)
 
     @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
     @mock.patch("scripts.run_vector_mcts._rollout")
@@ -567,6 +578,67 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         self.assertEqual(shadow["evaluator_quotient_only_hits"], 1)
         self.assertEqual(shadow["potential_evaluator_call_savings"], 1)
         self.assertEqual(shadow["value_conflicts"], 0)
+        self.assertEqual(shadow["behavior_effect"], "none")
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_item_symmetry_shadow_measures_terminal_rollout_reuse(
+        self, measured_rollout, provider_builder,
+    ):
+        provider_builder.return_value = lambda *_args: []
+
+        class Env:
+            def close(self):
+                pass
+
+        def measured(*_args, actions, **_kwargs):
+            item = actions[0]["item_idx"]
+            return {
+                "safe": True, "terminated": False, "truncated": False,
+                "step_deltas": [{
+                    head: {"value": value}
+                    for head, value in vector(1.0).items()
+                }],
+                "observation": {"item": item}, "env": Env(),
+            }
+
+        measured_rollout.side_effect = measured
+        terminal = mock.Mock(return_value={
+            "termination": "stream_exhausted",
+            "genuine_terminal": True,
+            "continuation_steps": 2,
+            "physical_steps": 3,
+            "terminal_vector": vector(7.0),
+            "terminal_metrics": {},
+            "evaluation": {},
+        })
+
+        result = vector_search_root(
+            object(), {}, case_id="case", environment_seed=42,
+            prefix_actions=[], root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=0,
+            max_depth=1, step=0, leaf_eval="rollout",
+            terminal_rollout_fn=terminal,
+            item_symmetry_cache_shadow=True,
+            leaf_state_key_fn=lambda **kwargs: (
+                f"exact-{kwargs['observation']['item']}",
+                "same-physical-state",
+            ),
+        )
+
+        shadow = result["item_symmetry_cache_shadow"]
+        self.assertEqual(terminal.call_count, 2)
+        self.assertEqual(shadow["potential_evaluator_call_savings"], 1)
+        self.assertEqual(
+            shadow["evaluator_by_kind"]["rollout"][
+                "potential_call_savings"
+            ], 1,
+        )
+        self.assertEqual(
+            shadow["evaluator_by_kind"]["rollout"]["conflicts"], 0
+        )
         self.assertEqual(shadow["behavior_effect"], "none")
 
     @staticmethod

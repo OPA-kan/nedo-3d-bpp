@@ -38,6 +38,17 @@ def _payload(*, allocation, deepened, frontier, complete=True):
         "measured_search_pareto_candidates": list(frontier),
         "physical_steps": 10,
         "terminal_rollout_physical_steps": 8,
+        "item_symmetry_cache_shadow": {
+            "observations": 3,
+            "quotient_only_hits": 1,
+            "potential_state_reduction": 1,
+            "evaluator_by_kind": {
+                "rollout": {
+                    "potential_call_savings": 1,
+                    "conflicts": 0,
+                }
+            },
+        },
     }
     return {
         "contract": "pareto_search_terminal_audit_v3",
@@ -100,7 +111,20 @@ class TerminalResurrectionAggregateTests(unittest.TestCase):
         self.assertEqual(
             result["pareto_puct"]["frontier_resurrection_recall"], 1.0
         )
+        self.assertEqual(
+            result["pareto_puct"][
+                "symmetry_shadow_potential_rollout_savings"
+            ],
+            1,
+        )
+        self.assertEqual(
+            result["pareto_puct"][
+                "symmetry_shadow_potential_state_reduction"
+            ],
+            1,
+        )
         self.assertIn("Pareto-PUCT", render_markdown(result))
+        self.assertIn("physical rollout reuse shadow", render_markdown(result))
 
     def test_missing_v0_arm_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

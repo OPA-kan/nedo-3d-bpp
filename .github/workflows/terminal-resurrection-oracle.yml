@@ -29,9 +29,11 @@ on:
     paths:
       - .github/workflows/terminal-resurrection-oracle.yml
       - scripts/run_vector_mcts.py
+      - scripts/item_symmetry_transposition_shadow.py
       - scripts/aggregate_terminal_resurrection_oracle.py
       - tests/test_vector_mcts_and_beta.py
       - tests/test_aggregate_terminal_resurrection_oracle.py
+      - tests/test_item_symmetry_transposition_shadow.py
       - tests/test_terminal_resurrection_oracle_workflow.py
 
 permissions:
@@ -110,6 +112,7 @@ jobs:
           python scripts/run_vector_mcts.py \
             "${common[@]}" --leaf-eval measured --terminal-audit \
             --allocation frontier \
+            --item-symmetry-cache-shadow \
             --rollout-top-k 3 \
             --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}" \
             --output "$out/v0.json"
@@ -117,6 +120,7 @@ jobs:
             "${common[@]}" --leaf-eval measured --terminal-audit \
             --allocation pareto-puct \
             --c-puct "${{ inputs.c_puct || '2.0' }}" \
+            --item-symmetry-cache-shadow \
             --rollout-top-k 3 \
             --rollout-max-steps "${{ inputs.rollout_max_steps || '40' }}" \
             --output "$out/puct.json"

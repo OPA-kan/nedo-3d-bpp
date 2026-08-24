@@ -1,7 +1,7 @@
 # Identical-item symmetry equivariance protocol
 
-Status: six-cell physical gate passed; leaf-cache reuse is being measured in
-shadow mode.
+Status: six-cell physical gate passed; physical-search and rollout reuse are
+being measured in shadow mode.
 
 ## Claim under test
 
@@ -42,10 +42,19 @@ once. A pair without that negative control is vacuous and cannot pass.
 All six cells must be non-vacuous and the aggregate must contain zero
 false-merge transitions. Run `32740787738` passed with 6/6 non-vacuous cells,
 64/64 equivariant transitions, and zero false merges. Exact board fingerprints
-still remain authoritative. The next integration records quotient-only leaf
-hits and deterministic V-signature conflicts while executing every original
-V call. It cannot affect search output and does not license container swaps,
-mirror transforms, or partial-order reduction.
+still remain authoritative. Run `32742830165` then found 14 quotient-only leaf
+hits, but 6 learned-V signature conflicts, so V caching is not licensed.
+
+The active integration is deliberately V-independent. It records:
+
+- quotient-only physical search states and potential transposition reduction;
+- terminal-rollout calls that share an item-symmetry state;
+- whether those genuine-terminal outcome vectors agree.
+
+Every physical expansion and terminal rollout still executes. The shadow can
+therefore establish the safe upper bound before any action-orbit deduplication,
+state merge, or rollout memoization changes search behavior. It does not
+license container swaps, mirror transforms, or partial-order reduction.
 
 Implementation:
 
