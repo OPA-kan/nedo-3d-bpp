@@ -26,6 +26,21 @@ A rollout cap is censoring, not terminal evidence.  Any censored sibling makes
 the decision fail safe to the incumbent.  The policy therefore changes an
 action only on complete evidence of terminal vector dominance.
 
+## Exact identical-item reuse
+
+The rollout arm may reuse a genuine-terminal result when two leaf states differ
+only by labels of physically identical items and have the same stream cursor.
+The cache is local to one root decision, so scenario, future stream and frozen
+continuation policy are fixed. Censored or incomplete results are never stored.
+Concrete continuation action labels from the representative are not claimed
+for the alias; only the terminal outcome and aggregate metrics are reused.
+
+The PyBullet legal filter also groups proposals only when selecting either item
+leaves the same ordered visible-pool physical-type sequence and the placement
+command is identical. It executes one representative physical check and keeps
+all logically distinct safe candidates in the bounded support. Missing
+metadata disables reuse rather than weakening the hard constraint.
+
 ## Evaluation
 
 Paired episodes use identical scenario, item stream, environment seed and
@@ -40,6 +55,8 @@ The first gate is empirical trajectory improvement and its physical cost:
 - final terminal-vector relation versus legacy;
 - fill and violation deltas without scalarization;
 - terminal rollout physical steps and censored roots.
+- replay-inclusive physical-step equivalents, terminal cache hits and legal-
+  filter physical checks reused by the exact item-label symmetry.
 
 ## Scope boundary
 

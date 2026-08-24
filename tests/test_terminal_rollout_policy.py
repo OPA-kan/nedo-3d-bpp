@@ -153,7 +153,15 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
             "leaf_eval": "rollout",
             "physical_steps": 3,
             "terminal_rollout_physical_steps": 12,
+            "physical_step_equivalents": 6,
+            "terminal_rollout_physical_step_equivalents": 30,
+            "terminal_rollout_legal_filter_symmetry_reused": 4,
             "item_symmetry_cache_shadow": {},
+            "item_symmetry_terminal_cache": {
+                "hits": 1,
+                "saved_physical_steps": 4,
+                "saved_physical_step_equivalents": 10,
+            },
         }
         metrics.side_effect = [
             {"fill_score_proxy": 0.0},
@@ -171,6 +179,19 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
         self.assertEqual(env.actions[0]["item_idx"], 1)
         self.assertEqual(episode["terminal_dominance_switches"], 1)
         self.assertEqual(episode["terminal_rollout_physical_steps"], 12)
+        self.assertEqual(episode["terminal_symmetry_cache_hits"], 1)
+        self.assertEqual(
+            episode[
+                "terminal_symmetry_cache_saved_physical_step_equivalents"
+            ],
+            10,
+        )
+        self.assertEqual(
+            episode["terminal_rollout_legal_filter_symmetry_reused"], 4
+        )
+        self.assertTrue(vector_search.call_args.kwargs[
+            "item_symmetry_terminal_cache"
+        ])
         self.assertEqual(episode["termination"], "stream_exhausted")
 
 

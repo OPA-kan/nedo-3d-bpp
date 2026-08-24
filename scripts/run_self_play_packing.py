@@ -33,6 +33,7 @@ from scripts.counterfactual_graph import (  # noqa: E402
     board_fingerprint,
     canonical_action,
     capture_replay_contract,
+    item_symmetry_action_orbit_key,
     replay_action_prefix,
     stable_id,
     state_tensor_from_snapshot,
@@ -142,6 +143,7 @@ def _safe(status: dict[str, Any]) -> bool:
 def build_exact_physical_legal_filter(
     task_config: dict[str, Any], *, case_id: str, environment_seed: int,
     env_factory: Callable[[], Any] | None = None,
+    use_item_symmetry_orbits: bool = True,
 ) -> Callable[..., tuple[list[Any], dict[str, Any]]]:
     """Retain only proposals accepted by an independently replayed simulator.
 
@@ -175,7 +177,45 @@ def build_exact_physical_legal_filter(
         )
         retained = []
         candidate_audits = []
+        orbit_results: dict[str, dict[str, Any]] = {}
+        physical_checked_count = 0
+        physical_rejected_count = 0
+        physical_step_equivalents = 0
+        symmetry_reused_count = 0
         for candidate in candidates:
+            orbit_key = (
+                item_symmetry_action_orbit_key(
+                    observed, _candidate_action(candidate)
+                )
+                if use_item_symmetry_orbits else None
+            )
+            cached = orbit_results.get(orbit_key) if orbit_key else None
+            if cached is not None:
+                symmetry_reused_count += 1
+                is_safe = bool(cached["safe"])
+                if is_safe:
+                    retained.append(candidate)
+                candidate_audits.append({
+                    **_candidate_record(candidate),
+                    "safe": is_safe,
+                    "status": copy.deepcopy(cached["status"]),
+                    "terminated": bool(cached["terminated"]),
+                    "truncated": bool(cached["truncated"]),
+                    "prefix_actions_replayed": 0,
+                    "prefix_fingerprint": expected_fingerprint,
+                    "physical_check": False,
+                    "symmetry_reused": True,
+                    "symmetry_orbit_key": orbit_key,
+                    "symmetry_representative_candidate_id": cached[
+                        "candidate_id"
+                    ],
+                })
+                if (
+                    max_safe_candidates is not None
+                    and len(retained) >= max_safe_candidates
+                ):
+                    break
+                continue
             preview_env = env_factory()
             try:
                 rebuilt = replay_action_prefix(
@@ -198,9 +238,14 @@ def build_exact_physical_legal_filter(
                 )
                 status = _status(info)
                 is_safe = _safe(status)
+                physical_checked_count += 1
+                physical_rejected_count += int(not is_safe)
+                physical_step_equivalents += int(
+                    rebuilt.actions_replayed
+                ) + 1
                 if is_safe:
                     retained.append(candidate)
-                candidate_audits.append({
+                candidate_record = {
                     **_candidate_record(candidate),
                     "safe": is_safe,
                     "status": status,
@@ -208,7 +253,20 @@ def build_exact_physical_legal_filter(
                     "truncated": bool(truncated),
                     "prefix_actions_replayed": rebuilt.actions_replayed,
                     "prefix_fingerprint": rebuilt.observed_fingerprint,
-                })
+                    "physical_check": True,
+                    "symmetry_reused": False,
+                    "symmetry_orbit_key": orbit_key,
+                    "symmetry_representative_candidate_id": None,
+                }
+                candidate_audits.append(candidate_record)
+                if orbit_key:
+                    orbit_results[orbit_key] = {
+                        "candidate_id": candidate_record["candidate_id"],
+                        "safe": bool(is_safe),
+                        "status": copy.deepcopy(status),
+                        "terminated": bool(terminated),
+                        "truncated": bool(truncated),
+                    }
             finally:
                 preview_env.close()
             if (
@@ -219,10 +277,14 @@ def build_exact_physical_legal_filter(
         checked_count = len(candidate_audits)
         return retained, {
             "schema_version": 1,
-            "mode": "fresh_pybullet_prefix_replay",
+            "mode": "fresh_pybullet_prefix_replay_item_orbit_v2",
             "step": int(step),
             "proposal_count": len(candidates),
             "checked_count": checked_count,
+            "physical_checked_count": physical_checked_count,
+            "physical_rejected_count": physical_rejected_count,
+            "physical_step_equivalents": physical_step_equivalents,
+            "symmetry_reused_count": symmetry_reused_count,
             "unchecked_count": len(candidates) - checked_count,
             "safe_count": len(retained),
             "rejected_count": checked_count - len(retained),
@@ -583,11 +645,14 @@ def build_physical_puct_search(
                                     "physical_checks"
                                 ] += int(
                                     provider_zero_audit.get(
-                                        "checked_count",
-                                        len(
-                                            provider_zero_audit.get(
-                                                "candidates", []
-                                            )
+                                        "physical_checked_count",
+                                        provider_zero_audit.get(
+                                            "checked_count",
+                                            len(
+                                                provider_zero_audit.get(
+                                                    "candidates", []
+                                                )
+                                            ),
                                         ),
                                     )
                                 )
@@ -595,7 +660,10 @@ def build_physical_puct_search(
                                     "physical_rejections"
                                 ] += int(
                                     provider_zero_audit.get(
-                                        "rejected_count", 0
+                                        "physical_rejected_count",
+                                        provider_zero_audit.get(
+                                            "rejected_count", 0
+                                        ),
                                     )
                                 )
                             exhaustion_shadow_summary["audited_nodes"] += 1

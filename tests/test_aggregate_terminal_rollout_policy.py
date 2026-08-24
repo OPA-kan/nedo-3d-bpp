@@ -12,7 +12,7 @@ from scripts.aggregate_terminal_rollout_policy import (
 
 def manifest(policy, *, fill, soft, steps, switches=0):
     return {
-        "behavior_contract": "single_agent_terminal_rollout_policy_v1",
+        "behavior_contract": "single_agent_terminal_rollout_policy_v2_item_symmetry",
         "case_id": "case",
         "environment_seed": 42,
         "policy": policy,
@@ -35,7 +35,15 @@ def manifest(policy, *, fill, soft, steps, switches=0):
             "terminal_truth_complete_roots": steps,
             "terminal_truth_censored_roots": 0,
             "search_physical_steps": steps * 3,
+            "search_physical_step_equivalents": steps * 6,
             "terminal_rollout_physical_steps": steps * 10,
+            "terminal_rollout_physical_step_equivalents": steps * 20,
+            "terminal_rollout_legal_filter_symmetry_reused": steps,
+            "terminal_symmetry_cache_hits": switches,
+            "terminal_symmetry_cache_saved_physical_steps": switches * 3,
+            "terminal_symmetry_cache_saved_physical_step_equivalents": (
+                switches * 8
+            ),
         }],
     }
 
@@ -74,6 +82,19 @@ class TerminalRolloutPolicyAggregateTests(unittest.TestCase):
 
         self.assertEqual(result["relation_counts"]["incomparable"], 1)
         self.assertEqual(result["total_switches"], 1)
+        self.assertEqual(result["total_terminal_symmetry_cache_hits"], 1)
+        self.assertEqual(
+            result[
+                "total_terminal_symmetry_cache_saved_physical_step_equivalents"
+            ],
+            8,
+        )
+        self.assertEqual(
+            result[
+                "total_terminal_rollout_legal_filter_symmetry_reused"
+            ],
+            6,
+        )
         self.assertEqual(
             result["metric_summaries"]["soft_covered_by_other"]["losses"],
             1,

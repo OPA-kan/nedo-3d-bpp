@@ -1983,27 +1983,34 @@ suggestion to re-run a closed line.
 
 ## Verification and operating rules
 
-### Identical-item symmetry audit (2026-08-24)
+### Identical-item symmetry audit and narrow reuse (2026-08-24/25)
 
-The next search-speed experiment is deliberately shadow-only. The exact board
-fingerprint remains the replay/DAG identity, while
+The exact board fingerprint remains the replay/DAG identity, while
 `item_symmetry_board_fingerprint` quotients only stable labels of items with
 the same physical and attribute signature. A six-cell Linux/PyBullet workflow
-replays frozen pool-positional actions after transposing one still-available
-identical item pair. It requires a non-vacuous label change and exact agreement
-of safety, terminal status, cumulative metrics, and the symmetry child
-fingerprint at every step. Any trace-length mismatch is counted as a false
-merge. No search node is merged and no cache key changes until that physical
-equivariance gate passes. Run `32740787738` passed all six non-vacuous cells:
-64/64 paired PyBullet transitions were equivariant and false merges were zero.
-The H2 value workflow recorded 14 quotient-only leaf hits and 6 conflicting V
-signatures, so learned-V caching is not licensed. Symmetry accounting is now
-generalized away from V: the terminal rollout workflow records potential
-physical-state reduction, repeated genuine-terminal rollout evaluations and
-rollout-vector conflicts while still executing every expansion and rollout.
-Only a zero-conflict physical rollout result may advance to actual memoization;
-action-orbit deduplication remains a later separately audited behavior change.
-Search behavior and exact DAG identity remain unchanged. The protocol is in
+replayed frozen pool-positional actions after transposing one still-available
+identical item pair. Run `32740787738` passed all six non-vacuous cells: 64/64
+paired transitions were equivariant and false merges were zero. The H2 value
+workflow recorded 14 quotient-only leaf hits and 6 conflicting V signatures,
+so learned-V caching is not licensed.
+
+Symmetry accounting was then generalized away from V. On rollout run
+`32753033451`, the shadow recorded 160 evaluator observations, 136 quotient
+states and 24 quotient-only repeats with zero rollout-vector conflicts. Two
+exact reuse paths are now implemented for a fresh physical ablation. First,
+genuine-terminal continuation results are memoized inside one root decision by
+item-symmetry leaf fingerprint plus stream cursor; censored or incomplete
+results are never cached. Second, the exact PyBullet legal filter checks one
+representative of an identical-item action orbit and reuses its classification.
+The orbit preserves physical item type, placement command, container and the
+ordered pool-type sequence after removal. Logical candidates remain in support;
+only redundant physical checks are skipped. Both paths fail closed on missing
+metadata and report replay-inclusive physical-step equivalents separately.
+
+Search-node transposition, container exchange, reflection/rotation symmetry,
+partial-order reduction and learned-V caching remain unlicensed. Exact DAG
+identity remains unchanged. The fresh ablation must reproduce prior terminal
+decisions and outcomes before any speedup claim is made. The protocol is in
 `reports/self-play-packing/item-symmetry-equivariance-protocol.md`.
 
 ### Current agent candidate (2026-08-13)

@@ -107,15 +107,18 @@ separate calibration before CoG can discriminate search branches honestly.
 
 Single-agent records also carry an `item_symmetry_fingerprint` that removes
 stable labels only for items with identical model-visible physical features.
-It is shadow-only. Exact `board_fingerprint` remains the replay and DAG merge
-key until paired physical transition equivariance shows zero false merges;
-missing item metadata keeps the stable label and therefore fails closed.
+Exact `board_fingerprint` remains the replay and DAG merge key; missing item
+metadata keeps the stable label and therefore fails closed.
 
 The six-cell paired gate subsequently passed at 64/64 transitions with zero
 false merges. `run_vector_mcts.py --item-symmetry-cache-shadow` therefore now
 measures root-local quotient-only leaf hits, potential V-call savings, and
-conflicting deterministic V signatures. It still executes every V call and
-does not merge nodes or alter candidate allocation.
+conflicting deterministic V signatures. Learned-V caching and search-node
+merging remain disabled. The passed physical gate separately licenses two
+V-independent operations: root-local genuine-terminal rollout memoization and
+one-representative PyBullet checks for exact identical-item action orbits. The
+latter preserves every logical candidate and its rank; it only avoids repeated
+physical validation.
 
 ## Compatibility with collected data
 

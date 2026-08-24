@@ -44,7 +44,7 @@ EPS = 1e-9
 
 def _episode(payload: dict[str, Any], *, policy: str, cell: str):
     if payload.get("behavior_contract") != (
-        "single_agent_terminal_rollout_policy_v1"
+        "single_agent_terminal_rollout_policy_v2_item_symmetry"
     ):
         raise ValueError(f"{cell}: invalid behavior contract")
     if payload.get("policy") != policy:
@@ -97,8 +97,33 @@ def _arm(episode: dict[str, Any]) -> dict[str, Any]:
         "search_physical_steps": int(
             episode.get("search_physical_steps", 0)
         ),
+        "search_physical_step_equivalents": int(
+            episode.get("search_physical_step_equivalents", 0)
+        ),
         "terminal_rollout_physical_steps": int(
             episode.get("terminal_rollout_physical_steps", 0)
+        ),
+        "terminal_rollout_physical_step_equivalents": int(
+            episode.get("terminal_rollout_physical_step_equivalents", 0)
+        ),
+        "terminal_rollout_legal_filter_symmetry_reused": int(
+            episode.get(
+                "terminal_rollout_legal_filter_symmetry_reused", 0
+            )
+        ),
+        "terminal_symmetry_cache_hits": int(
+            episode.get("terminal_symmetry_cache_hits", 0)
+        ),
+        "terminal_symmetry_cache_saved_physical_steps": int(
+            episode.get(
+                "terminal_symmetry_cache_saved_physical_steps", 0
+            )
+        ),
+        "terminal_symmetry_cache_saved_physical_step_equivalents": int(
+            episode.get(
+                "terminal_symmetry_cache_saved_physical_step_equivalents",
+                0,
+            )
         ),
         "final_metrics": episode.get("final_metrics") or {},
     }
@@ -176,8 +201,8 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
             "losses": sum(value < -EPS for value in oriented),
         }
     return {
-        "schema_version": 1,
-        "contract": "single_agent_terminal_rollout_policy_ablation_v1",
+        "schema_version": 2,
+        "contract": "single_agent_terminal_rollout_policy_ablation_v2",
         "value_model": None,
         "selection": "terminal_pareto_dominance_switch_else_legacy_rank0",
         "scalar_utility": None,
@@ -191,6 +216,38 @@ def aggregate(root: pathlib.Path) -> dict[str, Any]:
         ),
         "total_terminal_rollout_physical_steps": sum(
             cell["rollout"]["terminal_rollout_physical_steps"]
+            for cell in cells
+        ),
+        "total_search_physical_step_equivalents": sum(
+            cell["rollout"]["search_physical_step_equivalents"]
+            for cell in cells
+        ),
+        "total_terminal_rollout_physical_step_equivalents": sum(
+            cell["rollout"][
+                "terminal_rollout_physical_step_equivalents"
+            ]
+            for cell in cells
+        ),
+        "total_terminal_rollout_legal_filter_symmetry_reused": sum(
+            cell["rollout"][
+                "terminal_rollout_legal_filter_symmetry_reused"
+            ]
+            for cell in cells
+        ),
+        "total_terminal_symmetry_cache_hits": sum(
+            cell["rollout"]["terminal_symmetry_cache_hits"]
+            for cell in cells
+        ),
+        "total_terminal_symmetry_cache_saved_physical_steps": sum(
+            cell["rollout"][
+                "terminal_symmetry_cache_saved_physical_steps"
+            ]
+            for cell in cells
+        ),
+        "total_terminal_symmetry_cache_saved_physical_step_equivalents": sum(
+            cell["rollout"][
+                "terminal_symmetry_cache_saved_physical_step_equivalents"
+            ]
             for cell in cells
         ),
         "mean_step_delta": sum(
@@ -210,6 +267,26 @@ def render_markdown(result: dict[str, Any]) -> str:
         f"**{result['total_terminal_truth_censored_roots']}**",
         "- terminal rollout physical steps: "
         f"**{result['total_terminal_rollout_physical_steps']}**",
+        "- search replay-inclusive physical step equivalents: "
+        f"**{result['total_search_physical_step_equivalents']}**",
+        "- terminal replay-inclusive physical step equivalents: "
+        "**"
+        f"{result['total_terminal_rollout_physical_step_equivalents']}"
+        "**",
+        "- identical-item terminal cache hits: "
+        f"**{result['total_terminal_symmetry_cache_hits']}**",
+        "- legal-filter physical checks reused by item symmetry: "
+        "**"
+        f"{result['total_terminal_rollout_legal_filter_symmetry_reused']}"
+        "**",
+        "- estimated physical steps saved by terminal cache: "
+        "**"
+        f"{result['total_terminal_symmetry_cache_saved_physical_steps']}"
+        "**",
+        "- estimated replay-inclusive step equivalents saved by cache: "
+        "**"
+        f"{result['total_terminal_symmetry_cache_saved_physical_step_equivalents']}"
+        "**",
         f"- mean placed-step delta: **{result['mean_step_delta']}**",
         "- V model: **none**",
         "- No scalar utility is constructed; final relations use the raw "

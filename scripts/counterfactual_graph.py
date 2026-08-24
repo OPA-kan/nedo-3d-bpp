@@ -217,6 +217,47 @@ def board_fingerprint(snapshot: dict[str, Any], *, digits: int = 6) -> str:
     )
 
 
+def physical_item_type_fingerprint(
+    item: dict[str, Any], *, digits: int = 6,
+) -> str:
+    """Label-free type used by the audited identical-item group action."""
+    return stable_id(
+        "physical-item-type-v1",
+        [round(value, digits) for value in _item_tensor_row(item)],
+    )
+
+
+def item_symmetry_action_orbit_key(
+    observation: dict[str, Any], action: dict[str, Any], *, digits: int = 6,
+) -> str | None:
+    """Fail-closed orbit key for equivalent visible-item placement actions.
+
+    Two actions share a key only when they place the same physical item type
+    with the same command and leave the same ordered visible-pool type suffix.
+    The future refill is common to candidates at one legal-filter root, so it
+    need not be named here.  Invalid or missing pool metadata returns ``None``
+    and forces an ordinary physical check.
+    """
+    pool = observation.get("pool_list")
+    if not isinstance(pool, list) or not pool:
+        return None
+    try:
+        command = canonical_action(action)
+        selected = int(command["item_idx"])
+        if selected < 0 or selected >= len(pool):
+            return None
+        types = [physical_item_type_fingerprint(row, digits=digits) for row in pool]
+    except (KeyError, TypeError, ValueError):
+        return None
+    return stable_id("item-action-orbit-v1", {
+        "selected_type": types[selected],
+        "residual_pool_types": types[:selected] + types[selected + 1:],
+        "container_idx": int(command["container_idx"]),
+        "place_pos": [round(float(value), digits) for value in command["place_pos"]],
+        "orientation": int(command["orientation"]),
+    })
+
+
 def item_symmetry_board_fingerprint(
     snapshot: dict[str, Any], *, digits: int = 6,
 ) -> str:
@@ -235,12 +276,6 @@ def item_symmetry_board_fingerprint(
         for item in container.get("packed_items", [])
     }
 
-    def item_type(item: dict[str, Any]) -> str:
-        return stable_id(
-            "physical-item-type-v1",
-            [round(value, digits) for value in _item_tensor_row(item)],
-        )
-
     packed = []
     for physical in snapshot.get("physics", {}).get("packed_items", []):
         container_index = int(physical["container_index"])
@@ -251,7 +286,7 @@ def item_symmetry_board_fingerprint(
             # Missing observation metadata must not create false symmetry.
             # Keep the stable label in that exceptional case (fail closed).
             "item_type": (
-                item_type(item_record)
+                physical_item_type_fingerprint(item_record, digits=digits)
                 if item_record is not None
                 else stable_id("unresolved-item-label-v1", item_index)
             ),
@@ -265,7 +300,8 @@ def item_symmetry_board_fingerprint(
             ],
         })
     pool_types = [
-        item_type(item) for item in observation.get("pool_list", [])
+        physical_item_type_fingerprint(item, digits=digits)
+        for item in observation.get("pool_list", [])
     ]
     return stable_id("board-item-symmetry-v1", {
         "packed": sorted(

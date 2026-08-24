@@ -50,7 +50,7 @@ from scripts.run_vector_mcts import vector_search_root  # noqa: E402
 from scripts.single_agent_packing import GENUINE_TERMINATIONS  # noqa: E402
 
 POLICIES = {"legacy", "terminal-rollout"}
-BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v1"
+BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v2_item_symmetry"
 
 
 def _rank_key(candidate: Any) -> tuple[int, str]:
@@ -134,11 +134,27 @@ def _search_record(result: dict[str, Any]) -> dict[str, Any]:
             "terminal_pareto_candidates"
         ),
         "physical_steps": int(result.get("physical_steps", 0)),
+        "physical_step_equivalents": int(
+            result.get("physical_step_equivalents", 0)
+        ),
         "terminal_rollout_physical_steps": int(
             result.get("terminal_rollout_physical_steps", 0)
         ),
+        "terminal_rollout_physical_step_equivalents": int(
+            result.get(
+                "terminal_rollout_physical_step_equivalents", 0
+            )
+        ),
+        "terminal_rollout_legal_filter_symmetry_reused": int(
+            result.get(
+                "terminal_rollout_legal_filter_symmetry_reused", 0
+            )
+        ),
         "item_symmetry_cache_shadow": result.get(
             "item_symmetry_cache_shadow"
+        ),
+        "item_symmetry_terminal_cache": result.get(
+            "item_symmetry_terminal_cache"
         ),
         "root_candidates": [
             {
@@ -148,6 +164,10 @@ def _search_record(result: dict[str, Any]) -> dict[str, Any]:
                     "one_step_vector", "terminal_genuine",
                     "terminal_termination", "terminal_vector",
                     "terminal_continuation_actions",
+                    "terminal_physical_step_equivalents",
+                    "terminal_legal_filter_symmetry_reused",
+                    "terminal_symmetry_cache_hit",
+                    "terminal_symmetry_cache_source",
                 )
             }
             for row in result.get("root_candidates") or []
@@ -215,6 +235,9 @@ def run_episode(
                 rollout_max_steps=rollout_max_steps,
                 allocation="frontier",
                 item_symmetry_cache_shadow=True,
+                item_symmetry_terminal_cache=(
+                    policy == "terminal-rollout"
+                ),
             )
             chosen, selection = choose_root_candidate(
                 candidates, search, policy=policy,
@@ -289,8 +312,42 @@ def run_episode(
                 int(record["search"]["physical_steps"])
                 for record in records
             ),
+            "search_physical_step_equivalents": sum(
+                int(record["search"]["physical_step_equivalents"])
+                for record in records
+            ),
             "terminal_rollout_physical_steps": sum(
                 int(record["search"]["terminal_rollout_physical_steps"])
+                for record in records
+            ),
+            "terminal_rollout_physical_step_equivalents": sum(
+                int(record["search"][
+                    "terminal_rollout_physical_step_equivalents"
+                ])
+                for record in records
+            ),
+            "terminal_rollout_legal_filter_symmetry_reused": sum(
+                int(record["search"][
+                    "terminal_rollout_legal_filter_symmetry_reused"
+                ])
+                for record in records
+            ),
+            "terminal_symmetry_cache_hits": sum(
+                int((record["search"].get(
+                    "item_symmetry_terminal_cache"
+                ) or {}).get("hits", 0))
+                for record in records
+            ),
+            "terminal_symmetry_cache_saved_physical_steps": sum(
+                int((record["search"].get(
+                    "item_symmetry_terminal_cache"
+                ) or {}).get("saved_physical_steps", 0))
+                for record in records
+            ),
+            "terminal_symmetry_cache_saved_physical_step_equivalents": sum(
+                int((record["search"].get(
+                    "item_symmetry_terminal_cache"
+                ) or {}).get("saved_physical_step_equivalents", 0))
                 for record in records
             ),
         }
@@ -347,6 +404,7 @@ def main() -> int:
             "top_k": args.rollout_top_k,
             "max_continuation_steps": args.rollout_max_steps,
             "censor_on_cap": True,
+            "identical_item_terminal_cache": True,
         } if args.policy == "terminal-rollout" else None,
         "episodes": [episode],
     }

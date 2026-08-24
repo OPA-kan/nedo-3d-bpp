@@ -986,6 +986,141 @@ class SelfPlayPackingDriverTests(unittest.TestCase):
         self.assertEqual(1, audit["rejected_count"])
         self.assertEqual(2, replay.call_count)
 
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch(
+        "scripts.run_self_play_packing.policy_observation",
+        side_effect=lambda _e, o: o,
+    )
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_exact_filter_physically_checks_one_representative_per_item_orbit(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+        previews = []
+
+        class Preview:
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True,
+                    "is_valid": True,
+                    "is_placed_safe": True,
+                }}
+
+            def close(self):
+                pass
+
+        def factory():
+            previews.append(Preview())
+            return previews[-1]
+
+        physical = {
+            "length": 1.0, "width": 1.0, "height": 1.0, "mass": 1.0,
+            "is_prioritized": False, "is_soft": False,
+        }
+        observation = {
+            "pool_list": [
+                {**physical, "index": 10},
+                {**physical, "index": 11},
+            ],
+            "container_list": [],
+        }
+        candidates = [
+            {
+                "candidate_id": f"c-{pool_index}",
+                "selection": {
+                    "rank": pool_index,
+                    "stable_item_index": 10 + pool_index,
+                },
+                "command_action": {
+                    "item_idx": pool_index, "container_idx": 0,
+                    "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+                },
+            }
+            for pool_index in range(2)
+        ]
+        legal_filter = build_exact_physical_legal_filter(
+            {}, case_id="case", environment_seed=42, env_factory=factory
+        )
+
+        retained, audit = legal_filter(
+            env=object(), observation=observation, candidates=candidates,
+            actions=[], step=0,
+        )
+
+        self.assertEqual([row["candidate_id"] for row in retained], ["c-0", "c-1"])
+        self.assertEqual(audit["checked_count"], 2)
+        self.assertEqual(audit["physical_checked_count"], 1)
+        self.assertEqual(audit["symmetry_reused_count"], 1)
+        self.assertEqual(audit["physical_step_equivalents"], 1)
+        self.assertEqual(len(previews), 1)
+        self.assertEqual(replay.call_count, 1)
+        self.assertTrue(audit["candidates"][1]["symmetry_reused"])
+
+    @mock.patch("scripts.run_self_play_packing.board_fingerprint", return_value="fp")
+    @mock.patch("scripts.run_self_play_packing.state_snapshot", return_value={})
+    @mock.patch(
+        "scripts.run_self_play_packing.policy_observation",
+        side_effect=lambda _e, o: o,
+    )
+    @mock.patch("scripts.run_self_play_packing.capture_replay_contract", return_value={})
+    @mock.patch("scripts.run_self_play_packing.replay_action_prefix")
+    def test_exact_filter_reuses_an_unsafe_item_orbit_fail_closed(
+        self, replay, _contract, _observation, _snapshot, _fingerprint,
+    ):
+        replay.return_value = SimpleNamespace(
+            matched=True, actions_replayed=0,
+            observed_fingerprint="fp", error=None,
+        )
+
+        class Preview:
+            def step(self, _action):
+                return {}, 0.0, False, False, {"status": {
+                    "is_included": True,
+                    "is_valid": True,
+                    "is_placed_safe": False,
+                }}
+
+            def close(self):
+                pass
+
+        physical = {
+            "length": 1.0, "width": 1.0, "height": 1.0, "mass": 1.0,
+            "is_prioritized": False, "is_soft": False,
+        }
+        observation = {"pool_list": [
+            {**physical, "index": 10}, {**physical, "index": 11},
+        ]}
+        candidates = [{
+            "candidate_id": f"c-{pool_index}",
+            "selection": {"rank": pool_index},
+            "command_action": {
+                "item_idx": pool_index, "container_idx": 0,
+                "place_pos": [0.0, 0.0, 0.5], "orientation": 0,
+            },
+        } for pool_index in range(2)]
+        legal_filter = build_exact_physical_legal_filter(
+            {}, case_id="case", environment_seed=42,
+            env_factory=Preview,
+        )
+
+        retained, audit = legal_filter(
+            env=object(), observation=observation, candidates=candidates,
+            actions=[], step=0,
+        )
+
+        self.assertEqual(retained, [])
+        self.assertEqual(audit["physical_checked_count"], 1)
+        self.assertEqual(audit["physical_rejected_count"], 1)
+        self.assertEqual(audit["rejected_count"], 2)
+        self.assertEqual(audit["symmetry_reused_count"], 1)
+        self.assertEqual(replay.call_count, 1)
+        self.assertTrue(audit["candidates"][1]["symmetry_reused"])
+
     def test_policy_selects_only_from_prefiltered_legal_moves(self):
         def two_candidates(_env, _observation, _limit):
             return [

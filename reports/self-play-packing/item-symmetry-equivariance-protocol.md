@@ -1,7 +1,8 @@
 # Identical-item symmetry equivariance protocol
 
-Status: six-cell physical gate passed; physical-search and rollout reuse are
-being measured in shadow mode.
+Status: six-cell physical gate passed. Two narrow, V-independent reuse paths
+are active behind explicit contracts; broader search transpositions remain
+shadow-only.
 
 ## Claim under test
 
@@ -45,20 +46,37 @@ false-merge transitions. Run `32740787738` passed with 6/6 non-vacuous cells,
 still remain authoritative. Run `32742830165` then found 14 quotient-only leaf
 hits, but 6 learned-V signature conflicts, so V caching is not licensed.
 
-The active integration is deliberately V-independent. It records:
+The integration is deliberately V-independent. The original shadow records:
 
 - quotient-only physical search states and potential transposition reduction;
 - terminal-rollout calls that share an item-symmetry state;
 - whether those genuine-terminal outcome vectors agree.
 
-Every physical expansion and terminal rollout still executes. The shadow can
-therefore establish the safe upper bound before any action-orbit deduplication,
-state merge, or rollout memoization changes search behavior. It does not
-license container swaps, mirror transforms, or partial-order reduction.
+The passed gate now licenses two exact-label reuse paths:
+
+1. terminal rollout results are memoized inside one root search by
+   `(item-symmetry leaf fingerprint, stream cursor)`; only genuine terminal,
+   complete vectors are stored and censored results are never cached;
+2. the exact PyBullet legal filter checks one representative of an identical-
+   item action orbit and reuses its classification for aliases. An orbit must
+   preserve physical item type, command pose, container, and the ordered
+   visible-pool type sequence after the selected item is removed.
+
+Both paths fail closed when their metadata is incomplete. Replay-inclusive
+physical-step equivalents and reuse counts are reported separately from the
+legacy logical step count. The terminal cache is root-local because scenario,
+future stream and continuation policy are then fixed.
+
+Search-node transposition remains shadow-only. Provider/ranker stable-ID
+tie-breaks and concrete action remapping have not yet passed an equivariance
+gate. This protocol does not license container swaps, mirror transforms,
+geometric rotations, partial-order reduction, or learned-V caching.
 
 Implementation:
 
 - `scripts/audit_item_symmetry_equivariance.py`
 - `scripts/aggregate_item_symmetry_equivariance.py`
 - `scripts/item_symmetry_transposition_shadow.py`
+- `scripts/run_self_play_packing.py`
+- `scripts/run_vector_mcts.py`
 - `.github/workflows/item-symmetry-equivariance.yml`

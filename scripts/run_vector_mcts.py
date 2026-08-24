@@ -47,6 +47,7 @@ stability predictions remain separate fields; no scalar utility is invented.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import pathlib
@@ -533,6 +534,8 @@ def _terminal_rollout(
                 break
         continuation_steps = 0
         continuation_actions = []
+        legal_filter_physical_step_equivalents = 0
+        legal_filter_symmetry_reused = 0
         while termination is None:
             if continuation_steps >= max_continuation_steps:
                 termination = "continuation_cap"
@@ -546,6 +549,12 @@ def _terminal_rollout(
                 actions=list(executed),
                 step=root_step + forced_steps + continuation_steps,
                 max_safe_candidates=1,
+            )
+            legal_filter_physical_step_equivalents += int(
+                _audit.get("physical_step_equivalents", 0)
+            )
+            legal_filter_symmetry_reused += int(
+                _audit.get("symmetry_reused_count", 0)
             )
             if not retained:
                 termination = "no_safe_retained_candidate"
@@ -573,6 +582,18 @@ def _terminal_rollout(
             "genuine_terminal": genuine,
             "continuation_steps": continuation_steps,
             "physical_steps": forced_steps + continuation_steps,
+            "physical_step_equivalents": (
+                len(prefix_actions)
+                + forced_steps
+                + continuation_steps
+                + legal_filter_physical_step_equivalents
+            ),
+            "legal_filter_physical_step_equivalents": (
+                legal_filter_physical_step_equivalents
+            ),
+            "legal_filter_symmetry_reused": (
+                legal_filter_symmetry_reused
+            ),
             "forced_actions": [json_safe(action) for action in forced_actions],
             "continuation_actions": [
                 json_safe(action) for action in continuation_actions
@@ -597,16 +618,20 @@ def _rollout(
         env.reset_settings()
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
+        prefix_steps = 0
         for action in prefix_actions:
             observation, _r, terminated, truncated, info = env.step(action)
+            prefix_steps += 1
             if not _safe(_status(info)) or terminated or truncated:
                 raise RuntimeError("prefix replay failed")
         vectors = []
         terminated = truncated = False
         safe = True
+        attempted_steps = 0
         for action in actions:
             before = cumulative_metrics(env)
             observation, _r, terminated, truncated, info = env.step(action)
+            attempted_steps += 1
             safe = _safe(_status(info))
             if not safe:
                 break
@@ -619,6 +644,7 @@ def _rollout(
             "truncated": truncated,
             "step_deltas": vectors,
             "observation": observation,
+            "physical_step_equivalents": prefix_steps + attempted_steps,
             "env": env,
         }
     except Exception:
@@ -638,6 +664,7 @@ def vector_search_root(
     terminal_rollout_fn: Callable[[list[Any]], dict[str, Any]] | None = None,
     leaf_vector_fn: Callable[..., dict[str, Any]] | None = None,
     item_symmetry_cache_shadow: bool = False,
+    item_symmetry_terminal_cache: bool = False,
     leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -658,7 +685,16 @@ def vector_search_root(
         raise ValueError("value shadow requires frozen Pareto-PUCT allocation")
     if leaf_eval == "value" and leaf_vector_fn is None:
         raise ValueError("value leaf evaluation requires leaf_vector_fn")
-    if item_symmetry_cache_shadow and leaf_state_key_fn is None:
+    if (
+        item_symmetry_terminal_cache
+        and leaf_eval != "rollout" and not terminal_audit
+    ):
+        raise ValueError(
+            "item symmetry terminal cache requires a terminal evaluator"
+        )
+    if (
+        item_symmetry_cache_shadow or item_symmetry_terminal_cache
+    ) and leaf_state_key_fn is None:
         def leaf_state_key_fn(*, env, observation, state_step):
             observed = policy_observation(env, observation)
             snapshot = state_snapshot(
@@ -692,19 +728,45 @@ def vector_search_root(
     edge_stats: dict[str, dict[str, Any]] = {}
     children: dict[str | None, list[str]] = {None: []}
     physical_steps = 0
+    physical_step_equivalents = 0
     terminal_rollout_physical_steps = 0
+    terminal_rollout_physical_step_equivalents = 0
+    terminal_rollout_legal_filter_symmetry_reused = 0
+    terminal_symmetry_cache: dict[tuple[str, int], dict[str, Any]] = {}
+    terminal_symmetry_cache_stats = {
+        "contract": "identical_item_terminal_rollout_cache_v1",
+        "enabled": bool(item_symmetry_terminal_cache),
+        "behavior_effect": (
+            "terminal_rollout_memoization"
+            if item_symmetry_terminal_cache else "none"
+        ),
+        "lookups": 0,
+        "hits": 0,
+        "misses": 0,
+        "stores": 0,
+        "saved_calls": 0,
+        "saved_physical_steps": 0,
+        "saved_physical_step_equivalents": 0,
+        "censored_not_stored": 0,
+    }
     symmetry_shadow = (
         ItemSymmetryTranspositionShadow()
         if item_symmetry_cache_shadow else None
     )
 
     def try_action_path(actions, root_candidate_id, *, parent=None, prior=1.0):
-        nonlocal physical_steps, terminal_rollout_physical_steps
+        nonlocal physical_steps, physical_step_equivalents
+        nonlocal terminal_rollout_physical_steps
+        nonlocal terminal_rollout_physical_step_equivalents
+        nonlocal terminal_rollout_legal_filter_symmetry_reused
         result = _rollout(
             task_config, environment_seed=environment_seed,
             prefix_actions=prefix_actions, actions=actions,
         )
         physical_steps += len(actions)
+        physical_step_equivalents += int(
+            result.get("physical_step_equivalents", len(actions))
+        )
         env = result.pop("env")
         try:
             if not result["safe"] or len(result["step_deltas"]) < len(actions):
@@ -720,7 +782,10 @@ def vector_search_root(
             ended = result["terminated"] or result["truncated"]
             leaf_exact_fingerprint = None
             leaf_symmetry_fingerprint = None
-            if symmetry_shadow is not None:
+            if (
+                symmetry_shadow is not None
+                or item_symmetry_terminal_cache
+            ):
                 leaf_exact_fingerprint, leaf_symmetry_fingerprint = (
                     leaf_state_key_fn(
                         env=env, observation=result["observation"],
@@ -728,6 +793,8 @@ def vector_search_root(
                     )
                 )
             terminal_result = None
+            terminal_symmetry_cache_hit = False
+            terminal_symmetry_cache_source = None
             run_terminal = (
                 leaf_eval == "rollout"
                 or (terminal_audit and len(actions) == 1)
@@ -735,10 +802,75 @@ def vector_search_root(
             if run_terminal:
                 if terminal_rollout_fn is None:
                     raise RuntimeError("rollout leaf evaluator was not configured")
-                terminal_result = terminal_rollout_fn(list(actions))
-                terminal_rollout_physical_steps += int(
-                    terminal_result.get("physical_steps", 0)
+                cache_key = (
+                    (str(leaf_symmetry_fingerprint), step + len(actions))
+                    if item_symmetry_terminal_cache
+                    and leaf_symmetry_fingerprint is not None
+                    else None
                 )
+                cached_terminal = None
+                if cache_key is not None:
+                    terminal_symmetry_cache_stats["lookups"] += 1
+                    cached_terminal = terminal_symmetry_cache.get(cache_key)
+                if cached_terminal is not None:
+                    terminal_symmetry_cache_hit = True
+                    terminal_symmetry_cache_stats["hits"] += 1
+                    terminal_symmetry_cache_stats["saved_calls"] += 1
+                    terminal_symmetry_cache_stats[
+                        "saved_physical_steps"
+                    ] += int(cached_terminal.get("physical_steps", 0))
+                    terminal_symmetry_cache_stats[
+                        "saved_physical_step_equivalents"
+                    ] += int(cached_terminal.get(
+                        "physical_step_equivalents",
+                        cached_terminal.get("physical_steps", 0),
+                    ))
+                    terminal_result = copy.deepcopy(cached_terminal)
+                    terminal_symmetry_cache_source = terminal_result.get(
+                        "symmetry_cache_source_exact_fingerprint"
+                    )
+                    # Continuation actions contain concrete stable labels from
+                    # the representative.  They are not replay commands for
+                    # this quotient-equivalent leaf.
+                    terminal_result["continuation_actions"] = None
+                    terminal_result["forced_actions"] = [
+                        json_safe(action) for action in actions
+                    ]
+                else:
+                    if cache_key is not None:
+                        terminal_symmetry_cache_stats["misses"] += 1
+                    terminal_result = terminal_rollout_fn(list(actions))
+                    terminal_rollout_physical_steps += int(
+                        terminal_result.get("physical_steps", 0)
+                    )
+                    terminal_rollout_physical_step_equivalents += int(
+                        terminal_result.get(
+                            "physical_step_equivalents",
+                            terminal_result.get("physical_steps", 0),
+                        )
+                    )
+                    terminal_rollout_legal_filter_symmetry_reused += int(
+                        terminal_result.get(
+                            "legal_filter_symmetry_reused", 0
+                        )
+                    )
+                    if cache_key is not None:
+                        if (
+                            terminal_result.get("genuine_terminal") is True
+                            and _oriented(
+                                terminal_result.get("terminal_vector") or {}
+                            ) is not None
+                        ):
+                            stored = copy.deepcopy(terminal_result)
+                            stored[
+                                "symmetry_cache_source_exact_fingerprint"
+                            ] = leaf_exact_fingerprint
+                            terminal_symmetry_cache[cache_key] = stored
+                            terminal_symmetry_cache_stats["stores"] += 1
+                        else:
+                            terminal_symmetry_cache_stats[
+                                "censored_not_stored"
+                            ] += 1
             leaf_prediction = None
             if leaf_eval == "measured":
                 evaluation_vector = accumulated
@@ -776,6 +908,12 @@ def vector_search_root(
                         json_safe(evaluation_vector),
                     )
                     evaluator_kind = "rollout"
+                if terminal_symmetry_cache_hit:
+                    # A reused signature cannot independently test the merge.
+                    # The active cache has its own hit accounting; shadow
+                    # conflict evidence remains restricted to executed calls.
+                    evaluator_signature = None
+                    evaluator_kind = None
                 symmetry_event = symmetry_shadow.observe(
                     exact_key=leaf_exact_fingerprint,
                     symmetry_key=leaf_symmetry_fingerprint,
@@ -817,6 +955,19 @@ def vector_search_root(
                     int(terminal_result.get("continuation_steps", 0))
                     if terminal_result else None
                 ),
+                "terminal_physical_step_equivalents": (
+                    int(terminal_result.get(
+                        "physical_step_equivalents",
+                        terminal_result.get("physical_steps", 0),
+                    ))
+                    if terminal_result else None
+                ),
+                "terminal_legal_filter_symmetry_reused": (
+                    int(terminal_result.get(
+                        "legal_filter_symmetry_reused", 0
+                    ))
+                    if terminal_result else None
+                ),
                 "terminal_vector": (
                     terminal_result.get("terminal_vector")
                     if terminal_result else None
@@ -836,6 +987,10 @@ def vector_search_root(
                 "terminal_continuation_actions": (
                     terminal_result.get("continuation_actions")
                     if terminal_result else None
+                ),
+                "terminal_symmetry_cache_hit": terminal_symmetry_cache_hit,
+                "terminal_symmetry_cache_source": (
+                    terminal_symmetry_cache_source
                 ),
             }
             edge_stats[key] = _new_edge_stat(prior=prior)
@@ -944,6 +1099,18 @@ def vector_search_root(
             row["terminal_continuation_actions"] = root_node[
                 "terminal_continuation_actions"
             ]
+            row["terminal_physical_step_equivalents"] = root_node[
+                "terminal_physical_step_equivalents"
+            ]
+            row["terminal_legal_filter_symmetry_reused"] = root_node[
+                "terminal_legal_filter_symmetry_reused"
+            ]
+            row["terminal_symmetry_cache_hit"] = root_node[
+                "terminal_symmetry_cache_hit"
+            ]
+            row["terminal_symmetry_cache_source"] = root_node[
+                "terminal_symmetry_cache_source"
+            ]
     audit = build_resurrection_audit(root_rows, nodes)
     for row in root_rows:
         row["frontier_audit"] = audit["candidate_audit"].get(
@@ -967,7 +1134,15 @@ def vector_search_root(
         "root_candidates": root_rows,
         "explored_nodes": len(nodes),
         "physical_steps": physical_steps,
+        "physical_step_equivalents": physical_step_equivalents,
         "terminal_rollout_physical_steps": terminal_rollout_physical_steps,
+        "terminal_rollout_physical_step_equivalents": (
+            terminal_rollout_physical_step_equivalents
+        ),
+        "terminal_rollout_legal_filter_symmetry_reused": (
+            terminal_rollout_legal_filter_symmetry_reused
+        ),
+        "item_symmetry_terminal_cache": terminal_symmetry_cache_stats,
         "item_symmetry_cache_shadow": (
             symmetry_shadow.summary() if symmetry_shadow is not None else None
         ),
@@ -993,10 +1168,15 @@ def vector_search_root(
                     "leaf_item_symmetry_fingerprint",
                     "item_symmetry_cache_shadow_event",
                     "terminal_genuine", "terminal_termination",
-                    "terminal_continuation_steps", "terminal_vector",
+                    "terminal_continuation_steps",
+                    "terminal_physical_step_equivalents",
+                    "terminal_legal_filter_symmetry_reused",
+                    "terminal_vector",
                     "terminal_metrics", "terminal_evaluation",
                     "terminal_forced_actions",
                     "terminal_continuation_actions",
+                    "terminal_symmetry_cache_hit",
+                    "terminal_symmetry_cache_source",
                 )
             }
             for key, node in nodes.items()
@@ -1044,6 +1224,13 @@ def main() -> int:
         help=(
             "Measure exact-versus-identical-item physical-state reuse and "
             "per-evaluator conflicts without suppressing rollout or V calls"
+        ),
+    )
+    parser.add_argument(
+        "--item-symmetry-terminal-cache", action="store_true",
+        help=(
+            "memoize genuine terminal rollout results across audited "
+            "identical-item quotient states; never caches censored results"
         ),
     )
     parser.add_argument("--max-roots", type=int, default=None)
@@ -1145,6 +1332,9 @@ def main() -> int:
                 c_puct=args.c_puct,
                 leaf_vector_fn=leaf_adapter,
                 item_symmetry_cache_shadow=args.item_symmetry_cache_shadow,
+                item_symmetry_terminal_cache=(
+                    args.item_symmetry_terminal_cache
+                ),
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
@@ -1186,6 +1376,9 @@ def main() -> int:
         "terminal_audit": bool(args.terminal_audit),
         "item_symmetry_cache_shadow_enabled": bool(
             args.item_symmetry_cache_shadow
+        ),
+        "item_symmetry_terminal_cache_enabled": bool(
+            args.item_symmetry_terminal_cache
         ),
         "leaf_vector_model": (
             None if leaf_adapter is None else {

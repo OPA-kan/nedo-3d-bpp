@@ -432,6 +432,8 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             "genuine_terminal": True,
             "continuation_steps": 2,
             "physical_steps": 3,
+            "physical_step_equivalents": 9,
+            "legal_filter_symmetry_reused": 2,
             "terminal_vector": vector(
                 4.0 if actions[0]["item_idx"] == 0 else 10.0
             ),
@@ -640,6 +642,121 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             shadow["evaluator_by_kind"]["rollout"]["conflicts"], 0
         )
         self.assertEqual(shadow["behavior_effect"], "none")
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_item_symmetry_terminal_cache_skips_equivalent_genuine_rollout(
+        self, measured_rollout, provider_builder,
+    ):
+        provider_builder.return_value = lambda *_args: []
+
+        class Env:
+            def close(self):
+                pass
+
+        def measured(*_args, actions, **_kwargs):
+            item = actions[0]["item_idx"]
+            return {
+                "safe": True, "terminated": False, "truncated": False,
+                "step_deltas": [{
+                    head: {"value": value}
+                    for head, value in vector(1.0).items()
+                }],
+                "observation": {"item": item}, "env": Env(),
+            }
+
+        measured_rollout.side_effect = measured
+        terminal = mock.Mock(return_value={
+            "termination": "stream_exhausted",
+            "genuine_terminal": True,
+            "continuation_steps": 2,
+            "physical_steps": 3,
+            "physical_step_equivalents": 9,
+            "legal_filter_symmetry_reused": 2,
+            "forced_actions": [],
+            "continuation_actions": [],
+            "terminal_vector": vector(7.0),
+            "terminal_metrics": {"fill_score_proxy": 7.0},
+            "evaluation": {},
+        })
+
+        result = vector_search_root(
+            object(), {}, case_id="case", environment_seed=42,
+            prefix_actions=[], root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=0,
+            max_depth=1, step=0, leaf_eval="rollout",
+            terminal_rollout_fn=terminal,
+            item_symmetry_cache_shadow=True,
+            item_symmetry_terminal_cache=True,
+            leaf_state_key_fn=lambda **kwargs: (
+                f"exact-{kwargs['observation']['item']}",
+                "same-physical-state",
+            ),
+        )
+
+        self.assertEqual(terminal.call_count, 1)
+        self.assertEqual(result["terminal_rollout_physical_steps"], 3)
+        self.assertEqual(
+            result["terminal_rollout_legal_filter_symmetry_reused"], 2
+        )
+        cache = result["item_symmetry_terminal_cache"]
+        self.assertEqual(cache["hits"], 1)
+        self.assertEqual(cache["misses"], 1)
+        self.assertEqual(cache["saved_physical_steps"], 3)
+        self.assertEqual(cache["saved_physical_step_equivalents"], 9)
+        self.assertTrue(result["root_candidates"][1][
+            "terminal_symmetry_cache_hit"
+        ])
+        self.assertEqual(result["terminal_pareto_candidates"], ["a", "b"])
+
+    @mock.patch("scripts.run_vector_mcts.build_candidate_provider")
+    @mock.patch("scripts.run_vector_mcts._rollout")
+    def test_item_symmetry_terminal_cache_never_reuses_censored_result(
+        self, measured_rollout, provider_builder,
+    ):
+        provider_builder.return_value = lambda *_args: []
+
+        class Env:
+            def close(self):
+                pass
+
+        measured_rollout.side_effect = lambda *_args, **_kwargs: {
+            "safe": True, "terminated": False, "truncated": False,
+            "step_deltas": [{
+                head: {"value": value}
+                for head, value in vector(1.0).items()
+            }],
+            "observation": {}, "env": Env(),
+        }
+        terminal = mock.Mock(return_value={
+            "termination": "continuation_cap",
+            "genuine_terminal": False,
+            "continuation_steps": 2,
+            "physical_steps": 3,
+            "terminal_vector": None,
+            "terminal_metrics": {},
+            "evaluation": None,
+        })
+
+        result = vector_search_root(
+            object(), {}, case_id="case", environment_seed=42,
+            prefix_actions=[], root_candidates=[
+                self._candidate("a", 0), self._candidate("b", 1)
+            ],
+            attempt_budget=1, deep_top_k=1, expansions=0,
+            max_depth=1, step=0, leaf_eval="rollout",
+            terminal_rollout_fn=terminal,
+            item_symmetry_terminal_cache=True,
+            leaf_state_key_fn=lambda **_kwargs: (
+                "different-exact", "same-physical-state"
+            ),
+        )
+
+        self.assertEqual(terminal.call_count, 2)
+        self.assertEqual(result["item_symmetry_terminal_cache"]["hits"], 0)
+        self.assertEqual(result["item_symmetry_terminal_cache"]["stores"], 0)
 
     @staticmethod
     def _candidate(name, item_idx):
