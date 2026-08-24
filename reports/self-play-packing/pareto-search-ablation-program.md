@@ -15,7 +15,13 @@ essence, fixed up front:
 | **v0 (baseline, frozen)** | none — depth 3, Pareto-frontier-first allocation, root union legacy ∪ coverage ∪ beta, interior legacy top-k, no leaf V | everything |
 | **v0+V** | leaf evaluation becomes `Q_H = DeltaY_{0:H} (+) V_sa(s_H)` with head-semantic composition (below) | depth, allocation, supports |
 | **v1 = (v0+V) + learned interior** | interior expansion support becomes `A_learned ∪ A_coverage`; legacy/rescue kept as audit arms only | depth, allocation, leaf V |
-| **v1(H = 3, 5, 8)** | depth ladder on v1 | everything else |
+| **v2 = v1 + Pareto-PUCT** | allocation becomes Pareto-PUCT (optimistic vectors, non-dominated selection, floor-mixed prior, iterated backup — see `prior-art-and-pareto-puct-notes.md`); beta teacher becomes the visit distribution | depth, supports, leaf V |
+| **v2(H = 3, 5, 8)** | depth ladder on v2 | everything else |
+
+Depth stays last on purpose: the prior art (Puche 2022; the
+shift-aware PUCT line) says search strength comes from
+exploration/exploitation allocation before it comes from depth, and
+our v0 has no exploration principle at all.
 
 Never combine stages in one comparison: a joint improvement with mixed
 changes attributes nothing.
