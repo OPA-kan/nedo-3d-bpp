@@ -23,6 +23,20 @@ DOMINANCE_HEADS = {
 EPS = 1e-9
 
 
+def _percentile(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return round(
+        ordered[lower] * (1.0 - weight) + ordered[upper] * weight,
+        12,
+    )
+
+
 def _oriented(vector: dict[str, Any] | None) -> tuple[float, ...] | None:
     if not vector:
         return None
@@ -86,6 +100,17 @@ def row_from_record(
     terminal_set = set(terminal)
     h1_set = set(h1)
     symmetry = search.get("item_symmetry_terminal_cache") or {}
+    decision_timing = record.get("timing") or {}
+    search_timing = search.get("timing") or {}
+    decision_seconds = decision_timing.get("decision_total_seconds")
+    terminal_seconds = search_timing.get("terminal_rollout_total_seconds")
+    estimated_no_terminal_seconds = None
+    if isinstance(decision_seconds, (int, float)) and isinstance(
+        terminal_seconds, (int, float)
+    ):
+        estimated_no_terminal_seconds = max(
+            0.0, float(decision_seconds) - float(terminal_seconds)
+        )
     snapshot_path = snapshot_root / str(record.get("snapshot_path"))
     return {
         "contract": "terminal_rollout_trigger_row_v1",
@@ -128,6 +153,11 @@ def row_from_record(
         ),
         "terminal_rollout_calls": int(symmetry.get("misses", 0)),
         "terminal_rollout_cache_hits": int(symmetry.get("hits", 0)),
+        "decision_timing": decision_timing,
+        "search_timing": search_timing,
+        "estimated_no_terminal_decision_seconds": (
+            estimated_no_terminal_seconds
+        ),
         "candidates": candidates,
     }
 
@@ -154,6 +184,13 @@ def audit_rules(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     total_equivalents = sum(
         row["terminal_rollout_physical_step_equivalents"] for row in rows
     )
+    full_times = [
+        float(row["decision_timing"]["decision_total_seconds"])
+        for row in rows
+        if isinstance((row.get("decision_timing") or {}).get(
+            "decision_total_seconds"
+        ), (int, float))
+    ]
     results = []
     for name, rule in RULES.items():
         triggered = [row for row in rows if rule(row)]
@@ -162,6 +199,17 @@ def audit_rules(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row["terminal_rollout_physical_step_equivalents"]
             for row in triggered
         )
+        adaptive_times = []
+        for row in rows:
+            full = (row.get("decision_timing") or {}).get(
+                "decision_total_seconds"
+            )
+            shallow = row.get("estimated_no_terminal_decision_seconds")
+            if not isinstance(full, (int, float)) or not isinstance(
+                shallow, (int, float)
+            ):
+                continue
+            adaptive_times.append(float(full) if rule(row) else float(shallow))
         results.append({
             "rule": name,
             "triggered_roots": len(triggered),
@@ -178,13 +226,36 @@ def audit_rules(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "retained_compute_rate": (
                 retained / total_equivalents if total_equivalents else None
             ),
+            "timed_roots": len(adaptive_times),
+            "estimated_mean_seconds": (
+                sum(adaptive_times) / len(adaptive_times)
+                if adaptive_times else None
+            ),
+            "estimated_p50_seconds": _percentile(adaptive_times, 0.50),
+            "estimated_p95_seconds": _percentile(adaptive_times, 0.95),
+            "estimated_max_seconds": (
+                max(adaptive_times) if adaptive_times else None
+            ),
+            "estimated_within_10s_count": sum(
+                value <= 10.0 for value in adaptive_times
+            ),
+            "estimated_within_10s_rate": (
+                sum(value <= 10.0 for value in adaptive_times)
+                / len(adaptive_times) if adaptive_times else None
+            ),
+            "estimated_speedup_vs_full": (
+                sum(full_times) / sum(adaptive_times)
+                if adaptive_times and sum(adaptive_times) > 0.0
+                else None
+            ),
         })
     return results
 
 
 def build_dataset(root: pathlib.Path) -> dict[str, Any]:
     rows = []
-    for path in sorted(root.rglob("rollout.json")):
+    manifests = sorted(root.rglob("rollout.json"))
+    for path in manifests:
         payload = json.loads(path.read_text(encoding="utf-8"))
         episodes = payload.get("episodes") or []
         if len(episodes) != 1:
@@ -210,6 +281,7 @@ def build_dataset(root: pathlib.Path) -> dict[str, Any]:
         "feature_horizon": "H1_physical",
         "value_model": None,
         "scalar_utility": None,
+        "manifest_count": len(manifests),
         "root_count": len(rows),
         "terminal_truth_complete_roots": complete,
         "terminal_intervention_roots": positives,
@@ -217,6 +289,10 @@ def build_dataset(root: pathlib.Path) -> dict[str, Any]:
         "positive_prevalence": positives / len(rows),
         "rule_audit_scope": (
             "same-corpus capability diagnostic; not held-out performance"
+        ),
+        "timing_estimate_scope": (
+            "counterfactual no-trigger time = observed full decision wall-clock "
+            "minus observed terminal-rollout wall-clock; offline estimate only"
         ),
         "rule_audits": audit_rules(rows),
         "rows": rows,
@@ -238,8 +314,8 @@ def render_markdown(dataset: dict[str, Any]) -> str:
         "performance estimates.",
         "",
         "| rule | triggers | intervention recall | false triggers | "
-        "compute retained | saved equivalents (upper bound) |",
-        "|---|---:|---:|---:|---:|---:|",
+        "compute retained | est p95 s | est <=10s | est speedup |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for result in dataset["rule_audits"]:
         rows.append(
@@ -247,7 +323,10 @@ def render_markdown(dataset: dict[str, Any]) -> str:
             f"{result['intervention_recall']} | "
             f"{result['false_trigger_roots']} | "
             f"{result['retained_compute_rate']} | "
-            f"{result['saved_physical_step_equivalents_upper_bound']} |"
+            f"{result['estimated_p95_seconds']} | "
+            f"{result['estimated_within_10s_count']}/"
+            f"{result['timed_roots']} | "
+            f"{result['estimated_speedup_vs_full']} |"
         )
     return "\n".join(rows) + "\n"
 
@@ -257,8 +336,17 @@ def main() -> int:
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--json-output", type=pathlib.Path, required=True)
     parser.add_argument("--markdown-output", type=pathlib.Path, required=True)
+    parser.add_argument("--expected-manifests", type=int)
     args = parser.parse_args()
     dataset = build_dataset(args.root)
+    if (
+        args.expected_manifests is not None
+        and dataset["manifest_count"] != args.expected_manifests
+    ):
+        raise ValueError(
+            f"expected {args.expected_manifests} manifests, "
+            f"found {dataset['manifest_count']}"
+        )
     args.json_output.parent.mkdir(parents=True, exist_ok=True)
     args.json_output.write_text(
         json.dumps(dataset, ensure_ascii=False, indent=2) + "\n",

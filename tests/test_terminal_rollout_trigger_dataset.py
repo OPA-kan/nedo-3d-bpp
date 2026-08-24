@@ -54,7 +54,9 @@ class TerminalRolloutTriggerDatasetTests(unittest.TestCase):
                     "terminal_pareto_candidates": ["b"],
                     "terminal_rollout_physical_step_equivalents": 20,
                     "root_candidates": candidates,
+                    "timing": {"terminal_rollout_total_seconds": 8.0},
                 },
+                "timing": {"decision_total_seconds": 10.0},
             }]}],
         }
         with tempfile.TemporaryDirectory() as directory:
@@ -63,6 +65,7 @@ class TerminalRolloutTriggerDatasetTests(unittest.TestCase):
             (cell / "rollout.json").write_text(json.dumps(payload))
             dataset = build_dataset(pathlib.Path(directory))
         row = dataset["rows"][0]
+        self.assertEqual(dataset["manifest_count"], 1)
         self.assertTrue(row["terminal_intervention"])
         self.assertEqual(row["h1_pareto_candidates"], ["a"])
         self.assertEqual(row["terminal_resurrection_candidates"], ["b"])
@@ -70,17 +73,22 @@ class TerminalRolloutTriggerDatasetTests(unittest.TestCase):
         self.assertEqual(
             row["snapshot_path"], "cell/rollout/episode-000/state.json"
         )
+        self.assertEqual(row["estimated_no_terminal_decision_seconds"], 2.0)
 
     def test_rule_audit_reports_compute_upper_bound(self):
         rows = [
             {"terminal_intervention": True, "h1_incumbent_pareto": True,
              "h1_frontier_size": 2, "h1_all_safe_candidates_pareto": True,
              "safe_candidate_count": 2, "h1_distinct_vector_count": 2,
-             "terminal_rollout_physical_step_equivalents": 30},
+             "terminal_rollout_physical_step_equivalents": 30,
+             "decision_timing": {"decision_total_seconds": 12.0},
+             "estimated_no_terminal_decision_seconds": 2.0},
             {"terminal_intervention": False, "h1_incumbent_pareto": True,
              "h1_frontier_size": 1, "h1_all_safe_candidates_pareto": False,
              "safe_candidate_count": 3, "h1_distinct_vector_count": 3,
-             "terminal_rollout_physical_step_equivalents": 70},
+             "terminal_rollout_physical_step_equivalents": 70,
+             "decision_timing": {"decision_total_seconds": 8.0},
+             "estimated_no_terminal_decision_seconds": 3.0},
         ]
         results = {row["rule"]: row for row in audit_rules(rows)}
         ambiguous = results["h1_frontier_ambiguous"]
@@ -89,6 +97,8 @@ class TerminalRolloutTriggerDatasetTests(unittest.TestCase):
         self.assertEqual(
             ambiguous["saved_physical_step_equivalents_upper_bound"], 70
         )
+        self.assertEqual(ambiguous["estimated_p95_seconds"], 11.55)
+        self.assertEqual(ambiguous["estimated_within_10s_count"], 1)
 
 
 if __name__ == "__main__":
