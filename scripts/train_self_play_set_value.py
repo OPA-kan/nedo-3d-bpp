@@ -558,6 +558,7 @@ class BehaviorValueEnsemble:
         )
         validate_ensemble_size(len(member_records))
         self.excluded_groups = excluded_groups
+        self.head_audit = dict((manifest.get("audit") or {}).get("heads") or {})
         self.members = []
         self.contract = None
         for member in member_records:
@@ -598,14 +599,28 @@ class BehaviorValueEnsemble:
                 )
                 predictions.append(raw)
         values = np.asarray(predictions, dtype=np.float64)
-        return {
-            name: {
+        result = {}
+        for index, name in enumerate(self.head_names):
+            audit = self.head_audit.get(name) or {}
+            learned = audit.get("ensemble") or {}
+            constant = audit.get("constant") or {}
+            eligible = bool(
+                float(learned.get("pearson", 0.0)) > 0.0
+                and float(learned.get("rmse", float("inf")))
+                < float(constant.get("rmse", float("inf")))
+            )
+            result[name] = {
                 "mean": float(values[:, index].mean()),
                 "variance": float(values[:, index].var()),
                 "members": [float(value) for value in values[:, index]],
+                "oof_inference_eligible": eligible,
+                "oof_gate": {
+                    "rule": "positive_pearson_and_rmse_below_constant",
+                    "ensemble": learned,
+                    "constant": constant,
+                },
             }
-            for index, name in enumerate(self.head_names)
-        }
+        return result
 
 
 class PlayerZeroLeafValue:

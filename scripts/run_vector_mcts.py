@@ -451,7 +451,11 @@ def compose_leaf_value(
     """Compose measured prefix deltas with remaining-delta/terminal heads."""
     result = dict(achieved)
     for suffix, component in LEAF_SUFFIX_TO_COMPONENT.items():
-        value = (prediction.get(suffix) or {}).get("mean")
+        head = prediction.get(suffix) or {}
+        value = (
+            0.0 if head.get("oof_inference_eligible") is False
+            else head.get("mean")
+        )
         prefix = result.get(component)
         result[component] = (
             None if prefix is None or not isinstance(value, (int, float))
@@ -1118,6 +1122,13 @@ def main() -> int:
                     leaf_adapter.ensemble.excluded_groups
                 ),
                 "calls": len(leaf_adapter.calls),
+                "active_suffix_heads": sorted(
+                    name for name, audit in
+                    leaf_adapter.ensemble.head_audit.items()
+                    if float((audit.get("ensemble") or {}).get("pearson", 0.0)) > 0.0
+                    and float((audit.get("ensemble") or {}).get("rmse", float("inf")))
+                    < float((audit.get("constant") or {}).get("rmse", float("inf")))
+                ),
             }
         ),
         "terminal_rollout_policy": (

@@ -41,6 +41,25 @@ used as leaf-state V labels.
 5. progressive widening comes after that comparison;
 6. policy and proposal heads remain closed.
 
+## First single-agent shadow
+
+Run `32721721093` trained successfully and completed all six physical cells at
+commit `e6d224e`; only its aggregate entrypoint failed because the new script
+omitted the repository root from `sys.path`. Re-aggregating the untouched cell
+artifacts after fixing that import produced 10 complete roots, zero censoring
+and identical terminal truth:
+
+- `H2+0`: resurrection frontier 0/11; terminal-Pareto 18/30; false frontier 3;
+- unfiltered `H2+V`: resurrection frontier 11/11; terminal-Pareto 30/30;
+  false frontier 15 (all 45 root actions became non-dominated).
+
+This is recall without discrimination, so the adoption gate fails. The OOF
+audit explains the blow-up: fill, CoG-z and surface-TV beat their constant
+baselines, while soft, priority and stability heads do not. The next shadow
+therefore abstains from future prediction for any head whose group-held-out
+Pearson is non-positive or whose RMSE does not beat the training-fold constant.
+That axis keeps its measured H2 prefix; no weight or exchange rate is added.
+
 ## Immediate shake companion
 
 For the 15 roots whose deep Q-top changed, rebuild the identical root twice,

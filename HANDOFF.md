@@ -504,6 +504,18 @@ support, priors and depth; terminal rollout scores both arms but cannot guide
 either. Progressive widening, P and proposal heads remain closed. See
 `behavior-value-set-transformer-protocol.md`.
 
+The first single-agent shadow run `32721721093` trained and completed 6/6
+physical cells. Its aggregate job had an import-path defect, but the untouched
+artifacts re-aggregated locally: `H2+V` recovered 11/11 resurrection and 30/30
+terminal-Pareto actions versus `H2+0`'s 0/11 and 18/30, at identical 331
+physical steps. It also expanded false frontier actions from 3 to 15, making
+all 45 root actions non-dominated; the gate therefore fails despite perfect
+recall. OOF metrics localize the cause: fill/CoG/surface beat constant, but
+soft/priority/stability do not. The next committed rerun uses headwise OOF
+abstention: a suffix head contributes only with positive held-out Pearson and
+RMSE below its constant baseline; otherwise that axis remains H2 measured.
+This is a sensor-fidelity gate, not scalarization or objective weighting.
+
 A companion one-step paired-shake instrument is also ready for the 15 deep
 Q-top changes: reconstruct the same root twice, force old/rescued actions once
 and shake immediately, with no continuation policy. It reports maximum

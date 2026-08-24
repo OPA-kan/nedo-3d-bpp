@@ -134,6 +134,32 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "leaf_vector_fn"):
             vector_search_root(**common, allocation="pareto-puct")
 
+    def test_leaf_value_abstains_when_oof_head_loses_to_constant(self):
+        result = compose_leaf_value(
+            vector(2.0),
+            {
+                "fill_return": {
+                    "mean": 9.0, "oof_inference_eligible": True,
+                },
+                "soft_violation_return": {
+                    "mean": 7.0, "oof_inference_eligible": False,
+                },
+                "priority_covered_return": {
+                    "mean": 5.0, "oof_inference_eligible": False,
+                },
+                "priority_misrouted_return": {
+                    "mean": 4.0, "oof_inference_eligible": False,
+                },
+                "surface_total_variation_return": {
+                    "mean": 0.5, "oof_inference_eligible": True,
+                },
+            },
+        )
+        self.assertEqual(result["fill_gain"], 11.0)
+        self.assertEqual(result["soft_violation_gain"], 0.0)
+        self.assertEqual(result["priority_covered_gain"], 0.0)
+        self.assertEqual(result["surface_total_variation_delta"], 0.5)
+
     def test_resurrection_audit_separates_truth_frontier_and_expansion(self):
         nodes = {
             "a-root": {
