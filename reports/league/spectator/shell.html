@@ -116,6 +116,10 @@
   .ev { font-family:"IBM Plex Mono",monospace; font-size:11px; border:1px solid var(--line); border-radius:3px; background:var(--panel); color:var(--muted); padding:3px 9px; cursor:pointer; }
   .ev.sw { border-color:var(--gold); color:var(--gold); }
   .ev.dv { border-color:var(--tradeoff); color:var(--tradeoff); }
+  .ev.vi { border-color:#ff5c57; color:#ff6b67; }
+  .season { font-family:"Chakra Petch",sans-serif; font-size:13px; font-weight:600;
+    color:var(--gold); border:1px solid var(--gold); border-radius:4px;
+    padding:2px 10px; letter-spacing:.12em; vertical-align:4px; }
 
   /* LINEAGE */
   .tree { border-left:2px solid var(--line); margin-left:10px; padding-left:22px; }
@@ -140,8 +144,8 @@
 <div class="wrap">
   <header>
     <div>
-      <div class="kicker">NEDO 3D-BPP · Expert Iteration League</div>
-      <h1>パッキングリーグ観戦室</h1>
+      <div class="kicker">NEDO 3D-BPP · Expert Iteration League · Season 1</div>
+      <h1>パッキングリーグ観戦室 <span class="season">第1シーズン</span></h1>
     </div>
     <nav>
       <button id="tab-league" class="on">リーグ</button>
@@ -153,7 +157,7 @@
   <!-- ============ LEAGUE ============ -->
   <div class="view on" id="view-league">
     <div class="liveline"><span class="livedot"></span><b>LIVE</b>
-      <span id="live-text">Round 2/10 進行中 — wave-6採取（136セル）完了 → プリフヒバリ蒸留中 → 次は王座戦。速報はcheck-in毎（20〜25分）に更新、リロードで反映。</span>
+      <span id="live-text">第1シーズン Round 2/10 — プリフヒバリ蒸留完了、王座戦進行中（挑戦者プリフヒバリ vs 王者プリファースト）。速報はcheck-in毎（20〜25分）に更新、リロードで反映。</span>
     </div>
     <section>
       <div class="banner">
@@ -264,7 +268,7 @@
   <footer>
     <span class="lock">🔒 観戦はread-only — リーグ結果から手動でtraining matrixをtuningしない（凍結評価が人間経由で漏れるため）。研究判断はtraining側diagnosticのみから。</span>
     <span>命名は競馬式（冠名プリフ=preference血統・waveテーマ名、9文字以内・改名なし）</span>
-    <span>branch: work/terminal-rollout-oracle · registry gen 1 · シーズンRound 2/10進行中 · 2026-08-25</span>
+    <span>branch: work/terminal-rollout-oracle · registry gen 1 · 第1シーズン Round 2/10進行中 · 2026-08-25</span>
   </footer>
 </div>
 
@@ -409,7 +413,24 @@ function buildFeed() {
     b.addEventListener("click", () => { turn = s.t + 1; slider.value = turn; render(); });
     host.appendChild(b);
   }
+  // violation onsets (official metric counters), both arms
+  for (const [name, mark] of [[MATCH.challenger,"挑"],[MATCH.opponent,"王"]]) {
+    let prev = [0,0,0];
+    for (const s of c.arms[name].steps) {
+      const v = s.viol || prev;
+      v.forEach((x, i) => {
+        if (x <= prev[i]) return;
+        const b = document.createElement("button");
+        b.className = "ev vi";
+        b.textContent = `T${s.t} 🚨${mark} ${VIOL_LABELS[i]}+${x - prev[i]}`;
+        b.addEventListener("click", () => { turn = s.t + 1; slider.value = turn; render(); });
+        host.appendChild(b);
+      });
+      prev = v;
+    }
+  }
 }
+const VIOL_LABELS = ["soft被覆", "優先被覆", "誤ルート"];
 
 /* ---------- rotating-camera renderer: one viewport per container ----------
    Orbit camera: yaw is user-draggable (or auto camera-work); both panes
@@ -418,6 +439,7 @@ const COS = Math.cos(Math.PI/6), SIN = Math.sin(Math.PI/6);
 const CW = 560, CH = 470;
 let camYaw = -0.5;
 let orbitOn = true;
+let flashActive = false;
 function makeView(c, slot, nSlots) {
   // fit by bounding cylinder so the framing holds still while orbiting
   const ccx=c.center[0], ccy=c.center[1], ccz=c.center[2];
@@ -598,6 +620,28 @@ function drawArm(canvasId, armName, footId, metricsId) {
     }
     drawContainerCage(ctx, P, cont, slot, n);
   });
+  // broadcast flash on the turn a violation counter first ticks up
+  if (last && last.viol) {
+    const pv = clamped > 1 && arm.steps[clamped-2].viol
+      ? arm.steps[clamped-2].viol : [0, 0, 0];
+    const inc = last.viol
+      .map((v, i) => v > pv[i] ? `${VIOL_LABELS[i]}+${v - pv[i]}` : null)
+      .filter(Boolean);
+    if (inc.length) {
+      flashActive = true;
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 170);
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,92,87,${0.3 + 0.5 * pulse})`;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(3, 3, CW - 6, CH - 6);
+      ctx.font = "600 15px 'Chakra Petch','Zen Kaku Gothic New',sans-serif";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#ff5c57"; ctx.shadowBlur = 4 + 10 * pulse;
+      ctx.fillStyle = "#ff6b67";
+      ctx.fillText("🚨 違反発生 — " + inc.join(" · "), CW / 2, 26);
+      ctx.restore();
+    }
+  }
   // DOM writes only when the text actually changes (orbit redraws at 30fps)
   const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML = h; } };
   const foot = document.getElementById(footId);
@@ -649,6 +693,7 @@ function render() {
   drawBoards();
 }
 function drawBoards() {
+  flashActive = false;
   drawArm("cv-a", MATCH.challenger, "pa-foot", "pa-metrics");
   drawArm("cv-b", MATCH.opponent, "pb-foot", "pb-metrics");
 }
@@ -677,8 +722,10 @@ for (const cid of ["cv-a", "cv-b"]) {
 }
 let camTs = 0;
 function camLoop(ts) {
-  if (orbitOn && currentView === "match" && ts - camTs > 33) {
-    camYaw += 0.0058; camTs = ts; drawBoards();   // ~1周/38秒のゆっくり中継
+  // keep animating while orbiting OR while a violation flash is pulsing
+  if ((orbitOn || flashActive) && currentView === "match" && ts - camTs > 33) {
+    if (orbitOn) camYaw += 0.0058;   // ~1周/38秒のゆっくり中継
+    camTs = ts; drawBoards();
   }
   requestAnimationFrame(camLoop);
 }
