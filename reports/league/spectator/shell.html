@@ -157,18 +157,18 @@
   <!-- ============ LEAGUE ============ -->
   <div class="view on" id="view-league">
     <div class="liveline"><span class="livedot"></span><b>LIVE</b>
-      <span id="live-text">第1シーズン Round 2/10 — プリフヒバリ蒸留完了、王座戦進行中（挑戦者プリフヒバリ vs 王者プリファースト）。速報はcheck-in毎（20〜25分）に更新、リロードで反映。</span>
+      <span id="live-text">第1シーズン Round 3/10 — 👑 match 005でプリフヒバリが新王者（第2世代）。wave-7採取（154セル）開始 → プリフスバル蒸留へ。速報はcheck-in毎（20〜25分）に更新、リロードで反映。</span>
     </div>
     <section>
       <div class="banner">
         <span class="crown">👑</span>
         <div>
-          <div class="name">プリファースト <span class="mono" style="font-size:12px;color:var(--muted)">pi1-pref-g1</span></div>
-          <div class="sub">第1世代王者 — プリフ系の始祖。初のニューラル王者（preference蒸留・探索なし・SLA内）</div>
+          <div class="name">プリフヒバリ <span class="mono" style="font-size:12px;color:var(--muted)">pi2-pref-w6</span></div>
+          <div class="sub">第2世代王者 — 鳥のwave。preference蒸留系の初の世代交代（探索なし・SLA内）</div>
         </div>
         <div class="rec">
-          戴冠: <span class="mono">1-0-6-3</span> vs ハコブネ · 防衛1: <span class="mono">1-0-7-2</span> vs プリフツバキ<br>
-          benchmark: <span class="mono">1勝2敗</span> vs センリガン（below）
+          戴冠: <span class="mono">1-0-3-6</span> vs プリファースト（viol −1 · fillΔ +2.54）<br>
+          benchmark: <span class="mono">1勝2敗</span> vs センリガン（below・hard非劣化・dsm-181で勝利）
         </div>
       </div>
     </section>
@@ -180,8 +180,9 @@
           <div class="track-head"><span class="tag">Production Line</span><span class="note">昇格ゲートはこの列のchampionに対してのみ。全員SLA内。</span></div>
           <div class="roster">
             <div class="member"><div class="role">Anchor · gen 0</div><div class="name">ハコブネ</div><div class="desc">pi0-legacy — 手書きrank-0。全系統の祖、永久アンカー。</div></div>
-            <div class="member champ"><div class="role">Champion · gen 1</div><div class="name">プリファースト 👑</div><div class="desc">pi1-pref-g1 — P(alt ≻ incumbent)。τ=0.5超のみswitch。</div></div>
-            <div class="member pending"><div class="role">Challenger · Round 2/10</div><div class="name">プリフヒバリ</div><div class="desc">pi2-pref-w6 — 鳥のwave。136セル教師（採取から開始）。</div></div>
+            <div class="member"><div class="role">Previous · gen 1</div><div class="name">プリファースト</div><div class="desc">pi1-pref-g1 — プリフ系始祖。match 005で王座陥落。</div></div>
+            <div class="member champ"><div class="role">Champion · gen 2</div><div class="name">プリフヒバリ 👑</div><div class="desc">pi2-pref-w6 — P(alt ≻ incumbent)・136セル教師。τ=0.5超のみswitch。</div></div>
+            <div class="member pending"><div class="role">Challenger · Round 3/10</div><div class="name">プリフスバル</div><div class="desc">pi3-pref-w7 — 星のwave。154セル教師（採取から開始）。</div></div>
           </div>
         </div>
         <div class="track benchmark">
@@ -203,6 +204,8 @@
       <table class="matches">
         <thead><tr><th>#</th><th>対戦</th><th>星取</th><th>判定</th><th>集計</th></tr></thead>
         <tbody>
+          <tr><td class="mono">005</td><td><b>プリフヒバリ</b> vs プリファースト</td><td class="wl"><b>1</b>-<s>0</s>-3-<i>6</i></td><td><span class="pill gold">👑 昇格 · 第2世代</span></td><td class="mono">viol −1 · fillΔ +2.54 · 勝着 dsm-173</td></tr>
+          <tr><td class="mono">005b</td><td>プリフヒバリ vs センリガン</td><td class="wl"><b>1</b>-<s>2</s>-3-<i>4</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">hard非劣化 · dsm-181でセンリガンに勝利</td></tr>
           <tr><td class="mono">004</td><td><b>プリフツバキ</b> vs プリファースト</td><td class="wl"><b>0</b>-<s>1</s>-7-<i>2</i></td><td><span class="pill red">🛡 王座防衛</span></td><td class="mono">viol −1 だが placed −2 · 敗着はdsm-181</td></tr>
           <tr><td class="mono">003</td><td><b>プリファースト</b> vs ハコブネ</td><td class="wl"><b>1</b>-<s>0</s>-6-<i>3</i></td><td><span class="pill gold">👑 昇格</span></td><td class="mono">placed +2 · viol −1</td></tr>
           <tr><td class="mono">003b</td><td>プリファースト vs センリガン</td><td class="wl"><b>1</b>-<s>2</s>-1-<i>6</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">fill −1.48 · viol −1</td></tr>
@@ -268,7 +271,7 @@
   <footer>
     <span class="lock">🔒 観戦はread-only — リーグ結果から手動でtraining matrixをtuningしない（凍結評価が人間経由で漏れるため）。研究判断はtraining側diagnosticのみから。</span>
     <span>命名は競馬式（冠名プリフ=preference血統・waveテーマ名、9文字以内・改名なし）</span>
-    <span>branch: work/terminal-rollout-oracle · registry gen 1 · 第1シーズン Round 2/10進行中 · 2026-08-25</span>
+    <span>branch: work/terminal-rollout-oracle · registry gen 2 · 第1シーズン Round 3/10進行中 · 2026-08-25</span>
   </footer>
 </div>
 
@@ -282,7 +285,7 @@ const DISPLAY = {
   "pi0-legacy": "ハコブネ", "pi0-search": "センリガン",
   "pi1-imitation-w3": "マネキネコ", "pi1-geometry-g0": "コピネコ",
   "pi1-pref-g1": "プリファースト", "pi2-pref-w5": "プリフツバキ",
-  "pi2-pref-w6": "プリフヒバリ",
+  "pi2-pref-w6": "プリフヒバリ", "pi3-pref-w7": "プリフスバル",
 };
 const REL_CLASS = { challenger_wins:"w", member_wins:"l", equal:"e", incomparable:"t" };
 const REL_LABEL = { challenger_wins:"勝", member_wins:"敗", equal:"分", incomparable:"保" };
@@ -746,18 +749,22 @@ const LINEAGE = [
   { id:"pi1-geometry-g0", show:"コピネコ", cls:"dead-p", depth:1, sub:"❌ 行動模倣 · 100セル教師",
     detail:{ "objective":"行動模倣（データ3倍）", "corpus":"wave-4 · 100セル · OOF一致89.4%",
       "教訓":"データを増やすほどrank-0に退化（教師の9割がincumbent維持のため）。vs センリガン 0-2-3-5。この失敗がpreference蒸留への転換を決めた。" } },
-  { id:"pi1-pref-g1", show:"プリファースト 👑", cls:"champ", depth:1, sub:"champion · gen 1 · プリフ系始祖 · preference蒸留",
+  { id:"pi1-pref-g1", show:"プリファースト", cls:"", depth:1, sub:"previous · gen 1 · プリフ系始祖 · preference蒸留",
     detail:{ "objective":"P(alternate ≻ incumbent | s) — terminal dominanceペア(1803/正129)のpairwise logistic。incumbentは構造的に0.5。",
       "実行則":"τ=0.5を明確に超えるalternateのみswitch（OOF: pair AUC 0.745 · 誤switch 7.4% · IV recall 24%）",
-      "リーグ記録":"vs ハコブネ 1-0-6-3 → 👑昇格（placed +2, viol −1）",
-      "benchmark":"vs センリガン 1-2-1-6 (below) — dsm-181ではセンリガン自身から勝利",
-      "得意/苦手":"得意: dsm-181 (switch勝ち) · 苦手: dsm-167/173のfill獲得（次世代教師の重点）" } },
+      "リーグ記録":"vs ハコブネ 1-0-6-3 → 👑昇格（初のニューラル王者）· 防衛1: vs プリフツバキ 1-0-7-2 · match 005でプリフヒバリに1敗0勝で王座陥落",
+      "benchmark":"vs センリガン 1-2-1-6 (below) — dsm-181ではセンリガン自身から勝利" } },
   { id:"pi2-pref-w5", show:"プリフツバキ ❌", cls:"dead-p", depth:2, sub:"challenger · Round 1 · wave-5教師 118セル",
     detail:{ "objective":"preference蒸留（王者と同型・データ+18セル）",
       "王座戦004":"vs プリファースト 0-1-7-2 で棄却（viol −1は良いが placed −2、敗着は王者の得意セルdsm-181）",
       "benchmark":"vs センリガン 0-2 (below)" } },
-  { id:"pi2-pref-w6", show:"プリフヒバリ (準備中)", cls:"dead-p", depth:2, sub:"challenger · Round 2/10 · wave-6教師 136セル",
-    detail:{ "状態":"鳥のwave。新streams 227/229/233を採取 → preference再蒸留 → プリファーストに挑戦。" } },
+  { id:"pi2-pref-w6", show:"プリフヒバリ 👑", cls:"champ", depth:2, sub:"champion · gen 2 · 鳥のwave · wave-6教師 136セル",
+    detail:{ "objective":"preference蒸留（プリファーストと同型・教師136セル、streams 227/229/233追加）",
+      "王座戦005":"vs プリファースト 1-0-3-6 で👑昇格 — placed同数のままviol −1（優先被覆1 vs 2）・fillΔ +2.54。勝着はdsm-173。プリフ系初の世代交代。",
+      "benchmark":"vs センリガン 1-2-3-4 (below・hard非劣化) — dsm-181でセンリガンに勝利",
+      "対ハコブネ":"2-0-4-4（placed +2 · viol −2）" } },
+  { id:"pi3-pref-w7", show:"プリフスバル (準備中)", cls:"dead-p", depth:3, sub:"challenger · Round 3/10 · wave-7教師 154セル",
+    detail:{ "状態":"星のwave。新streamsを採取 → preference再蒸留 → プリフヒバリに挑戦。" } },
 ];
 const treeHost = document.getElementById("tree-root");
 let container = treeHost;
