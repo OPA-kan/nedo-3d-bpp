@@ -148,6 +148,24 @@ jobs:
           - {cell: single-empty-shelf-permute-001-211, scenario: single-empty-shelf, stream: permute-001-211}
           - {cell: dual-shelf-mixed-permute-001-223, scenario: dual-shelf-mixed, stream: permute-001-223}
           - {cell: single-empty-shelf-permute-001-223, scenario: single-empty-shelf, stream: permute-001-223}
+          - {cell: dual-preloaded-dedicated-permute-000-227, scenario: dual-preloaded-dedicated, stream: permute-000-227}
+          - {cell: dual-empty-permute-000-227, scenario: dual-empty, stream: permute-000-227}
+          - {cell: single-empty-noshelf-permute-000-227, scenario: single-empty-noshelf, stream: permute-000-227}
+          - {cell: single-preloaded-permute-000-227, scenario: single-preloaded, stream: permute-000-227}
+          - {cell: dual-preloaded-dedicated-permute-000-229, scenario: dual-preloaded-dedicated, stream: permute-000-229}
+          - {cell: dual-empty-permute-000-229, scenario: dual-empty, stream: permute-000-229}
+          - {cell: single-empty-noshelf-permute-000-229, scenario: single-empty-noshelf, stream: permute-000-229}
+          - {cell: single-preloaded-permute-000-229, scenario: single-preloaded, stream: permute-000-229}
+          - {cell: dual-preloaded-dedicated-permute-000-233, scenario: dual-preloaded-dedicated, stream: permute-000-233}
+          - {cell: dual-empty-permute-000-233, scenario: dual-empty, stream: permute-000-233}
+          - {cell: single-empty-noshelf-permute-000-233, scenario: single-empty-noshelf, stream: permute-000-233}
+          - {cell: single-preloaded-permute-000-233, scenario: single-preloaded, stream: permute-000-233}
+          - {cell: dual-shelf-mixed-permute-001-227, scenario: dual-shelf-mixed, stream: permute-001-227}
+          - {cell: single-empty-shelf-permute-001-227, scenario: single-empty-shelf, stream: permute-001-227}
+          - {cell: dual-shelf-mixed-permute-001-229, scenario: dual-shelf-mixed, stream: permute-001-229}
+          - {cell: single-empty-shelf-permute-001-229, scenario: single-empty-shelf, stream: permute-001-229}
+          - {cell: dual-shelf-mixed-permute-001-233, scenario: dual-shelf-mixed, stream: permute-001-233}
+          - {cell: single-empty-shelf-permute-001-233, scenario: single-empty-shelf, stream: permute-001-233}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -224,7 +242,7 @@ jobs:
           python scripts/attach_trigger_candidate_actions.py
           --dataset reports/geometry-source/trigger-dataset.json
           --recovery-root reports/geometry-policy/recovered
-          --expected-cells 118
+          --expected-cells 136
           --output reports/geometry-policy/trigger-dataset-with-actions.json
       - name: Train group-OOF geometry-only candidate policy
         run: >-
