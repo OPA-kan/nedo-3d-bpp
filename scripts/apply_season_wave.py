@@ -50,21 +50,22 @@ def apply(wave: str) -> dict:
     for scenario, stream in fresh:
         cell = f"{scenario}-{stream}"
         if cell in existing_cells:
-            raise SystemExit(f"wave {wave} already applied: {cell} present")
+            continue
         additions.append(
             f"          - cell: {cell}\n"
             f"            scenario: {scenario}\n"
             f"            stream: {stream}\n"
         )
-    last_cell, last_scenario, last_stream = existing[-1]
-    anchor = (
-        f"          - cell: {last_cell}\n"
-        f"            scenario: {last_scenario}\n"
-        f"            stream: {last_stream}\n"
-    )
-    if anchor not in text:
-        raise SystemExit("collection matrix anchor entry not found")
-    text = text.replace(anchor, anchor + "".join(additions), 1)
+    if additions:
+        last_cell, last_scenario, last_stream = existing[-1]
+        anchor = (
+            f"          - cell: {last_cell}\n"
+            f"            scenario: {last_scenario}\n"
+            f"            stream: {last_stream}\n"
+        )
+        if anchor not in text:
+            raise SystemExit("collection matrix anchor entry not found")
+        text = text.replace(anchor, anchor + "".join(additions), 1)
     text, manifests_subs = re.subn(
         r"--expected-manifests \d+",
         f"--expected-manifests {spec['expected_cells']}",
@@ -104,6 +105,7 @@ def apply(wave: str) -> dict:
         "round": spec["round"],
         "new_cells": len(additions),
         "total_cells": spec["expected_cells"],
+        "already_applied": not additions,
     }
 
 

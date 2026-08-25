@@ -60,6 +60,21 @@ class LeagueWorkflowTests(unittest.TestCase):
         self.assertIn('mode="bootstrap"; name="pi0-legacy"', self.text)
         self.assertIn('mode="audit"; name="pi0-legacy"', self.text)
 
+    def test_season_match_records_replay_and_dispatches_next_wave(self):
+        self.assertIn("collection_run_id:", self.text)
+        self.assertIn("season_wave:", self.text)
+        self.assertIn("league_season.py finish", self.text)
+        self.assertIn("build_spectator_data.py", self.text)
+        self.assertIn("render_league_spectator.py", self.text)
+        self.assertIn("apply_season_wave.py", self.text)
+        self.assertIn("gh workflow run terminal-rollout-hard-state.yml", self.text)
+        self.assertIn("steps.season.outputs.active == 'true'", self.text)
+
+    def test_pages_is_opt_in_but_room_artifact_is_always_published(self):
+        self.assertIn("packing-league-room-${{ github.run_id }}", self.text)
+        self.assertIn("LEAGUE_SPECTATOR_PAGES", self.text)
+        self.assertIn("actions/deploy-pages@v4", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()
