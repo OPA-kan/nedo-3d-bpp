@@ -10,8 +10,9 @@ class DeadlineRolloutWorkflowTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
     def test_uses_frozen_truth_and_group_oof_allocator(self):
-        self.assertIn("32763509936", self.text)
-        self.assertIn("32796518151", self.text)
+        # wave-2 aggregate + the 24-cell geometry OOF report
+        self.assertIn("32811046786", self.text)
+        self.assertIn("32811996191", self.text)
         self.assertIn("--candidate-budget 2", self.text)
 
     def test_alternate_arm_is_switchable_without_code_change(self):
@@ -31,8 +32,8 @@ class DeadlineRolloutWorkflowTests(unittest.TestCase):
         self.assertIn("--max-continuation-steps 2", self.text)
         self.assertNotIn("leaf-eval value", self.text)
 
-    def test_runs_all_twelve_cells(self):
-        self.assertEqual(self.text.count("- {cell:"), 12)
+    def test_runs_all_cells(self):
+        self.assertEqual(self.text.count("- {cell:"), 24)
 
 
 if __name__ == "__main__":

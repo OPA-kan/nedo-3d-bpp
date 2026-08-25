@@ -6,15 +6,15 @@ on:
       source_run_id:
         description: Frozen terminal hard-state aggregate run
         required: false
-        default: "32763509936"
+        default: "32811046786"
       allocator_run_id:
         description: Group-OOF candidate allocator run
         required: false
-        default: "32796518151"
+        default: "32811996191"
       allocator_artifact:
         description: Allocator artifact name in that run
         required: false
-        default: "rollout-trigger-learning-32796518151"
+        default: "rollout-geometry-policy-32811996191"
       alternate_mode:
         description: Alternate branch selection (allocator or ranker_next)
         required: false
@@ -65,6 +65,18 @@ jobs:
           - {cell: single-empty-shelf-permute-001-73, scenario: single-empty-shelf, stream: permute-001-73}
           - {cell: single-empty-noshelf-permute-000-79, scenario: single-empty-noshelf, stream: permute-000-79}
           - {cell: single-preloaded-permute-000-89, scenario: single-preloaded, stream: permute-000-89}
+          - {cell: dual-preloaded-dedicated-permute-000-97, scenario: dual-preloaded-dedicated, stream: permute-000-97}
+          - {cell: dual-preloaded-dedicated-permute-000-103, scenario: dual-preloaded-dedicated, stream: permute-000-103}
+          - {cell: dual-preloaded-dedicated-permute-000-109, scenario: dual-preloaded-dedicated, stream: permute-000-109}
+          - {cell: dual-preloaded-dedicated-permute-000-127, scenario: dual-preloaded-dedicated, stream: permute-000-127}
+          - {cell: dual-preloaded-dedicated-permute-000-137, scenario: dual-preloaded-dedicated, stream: permute-000-137}
+          - {cell: dual-preloaded-dedicated-permute-000-151, scenario: dual-preloaded-dedicated, stream: permute-000-151}
+          - {cell: dual-shelf-mixed-permute-001-59, scenario: dual-shelf-mixed, stream: permute-001-59}
+          - {cell: dual-shelf-mixed-permute-001-67, scenario: dual-shelf-mixed, stream: permute-001-67}
+          - {cell: dual-shelf-mixed-permute-001-83, scenario: dual-shelf-mixed, stream: permute-001-83}
+          - {cell: dual-shelf-mixed-permute-001-101, scenario: dual-shelf-mixed, stream: permute-001-101}
+          - {cell: dual-shelf-mixed-permute-001-107, scenario: dual-shelf-mixed, stream: permute-001-107}
+          - {cell: dual-shelf-mixed-permute-001-113, scenario: dual-shelf-mixed, stream: permute-001-113}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -85,17 +97,17 @@ jobs:
       - name: Download frozen terminal truth
         uses: actions/download-artifact@v4
         with:
-          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32763509936' }}
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32811046786' }}
           path: reports/deadline-source
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.source_run_id || '32763509936' }}
+          run-id: ${{ inputs.source_run_id || '32811046786' }}
       - name: Download group-OOF allocator
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.allocator_artifact || 'rollout-trigger-learning-32796518151' }}
+          name: ${{ inputs.allocator_artifact || 'rollout-geometry-policy-32811996191' }}
           path: reports/deadline-allocator
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.allocator_run_id || '32796518151' }}
+          run-id: ${{ inputs.allocator_run_id || '32811996191' }}
       - name: Rebuild exact stream scenario
         run: >-
           python scripts/build_scenario_matrix.py
@@ -139,7 +151,7 @@ jobs:
         run: >-
           python scripts/aggregate_deadline_rollout.py
           --root reports/deadline-rollout/results
-          --expected-cells 12
+          --expected-cells 24
           --json-output reports/deadline-rollout/aggregate.json
           --markdown-output reports/deadline-rollout/aggregate.md
       - run: cat reports/deadline-rollout/aggregate.md >> "$GITHUB_STEP_SUMMARY"
