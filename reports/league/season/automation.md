@@ -24,6 +24,17 @@ the chain, resume the current stage with the same wave and recorded upstream
 run IDs; re-running the same title-match finalizer cannot append a duplicate
 season row.
 
+After any manual recovery, merge or status edit, run exactly one local check:
+
+```text
+python scripts/league_season_status.py
+```
+
+It verifies the current round/wave against the preregistered plan, the state
+champion against the registry, and both collection/learning matrices and their
+count guards against each other. This replaces the old multi-file visual
+inspection; normal successful rounds require no manual update at all.
+
 ## Spectator publication
 
 Every season title match uploads `packing-league-room-<run>` as a standalone

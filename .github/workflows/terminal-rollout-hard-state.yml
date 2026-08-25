@@ -455,6 +455,60 @@ jobs:
           - cell: single-empty-shelf-permute-001-233
             scenario: single-empty-shelf
             stream: permute-001-233
+          - cell: dual-preloaded-dedicated-permute-000-239
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-239
+          - cell: dual-empty-permute-000-239
+            scenario: dual-empty
+            stream: permute-000-239
+          - cell: single-empty-noshelf-permute-000-239
+            scenario: single-empty-noshelf
+            stream: permute-000-239
+          - cell: single-preloaded-permute-000-239
+            scenario: single-preloaded
+            stream: permute-000-239
+          - cell: dual-preloaded-dedicated-permute-000-241
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-241
+          - cell: dual-empty-permute-000-241
+            scenario: dual-empty
+            stream: permute-000-241
+          - cell: single-empty-noshelf-permute-000-241
+            scenario: single-empty-noshelf
+            stream: permute-000-241
+          - cell: single-preloaded-permute-000-241
+            scenario: single-preloaded
+            stream: permute-000-241
+          - cell: dual-preloaded-dedicated-permute-000-251
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-251
+          - cell: dual-empty-permute-000-251
+            scenario: dual-empty
+            stream: permute-000-251
+          - cell: single-empty-noshelf-permute-000-251
+            scenario: single-empty-noshelf
+            stream: permute-000-251
+          - cell: single-preloaded-permute-000-251
+            scenario: single-preloaded
+            stream: permute-000-251
+          - cell: dual-shelf-mixed-permute-001-239
+            scenario: dual-shelf-mixed
+            stream: permute-001-239
+          - cell: single-empty-shelf-permute-001-239
+            scenario: single-empty-shelf
+            stream: permute-001-239
+          - cell: dual-shelf-mixed-permute-001-241
+            scenario: dual-shelf-mixed
+            stream: permute-001-241
+          - cell: single-empty-shelf-permute-001-241
+            scenario: single-empty-shelf
+            stream: permute-001-241
+          - cell: dual-shelf-mixed-permute-001-251
+            scenario: dual-shelf-mixed
+            stream: permute-001-251
+          - cell: single-empty-shelf-permute-001-251
+            scenario: single-empty-shelf
+            stream: permute-001-251
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -521,7 +575,7 @@ jobs:
         run: >-
           python scripts/build_terminal_rollout_trigger_dataset.py
           --root reports/terminal-hard-state/results
-          --expected-manifests 136
+          --expected-manifests 154
           --json-output reports/terminal-hard-state/trigger-dataset.json
           --markdown-output reports/terminal-hard-state/trigger-dataset.md
       - run: cat reports/terminal-hard-state/trigger-dataset.md >> "$GITHUB_STEP_SUMMARY"

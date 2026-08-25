@@ -1,3 +1,4 @@
+import json
 import pathlib
 import tempfile
 import unittest
@@ -23,7 +24,12 @@ class ApplySeasonWaveTests(unittest.TestCase):
                 mock.patch.object(apply_season_wave, "COLLECTION", collection),
                 mock.patch.object(apply_season_wave, "LEARNING", learning),
             ):
-                result = apply_season_wave.apply("6")
+                current_wave = str(json.loads(
+                    (root / "reports/league/season/state.json").read_text(
+                        encoding="utf-8"
+                    )
+                )["wave"])
+                result = apply_season_wave.apply(current_wave)
             self.assertTrue(result["already_applied"])
             self.assertEqual(result["new_cells"], 0)
             self.assertEqual(collection.read_text(encoding="utf-8"), before)
