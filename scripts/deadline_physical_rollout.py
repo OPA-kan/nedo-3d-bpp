@@ -5,6 +5,13 @@ forced once, then all still-live candidates advance one frozen-policy action
 per round.  A new round starts only when its conservative wall-clock estimate
 fits the remaining decision budget.  This preserves a common comparison
 horizon without replaying prefixes after every continuation step.
+
+After the common-depth phase reaches its depth cap with budget left, an
+optional contested phase spends the remaining budget deepening only the
+candidates that are still on the checkpoint Pareto frontier.  Dominated
+candidates stay frozen at the common depth; contested candidates keep a
+common depth among themselves, so the final frontier comparison never mixes
+depths within the undecided set.
 """
 
 from __future__ import annotations
@@ -13,6 +20,7 @@ import time
 from typing import Any, Callable
 
 from scripts.build_counterfactual_graph import cumulative_metrics
+from scripts.build_terminal_rollout_trigger_dataset import pareto_ids
 from scripts.run_self_play_packing import (
     _candidate_action,
     _candidate_record,
@@ -192,7 +200,8 @@ def deadline_checkpoint_search(
     task_config: dict[str, Any], *, environment_seed: int,
     prefix_actions: list[Any], candidates: list[Any], provider, legal_filter,
     top_k: int, root_step: int, deadline_at: float,
-    max_continuation_steps: int = 2, safety_factor: float = 1.35,
+    max_continuation_steps: int = 2, contested_extra_steps: int = 0,
+    safety_factor: float = 1.35,
     minimum_reserve_seconds: float = 0.25,
     clock: Callable[[], float] = time.perf_counter,
     session_factory: Callable[..., CandidateRolloutSession] = (
@@ -204,6 +213,8 @@ def deadline_checkpoint_search(
         raise ValueError("deadline rollout needs at least one candidate")
     if max_continuation_steps < 0:
         raise ValueError("max_continuation_steps must be non-negative")
+    if contested_extra_steps < 0:
+        raise ValueError("contested_extra_steps must be non-negative")
     started = clock()
     sessions: list[tuple[str, CandidateRolloutSession]] = []
     try:
@@ -249,9 +260,53 @@ def deadline_checkpoint_search(
             if clock() >= deadline_at:
                 stop_reason = "deadline_overrun_after_round"
                 break
+
+        contested_rounds = 0
+        contested_stop = None
+        final_frontier: list[str] = []
+        if contested_extra_steps > 0 and stop_reason == "depth_cap":
+            contested_stop = "contested_depth_cap"
+            while contested_rounds < contested_extra_steps:
+                interim = [
+                    {"root_candidate_id": candidate_id, **session.result()}
+                    for candidate_id, session in sessions
+                ]
+                frontier = pareto_ids(interim, "checkpoint_vector")
+                movers = [
+                    session for candidate_id, session in sessions
+                    if candidate_id in frontier and session.active
+                ]
+                if len(frontier) < 2:
+                    contested_stop = "contested_resolved"
+                    break
+                if not movers:
+                    contested_stop = "contested_all_terminal"
+                    break
+                if not can_start_round(
+                    now=clock(),
+                    deadline_at=deadline_at,
+                    last_round_seconds=(
+                        round_seconds[-1] if round_seconds else None
+                    ),
+                    initial_round_seconds=initial_round_seconds,
+                    safety_factor=safety_factor,
+                    minimum_reserve_seconds=minimum_reserve_seconds,
+                ):
+                    contested_stop = "predicted_deadline"
+                    break
+                round_started = clock()
+                for session in movers:
+                    session.advance_one()
+                round_seconds.append(clock() - round_started)
+                contested_rounds += 1
+                if clock() >= deadline_at:
+                    contested_stop = "deadline_overrun_after_round"
+                    break
+
         rows = []
         for candidate_id, session in sessions:
             rows.append({"root_candidate_id": candidate_id, **session.result()})
+        final_frontier = pareto_ids(rows, "checkpoint_vector")
         finished = clock()
         return {
             "contract": "deadline_lockstep_physical_rollout_v1",
@@ -259,6 +314,13 @@ def deadline_checkpoint_search(
             "max_continuation_steps": max_continuation_steps,
             "rounds_completed": rounds_completed,
             "common_total_depth": 1 + rounds_completed,
+            "contested_extra_steps": contested_extra_steps,
+            "contested_rounds_completed": contested_rounds,
+            "contested_stop_reason": contested_stop,
+            "max_achieved_total_depth": 1 + max(
+                row["continuation_steps"] for row in rows
+            ),
+            "checkpoint_pareto_candidates": final_frontier,
             "stop_reason": stop_reason,
             "deadline_seconds": deadline_at - started,
             "search_seconds": finished - started,

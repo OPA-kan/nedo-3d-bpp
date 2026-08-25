@@ -18,7 +18,11 @@ on:
       alternate_mode:
         description: Alternate branch selection (allocator or ranker_next)
         required: false
-        default: "allocator"
+        default: "ranker_next"
+      contested_extra_steps:
+        description: Extra lockstep rounds for still-contested branches
+        required: false
+        default: "6"
       decision_budget_seconds:
         description: Total wall-clock budget per decision
         required: false
@@ -108,8 +112,9 @@ jobs:
           --candidate-budget 2
           --decision-budget-seconds "${{ inputs.decision_budget_seconds || '10.0' }}"
           --max-continuation-steps 2
+          --contested-extra-steps "${{ inputs.contested_extra_steps || '6' }}"
           --safety-factor 1.35
-          --alternate-mode "${{ inputs.alternate_mode || 'allocator' }}"
+          --alternate-mode "${{ inputs.alternate_mode || 'ranker_next' }}"
           --output reports/deadline-rollout/${{ matrix.cell }}/deadline.json
       - uses: actions/upload-artifact@v4
         if: always()

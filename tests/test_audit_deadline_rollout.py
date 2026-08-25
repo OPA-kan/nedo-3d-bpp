@@ -73,6 +73,7 @@ class AuditDeadlineRolloutTests(unittest.TestCase):
                 "--task-config", str(root / "config.json"),
                 "--cell", "cell",
                 "--alternate-mode", "ranker_next",
+                "--contested-extra-steps", "5",
                 "--output", str(root / "out.json"),
             ]
             with mock.patch(
@@ -82,6 +83,9 @@ class AuditDeadlineRolloutTests(unittest.TestCase):
                 self.assertEqual(main(), 0)
             self.assertEqual(
                 audit_call.call_args.kwargs["alternate_mode"], "ranker_next"
+            )
+            self.assertEqual(
+                audit_call.call_args.kwargs["contested_extra_steps"], 5
             )
 
     def test_summary_reports_actual_budget_compliance(self):

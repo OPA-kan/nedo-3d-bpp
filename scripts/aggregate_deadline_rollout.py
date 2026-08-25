@@ -27,6 +27,7 @@ def aggregate(rows: list[dict[str, Any]], *, expected_cells: int) -> dict[str, A
             row["candidate_budget"], row["decision_budget_seconds"],
             row["live_action_reserve_seconds"],
             row["max_continuation_steps"], row["safety_factor"],
+            row.get("contested_extra_steps", 0),
         )
         for row in rows
     }
@@ -36,9 +37,10 @@ def aggregate(rows: list[dict[str, Any]], *, expected_cells: int) -> dict[str, A
     root_ids = [str(root["root_id"]) for root in roots]
     if len(root_ids) != len(set(root_ids)):
         raise ValueError("duplicate deadline rollout root ids")
-    candidate_budget, decision_budget, reserve, max_steps, safety = next(
-        iter(settings)
-    )
+    (
+        candidate_budget, decision_budget, reserve, max_steps, safety,
+        contested_extra,
+    ) = next(iter(settings))
     return {
         "contract": "deadline_rollout_hard_state_aggregate_v1",
         "cells": len(rows),
@@ -47,6 +49,7 @@ def aggregate(rows: list[dict[str, Any]], *, expected_cells: int) -> dict[str, A
         "live_action_reserve_seconds": reserve,
         "max_continuation_steps": max_steps,
         "max_total_depth": max_steps + 1,
+        "contested_extra_steps": contested_extra,
         "safety_factor": safety,
         "value_model": None,
         "summary": summarize(roots),
@@ -65,7 +68,8 @@ def markdown(report: dict[str, Any]) -> str:
         f"- cells: {report['cells']}",
         f"- hard roots: {row['roots']}",
         f"- candidates per root: {report['candidate_budget']}",
-        f"- maximum depth: H{report['max_total_depth']}",
+        f"- maximum common depth: H{report['max_total_depth']}",
+        f"- contested extra steps: {report['contested_extra_steps']}",
         f"- decision budget: {report['decision_budget_seconds']:.2f}s",
         "- learned value used: no",
         "",
@@ -81,7 +85,9 @@ def markdown(report: dict[str, Any]) -> str:
         f"{row['within_10s_rate']:.3f} | "
         f"{row['search_deadline_met_rate']:.3f} |",
         "",
-        f"- achieved depth counts: {row['depth_counts']}",
+        f"- common depth counts: {row['depth_counts']}",
+        f"- achieved depth counts: {row['achieved_depth_counts']}",
+        f"- contested rounds total: {row['contested_rounds_total']}",
         "",
         "> Candidate choice is group-OOF. Physics checkpoint vectors select "
         "the action; the terminal rollout corpus is reference-only.",

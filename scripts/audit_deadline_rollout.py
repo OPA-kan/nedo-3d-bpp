@@ -89,6 +89,7 @@ def audit(
     candidate_budget: int, decision_budget_seconds: float,
     live_action_reserve_seconds: float, max_continuation_steps: int,
     safety_factor: float, alternate_mode: str = "allocator",
+    contested_extra_steps: int = 0,
 ) -> dict[str, Any]:
     if alternate_mode not in ALTERNATE_MODES:
         raise ValueError(f"unsupported alternate mode: {alternate_mode}")
@@ -179,6 +180,7 @@ def audit(
                     root_step=int(record["step"]),
                     deadline_at=deadline_at,
                     max_continuation_steps=max_continuation_steps,
+                    contested_extra_steps=contested_extra_steps,
                     safety_factor=safety_factor,
                     minimum_reserve_seconds=live_action_reserve_seconds,
                 )
@@ -238,6 +240,7 @@ def audit(
         "live_action_reserve_seconds": live_action_reserve_seconds,
         "max_continuation_steps": max_continuation_steps,
         "max_total_depth": max_continuation_steps + 1,
+        "contested_extra_steps": contested_extra_steps,
         "safety_factor": safety_factor,
         "value_model": None,
         "summary": summarize(roots),
@@ -260,6 +263,7 @@ def main() -> int:
     parser.add_argument("--decision-budget-seconds", type=float, default=10.0)
     parser.add_argument("--live-action-reserve-seconds", type=float, default=0.25)
     parser.add_argument("--max-continuation-steps", type=int, default=2)
+    parser.add_argument("--contested-extra-steps", type=int, default=0)
     parser.add_argument("--safety-factor", type=float, default=1.35)
     parser.add_argument(
         "--alternate-mode", choices=ALTERNATE_MODES, default="allocator",
@@ -283,6 +287,7 @@ def main() -> int:
         max_continuation_steps=args.max_continuation_steps,
         safety_factor=args.safety_factor,
         alternate_mode=args.alternate_mode,
+        contested_extra_steps=args.contested_extra_steps,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

@@ -54,4 +54,24 @@ def summarize(roots: list[dict[str, Any]]) -> dict[str, Any]:
                 root["search"]["common_total_depth"] for root in roots
             })
         },
+        "achieved_depth_counts": {
+            str(depth): sum(
+                root["search"].get(
+                    "max_achieved_total_depth",
+                    root["search"]["common_total_depth"],
+                ) == depth
+                for root in roots
+            )
+            for depth in sorted({
+                root["search"].get(
+                    "max_achieved_total_depth",
+                    root["search"]["common_total_depth"],
+                )
+                for root in roots
+            })
+        },
+        "contested_rounds_total": sum(
+            root["search"].get("contested_rounds_completed", 0) or 0
+            for root in roots
+        ),
     }

@@ -19,6 +19,11 @@ class DeadlineRolloutWorkflowTests(unittest.TestCase):
         self.assertIn("--alternate-mode", self.text)
         self.assertIn("ranker_next", self.text)
 
+    def test_production_default_is_ranker_next_with_contested_deepening(self):
+        self.assertIn('default: "ranker_next"', self.text)
+        self.assertIn("--contested-extra-steps", self.text)
+        self.assertIn('default: "6"', self.text)
+
     def test_enforces_ten_second_h3_shadow_without_value(self):
         self.assertIn("--decision-budget-seconds", self.text)
         self.assertIn("--max-continuation-steps 2", self.text)
