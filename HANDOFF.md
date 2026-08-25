@@ -74,16 +74,21 @@ retained only as a same-budget challenger. Status, all on real physics:
   `32813542943`); if data does not close the gap, the next single
   change is a residual comparator (Pareto decision as prior, learn only
   the deviation). Production stack unchanged.
-- **Agreed direction (2026-08-25 discussion): exhaustive terminal
-  collection is bootstrap scaffolding, not the steady state.** The
-  destination is the Expert Iteration loop with terminal reads made
-  *selective*: live decisions stay bounded (H ≤ 3, budget 2); learning
-  consumes (a) each episode's own terminal and (b) counterfactual
-  terminal forks only where the decision was contested/uncertain — an
-  uncertainty-gated collector, so physics spend shrinks as the policy
-  improves. Terminal truth also stays as the fixed held-out yardstick,
-  because this branch measured three times that bounded evaluations
-  cannot referee their own improvement.
+- **Direction contract frozen (2026-08-25,
+  `policy-loop-direction-contract.md`)**: the selector and comparator
+  are *search-internal* components, not the agent policy π_θ(a|s). Stop
+  rule: the comparator gets exactly one more gate (wave-3 retrain) and
+  **no further search-internal NNs are built either way** — the next
+  phase is policy distillation (roadmap 7–9): train π on
+  search-improved actions, close π_t → Search(π_t) → π_{t+1}.
+  Terminal-sampling for the future collector is uncertain cases + a
+  fixed random-audit fraction + OOD/high-disagreement — never a margin
+  gate alone (confidently-wrong regions would never be audited; the
+  selector's wave-1 calibration inversion is the standing precedent).
+  The "284 → 30–40 forks" shrink is a hypothesis that needs its own
+  measured gate. Exhaustive terminal collection is bootstrap
+  scaffolding; the oracle and the fixed held-out terminal-truth
+  yardstick remain permanent.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision
