@@ -164,7 +164,8 @@ def _search_record(result: dict[str, Any]) -> dict[str, Any]:
             {
                 key: row.get(key)
                 for key in (
-                    "root_candidate_id", "stable_item_index", "safe",
+                    "root_candidate_id", "command_action",
+                    "stable_item_index", "safe",
                     "one_step_vector", "terminal_genuine",
                     "terminal_termination", "terminal_continuation_steps",
                     "terminal_vector",

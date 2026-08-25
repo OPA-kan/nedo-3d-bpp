@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.counterfactual_graph import (
+    CONTAINER_TENSOR_FEATURES,
     ITEM_TENSOR_FEATURES,
     state_tensor_from_snapshot,
 )
@@ -37,16 +38,82 @@ CANDIDATE_HEADS = (
     ("priority_misrouted_gain", -1.0),
     ("surface_total_variation_delta", -1.0),
 )
-CANDIDATE_FEATURES = tuple(
+CANDIDATE_H1_FEATURES = tuple(
     f"oriented_{name}" for name, _direction in CANDIDATE_HEADS
 ) + tuple(f"item_{name}" for name in ITEM_TENSOR_FEATURES) + ("is_incumbent",)
+CANDIDATE_GEOMETRY_FEATURES = (
+    "action_local_x", "action_local_y", "action_local_z",
+    "action_normalized_x", "action_normalized_y", "action_normalized_z",
+) + tuple(f"orientation_{index}" for index in range(6)) + tuple(
+    f"target_container_{name}" for name in CONTAINER_TENSOR_FEATURES
+) + tuple(f"item_{name}" for name in ITEM_TENSOR_FEATURES) + ("is_incumbent",)
+
+
+def candidate_features(mode: str) -> tuple[str, ...]:
+    if mode == "h1":
+        return CANDIDATE_H1_FEATURES
+    if mode == "geometry":
+        return CANDIDATE_GEOMETRY_FEATURES
+    raise ValueError(f"unsupported candidate feature mode: {mode}")
+
+
+def _geometry_candidate_token(
+    snapshot: dict[str, Any], candidate: dict[str, Any],
+    item_values: list[float], *, incumbent: bool,
+) -> list[float]:
+    action = candidate.get("command_action")
+    if not isinstance(action, dict):
+        raise ValueError("geometry candidate is missing command_action")
+    container_index = int(action["container_idx"])
+    containers = {
+        int(row.get("index", -1)): row
+        for row in snapshot.get("observation", {}).get("container_list", [])
+    }
+    container = containers.get(container_index)
+    if container is None:
+        raise ValueError(f"candidate targets unknown container {container_index}")
+    center = [float(value) for value in container.get("center", [0, 0, 0])]
+    position = [float(value) for value in action["place_pos"]]
+    local = [position[index] - center[index] for index in range(3)]
+    dimensions = [
+        float(container.get("length", 0.0) or 0.0),
+        float(container.get("width", 0.0) or 0.0),
+        float(container.get("height", 0.0) or 0.0),
+    ]
+    scales = [max(dimensions[0] / 2.0, 1e-6),
+              max(dimensions[1] / 2.0, 1e-6),
+              max(dimensions[2], 1e-6)]
+    normalized = [local[index] / scales[index] for index in range(3)]
+    orientation = int(action["orientation"])
+    orientation_one_hot = [
+        float(index == orientation) for index in range(6)
+    ]
+    container_values = [
+        float(container.get("length", 0.0) or 0.0),
+        float(container.get("width", 0.0) or 0.0),
+        float(container.get("height", 0.0) or 0.0),
+        float(container.get("cut_x", 0.0) or 0.0),
+        float(container.get("cut_y", 0.0) or 0.0),
+        float(container.get("thickness", 0.0) or 0.0),
+        float(container.get("buffer", 0.0) or 0.0),
+        float(bool(container.get("shelf"))),
+        float(bool(container.get("is_prioritized"))),
+    ]
+    return (
+        local + normalized + orientation_one_hot + container_values
+        + list(item_values) + [float(incumbent)]
+    )
 
 
 def load_examples(
     dataset_path: pathlib.Path, dataset_root: pathlib.Path,
+    *, candidate_feature_mode: str = "h1",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
-    if dataset.get("contract") != "terminal_rollout_trigger_dataset_v1":
+    if dataset.get("contract") not in {
+        "terminal_rollout_trigger_dataset_v1",
+        "terminal_rollout_trigger_dataset_with_actions_v1",
+    }:
         raise ValueError("unsupported trigger dataset contract")
     examples = []
     state_contract = None
@@ -75,22 +142,29 @@ def load_examples(
         for candidate in row.get("candidates") or []:
             if not candidate.get("safe"):
                 continue
-            vector = candidate.get("one_step_vector") or {}
-            if not all(
-                isinstance(vector.get(name), (int, float))
-                for name, _direction in CANDIDATE_HEADS
-            ):
-                continue
             item_values = visible_items.get(
                 int(candidate.get("stable_item_index", -1)),
                 [0.0] * len(ITEM_TENSOR_FEATURES),
             )
-            candidate_tokens.append([
-                direction * float(vector[name])
-                for name, direction in CANDIDATE_HEADS
-            ] + list(item_values) + [
-                float(candidate.get("root_candidate_id") == incumbent)
-            ])
+            if candidate_feature_mode == "h1":
+                vector = candidate.get("one_step_vector") or {}
+                if not all(
+                    isinstance(vector.get(name), (int, float))
+                    for name, _direction in CANDIDATE_HEADS
+                ):
+                    continue
+                token = [
+                    direction * float(vector[name])
+                    for name, direction in CANDIDATE_HEADS
+                ] + list(item_values) + [
+                    float(candidate.get("root_candidate_id") == incumbent)
+                ]
+            else:
+                token = _geometry_candidate_token(
+                    snapshot, candidate, list(item_values),
+                    incumbent=candidate.get("root_candidate_id") == incumbent,
+                )
+            candidate_tokens.append(token)
             candidate_ids.append(str(candidate["root_candidate_id"]))
             candidate_work.append(float(
                 candidate.get("terminal_physical_step_equivalents", 1.0)
@@ -130,10 +204,11 @@ def load_examples(
     if len({row["group"] for row in examples}) < 2:
         raise ValueError("group-held-out trigger training needs >=2 groups")
     return examples, {
-        "contract": "rollout_trigger_set_transformer_v1",
+        "contract": "rollout_trigger_set_transformer_v2_candidate_modes",
         "target": "terminal_oracle_changes_incumbent_action",
         "state_features": state_contract,
-        "candidate_features": list(CANDIDATE_FEATURES),
+        "candidate_feature_mode": candidate_feature_mode,
+        "candidate_features": list(candidate_features(candidate_feature_mode)),
         "forbidden_inputs": [
             "step", "terminal_vector", "terminal_pareto_candidates",
             "terminal_continuation_actions",
@@ -768,13 +843,18 @@ def main() -> int:
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--dim", type=int, default=48)
     parser.add_argument("--seed", type=int, default=20260825)
+    parser.add_argument(
+        "--candidate-feature-mode", choices=("h1", "geometry"),
+        default="h1",
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
     import torch
 
     torch.set_num_threads(4)
     examples, feature_contract = load_examples(
-        args.dataset, args.dataset_root
+        args.dataset, args.dataset_root,
+        candidate_feature_mode=args.candidate_feature_mode,
     )
     result = run_oof(
         torch, examples, folds=args.folds,
