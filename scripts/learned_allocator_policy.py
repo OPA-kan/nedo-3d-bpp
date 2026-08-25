@@ -28,6 +28,7 @@ from scripts.train_rollout_trigger import (  # noqa: E402
     candidate_token,
     load_allocator_ensemble,
     predict_allocator,
+    predict_preference,
 )
 
 
@@ -51,6 +52,12 @@ class LearnedAllocatorPolicy:
             raise ValueError(
                 f"unsupported candidate feature mode: {self.feature_mode}"
             )
+        self.objective = str(self.metadata.get("objective") or "allocator")
+        if self.objective not in {"allocator", "preference"}:
+            raise ValueError(f"unsupported objective: {self.objective}")
+        self.switch_threshold = float(
+            self.metadata.get("switch_threshold") or 0.5
+        )
 
     def score_candidates(
         self, snapshot: dict[str, Any],
@@ -83,6 +90,14 @@ class LearnedAllocatorPolicy:
             candidate_ids.append(str(row["root_candidate_id"]))
         if not tokens:
             return {}
+        if self.objective == "preference" and incumbent_id not in candidate_ids:
+            # preference deltas are meaningless without the incumbent in
+            # the scored set; fail safe (runner keeps the incumbent)
+            return {}
+        incumbent_index = (
+            candidate_ids.index(incumbent_id)
+            if incumbent_id in candidate_ids else 0
+        )
         example = {
             "group": "live",
             "root_id": "live",
@@ -91,9 +106,22 @@ class LearnedAllocatorPolicy:
             "visible_item": state["visible_item_values"],
             "candidate": tokens,
             "candidate_ids": candidate_ids,
-            "incumbent_index": 0,
+            "incumbent_index": incumbent_index,
             "selected_index": 0,
             "label": 0.0,
         }
+        if self.objective == "preference":
+            # sigmoid(score_j - score_incumbent): the incumbent's own
+            # entry is exactly 0.5; raising it to the switch threshold
+            # makes the runner's argmax implement "keep the incumbent
+            # unless an alternate clearly beats it"
+            probabilities = predict_preference(
+                self._torch, self.members, [example]
+            )[0]
+            scores = dict(zip(candidate_ids, probabilities))
+            scores[incumbent_id] = max(
+                self.switch_threshold, scores[incumbent_id]
+            )
+            return scores
         scores = predict_allocator(self._torch, self.members, [example])[0]
         return dict(zip(candidate_ids, scores))

@@ -11,6 +11,13 @@ The promotion structure is deliberately asymmetric (design review
   aggregate collapse thresholds, never per-episode vetoes.  "Beat every
   member on every episode" would make promotion impossible as the
   league grows, because the verdict is a partial order.
+- **Benchmarks** — SLA-noncompliant oracle-ish arms (pi_0 + expensive
+  terminal search) sit outside the production line entirely (design
+  review 2026-08-25, second round): they never gate and never veto.
+  Each match reports the challenger's standing against them so that
+  "new generation beats the production champion" (promotion), "matches
+  the search teacher" (compression) and "beats the search teacher"
+  (major breakthrough) stay distinguishable.
 
 Paired episodes share scenario, stream and seed, and the simulator is
 deterministic under those, so paired comparisons carry no sampling
@@ -176,6 +183,34 @@ def champion_gate(
     return {"passed": not reasons, "reasons": reasons}
 
 
+def benchmark_standing(
+    result: dict[str, Any], params: dict[str, float],
+) -> dict[str, Any]:
+    """Classify the challenger against an oracle-ish benchmark arm.
+
+    Benchmarks never gate and never veto; this is reporting only.
+    """
+    wins = result["counts"]["challenger_wins"]
+    losses = result["counts"]["member_wins"]
+    hard_ok = result["aggregate_violation_delta"] <= (
+        params["champion_violation_slack"] + EPS
+    ) and result["aggregate_completion_delta"] >= -(
+        params["champion_completion_slack"] + EPS
+    )
+    if wins > losses and hard_ok:
+        standing = "beats_benchmark"
+    elif wins >= losses and hard_ok:
+        standing = "at_benchmark"
+    else:
+        standing = "below_benchmark"
+    return {
+        "standing": standing,
+        "wins": wins,
+        "losses": losses,
+        "hard_heads_non_worse": hard_ok,
+    }
+
+
 def collapse_check(
     result: dict[str, Any], params: dict[str, float],
 ) -> dict[str, Any]:
@@ -223,7 +258,16 @@ def promotion_decision(
     matches[champion["name"]] = champion_result
     gate = champion_gate(champion_result, params)
     league_checks = {}
+    benchmarks = {}
     for member in members:
+        if member["role"] == "benchmark":
+            # oracle-ish teacher arm: reported, never gating or vetoing
+            member_result = match(challenger, member["outcomes"])
+            matches[member["name"]] = member_result
+            benchmarks[member["name"]] = benchmark_standing(
+                member_result, params
+            )
+            continue
         if member["name"] == champion["name"]:
             continue
         member_result = match(challenger, member["outcomes"])
@@ -235,11 +279,12 @@ def promotion_decision(
     }
     promoted = gate["passed"] and not collapsed
     return {
-        "contract": "league_promotion_decision_v1",
+        "contract": "league_promotion_decision_v2",
         "params": params,
         "champion": champion["name"],
         "main_gate": gate,
         "league_checks": league_checks,
+        "benchmarks": benchmarks,
         "matches": matches,
         "promoted": promoted,
     }

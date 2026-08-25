@@ -19,6 +19,12 @@ class RolloutGeometryPolicyWorkflowTests(unittest.TestCase):
         self.assertIn("--candidate-feature-mode geometry", self.text)
         self.assertIn("H1 physical outcomes used as input: no", self.text)
 
+    def test_mainline_objective_is_incumbent_preference(self):
+        # design review 2026-08-25: behavior cloning collapses to the
+        # incumbent; the deployable head learns P(alternate beats
+        # incumbent) from terminal dominance instead
+        self.assertIn("--objective preference", self.text)
+
     def test_freezes_the_deployable_ensemble_for_the_league(self):
         self.assertIn(
             "--save-model-dir reports/geometry-policy/model", self.text

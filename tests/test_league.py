@@ -165,6 +165,61 @@ class LeagueTests(unittest.TestCase):
         self.assertNotIn("pi1", roles)
         self.assertNotIn("pi2", roles)
 
+    def test_benchmark_reports_standing_but_never_gates_or_vetoes(self):
+        # Two-track design: the production line is gated by the
+        # champion; the oracle-ish search arm is a benchmark that only
+        # reports the challenger's standing.
+        registry = new_registry("pi0", arm(CELLS), source="run-0")
+        oracle = arm(CELLS, {
+            f"cell-{index}": {"fill_score_proxy": 14.0}
+            for index in range(6)
+        })
+        registry["members"].append({
+            "name": "pi0-search", "role": "benchmark", "generation": 1,
+            "source": "run-b", "outcomes": oracle,
+        })
+        # beats the champion pi0 on one cell, still clearly below the
+        # oracle benchmark -> promoted anyway, standing reported
+        challenger = arm(CELLS, {"cell-0": {"fill_score_proxy": 13.0}})
+        decision = promotion_decision(challenger, registry)
+        self.assertTrue(decision["promoted"])
+        self.assertEqual(
+            decision["benchmarks"]["pi0-search"]["standing"],
+            "below_benchmark",
+        )
+        self.assertNotIn("pi0-search", decision["league_checks"])
+        # matching the oracle everywhere -> at_benchmark
+        decision = promotion_decision(oracle, registry)
+        self.assertEqual(
+            decision["benchmarks"]["pi0-search"]["standing"],
+            "at_benchmark",
+        )
+        # strictly above the oracle -> beats_benchmark
+        better = arm(CELLS, {
+            f"cell-{index}": {"fill_score_proxy": 15.0}
+            for index in range(7)
+        })
+        decision = promotion_decision(better, registry)
+        self.assertEqual(
+            decision["benchmarks"]["pi0-search"]["standing"],
+            "beats_benchmark",
+        )
+
+    def test_promote_leaves_benchmarks_untouched(self):
+        registry = new_registry("pi0", arm(CELLS), source="run-0")
+        registry["members"].append({
+            "name": "pi0-search", "role": "benchmark", "generation": 1,
+            "source": "run-b", "outcomes": arm(CELLS),
+        })
+        registry = promote(
+            registry, "pi1",
+            arm(CELLS, {"cell-0": {"fill_score_proxy": 13.0}}),
+            source="run-1",
+        )
+        roles = {m["name"]: m["role"] for m in registry["members"]}
+        self.assertEqual(roles["pi0-search"], "benchmark")
+        self.assertEqual(roles["pi1"], "champion")
+
     def test_match_rejects_mismatched_cells(self):
         with self.assertRaises(ValueError):
             match(arm(CELLS[:3]), arm(CELLS[:2]))

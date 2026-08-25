@@ -150,6 +150,10 @@ def main() -> int:
             name for name, check in decision["league_checks"].items()
             if check["collapsed"]
         ),
+        "benchmarks": {
+            name: standing["standing"]
+            for name, standing in decision.get("benchmarks", {}).items()
+        },
         "vs_champion": decision["matches"][decision["champion"]]["counts"],
     }, indent=2))
     return 0

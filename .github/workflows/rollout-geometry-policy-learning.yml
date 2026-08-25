@@ -222,6 +222,7 @@ jobs:
           --dataset reports/geometry-policy/trigger-dataset-with-actions.json
           --dataset-root reports/geometry-source/results
           --candidate-feature-mode geometry
+          --objective preference
           --folds 4
           --ensemble-size 3
           --repeats 3
@@ -238,16 +239,27 @@ jobs:
           report = json.loads(Path(
               "reports/geometry-policy/oof-report.json"
           ).read_text())
-          allocator = report["candidate_allocator"]
           print("# Geometry-only rollout candidate policy")
           print()
           print(f"- roots: {report['rows']}")
           print(f"- groups: {report['groups']}")
           print("- H1 physical outcomes used as input: no")
-          print(f"- top-1 selected action accuracy: "
-                f"{allocator['top1_selected_action_accuracy']:.4f}")
-          print(f"- incumbent + one alternate intervention recall: "
-                f"{allocator['intervention_alternative_top1_recall']:.4f}")
+          if "decision_rule" in report:
+              rule = report["decision_rule"]
+              print(f"- preference pairs: {report['pairs']} "
+                    f"({report['positive_pairs']} positive)")
+              print(f"- pair AUC: {report['pair_auc']:.4f}")
+              print(f"- executed-selection agreement: "
+                    f"{rule['executed_selection_agreement']:.4f}")
+              print(f"- intervention action recall: "
+                    f"{rule['intervention_action_recall']}")
+              print(f"- false switch rate: {rule['false_switch_rate']}")
+          else:
+              allocator = report["candidate_allocator"]
+              print(f"- top-1 selected action accuracy: "
+                    f"{allocator['top1_selected_action_accuracy']:.4f}")
+              print(f"- incumbent + one alternate intervention recall: "
+                    f"{allocator['intervention_alternative_top1_recall']:.4f}")
           print()
           print("Search outcomes are labels only; inference uses observed state "
                 "and candidate action geometry.")

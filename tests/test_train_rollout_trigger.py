@@ -152,6 +152,169 @@ class RolloutTriggerTests(unittest.TestCase):
         self.assertEqual(fast["intervention_recall"], 1.0)
         self.assertGreater(fast["estimated_speedup_vs_full"], 3.0)
 
+    def test_pair_labels_follow_the_search_dominance_rule(self):
+        state = snapshot()
+        state["observation"]["container_list"][0]["center"] = [1, 2, 0]
+        vector = {
+            "fill_gain": 1.0, "soft_violation_gain": 0.0,
+            "priority_covered_gain": 0.0, "priority_misrouted_gain": 0.0,
+            "surface_total_variation_delta": 0.0,
+        }
+        candidates = [
+            {  # incumbent
+                "root_candidate_id": "a", "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.5, 2.25, 0.5], "orientation": 2,
+                },
+                "terminal_genuine": True, "terminal_vector": dict(vector),
+            },
+            {  # strictly dominates the incumbent terminal -> label 1
+                "root_candidate_id": "b", "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.6, 2.25, 0.5], "orientation": 2,
+                },
+                "terminal_genuine": True,
+                "terminal_vector": {**vector, "fill_gain": 1.5},
+            },
+            {  # trade-off (better fill, new violation) -> label 0
+                "root_candidate_id": "c", "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.7, 2.25, 0.5], "orientation": 2,
+                },
+                "terminal_genuine": True,
+                "terminal_vector": {
+                    **vector, "fill_gain": 2.0,
+                    "soft_violation_gain": 1.0,
+                },
+            },
+            {  # censored terminal -> masked
+                "root_candidate_id": "d", "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.8, 2.25, 0.5], "orientation": 2,
+                },
+                "terminal_genuine": False, "terminal_vector": None,
+            },
+        ]
+        row = {
+            "cell": "cell", "root_id": "r",
+            "snapshot_path": "cell/state.json",
+            "incumbent_candidate_id": "a", "selected_candidate_id": "b",
+            "terminal_intervention": True,
+            "decision_timing": {"decision_total_seconds": 12.0},
+            "estimated_no_terminal_decision_seconds": 2.0,
+            "candidates": candidates,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "cell").mkdir()
+            (root / "cell" / "state.json").write_text(
+                json.dumps(state), encoding="utf-8"
+            )
+            dataset = {
+                "contract": (
+                    "terminal_rollout_trigger_dataset_with_actions_v1"
+                ),
+                "rows": [row, {**row, "cell": "cell2", "root_id": "r2"}],
+            }
+            (root / "dataset.json").write_text(json.dumps(dataset))
+            examples, _contract = load_examples(
+                root / "dataset.json", root,
+                candidate_feature_mode="geometry",
+            )
+        self.assertEqual(examples[0]["pair_labels"], [-1.0, 1.0, 0.0, -1.0])
+
+    @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
+    def test_preference_ensemble_keeps_incumbent_at_the_threshold(self):
+        import torch
+
+        from scripts.learned_allocator_policy import LearnedAllocatorPolicy
+        from scripts.train_rollout_trigger import (
+            load_examples as load,
+            save_allocator_ensemble,
+        )
+
+        state = snapshot()
+        state["observation"]["container_list"][0]["center"] = [1, 2, 0]
+        state["observation"]["container_list"][0]["packed_items"] = [
+            {"index": 0, "length": 0.2, "width": 0.2, "height": 0.2,
+             "mass": 1},
+        ]
+        state["physics"]["packed_items"] = [{
+            "container_index": 0, "item_index": 0,
+            "position": [1.0, 2.0, 0.1], "quaternion": [0, 0, 0, 1],
+        }]
+        vector = {
+            "fill_gain": 1.0, "soft_violation_gain": 0.0,
+            "priority_covered_gain": 0.0, "priority_misrouted_gain": 0.0,
+            "surface_total_variation_delta": 0.0,
+        }
+        candidates = [
+            {
+                "root_candidate_id": name, "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.5 + shift, 2.25, 0.5],
+                    "orientation": 2,
+                },
+                "terminal_genuine": True,
+                "terminal_vector": {**vector, "fill_gain": fill},
+            }
+            for shift, name, fill in (
+                (0.0, "a", 1.0), (0.3, "b", 1.5),
+            )
+        ]
+        row = {
+            "cell": "cell", "root_id": "r",
+            "snapshot_path": "cell/state.json",
+            "incumbent_candidate_id": "a", "selected_candidate_id": "b",
+            "terminal_intervention": True,
+            "decision_timing": {"decision_total_seconds": 12.0},
+            "estimated_no_terminal_decision_seconds": 2.0,
+            "candidates": candidates,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "cell").mkdir()
+            (root / "cell" / "state.json").write_text(
+                json.dumps(state), encoding="utf-8"
+            )
+            dataset = {
+                "contract": (
+                    "terminal_rollout_trigger_dataset_with_actions_v1"
+                ),
+                "rows": [row, {**row, "cell": "cell2", "root_id": "r2"}],
+            }
+            (root / "dataset.json").write_text(json.dumps(dataset))
+            examples, contract = load(
+                root / "dataset.json", root,
+                candidate_feature_mode="geometry",
+            )
+            model_dir = root / "model"
+            metadata = save_allocator_ensemble(
+                torch, examples, contract, model_dir,
+                ensemble_size=1, epochs=2, dim=8, seed=7,
+                objective="preference",
+            )
+            self.assertEqual(metadata["objective"], "preference")
+            policy = LearnedAllocatorPolicy(model_dir)
+            live = policy.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+        # the incumbent's preference probability is 0.5 by construction
+        # and is raised to the switch threshold, so the runner's argmax
+        # only ever switches on a clear winner
+        self.assertEqual(live["a"], 0.5)
+        self.assertTrue(0.0 < live["b"] < 1.0)
+
     @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
     def test_saved_ensemble_round_trips_and_scores_live_candidates(self):
         import torch

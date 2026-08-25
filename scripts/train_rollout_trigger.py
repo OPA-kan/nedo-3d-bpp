@@ -24,6 +24,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.build_terminal_rollout_trigger_dataset import (
+    _dominates,
+    _oriented,
+)
 from scripts.counterfactual_graph import (
     CONTAINER_TENSOR_FEATURES,
     ITEM_TENSOR_FEATURES,
@@ -186,6 +190,33 @@ def load_examples(
             raise ValueError(
                 f"{row.get('root_id')}: selected/incumbent candidate missing"
             )
+        # pairwise preference labels vs the incumbent, derived from the
+        # SAME 5-head terminal dominance rule the search executes with
+        # (never a synthesized scalar): 1 = this alternate's genuine
+        # terminal outcome strictly dominates the incumbent's, 0 = it
+        # does not, -1 = masked (the incumbent itself, or a censored
+        # terminal on either side)
+        terminal_by_id = {
+            str(candidate["root_candidate_id"]): oriented
+            for candidate in row.get("candidates") or []
+            if candidate.get("safe") and candidate.get("terminal_genuine")
+            and (oriented := _oriented(candidate.get("terminal_vector")))
+            is not None
+        }
+        incumbent_terminal = terminal_by_id.get(incumbent)
+        pair_labels = []
+        for candidate_id in candidate_ids:
+            alternate_terminal = terminal_by_id.get(candidate_id)
+            if (
+                candidate_id == incumbent
+                or incumbent_terminal is None
+                or alternate_terminal is None
+            ):
+                pair_labels.append(-1.0)
+            else:
+                pair_labels.append(float(_dominates(
+                    alternate_terminal, incumbent_terminal
+                )))
         full = (row.get("decision_timing") or {}).get(
             "decision_total_seconds"
         )
@@ -205,6 +236,7 @@ def load_examples(
             "candidate_work": candidate_work,
             "incumbent_index": candidate_ids.index(incumbent),
             "selected_index": candidate_ids.index(selected),
+            "pair_labels": pair_labels,
             "label": float(bool(row["terminal_intervention"])),
             "full_seconds": float(full),
             "shallow_seconds": float(shallow),
@@ -309,6 +341,20 @@ def build_arrays(
     arrays["selected_index"] = np.asarray(
         [row["selected_index"] for row in examples], dtype=np.int64
     )
+    arrays["incumbent_index"] = np.asarray(
+        [int(row.get("incumbent_index", 0)) for row in examples],
+        dtype=np.int64,
+    )
+    width = arrays["candidate"].shape[1]
+    pair_label = np.zeros((len(examples), width), dtype=np.float32)
+    pair_valid = np.zeros((len(examples), width), dtype=np.float32)
+    for index, row in enumerate(examples):
+        for position, value in enumerate(row.get("pair_labels") or []):
+            if value >= 0.0:
+                pair_label[index, position] = float(value)
+                pair_valid[index, position] = 1.0
+    arrays["pair_label"] = pair_label
+    arrays["pair_valid"] = pair_valid
     return arrays
 
 
@@ -535,6 +581,82 @@ def fit_allocator_member(
     return model, stats
 
 
+def fit_preference_member(
+    torch, examples: list[dict[str, Any]], *, seed: int, epochs: int,
+    dim: int,
+):
+    """Learn P(alternate beats incumbent | state) via antisymmetric deltas.
+
+    The model scores every candidate; the pairwise logistic loss is
+    applied to score differences against the incumbent, so
+    sigmoid(score_j - score_incumbent) IS the preference probability and
+    the incumbent's own probability is 0.5 by construction.  Labels come
+    only from genuine-terminal dominance; masked pairs carry no loss.
+    """
+    torch.manual_seed(seed)
+    rng = random.Random(seed)
+    groups = sorted({row["group"] for row in examples})
+    sampled = collections.Counter(rng.choice(groups) for _ in groups)
+    bootstrap = [
+        row for row in examples for _ in range(sampled[row["group"]])
+    ] or list(examples)
+    stats = compute_stats(bootstrap)
+    arrays = build_arrays(bootstrap, stats)
+    widths = {key: len(stats[key][0]) for key in SET_KEYS}
+    positives = float((arrays["pair_label"] * arrays["pair_valid"]).sum())
+    negatives = float(arrays["pair_valid"].sum()) - positives
+    pos_weight = torch.tensor(
+        max(1.0, negatives / max(1.0, positives))
+    )
+    model = build_allocator_model(torch, widths, dim=dim)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    indices = np.arange(len(bootstrap))
+    model.train()
+    for _epoch in range(epochs):
+        rng.shuffle(indices)
+        for start in range(0, len(indices), 64):
+            batch = _torch_batch(torch, arrays, indices[start:start + 64])
+            logits = model(batch)
+            incumbent = logits.gather(
+                1, batch["incumbent_index"].unsqueeze(1)
+            )
+            delta = logits - incumbent
+            raw = torch.nn.functional.binary_cross_entropy_with_logits(
+                delta, batch["pair_label"], pos_weight=pos_weight,
+                reduction="none",
+            )
+            loss = (raw * batch["pair_valid"]).sum() / batch[
+                "pair_valid"
+            ].sum().clamp(min=1.0)
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimizer.step()
+    model.eval()
+    return model, stats
+
+
+def predict_preference(torch, members, examples: list[dict[str, Any]]):
+    """Ensemble-mean P(candidate beats incumbent); incumbent gets 0.5."""
+    member_outputs = []
+    with torch.no_grad():
+        for model, stats in members:
+            arrays = build_arrays(examples, stats)
+            batch = _torch_batch(torch, arrays, np.arange(len(examples)))
+            logits = model(batch)
+            incumbent = logits.gather(
+                1, batch["incumbent_index"].unsqueeze(1)
+            )
+            member_outputs.append(
+                torch.sigmoid(logits - incumbent).cpu().numpy()
+            )
+    mean = np.stack(member_outputs).mean(axis=0)
+    return [
+        list(map(float, mean[index, :len(row["candidate_ids"])]))
+        for index, row in enumerate(examples)
+    ]
+
+
 def predict_allocator(torch, members, examples: list[dict[str, Any]]):
     member_outputs = []
     with torch.no_grad():
@@ -557,7 +679,7 @@ POLICY_MODEL_CONTRACT = "rollout_allocator_policy_ensemble_v1"
 def save_allocator_ensemble(
     torch, examples: list[dict[str, Any]], feature_contract: dict[str, Any],
     output_dir: pathlib.Path, *, ensemble_size: int, epochs: int, dim: int,
-    seed: int,
+    seed: int, objective: str = "allocator",
 ) -> dict[str, Any]:
     """Fit the final allocator ensemble on every example and freeze it.
 
@@ -565,11 +687,15 @@ def save_allocator_ensemble(
     is the deployable policy head, not an evaluation artifact, and its
     honest report card is the league match it must win on frozen streams.
     """
+    if objective not in {"allocator", "preference"}:
+        raise ValueError(f"unsupported objective: {objective}")
+    fit = fit_preference_member if objective == "preference" \
+        else fit_allocator_member
     output_dir.mkdir(parents=True, exist_ok=True)
     member_meta = []
     widths = None
     for member in range(ensemble_size):
-        model, stats = fit_allocator_member(
+        model, stats = fit(
             torch, examples, seed=seed + 90_000 + member,
             epochs=epochs, dim=dim,
         )
@@ -589,6 +715,8 @@ def save_allocator_ensemble(
         })
     metadata = {
         "contract": POLICY_MODEL_CONTRACT,
+        "objective": objective,
+        "switch_threshold": 0.5 if objective == "preference" else None,
         "dim": dim,
         "ensemble_size": ensemble_size,
         "epochs": epochs,
@@ -856,6 +984,123 @@ def run_allocator_oof(
     }
 
 
+def preference_decisions(
+    examples: list[dict[str, Any]], probabilities: list[list[float]],
+    *, threshold: float = 0.5,
+) -> dict[str, Any]:
+    """Score the executable rule: keep incumbent unless a clear winner."""
+    executed_agreement = 0
+    intervention_rows = 0
+    intervention_hits = 0
+    quiet_rows = 0
+    false_switches = 0
+    for row, probs in zip(examples, probabilities):
+        incumbent = row["incumbent_index"]
+        alternates = [
+            position for position in range(len(probs))
+            if position != incumbent
+        ]
+        best = max(alternates, key=lambda p: probs[p]) if alternates \
+            else incumbent
+        chosen = best if alternates and probs[best] > threshold \
+            else incumbent
+        if chosen == row["selected_index"]:
+            executed_agreement += 1
+        if row["selected_index"] != incumbent:
+            intervention_rows += 1
+            intervention_hits += int(chosen == row["selected_index"])
+        else:
+            quiet_rows += 1
+            false_switches += int(chosen != incumbent)
+    return {
+        "threshold": threshold,
+        "executed_selection_agreement": executed_agreement / len(examples),
+        "intervention_rows": intervention_rows,
+        "intervention_action_recall": (
+            intervention_hits / intervention_rows
+            if intervention_rows else None
+        ),
+        "quiet_rows": quiet_rows,
+        "false_switch_rate": (
+            false_switches / quiet_rows if quiet_rows else None
+        ),
+    }
+
+
+def run_preference_oof(
+    torch, examples: list[dict[str, Any]], *, folds: int,
+    ensemble_size: int, epochs: int, dim: int, seed: int, repeats: int,
+) -> dict[str, Any]:
+    groups = [row["group"] for row in examples]
+    labels = [row["label"] for row in examples]
+    accumulated = [
+        np.zeros(len(row["candidate_ids"]), dtype=np.float32)
+        for row in examples
+    ]
+    for repeat in range(repeats):
+        repeat_seed = seed + 70_000 + repeat * 10_000
+        fold_groups = group_folds(groups, folds, repeat_seed, labels=labels)
+        for fold, held_groups in enumerate(fold_groups):
+            train = [
+                row for row in examples if row["group"] not in held_groups
+            ]
+            held_indices = [
+                index for index, row in enumerate(examples)
+                if row["group"] in held_groups
+            ]
+            held = [examples[index] for index in held_indices]
+            members = [
+                fit_preference_member(
+                    torch, train,
+                    seed=repeat_seed + fold * 100 + member,
+                    epochs=epochs, dim=dim,
+                )
+                for member in range(ensemble_size)
+            ]
+            predictions = predict_preference(torch, members, held)
+            for index, prediction in zip(held_indices, predictions):
+                accumulated[index] += np.asarray(
+                    prediction, dtype=np.float32
+                )
+    probabilities = [
+        list(map(float, values / repeats)) for values in accumulated
+    ]
+    pair_truth = []
+    pair_scores = []
+    for row, probs in zip(examples, probabilities):
+        for position, value in enumerate(row["pair_labels"]):
+            if value >= 0.0:
+                pair_truth.append(float(value))
+                pair_scores.append(probs[position])
+    pair_truth_array = np.asarray(pair_truth, dtype=np.float32)
+    pair_scores_array = np.asarray(pair_scores, dtype=np.float32)
+    return {
+        "contract": "rollout_preference_group_oof_v1",
+        "target": "alternate_terminal_dominates_incumbent_terminal",
+        "rows": len(examples),
+        "groups": len(set(groups)),
+        "pairs": len(pair_truth),
+        "positive_pairs": int(pair_truth_array.sum()),
+        "pair_auc": auc(pair_truth_array, pair_scores_array),
+        "pair_average_precision": average_precision(
+            pair_truth_array, pair_scores_array
+        ),
+        "decision_rule": preference_decisions(examples, probabilities),
+        "oof_rows": [
+            {
+                "root_id": row["root_id"],
+                "group": row["group"],
+                "candidate_ids": row["candidate_ids"],
+                "incumbent_index": row["incumbent_index"],
+                "selected_index": row["selected_index"],
+                "pair_labels": row["pair_labels"],
+                "preference_probabilities": probs,
+            }
+            for row, probs in zip(examples, probabilities)
+        ],
+    }
+
+
 def run_oof(
     torch, examples: list[dict[str, Any]], *, folds: int,
     ensemble_size: int, epochs: int, dim: int, seed: int, repeats: int = 1,
@@ -946,6 +1191,15 @@ def main() -> int:
         "--candidate-feature-mode", choices=("h1", "geometry"),
         default="h1",
     )
+    parser.add_argument(
+        "--objective", choices=("allocator", "preference"),
+        default="allocator",
+        help=(
+            "allocator: imitate the search's selected action;"
+            " preference: learn P(alternate beats incumbent) from"
+            " terminal dominance and keep the incumbent by default"
+        ),
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument(
         "--save-model-dir", type=pathlib.Path, default=None,
@@ -962,16 +1216,23 @@ def main() -> int:
         args.dataset, args.dataset_root,
         candidate_feature_mode=args.candidate_feature_mode,
     )
-    result = run_oof(
-        torch, examples, folds=args.folds,
-        ensemble_size=args.ensemble_size, epochs=args.epochs,
-        dim=args.dim, seed=args.seed, repeats=args.repeats,
-    )
-    result["candidate_allocator"] = run_allocator_oof(
-        torch, examples, folds=args.folds,
-        ensemble_size=args.ensemble_size, epochs=args.epochs,
-        dim=args.dim, seed=args.seed, repeats=args.repeats,
-    )
+    if args.objective == "preference":
+        result = run_preference_oof(
+            torch, examples, folds=args.folds,
+            ensemble_size=args.ensemble_size, epochs=args.epochs,
+            dim=args.dim, seed=args.seed, repeats=args.repeats,
+        )
+    else:
+        result = run_oof(
+            torch, examples, folds=args.folds,
+            ensemble_size=args.ensemble_size, epochs=args.epochs,
+            dim=args.dim, seed=args.seed, repeats=args.repeats,
+        )
+        result["candidate_allocator"] = run_allocator_oof(
+            torch, examples, folds=args.folds,
+            ensemble_size=args.ensemble_size, epochs=args.epochs,
+            dim=args.dim, seed=args.seed, repeats=args.repeats,
+        )
     result["feature_contract"] = feature_contract
     result["evaluation_scope"] = (
         "development group-OOF; threshold still needs a fresh cohort gate"
@@ -980,7 +1241,7 @@ def main() -> int:
         result["policy_model"] = save_allocator_ensemble(
             torch, examples, feature_contract, args.save_model_dir,
             ensemble_size=args.ensemble_size, epochs=args.epochs,
-            dim=args.dim, seed=args.seed,
+            dim=args.dim, seed=args.seed, objective=args.objective,
         )
         result["policy_model"]["saved_to"] = str(args.save_model_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -988,21 +1249,29 @@ def main() -> int:
         json.dumps(result, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({
-        key: result[key] for key in (
-            "rows", "groups", "positives", "auc", "average_precision",
-            "operating_points",
-        )
-    } | {
-        "candidate_allocator": {
-            key: result["candidate_allocator"][key]
-            for key in (
-                "top1_selected_action_accuracy",
-                "intervention_alternative_top1_recall",
-                "budget_curve",
+    if args.objective == "preference":
+        print(json.dumps({
+            key: result[key] for key in (
+                "rows", "groups", "pairs", "positive_pairs", "pair_auc",
+                "pair_average_precision", "decision_rule",
             )
-        }
-    }, ensure_ascii=False))
+        }, ensure_ascii=False))
+    else:
+        print(json.dumps({
+            key: result[key] for key in (
+                "rows", "groups", "positives", "auc", "average_precision",
+                "operating_points",
+            )
+        } | {
+            "candidate_allocator": {
+                key: result["candidate_allocator"][key]
+                for key in (
+                    "top1_selected_action_accuracy",
+                    "intervention_alternative_top1_recall",
+                    "budget_curve",
+                )
+            }
+        }, ensure_ascii=False))
     return 0
 
 
