@@ -32,12 +32,27 @@ retained only as a same-budget challenger. Status, all on real physics:
   cost). The binding constraint moved: available interventions are read
   to H ≤ 3 and then rejected by the checkpoint Pareto rule (~50–55%
   conversion in every arm).
-- Next gate, in order: (1) checkpoint decision rule — spend remaining
-  deadline budget deepening the still-contested branch pair past the
-  common H ≤ 3 stop, judged on conversion of in-support interventions;
-  (2) production default = incumbent + ranker next-best at budget 2
-  until the NN beats it; (3) grow the dual-preloaded / dual-shelf
-  hard-state cohort — 16 interventions cannot separate the arms.
+- **Contested deepening measured and rejected as default
+  (`contested-deepening-shadow-20260825.md`, runs `32810925906` /
+  `32810936004`)**: deepening the still-contested pair to H4–H6 inside
+  the 10 s budget converted zero additional interventions (6/16
+  unchanged) and flipped 1–2 previously-correct decisions wrong — the
+  H3→H4 vanishing-advantage result reproduced at n=13–14 contested
+  roots. The mechanism stays in `deadline_physical_rollout.py` as an
+  off-by-default instrumented option (`contested_extra_steps`).
+- **Production default (recorded): incumbent + ranker next-best at
+  budget 2, contested 0** — 35/46 reproduction, 6/16 recovery,
+  p95 8.47 s, 45/46 ≤ 10 s (run `32803397418`). The geometry NN stays
+  a shadow arm until it beats this on a bigger cohort.
+- **Hard-state wave 2 collecting**: the matrix grew to 24 cells (+6
+  dual-preloaded-dedicated, +6 dual-shelf-mixed streams) since wave 1
+  put 15/16 interventions in those families and n=16 cannot separate
+  arms. After it lands: rebuild geometry recovery + OOF on the 24-cell
+  aggregate, re-run the ranker_next and geometry shadows on the new
+  cohort, and only then judge the NN vs the zero-cost baseline. The
+  unconverted-intervention headroom needs terminal-connected
+  information — roadmap item 10, V strictly as a same-budget
+  challenger at the checkpoint, never a mainline revival.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision
