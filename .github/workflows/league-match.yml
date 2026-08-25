@@ -117,7 +117,7 @@ jobs:
           case "$mode" in
             bootstrap) flags="--bootstrap" ;;
             audit) flags="--audit-anchor" ;;
-            challenge) flags="" ;;
+            challenge) flags="--promote-on-pass" ;;
             *) echo "unknown mode $mode"; exit 1 ;;
           esac
           python scripts/evaluate_league.py \

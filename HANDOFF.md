@@ -92,6 +92,18 @@ retained only as a same-budget challenger. Status, all on real physics:
   `reports/league/registry.json`; workflow pushes re-run the anchor as
   a determinism audit. First breakthrough = first league promotion of
   a distilled π_1.
+- **League is live and has run its first match
+  (`reports/league/match-001-pi0-search-20260825.md`)**: bootstrap
+  `32819941124` registered pi0-legacy (anchor+champion, 10 genuine
+  terminals); match `32820682727` promoted **pi0-search** (π_0 +
+  terminal-rollout search) 3–0 with 3 equals and 4 logged trade-offs,
+  aggregate hard heads level. Registry is at generation 1: champion
+  pi0-search, anchor pi0-legacy. This validates the loop's teacher
+  signal on held-out executed episodes; the breakthrough stays defined
+  as the first *distilled* π_1 promotion through this same gate. Next
+  work: the generation-0 data run (π_0-search episodes with widened
+  support producing generation-stamped paired labels) and the π_1
+  distillation.
 - **Direction contract frozen (2026-08-25,
   `policy-loop-direction-contract.md`)**: the selector and comparator
   are *search-internal* components, not the agent policy π_θ(a|s). Stop
