@@ -5,6 +5,12 @@ and then continued by the frozen rank-0 policy to a genuine terminal.  The
 incumbent rank-0 action is replaced only when it is absent from the complete
 terminal Pareto frontier.  No component weights and no learned value are used.
 Any censored terminal comparison fails safe to the incumbent.
+
+The ``learned`` policy executes a distilled allocator ensemble directly:
+the network picks among the physically safe root candidates from the
+current snapshot alone (measured one-step safety screen, no terminal
+rollouts), which makes its per-decision cost trivially inside the SLA.
+It still uses no learned value function.
 """
 
 from __future__ import annotations
@@ -51,7 +57,7 @@ from scripts.run_single_agent_packing import _fresh_env  # noqa: E402
 from scripts.run_vector_mcts import vector_search_root  # noqa: E402
 from scripts.single_agent_packing import GENUINE_TERMINATIONS  # noqa: E402
 
-POLICIES = {"legacy", "terminal-rollout"}
+POLICIES = {"legacy", "terminal-rollout", "learned"}
 BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v3_wall_clock"
 TIMING_CONTRACT = "decision_wall_clock_v1"
 
@@ -65,10 +71,13 @@ def _rank_key(candidate: Any) -> tuple[int, str]:
 
 def choose_root_candidate(
     candidates: list[Any], search_result: dict[str, Any], *, policy: str,
+    learned_scorer: Any | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     """Choose conservatively from physically safe root candidates."""
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    if policy == "learned" and learned_scorer is None:
+        raise ValueError("learned policy requires a candidate scorer")
     safe_ids = {
         str(row["root_candidate_id"])
         for row in search_result.get("root_candidates") or []
@@ -93,7 +102,30 @@ def choose_root_candidate(
     incumbent_id = str(_candidate_record(incumbent)["candidate_id"])
     chosen = incumbent
     reason = "legacy_rank0"
-    if policy == "terminal-rollout":
+    learned_scores: dict[str, float] | None = None
+    if policy == "learned":
+        learned_scores = dict(learned_scorer(incumbent_id) or {})
+        scored = [
+            candidate for candidate in ranked
+            if str(_candidate_record(candidate)["candidate_id"])
+            in learned_scores
+        ]
+        if not scored:
+            reason = "learned_scores_missing"
+        else:
+            chosen = max(
+                scored,
+                key=lambda candidate: learned_scores[
+                    str(_candidate_record(candidate)["candidate_id"])
+                ],
+            )
+            reason = (
+                "learned_argmax_keep_incumbent"
+                if str(_candidate_record(chosen)["candidate_id"])
+                == incumbent_id
+                else "learned_argmax_switch"
+            )
+    elif policy == "terminal-rollout":
         if not search_result.get("terminal_truth_complete"):
             reason = "terminal_truth_censored"
         else:
@@ -115,13 +147,18 @@ def choose_root_candidate(
                 else:
                     reason = "terminal_frontier_empty"
     selected_id = str(_candidate_record(chosen)["candidate_id"])
-    return chosen, {
+    audit = {
         "policy": policy,
         "reason": reason,
         "switched": selected_id != incumbent_id,
         "incumbent_candidate_id": incumbent_id,
         "selected_candidate_id": selected_id,
     }
+    if learned_scores is not None:
+        audit["learned_scores"] = {
+            key: float(value) for key, value in learned_scores.items()
+        }
+    return chosen, audit
 
 
 def _search_record(result: dict[str, Any]) -> dict[str, Any]:
@@ -187,9 +224,17 @@ def run_episode(
     environment_seed: int, attempt_budget: int, top_k: int,
     rollout_top_k: int, rollout_max_steps: int, max_steps: int,
     policy: str, output_dir: pathlib.Path,
+    model_dir: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    learned_policy = None
+    if policy == "learned":
+        if model_dir is None:
+            raise ValueError("learned policy requires --model-dir")
+        from scripts.learned_allocator_policy import LearnedAllocatorPolicy
+
+        learned_policy = LearnedAllocatorPolicy(model_dir)
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
@@ -254,8 +299,19 @@ def run_episode(
             )
             search_seconds = time.perf_counter() - phase_started
             phase_started = time.perf_counter()
+            learned_scorer = None
+            if learned_policy is not None:
+                search_rows = search.get("root_candidates") or []
+                current_snapshot = snapshot
+
+                def learned_scorer(incumbent_id, _snapshot=current_snapshot,
+                                   _rows=search_rows):
+                    return learned_policy.score_candidates(
+                        _snapshot, _rows, incumbent_id=incumbent_id,
+                    )
             chosen, selection = choose_root_candidate(
                 candidates, search, policy=policy,
+                learned_scorer=learned_scorer,
             )
             selection_seconds = time.perf_counter() - phase_started
             if chosen is None:
@@ -396,8 +452,17 @@ def main() -> int:
     parser.add_argument("--rollout-max-steps", type=int, default=40)
     parser.add_argument("--max-steps", type=int, default=40)
     parser.add_argument("--policy", choices=sorted(POLICIES), required=True)
+    parser.add_argument(
+        "--model-dir", type=pathlib.Path, default=None,
+        help="frozen allocator ensemble directory (learned policy only)",
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
+    if (args.policy == "learned") != (args.model_dir is not None):
+        raise SystemExit(
+            "--model-dir is required for --policy learned and forbidden"
+            " otherwise"
+        )
     require_supported_python()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     task_config = config[args.case] if args.case in config else config
@@ -411,7 +476,15 @@ def main() -> int:
         max_steps=args.max_steps,
         policy=args.policy,
         output_dir=args.output_dir / "episode-000",
+        model_dir=args.model_dir,
     )
+    policy_model = None
+    if args.policy == "learned":
+        policy_model = json.loads(
+            (args.model_dir / "model.json").read_text(encoding="utf-8")
+        )
+        policy_model.pop("members", None)
+        policy_model["model_dir"] = str(args.model_dir)
     manifest = {
         "schema_version": 1,
         "experiment": "single-agent terminal rollout policy",
@@ -419,11 +492,15 @@ def main() -> int:
         "case_id": args.case,
         "environment_seed": args.environment_seed,
         "policy": args.policy,
-        "selection_contract": (
-            "terminal_pareto_dominance_switch_else_legacy_rank0"
-            if args.policy == "terminal-rollout" else "legacy_safe_rank0"
-        ),
+        "selection_contract": {
+            "terminal-rollout": (
+                "terminal_pareto_dominance_switch_else_legacy_rank0"
+            ),
+            "learned": "learned_allocator_argmax_over_safe_candidates",
+            "legacy": "legacy_safe_rank0",
+        }[args.policy],
         "value_model": None,
+        "policy_model": policy_model,
         "timing_contract": {
             "decision": TIMING_CONTRACT,
             "search": "vector_search_wall_clock_v1",

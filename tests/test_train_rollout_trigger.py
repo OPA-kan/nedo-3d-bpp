@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import pathlib
 import subprocess
@@ -15,6 +16,8 @@ from scripts.train_rollout_trigger import (
     load_examples,
     select_operating_points,
 )
+
+TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
 
 
 def snapshot():
@@ -148,6 +151,87 @@ class RolloutTriggerTests(unittest.TestCase):
         self.assertEqual(fast["triggered_roots"], 1)
         self.assertEqual(fast["intervention_recall"], 1.0)
         self.assertGreater(fast["estimated_speedup_vs_full"], 3.0)
+
+    @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
+    def test_saved_ensemble_round_trips_and_scores_live_candidates(self):
+        import torch
+
+        from scripts.learned_allocator_policy import LearnedAllocatorPolicy
+        from scripts.train_rollout_trigger import (
+            load_allocator_ensemble,
+            predict_allocator,
+            save_allocator_ensemble,
+        )
+
+        state = snapshot()
+        state["observation"]["container_list"][0]["center"] = [1, 2, 0]
+        state["observation"]["container_list"][0]["packed_items"] = [
+            {"index": 0, "length": 0.2, "width": 0.2, "height": 0.2,
+             "mass": 1},
+        ]
+        state["physics"]["packed_items"] = [{
+            "container_index": 0, "item_index": 0,
+            "position": [1.0, 2.0, 0.1], "quaternion": [0, 0, 0, 1],
+        }]
+        candidates = [
+            {
+                "root_candidate_id": name, "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.5 + shift, 2.25, 0.5],
+                    "orientation": 2,
+                },
+            }
+            for shift, name in ((0.0, "a"), (0.3, "b"))
+        ]
+        row = {
+            "cell": "cell", "root_id": "r",
+            "snapshot_path": "cell/state.json",
+            "incumbent_candidate_id": "a", "selected_candidate_id": "b",
+            "terminal_intervention": True,
+            "decision_timing": {"decision_total_seconds": 12.0},
+            "estimated_no_terminal_decision_seconds": 2.0,
+            "candidates": candidates,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "cell").mkdir()
+            (root / "cell" / "state.json").write_text(
+                json.dumps(state), encoding="utf-8"
+            )
+            dataset = {
+                "contract": (
+                    "terminal_rollout_trigger_dataset_with_actions_v1"
+                ),
+                "rows": [row, {**row, "cell": "cell2", "root_id": "r2"}],
+            }
+            (root / "dataset.json").write_text(json.dumps(dataset))
+            examples, contract = load_examples(
+                root / "dataset.json", root,
+                candidate_feature_mode="geometry",
+            )
+            model_dir = root / "model"
+            metadata = save_allocator_ensemble(
+                torch, examples, contract, model_dir,
+                ensemble_size=2, epochs=1, dim=8, seed=7,
+            )
+            self.assertEqual(len(metadata["members"]), 2)
+            members, loaded = load_allocator_ensemble(torch, model_dir)
+            self.assertEqual(
+                loaded["feature_contract"]["candidate_feature_mode"],
+                "geometry",
+            )
+            offline = predict_allocator(torch, members, examples)[0]
+            policy = LearnedAllocatorPolicy(model_dir)
+            live = policy.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+        self.assertEqual(set(live), {"a", "b"})
+        self.assertAlmostEqual(sum(live.values()), 1.0, places=5)
+        # the runtime path must reproduce the offline forward pass
+        self.assertAlmostEqual(live["a"], offline[0], places=5)
+        self.assertAlmostEqual(live["b"], offline[1], places=5)
 
     def test_allocator_budget_keeps_incumbent_and_ranks_one_alternative(self):
         examples = [{

@@ -35,8 +35,21 @@ class LeagueWorkflowTests(unittest.TestCase):
         for stream in TRAINING_STREAMS:
             self.assertNotIn(f"stream: {stream}}}", self.text)
 
-    def test_no_value_model_and_frozen_settings(self):
-        self.assertNotIn("--model-dir", self.text)
+    def test_policy_model_only_reaches_the_learned_arm(self):
+        # the policy model is a distilled selection head; V stays banned,
+        # and even the policy model is attached only when the learned arm
+        # is explicitly requested
+        self.assertEqual(self.text.count("--model-dir"), 1)
+        self.assertIn('if [ "$policy" = "learned" ]; then', self.text)
+        self.assertIn(
+            'model_flags="--model-dir reports/league/model"', self.text
+        )
+        self.assertEqual(
+            self.text.count("(inputs.policy || 'legacy') == 'learned'"), 2
+        )
+        self.assertIn("requirements-learning.txt", self.text)
+
+    def test_frozen_settings(self):
         self.assertIn("--environment-seed 42", self.text)
         self.assertIn("--max-steps 40", self.text)
         self.assertIn("--rollout-max-steps 40", self.text)

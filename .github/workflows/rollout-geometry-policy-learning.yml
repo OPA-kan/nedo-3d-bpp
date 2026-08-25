@@ -164,6 +164,7 @@ jobs:
           --epochs "${{ inputs.epochs || '30' }}"
           --dim 48
           --output reports/geometry-policy/oof-report.json
+          --save-model-dir reports/geometry-policy/model
       - name: Publish geometry-only policy capability
         shell: bash
         run: |
@@ -192,3 +193,9 @@ jobs:
         with:
           name: rollout-geometry-policy-${{ github.run_id }}
           path: reports/geometry-policy/
+      # The frozen deployable ensemble under the fixed name the league
+      # match workflow downloads for its learned arm.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollout-policy-model
+          path: reports/geometry-policy/model/

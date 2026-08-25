@@ -82,6 +82,71 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
         self.assertEqual(chosen["candidate_id"], "a")
         self.assertEqual(audit["reason"], "terminal_truth_censored")
 
+    def test_learned_mode_executes_the_ensemble_argmax(self):
+        seen = {}
+
+        def scorer(incumbent_id):
+            seen["incumbent"] = incumbent_id
+            return {"a": 0.2, "b": 0.7, "c": 0.1}
+
+        chosen, audit = choose_root_candidate(
+            self.candidates,
+            search_result(frontier=[]),
+            policy="learned",
+            learned_scorer=scorer,
+        )
+
+        self.assertEqual(seen["incumbent"], "a")
+        self.assertEqual(chosen["candidate_id"], "b")
+        self.assertEqual(audit["reason"], "learned_argmax_switch")
+        self.assertTrue(audit["switched"])
+        self.assertEqual(audit["learned_scores"]["b"], 0.7)
+
+    def test_learned_mode_keeps_incumbent_when_it_scores_highest(self):
+        chosen, audit = choose_root_candidate(
+            self.candidates,
+            search_result(frontier=[]),
+            policy="learned",
+            learned_scorer=lambda _incumbent: {"a": 0.9, "b": 0.05, "c": 0.05},
+        )
+
+        self.assertEqual(chosen["candidate_id"], "a")
+        self.assertEqual(audit["reason"], "learned_argmax_keep_incumbent")
+        self.assertFalse(audit["switched"])
+
+    def test_learned_mode_fails_safe_to_incumbent_without_scores(self):
+        chosen, audit = choose_root_candidate(
+            self.candidates,
+            search_result(frontier=[]),
+            policy="learned",
+            learned_scorer=lambda _incumbent: {},
+        )
+
+        self.assertEqual(chosen["candidate_id"], "a")
+        self.assertEqual(audit["reason"], "learned_scores_missing")
+        self.assertFalse(audit["switched"])
+
+    def test_learned_mode_requires_a_scorer(self):
+        with self.assertRaises(ValueError):
+            choose_root_candidate(
+                self.candidates,
+                search_result(frontier=[]),
+                policy="learned",
+            )
+
+    def test_learned_mode_only_considers_safe_candidates(self):
+        chosen, audit = choose_root_candidate(
+            self.candidates,
+            search_result(frontier=[], safe=("a", "c")),
+            policy="learned",
+            learned_scorer=lambda _incumbent: {
+                "a": 0.2, "b": 0.9, "c": 0.4,
+            },
+        )
+
+        self.assertEqual(chosen["candidate_id"], "c")
+        self.assertEqual(audit["reason"], "learned_argmax_switch")
+
     def test_no_safe_candidate_returns_none(self):
         chosen, audit = choose_root_candidate(
             self.candidates,

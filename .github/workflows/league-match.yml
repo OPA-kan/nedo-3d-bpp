@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       policy:
-        description: Episode policy arm (legacy or terminal-rollout)
+        description: Episode policy arm (legacy, terminal-rollout or learned)
         required: false
         default: "terminal-rollout"
       challenger_name:
@@ -15,6 +15,16 @@ on:
         description: bootstrap | challenge | audit
         required: false
         default: "challenge"
+      model_run_id:
+        description: >-
+          Actions run id whose artifact holds the frozen allocator
+          ensemble (required for the learned arm)
+        required: false
+        default: ""
+      model_artifact:
+        description: Artifact name of the frozen policy model
+        required: false
+        default: "rollout-policy-model"
   # Bootstrap trigger: edits to this workflow re-run the legacy anchor
   # arm — first time as league bootstrap, afterwards as a determinism
   # audit against the committed registry.
@@ -26,6 +36,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: league-match-${{ github.run_id }}
@@ -57,6 +68,17 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-simulator.txt
       - run: pip install -r requirements-simulator.txt
+      - name: Install learning stack (learned arm only)
+        if: (inputs.policy || 'legacy') == 'learned'
+        run: pip install -r requirements-learning.txt
+      - name: Fetch frozen policy model (learned arm only)
+        if: (inputs.policy || 'legacy') == 'learned'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.model_artifact }}
+          run-id: ${{ inputs.model_run_id }}
+          github-token: ${{ github.token }}
+          path: reports/league/model
       - name: Verify league contracts
         run: >-
           python -m unittest
@@ -69,18 +91,26 @@ jobs:
           --stream-variant "${{ matrix.stream }}"
           --output-dir reports/league/configs/${{ matrix.cell }}
       - name: Run frozen eval episode
-        run: >-
-          python scripts/run_terminal_rollout_policy.py
-          --config reports/league/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json
-          --case m-${{ matrix.scenario }}
-          --environment-seed 42
-          --attempt-budget 128
-          --top-k 3
-          --rollout-top-k 3
-          --rollout-max-steps 40
-          --max-steps 40
-          --policy "${{ inputs.policy || 'legacy' }}"
-          --output-dir reports/league/episodes/${{ matrix.cell }}/rollout
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy="${{ inputs.policy || 'legacy' }}"
+          model_flags=""
+          if [ "$policy" = "learned" ]; then
+            model_flags="--model-dir reports/league/model"
+          fi
+          python scripts/run_terminal_rollout_policy.py \
+            --config reports/league/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json \
+            --case m-${{ matrix.scenario }} \
+            --environment-seed 42 \
+            --attempt-budget 128 \
+            --top-k 3 \
+            --rollout-top-k 3 \
+            --rollout-max-steps 40 \
+            --max-steps 40 \
+            --policy "$policy" \
+            $model_flags \
+            --output-dir reports/league/episodes/${{ matrix.cell }}/rollout
       - uses: actions/upload-artifact@v4
         if: always()
         with:

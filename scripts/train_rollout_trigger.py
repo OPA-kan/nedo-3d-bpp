@@ -105,6 +105,27 @@ def _geometry_candidate_token(
     )
 
 
+def candidate_token(
+    mode: str, snapshot: dict[str, Any], candidate: dict[str, Any],
+    item_values: list[float], *, incumbent: bool,
+) -> list[float] | None:
+    """Build one candidate token; None when required inputs are missing."""
+    if mode == "h1":
+        vector = candidate.get("one_step_vector") or {}
+        if not all(
+            isinstance(vector.get(name), (int, float))
+            for name, _direction in CANDIDATE_HEADS
+        ):
+            return None
+        return [
+            direction * float(vector[name])
+            for name, direction in CANDIDATE_HEADS
+        ] + list(item_values) + [float(incumbent)]
+    return _geometry_candidate_token(
+        snapshot, candidate, list(item_values), incumbent=incumbent,
+    )
+
+
 def load_examples(
     dataset_path: pathlib.Path, dataset_root: pathlib.Path,
     *, candidate_feature_mode: str = "h1",
@@ -146,24 +167,13 @@ def load_examples(
                 int(candidate.get("stable_item_index", -1)),
                 [0.0] * len(ITEM_TENSOR_FEATURES),
             )
-            if candidate_feature_mode == "h1":
-                vector = candidate.get("one_step_vector") or {}
-                if not all(
-                    isinstance(vector.get(name), (int, float))
-                    for name, _direction in CANDIDATE_HEADS
-                ):
-                    continue
-                token = [
-                    direction * float(vector[name])
-                    for name, direction in CANDIDATE_HEADS
-                ] + list(item_values) + [
-                    float(candidate.get("root_candidate_id") == incumbent)
-                ]
-            else:
-                token = _geometry_candidate_token(
-                    snapshot, candidate, list(item_values),
-                    incumbent=candidate.get("root_candidate_id") == incumbent,
-                )
+            token = candidate_token(
+                candidate_feature_mode, snapshot, candidate,
+                list(item_values),
+                incumbent=candidate.get("root_candidate_id") == incumbent,
+            )
+            if token is None:
+                continue
             candidate_tokens.append(token)
             candidate_ids.append(str(candidate["root_candidate_id"]))
             candidate_work.append(float(
@@ -541,6 +551,95 @@ def predict_allocator(torch, members, examples: list[dict[str, Any]]):
     ]
 
 
+POLICY_MODEL_CONTRACT = "rollout_allocator_policy_ensemble_v1"
+
+
+def save_allocator_ensemble(
+    torch, examples: list[dict[str, Any]], feature_contract: dict[str, Any],
+    output_dir: pathlib.Path, *, ensemble_size: int, epochs: int, dim: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Fit the final allocator ensemble on every example and freeze it.
+
+    Unlike the OOF gates this trains on the whole corpus: the saved model
+    is the deployable policy head, not an evaluation artifact, and its
+    honest report card is the league match it must win on frozen streams.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    member_meta = []
+    widths = None
+    for member in range(ensemble_size):
+        model, stats = fit_allocator_member(
+            torch, examples, seed=seed + 90_000 + member,
+            epochs=epochs, dim=dim,
+        )
+        widths = {key: len(stats[key][0]) for key in SET_KEYS}
+        weights_name = f"member-{member:02d}.pt"
+        torch.save(model.state_dict(), output_dir / weights_name)
+        member_meta.append({
+            "weights": weights_name,
+            "seed": seed + 90_000 + member,
+            "stats": {
+                key: {
+                    "mean": [float(v) for v in stats[key][0]],
+                    "scale": [float(v) for v in stats[key][1]],
+                }
+                for key in SET_KEYS
+            },
+        })
+    metadata = {
+        "contract": POLICY_MODEL_CONTRACT,
+        "dim": dim,
+        "ensemble_size": ensemble_size,
+        "epochs": epochs,
+        "seed": seed,
+        "widths": widths,
+        "training_rows": len(examples),
+        "training_groups": sorted({row["group"] for row in examples}),
+        "feature_contract": feature_contract,
+        "members": member_meta,
+    }
+    (output_dir / "model.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return metadata
+
+
+def load_allocator_ensemble(
+    torch, model_dir: pathlib.Path,
+) -> tuple[list[tuple[Any, dict[str, Any]]], dict[str, Any]]:
+    metadata = json.loads(
+        (model_dir / "model.json").read_text(encoding="utf-8")
+    )
+    if metadata.get("contract") != POLICY_MODEL_CONTRACT:
+        raise ValueError(
+            f"unsupported policy model contract: {metadata.get('contract')}"
+        )
+    widths = {key: int(metadata["widths"][key]) for key in SET_KEYS}
+    members = []
+    for member in metadata.get("members") or []:
+        model = build_allocator_model(
+            torch, widths, dim=int(metadata["dim"])
+        )
+        model.load_state_dict(torch.load(
+            model_dir / member["weights"], map_location="cpu",
+            weights_only=True,
+        ))
+        model.eval()
+        stats = {
+            key: (
+                np.asarray(member["stats"][key]["mean"], dtype=np.float32),
+                np.asarray(member["stats"][key]["scale"], dtype=np.float32),
+            )
+            for key in SET_KEYS
+        }
+        members.append((model, stats))
+    if not members:
+        raise ValueError("policy model directory contains no ensemble members")
+    return members, metadata
+
+
 def auc(labels: np.ndarray, scores: np.ndarray) -> float | None:
     positives = scores[labels > 0.5]
     negatives = scores[labels <= 0.5]
@@ -848,6 +947,13 @@ def main() -> int:
         default="h1",
     )
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--save-model-dir", type=pathlib.Path, default=None,
+        help=(
+            "freeze the deployable allocator ensemble (trained on all"
+            " examples) into this directory"
+        ),
+    )
     args = parser.parse_args()
     import torch
 
@@ -870,6 +976,13 @@ def main() -> int:
     result["evaluation_scope"] = (
         "development group-OOF; threshold still needs a fresh cohort gate"
     )
+    if args.save_model_dir is not None:
+        result["policy_model"] = save_allocator_ensemble(
+            torch, examples, feature_contract, args.save_model_dir,
+            ensemble_size=args.ensemble_size, epochs=args.epochs,
+            dim=args.dim, seed=args.seed,
+        )
+        result["policy_model"]["saved_to"] = str(args.save_model_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n",
