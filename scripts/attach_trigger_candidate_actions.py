@@ -24,8 +24,12 @@ def attach(
     cells = [str(row["cell"]) for row in recoveries]
     if len(cells) != len(set(cells)):
         raise ValueError("duplicate candidate action recovery cells")
+    # Key by (cell, root_id): board fingerprints ignore container
+    # geometry, so an all-empty board shared by two scenarios on the same
+    # stream yields the same root_id in different cells with different
+    # candidate sets. A flat root_id map silently cross-wires them.
     action_maps = {
-        str(root_id): actions
+        (str(recovery["cell"]), str(root_id)): actions
         for recovery in recoveries
         for root_id, actions in recovery["actions"].items()
     }
@@ -33,15 +37,17 @@ def attach(
     result["contract"] = "terminal_rollout_trigger_dataset_with_actions_v1"
     attached = 0
     for row in result.get("rows") or []:
-        root_id = str(row["root_id"])
-        if root_id not in action_maps:
-            raise ValueError(f"missing action recovery for root {root_id}")
+        key = (str(row["cell"]), str(row["root_id"]))
+        if key not in action_maps:
+            raise ValueError(
+                f"missing action recovery for root {key[1]} in {key[0]}"
+            )
         for candidate in row.get("candidates") or []:
             candidate_id = str(candidate["root_candidate_id"])
-            action = action_maps[root_id].get(candidate_id)
+            action = action_maps[key].get(candidate_id)
             if action is None:
                 raise ValueError(
-                    f"missing action for {root_id}/{candidate_id}"
+                    f"missing action for {key[1]}/{candidate_id}"
                 )
             candidate["command_action"] = action
             attached += 1
