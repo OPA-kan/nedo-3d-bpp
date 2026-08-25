@@ -210,6 +210,14 @@
       <span class="mono" style="margin-left:auto;color:var(--muted);font-size:12px" id="mc-counts"></span>
     </div>
     <div class="chips" id="cell-chips"></div>
+    <div class="legend" style="margin-top:10px">
+      <span>金縁 = priority品</span>
+      <span>斜線 = soft品</span>
+      <span>赤縁＋● = 違反の疑い（箱マーカーは推定 / 数値カウンタが公式）</span>
+      <span>金リム容器 = ★優先専用</span>
+      <span>▤ = 中段棚（+y半分）</span>
+      <span>◣ = 前部カット＋小棚</span>
+    </div>
     <div class="div-banner" id="div-banner"></div>
     <div class="stage">
       <div class="pane challenger">
@@ -410,49 +418,108 @@ function makeView(containers) {
     return [ (x-y)*COS*scale + ox, h - ((x+y)*SIN - z)*scale - oy ];
   };
 }
-function boxFaces(ctx, proj, cx, cy, cz, dx, dy, dz, hue, glow) {
+function boxFaces(ctx, proj, cx, cy, cz, dx, dy, dz, hue, glow, flags) {
+  flags = flags || 0;
+  const soft = !!(flags & 1), prio = !!(flags & 2), viol = !!(flags & 12);
   const x0=cx-dx/2, x1=cx+dx/2, y0=cy-dy/2, y1=cy+dy/2, z0=cz-dz/2, z1=cz+dz/2;
   const P = (x,y,z)=>proj(x,y,z);
   const top = [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)];
   const right = [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)];
   const front = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)];
+  const sat = soft ? 26 : 42;
+  const stroke = glow ? "#e2b555" : viol ? "#e05f5c"
+               : prio ? "#e2b555" : `hsl(${hue} 30% 18%)`;
+  const lw = glow ? 2 : viol ? 1.8 : prio ? 1.4 : 0.7;
   const face = (pts, light) => {
     ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
     for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]);
     ctx.closePath();
-    ctx.fillStyle = `hsl(${hue} 42% ${light}%)`;
+    ctx.fillStyle = `hsl(${hue} ${sat}% ${light}%)`;
     ctx.fill();
-    ctx.strokeStyle = glow ? "#e2b555" : `hsl(${hue} 30% 18%)`;
-    ctx.lineWidth = glow ? 2 : 0.7;
-    ctx.stroke();
+    ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
   };
-  face(front, 34); face(right, 26); face(top, 52);
+  face(front, soft ? 40 : 34); face(right, soft ? 32 : 26);
+  face(top, soft ? 58 : 52);
+  if (soft) { // hatch the top face so soft cargo reads at a glance
+    ctx.strokeStyle = `hsl(${hue} 25% 30%)`; ctx.lineWidth = 0.8;
+    for (const f of [0.3, 0.6]) {
+      const a = P(x0 + (x1-x0)*f, y0, z1), b = P(x0, y0 + (y1-y0)*f, z1);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      const c2 = P(x1, y0 + (y1-y0)*(1-f), z1), d = P(x0 + (x1-x0)*(1-f), y1, z1);
+      ctx.beginPath(); ctx.moveTo(c2[0],c2[1]); ctx.lineTo(d[0],d[1]); ctx.stroke();
+    }
+  }
+  if (viol) { // red dot floating over the offending box
+    const m = P((x0+x1)/2, (y0+y1)/2, z1 + 0.06);
+    ctx.beginPath(); ctx.arc(m[0], m[1], 3.4, 0, Math.PI*2);
+    ctx.fillStyle = "#e05f5c"; ctx.fill();
+  }
 }
 function drawContainer(ctx, proj, c) {
-  const x0=c.center[0]-c.length/2, x1=c.center[0]+c.length/2;
-  const y0=c.center[1]-c.width/2, y1=c.center[1]+c.width/2;
+  const cx=c.center[0], cy=c.center[1];
+  const x0=cx-c.length/2, x1=cx+c.length/2;
+  const y0=cy-c.width/2, y1=cy+c.width/2;
   const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  const t=c.thickness||0.04;
+  const shelfZ = z0 + c.height/2 + t/2;
   const P=(x,y,z)=>proj(x,y,z);
-  ctx.strokeStyle = "#31405280"; ctx.lineWidth = 1;
+  const rim = c.prioritized ? "#e2b555aa" : "#31405280";
+  ctx.strokeStyle = rim; ctx.lineWidth = c.prioritized ? 1.4 : 1;
   const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
     for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
-  ctx.fillStyle = "#12181f";
+  const fillPoly = (pts, fill) => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); };
   const floor = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)];
-  ctx.beginPath(); ctx.moveTo(floor[0][0],floor[0][1]);
-  for (const p of floor.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.fill();
-  poly(floor);
-  if (c.shelf_z != null) {
-    const shelf = [P(x0,y0,c.shelf_z),P(x1,y0,c.shelf_z),P(x1,y1,c.shelf_z),P(x0,y1,c.shelf_z)];
-    ctx.fillStyle = "#1d2733aa";
-    ctx.beginPath(); ctx.moveTo(shelf[0][0],shelf[0][1]);
-    for (const p of shelf.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#3d4f64"; poly(shelf); ctx.strokeStyle = "#31405280";
+  fillPoly(floor, "#12181f"); poly(floor);
+  // front wedge cut: the -x nose is sliced (0.5*cut_x*cut_y*width)
+  if (c.cut_x > 0 && c.cut_y > 0) {
+    const slant = [P(x0,y0,z0+c.cut_y),P(x0+c.cut_x,y0,z0),
+                   P(x0+c.cut_x,y1,z0),P(x0,y1,z0+c.cut_y)];
+    fillPoly(slant, "#1a232f88");
+    ctx.strokeStyle = "#3d4f64"; poly(slant); ctx.strokeStyle = rim;
+    // small shelf plate sits above the cut
+    const sx1 = x0 + c.cut_x + t;
+    const small = [P(x0+t,y0+t,shelfZ),P(sx1,y0+t,shelfZ),
+                   P(sx1,y1-t,shelfZ),P(x0+t,y1-t,shelfZ)];
+    fillPoly(small, "#223041cc");
+    ctx.strokeStyle = "#48607a"; poly(small); ctx.strokeStyle = rim;
   }
+  // main shelf covers the +y half at mid height
+  if (c.shelf) {
+    const shelf = [P(x0+t/2,cy+t,shelfZ),P(x1-t/2,cy+t,shelfZ),
+                   P(x1-t/2,y1-t,shelfZ),P(x0+t/2,y1-t,shelfZ)];
+    fillPoly(shelf, "#223041cc");
+    ctx.strokeStyle = "#48607a"; poly(shelf); ctx.strokeStyle = rim;
+  }
+}
+function drawContainerCage(ctx, proj, c) {
+  // stroked AFTER the boxes so the frame reads on top and nothing
+  // looks like it pokes out of the container
+  const cx=c.center[0], cy=c.center[1];
+  const x0=cx-c.length/2, x1=cx+c.length/2;
+  const y0=cy-c.width/2, y1=cy+c.width/2;
+  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  const P=(x,y,z)=>proj(x,y,z);
+  ctx.strokeStyle = c.prioritized ? "#e2b555cc" : "#41546b";
+  ctx.lineWidth = c.prioritized ? 1.4 : 1;
+  const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
+  poly([P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)]);
   poly([P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)]);
   for (const [x,y] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]) {
     const a=P(x,y,z0), b=P(x,y,z1);
     ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
   }
+  const lbl = P(x0, y0, z0);
+  ctx.font = "10px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = c.prioritized ? "#e2b555" : "#8b98a8";
+  ctx.textAlign = "left";
+  let text = "容器" + c.index;
+  if (c.prioritized) text += " ★優先専用";
+  if (c.shelf) text += " ▤棚";
+  if (c.cut_x > 0) text += " ◣カット";
+  ctx.fillText(text, lbl[0], lbl[1] + 16);
 }
 function drawArm(canvasId, armName, footId, metricsId) {
   const c = cellData();
@@ -472,8 +539,10 @@ function drawArm(canvasId, armName, footId, metricsId) {
     const hue = (r[1] * 47) % 360;
     const isNew = last && r[1] === last.item && r[0] === last.cont;
     boxFaces(ctx, proj, r[2], r[3], r[4], r[5], r[6], r[7], hue,
-             isNew && (last.switched || last.t === c.divergence_turn));
+             isNew && (last.switched || last.t === c.divergence_turn),
+             r[8]);
   }
+  for (const cont of c.containers) drawContainerCage(ctx, proj, cont);
   const foot = document.getElementById(footId);
   if (!last) {
     foot.textContent = (c.initial_board && c.initial_board.length)
@@ -483,6 +552,14 @@ function drawArm(canvasId, armName, footId, metricsId) {
     let html = "";
     if (last.switched) html += `<span class="sw-badge">⚡ SWITCH${last.conf!=null ? " " + Math.round(last.conf*100) + "%" : ""}</span>`;
     html += `T${last.t}: item ${last.item} → 容器${last.cont}`;
+    if (last.viol) {
+      const [sc, pc, mr] = last.viol;
+      const chunk = (label, value) => value > 0
+        ? ` <span class="dead">${label}${value}</span>` : ` ${label}0`;
+      html += ` ·<span style="color:var(--faint)">違反:</span>`
+        + chunk("soft被覆", sc) + chunk("優先被覆", pc)
+        + chunk("誤ルート", mr);
+    }
     if (turn >= arm.steps.length) {
       const t = arm.termination;
       const genuine = ["stream_exhausted", "no_retained_candidate",
