@@ -25,6 +25,8 @@ from scripts.counterfactual_graph import (  # noqa: E402
     state_tensor_from_snapshot,
 )
 from scripts.train_rollout_trigger import (  # noqa: E402
+    _torch_batch,
+    build_arrays,
     candidate_token,
     load_allocator_ensemble,
     predict_allocator,
@@ -59,11 +61,11 @@ class LearnedAllocatorPolicy:
             self.metadata.get("switch_threshold") or 0.5
         )
 
-    def score_candidates(
+    def build_example(
         self, snapshot: dict[str, Any],
         root_candidates: list[dict[str, Any]], *, incumbent_id: str,
-    ) -> dict[str, float]:
-        """Return {candidate_id: probability} over the safe candidates."""
+    ) -> dict[str, Any] | None:
+        """Build the live training-format example, or None to fail safe."""
         # replicate the training-time input exactly: examples were built
         # from json round-tripped snapshots on disk
         snapshot = json.loads(json.dumps(json_safe(snapshot)))
@@ -89,16 +91,16 @@ class LearnedAllocatorPolicy:
             tokens.append(token)
             candidate_ids.append(str(row["root_candidate_id"]))
         if not tokens:
-            return {}
+            return None
         if self.objective == "preference" and incumbent_id not in candidate_ids:
             # preference deltas are meaningless without the incumbent in
             # the scored set; fail safe (runner keeps the incumbent)
-            return {}
+            return None
         incumbent_index = (
             candidate_ids.index(incumbent_id)
             if incumbent_id in candidate_ids else 0
         )
-        example = {
+        return {
             "group": "live",
             "root_id": "live",
             "container": state["container_values"],
@@ -110,6 +112,18 @@ class LearnedAllocatorPolicy:
             "selected_index": 0,
             "label": 0.0,
         }
+
+    def score_candidates(
+        self, snapshot: dict[str, Any],
+        root_candidates: list[dict[str, Any]], *, incumbent_id: str,
+    ) -> dict[str, float]:
+        """Return {candidate_id: probability} over the safe candidates."""
+        example = self.build_example(
+            snapshot, root_candidates, incumbent_id=incumbent_id,
+        )
+        if example is None:
+            return {}
+        candidate_ids = example["candidate_ids"]
         if self.objective == "preference":
             # sigmoid(score_j - score_incumbent): the incumbent's own
             # entry is exactly 0.5; raising it to the switch threshold
@@ -125,3 +139,162 @@ class LearnedAllocatorPolicy:
             return scores
         scores = predict_allocator(self._torch, self.members, [example])[0]
         return dict(zip(candidate_ids, scores))
+
+
+class OnlineAdapterPolicy(LearnedAllocatorPolicy):
+    """Frozen champion body + per-episode preference-head adapter.
+
+    theta (the loaded ensemble) is never modified; phi is a per-member
+    delta on the final linear scoring head, starts at zero, and lives
+    only as long as this object (one episode).  Updates come only from
+    strict-dominance A/B fork outcomes, as one-to-few pairwise-logistic
+    SGD steps under a hard trust region — online preference
+    calibration, not online RL.
+    """
+
+    def __init__(
+        self, model_dir: pathlib.Path, *, learning_rate: float = 0.05,
+        update_steps: int = 2, trust_radius: float = 1.0,
+    ):
+        super().__init__(model_dir)
+        if self.objective != "preference":
+            raise ValueError(
+                "online adapter requires a preference-objective ensemble"
+            )
+        torch = self._torch
+        self.learning_rate = float(learning_rate)
+        self.update_steps = int(update_steps)
+        self.trust_radius = float(trust_radius)
+        self.updates_applied = 0
+        self._adapters = []
+        for model, _stats in self.members:
+            head = model.score[2]
+            self._adapters.append((
+                torch.zeros(int(head.in_features), requires_grad=True),
+                torch.zeros(1, requires_grad=True),
+            ))
+
+    def _member_logits(self, member_index: int, example: dict[str, Any]):
+        """Frozen base logits and penultimate activations (no grad)."""
+        import numpy as np
+
+        torch = self._torch
+        model, stats = self.members[member_index]
+        arrays = build_arrays([example], stats)
+        batch = _torch_batch(torch, arrays, np.arange(1))
+        captured: dict[str, Any] = {}
+        handle = model.score[2].register_forward_hook(
+            lambda _module, inputs, _output: captured.__setitem__(
+                "z", inputs[0]
+            )
+        )
+        try:
+            with torch.no_grad():
+                logits = model(batch)
+        finally:
+            handle.remove()
+        return logits[0], captured["z"][0]
+
+    def _adapted_deltas(self, example: dict[str, Any]):
+        """Per-member adapted (logit - incumbent logit); phi carries grad."""
+        incumbent = int(example["incumbent_index"])
+        deltas = []
+        for index in range(len(self.members)):
+            base, activations = self._member_logits(index, example)
+            weight, bias = self._adapters[index]
+            adapted = base + activations @ weight + bias
+            deltas.append(adapted - adapted[incumbent])
+        return deltas
+
+    def _pair_probability(
+        self, example: dict[str, Any], candidate_index: int,
+    ) -> float:
+        torch = self._torch
+        with torch.no_grad():
+            return float(torch.stack([
+                torch.sigmoid(delta[candidate_index])
+                for delta in self._adapted_deltas(example)
+            ]).mean())
+
+    def adapter_norms(self) -> list[float]:
+        torch = self._torch
+        with torch.no_grad():
+            return [
+                float(torch.sqrt(
+                    weight.pow(2).sum() + bias.pow(2).sum()
+                ))
+                for weight, bias in self._adapters
+            ]
+
+    def score_candidates(
+        self, snapshot: dict[str, Any],
+        root_candidates: list[dict[str, Any]], *, incumbent_id: str,
+    ) -> dict[str, float]:
+        example = self.build_example(
+            snapshot, root_candidates, incumbent_id=incumbent_id,
+        )
+        if example is None:
+            return {}
+        torch = self._torch
+        with torch.no_grad():
+            probabilities = torch.stack([
+                torch.sigmoid(delta)
+                for delta in self._adapted_deltas(example)
+            ]).mean(dim=0)
+        scores = dict(zip(
+            example["candidate_ids"], map(float, probabilities)
+        ))
+        scores[incumbent_id] = max(
+            self.switch_threshold, scores[incumbent_id]
+        )
+        return scores
+
+    def update_from_fork(
+        self, snapshot: dict[str, Any],
+        root_candidates: list[dict[str, Any]], *, incumbent_id: str,
+        alternate_id: str, alternate_wins: bool,
+    ) -> dict[str, Any] | None:
+        """SGD on phi from one strict-dominance fork verdict, or None."""
+        torch = self._torch
+        example = self.build_example(
+            snapshot, root_candidates, incumbent_id=incumbent_id,
+        )
+        if example is None or alternate_id not in example["candidate_ids"]:
+            return None
+        index = example["candidate_ids"].index(alternate_id)
+        target = torch.tensor(1.0 if alternate_wins else 0.0)
+        before = self._pair_probability(example, index)
+        parameters = [
+            parameter for pair in self._adapters for parameter in pair
+        ]
+        for _ in range(self.update_steps):
+            loss = sum(
+                torch.nn.functional.binary_cross_entropy_with_logits(
+                    delta[index], target
+                )
+                for delta in self._adapted_deltas(example)
+            ) / len(self.members)
+            gradients = torch.autograd.grad(loss, parameters)
+            with torch.no_grad():
+                flat = iter(gradients)
+                for weight, bias in self._adapters:
+                    weight -= self.learning_rate * next(flat)
+                    bias -= self.learning_rate * next(flat)
+                    norm = torch.sqrt(
+                        weight.pow(2).sum() + bias.pow(2).sum()
+                    )
+                    if float(norm) > self.trust_radius:
+                        scale = self.trust_radius / float(norm)
+                        weight *= scale
+                        bias *= scale
+        after = self._pair_probability(example, index)
+        self.updates_applied += 1
+        return {
+            "alternate_probability_before": before,
+            "alternate_probability_after": after,
+            "alternate_wins": bool(alternate_wins),
+            "update_steps": self.update_steps,
+            "learning_rate": self.learning_rate,
+            "trust_radius": self.trust_radius,
+            "adapter_norms": self.adapter_norms(),
+        }

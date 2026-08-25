@@ -58,6 +58,11 @@ def main() -> int:
     parser.add_argument("--bootstrap", action="store_true")
     parser.add_argument("--audit-anchor", action="store_true")
     parser.add_argument("--promote-on-pass", action="store_true")
+    parser.add_argument(
+        "--exhibition", action="store_true",
+        help="full paired report, but never promote and never write a"
+             " registry (SLA-exempt arms: online clones, rule studs)",
+    )
     parser.add_argument("--report", type=pathlib.Path, required=True)
     parser.add_argument("--registry-out", type=pathlib.Path)
     for key, value in DEFAULT_PARAMS.items():
@@ -125,9 +130,17 @@ def main() -> int:
                           "drifted": sorted(drift)}, indent=2))
         return 0 if not drift else 1
 
+    if args.exhibition and args.promote_on_pass:
+        raise SystemExit("--exhibition and --promote-on-pass are exclusive")
     decision = promotion_decision(outcomes, registry, params)
     decision["challenger"] = args.challenger_name
     decision["source"] = args.source
+    if args.exhibition:
+        # exhibitions report everything but decide nothing: the arm is
+        # outside the SLA (or a diversity stud) and can never gate,
+        # veto, or hold the title
+        decision["exhibition"] = True
+        decision["promoted"] = False
     args.report.write_text(
         json.dumps(decision, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

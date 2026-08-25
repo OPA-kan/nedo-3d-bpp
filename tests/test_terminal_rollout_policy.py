@@ -147,6 +147,84 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
         self.assertEqual(chosen["candidate_id"], "c")
         self.assertEqual(audit["reason"], "learned_argmax_switch")
 
+    def test_online_mode_scores_like_learned_and_requires_a_scorer(self):
+        chosen, audit = choose_root_candidate(
+            self.candidates,
+            search_result(frontier=[]),
+            policy="online",
+            learned_scorer=lambda _incumbent: {"a": 0.2, "b": 0.7, "c": 0.1},
+        )
+        self.assertEqual(chosen["candidate_id"], "b")
+        self.assertEqual(audit["reason"], "learned_argmax_switch")
+        with self.assertRaises(ValueError):
+            choose_root_candidate(
+                self.candidates, search_result(frontier=[]), policy="online",
+            )
+
+    def _rule_candidates(self):
+        rows = []
+        cands = []
+        for name, rank, pos, orientation, com, fill in (
+            # a: off-grid, central, low CoM delta
+            ("a", 0, [0.11, 0.07, 0.5], 1, 0.10, 0.5),
+            # b: exactly on the 0.25 lattice, mid-distance, high CoM
+            ("b", 1, [0.25, -0.50, 0.5], 0, 0.90, 0.5),
+            # c: far corner hugger, mid CoM
+            ("c", 2, [0.95, 0.90, 0.5], 1, 0.40, 0.5),
+        ):
+            row = candidate(name, rank)
+            row["command_action"]["place_pos"] = pos
+            row["command_action"]["orientation"] = orientation
+            cands.append(row)
+            rows.append({
+                "root_candidate_id": name, "safe": True,
+                "one_step_vector": {
+                    "center_of_mass_z_delta": com, "fill_gain": fill,
+                    "soft_violation_gain": 0.0,
+                    "priority_covered_gain": 0.0,
+                    "priority_misrouted_gain": 0.0,
+                },
+            })
+        return cands, {"root_candidates": rows}
+
+    def test_rule_grid_snaps_to_the_lattice(self):
+        cands, search = self._rule_candidates()
+        chosen, audit = choose_root_candidate(
+            cands, search, policy="rule-grid",
+        )
+        self.assertEqual(chosen["candidate_id"], "b")
+        self.assertEqual(audit["reason"], "rule_heuristic_argmin")
+
+    def test_rule_lowcog_minimizes_center_of_mass_delta(self):
+        cands, search = self._rule_candidates()
+        chosen, _audit = choose_root_candidate(
+            cands, search, policy="rule-lowcog",
+        )
+        self.assertEqual(chosen["candidate_id"], "a")
+
+    def test_rule_edge_hugs_the_perimeter(self):
+        cands, search = self._rule_candidates()
+        chosen, _audit = choose_root_candidate(
+            cands, search, policy="rule-edge",
+        )
+        self.assertEqual(chosen["candidate_id"], "c")
+
+    def test_rule_heuristics_break_ties_away_from_violations(self):
+        from scripts.run_terminal_rollout_policy import rule_heuristic_key
+
+        action = {"place_pos": [0.25, 0.25, 0.5], "orientation": 0}
+        clean = rule_heuristic_key(
+            "rule-grid", action,
+            {"center_of_mass_z_delta": 0.5, "fill_gain": 0.5,
+             "soft_violation_gain": 0.0},
+        )
+        dirty = rule_heuristic_key(
+            "rule-grid", action,
+            {"center_of_mass_z_delta": 0.5, "fill_gain": 0.5,
+             "soft_violation_gain": 1.0},
+        )
+        self.assertLess(clean, dirty)
+
     def test_no_safe_candidate_returns_none(self):
         chosen, audit = choose_root_candidate(
             self.candidates,

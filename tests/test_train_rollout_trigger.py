@@ -316,6 +316,129 @@ class RolloutTriggerTests(unittest.TestCase):
         self.assertTrue(0.0 < live["b"] < 1.0)
 
     @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
+    def test_online_adapter_starts_frozen_and_learns_from_fork_verdicts(self):
+        import torch
+
+        from scripts.learned_allocator_policy import (
+            LearnedAllocatorPolicy,
+            OnlineAdapterPolicy,
+        )
+        from scripts.train_rollout_trigger import (
+            load_examples as load,
+            save_allocator_ensemble,
+        )
+
+        state = snapshot()
+        state["observation"]["container_list"][0]["center"] = [1, 2, 0]
+        state["observation"]["container_list"][0]["packed_items"] = [
+            {"index": 0, "length": 0.2, "width": 0.2, "height": 0.2,
+             "mass": 1},
+        ]
+        state["physics"]["packed_items"] = [{
+            "container_index": 0, "item_index": 0,
+            "position": [1.0, 2.0, 0.1], "quaternion": [0, 0, 0, 1],
+        }]
+        vector = {
+            "fill_gain": 1.0, "soft_violation_gain": 0.0,
+            "priority_covered_gain": 0.0, "priority_misrouted_gain": 0.0,
+            "surface_total_variation_delta": 0.0,
+        }
+        candidates = [
+            {
+                "root_candidate_id": name, "safe": True,
+                "stable_item_index": 3,
+                "command_action": {
+                    "item_idx": 3, "container_idx": 0,
+                    "place_pos": [1.5 + shift, 2.25, 0.5],
+                    "orientation": 2,
+                },
+                "terminal_genuine": True,
+                "terminal_vector": {**vector, "fill_gain": fill},
+            }
+            for shift, name, fill in (
+                (0.0, "a", 1.0), (0.3, "b", 1.5),
+            )
+        ]
+        row = {
+            "cell": "cell", "root_id": "r",
+            "snapshot_path": "cell/state.json",
+            "incumbent_candidate_id": "a", "selected_candidate_id": "b",
+            "terminal_intervention": True,
+            "decision_timing": {"decision_total_seconds": 12.0},
+            "estimated_no_terminal_decision_seconds": 2.0,
+            "candidates": candidates,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "cell").mkdir()
+            (root / "cell" / "state.json").write_text(
+                json.dumps(state), encoding="utf-8"
+            )
+            dataset = {
+                "contract": (
+                    "terminal_rollout_trigger_dataset_with_actions_v1"
+                ),
+                "rows": [row, {**row, "cell": "cell2", "root_id": "r2"}],
+            }
+            (root / "dataset.json").write_text(json.dumps(dataset))
+            examples, contract = load(
+                root / "dataset.json", root,
+                candidate_feature_mode="geometry",
+            )
+            model_dir = root / "model"
+            save_allocator_ensemble(
+                torch, examples, contract, model_dir,
+                ensemble_size=2, epochs=2, dim=8, seed=7,
+                objective="preference",
+            )
+            frozen = LearnedAllocatorPolicy(model_dir)
+            online = OnlineAdapterPolicy(
+                model_dir, learning_rate=0.5, update_steps=3,
+                trust_radius=1.0,
+            )
+            base = frozen.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+            fresh = online.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+            # phi = 0: the adapted policy IS the frozen champion
+            self.assertAlmostEqual(fresh["b"], base["b"], places=5)
+            self.assertEqual(fresh["a"], 0.5)
+            frozen_weights = [
+                parameter.detach().clone()
+                for model, _stats in online.members
+                for parameter in model.parameters()
+            ]
+            update = online.update_from_fork(
+                state, candidates, incumbent_id="a", alternate_id="b",
+                alternate_wins=True,
+            )
+            adapted = online.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+            # the fork verdict moves the pair probability toward the
+            # winner while the champion body stays bit-identical
+            self.assertGreater(adapted["b"], fresh["b"])
+            self.assertGreater(
+                update["alternate_probability_after"],
+                update["alternate_probability_before"],
+            )
+            for norm in update["adapter_norms"]:
+                self.assertLessEqual(norm, 1.0 + 1e-6)
+            index = 0
+            for model, _stats in online.members:
+                for parameter in model.parameters():
+                    self.assertTrue(torch.equal(
+                        frozen_weights[index], parameter.detach()
+                    ))
+                    index += 1
+            still = frozen.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+            self.assertAlmostEqual(still["b"], base["b"], places=5)
+
+    @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
     def test_saved_ensemble_round_trips_and_scores_live_candidates(self):
         import torch
 

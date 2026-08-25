@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       policy:
-        description: Episode policy arm (legacy, terminal-rollout or learned)
+        description: >-
+          Episode policy arm (legacy, terminal-rollout, learned, online,
+          rule-grid, rule-lowcog or rule-edge)
         required: false
         default: "terminal-rollout"
       challenger_name:
@@ -12,7 +14,7 @@ on:
         required: false
         default: "pi0-search"
       mode:
-        description: bootstrap | challenge | audit
+        description: bootstrap | challenge | audit | exhibition
         required: false
         default: "challenge"
       model_run_id:
@@ -68,11 +70,11 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-simulator.txt
       - run: pip install -r requirements-simulator.txt
-      - name: Install learning stack (learned arm only)
-        if: (inputs.policy || 'legacy') == 'learned'
+      - name: Install learning stack (learned/online arms only)
+        if: contains(fromJSON('["learned","online"]'), inputs.policy || 'legacy')
         run: pip install -r requirements-learning.txt
-      - name: Fetch frozen policy model (learned arm only)
-        if: (inputs.policy || 'legacy') == 'learned'
+      - name: Fetch frozen policy model (learned/online arms only)
+        if: contains(fromJSON('["learned","online"]'), inputs.policy || 'legacy')
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.model_artifact }}
@@ -96,7 +98,7 @@ jobs:
           set -euo pipefail
           policy="${{ inputs.policy || 'legacy' }}"
           model_flags=""
-          if [ "$policy" = "learned" ]; then
+          if [ "$policy" = "learned" ] || [ "$policy" = "online" ]; then
             model_flags="--model-dir reports/league/model"
           fi
           python scripts/run_terminal_rollout_policy.py \
@@ -148,6 +150,7 @@ jobs:
             bootstrap) flags="--bootstrap" ;;
             audit) flags="--audit-anchor" ;;
             challenge) flags="--promote-on-pass" ;;
+            exhibition) flags="--exhibition" ;;
             *) echo "unknown mode $mode"; exit 1 ;;
           esac
           python scripts/evaluate_league.py \
