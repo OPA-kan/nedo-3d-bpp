@@ -6,11 +6,11 @@ on:
       source_run_id:
         description: Frozen terminal hard-state aggregate run
         required: false
-        default: "32763509936"
+        default: "32811046786"
       caps:
         description: Rank-0 continuation caps (H = cap + 1)
         required: false
-        default: "0,2,4"
+        default: "0,2"
   push:
     branches:
       - work/terminal-rollout-oracle
@@ -71,6 +71,42 @@ jobs:
           - cell: single-preloaded-permute-000-89
             scenario: single-preloaded
             stream: permute-000-89
+          - cell: dual-preloaded-dedicated-permute-000-97
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-97
+          - cell: dual-preloaded-dedicated-permute-000-103
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-103
+          - cell: dual-preloaded-dedicated-permute-000-109
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-109
+          - cell: dual-preloaded-dedicated-permute-000-127
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-127
+          - cell: dual-preloaded-dedicated-permute-000-137
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-137
+          - cell: dual-preloaded-dedicated-permute-000-151
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-151
+          - cell: dual-shelf-mixed-permute-001-59
+            scenario: dual-shelf-mixed
+            stream: permute-001-59
+          - cell: dual-shelf-mixed-permute-001-67
+            scenario: dual-shelf-mixed
+            stream: permute-001-67
+          - cell: dual-shelf-mixed-permute-001-83
+            scenario: dual-shelf-mixed
+            stream: permute-001-83
+          - cell: dual-shelf-mixed-permute-001-101
+            scenario: dual-shelf-mixed
+            stream: permute-001-101
+          - cell: dual-shelf-mixed-permute-001-107
+            scenario: dual-shelf-mixed
+            stream: permute-001-107
+          - cell: dual-shelf-mixed-permute-001-113
+            scenario: dual-shelf-mixed
+            stream: permute-001-113
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -91,10 +127,10 @@ jobs:
       - name: Download frozen terminal truth
         uses: actions/download-artifact@v4
         with:
-          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32763509936' }}
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32811046786' }}
           path: reports/checkpoint-source
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.source_run_id || '32763509936' }}
+          run-id: ${{ inputs.source_run_id || '32811046786' }}
       - name: Rebuild exact stream scenario
         run: >-
           python scripts/build_scenario_matrix.py
@@ -107,7 +143,7 @@ jobs:
           --trigger-dataset reports/checkpoint-source/trigger-dataset.json
           --config reports/rollout-checkpoints/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json
           --cell terminal-hard-state-cell-${{ matrix.cell }}
-          --caps "${{ inputs.caps || '0,2,4' }}"
+          --caps "${{ inputs.caps || '0,2' }}"
           --attempt-budget 128
           --top-k 3
           --rollout-top-k 3
@@ -135,7 +171,7 @@ jobs:
         run: >-
           python scripts/aggregate_rollout_checkpoints.py
           --root reports/rollout-checkpoints/results
-          --expected-cells 12
+          --expected-cells 24
           --json-output reports/rollout-checkpoints/aggregate.json
           --markdown-output reports/rollout-checkpoints/aggregate.md
       - run: cat reports/rollout-checkpoints/aggregate.md >> "$GITHUB_STEP_SUMMARY"

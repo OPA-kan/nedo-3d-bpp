@@ -108,6 +108,44 @@ jobs:
           - cell: dual-shelf-mixed-permute-001-113
             scenario: dual-shelf-mixed
             stream: permute-001-113
+          # Wave 3 (2026-08-25): keep growing the intervention supply for
+          # the branch selector and the learned checkpoint comparator.
+          - cell: dual-preloaded-dedicated-permute-000-157
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-157
+          - cell: dual-preloaded-dedicated-permute-000-163
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-163
+          - cell: dual-preloaded-dedicated-permute-000-167
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-167
+          - cell: dual-preloaded-dedicated-permute-000-173
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-173
+          - cell: dual-preloaded-dedicated-permute-000-179
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-179
+          - cell: dual-preloaded-dedicated-permute-000-181
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-181
+          - cell: dual-shelf-mixed-permute-001-127
+            scenario: dual-shelf-mixed
+            stream: permute-001-127
+          - cell: dual-shelf-mixed-permute-001-139
+            scenario: dual-shelf-mixed
+            stream: permute-001-139
+          - cell: dual-shelf-mixed-permute-001-149
+            scenario: dual-shelf-mixed
+            stream: permute-001-149
+          - cell: dual-shelf-mixed-permute-001-151
+            scenario: dual-shelf-mixed
+            stream: permute-001-151
+          - cell: dual-shelf-mixed-permute-001-157
+            scenario: dual-shelf-mixed
+            stream: permute-001-157
+          - cell: dual-shelf-mixed-permute-001-163
+            scenario: dual-shelf-mixed
+            stream: permute-001-163
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -174,7 +212,7 @@ jobs:
         run: >-
           python scripts/build_terminal_rollout_trigger_dataset.py
           --root reports/terminal-hard-state/results
-          --expected-manifests 24
+          --expected-manifests 36
           --json-output reports/terminal-hard-state/trigger-dataset.json
           --markdown-output reports/terminal-hard-state/trigger-dataset.md
       - run: cat reports/terminal-hard-state/trigger-dataset.md >> "$GITHUB_STEP_SUMMARY"
