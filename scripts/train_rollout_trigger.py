@@ -65,10 +65,13 @@ def load_examples(
         elif state_contract != current_contract:
             raise ValueError("state tensor contracts differ")
         incumbent = row.get("incumbent_candidate_id")
+        selected = row.get("selected_candidate_id")
         visible_items = dict(zip(
             state["visible_item_indices"], state["visible_item_values"]
         ))
         candidate_tokens = []
+        candidate_ids = []
+        candidate_work = []
         for candidate in row.get("candidates") or []:
             if not candidate.get("safe"):
                 continue
@@ -88,8 +91,17 @@ def load_examples(
             ] + list(item_values) + [
                 float(candidate.get("root_candidate_id") == incumbent)
             ])
+            candidate_ids.append(str(candidate["root_candidate_id"]))
+            candidate_work.append(float(
+                candidate.get("terminal_physical_step_equivalents", 1.0)
+                or 1.0
+            ))
         if not candidate_tokens:
             raise ValueError(f"{row.get('root_id')}: no complete safe H1 candidates")
+        if incumbent not in candidate_ids or selected not in candidate_ids:
+            raise ValueError(
+                f"{row.get('root_id')}: selected/incumbent candidate missing"
+            )
         full = (row.get("decision_timing") or {}).get(
             "decision_total_seconds"
         )
@@ -105,6 +117,10 @@ def load_examples(
             "packed_item": state["packed_item_values"],
             "visible_item": state["visible_item_values"],
             "candidate": candidate_tokens,
+            "candidate_ids": candidate_ids,
+            "candidate_work": candidate_work,
+            "incumbent_index": candidate_ids.index(incumbent),
+            "selected_index": candidate_ids.index(selected),
             "label": float(bool(row["terminal_intervention"])),
             "full_seconds": float(full),
             "shallow_seconds": float(shallow),
@@ -205,6 +221,9 @@ def build_arrays(
     arrays["label"] = np.asarray(
         [row["label"] for row in examples], dtype=np.float32
     )
+    arrays["selected_index"] = np.asarray(
+        [row["selected_index"] for row in examples], dtype=np.int64
+    )
     return arrays
 
 
@@ -264,7 +283,12 @@ def _torch_batch(torch, arrays, indices):
     batch = {}
     for key, value in arrays.items():
         tensor = torch.from_numpy(value[indices])
-        batch[key] = tensor.bool() if value.dtype == bool else tensor.float()
+        if value.dtype == bool:
+            batch[key] = tensor.bool()
+        elif np.issubdtype(value.dtype, np.integer):
+            batch[key] = tensor.long()
+        else:
+            batch[key] = tensor.float()
     return batch
 
 
@@ -313,6 +337,133 @@ def predict(torch, members, examples: list[dict[str, Any]]) -> np.ndarray:
             batch = _torch_batch(torch, arrays, np.arange(len(examples)))
             outputs.append(torch.sigmoid(model(batch)).cpu().numpy())
     return np.stack(outputs).mean(axis=0)
+
+
+def build_allocator_model(torch, widths: dict[str, int], *, dim: int = 48):
+    """Score candidates for rollout allocation without predicting their value."""
+    nn = torch.nn
+
+    class SetEncoder(nn.Module):
+        def __init__(self, width: int):
+            super().__init__()
+            self.input = nn.Linear(width, dim)
+            self.attention = nn.MultiheadAttention(
+                dim, 4, dropout=0.1, batch_first=True
+            )
+            self.norm = nn.LayerNorm(dim)
+            self.seed = nn.Parameter(torch.zeros(1, 1, dim))
+            nn.init.normal_(self.seed, std=0.02)
+            self.pool = nn.MultiheadAttention(dim, 4, batch_first=True)
+
+        def forward(self, values, mask):
+            state = self.input(values)
+            attended, _ = self.attention(
+                state, state, state, key_padding_mask=mask
+            )
+            state = self.norm(state + attended)
+            query = self.seed.expand(state.shape[0], -1, -1)
+            pooled, _ = self.pool(query, state, state, key_padding_mask=mask)
+            return pooled.squeeze(1)
+
+    class CandidateEncoder(nn.Module):
+        def __init__(self, width: int):
+            super().__init__()
+            self.input = nn.Linear(width, dim)
+            self.attention = nn.MultiheadAttention(
+                dim, 4, dropout=0.1, batch_first=True
+            )
+            self.norm = nn.LayerNorm(dim)
+
+        def forward(self, values, mask):
+            state = self.input(values)
+            attended, _ = self.attention(
+                state, state, state, key_padding_mask=mask
+            )
+            return self.norm(state + attended)
+
+    class RolloutAllocator(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.state_encoders = nn.ModuleDict({
+                key: SetEncoder(widths[key])
+                for key in ("container", "packed_item", "visible_item")
+            })
+            self.candidates = CandidateEncoder(widths["candidate"])
+            self.context = nn.Sequential(
+                nn.Linear(3 * dim, dim), nn.GELU()
+            )
+            self.score = nn.Sequential(
+                nn.Linear(2 * dim, dim), nn.GELU(), nn.Linear(dim, 1)
+            )
+
+        def forward(self, batch):
+            context = self.context(torch.cat([
+                self.state_encoders[key](
+                    batch[key], batch[f"{key}_mask"]
+                )
+                for key in ("container", "packed_item", "visible_item")
+            ], dim=-1))
+            candidates = self.candidates(
+                batch["candidate"], batch["candidate_mask"]
+            )
+            expanded = context.unsqueeze(1).expand(
+                -1, candidates.shape[1], -1
+            )
+            logits = self.score(
+                torch.cat([candidates, expanded], dim=-1)
+            ).squeeze(-1)
+            return logits.masked_fill(batch["candidate_mask"], -1e9)
+
+    return RolloutAllocator()
+
+
+def fit_allocator_member(
+    torch, examples: list[dict[str, Any]], *, seed: int, epochs: int,
+    dim: int,
+):
+    torch.manual_seed(seed)
+    rng = random.Random(seed)
+    groups = sorted({row["group"] for row in examples})
+    sampled = collections.Counter(rng.choice(groups) for _ in groups)
+    bootstrap = [
+        row for row in examples for _ in range(sampled[row["group"]])
+    ] or list(examples)
+    stats = compute_stats(bootstrap)
+    arrays = build_arrays(bootstrap, stats)
+    widths = {key: len(stats[key][0]) for key in SET_KEYS}
+    model = build_allocator_model(torch, widths, dim=dim)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    indices = np.arange(len(bootstrap))
+    model.train()
+    for _epoch in range(epochs):
+        rng.shuffle(indices)
+        for start in range(0, len(indices), 64):
+            batch = _torch_batch(torch, arrays, indices[start:start + 64])
+            loss = torch.nn.functional.cross_entropy(
+                model(batch), batch["selected_index"]
+            )
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimizer.step()
+    model.eval()
+    return model, stats
+
+
+def predict_allocator(torch, members, examples: list[dict[str, Any]]):
+    member_outputs = []
+    with torch.no_grad():
+        for model, stats in members:
+            arrays = build_arrays(examples, stats)
+            batch = _torch_batch(torch, arrays, np.arange(len(examples)))
+            member_outputs.append(
+                torch.softmax(model(batch), dim=-1).cpu().numpy()
+            )
+    mean = np.stack(member_outputs).mean(axis=0)
+    return [
+        list(map(float, mean[index, :len(row["candidate_ids"])]))
+        for index, row in enumerate(examples)
+    ]
 
 
 def auc(labels: np.ndarray, scores: np.ndarray) -> float | None:
@@ -390,6 +541,144 @@ def select_operating_points(points: list[dict[str, Any]]) -> dict[str, Any]:
             key=lambda p: p["estimated_speedup_vs_full"],
             default=None,
         ),
+    }
+
+
+def allocator_budget_curve(
+    examples: list[dict[str, Any]], scores: list[list[float]],
+) -> list[dict[str, Any]]:
+    """Audit incumbent-plus-ranked-candidate terminal rollout budgets."""
+    max_candidates = max(len(row["candidate_ids"]) for row in examples)
+    intervention_total = sum(
+        row["selected_index"] != row["incumbent_index"] for row in examples
+    )
+    points = []
+    for budget in range(1, max_candidates + 1):
+        selected_found = 0
+        intervention_found = 0
+        uniform_intervention_recall = 0.0
+        times = []
+        fractions = []
+        for row, row_scores in zip(examples, scores):
+            incumbent = row["incumbent_index"]
+            alternatives = sorted(
+                (
+                    index for index in range(len(row_scores))
+                    if index != incumbent
+                ),
+                key=lambda index: row_scores[index],
+                reverse=True,
+            )
+            chosen = [incumbent] + alternatives[:max(0, budget - 1)]
+            found = row["selected_index"] in chosen
+            selected_found += int(found)
+            is_intervention = row["selected_index"] != incumbent
+            intervention_found += int(is_intervention and found)
+            if is_intervention:
+                uniform_intervention_recall += min(
+                    1.0,
+                    max(0, budget - 1) / max(1, len(alternatives)),
+                )
+            total_work = max(1e-9, sum(row["candidate_work"]))
+            fraction = sum(row["candidate_work"][i] for i in chosen) / total_work
+            fractions.append(fraction)
+            terminal_seconds = max(
+                0.0, row["full_seconds"] - row["shallow_seconds"]
+            )
+            times.append(row["shallow_seconds"] + terminal_seconds * fraction)
+        points.append({
+            "candidate_budget": budget,
+            "selected_action_recall": selected_found / len(examples),
+            "intervention_action_recall": (
+                intervention_found / intervention_total
+                if intervention_total else None
+            ),
+            "uniform_expected_intervention_recall": (
+                uniform_intervention_recall / intervention_total
+                if intervention_total else None
+            ),
+            "mean_terminal_branch_fraction": float(np.mean(fractions)),
+            "estimated_mean_seconds": float(np.mean(times)),
+            "estimated_p95_seconds": _percentile(times, 0.95),
+            "estimated_max_seconds": float(max(times)),
+            "estimated_within_10s_rate": float(
+                np.mean(np.asarray(times) <= 10.0)
+            ),
+        })
+    return points
+
+
+def run_allocator_oof(
+    torch, examples: list[dict[str, Any]], *, folds: int,
+    ensemble_size: int, epochs: int, dim: int, seed: int, repeats: int,
+) -> dict[str, Any]:
+    groups = [row["group"] for row in examples]
+    labels = [row["label"] for row in examples]
+    accumulated = [
+        np.zeros(len(row["candidate_ids"]), dtype=np.float32)
+        for row in examples
+    ]
+    for repeat in range(repeats):
+        repeat_seed = seed + 50_000 + repeat * 10_000
+        fold_groups = group_folds(
+            groups, folds, repeat_seed, labels=labels
+        )
+        for fold, held_groups in enumerate(fold_groups):
+            train = [
+                row for row in examples if row["group"] not in held_groups
+            ]
+            held_indices = [
+                index for index, row in enumerate(examples)
+                if row["group"] in held_groups
+            ]
+            held = [examples[index] for index in held_indices]
+            members = [
+                fit_allocator_member(
+                    torch, train,
+                    seed=repeat_seed + fold * 100 + member,
+                    epochs=epochs, dim=dim,
+                )
+                for member in range(ensemble_size)
+            ]
+            predictions = predict_allocator(torch, members, held)
+            for index, prediction in zip(held_indices, predictions):
+                accumulated[index] += np.asarray(prediction, dtype=np.float32)
+    scores = [list(map(float, values / repeats)) for values in accumulated]
+    top1 = sum(
+        int(np.argmax(row_scores) == row["selected_index"])
+        for row, row_scores in zip(examples, scores)
+    ) / len(examples)
+    intervention_rows = [
+        index for index, row in enumerate(examples)
+        if row["selected_index"] != row["incumbent_index"]
+    ]
+    alternative_top1 = sum(
+        int(max(
+            (
+                candidate for candidate in range(len(scores[index]))
+                if candidate != examples[index]["incumbent_index"]
+            ),
+            key=lambda candidate: scores[index][candidate],
+        ) == examples[index]["selected_index"])
+        for index in intervention_rows
+    ) / max(1, len(intervention_rows))
+    return {
+        "contract": "rollout_candidate_allocator_group_oof_v1",
+        "target": "terminal_oracle_selected_candidate",
+        "top1_selected_action_accuracy": top1,
+        "intervention_alternative_top1_recall": alternative_top1,
+        "budget_curve": allocator_budget_curve(examples, scores),
+        "oof_rows": [
+            {
+                "root_id": row["root_id"],
+                "group": row["group"],
+                "candidate_ids": row["candidate_ids"],
+                "candidate_scores": row_scores,
+                "incumbent_index": row["incumbent_index"],
+                "selected_index": row["selected_index"],
+            }
+            for row, row_scores in zip(examples, scores)
+        ],
     }
 
 
@@ -492,6 +781,11 @@ def main() -> int:
         ensemble_size=args.ensemble_size, epochs=args.epochs,
         dim=args.dim, seed=args.seed, repeats=args.repeats,
     )
+    result["candidate_allocator"] = run_allocator_oof(
+        torch, examples, folds=args.folds,
+        ensemble_size=args.ensemble_size, epochs=args.epochs,
+        dim=args.dim, seed=args.seed, repeats=args.repeats,
+    )
     result["feature_contract"] = feature_contract
     result["evaluation_scope"] = (
         "development group-OOF; threshold still needs a fresh cohort gate"
@@ -506,6 +800,15 @@ def main() -> int:
             "rows", "groups", "positives", "auc", "average_precision",
             "operating_points",
         )
+    } | {
+        "candidate_allocator": {
+            key: result["candidate_allocator"][key]
+            for key in (
+                "top1_selected_action_accuracy",
+                "intervention_alternative_top1_recall",
+                "budget_curve",
+            )
+        }
     }, ensure_ascii=False))
     return 0
 

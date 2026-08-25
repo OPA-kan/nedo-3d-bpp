@@ -8,6 +8,7 @@ import unittest
 import numpy as np
 
 from scripts.train_rollout_trigger import (
+    allocator_budget_curve,
     budget_curve,
     group_folds,
     load_examples,
@@ -51,7 +52,8 @@ class RolloutTriggerTests(unittest.TestCase):
             )
             row = {
                 "cell": "cell", "root_id": "r", "snapshot_path": "cell/state.json",
-                "incumbent_candidate_id": "a", "terminal_intervention": True,
+                "incumbent_candidate_id": "a", "selected_candidate_id": "a",
+                "terminal_intervention": True,
                 "decision_timing": {"decision_total_seconds": 12.0},
                 "estimated_no_terminal_decision_seconds": 2.0,
                 "candidates": [{
@@ -103,6 +105,23 @@ class RolloutTriggerTests(unittest.TestCase):
         self.assertEqual(fast["triggered_roots"], 1)
         self.assertEqual(fast["intervention_recall"], 1.0)
         self.assertGreater(fast["estimated_speedup_vs_full"], 3.0)
+
+    def test_allocator_budget_keeps_incumbent_and_ranks_one_alternative(self):
+        examples = [{
+            "candidate_ids": ["inc", "bad", "winner"],
+            "candidate_work": [10.0, 10.0, 10.0],
+            "incumbent_index": 0,
+            "selected_index": 2,
+            "full_seconds": 32.0,
+            "shallow_seconds": 2.0,
+        }]
+        points = allocator_budget_curve(examples, [[0.1, 0.2, 0.9]])
+        self.assertEqual(points[1]["candidate_budget"], 2)
+        self.assertEqual(points[1]["intervention_action_recall"], 1.0)
+        self.assertEqual(
+            points[1]["uniform_expected_intervention_recall"], 0.5
+        )
+        self.assertAlmostEqual(points[1]["estimated_mean_seconds"], 22.0)
 
 
 if __name__ == "__main__":

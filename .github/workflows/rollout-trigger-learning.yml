@@ -81,6 +81,11 @@ jobs:
           print(f"- interventions: {report['positives']}")
           print(f"- ROC AUC: {report['auc']:.4f}")
           print(f"- average precision: {report['average_precision']:.4f}")
+          allocator = report["candidate_allocator"]
+          print(f"- candidate allocator top-1: "
+                f"{allocator['top1_selected_action_accuracy']:.4f}")
+          print(f"- intervention alternate recall with incumbent + 1: "
+                f"{allocator['intervention_alternative_top1_recall']:.4f}")
           print()
           print("The model predicts where the terminal physics rollout changes "
                 "the incumbent; it does not predict packing value.")
