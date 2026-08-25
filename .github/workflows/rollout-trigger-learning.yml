@@ -1,0 +1,88 @@
+name: Rollout trigger learning
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful terminal hard-state collection run
+        required: false
+        default: "32763509936"
+      epochs:
+        description: Training epochs per ensemble member
+        required: false
+        default: "30"
+  # Register this experiment workflow on the branch without retriggering it
+  # for ordinary learner edits after the first push.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/rollout-trigger-learning.yml
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: rollout-trigger-learning-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-learning.txt
+      - run: pip install -r requirements.txt -r requirements-learning.txt
+      - name: Verify trigger learner contracts
+        run: python -m unittest tests.test_train_rollout_trigger -v
+      - name: Download frozen physics-oracle dataset
+        uses: actions/download-artifact@v4
+        with:
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32763509936' }}
+          path: reports/trigger-source
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.source_run_id || '32763509936' }}
+      - name: Train group-held-out rollout trigger ensemble
+        run: >-
+          python scripts/train_rollout_trigger.py
+          --dataset reports/trigger-source/trigger-dataset.json
+          --dataset-root reports/trigger-source/results
+          --folds 4
+          --ensemble-size 3
+          --epochs "${{ inputs.epochs || '30' }}"
+          --dim 48
+          --output reports/rollout-trigger/oof-report.json
+      - name: Publish capability result
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("reports/rollout-trigger/oof-report.json").read_text()
+          )
+          print("# Rollout trigger group-OOF capability")
+          print()
+          print(f"- roots: {report['rows']}")
+          print(f"- whole-trajectory groups: {report['groups']}")
+          print(f"- interventions: {report['positives']}")
+          print(f"- ROC AUC: {report['auc']:.4f}")
+          print(f"- average precision: {report['average_precision']:.4f}")
+          print()
+          print("The model predicts where the terminal physics rollout changes "
+                "the incumbent; it does not predict packing value.")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rollout-trigger-learning-${{ github.run_id }}
+          path: reports/rollout-trigger/
