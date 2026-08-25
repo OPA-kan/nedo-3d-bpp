@@ -119,6 +119,17 @@ retained only as a same-budget challenger. Status, all on real physics:
   measured gate. Exhaustive terminal collection is bootstrap
   scaffolding; the oracle and the fixed held-out terminal-truth
   yardstick remain permanent.
+- **Ten-round league automation is implemented on the season branch.** A
+  non-empty `season_wave` now chains collection → preference distillation →
+  title match.  The match job records the registry, immutable season row and
+  physical replay, applies only the next preregistered wave, and explicitly
+  dispatches it; wave 14 sets `active=false` and stops.  The spectator room
+  reuses settled self-play geometry, adds transition-aligned soft/priority
+  foul effects, polls public Actions job state at 120 s cadence, always uploads
+  a static room artifact and can deploy to Pages when
+  `LEAGUE_SPECTATOR_PAGES=true`.  This is stage/cell-job live status, not a
+  claim of placement-level streaming.  Contract and recovery notes:
+  `reports/league/season/automation.md`.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision

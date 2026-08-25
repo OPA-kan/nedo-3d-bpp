@@ -58,6 +58,12 @@ class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
         self.assertIn("build_terminal_rollout_trigger_dataset.py", self.text)
         self.assertIn("trigger-dataset.json", self.text)
 
+    def test_successful_season_collection_dispatches_distillation(self):
+        self.assertIn("season_wave:", self.text)
+        self.assertIn("continue-season:", self.text)
+        self.assertIn("gh workflow run rollout-geometry-policy-learning.yml", self.text)
+        self.assertIn('-f source_run_id="$GITHUB_RUN_ID"', self.text)
+
 
 if __name__ == "__main__":
     unittest.main()

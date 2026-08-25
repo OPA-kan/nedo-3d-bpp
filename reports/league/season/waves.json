@@ -25,10 +25,10 @@
     "14": {"round": 10, "primes_000": [367, 373, 379], "primes_001": [367, 373, 379], "expected_cells": 280}
   },
   "round_protocol": [
-    "apply_season_wave.py --wave N; commit+push (collection auto-runs)",
-    "dispatch rollout-geometry-policy-learning with source_run_id=<collection run>",
-    "dispatch league-match: policy=learned, mode=challenge, model_run_id=<learning run>, challenger_name=pi{champion_generation+1}-pref-w{N}",
-    "on promotion: commit CI registry; always: append season log, update spectator room"
+    "event chain dispatches collection for preregistered wave N",
+    "successful aggregate dispatches preference learning with its run id",
+    "successful learning resolves champion generation and dispatches the title match",
+    "title match atomically records registry/season/replay, applies N+1, and dispatches its collection; wave 14 records the final summary and stops"
   ],
   "integrity_notes": [
     "each challenger is trained on a strictly larger, preregistered corpus - never a reseeded retry on the same data",

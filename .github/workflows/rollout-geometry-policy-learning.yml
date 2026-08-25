@@ -1,4 +1,7 @@
 name: Rollout geometry policy learning
+run-name: >-
+  ${{ inputs.season_wave && format('Season w{0} · preference distillation', inputs.season_wave)
+      || 'Rollout geometry policy learning' }}
 
 on:
   workflow_dispatch:
@@ -11,6 +14,14 @@ on:
         description: Training epochs per ensemble member
         required: false
         default: "30"
+      collection_run_id:
+        description: Collection run carried into the season ledger
+        required: false
+        default: ""
+      season_wave:
+        description: League season wave; empty keeps this a standalone run
+        required: false
+        default: ""
   # Dispatch-only during the league season: every round trains against
   # an explicit source_run_id once its collection wave has finished, so
   # an automatic push-triggered run against a stale default source
@@ -321,3 +332,52 @@ jobs:
         with:
           name: rollout-policy-model
           path: reports/geometry-policy/model/
+
+  continue-season:
+    needs: train
+    if: >-
+      needs.train.result == 'success' &&
+      inputs.season_wave != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve the next production challenger
+        id: identity
+        shell: bash
+        env:
+          SEASON_WAVE: ${{ inputs.season_wave }}
+        run: |
+          python scripts/league_season.py identity \
+            --registry reports/league/registry.json \
+            --names reports/league/spectator/names.json \
+            --wave "$SEASON_WAVE" > identity.json
+          python - <<'PY'
+          import json, os
+          row = json.load(open("identity.json", encoding="utf-8"))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"challenger={row['id']}\n")
+              out.write(f"display_name={row['display_name']}\n")
+          PY
+      - name: Dispatch the title match
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEASON_WAVE: ${{ inputs.season_wave }}
+          COLLECTION_RUN: ${{ inputs.collection_run_id || inputs.source_run_id }}
+          CHALLENGER: ${{ steps.identity.outputs.challenger }}
+        run: >-
+          gh workflow run league-match.yml
+          --repo "$GITHUB_REPOSITORY"
+          --ref "$GITHUB_REF_NAME"
+          -f policy=learned
+          -f mode=challenge
+          -f challenger_name="$CHALLENGER"
+          -f model_run_id="$GITHUB_RUN_ID"
+          -f model_artifact=rollout-policy-model
+          -f collection_run_id="$COLLECTION_RUN"
+          -f season_wave="$SEASON_WAVE"

@@ -56,6 +56,12 @@ class RolloutGeometryPolicyWorkflowTests(unittest.TestCase):
         self.assertIn("--folds 4", self.text)
         self.assertIn("--repeats 3", self.text)
 
+    def test_successful_season_training_dispatches_title_match(self):
+        self.assertIn("continue-season:", self.text)
+        self.assertIn("league_season.py identity", self.text)
+        self.assertIn("gh workflow run league-match.yml", self.text)
+        self.assertIn('-f model_run_id="$GITHUB_RUN_ID"', self.text)
+
 
 if __name__ == "__main__":
     unittest.main()

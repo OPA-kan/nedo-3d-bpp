@@ -1,4 +1,7 @@
 name: Policy league match
+run-name: >-
+  ${{ inputs.season_wave && format('Season w{0} · title match · {1}', inputs.season_wave, inputs.challenger_name)
+      || format('Policy league match · {0}', inputs.challenger_name || 'pi0-legacy') }}
 
 on:
   workflow_dispatch:
@@ -27,6 +30,14 @@ on:
         description: Artifact name of the frozen policy model
         required: false
         default: "rollout-policy-model"
+      collection_run_id:
+        description: Teacher collection run carried into the season ledger
+        required: false
+        default: ""
+      season_wave:
+        description: League season wave; empty keeps this a standalone match
+        required: false
+        default: ""
   # Bootstrap trigger: edits to this workflow re-run the legacy anchor
   # arm — first time as league bootstrap, afterwards as a determinism
   # audit against the committed registry.
@@ -37,8 +48,8 @@ on:
       - .github/workflows/league-match.yml
 
 permissions:
-  contents: read
-  actions: read
+  contents: write
+  actions: write
 
 concurrency:
   group: league-match-${{ github.run_id }}
@@ -132,6 +143,28 @@ jobs:
         with:
           pattern: league-cell-*
           path: reports/league/results
+      - name: Resolve defending champion replay source
+        id: opponent
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          registry = json.load(open("reports/league/registry.json", encoding="utf-8"))
+          champion = [m for m in registry["members"] if m["role"] == "champion"]
+          if len(champion) != 1:
+              raise SystemExit(f"expected one champion, found {len(champion)}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"name={champion[0]['name']}\n")
+              out.write(f"run_id={champion[0]['source']}\n")
+          PY
+      - name: Download defending champion physical replays
+        if: inputs.season_wave != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: league-cell-*
+          path: reports/league/opponent
+          run-id: ${{ steps.opponent.outputs.run_id }}
+          github-token: ${{ github.token }}
       - name: Evaluate against the league
         shell: bash
         run: |
@@ -161,9 +194,148 @@ jobs:
             --report reports/league/out/report.json \
             --registry-out reports/league/out/registry.json \
             $flags
+          if [ ! -f reports/league/out/registry.json ]; then
+            cp reports/league/registry.json reports/league/out/registry.json
+          fi
       - run: python -m json.tool reports/league/out/report.json | head -80 >> "$GITHUB_STEP_SUMMARY"
+      - name: Finalize season round and next wave
+        if: inputs.season_wave != ''
+        id: season
+        shell: bash
+        env:
+          SEASON_WAVE: ${{ inputs.season_wave }}
+          COLLECTION_RUN: ${{ inputs.collection_run_id }}
+          LEARNING_RUN: ${{ inputs.model_run_id }}
+        run: |
+          set -euo pipefail
+          cp reports/league/registry.json reports/league/registry-before.json
+          cp reports/league/out/registry.json reports/league/registry.json
+          python scripts/league_season.py finish \
+            --state reports/league/season/state.json \
+            --plan reports/league/season/waves.json \
+            --names reports/league/spectator/names.json \
+            --report reports/league/out/report.json \
+            --registry-before reports/league/registry-before.json \
+            --registry-after reports/league/registry.json \
+            --collection-run "$COLLECTION_RUN" \
+            --learning-run "$LEARNING_RUN" \
+            --match-run "$GITHUB_RUN_ID" \
+            --state-out reports/league/season/state.json \
+            --log-out reports/league/season/log.md \
+            --summary-out reports/league/season/summary.md \
+            --match-report-out "reports/league/match-season-w${SEASON_WAVE}-${{ inputs.challenger_name }}.md" \
+            > reports/league/out/season-transition.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          state = json.loads(Path("reports/league/season/state.json").read_text())
+          live = {
+              "contract": "league_spectator_live_v1",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "active": state["active"],
+              "round": state.get("round"), "wave": state.get("wave"),
+              "stage": state["stage"],
+              "display_name": state.get("display_name"),
+              "challenger": state.get("challenger"),
+              "champion": state.get("champion"),
+              "expected_cells": state.get("expected_cells"),
+              "history": state.get("history", []),
+              "active_run_id": None,
+              "revision": f"match-{os.environ['GITHUB_RUN_ID']}",
+              "updated_at": state["updated_at"],
+          }
+          Path("reports/league/spectator/live.json").write_text(
+              json.dumps(live, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"active={str(state['active']).lower()}\n")
+              out.write(f"next_wave={state.get('next_wave') or ''}\n")
+          PY
+          if [ "$(python -c 'import json; print(str(json.load(open("reports/league/season/state.json"))["active"]).lower())')" = "true" ]; then
+            python scripts/apply_season_wave.py --wave "$(python -c 'import json; print(json.load(open("reports/league/season/state.json"))["wave"])')"
+          fi
+      - name: Build broadcast replay data
+        if: inputs.season_wave != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_spectator_data.py \
+            --challenger-name "${{ inputs.challenger_name }}" \
+            --challenger-root reports/league/results \
+            --opponent-name "${{ steps.opponent.outputs.name }}" \
+            --opponent-root reports/league/opponent \
+            --configs reports/league/configs \
+            --report reports/league/out/report.json \
+            --match-id "season-w${{ inputs.season_wave }}" \
+            --output reports/league/spectator/match.json
+          python scripts/render_league_spectator.py \
+            --template reports/league/spectator/shell.html \
+            --match reports/league/spectator/match.json \
+            --live-status reports/league/spectator/live.json \
+            --output-dir reports/league/spectator/site
+      - name: Commit the ledger, replay and next preregistered wave
+        if: inputs.season_wave != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "packing-league-bot"
+          git config user.email "packing-league-bot@users.noreply.github.com"
+          git add \
+            reports/league/registry.json \
+            reports/league/season \
+            reports/league/spectator/live.json \
+            reports/league/spectator/match.json \
+            reports/league/spectator/site \
+            "reports/league/match-season-w${{ inputs.season_wave }}-${{ inputs.challenger_name }}.md" \
+            .github/workflows/terminal-rollout-hard-state.yml \
+            .github/workflows/rollout-geometry-policy-learning.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "Season wave ${{ inputs.season_wave }}: record title match and advance"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Dispatch next teacher wave
+        if: inputs.season_wave != '' && steps.season.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT_WAVE: ${{ steps.season.outputs.next_wave }}
+        run: >-
+          gh workflow run terminal-rollout-hard-state.yml
+          --repo "$GITHUB_REPOSITORY"
+          --ref "$GITHUB_REF_NAME"
+          -f max_steps=40
+          -f rollout_max_steps=40
+          -f season_wave="$NEXT_WAVE"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: league-result-${{ github.run_id }}
           path: reports/league/out/
+      - uses: actions/upload-artifact@v4
+        if: inputs.season_wave != '' && always()
+        with:
+          name: packing-league-room-${{ github.run_id }}
+          path: reports/league/spectator/site/
+      - uses: actions/upload-pages-artifact@v3
+        if: inputs.season_wave != '' && vars.LEAGUE_SPECTATOR_PAGES == 'true'
+        with:
+          path: reports/league/spectator/site/
+
+  deploy-spectator:
+    needs: evaluate
+    if: >-
+      needs.evaluate.result == 'success' &&
+      inputs.season_wave != '' &&
+      vars.LEAGUE_SPECTATOR_PAGES == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish Packing League room
+        id: deployment
+        uses: actions/deploy-pages@v4

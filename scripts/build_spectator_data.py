@@ -18,6 +18,12 @@ import json
 import pathlib
 from typing import Any
 
+from scripts.build_scenario_matrix import (
+    DEFAULT_SOURCE,
+    SCENARIOS,
+    build_scenario,
+)
+
 ROTATED_DIMENSIONS = (
     (0, 1, 2), (0, 2, 1), (2, 1, 0), (1, 0, 2), (1, 2, 0), (2, 0, 1),
 )
@@ -35,9 +41,21 @@ def rotated(dims: tuple[float, float, float], orientation: int):
 def load_config_items(
     configs: pathlib.Path, stream: str, scenario: str,
 ) -> dict[int, tuple[float, float, float]]:
-    payload = json.loads(
-        (configs / stream / f"{scenario}.json").read_text(encoding="utf-8")
-    )
+    path = configs / stream / f"{scenario}.json"
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    else:
+        # League artifacts intentionally contain episodes, not a second copy
+        # of the deterministic scenario matrix.  Rebuild the exact declared
+        # stream from the checked-in source when rendering a remote match.
+        source = json.loads(DEFAULT_SOURCE.read_text(encoding="utf-8"))
+        specs = dict(SCENARIOS)
+        if scenario not in specs:
+            raise ValueError(f"unknown league scenario {scenario!r}")
+        payload = build_scenario(
+            source, scenario, specs[scenario], look_ahead=10,
+            policy_timeout=8.0, stream_variant=stream
+        )
     case = payload[f"m-{scenario}"]
     return {
         int(item["index"]): (
@@ -169,6 +187,7 @@ def arm_steps(
     for position, record in enumerate(records):
         action = record["action"]
         selection = record.get("selection") or {}
+        before = record.get("metrics_before") or {}
         if position + 1 < len(records):
             after = records[position + 1].get("metrics_before") or {}
         else:
@@ -216,6 +235,10 @@ def arm_steps(
                 int(float(after.get(head, 0) or 0))
                 for head in VIOLATION_HEADS
             ],
+            # Event semantics are transition-aligned: the board is the
+            # settled state after this action, and each delta compares this
+            # record's metrics_before with the next/final metrics.
+            "viol_delta": violation_delta(before, after),
             "board": board,
         })
     return steps
@@ -224,6 +247,17 @@ def arm_steps(
 def violations(final: dict[str, Any]) -> float:
     return float(sum(float(final.get(head, 0) or 0)
                      for head in VIOLATION_HEADS))
+
+
+def violation_delta(
+    before: dict[str, Any], after: dict[str, Any]
+) -> list[int]:
+    """Newly created published-rule counters, kept head-separate."""
+    return [
+        max(0, int(float(after.get(head, 0) or 0))
+            - int(float(before.get(head, 0) or 0)))
+        for head in VIOLATION_HEADS
+    ]
 
 
 def build_cell(
@@ -344,10 +378,13 @@ def main() -> int:
     for cell_dir in sorted(args.challenger_root.iterdir()):
         if not (cell_dir / "rollout" / "manifest.json").exists():
             continue
-        cell = cell_dir.name
+        cell = cell_dir.name.removeprefix("league-cell-")
+        opponent_dir = args.opponent_root / cell_dir.name
+        if not opponent_dir.exists():
+            opponent_dir = args.opponent_root / cell
         cells[cell] = build_cell(cell, {
             args.challenger_name: cell_dir,
-            args.opponent_name: args.opponent_root / cell,
+            args.opponent_name: opponent_dir,
         }, args.configs)
     result = {
         "contract": "league_spectator_data_v1",
