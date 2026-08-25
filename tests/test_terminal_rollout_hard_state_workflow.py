@@ -1,4 +1,6 @@
+import json
 import pathlib
+import re
 import unittest
 
 
@@ -6,6 +8,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 WORKFLOW = (
     ROOT / ".github" / "workflows" / "terminal-rollout-hard-state.yml"
 )
+SEASON_PLAN = ROOT / "reports" / "league" / "season" / "waves.json"
 
 
 class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
@@ -29,19 +32,25 @@ class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
         self.assertNotIn("--model-dir", self.text)
 
     def test_collects_stream_diverse_trajectories(self):
-        # wave 4: the generation-0 teacher factory runs at 100 cells
-        self.assertEqual(self.text.count("          - cell:"), 100)
-        self.assertIn("dual-preloaded-dedicated-permute-000-17", self.text)
-        self.assertIn("dual-shelf-mixed-permute-001-43", self.text)
-        self.assertIn("single-preloaded-permute-000-89", self.text)
-        self.assertIn("--expected-manifests 100", self.text)
+        # season waves grow the matrix; the cell count must always match
+        # the aggregate guard and hold at least the 100-cell wave-4 base
+        cells = re.findall(r"- cell: (\S+)", self.text)
+        expected = int(
+            re.search(r"--expected-manifests (\d+)", self.text).group(1)
+        )
+        self.assertEqual(len(cells), expected)
+        self.assertEqual(len(cells), len(set(cells)))
+        self.assertGreaterEqual(len(cells), 100)
+        self.assertIn("dual-preloaded-dedicated-permute-000-17", cells)
+        self.assertIn("dual-shelf-mixed-permute-001-43", cells)
+        self.assertIn("single-preloaded-permute-000-89", cells)
 
     def test_league_eval_streams_never_enter_training(self):
-        for variant in (
-            "permute-000-191", "permute-000-193", "permute-000-197",
-            "permute-001-167", "permute-001-173", "permute-001-179",
-            "permute-001-181",
-        ):
+        forbidden = json.loads(SEASON_PLAN.read_text(encoding="utf-8"))[
+            "eval_variants_forbidden"
+        ]
+        self.assertEqual(len(forbidden), 7)
+        for variant in forbidden:
             self.assertNotIn(f"stream: {variant}\n", self.text)
 
     def test_keeps_physics_as_oracle_and_builds_trigger_dataset(self):

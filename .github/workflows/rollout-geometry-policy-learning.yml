@@ -11,18 +11,10 @@ on:
         description: Training epochs per ensemble member
         required: false
         default: "30"
-  push:
-    branches:
-      - work/terminal-rollout-oracle
-    paths:
-      - .github/workflows/rollout-geometry-policy-learning.yml
-      - scripts/recover_trigger_candidate_actions.py
-      - scripts/attach_trigger_candidate_actions.py
-      - scripts/train_rollout_trigger.py
-      - scripts/run_terminal_rollout_policy.py
-      - tests/test_attach_trigger_candidate_actions.py
-      - tests/test_train_rollout_trigger.py
-      - tests/test_rollout_geometry_policy_workflow.py
+  # Dispatch-only during the league season: every round trains against
+  # an explicit source_run_id once its collection wave has finished, so
+  # an automatic push-triggered run against a stale default source
+  # would only ever produce a mismatched matrix.
 
 permissions:
   actions: read

@@ -87,6 +87,29 @@ STREAM_VARIANTS = (
     "permute-001-173", "permute-001-179",
     "permute-000-181", "permute-000-191", "permute-000-193", "permute-000-197",
     "permute-001-181", "permute-001-191", "permute-001-193", "permute-001-197",
+    # league season waves 5-14: fresh hashed permutations, three primes
+    # per wave per source family (preregistered in
+    # reports/league/season/waves.json)
+    "permute-000-199", "permute-000-211", "permute-000-223",
+    "permute-000-227", "permute-000-229", "permute-000-233",
+    "permute-000-239", "permute-000-241", "permute-000-251",
+    "permute-000-257", "permute-000-263", "permute-000-269",
+    "permute-000-271", "permute-000-277", "permute-000-281",
+    "permute-000-283", "permute-000-293", "permute-000-307",
+    "permute-000-311", "permute-000-313", "permute-000-317",
+    "permute-000-331", "permute-000-337", "permute-000-347",
+    "permute-000-349", "permute-000-353", "permute-000-359",
+    "permute-000-367", "permute-000-373", "permute-000-379",
+    "permute-001-199", "permute-001-211", "permute-001-223",
+    "permute-001-227", "permute-001-229", "permute-001-233",
+    "permute-001-239", "permute-001-241", "permute-001-251",
+    "permute-001-257", "permute-001-263", "permute-001-269",
+    "permute-001-271", "permute-001-277", "permute-001-281",
+    "permute-001-283", "permute-001-293", "permute-001-307",
+    "permute-001-311", "permute-001-313", "permute-001-317",
+    "permute-001-331", "permute-001-337", "permute-001-347",
+    "permute-001-349", "permute-001-353", "permute-001-359",
+    "permute-001-367", "permute-001-373", "permute-001-379",
 )
 
 

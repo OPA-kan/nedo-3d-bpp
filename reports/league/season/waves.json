@@ -1,0 +1,38 @@
+{
+  "contract": "league_season_plan_v1",
+  "purpose": "ten consecutive league rounds, one fresh teacher wave each",
+  "preregistered": "2026-08-25; primes fixed before any round ran",
+  "eval_variants_forbidden": [
+    "permute-000-191", "permute-000-193", "permute-000-197",
+    "permute-001-167", "permute-001-173", "permute-001-179",
+    "permute-001-181"
+  ],
+  "scenarios_000": [
+    "dual-preloaded-dedicated", "dual-empty",
+    "single-empty-noshelf", "single-preloaded"
+  ],
+  "scenarios_001": ["dual-shelf-mixed", "single-empty-shelf"],
+  "waves": {
+    "5":  {"round": 1,  "primes_000": [199, 211, 223], "primes_001": [199, 211, 223], "expected_cells": 118},
+    "6":  {"round": 2,  "primes_000": [227, 229, 233], "primes_001": [227, 229, 233], "expected_cells": 136},
+    "7":  {"round": 3,  "primes_000": [239, 241, 251], "primes_001": [239, 241, 251], "expected_cells": 154},
+    "8":  {"round": 4,  "primes_000": [257, 263, 269], "primes_001": [257, 263, 269], "expected_cells": 172},
+    "9":  {"round": 5,  "primes_000": [271, 277, 281], "primes_001": [271, 277, 281], "expected_cells": 190},
+    "10": {"round": 6,  "primes_000": [283, 293, 307], "primes_001": [283, 293, 307], "expected_cells": 208},
+    "11": {"round": 7,  "primes_000": [311, 313, 317], "primes_001": [311, 313, 317], "expected_cells": 226},
+    "12": {"round": 8,  "primes_000": [331, 337, 347], "primes_001": [331, 337, 347], "expected_cells": 244},
+    "13": {"round": 9,  "primes_000": [349, 353, 359], "primes_001": [349, 353, 359], "expected_cells": 262},
+    "14": {"round": 10, "primes_000": [367, 373, 379], "primes_001": [367, 373, 379], "expected_cells": 280}
+  },
+  "round_protocol": [
+    "apply_season_wave.py --wave N; commit+push (collection auto-runs)",
+    "dispatch rollout-geometry-policy-learning with source_run_id=<collection run>",
+    "dispatch league-match: policy=learned, mode=challenge, model_run_id=<learning run>, challenger_name=pi{champion_generation+1}-pref-w{N}",
+    "on promotion: commit CI registry; always: append season log, update spectator room"
+  ],
+  "integrity_notes": [
+    "each challenger is trained on a strictly larger, preregistered corpus - never a reseeded retry on the same data",
+    "the frozen eval set never changes mid-season; switch threshold stays 0.5 all season",
+    "ten challenges against one frozen set carry residual multiple-testing risk; the rising champion bar and hard-head non-regression bound it, and the season verdict weighs the trajectory, not any single promotion"
+  ]
+}

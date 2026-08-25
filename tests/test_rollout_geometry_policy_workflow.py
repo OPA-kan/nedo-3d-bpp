@@ -1,19 +1,34 @@
 import pathlib
+import re
 import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class RolloutGeometryPolicyWorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.text = pathlib.Path(
-            ".github/workflows/rollout-geometry-policy-learning.yml"
+        cls.text = (
+            ROOT / ".github" / "workflows"
+            / "rollout-geometry-policy-learning.yml"
+        ).read_text(encoding="utf-8")
+        cls.collection = (
+            ROOT / ".github" / "workflows"
+            / "terminal-rollout-hard-state.yml"
         ).read_text(encoding="utf-8")
 
-    def test_recovers_all_cells_before_training(self):
-        # generation 0 trains on the full 100-cell wave-4 corpus
-        self.assertEqual(self.text.count("- {cell:"), 100)
+    def test_recovery_matrix_mirrors_the_collection_matrix(self):
+        # season waves keep both matrices in lockstep: every collected
+        # cell is recovered before training, and the guard agrees
+        learning_cells = re.findall(r"- \{cell: ([^,]+),", self.text)
+        collection_cells = re.findall(r"- cell: (\S+)", self.collection)
+        self.assertEqual(sorted(learning_cells), sorted(collection_cells))
+        expected = int(
+            re.search(r"--expected-cells (\d+)", self.text).group(1)
+        )
+        self.assertEqual(len(learning_cells), expected)
         self.assertIn("needs: recover-actions", self.text)
-        self.assertIn("--expected-cells 100", self.text)
 
     def test_policy_excludes_h1_inputs(self):
         self.assertIn("--candidate-feature-mode geometry", self.text)
@@ -32,9 +47,12 @@ class RolloutGeometryPolicyWorkflowTests(unittest.TestCase):
         self.assertIn("name: rollout-policy-model", self.text)
         self.assertIn("path: reports/geometry-policy/model/", self.text)
 
-    def test_search_teacher_is_frozen_and_group_oof(self):
-        # wave-4 aggregate (100 cells) is the frozen teacher
-        self.assertIn("32822842633", self.text)
+    def test_season_runs_are_dispatch_only_with_group_oof(self):
+        # a push against a stale default source would train a mismatched
+        # matrix mid-season, so the workflow only runs when dispatched
+        # with an explicit fresh aggregate
+        self.assertNotIn("push:", self.text)
+        self.assertIn("source_run_id", self.text)
         self.assertIn("--folds 4", self.text)
         self.assertIn("--repeats 3", self.text)
 
