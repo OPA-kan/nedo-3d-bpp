@@ -56,6 +56,7 @@ class RolloutTriggerTests(unittest.TestCase):
                 "estimated_no_terminal_decision_seconds": 2.0,
                 "candidates": [{
                     "root_candidate_id": "a", "safe": True,
+                    "stable_item_index": 3,
                     "one_step_vector": {
                         "fill_gain": 1, "soft_violation_gain": 0,
                         "priority_covered_gain": 0,
@@ -70,7 +71,10 @@ class RolloutTriggerTests(unittest.TestCase):
             }
             (root / "dataset.json").write_text(json.dumps(dataset))
             examples, contract = load_examples(root / "dataset.json", root)
-        self.assertEqual(examples[0]["candidate"][0], [1, 0, 0, 0, -0.5, 1])
+        token = examples[0]["candidate"][0]
+        self.assertEqual(token[:5], [1, 0, 0, 0, -0.5])
+        self.assertEqual(token[5:9], [0.2, 0.2, 0.2, 1.0])
+        self.assertEqual(token[-1], 1.0)
         self.assertNotIn("step", contract["state_features"])
         self.assertIn("terminal_vector", contract["forbidden_inputs"])
 
@@ -78,6 +82,15 @@ class RolloutTriggerTests(unittest.TestCase):
         folds = group_folds(["a", "a", "b", "c"], 2, 7)
         self.assertEqual(set.union(*folds), {"a", "b", "c"})
         self.assertFalse(folds[0] & folds[1])
+
+    def test_group_folds_stratify_positive_trajectories(self):
+        groups = ["a", "a", "b", "b", "c", "c", "d", "d"]
+        labels = [1, 0, 1, 0, 1, 0, 1, 0]
+        folds = group_folds(groups, 4, 7, labels=labels)
+        positives = {
+            group for group, label in zip(groups, labels) if label
+        }
+        self.assertTrue(all(fold & positives for fold in folds))
 
     def test_budget_curve_exposes_recall_latency_tradeoff(self):
         labels = np.asarray([1.0, 0.0, 0.0])

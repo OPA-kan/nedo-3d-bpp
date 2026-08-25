@@ -24,7 +24,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.counterfactual_graph import state_tensor_from_snapshot
+from scripts.counterfactual_graph import (
+    ITEM_TENSOR_FEATURES,
+    state_tensor_from_snapshot,
+)
 
 SET_KEYS = ("container", "packed_item", "visible_item", "candidate")
 CANDIDATE_HEADS = (
@@ -36,7 +39,7 @@ CANDIDATE_HEADS = (
 )
 CANDIDATE_FEATURES = tuple(
     f"oriented_{name}" for name, _direction in CANDIDATE_HEADS
-) + ("is_incumbent",)
+) + tuple(f"item_{name}" for name in ITEM_TENSOR_FEATURES) + ("is_incumbent",)
 
 
 def load_examples(
@@ -62,6 +65,9 @@ def load_examples(
         elif state_contract != current_contract:
             raise ValueError("state tensor contracts differ")
         incumbent = row.get("incumbent_candidate_id")
+        visible_items = dict(zip(
+            state["visible_item_indices"], state["visible_item_values"]
+        ))
         candidate_tokens = []
         for candidate in row.get("candidates") or []:
             if not candidate.get("safe"):
@@ -72,10 +78,16 @@ def load_examples(
                 for name, _direction in CANDIDATE_HEADS
             ):
                 continue
+            item_values = visible_items.get(
+                int(candidate.get("stable_item_index", -1)),
+                [0.0] * len(ITEM_TENSOR_FEATURES),
+            )
             candidate_tokens.append([
                 direction * float(vector[name])
                 for name, direction in CANDIDATE_HEADS
-            ] + [float(candidate.get("root_candidate_id") == incumbent)])
+            ] + list(item_values) + [
+                float(candidate.get("root_candidate_id") == incumbent)
+            ])
         if not candidate_tokens:
             raise ValueError(f"{row.get('root_id')}: no complete safe H1 candidates")
         full = (row.get("decision_timing") or {}).get(
@@ -114,15 +126,39 @@ def load_examples(
     }
 
 
-def group_folds(groups: list[str], folds: int, seed: int) -> list[set[str]]:
+def group_folds(
+    groups: list[str], folds: int, seed: int,
+    labels: list[float] | None = None,
+) -> list[set[str]]:
     unique = sorted(set(groups))
     if len(unique) < 2:
         raise ValueError("at least two groups required")
     count = min(max(2, int(folds)), len(unique))
-    random.Random(seed).shuffle(unique)
+    rng = random.Random(seed)
+    rng.shuffle(unique)
+    group_rows = collections.Counter(groups)
+    group_positives = collections.Counter()
+    if labels is not None:
+        if len(labels) != len(groups):
+            raise ValueError("labels must align with groups")
+        for group, label in zip(groups, labels):
+            group_positives[group] += int(label > 0.5)
+    unique.sort(
+        key=lambda group: (-group_positives[group], -group_rows[group])
+    )
     result = [set() for _ in range(count)]
-    for index, group in enumerate(unique):
-        result[index % count].add(group)
+    fold_positives = [0] * count
+    fold_rows = [0] * count
+    for group in unique:
+        index = min(
+            range(count),
+            key=lambda fold: (
+                fold_positives[fold], fold_rows[fold], len(result[fold]), fold
+            ),
+        )
+        result[index].add(group)
+        fold_positives[index] += group_positives[group]
+        fold_rows[index] += group_rows[group]
     return result
 
 
@@ -359,34 +395,52 @@ def select_operating_points(points: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run_oof(
     torch, examples: list[dict[str, Any]], *, folds: int,
-    ensemble_size: int, epochs: int, dim: int, seed: int,
+    ensemble_size: int, epochs: int, dim: int, seed: int, repeats: int = 1,
 ) -> dict[str, Any]:
-    fold_groups = group_folds(
-        [row["group"] for row in examples], folds, seed
-    )
-    scores = np.zeros(len(examples), dtype=np.float32)
+    if repeats < 1:
+        raise ValueError("repeats must be positive")
+    groups = [row["group"] for row in examples]
+    labels_list = [row["label"] for row in examples]
+    repeated_scores = np.zeros((repeats, len(examples)), dtype=np.float32)
     fold_reports = []
-    for fold, held_groups in enumerate(fold_groups):
-        train = [row for row in examples if row["group"] not in held_groups]
-        held_indices = [
-            index for index, row in enumerate(examples)
-            if row["group"] in held_groups
-        ]
-        held = [examples[index] for index in held_indices]
-        members = [
-            fit_member(
-                torch, train, seed=seed + fold * 100 + member,
-                epochs=epochs, dim=dim,
-            )
-            for member in range(ensemble_size)
-        ]
-        scores[held_indices] = predict(torch, members, held)
-        fold_reports.append({
-            "fold": fold,
-            "held_groups": sorted(held_groups),
-            "rows": len(held),
-            "positives": int(sum(row["label"] for row in held)),
-        })
+    for repeat in range(repeats):
+        repeat_seed = seed + repeat * 10_000
+        fold_groups = group_folds(
+            groups, folds, repeat_seed, labels=labels_list
+        )
+        for fold, held_groups in enumerate(fold_groups):
+            train = [
+                row for row in examples if row["group"] not in held_groups
+            ]
+            held_indices = [
+                index for index, row in enumerate(examples)
+                if row["group"] in held_groups
+            ]
+            held = [examples[index] for index in held_indices]
+            members = [
+                fit_member(
+                    torch, train,
+                    seed=repeat_seed + fold * 100 + member,
+                    epochs=epochs, dim=dim,
+                )
+                for member in range(ensemble_size)
+            ]
+            held_scores = predict(torch, members, held)
+            repeated_scores[repeat, held_indices] = held_scores
+            held_labels = np.asarray([row["label"] for row in held])
+            fold_reports.append({
+                "repeat": repeat,
+                "fold": fold,
+                "held_groups": sorted(held_groups),
+                "rows": len(held),
+                "positives": int(held_labels.sum()),
+                "auc": auc(held_labels, held_scores),
+                "average_precision": average_precision(
+                    held_labels, held_scores
+                ),
+            })
+    scores = repeated_scores.mean(axis=0)
+    score_std = repeated_scores.std(axis=0)
     labels = np.asarray([row["label"] for row in examples])
     full = np.asarray([row["full_seconds"] for row in examples])
     shallow = np.asarray([row["shallow_seconds"] for row in examples])
@@ -397,6 +451,7 @@ def run_oof(
         "groups": len(set(row["group"] for row in examples)),
         "positives": int(labels.sum()),
         "positive_prevalence": float(labels.mean()),
+        "repeated_group_cv": repeats,
         "auc": auc(labels, scores),
         "average_precision": average_precision(labels, scores),
         "folds": fold_reports,
@@ -405,6 +460,7 @@ def run_oof(
             {
                 "root_id": row["root_id"], "group": row["group"],
                 "label": row["label"], "score": float(scores[index]),
+                "score_repeat_std": float(score_std[index]),
                 "full_seconds": row["full_seconds"],
                 "shallow_seconds": row["shallow_seconds"],
             }
@@ -419,6 +475,7 @@ def main() -> int:
     parser.add_argument("--dataset-root", type=pathlib.Path, required=True)
     parser.add_argument("--folds", type=int, default=4)
     parser.add_argument("--ensemble-size", type=int, default=3)
+    parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--dim", type=int, default=48)
     parser.add_argument("--seed", type=int, default=20260825)
@@ -433,7 +490,7 @@ def main() -> int:
     result = run_oof(
         torch, examples, folds=args.folds,
         ensemble_size=args.ensemble_size, epochs=args.epochs,
-        dim=args.dim, seed=args.seed,
+        dim=args.dim, seed=args.seed, repeats=args.repeats,
     )
     result["feature_contract"] = feature_contract
     result["evaluation_scope"] = (

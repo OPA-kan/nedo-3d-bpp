@@ -22,6 +22,7 @@ class RolloutTriggerLearningWorkflowTests(unittest.TestCase):
         self.assertIn("scripts/train_rollout_trigger.py", self.text)
         self.assertIn("--folds 4", self.text)
         self.assertIn("--ensemble-size 3", self.text)
+        self.assertIn("--repeats 3", self.text)
         self.assertIn("requirements-learning.txt", self.text)
         self.assertNotIn("train_self_play_set_value.py", self.text)
         self.assertNotIn("--leaf-eval value", self.text)
