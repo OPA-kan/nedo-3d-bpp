@@ -26,12 +26,14 @@ class RolloutTriggerLearningWorkflowTests(unittest.TestCase):
         self.assertNotIn("train_self_play_set_value.py", self.text)
         self.assertNotIn("--leaf-eval value", self.text)
 
-    def test_bootstrap_trigger_is_scoped_to_the_workflow(self):
+    def test_push_trigger_is_scoped_to_the_cheap_learner(self):
         self.assertIn("workflow_dispatch:", self.text)
         self.assertIn("push:", self.text)
         self.assertIn(
             "- .github/workflows/rollout-trigger-learning.yml", self.text
         )
+        self.assertIn("- scripts/train_rollout_trigger.py", self.text)
+        self.assertNotIn("run_terminal_rollout_policy.py", self.text)
         self.assertLess(
             self.text.index("      epochs:"),
             self.text.index("  # Register this experiment workflow"),

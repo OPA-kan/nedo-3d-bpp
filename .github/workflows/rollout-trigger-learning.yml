@@ -11,13 +11,16 @@ on:
         description: Training epochs per ensemble member
         required: false
         default: "30"
-  # Register this experiment workflow on the branch without retriggering it
-  # for ordinary learner edits after the first push.
+  # Register this experiment workflow on the branch and rerun only for the
+  # cheap learner surface; physics-collection changes remain excluded.
   push:
     branches:
       - work/terminal-rollout-oracle
     paths:
       - .github/workflows/rollout-trigger-learning.yml
+      - scripts/train_rollout_trigger.py
+      - tests/test_train_rollout_trigger.py
+      - tests/test_rollout_trigger_learning_workflow.py
 
 permissions:
   actions: read
