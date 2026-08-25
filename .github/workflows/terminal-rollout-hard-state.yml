@@ -69,6 +69,45 @@ jobs:
           - cell: single-preloaded-permute-000-89
             scenario: single-preloaded
             stream: permute-000-89
+          # Wave 2 (2026-08-25): the intervention-rich families get more
+          # streams — wave 1 put 15/16 interventions in dual-preloaded /
+          # dual-shelf, and n=16 cannot separate allocator arms.
+          - cell: dual-preloaded-dedicated-permute-000-97
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-97
+          - cell: dual-preloaded-dedicated-permute-000-103
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-103
+          - cell: dual-preloaded-dedicated-permute-000-109
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-109
+          - cell: dual-preloaded-dedicated-permute-000-127
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-127
+          - cell: dual-preloaded-dedicated-permute-000-137
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-137
+          - cell: dual-preloaded-dedicated-permute-000-151
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-151
+          - cell: dual-shelf-mixed-permute-001-59
+            scenario: dual-shelf-mixed
+            stream: permute-001-59
+          - cell: dual-shelf-mixed-permute-001-67
+            scenario: dual-shelf-mixed
+            stream: permute-001-67
+          - cell: dual-shelf-mixed-permute-001-83
+            scenario: dual-shelf-mixed
+            stream: permute-001-83
+          - cell: dual-shelf-mixed-permute-001-101
+            scenario: dual-shelf-mixed
+            stream: permute-001-101
+          - cell: dual-shelf-mixed-permute-001-107
+            scenario: dual-shelf-mixed
+            stream: permute-001-107
+          - cell: dual-shelf-mixed-permute-001-113
+            scenario: dual-shelf-mixed
+            stream: permute-001-113
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -135,7 +174,7 @@ jobs:
         run: >-
           python scripts/build_terminal_rollout_trigger_dataset.py
           --root reports/terminal-hard-state/results
-          --expected-manifests 12
+          --expected-manifests 24
           --json-output reports/terminal-hard-state/trigger-dataset.json
           --markdown-output reports/terminal-hard-state/trigger-dataset.md
       - run: cat reports/terminal-hard-state/trigger-dataset.md >> "$GITHUB_STEP_SUMMARY"

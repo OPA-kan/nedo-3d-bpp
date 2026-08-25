@@ -28,12 +28,17 @@ class TerminalRolloutHardStateWorkflowTests(unittest.TestCase):
         self.assertEqual(self.text.count("--policy terminal-rollout"), 1)
         self.assertNotIn("--model-dir", self.text)
 
-    def test_collects_twelve_stream_diverse_trajectories(self):
-        self.assertEqual(self.text.count("          - cell:"), 12)
+    def test_collects_stream_diverse_trajectories(self):
+        self.assertEqual(self.text.count("          - cell:"), 24)
         self.assertIn("dual-preloaded-dedicated-permute-000-17", self.text)
         self.assertIn("dual-shelf-mixed-permute-001-43", self.text)
         self.assertIn("single-preloaded-permute-000-89", self.text)
-        self.assertIn("--expected-manifests 12", self.text)
+        # wave 2 concentrates on the intervention-rich families
+        self.assertEqual(
+            self.text.count("scenario: dual-preloaded-dedicated"), 10
+        )
+        self.assertEqual(self.text.count("scenario: dual-shelf-mixed"), 9)
+        self.assertIn("--expected-manifests 24", self.text)
 
     def test_keeps_physics_as_oracle_and_builds_trigger_dataset(self):
         self.assertIn("NEDO_REQUIRE_INTEGRATION", self.text)
