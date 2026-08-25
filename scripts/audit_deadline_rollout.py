@@ -42,6 +42,32 @@ from scripts.run_self_play_packing import (  # noqa: E402
 from scripts.run_single_agent_packing import _fresh_env  # noqa: E402
 
 
+ALTERNATE_MODES = ("allocator", "ranker_next")
+
+
+def ranker_order_candidates(
+    oof_row: dict[str, Any], *, budget: int
+) -> list[str]:
+    """Keep the incumbent and add alternates in provider rank order.
+
+    This is the zero-cost trivial baseline arm: candidate_ids are stored in
+    provider rank order (incumbent at rank 0), so the first alternates are the
+    ranker's next-best actions. No model score participates.
+    """
+    candidate_ids = [str(value) for value in oof_row["candidate_ids"]]
+    incumbent_index = int(oof_row["incumbent_index"])
+    incumbent = candidate_ids[incumbent_index]
+    alternatives = [
+        index for index in range(len(candidate_ids))
+        if index != incumbent_index
+    ]
+    chosen = {incumbent}
+    chosen.update(
+        candidate_ids[index] for index in alternatives[: max(0, budget - 1)]
+    )
+    return [candidate for candidate in candidate_ids if candidate in chosen]
+
+
 def choose_from_checkpoint(
     candidate_order: list[str], *, incumbent: str,
     candidates: list[dict[str, Any]],
@@ -62,8 +88,10 @@ def audit(
     attempt_budget: int, top_k: int, rollout_top_k: int,
     candidate_budget: int, decision_budget_seconds: float,
     live_action_reserve_seconds: float, max_continuation_steps: int,
-    safety_factor: float,
+    safety_factor: float, alternate_mode: str = "allocator",
 ) -> dict[str, Any]:
+    if alternate_mode not in ALTERNATE_MODES:
+        raise ValueError(f"unsupported alternate mode: {alternate_mode}")
     targets = {
         str(row["root_id"]): row
         for row in trigger_dataset.get("rows") or []
@@ -127,9 +155,14 @@ def audit(
                     raise RuntimeError(
                         f"{root_id}: candidate support missing {missing_ids}"
                     )
-                allocated_ids = allocated_candidates(
-                    oof_row, budget=candidate_budget
-                )
+                if alternate_mode == "ranker_next":
+                    allocated_ids = ranker_order_candidates(
+                        oof_row, budget=candidate_budget
+                    )
+                else:
+                    allocated_ids = allocated_candidates(
+                        oof_row, budget=candidate_budget
+                    )
                 allocated = [by_id[candidate_id] for candidate_id in allocated_ids]
                 deadline_at = (
                     decision_started + decision_budget_seconds
@@ -197,6 +230,7 @@ def audit(
         env.close()
     return {
         "contract": "deadline_rollout_hard_state_audit_v1",
+        "alternate_mode": alternate_mode,
         "cell": cell,
         "case_id": case_id,
         "candidate_budget": candidate_budget,
@@ -227,6 +261,9 @@ def main() -> int:
     parser.add_argument("--live-action-reserve-seconds", type=float, default=0.25)
     parser.add_argument("--max-continuation-steps", type=int, default=2)
     parser.add_argument("--safety-factor", type=float, default=1.35)
+    parser.add_argument(
+        "--alternate-mode", choices=ALTERNATE_MODES, default="allocator",
+    )
     parser.add_argument("--output", type=pathlib.Path, required=True)
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))

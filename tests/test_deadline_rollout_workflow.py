@@ -14,6 +14,11 @@ class DeadlineRolloutWorkflowTests(unittest.TestCase):
         self.assertIn("32796518151", self.text)
         self.assertIn("--candidate-budget 2", self.text)
 
+    def test_alternate_arm_is_switchable_without_code_change(self):
+        self.assertIn("allocator_artifact", self.text)
+        self.assertIn("--alternate-mode", self.text)
+        self.assertIn("ranker_next", self.text)
+
     def test_enforces_ten_second_h3_shadow_without_value(self):
         self.assertIn("--decision-budget-seconds", self.text)
         self.assertIn("--max-continuation-steps 2", self.text)

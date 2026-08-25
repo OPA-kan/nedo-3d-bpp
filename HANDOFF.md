@@ -1,5 +1,34 @@
 # Handoff — current state
 
+## Active line 2026-08-25: terminal-rollout oracle (`work/terminal-rollout-oracle`)
+
+The physics terminal rollout is the oracle; the NN's near-term job is
+compute allocation (which branch gets depth), not value prediction. V is
+retained only as a same-budget challenger. Status, all on real physics:
+
+- Full terminal rollout capability confirmed (6/6 cells, 1 switch,
+  placed 12→13, fill 9.63→10.63; `terminal-rollout-policy-results-20260825.md`)
+  but too slow for the 10 s SLA (p50 ≈ 16 s, p95 ≈ 35.5 s).
+- Hard-state cohort: 131 roots / 12 permute cells / 16 interventions
+  (run `32763509936`). Root-level trigger: FAIL (AUC ≈ 0.5), closed.
+- Deadline-aware persistent-session executor met the real 10 s SLA
+  (46/46 ≤ 10 s, p95 8.16 s, reproduction 73.9%, recall 37.5%) — but its
+  branch selection leaked H1 physics inputs.
+- **Geometry-only candidate policy (leak fixed): group-OOF in run
+  `32801677319`, analyzed in `geometry-policy-first-gate-20260825.md`.
+  Inclusion recall 11/16 — matches the H1-leaking allocator exactly with
+  zero hidden physics — but the zero-cost ranker next-best baseline gets
+  12/16; the NN's unique value is 3 of the 4 rank-2 interventions.
+  Calibration is inverted (do not threshold the scores).**
+- Next gate: live deadline shadow on identical roots with three arms —
+  H1-leaking (historical), geometry policy, `--alternate-mode
+  ranker_next` (added 2026-08-25) — judged on real wall-clock and
+  intervention recovery.
+
+Do not: revive multi-head V mainline, scalar utility, root-trigger
+digging, progressive widening, unaudited symmetry merges, or per-decision
+full terminal rollout.
+
 Updated: 2026-08-23 JST (the 2026-08-16 text below is retained; the
 sections added on 2026-08-18 are the soft axis, the death budget, the
 measurement-hygiene defects, the post-shake instrument, and the fifth

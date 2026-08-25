@@ -11,6 +11,14 @@ on:
         description: Group-OOF candidate allocator run
         required: false
         default: "32796518151"
+      allocator_artifact:
+        description: Allocator artifact name in that run
+        required: false
+        default: "rollout-trigger-learning-32796518151"
+      alternate_mode:
+        description: Alternate branch selection (allocator or ranker_next)
+        required: false
+        default: "allocator"
       decision_budget_seconds:
         description: Total wall-clock budget per decision
         required: false
@@ -80,7 +88,7 @@ jobs:
       - name: Download group-OOF allocator
         uses: actions/download-artifact@v4
         with:
-          name: rollout-trigger-learning-${{ inputs.allocator_run_id || '32796518151' }}
+          name: ${{ inputs.allocator_artifact || 'rollout-trigger-learning-32796518151' }}
           path: reports/deadline-allocator
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ inputs.allocator_run_id || '32796518151' }}
@@ -101,6 +109,7 @@ jobs:
           --decision-budget-seconds "${{ inputs.decision_budget_seconds || '10.0' }}"
           --max-continuation-steps 2
           --safety-factor 1.35
+          --alternate-mode "${{ inputs.alternate_mode || 'allocator' }}"
           --output reports/deadline-rollout/${{ matrix.cell }}/deadline.json
       - uses: actions/upload-artifact@v4
         if: always()

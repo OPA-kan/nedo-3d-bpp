@@ -1,6 +1,9 @@
 import unittest
 
-from scripts.audit_deadline_rollout import choose_from_checkpoint
+from scripts.audit_deadline_rollout import (
+    choose_from_checkpoint,
+    ranker_order_candidates,
+)
 from scripts.deadline_rollout_summary import summarize
 
 
@@ -26,6 +29,22 @@ class AuditDeadlineRolloutTests(unittest.TestCase):
         )
         self.assertEqual(selected, "b")
         self.assertEqual(frontier, ["b"])
+
+    def test_ranker_next_ignores_scores_and_keeps_rank_order(self):
+        oof_row = {
+            "candidate_ids": ["a", "b", "c"],
+            "candidate_scores": [0.1, 0.2, 0.9],
+            "incumbent_index": 0,
+        }
+        self.assertEqual(
+            ranker_order_candidates(oof_row, budget=2), ["a", "b"]
+        )
+        self.assertEqual(
+            ranker_order_candidates(oof_row, budget=1), ["a"]
+        )
+        self.assertEqual(
+            ranker_order_candidates(oof_row, budget=3), ["a", "b", "c"]
+        )
 
     def test_summary_reports_actual_budget_compliance(self):
         rows = [
