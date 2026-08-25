@@ -53,9 +53,12 @@ def episode_payload(cell_dir: pathlib.Path) -> dict[str, Any]:
         (cell_dir / "rollout" / "manifest.json").read_text(encoding="utf-8")
     )
     episode = manifest["episodes"][0]
-    snapshot = json.loads(sorted(
-        (cell_dir / "rollout" / "episode-000").glob("step-*-state.json")
-    )[0].read_text(encoding="utf-8"))
+    snapshots = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(
+            (cell_dir / "rollout" / "episode-000").glob("step-*-state.json")
+        )
+    ]
     containers = [
         {
             "index": int(row.get("index", 0)),
@@ -63,16 +66,57 @@ def episode_payload(cell_dir: pathlib.Path) -> dict[str, Any]:
             "length": float(row.get("length", 0) or 0),
             "width": float(row.get("width", 0) or 0),
             "height": float(row.get("height", 0) or 0),
-            "shelf": bool(row.get("shelf")),
+            # shelf plane sits half a container height up (simulator:
+            # shelf_z = height/2 + thickness/2 + buffer, container-local)
+            "shelf_z": (
+                round(
+                    float(row["center"][2]) + float(row.get("thickness", 0)
+                                                    or 0) / 2.0, 4
+                )
+                if row.get("shelf") else None
+            ),
         }
-        for row in snapshot["observation"]["container_list"]
+        for row in snapshots[0]["observation"]["container_list"]
     ]
-    return {"episode": episode, "containers": containers}
+    return {"episode": episode, "containers": containers,
+            "snapshots": snapshots}
+
+
+def settled_board(snapshot: dict[str, Any]) -> list[list[float]]:
+    """[container, stable item index, world x/y/z, placed l/w/h] rows.
+
+    Observation packed poses are the settled physics poses in world
+    coordinates — the truth after gravity, not the commanded target.
+    """
+    board = []
+    for container in snapshot["observation"]["container_list"]:
+        for item in container.get("packed_items") or []:
+            board.append([
+                int(container.get("index", 0)), int(item["index"]),
+                *[round(float(v), 3) for v in item["pos"]],
+                round(float(item["length"]), 3),
+                round(float(item["width"]), 3),
+                round(float(item["height"]), 3),
+            ])
+    return board
+
+
+def selected_stable_index(record: dict[str, Any]) -> int | None:
+    selected = (record.get("selection") or {}).get("selected_candidate_id")
+    for row in (record.get("search") or {}).get("root_candidates") or []:
+        if str(row.get("root_candidate_id")) == str(selected):
+            value = row.get("stable_item_index")
+            return int(value) if value is not None else None
+    return None
 
 
 def arm_steps(
-    episode: dict[str, Any], items: dict[int, tuple[float, float, float]],
+    payload: dict[str, Any],
+    items: dict[int, tuple[float, float, float]],
 ) -> list[dict[str, Any]]:
+    episode = payload["episode"]
+    snapshots = payload["snapshots"]
+    containers = {c["index"]: c for c in payload["containers"]}
     records = episode.get("records") or []
     steps = []
     for position, record in enumerate(records):
@@ -84,17 +128,29 @@ def arm_steps(
             after = episode.get("final_metrics") or {}
         scores = selection.get("learned_scores") or {}
         selected_score = scores.get(selection.get("selected_candidate_id"))
-        item_index = int(action["item_idx"])
+        stable = selected_stable_index(record)
+        if position + 1 < len(snapshots):
+            board = settled_board(snapshots[position + 1])
+        else:
+            # the final placement has no follow-up snapshot: append the
+            # commanded box (container-local xy) to the last settled board
+            board = settled_board(snapshots[-1]) if snapshots else []
+            container = containers.get(int(action["container_idx"]), {})
+            center = container.get("center", [0, 0, 0])
+            dims = rotated(
+                items.get(stable, (0.3, 0.3, 0.3)), action["orientation"]
+            ) if stable is not None else [0.3, 0.3, 0.3]
+            board = board + [[
+                int(action["container_idx"]), int(stable or -1),
+                round(center[0] + float(action["place_pos"][0]), 3),
+                round(center[1] + float(action["place_pos"][1]), 3),
+                round(float(action["place_pos"][2]), 3),
+                *[round(v, 3) for v in dims],
+            ]]
         steps.append({
             "t": int(record.get("step", position)),
-            "item": item_index,
+            "item": stable,
             "cont": int(action["container_idx"]),
-            "pos": [round(float(v), 4) for v in action["place_pos"]],
-            "o": int(action["orientation"]),
-            "dims": [
-                round(v, 4)
-                for v in rotated(items[item_index], action["orientation"])
-            ],
             "switched": bool(selection.get("switched")),
             "reason": selection.get("reason"),
             "conf": (
@@ -103,6 +159,7 @@ def arm_steps(
             ),
             "placed": int(after.get("placed_count", 0)),
             "fill": round(float(after.get("fill_score_proxy", 0.0)), 4),
+            "board": board,
         })
     return steps
 
@@ -119,12 +176,10 @@ def build_cell(
     stream = f"permute-{stream}"
     items = load_config_items(configs, stream, scenario)
     payloads = {name: episode_payload(path) for name, path in arms.items()}
-    used = set()
     arm_data = {}
     for name, payload in payloads.items():
         episode = payload["episode"]
-        steps = arm_steps(episode, items)
-        used.update(step["item"] for step in steps)
+        steps = arm_steps(payload, items)
         final = episode.get("final_metrics") or {}
         arm_data[name] = {
             "termination": episode.get("termination"),
@@ -136,13 +191,20 @@ def build_cell(
             },
         }
     names = list(arm_data)
+
+    def placement_key(step):
+        row = next(
+            (r for r in step["board"]
+             if r[1] == step["item"] and r[0] == step["cont"]), None
+        )
+        return (step["item"], step["cont"],
+                tuple(round(v, 2) for v in row[2:5]) if row else None)
+
     divergence = None
     if len(names) == 2:
         first, second = (arm_data[name]["steps"] for name in names)
         for a, b in zip(first, second):
-            if (a["item"], a["cont"], a["pos"], a["o"]) != (
-                b["item"], b["cont"], b["pos"], b["o"]
-            ):
+            if placement_key(a) != placement_key(b):
                 divergence = a["t"]
                 break
         else:
@@ -152,7 +214,7 @@ def build_cell(
         "scenario": scenario,
         "stream": stream,
         "containers": payloads[names[0]]["containers"],
-        "items": {str(index): list(items[index]) for index in sorted(used)},
+        "initial_board": settled_board(payloads[names[0]]["snapshots"][0]),
         "divergence_turn": divergence,
         "arms": arm_data,
     }
