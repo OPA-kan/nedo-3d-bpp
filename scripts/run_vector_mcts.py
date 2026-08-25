@@ -607,6 +607,7 @@ def _terminal_rollout(
                 termination = "stream_exhausted"
         genuine = termination in GENUINE_TERMINATIONS
         terminal_metrics = cumulative_metrics(env)
+        checkpoint_vector = _component_values(root_metrics, terminal_metrics)
         evaluation = None
         if genuine:
             phase_started = time.perf_counter()
@@ -639,8 +640,12 @@ def _terminal_rollout(
             "continuation_actions": [
                 json_safe(action) for action in continuation_actions
             ],
+            # Unlike terminal_vector, this remains available at a bounded
+            # continuation cap.  It is an achieved prefix measurement, not a
+            # learned suffix value and not genuine-terminal truth.
+            "checkpoint_vector": checkpoint_vector,
             "terminal_vector": (
-                _component_values(root_metrics, terminal_metrics)
+                checkpoint_vector
                 if genuine else None
             ),
             "terminal_metrics": terminal_metrics,
@@ -1086,6 +1091,10 @@ def vector_search_root(
                     terminal_result.get("terminal_vector")
                     if terminal_result else None
                 ),
+                "terminal_checkpoint_vector": (
+                    terminal_result.get("checkpoint_vector")
+                    if terminal_result else None
+                ),
                 "terminal_metrics": (
                     terminal_result.get("terminal_metrics")
                     if terminal_result else None
@@ -1207,7 +1216,13 @@ def vector_search_root(
             row["one_step_vector"] = root_node["vector"]
             row["terminal_genuine"] = root_node["terminal_genuine"]
             row["terminal_termination"] = root_node["terminal_termination"]
+            row["terminal_continuation_steps"] = root_node[
+                "terminal_continuation_steps"
+            ]
             row["terminal_vector"] = root_node["terminal_vector"]
+            row["terminal_checkpoint_vector"] = root_node[
+                "terminal_checkpoint_vector"
+            ]
             row["terminal_metrics"] = root_node["terminal_metrics"]
             row["terminal_evaluation"] = root_node["terminal_evaluation"]
             row["terminal_continuation_actions"] = root_node[
@@ -1291,6 +1306,7 @@ def vector_search_root(
                     "terminal_physical_step_equivalents",
                     "terminal_legal_filter_symmetry_reused",
                     "terminal_vector",
+                    "terminal_checkpoint_vector",
                     "terminal_metrics", "terminal_evaluation",
                     "terminal_forced_actions",
                     "terminal_continuation_actions",

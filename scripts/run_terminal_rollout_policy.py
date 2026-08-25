@@ -166,7 +166,9 @@ def _search_record(result: dict[str, Any]) -> dict[str, Any]:
                 for key in (
                     "root_candidate_id", "stable_item_index", "safe",
                     "one_step_vector", "terminal_genuine",
-                    "terminal_termination", "terminal_vector",
+                    "terminal_termination", "terminal_continuation_steps",
+                    "terminal_vector",
+                    "terminal_checkpoint_vector",
                     "terminal_continuation_actions",
                     "terminal_physical_step_equivalents",
                     "terminal_legal_filter_symmetry_reused",

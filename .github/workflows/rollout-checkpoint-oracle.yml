@@ -1,0 +1,146 @@
+name: Bounded rollout checkpoint oracle
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Frozen terminal hard-state aggregate run
+        required: false
+        default: "32763509936"
+      caps:
+        description: Rank-0 continuation caps (H = cap + 1)
+        required: false
+        default: "0,2,4"
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/rollout-checkpoint-oracle.yml
+      - scripts/audit_rollout_checkpoints.py
+      - scripts/aggregate_rollout_checkpoints.py
+      - tests/test_rollout_checkpoint_audit.py
+      - tests/test_aggregate_rollout_checkpoints.py
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: rollout-checkpoint-oracle-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: dual-preloaded-dedicated-permute-000-17
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-17
+          - cell: dual-preloaded-dedicated-permute-000-29
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-29
+          - cell: dual-preloaded-dedicated-permute-000-41
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-41
+          - cell: dual-preloaded-dedicated-permute-000-53
+            scenario: dual-preloaded-dedicated
+            stream: permute-000-53
+          - cell: dual-shelf-mixed-permute-001-23
+            scenario: dual-shelf-mixed
+            stream: permute-001-23
+          - cell: dual-shelf-mixed-permute-001-31
+            scenario: dual-shelf-mixed
+            stream: permute-001-31
+          - cell: dual-shelf-mixed-permute-001-43
+            scenario: dual-shelf-mixed
+            stream: permute-001-43
+          - cell: dual-empty-permute-000-61
+            scenario: dual-empty
+            stream: permute-000-61
+          - cell: dual-empty-permute-000-71
+            scenario: dual-empty
+            stream: permute-000-71
+          - cell: single-empty-shelf-permute-001-73
+            scenario: single-empty-shelf
+            stream: permute-001-73
+          - cell: single-empty-noshelf-permute-000-79
+            scenario: single-empty-noshelf
+            stream: permute-000-79
+          - cell: single-preloaded-permute-000-89
+            scenario: single-preloaded
+            stream: permute-000-89
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify checkpoint contracts
+        run: >-
+          python -m unittest
+          tests.test_rollout_checkpoint_audit
+          tests.test_aggregate_rollout_checkpoints
+          tests.test_vector_mcts_and_beta
+          -v
+      - name: Download frozen terminal truth
+        uses: actions/download-artifact@v4
+        with:
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32763509936' }}
+          path: reports/checkpoint-source
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.source_run_id || '32763509936' }}
+      - name: Rebuild exact stream scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/rollout-checkpoints/configs/${{ matrix.cell }}
+      - name: Audit bounded physical prefixes
+        run: >-
+          python scripts/audit_rollout_checkpoints.py
+          --manifest reports/checkpoint-source/results/terminal-hard-state-cell-${{ matrix.cell }}/rollout/manifest.json
+          --trigger-dataset reports/checkpoint-source/trigger-dataset.json
+          --config reports/rollout-checkpoints/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json
+          --cell terminal-hard-state-cell-${{ matrix.cell }}
+          --caps "${{ inputs.caps || '0,2,4' }}"
+          --attempt-budget 128
+          --top-k 3
+          --rollout-top-k 3
+          --output reports/rollout-checkpoints/${{ matrix.cell }}/checkpoint.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rollout-checkpoint-cell-${{ matrix.cell }}
+          path: reports/rollout-checkpoints/${{ matrix.cell }}/
+
+  aggregate:
+    needs: audit
+    if: always() && needs.audit.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rollout-checkpoint-cell-*
+          path: reports/rollout-checkpoints/results
+      - name: Aggregate H1/H3/H5 recall and latency
+        run: >-
+          python scripts/aggregate_rollout_checkpoints.py
+          --root reports/rollout-checkpoints/results
+          --expected-cells 12
+          --json-output reports/rollout-checkpoints/aggregate.json
+          --markdown-output reports/rollout-checkpoints/aggregate.md
+      - run: cat reports/rollout-checkpoints/aggregate.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rollout-checkpoint-aggregate-${{ github.run_id }}
+          path: reports/rollout-checkpoints/aggregate.*

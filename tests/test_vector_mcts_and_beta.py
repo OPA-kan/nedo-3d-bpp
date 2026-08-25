@@ -917,10 +917,13 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             result["terminal_metrics"]["post_shake_max_shift"], 0.25
         )
 
-    @mock.patch("scripts.run_vector_mcts.cumulative_metrics", return_value={})
+    @mock.patch("scripts.run_vector_mcts.cumulative_metrics")
     @mock.patch("scripts.run_vector_mcts._fresh_env")
     def test_terminal_rollout_cap_is_censored(self, fresh_env, _metrics):
         class Env:
+            def __init__(self):
+                self.fill = 0.0
+
             def reset_settings(self):
                 pass
 
@@ -930,7 +933,8 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
             def reset(self, seed):
                 return {}, {}
 
-            def step(self, _action):
+            def step(self, action):
+                self.fill += float(action["fill"])
                 return {}, 0.0, False, False, {
                     "status": {
                         "is_included": True, "is_valid": True,
@@ -942,6 +946,15 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
                 pass
 
         fresh_env.return_value = Env()
+        _metrics.side_effect = lambda env: {
+            "fill_score_proxy": env.fill,
+            "placed_count": env.fill,
+            "soft_covered_by_other": 0.0,
+            "priority_covered_by_other": 0.0,
+            "priority_misrouted": 0.0,
+            "center_of_mass_z": 0.0,
+            "surface_total_variation": 0.0,
+        }
         result = _terminal_rollout(
             {}, environment_seed=42, prefix_actions=[],
             forced_actions=[{"fill": 1.0}], provider=mock.Mock(),
@@ -952,6 +965,7 @@ class VectorSearchPrimitiveTests(unittest.TestCase):
         self.assertEqual(result["termination"], "continuation_cap")
         self.assertFalse(result["genuine_terminal"])
         self.assertIsNone(result["terminal_vector"])
+        self.assertEqual(result["checkpoint_vector"]["fill_gain"], 1.0)
 
 
 class BetaProposalTests(unittest.TestCase):
