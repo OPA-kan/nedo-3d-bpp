@@ -74,6 +74,24 @@ retained only as a same-budget challenger. Status, all on real physics:
   `32813542943`); if data does not close the gap, the next single
   change is a residual comparator (Pareto decision as prior, learn only
   the deviation). Production stack unchanged.
+- **Expert Iteration loop contract frozen
+  (`expert-iteration-loop-contract.md`)**: the mainline is now
+  π_t → widened support (learned ∪ coverage ∪ rescue) → 10 s bounded
+  search → executed trajectory → terminal outcome → π_{t+1}. Win rule =
+  3-tier (validity veto → official-head dominance → draw; trade-offs
+  logged, never adjudicated); Q = per-head antisymmetric Δ predictions
+  with the verdict derived by the rule, labels generation-stamped
+  perishables; terminal oracle demoted to auditor (uncertain + fixed
+  random audit + OOD + benchmarks). **League implemented and live**
+  (`scripts/league.py`, `evaluate_league.py`, `league-match.yml`):
+  main gate = challenger vs current champion only (paired Pareto wins >
+  losses ∧ aggregate hard heads non-worse); π_0 anchor + previous
+  champion + milestones are a catastrophic-regression detector with
+  aggregate thresholds, never per-episode vetoes. Frozen 10-episode
+  eval set on streams no training wave ever touched; registry at
+  `reports/league/registry.json`; workflow pushes re-run the anchor as
+  a determinism audit. First breakthrough = first league promotion of
+  a distilled π_1.
 - **Direction contract frozen (2026-08-25,
   `policy-loop-direction-contract.md`)**: the selector and comparator
   are *search-internal* components, not the agent policy π_θ(a|s). Stop

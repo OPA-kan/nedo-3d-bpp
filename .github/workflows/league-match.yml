@@ -1,0 +1,136 @@
+name: Policy league match
+
+on:
+  workflow_dispatch:
+    inputs:
+      policy:
+        description: Episode policy arm (legacy or terminal-rollout)
+        required: false
+        default: "terminal-rollout"
+      challenger_name:
+        description: League name for this arm
+        required: false
+        default: "pi0-search"
+      mode:
+        description: bootstrap | challenge | audit
+        required: false
+        default: "challenge"
+  # Bootstrap trigger: edits to this workflow re-run the legacy anchor
+  # arm — first time as league bootstrap, afterwards as a determinism
+  # audit against the committed registry.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/league-match.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: league-match-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  episodes:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {cell: dual-preloaded-dedicated-permute-000-191, scenario: dual-preloaded-dedicated, stream: permute-000-191}
+          - {cell: dual-preloaded-dedicated-permute-000-193, scenario: dual-preloaded-dedicated, stream: permute-000-193}
+          - {cell: dual-preloaded-dedicated-permute-000-197, scenario: dual-preloaded-dedicated, stream: permute-000-197}
+          - {cell: dual-shelf-mixed-permute-001-167, scenario: dual-shelf-mixed, stream: permute-001-167}
+          - {cell: dual-shelf-mixed-permute-001-173, scenario: dual-shelf-mixed, stream: permute-001-173}
+          - {cell: dual-shelf-mixed-permute-001-181, scenario: dual-shelf-mixed, stream: permute-001-181}
+          - {cell: dual-empty-permute-000-197, scenario: dual-empty, stream: permute-000-197}
+          - {cell: single-empty-shelf-permute-001-179, scenario: single-empty-shelf, stream: permute-001-179}
+          - {cell: single-empty-noshelf-permute-000-191, scenario: single-empty-noshelf, stream: permute-000-191}
+          - {cell: single-preloaded-permute-000-193, scenario: single-preloaded, stream: permute-000-193}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - name: Verify league contracts
+        run: >-
+          python -m unittest
+          tests.test_league
+          tests.test_league_workflow
+          -v
+      - name: Build frozen eval scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/league/configs/${{ matrix.cell }}
+      - name: Run frozen eval episode
+        run: >-
+          python scripts/run_terminal_rollout_policy.py
+          --config reports/league/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json
+          --case m-${{ matrix.scenario }}
+          --environment-seed 42
+          --attempt-budget 128
+          --top-k 3
+          --rollout-top-k 3
+          --rollout-max-steps 40
+          --max-steps 40
+          --policy "${{ inputs.policy || 'legacy' }}"
+          --output-dir reports/league/episodes/${{ matrix.cell }}/rollout
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: league-cell-${{ matrix.cell }}
+          path: reports/league/episodes/${{ matrix.cell }}/
+
+  evaluate:
+    needs: episodes
+    if: always() && needs.episodes.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: league-cell-*
+          path: reports/league/results
+      - name: Evaluate against the league
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode="${{ inputs.mode || '' }}"
+          name="${{ inputs.challenger_name || 'pi0-legacy' }}"
+          if [ -z "$mode" ]; then
+            if [ -f reports/league/registry.json ]; then
+              mode="audit"; name="pi0-legacy"
+            else
+              mode="bootstrap"; name="pi0-legacy"
+            fi
+          fi
+          flags=""
+          case "$mode" in
+            bootstrap) flags="--bootstrap" ;;
+            audit) flags="--audit-anchor" ;;
+            challenge) flags="" ;;
+            *) echo "unknown mode $mode"; exit 1 ;;
+          esac
+          python scripts/evaluate_league.py \
+            --manifest-root reports/league/results \
+            --registry reports/league/registry.json \
+            --challenger-name "$name" \
+            --source "${{ github.run_id }}" \
+            --report reports/league/out/report.json \
+            --registry-out reports/league/out/registry.json \
+            $flags
+      - run: python -m json.tool reports/league/out/report.json | head -80 >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: league-result-${{ github.run_id }}
+          path: reports/league/out/
