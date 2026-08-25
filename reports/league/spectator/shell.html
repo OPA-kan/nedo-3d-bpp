@@ -155,7 +155,7 @@
           <div class="sub">第1世代王者 — プリフ系の始祖。初のニューラル王者（preference蒸留・探索なし・SLA内）</div>
         </div>
         <div class="rec">
-          王座戦: <span class="mono">1勝0敗6分3保留</span> vs ハコブネ<br>
+          戴冠: <span class="mono">1-0-6-3</span> vs ハコブネ · 防衛1: <span class="mono">1-0-7-2</span> vs プリフツバキ<br>
           benchmark: <span class="mono">1勝2敗</span> vs センリガン（below）
         </div>
       </div>
@@ -169,7 +169,7 @@
           <div class="roster">
             <div class="member"><div class="role">Anchor · gen 0</div><div class="name">ハコブネ</div><div class="desc">pi0-legacy — 手書きrank-0。全系統の祖、永久アンカー。</div></div>
             <div class="member champ"><div class="role">Champion · gen 1</div><div class="name">プリファースト 👑</div><div class="desc">pi1-pref-g1 — P(alt ≻ incumbent)。τ=0.5超のみswitch。</div></div>
-            <div class="member pending"><div class="role">Challenger · Round 1/10</div><div class="name">プリフツバキ</div><div class="desc">pi2-pref-w5 — 花のwave。118セル教師で訓練中。</div></div>
+            <div class="member pending"><div class="role">Challenger · Round 2/10</div><div class="name">プリフヒバリ</div><div class="desc">pi2-pref-w6 — 鳥のwave。136セル教師（採取から開始）。</div></div>
           </div>
         </div>
         <div class="track benchmark">
@@ -191,6 +191,7 @@
       <table class="matches">
         <thead><tr><th>#</th><th>対戦</th><th>星取</th><th>判定</th><th>集計</th></tr></thead>
         <tbody>
+          <tr><td class="mono">004</td><td><b>プリフツバキ</b> vs プリファースト</td><td class="wl"><b>0</b>-<s>1</s>-7-<i>2</i></td><td><span class="pill red">🛡 王座防衛</span></td><td class="mono">viol −1 だが placed −2 · 敗着はdsm-181</td></tr>
           <tr><td class="mono">003</td><td><b>プリファースト</b> vs ハコブネ</td><td class="wl"><b>1</b>-<s>0</s>-6-<i>3</i></td><td><span class="pill gold">👑 昇格</span></td><td class="mono">placed +2 · viol −1</td></tr>
           <tr><td class="mono">003b</td><td>プリファースト vs センリガン</td><td class="wl"><b>1</b>-<s>2</s>-1-<i>6</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">fill −1.48 · viol −1</td></tr>
           <tr><td class="mono">002B</td><td>コピネコ vs センリガン</td><td class="wl"><b>0</b>-<s>2</s>-3-<i>5</i></td><td><span class="pill red">棄却</span></td><td class="mono">行動模倣はrank-0に退化</td></tr>
@@ -204,9 +205,9 @@
   <!-- ============ MATCH CENTER ============ -->
   <div class="view" id="view-match">
     <div class="mc-head">
-      <span class="pill gold">MATCH 003</span>
+      <span class="pill gold" id="mc-no">MATCH</span>
       <span class="mc-vs"><span class="a" id="mc-cha">—</span> <span style="color:var(--faint)">vs</span> <span class="b" id="mc-opp">—</span></span>
-      <span class="pill gold" id="mc-verdict">👑 PROMOTED</span>
+      <span class="pill gold" id="mc-verdict">—</span>
       <span class="mono" style="margin-left:auto;color:var(--muted);font-size:12px" id="mc-counts"></span>
     </div>
     <div class="chips" id="cell-chips"></div>
@@ -253,7 +254,7 @@
   <footer>
     <span class="lock">🔒 観戦はread-only — リーグ結果から手動でtraining matrixをtuningしない（凍結評価が人間経由で漏れるため）。研究判断はtraining側diagnosticのみから。</span>
     <span>命名は競馬式（冠名プリフ=preference血統・waveテーマ名、9文字以内・改名なし）</span>
-    <span>branch: work/terminal-rollout-oracle · registry gen 1 · シーズンRound 1/10進行中 · 2026-08-25</span>
+    <span>branch: work/terminal-rollout-oracle · registry gen 1 · シーズンRound 2/10進行中 · 2026-08-25</span>
   </footer>
 </div>
 
@@ -267,6 +268,7 @@ const DISPLAY = {
   "pi0-legacy": "ハコブネ", "pi0-search": "センリガン",
   "pi1-imitation-w3": "マネキネコ", "pi1-geometry-g0": "コピネコ",
   "pi1-pref-g1": "プリファースト", "pi2-pref-w5": "プリフツバキ",
+  "pi2-pref-w6": "プリフヒバリ",
 };
 const REL_CLASS = { challenger_wins:"w", member_wins:"l", equal:"e", incomparable:"t" };
 const REL_LABEL = { challenger_wins:"勝", member_wins:"敗", equal:"分", incomparable:"保" };
@@ -311,9 +313,12 @@ const cellNames = Object.keys(MATCH.cells);
 let currentCell = MATCH.highlights.length ? MATCH.highlights[0].cell : cellNames[0];
 let turn = 0, playing = false, speed = 1, timer = null;
 
+document.getElementById("mc-no").textContent = "MATCH " + MATCH.match_id;
 document.getElementById("mc-cha").textContent = DISPLAY[MATCH.challenger] || MATCH.challenger;
 document.getElementById("mc-opp").textContent = DISPLAY[MATCH.opponent] || MATCH.opponent;
-document.getElementById("mc-verdict").textContent = MATCH.promoted ? "👑 PROMOTED" : "棄却";
+const verdictEl = document.getElementById("mc-verdict");
+verdictEl.textContent = MATCH.promoted ? "👑 PROMOTED" : "🛡 王座防衛";
+if (!MATCH.promoted) { verdictEl.classList.remove("gold"); verdictEl.classList.add("red"); }
 document.getElementById("mc-counts").textContent =
   `W${MATCH.counts.challenger_wins}-L${MATCH.counts.member_wins}-E${MATCH.counts.equal}-T${MATCH.counts.incomparable}`;
 
@@ -394,155 +399,176 @@ function buildFeed() {
   }
 }
 
-/* ---------- isometric renderer ---------- */
+/* ---------- isometric renderer: one viewport per container ---------- */
 const COS = Math.cos(Math.PI/6), SIN = Math.sin(Math.PI/6);
-function makeView(containers) {
-  let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9,maxZ=0;
-  for (const c of containers) {
-    minX = Math.min(minX, c.center[0]-c.length/2);
-    maxX = Math.max(maxX, c.center[0]+c.length/2);
-    minY = Math.min(minY, c.center[1]-c.width/2);
-    maxY = Math.max(maxY, c.center[1]+c.width/2);
-    maxZ = Math.max(maxZ, c.center[2]+c.height/2);
-  }
-  const corners = [];
-  for (const x of [minX,maxX]) for (const y of [minY,maxY]) for (const z of [0,maxZ])
+const CW = 560, CH = 470;
+function slotView(c, slot, nSlots) {
+  // fit THIS container into its own horizontal slot: no cross-container
+  // overlap, every container rendered large
+  const cx=c.center[0], cy=c.center[1];
+  const x0=cx-c.length/2, x1=cx+c.length/2;
+  const y0=cy-c.width/2, y1=cy+c.width/2;
+  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  const corners=[];
+  for (const x of [x0,x1]) for (const y of [y0,y1]) for (const z of [z0,z1])
     corners.push([(x-y)*COS, (x+y)*SIN - z]);
-  const xs = corners.map(p=>p[0]), ys = corners.map(p=>p[1]);
-  const w = 520, h = 430, pad = 30;
-  const scale = Math.min((w-2*pad)/(Math.max(...xs)-Math.min(...xs)),
-                         (h-2*pad)/(Math.max(...ys)-Math.min(...ys)));
-  const ox = -Math.min(...xs)*scale + pad;
-  const oy = -Math.min(...ys)*scale + pad;
-  return function proj(x, y, z) {
-    return [ (x-y)*COS*scale + ox, h - ((x+y)*SIN - z)*scale - oy ];
-  };
+  const xs=corners.map(p=>p[0]), ys=corners.map(p=>p[1]);
+  const slotW = CW / nSlots, pad = 26;
+  const scale = Math.min((slotW-2*pad)/(Math.max(...xs)-Math.min(...xs)),
+                         (CH-2*pad-22)/(Math.max(...ys)-Math.min(...ys)));
+  const ox = slot*slotW + (slotW - (Math.max(...xs)-Math.min(...xs))*scale)/2
+             - Math.min(...xs)*scale;
+  const oy = (CH-22 - (Math.max(...ys)-Math.min(...ys))*scale)/2
+             - Math.min(...ys)*scale;
+  return (x,y,z) => [ (x-y)*COS*scale + ox,
+                      (CH-22) - (((x+y)*SIN - z)*scale + oy) ];
 }
-function boxFaces(ctx, proj, cx, cy, cz, dx, dy, dz, hue, glow, flags) {
+function fillPoly(ctx, pts, fill, stroke, lw) {
+  ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+  for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw||1; ctx.stroke(); }
+}
+function drawContainerRoom(ctx, P, c) {
+  const cx=c.center[0], cy=c.center[1];
+  const x0=cx-c.length/2, x1=cx+c.length/2;
+  const y0=cy-c.width/2, y1=cy+c.width/2;
+  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  const t=c.thickness||0.04;
+  // back walls (+y face and +x face) + floor as solid panels: the
+  // "room" reads instantly, boxes sit inside it
+  fillPoly(ctx, [P(x0,y1,z0),P(x1,y1,z0),P(x1,y1,z1),P(x0,y1,z1)], "#151d27", "#2b3a4c", 1);
+  fillPoly(ctx, [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)], "#10161e", "#2b3a4c", 1);
+  fillPoly(ctx, [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)], "#1a2430", "#2b3a4c", 1);
+  // floor grid every 0.25m for depth anchoring
+  ctx.strokeStyle = "#243140"; ctx.lineWidth = 0.6;
+  for (let gx = Math.ceil(x0*4)/4; gx < x1; gx += 0.25) {
+    const a=P(gx,y0,z0), b=P(gx,y1,z0);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+  }
+  for (let gy = Math.ceil(y0*4)/4; gy < y1; gy += 0.25) {
+    const a=P(x0,gy,z0), b=P(x1,gy,z0);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+  }
+  const shelfZ = z0 + c.height/2 + t/2;
+  if (c.cut_x > 0 && c.cut_y > 0) {
+    fillPoly(ctx, [P(x0,y0,z0+c.cut_y),P(x0+c.cut_x,y0,z0),
+                   P(x0+c.cut_x,y1,z0),P(x0,y1,z0+c.cut_y)],
+             "#202b39", "#3d4f64", 1);
+    const sx1 = x0 + c.cut_x + t;
+    fillPoly(ctx, [P(x0+t,y0+t,shelfZ),P(sx1,y0+t,shelfZ),
+                   P(sx1,y1-t,shelfZ),P(x0+t,y1-t,shelfZ)],
+             "#35485f", "#6b87a6", 1.4);
+  }
+  if (c.shelf) {
+    fillPoly(ctx, [P(x0+t/2,cy+t,shelfZ),P(x1-t/2,cy+t,shelfZ),
+                   P(x1-t/2,y1-t,shelfZ),P(x0+t/2,y1-t,shelfZ)],
+             "#35485f", "#6b87a6", 1.4);
+  }
+}
+function drawContainerCage(ctx, P, c, slot, nSlots) {
+  const cx=c.center[0], cy=c.center[1];
+  const x0=cx-c.length/2, x1=cx+c.length/2;
+  const y0=cy-c.width/2, y1=cy+c.width/2;
+  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  ctx.strokeStyle = c.prioritized ? "#e2b555" : "#4c6076";
+  ctx.lineWidth = c.prioritized ? 1.6 : 1.1;
+  fillPoly(ctx, [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)], null, ctx.strokeStyle, ctx.lineWidth);
+  fillPoly(ctx, [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)], null, ctx.strokeStyle, ctx.lineWidth);
+  for (const [x,y] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]) {
+    const a=P(x,y,z0), b=P(x,y,z1);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+  }
+  // slot label on a fixed 2D baseline: never collides with boxes
+  const slotW = CW / nSlots;
+  ctx.font = "11px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = c.prioritized ? "#e2b555" : "#8b98a8";
+  ctx.textAlign = "center";
+  let text = "容器" + c.index;
+  if (c.prioritized) text += " ★優先専用";
+  if (c.shelf) text += " ▤棚";
+  if (c.cut_x > 0) text += " ◣カット";
+  ctx.fillText(text, slot*slotW + slotW/2, CH - 7);
+}
+function boxFaces(ctx, P, cx, cy, cz, dx, dy, dz, hue, glow, flags, depth) {
   flags = flags || 0;
   const soft = !!(flags & 1), prio = !!(flags & 2), viol = !!(flags & 12);
   const x0=cx-dx/2, x1=cx+dx/2, y0=cy-dy/2, y1=cy+dy/2, z0=cz-dz/2, z1=cz+dz/2;
-  const P = (x,y,z)=>proj(x,y,z);
   const top = [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)];
   const right = [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)];
   const front = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)];
-  const sat = soft ? 26 : 42;
-  const stroke = glow ? "#e2b555" : viol ? "#e05f5c"
-               : prio ? "#e2b555" : `hsl(${hue} 30% 18%)`;
-  const lw = glow ? 2 : viol ? 1.8 : prio ? 1.4 : 0.7;
-  const face = (pts, light) => {
-    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]);
-    ctx.closePath();
-    ctx.fillStyle = `hsl(${hue} ${sat}% ${light}%)`;
-    ctx.fill();
-    ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
-  };
-  face(front, soft ? 40 : 34); face(right, soft ? 32 : 26);
-  face(top, soft ? 58 : 52);
-  if (soft) { // hatch the top face so soft cargo reads at a glance
-    ctx.strokeStyle = `hsl(${hue} 25% 30%)`; ctx.lineWidth = 0.8;
-    for (const f of [0.3, 0.6]) {
+  const sat = soft ? 34 : 58;
+  const dim = 1 - 0.18 * depth;   // farther boxes slightly darker
+  const stroke = glow ? "#ffd97a" : viol ? "#ff6b67"
+               : prio ? "#e2b555" : "#0a0e13";
+  const lw = glow ? 2.4 : viol ? 2 : prio ? 1.6 : 1;
+  const face = (pts, light) => fillPoly(
+    ctx, pts, `hsl(${hue} ${sat}% ${Math.round(light*dim)}%)`, stroke, lw);
+  face(front, 40); face(right, 30); face(top, 62);
+  if (soft) {
+    ctx.strokeStyle = `hsl(${hue} 30% 34%)`; ctx.lineWidth = 1;
+    for (const f of [0.33, 0.66]) {
       const a = P(x0 + (x1-x0)*f, y0, z1), b = P(x0, y0 + (y1-y0)*f, z1);
       ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
       const c2 = P(x1, y0 + (y1-y0)*(1-f), z1), d = P(x0 + (x1-x0)*(1-f), y1, z1);
       ctx.beginPath(); ctx.moveTo(c2[0],c2[1]); ctx.lineTo(d[0],d[1]); ctx.stroke();
     }
   }
-  if (viol) { // red dot floating over the offending box
-    const m = P((x0+x1)/2, (y0+y1)/2, z1 + 0.06);
-    ctx.beginPath(); ctx.arc(m[0], m[1], 3.4, 0, Math.PI*2);
-    ctx.fillStyle = "#e05f5c"; ctx.fill();
+  if (viol) {
+    const m = P((x0+x1)/2, (y0+y1)/2, z1 + 0.07);
+    ctx.beginPath(); ctx.arc(m[0], m[1], 4, 0, Math.PI*2);
+    ctx.fillStyle = "#ff6b67"; ctx.fill();
+    ctx.strokeStyle = "#0a0e13"; ctx.lineWidth = 1; ctx.stroke();
   }
-}
-function drawContainer(ctx, proj, c) {
-  const cx=c.center[0], cy=c.center[1];
-  const x0=cx-c.length/2, x1=cx+c.length/2;
-  const y0=cy-c.width/2, y1=cy+c.width/2;
-  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
-  const t=c.thickness||0.04;
-  const shelfZ = z0 + c.height/2 + t/2;
-  const P=(x,y,z)=>proj(x,y,z);
-  const rim = c.prioritized ? "#e2b555aa" : "#31405280";
-  ctx.strokeStyle = rim; ctx.lineWidth = c.prioritized ? 1.4 : 1;
-  const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
-  const fillPoly = (pts, fill) => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath();
-    ctx.fillStyle = fill; ctx.fill(); };
-  const floor = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)];
-  fillPoly(floor, "#12181f"); poly(floor);
-  // front wedge cut: the -x nose is sliced (0.5*cut_x*cut_y*width)
-  if (c.cut_x > 0 && c.cut_y > 0) {
-    const slant = [P(x0,y0,z0+c.cut_y),P(x0+c.cut_x,y0,z0),
-                   P(x0+c.cut_x,y1,z0),P(x0,y1,z0+c.cut_y)];
-    fillPoly(slant, "#1a232f88");
-    ctx.strokeStyle = "#3d4f64"; poly(slant); ctx.strokeStyle = rim;
-    // small shelf plate sits above the cut
-    const sx1 = x0 + c.cut_x + t;
-    const small = [P(x0+t,y0+t,shelfZ),P(sx1,y0+t,shelfZ),
-                   P(sx1,y1-t,shelfZ),P(x0+t,y1-t,shelfZ)];
-    fillPoly(small, "#223041cc");
-    ctx.strokeStyle = "#48607a"; poly(small); ctx.strokeStyle = rim;
+  if (glow) {   // spotlight the just-placed box
+    const m = P((x0+x1)/2, (y0+y1)/2, z1);
+    ctx.beginPath(); ctx.arc(m[0], m[1] - 14, 5, 0, Math.PI*2);
+    ctx.fillStyle = "#ffd97a"; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(m[0], m[1] - 9); ctx.lineTo(m[0], m[1] - 2);
+    ctx.strokeStyle = "#ffd97a"; ctx.lineWidth = 2; ctx.stroke();
   }
-  // main shelf covers the +y half at mid height
-  if (c.shelf) {
-    const shelf = [P(x0+t/2,cy+t,shelfZ),P(x1-t/2,cy+t,shelfZ),
-                   P(x1-t/2,y1-t,shelfZ),P(x0+t/2,y1-t,shelfZ)];
-    fillPoly(shelf, "#223041cc");
-    ctx.strokeStyle = "#48607a"; poly(shelf); ctx.strokeStyle = rim;
-  }
-}
-function drawContainerCage(ctx, proj, c) {
-  // stroked AFTER the boxes so the frame reads on top and nothing
-  // looks like it pokes out of the container
-  const cx=c.center[0], cy=c.center[1];
-  const x0=cx-c.length/2, x1=cx+c.length/2;
-  const y0=cy-c.width/2, y1=cy+c.width/2;
-  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
-  const P=(x,y,z)=>proj(x,y,z);
-  ctx.strokeStyle = c.prioritized ? "#e2b555cc" : "#41546b";
-  ctx.lineWidth = c.prioritized ? 1.4 : 1;
-  const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
-    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
-  poly([P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)]);
-  poly([P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)]);
-  for (const [x,y] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]) {
-    const a=P(x,y,z0), b=P(x,y,z1);
-    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
-  }
-  const lbl = P(x0, y0, z0);
-  ctx.font = "10px 'IBM Plex Mono', monospace";
-  ctx.fillStyle = c.prioritized ? "#e2b555" : "#8b98a8";
-  ctx.textAlign = "left";
-  let text = "容器" + c.index;
-  if (c.prioritized) text += " ★優先専用";
-  if (c.shelf) text += " ▤棚";
-  if (c.cut_x > 0) text += " ◣カット";
-  ctx.fillText(text, lbl[0], lbl[1] + 16);
 }
 function drawArm(canvasId, armName, footId, metricsId) {
   const c = cellData();
   const arm = c.arms[armName];
-  const ctx = document.getElementById(canvasId).getContext("2d");
-  ctx.clearRect(0,0,520,430);
-  ctx.fillStyle = "#0a0e13"; ctx.fillRect(0,0,520,430);
-  const proj = makeView(c.containers);
-  for (const cont of c.containers) drawContainer(ctx, proj, cont);
-  // each turn carries the SETTLED physics board (world coords), so the
-  // replay shows where boxes actually came to rest, not the command
+  const canvas = document.getElementById(canvasId);
+  canvas.width = CW; canvas.height = CH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#0a0e13"; ctx.fillRect(0,0,CW,CH);
   const clamped = Math.min(turn, arm.steps.length);
   const last = clamped > 0 ? arm.steps[clamped - 1] : null;
   const board = last ? last.board : (c.initial_board || []);
-  const sorted = board.slice().sort((a,b)=>(a[2]+a[3]) - (b[2]+b[3]) || a[4]-b[4]);
-  for (const r of sorted) {
-    const hue = (r[1] * 47) % 360;
-    const isNew = last && r[1] === last.item && r[0] === last.cont;
-    boxFaces(ctx, proj, r[2], r[3], r[4], r[5], r[6], r[7], hue,
-             isNew && (last.switched || last.t === c.divergence_turn),
-             r[8]);
-  }
-  for (const cont of c.containers) drawContainerCage(ctx, proj, cont);
+  const n = c.containers.length;
+  c.containers.forEach((cont, slot) => {
+    const P = slotView(cont, slot, n);
+    drawContainerRoom(ctx, P, cont);
+    const rows = board.filter(r => r[0] === cont.index)
+      .sort((a,b)=>(a[2]+a[3]) - (b[2]+b[3]) || a[4]-b[4]);
+    const depths = rows.map(r => r[2]+r[3]);
+    const dmin = Math.min(...depths, 0), dmax = Math.max(...depths, 1);
+    // ground shadows first: they anchor shelf-level boxes visually
+    const contZ0 = cont.center[2] - cont.height/2;
+    const shelfZ = contZ0 + cont.height/2 + (cont.thickness||0.04)/2;
+    for (const r of rows) {
+      const bottom = r[4] - r[7]/2;
+      const plane = (cont.shelf || cont.cut_x > 0) && bottom > shelfZ - 0.1
+        ? shelfZ + 0.005 : contZ0 + 0.005;
+      const sx0=r[2]-r[5]/2, sx1=r[2]+r[5]/2, sy0=r[3]-r[6]/2, sy1=r[3]+r[6]/2;
+      fillPoly(ctx, [P(sx0,sy0,plane),P(sx1,sy0,plane),
+                     P(sx1,sy1,plane),P(sx0,sy1,plane)],
+               "rgba(0,0,0,0.38)", null, 0);
+    }
+    for (const r of rows) {
+      const hue = (r[1] * 47) % 360;
+      const isNew = last && r[1] === last.item && r[0] === last.cont;
+      const depth = dmax > dmin ? 1 - (r[2]+r[3]-dmin)/(dmax-dmin) : 0;
+      boxFaces(ctx, P, r[2], r[3], r[4], r[5], r[6], r[7], hue,
+               isNew && (last.switched || last.t === c.divergence_turn),
+               r[8], depth);
+    }
+    drawContainerCage(ctx, P, cont, slot, n);
+  });
   const foot = document.getElementById(footId);
   if (!last) {
     foot.textContent = (c.initial_board && c.initial_board.length)
@@ -612,8 +638,12 @@ const LINEAGE = [
       "リーグ記録":"vs ハコブネ 1-0-6-3 → 👑昇格（placed +2, viol −1）",
       "benchmark":"vs センリガン 1-2-1-6 (below) — dsm-181ではセンリガン自身から勝利",
       "得意/苦手":"得意: dsm-181 (switch勝ち) · 苦手: dsm-167/173のfill獲得（次世代教師の重点）" } },
-  { id:"pi2-pref-w5", show:"プリフツバキ (訓練中)", cls:"dead-p", depth:2, sub:"challenger · Round 1/10 · wave-5教師 118セル",
-    detail:{ "状態":"シーズンRound 1・花のwave。wave-5採取（新streams 199/211/223）→ preference再蒸留 → プリファーストに挑戦予定。" } },
+  { id:"pi2-pref-w5", show:"プリフツバキ ❌", cls:"dead-p", depth:2, sub:"challenger · Round 1 · wave-5教師 118セル",
+    detail:{ "objective":"preference蒸留（王者と同型・データ+18セル）",
+      "王座戦004":"vs プリファースト 0-1-7-2 で棄却（viol −1は良いが placed −2、敗着は王者の得意セルdsm-181）",
+      "benchmark":"vs センリガン 0-2 (below)" } },
+  { id:"pi2-pref-w6", show:"プリフヒバリ (準備中)", cls:"dead-p", depth:2, sub:"challenger · Round 2/10 · wave-6教師 136セル",
+    detail:{ "状態":"鳥のwave。新streams 227/229/233を採取 → preference再蒸留 → プリファーストに挑戦。" } },
 ];
 const treeHost = document.getElementById("tree-root");
 let container = treeHost;

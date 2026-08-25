@@ -4,4 +4,4 @@ One line per round; full records live in the match-NNN files and the
 spectator room. Format: round | wave | collection run | learning run |
 match run | challenger | verdict | benchmark standing.
 
-(no rounds completed yet)
+| 1 | 5 | 32854039529 | 32857100013 | 32858383724 | プリフツバキ (pi2-pref-w5) | 🛡 王座防衛される (0-1-7-2, complΔ-2) | below (0-2) |
