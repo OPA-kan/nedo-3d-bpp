@@ -20,10 +20,24 @@ retained only as a same-budget challenger. Status, all on real physics:
   zero hidden physics — but the zero-cost ranker next-best baseline gets
   12/16; the NN's unique value is 3 of the 4 rank-2 interventions.
   Calibration is inverted (do not threshold the scores).**
-- Next gate: live deadline shadow on identical roots with three arms —
-  H1-leaking (historical), geometry policy, `--alternate-mode
-  ranker_next` (added 2026-08-25) — judged on real wall-clock and
-  intervention recovery.
+- **Live three-arm deadline shadow complete
+  (`geometry-policy-live-shadow-20260825.md`; runs `32802769267` H1-leak
+  / `32802777408` geometry / `32803397418` ranker_next; failed run
+  `32802783183` on record — alternate-mode wiring bug, fixed with a
+  regression test).** All arms: 45/46 ≤ 10 s, p95 ≈ 8.0–8.6 s, and
+  **exactly 6/16 interventions recovered live** despite 11–12 in
+  support. Leak removal PASS (geometry ≡ H1-leak on every live metric,
+  zero hidden physics); NN vs ranker next-best: no live advantage
+  (ranker arm 35/46 reproduction vs 34/46, same recovery, zero model
+  cost). The binding constraint moved: available interventions are read
+  to H ≤ 3 and then rejected by the checkpoint Pareto rule (~50–55%
+  conversion in every arm).
+- Next gate, in order: (1) checkpoint decision rule — spend remaining
+  deadline budget deepening the still-contested branch pair past the
+  common H ≤ 3 stop, judged on conversion of in-support interventions;
+  (2) production default = incumbent + ranker next-best at budget 2
+  until the NN beats it; (3) grow the dual-preloaded / dual-shelf
+  hard-state cohort — 16 interventions cannot separate the arms.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision
