@@ -15,9 +15,14 @@ import json
 import math
 import pathlib
 import random
+import sys
 from typing import Any
 
 import numpy as np
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.counterfactual_graph import state_tensor_from_snapshot
 

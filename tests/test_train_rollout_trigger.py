@@ -1,5 +1,7 @@
 import json
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -30,6 +32,16 @@ def snapshot():
 
 
 class RolloutTriggerTests(unittest.TestCase):
+    def test_script_can_run_directly_like_the_workflow(self):
+        result = subprocess.run(
+            [sys.executable, "scripts/train_rollout_trigger.py", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--dataset-root", result.stdout)
+
     def test_load_excludes_future_and_builds_candidate_set(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
