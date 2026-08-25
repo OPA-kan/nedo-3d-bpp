@@ -34,6 +34,7 @@ from scripts.counterfactual_graph import board_fingerprint  # noqa: E402
 from scripts.run_self_play_packing import _safe, _status  # noqa: E402
 from scripts.run_single_agent_packing import _fresh_env  # noqa: E402
 from scripts.run_vector_mcts import vector_search_root  # noqa: E402
+from scripts.rollout_checkpoint_summary import summarize_roots  # noqa: E402
 
 
 def choose_checkpoint_candidate(
@@ -48,62 +49,6 @@ def choose_checkpoint_candidate(
         (candidate for candidate in candidate_order if candidate in frontier_set),
         incumbent,
     )
-
-
-def summarize_roots(roots: list[dict[str, Any]], caps: list[int]):
-    summary = {}
-    interventions = sum(
-        row["terminal_selected_candidate_id"]
-        != row["incumbent_candidate_id"]
-        for row in roots
-    )
-    for cap in caps:
-        key = str(cap)
-        eligible = [row for row in roots if key in row["checkpoints"]]
-        decision_seconds = [
-            float(row["checkpoints"][key]["estimated_decision_seconds"])
-            for row in eligible
-        ]
-        matches = sum(
-            row["checkpoints"][key]["selected_candidate_id"]
-            == row["terminal_selected_candidate_id"]
-            for row in eligible
-        )
-        recovered = sum(
-            row["terminal_selected_candidate_id"]
-            != row["incumbent_candidate_id"]
-            and row["checkpoints"][key]["selected_candidate_id"]
-            == row["terminal_selected_candidate_id"]
-            for row in eligible
-        )
-        ordered = sorted(decision_seconds)
-        p95 = None
-        if ordered:
-            position = (len(ordered) - 1) * 0.95
-            lower = int(position)
-            upper = min(lower + 1, len(ordered) - 1)
-            weight = position - lower
-            p95 = ordered[lower] * (1.0 - weight) + ordered[upper] * weight
-        summary[key] = {
-            "continuation_cap": cap,
-            "total_depth": cap + 1,
-            "roots": len(eligible),
-            "terminal_action_recall": matches / len(eligible) if eligible else None,
-            "intervention_action_recall": (
-                recovered / interventions if interventions else None
-            ),
-            "mean_decision_seconds": (
-                sum(decision_seconds) / len(decision_seconds)
-                if decision_seconds else None
-            ),
-            "p95_decision_seconds": p95,
-            "within_10s_rate": (
-                sum(value <= 10.0 for value in decision_seconds)
-                / len(decision_seconds)
-                if decision_seconds else None
-            ),
-        }
-    return summary
 
 
 def _candidates_at_prefix(

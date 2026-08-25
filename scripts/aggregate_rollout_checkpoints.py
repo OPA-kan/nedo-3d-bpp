@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.audit_rollout_checkpoints import summarize_roots  # noqa: E402
+from scripts.rollout_checkpoint_summary import summarize_roots  # noqa: E402
 
 
 def aggregate(rows: list[dict[str, Any]], *, expected_cells: int):
