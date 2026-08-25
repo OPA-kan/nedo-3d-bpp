@@ -44,15 +44,26 @@ retained only as a same-budget challenger. Status, all on real physics:
   budget 2, contested 0** — 35/46 reproduction, 6/16 recovery,
   p95 8.47 s, 45/46 ≤ 10 s (run `32803397418`). The geometry NN stays
   a shadow arm until it beats this on a bigger cohort.
-- **Hard-state wave 2 collecting**: the matrix grew to 24 cells (+6
-  dual-preloaded-dedicated, +6 dual-shelf-mixed streams) since wave 1
-  put 15/16 interventions in those families and n=16 cannot separate
-  arms. After it lands: rebuild geometry recovery + OOF on the 24-cell
-  aggregate, re-run the ranker_next and geometry shadows on the new
-  cohort, and only then judge the NN vs the zero-cost baseline. The
-  unconverted-intervention headroom needs terminal-connected
-  information — roadmap item 10, V strictly as a same-budget
-  challenger at the checkpoint, never a mainline revival.
+- **Wave-2 cohort complete and judged
+  (`wave2-cohort-results-20260825.md`)**: 24 cells / 284 roots / 34
+  interventions (collection `32811046786`, wave-1 counts reproduced
+  exactly). Retrained geometry OOF (`32811996191`): calibration
+  inversion fixed (pos 0.178 vs neg 0.053), inclusion **26/34 —
+  past ranker next-best's 25/34 for the first time**, all 7 unique
+  catches rank-2. Live shadows on 94 hard roots
+  (`32812383241` ranker_next / `32812391048` geometry): the production
+  default still wins every live metric — reproduction 73/94 vs 67/94,
+  recovery 16/34 vs 15/34, and a 57/60 vs 52/60 non-intervention
+  reproduction tax on the geometry arm. Default stays incumbent +
+  ranker next-best; geometry stays shadow.
+- Next lever (unchanged, now sharper): the checkpoint decision rule is
+  the ceiling — 9–11 in-support interventions per arm die at the H ≤ 3
+  Pareto decision, and contested deepening is already measured and
+  rejected. Roadmap item 10: V as a **same-budget challenger** scoring
+  the already-read H ≤ 3 pair (`checkpoint (+) V(s_H)`, identical
+  wall-clock, paired comparison) — never a mainline revival. The
+  284-root cohort with terminal truth is the training/eval bed, and a
+  full collection→retrain→shadow cycle costs under 25 min on Actions.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision
