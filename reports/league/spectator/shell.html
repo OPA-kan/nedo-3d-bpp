@@ -125,7 +125,12 @@
   .pane.challenger .pn { color:var(--gold); }
   .pane-head .pm { margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); }
   .pane-head .pm b { color:var(--text); font-weight:600; }
-  canvas { display:block; width:100%; height:auto; background:#0a0e13; }
+  canvas { display:block; width:100%; height:auto; background:#0a0e13; cursor:grab; touch-action:none; }
+  canvas:active { cursor:grabbing; }
+  .liveline { display:flex; align-items:center; gap:10px; margin-top:18px; border:1px solid #4b2b2b; border-radius:6px; background:linear-gradient(120deg,#1d1414,#141a23 70%); padding:10px 16px; font-size:13.5px; color:var(--muted); }
+  .liveline b { color:#ff6b67; font-family:"Chakra Petch",sans-serif; letter-spacing:.14em; }
+  .livedot { width:9px; height:9px; border-radius:50%; background:#ff5c57; box-shadow:0 0 8px #ff5c57; animation:livepulse 1.4s ease-in-out infinite; flex:none; }
+  @keyframes livepulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
   .pane-foot { min-height:44px; padding:8px 14px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
   .sw-badge { display:inline-block; font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:11px; letter-spacing:.06em; color:#0c1016; background:var(--gold); border-radius:3px; padding:1px 8px; margin-right:8px; }
   .dead { color:var(--loss); }
@@ -144,9 +149,12 @@
   .ev.sw { border-color:var(--gold); color:var(--gold); }
   .ev.dv { border-color:var(--tradeoff); color:var(--tradeoff); }
   .ev.vx { border-color:var(--loss); color:#ff8c88; }
+  .season { font-family:"Chakra Petch",sans-serif; font-size:13px; font-weight:600;
+    color:var(--gold); border:1px solid var(--gold); border-radius:4px;
+    padding:2px 10px; letter-spacing:.12em; vertical-align:4px; }
 
   @media (prefers-reduced-motion:reduce) {
-    .live-dot.on,.pane.fx-soft,.pane.fx-priority,.pane.fx-multi { animation:none; }
+    .live-dot.on,.livedot,.pane.fx-soft,.pane.fx-priority,.pane.fx-multi { animation:none; }
   }
 
   /* LINEAGE */
@@ -174,8 +182,8 @@
 <div class="wrap">
   <header>
     <div>
-      <div class="kicker">NEDO 3D-BPP · Expert Iteration League</div>
-      <h1>パッキングリーグ観戦室</h1>
+      <div class="kicker">NEDO 3D-BPP · Expert Iteration League · Season 1</div>
+      <h1>パッキングリーグ観戦室 <span class="season">第1シーズン</span></h1>
     </div>
     <nav>
       <button id="tab-league" class="on">リーグ</button>
@@ -192,6 +200,9 @@
 
   <!-- ============ LEAGUE ============ -->
   <div class="view on" id="view-league">
+    <div class="liveline"><span class="livedot"></span><b>LIVE</b>
+      <span id="live-text">第1シーズン Round 2/10 — プリフヒバリ蒸留完了、王座戦進行中（挑戦者プリフヒバリ vs 王者プリファースト）。速報はcheck-in毎（20〜25分）に更新、リロードで反映。</span>
+    </div>
     <section>
       <div class="banner">
         <span class="crown">👑</span>
@@ -263,6 +274,7 @@
       <span>金リム容器 = ★優先専用</span>
       <span>▤ = 中段棚（+y半分）</span>
       <span>◣ = 前部カット＋小棚</span>
+      <span>🎥 盤面をドラッグでカメラ回転（自動オービットは🎥ボタン）</span>
     </div>
     <div class="div-banner" id="div-banner"></div>
     <div class="stage">
@@ -284,6 +296,7 @@
       <button id="btn-div">⚡ 分岐へ</button>
       <button id="btn-end">≫ 最終盤面</button>
       <button id="btn-speed">速度 ×1</button>
+      <button id="btn-orbit" class="acc">🎥 回転 ON</button>
     </div>
     <div class="feed" id="ev-feed"></div>
   </div>
@@ -356,6 +369,9 @@ function displayName(id) {
 }
 function refreshSeasonView() {
   const championId = LIVE.champion || "pi1-pref-g1";
+  document.getElementById("live-text").textContent = LIVE.active
+    ? `第1シーズン Round ${LIVE.round || "—"}/10 — ${LIVE.display_name || displayName(LIVE.challenger)} · ${STAGE_LABEL[LIVE.stage] || LIVE.stage || "待機"}`
+    : `第1シーズン完走 — 最終王者 ${displayName(championId)}`;
   document.getElementById("champion-display").textContent = displayName(championId);
   document.getElementById("champion-id").textContent = championId;
   document.getElementById("champion-sub").textContent =
@@ -435,7 +451,9 @@ const tabs = { league:"view-league", match:"view-match", tree:"view-tree" };
 for (const key of Object.keys(tabs)) {
   document.getElementById("tab-"+key).addEventListener("click", () => showTab(key));
 }
+let currentView = "league";
 function showTab(key) {
+  currentView = key;
   for (const k of Object.keys(tabs)) {
     document.getElementById("tab-"+k).classList.toggle("on", k===key);
     document.getElementById(tabs[k]).classList.toggle("on", k===key);
@@ -570,30 +588,53 @@ function buildFeed() {
     }
   }
 }
+const VIOL_LABELS = ["soft被覆", "優先被覆", "誤ルート"];
 
-/* ---------- isometric renderer: one viewport per container ---------- */
+/* ---------- rotating-camera renderer: one viewport per container ----------
+   Orbit camera: yaw is user-draggable (or auto camera-work); both panes
+   share the same yaw so the side-by-side comparison stays aligned. */
 const COS = Math.cos(Math.PI/6), SIN = Math.sin(Math.PI/6);
 const CW = 560, CH = 470;
-function slotView(c, slot, nSlots) {
-  // fit THIS container into its own horizontal slot: no cross-container
-  // overlap, every container rendered large
-  const cx=c.center[0], cy=c.center[1];
-  const x0=cx-c.length/2, x1=cx+c.length/2;
-  const y0=cy-c.width/2, y1=cy+c.width/2;
-  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
-  const corners=[];
-  for (const x of [x0,x1]) for (const y of [y0,y1]) for (const z of [z0,z1])
-    corners.push([(x-y)*COS, (x+y)*SIN - z]);
-  const xs=corners.map(p=>p[0]), ys=corners.map(p=>p[1]);
-  const slotW = CW / nSlots, pad = 26;
-  const scale = Math.min((slotW-2*pad)/(Math.max(...xs)-Math.min(...xs)),
-                         (CH-2*pad-22)/(Math.max(...ys)-Math.min(...ys)));
-  const ox = slot*slotW + (slotW - (Math.max(...xs)-Math.min(...xs))*scale)/2
-             - Math.min(...xs)*scale;
-  const oy = (CH-22 - (Math.max(...ys)-Math.min(...ys))*scale)/2
-             - Math.min(...ys)*scale;
-  return (x,y,z) => [ (x-y)*COS*scale + ox,
-                      (CH-22) - (((x+y)*SIN - z)*scale + oy) ];
+let camYaw = -0.5;
+let orbitOn = true;
+let flashActive = false;
+function makeView(c, slot, nSlots) {
+  // fit by bounding cylinder so the framing holds still while orbiting
+  const ccx=c.center[0], ccy=c.center[1], ccz=c.center[2];
+  const m = Math.hypot(c.length/2, c.width/2) * Math.SQRT2;
+  const slotW = CW / nSlots, pad = 24;
+  const scale = Math.min((slotW-2*pad)/(2*m*COS),
+                         (CH-2*pad-26)/(2*m*SIN + c.height));
+  const ox = slot*slotW + slotW/2, oy = (CH-26)/2 + 2;
+  const s = Math.sin(camYaw), co = Math.cos(camYaw);
+  const P = (x,y,z) => {
+    const u=(x-ccx)*co-(y-ccy)*s, v=(x-ccx)*s+(y-ccy)*co;
+    return [ ox + (u-v)*COS*scale, oy + ((u+v)*SIN - (z-ccz))*scale ];
+  };
+  P.depth = (x,y) => (x-ccx)*(co+s) + (y-ccy)*(co-s); // bigger = nearer
+  P.camX = co + s;   // camera·(+x): the +x face is visible when > 0
+  P.camY = co - s;   // camera·(+y)
+  return P;
+}
+function shade(hue, sat, light, dim) {
+  return `hsl(${hue} ${sat}% ${Math.max(6, Math.round(light*dim))}%)`;
+}
+/* axis-aligned solid with camera-consistent lambert shading: paints the
+   top AND both camera-facing sides at distinct light levels, so every
+   solid reads as 3D from any orbit angle */
+function solidFaces(ctx, P, x0,x1,y0,y1,z0,z1, o) {
+  const s=Math.sin(camYaw), co=Math.cos(camYaw);
+  const base=o.base==null?24:o.base, amp=o.amp==null?26:o.amp,
+        top=o.top==null?62:o.top;
+  const side = (pts, nu, nv) => fillPoly(ctx, pts,
+    shade(o.hue, o.sat, base + amp*Math.max(0, nu*1.0 + nv*0.1), o.dim),
+    o.stroke, o.lw);
+  if (P.camX >= 0) side([P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)], co, s);
+  else             side([P(x0,y1,z0),P(x0,y0,z0),P(x0,y0,z1),P(x0,y1,z1)], -co, -s);
+  if (P.camY >= 0) side([P(x1,y1,z0),P(x0,y1,z0),P(x0,y1,z1),P(x1,y1,z1)], -s, co);
+  else             side([P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)], s, -co);
+  fillPoly(ctx, [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)],
+           shade(o.hue, o.sat, top, o.dim), o.stroke, o.lw);
 }
 function fillPoly(ctx, pts, fill, stroke, lw) {
   ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
@@ -608,11 +649,12 @@ function drawContainerRoom(ctx, P, c) {
   const y0=cy-c.width/2, y1=cy+c.width/2;
   const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
   const t=c.thickness||0.04;
-  // back walls (+y face and +x face) + floor as solid panels: the
-  // "room" reads instantly, boxes sit inside it
-  fillPoly(ctx, [P(x0,y1,z0),P(x1,y1,z0),P(x1,y1,z1),P(x0,y1,z1)], "#151d27", "#2b3a4c", 1);
-  fillPoly(ctx, [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)], "#10161e", "#2b3a4c", 1);
+  // floor + the two FAR walls; the camera-side walls are cut away, so the
+  // room stays open whichever way it is turned
+  const wx = P.camX >= 0 ? x0 : x1, wy = P.camY >= 0 ? y0 : y1;
   fillPoly(ctx, [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)], "#1a2430", "#2b3a4c", 1);
+  fillPoly(ctx, [P(x0,wy,z0),P(x1,wy,z0),P(x1,wy,z1),P(x0,wy,z1)], "#151d27", "#2b3a4c", 1);
+  fillPoly(ctx, [P(wx,y0,z0),P(wx,y1,z0),P(wx,y1,z1),P(wx,y0,z1)], "#10161e", "#2b3a4c", 1);
   // floor grid every 0.25m for depth anchoring
   ctx.strokeStyle = "#243140"; ctx.lineWidth = 0.6;
   for (let gx = Math.ceil(x0*4)/4; gx < x1; gx += 0.25) {
@@ -624,19 +666,20 @@ function drawContainerRoom(ctx, P, c) {
     ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
   }
   const shelfZ = z0 + c.height/2 + t/2;
+  const plate = { hue:212, sat:26, dim:1, base:18, amp:12, top:38,
+                  stroke:"#6b87a6", lw:1.2 };
   if (c.cut_x > 0 && c.cut_y > 0) {
-    fillPoly(ctx, [P(x0,y0,z0+c.cut_y),P(x0+c.cut_x,y0,z0),
-                   P(x0+c.cut_x,y1,z0),P(x0,y1,z0+c.cut_y)],
-             "#202b39", "#3d4f64", 1);
+    // front nose wedge as a solid: slanted face + visible end triangle
+    const xb = x0 + c.cut_x, zt = z0 + c.cut_y;
+    fillPoly(ctx, [P(xb,y0,z0),P(xb,y1,z0),P(x0,y1,zt),P(x0,y0,zt)],
+             "#232f3e", "#3d4f64", 1);
+    const ty = P.camY >= 0 ? y1 : y0;
+    fillPoly(ctx, [P(x0,ty,z0),P(xb,ty,z0),P(x0,ty,zt)], "#1b2530", "#3d4f64", 1);
     const sx1 = x0 + c.cut_x + t;
-    fillPoly(ctx, [P(x0+t,y0+t,shelfZ),P(sx1,y0+t,shelfZ),
-                   P(sx1,y1-t,shelfZ),P(x0+t,y1-t,shelfZ)],
-             "#35485f", "#6b87a6", 1.4);
+    solidFaces(ctx, P, x0+t, sx1, y0+t, y1-t, shelfZ-t/2, shelfZ+t/2, plate);
   }
   if (c.shelf) {
-    fillPoly(ctx, [P(x0+t/2,cy+t,shelfZ),P(x1-t/2,cy+t,shelfZ),
-                   P(x1-t/2,y1-t,shelfZ),P(x0+t/2,y1-t,shelfZ)],
-             "#35485f", "#6b87a6", 1.4);
+    solidFaces(ctx, P, x0+t/2, x1-t/2, cy+t, y1-t, shelfZ-t/2, shelfZ+t/2, plate);
   }
 }
 function drawContainerCage(ctx, P, c, slot, nSlots) {
@@ -667,17 +710,11 @@ function boxFaces(ctx, P, cx, cy, cz, dx, dy, dz, hue, glow, flags, depth) {
   flags = flags || 0;
   const soft = !!(flags & 1), prio = !!(flags & 2), viol = !!(flags & 12);
   const x0=cx-dx/2, x1=cx+dx/2, y0=cy-dy/2, y1=cy+dy/2, z0=cz-dz/2, z1=cz+dz/2;
-  const top = [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)];
-  const right = [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)];
-  const front = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)];
-  const sat = soft ? 34 : 58;
-  const dim = 1 - 0.18 * depth;   // farther boxes slightly darker
   const stroke = glow ? "#ffd97a" : viol ? "#ff6b67"
                : prio ? "#e2b555" : "#0a0e13";
   const lw = glow ? 2.4 : viol ? 2 : prio ? 1.6 : 1;
-  const face = (pts, light) => fillPoly(
-    ctx, pts, `hsl(${hue} ${sat}% ${Math.round(light*dim)}%)`, stroke, lw);
-  face(front, 40); face(right, 30); face(top, 62);
+  solidFaces(ctx, P, x0,x1,y0,y1,z0,z1,
+    { hue, sat: soft ? 34 : 58, dim: 1 - 0.18*depth, stroke, lw });
   if (soft) {
     ctx.strokeStyle = `hsl(${hue} 30% 34%)`; ctx.lineWidth = 1;
     for (const f of [0.33, 0.66]) {
@@ -722,11 +759,11 @@ function drawArm(paneId, canvasId, armName, footId, metricsId) {
   const board = last ? last.board : (c.initial_board || []);
   const n = c.containers.length;
   c.containers.forEach((cont, slot) => {
-    const P = slotView(cont, slot, n);
+    const P = makeView(cont, slot, n);
     drawContainerRoom(ctx, P, cont);
     const rows = board.filter(r => r[0] === cont.index)
-      .sort((a,b)=>(a[2]+a[3]) - (b[2]+b[3]) || a[4]-b[4]);
-    const depths = rows.map(r => r[2]+r[3]);
+      .sort((a,b)=>(P.depth(a[2],a[3]) - P.depth(b[2],b[3])) || a[4]-b[4]);
+    const depths = rows.map(r => P.depth(r[2], r[3]));
     const dmin = Math.min(...depths, 0), dmax = Math.max(...depths, 1);
     // ground shadows first: they anchor shelf-level boxes visually
     const contZ0 = cont.center[2] - cont.height/2;
@@ -743,18 +780,40 @@ function drawArm(paneId, canvasId, armName, footId, metricsId) {
     for (const r of rows) {
       const hue = (r[1] * 47) % 360;
       const isNew = last && r[1] === last.item && r[0] === last.cont;
-      const depth = dmax > dmin ? 1 - (r[2]+r[3]-dmin)/(dmax-dmin) : 0;
+      const depth = dmax > dmin ? 1 - (P.depth(r[2],r[3])-dmin)/(dmax-dmin) : 0;
       boxFaces(ctx, P, r[2], r[3], r[4], r[5], r[6], r[7], hue,
                isNew && (last.switched || last.t === c.divergence_turn),
                r[8], depth);
     }
     drawContainerCage(ctx, P, cont, slot, n);
   });
+  // Broadcast flash uses the transition-aligned official counter delta.
+  if (last && last.viol_delta) {
+    const inc = last.viol_delta
+      .map((v, i) => v > 0 ? `${VIOL_LABELS[i]}+${v}` : null)
+      .filter(Boolean);
+    if (inc.length) {
+      flashActive = true;
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 170);
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,92,87,${0.3 + 0.5 * pulse})`;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(3, 3, CW - 6, CH - 6);
+      ctx.font = "600 15px 'Chakra Petch','Zen Kaku Gothic New',sans-serif";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#ff5c57"; ctx.shadowBlur = 4 + 10 * pulse;
+      ctx.fillStyle = "#ff6b67";
+      ctx.fillText("🚨 違反発生 — " + inc.join(" · "), CW / 2, 26);
+      ctx.restore();
+    }
+  }
+  // DOM writes only when the text actually changes (orbit redraws at 30fps)
+  const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML = h; } };
   const foot = document.getElementById(footId);
   if (!last) {
-    foot.textContent = (c.initial_board && c.initial_board.length)
+    setHTML(foot, (c.initial_board && c.initial_board.length)
       ? "開始盤面 — preloaded " + c.initial_board.length + "個から出発"
-      : "開始前 — 同じstream・同じseedから出発";
+      : "開始前 — 同じstream・同じseedから出発");
   } else {
     let html = "";
     if (last.switched) html += `<span class="sw-badge">⚡ SWITCH${last.conf!=null ? " " + Math.round(last.conf*100) + "%" : ""}</span>`;
@@ -782,11 +841,12 @@ function drawArm(paneId, canvasId, armName, footId, metricsId) {
       html += genuine.includes(t) ? ` · ✅ 完了`
             : ` · <span class="dead">💀 ${t}</span>`;
     }
-    foot.innerHTML = html;
+    setHTML(foot, html);
   }
   const m = document.getElementById(metricsId);
-  if (last) m.innerHTML = `placed <b>${last.placed}</b> · fill <b>${last.fill.toFixed(2)}</b>`;
-  else m.innerHTML = `最終: placed <b>${arm.final.placed}</b> · fill <b>${arm.final.fill}</b>`;
+  setHTML(m, last
+    ? `placed <b>${last.placed}</b> · fill <b>${last.fill.toFixed(2)}</b>`
+    : `最終: placed <b>${arm.final.placed}</b> · fill <b>${arm.final.fill}</b>`);
 }
 function render() {
   const c = cellData();
@@ -803,9 +863,47 @@ function render() {
   } else {
     banner.classList.remove("on");
   }
+  drawBoards();
+}
+function drawBoards() {
+  flashActive = false;
   drawArm("pane-a", "cv-a", MATCH.challenger, "pa-foot", "pa-metrics");
   drawArm("pane-b", "cv-b", MATCH.opponent, "pb-foot", "pb-metrics");
 }
+
+/* ---------- camera: drag to orbit + auto camera-work ---------- */
+const orbitBtn = document.getElementById("btn-orbit");
+function setOrbit(on) {
+  orbitOn = on;
+  orbitBtn.textContent = on ? "🎥 回転 ON" : "🎥 回転 OFF";
+  orbitBtn.classList.toggle("acc", on);
+}
+orbitBtn.addEventListener("click", () => setOrbit(!orbitOn));
+let dragX = null;
+for (const cid of ["cv-a", "cv-b"]) {
+  const cv = document.getElementById(cid);
+  cv.addEventListener("pointerdown", e => {
+    dragX = e.clientX; setOrbit(false); cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", e => {
+    if (dragX == null) return;
+    camYaw -= (e.clientX - dragX) * 0.008; dragX = e.clientX; drawBoards();
+  });
+  const drop = () => { dragX = null; };
+  cv.addEventListener("pointerup", drop);
+  cv.addEventListener("pointercancel", drop);
+}
+let camTs = 0;
+function camLoop(ts) {
+  // keep animating while orbiting OR while a violation flash is pulsing
+  if ((orbitOn || flashActive) && currentView === "match" && ts - camTs > 33) {
+    if (orbitOn) camYaw += 0.0058;   // ~1周/38秒のゆっくり中継
+    camTs = ts; drawBoards();
+  }
+  requestAnimationFrame(camLoop);
+}
+requestAnimationFrame(camLoop);
+if (MATCH.live) document.getElementById("live-text").textContent = MATCH.live;
 
 /* ---------- lineage ---------- */
 const LINEAGE = [
