@@ -64,6 +64,26 @@ retained only as a same-budget challenger. Status, all on real physics:
   wall-clock, paired comparison) — never a mainline revival. The
   284-root cohort with terminal truth is the training/eval bed, and a
   full collection→retrain→shadow cycle costs under 25 min on Actions.
+- **Learned checkpoint comparator v1: FAIL at wave-2 scale
+  (`checkpoint-comparator-v1-20260825.md`)**. Trained on decision-time
+  inputs only (state + geometry + measured H ≤ 3 checkpoint vectors,
+  oracle run `32813542928`), the paired gate on identical vectors goes
+  to the Pareto rule decisively (IV conversion 17/25 vs 9/25;
+  checkpoint-only ablation degenerates to keep-incumbent). Preregistered
+  path: retrain at wave-3 scale (36 cells collected, run
+  `32813542943`); if data does not close the gap, the next single
+  change is a residual comparator (Pareto decision as prior, learn only
+  the deviation). Production stack unchanged.
+- **Agreed direction (2026-08-25 discussion): exhaustive terminal
+  collection is bootstrap scaffolding, not the steady state.** The
+  destination is the Expert Iteration loop with terminal reads made
+  *selective*: live decisions stay bounded (H ≤ 3, budget 2); learning
+  consumes (a) each episode's own terminal and (b) counterfactual
+  terminal forks only where the decision was contested/uncertain — an
+  uncertainty-gated collector, so physics spend shrinks as the policy
+  improves. Terminal truth also stays as the fixed held-out yardstick,
+  because this branch measured three times that bounded evaluations
+  cannot referee their own improvement.
 
 Do not: revive multi-head V mainline, scalar utility, root-trigger
 digging, progressive widening, unaudited symmetry merges, or per-decision

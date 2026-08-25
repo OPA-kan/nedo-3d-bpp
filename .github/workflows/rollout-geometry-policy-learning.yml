@@ -6,7 +6,7 @@ on:
       source_run_id:
         description: Frozen terminal hard-state aggregate run
         required: false
-        default: "32811046786"
+        default: "32813542943"
       epochs:
         description: Training epochs per ensemble member
         required: false
@@ -62,6 +62,18 @@ jobs:
           - {cell: dual-shelf-mixed-permute-001-101, scenario: dual-shelf-mixed, stream: permute-001-101}
           - {cell: dual-shelf-mixed-permute-001-107, scenario: dual-shelf-mixed, stream: permute-001-107}
           - {cell: dual-shelf-mixed-permute-001-113, scenario: dual-shelf-mixed, stream: permute-001-113}
+          - {cell: dual-preloaded-dedicated-permute-000-157, scenario: dual-preloaded-dedicated, stream: permute-000-157}
+          - {cell: dual-preloaded-dedicated-permute-000-163, scenario: dual-preloaded-dedicated, stream: permute-000-163}
+          - {cell: dual-preloaded-dedicated-permute-000-167, scenario: dual-preloaded-dedicated, stream: permute-000-167}
+          - {cell: dual-preloaded-dedicated-permute-000-173, scenario: dual-preloaded-dedicated, stream: permute-000-173}
+          - {cell: dual-preloaded-dedicated-permute-000-179, scenario: dual-preloaded-dedicated, stream: permute-000-179}
+          - {cell: dual-preloaded-dedicated-permute-000-181, scenario: dual-preloaded-dedicated, stream: permute-000-181}
+          - {cell: dual-shelf-mixed-permute-001-127, scenario: dual-shelf-mixed, stream: permute-001-127}
+          - {cell: dual-shelf-mixed-permute-001-139, scenario: dual-shelf-mixed, stream: permute-001-139}
+          - {cell: dual-shelf-mixed-permute-001-149, scenario: dual-shelf-mixed, stream: permute-001-149}
+          - {cell: dual-shelf-mixed-permute-001-151, scenario: dual-shelf-mixed, stream: permute-001-151}
+          - {cell: dual-shelf-mixed-permute-001-157, scenario: dual-shelf-mixed, stream: permute-001-157}
+          - {cell: dual-shelf-mixed-permute-001-163, scenario: dual-shelf-mixed, stream: permute-001-163}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -75,10 +87,10 @@ jobs:
       - name: Download frozen search teacher
         uses: actions/download-artifact@v4
         with:
-          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32811046786' }}
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32813542943' }}
           path: reports/geometry-source
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.source_run_id || '32811046786' }}
+          run-id: ${{ inputs.source_run_id || '32813542943' }}
       - name: Rebuild exact stream scenario
         run: >-
           python scripts/build_scenario_matrix.py
@@ -125,10 +137,10 @@ jobs:
       - name: Download frozen search teacher
         uses: actions/download-artifact@v4
         with:
-          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32811046786' }}
+          name: terminal-hard-state-aggregate-${{ inputs.source_run_id || '32813542943' }}
           path: reports/geometry-source
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.source_run_id || '32811046786' }}
+          run-id: ${{ inputs.source_run_id || '32813542943' }}
       - uses: actions/download-artifact@v4
         with:
           pattern: geometry-policy-actions-*
@@ -138,7 +150,7 @@ jobs:
           python scripts/attach_trigger_candidate_actions.py
           --dataset reports/geometry-source/trigger-dataset.json
           --recovery-root reports/geometry-policy/recovered
-          --expected-cells 24
+          --expected-cells 36
           --output reports/geometry-policy/trigger-dataset-with-actions.json
       - name: Train group-OOF geometry-only candidate policy
         run: >-

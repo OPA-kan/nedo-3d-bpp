@@ -85,7 +85,10 @@ def checkpoint_token(row: dict[str, Any]) -> list[float]:
 def build_comparator_examples(
     dataset_path: pathlib.Path, dataset_root: pathlib.Path,
     checkpoint_root: pathlib.Path, *, cap: int,
+    features: str = "geometry_checkpoint",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if features not in {"geometry_checkpoint", "checkpoint_only"}:
+        raise ValueError(f"unsupported feature set: {features}")
     base, contract = load_examples(
         dataset_path, dataset_root, candidate_feature_mode="geometry",
     )
@@ -103,22 +106,34 @@ def build_comparator_examples(
             raise ValueError(
                 f"{row['root_id']}: checkpoint audit lacks {missing[:2]}"
             )
-        tokens = [
-            list(token) + checkpoint_token(per_candidate[candidate_id])
-            for token, candidate_id in zip(
-                row["candidate"], row["candidate_ids"]
-            )
-        ]
+        if features == "geometry_checkpoint":
+            tokens = [
+                list(token) + checkpoint_token(per_candidate[candidate_id])
+                for token, candidate_id in zip(
+                    row["candidate"], row["candidate_ids"]
+                )
+            ]
+        else:
+            tokens = [
+                checkpoint_token(per_candidate[candidate_id])
+                + [float(index == row["incumbent_index"])]
+                for index, candidate_id in enumerate(row["candidate_ids"])
+            ]
         examples.append({**row, "candidate": tokens})
     if not examples:
         raise ValueError("no roots joined between dataset and checkpoints")
+    feature_names = (
+        list(contract["candidate_features"])
+        + list(CHECKPOINT_EXTRA_FEATURES)
+        if features == "geometry_checkpoint"
+        else list(CHECKPOINT_EXTRA_FEATURES) + ["is_incumbent"]
+    )
     contract = {
         **contract,
         "contract": "checkpoint_comparator_set_transformer_v1",
         "target": "terminal_oracle_selected_candidate_given_checkpoints",
-        "candidate_feature_mode": f"geometry_checkpoint_h{cap + 1}",
-        "candidate_features": list(contract["candidate_features"])
-        + list(CHECKPOINT_EXTRA_FEATURES),
+        "candidate_feature_mode": f"{features}_h{cap + 1}",
+        "candidate_features": feature_names,
         "decision_time_note": (
             "checkpoint vectors are measured before the decision in "
             "production; consuming them adds no physics"
@@ -287,6 +302,10 @@ def main() -> int:
     parser.add_argument("--dataset-root", type=pathlib.Path, required=True)
     parser.add_argument("--checkpoint-root", type=pathlib.Path, required=True)
     parser.add_argument("--cap", type=int, default=2)
+    parser.add_argument(
+        "--features", choices=("geometry_checkpoint", "checkpoint_only"),
+        default="geometry_checkpoint",
+    )
     parser.add_argument("--folds", type=int, default=4)
     parser.add_argument("--ensemble-size", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=3)
@@ -299,6 +318,7 @@ def main() -> int:
 
     examples, contract = build_comparator_examples(
         args.dataset, args.dataset_root, args.checkpoint_root, cap=args.cap,
+        features=args.features,
     )
     checkpoint_map = load_checkpoint_map(args.checkpoint_root, cap=args.cap)
     report = run_comparator_oof(
