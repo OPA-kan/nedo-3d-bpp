@@ -1,7 +1,13 @@
+import json
+import pathlib
+import sys
+import tempfile
 import unittest
+from unittest import mock
 
 from scripts.audit_deadline_rollout import (
     choose_from_checkpoint,
+    main,
     ranker_order_candidates,
 )
 from scripts.deadline_rollout_summary import summarize
@@ -45,6 +51,38 @@ class AuditDeadlineRolloutTests(unittest.TestCase):
         self.assertEqual(
             ranker_order_candidates(oof_row, budget=3), ["a", "b", "c"]
         )
+
+    def test_cli_alternate_mode_reaches_audit(self):
+        # Regression: run 32802783183 silently ran in allocator mode because
+        # main() dropped the parsed --alternate-mode on the floor.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "manifest.json").write_text(
+                json.dumps({"case_id": "case"}), encoding="utf-8"
+            )
+            (root / "dataset.json").write_text("{}", encoding="utf-8")
+            (root / "oof.json").write_text("{}", encoding="utf-8")
+            (root / "config.json").write_text(
+                json.dumps({"case": {}}), encoding="utf-8"
+            )
+            argv = [
+                "audit_deadline_rollout.py",
+                "--manifest", str(root / "manifest.json"),
+                "--trigger-dataset", str(root / "dataset.json"),
+                "--oof-report", str(root / "oof.json"),
+                "--task-config", str(root / "config.json"),
+                "--cell", "cell",
+                "--alternate-mode", "ranker_next",
+                "--output", str(root / "out.json"),
+            ]
+            with mock.patch(
+                "scripts.audit_deadline_rollout.audit",
+                return_value={"summary": {}},
+            ) as audit_call, mock.patch.object(sys, "argv", argv):
+                self.assertEqual(main(), 0)
+            self.assertEqual(
+                audit_call.call_args.kwargs["alternate_mode"], "ranker_next"
+            )
 
     def test_summary_reports_actual_budget_compliance(self):
         rows = [

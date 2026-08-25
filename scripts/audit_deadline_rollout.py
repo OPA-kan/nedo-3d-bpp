@@ -282,6 +282,7 @@ def main() -> int:
         live_action_reserve_seconds=args.live_action_reserve_seconds,
         max_continuation_steps=args.max_continuation_steps,
         safety_factor=args.safety_factor,
+        alternate_mode=args.alternate_mode,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
