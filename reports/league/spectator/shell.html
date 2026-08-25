@@ -1,0 +1,549 @@
+<title>パッキングリーグ観戦室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* 観戦室 v2 — night-arena broadcast. Deliberately single-theme; every
+     color painted explicitly so the page holds on any host ground. */
+  :root {
+    --ground:#0c1016; --panel:#141a23; --panel-2:#1a222e; --line:#263140;
+    --text:#e9eef5; --muted:#8b98a8; --faint:#5d6a7b;
+    --gold:#e2b555; --violet:#9d8cff;
+    --win:#46b986; --loss:#e05f5c; --equal:#55616f; --tradeoff:#5e8cbe;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--ground); color:var(--text);
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
+    font-size:15px; line-height:1.65; }
+  .wrap { max-width:1120px; margin:0 auto; padding:32px 22px 70px; }
+  h1,h2,h3,.num,.disp { font-family:"Chakra Petch","Zen Kaku Gothic New",sans-serif; }
+  .mono { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 20px; }
+  .kicker { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; color:var(--gold); text-transform:uppercase; }
+  h1 { font-size:28px; font-weight:700; margin:2px 0 0; }
+  nav { margin-left:auto; display:flex; gap:6px; }
+  nav button { background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:"Chakra Petch",sans-serif; font-size:13px; font-weight:600; letter-spacing:.08em;
+    padding:8px 18px; border-radius:4px; cursor:pointer; }
+  nav button.on { background:var(--gold); border-color:var(--gold); color:#0c1016; }
+  nav button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+  .view { display:none; margin-top:26px; }
+  .view.on { display:block; }
+  section { margin-top:34px; }
+  h2 { font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 14px; display:flex; align-items:center; gap:12px; }
+  h2::after { content:""; flex:1; height:1px; background:var(--line); }
+
+  /* champion banner */
+  .banner { border:1px solid var(--gold); border-radius:6px; background:linear-gradient(120deg,#1c1912,#141a23 65%); padding:18px 22px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 26px; }
+  .banner .crown { font-size:30px; }
+  .banner .name { font-family:"Chakra Petch",sans-serif; font-size:22px; font-weight:700; color:var(--gold); }
+  .banner .sub { color:var(--muted); font-size:13px; }
+  .banner .rec { margin-left:auto; text-align:right; font-size:12.5px; color:var(--muted); }
+  .banner .rec .mono { color:var(--text); }
+
+  .tracks { display:grid; gap:12px; }
+  .track { border:1px solid var(--line); border-radius:6px; background:var(--panel); }
+  .track-head { display:flex; gap:12px; align-items:baseline; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .tag { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; }
+  .track.production .tag { color:var(--gold); } .track.benchmark .tag { color:var(--violet); }
+  .track-head .note { color:var(--faint); font-size:12px; margin-left:auto; }
+  .roster { display:flex; flex-wrap:wrap; }
+  .member { flex:1 1 200px; padding:13px 16px; border-right:1px solid var(--line); min-width:190px; }
+  .member:last-child { border-right:none; }
+  .member .role { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
+  .member .name { font-family:"Chakra Petch",sans-serif; font-size:16px; font-weight:600; }
+  .member .desc { color:var(--muted); font-size:12px; margin-top:3px; }
+  .track.production .member.champ .name { color:var(--gold); }
+  .track.benchmark .member .name { color:var(--violet); }
+  .member.pending { background:repeating-linear-gradient(-45deg,var(--panel),var(--panel) 8px,var(--panel-2) 8px,var(--panel-2) 16px); }
+
+  table.matches { width:100%; border-collapse:collapse; font-size:13px; }
+  table.matches th { text-align:left; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); font-weight:500; padding:6px 10px; border-bottom:1px solid var(--line); }
+  table.matches td { padding:9px 10px; border-bottom:1px solid var(--line); }
+  .pill { font-family:"Chakra Petch",sans-serif; font-size:11px; font-weight:600; letter-spacing:.08em; padding:2px 10px; border-radius:3px; white-space:nowrap; }
+  .pill.gold { background:var(--gold); color:#0c1016; }
+  .pill.red { border:1px solid var(--loss); color:var(--loss); }
+  .pill.violet { border:1px solid var(--violet); color:var(--violet); }
+  .wl { font-family:"IBM Plex Mono",monospace; font-size:12.5px; }
+  .wl b { color:var(--win); } .wl s { color:var(--loss); text-decoration:none; }
+  .wl i { color:var(--tradeoff); font-style:normal; }
+
+  .hl-card { border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:6px; background:var(--panel); padding:14px 18px; margin-bottom:10px; cursor:pointer; }
+  .hl-card:hover { background:var(--panel-2); }
+  .hl-card .hlk { font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase; }
+  .hl-card .hlt { font-family:"Chakra Petch",sans-serif; font-size:15px; font-weight:600; margin-top:2px; }
+  .hl-card .hld { color:var(--muted); font-size:12.5px; margin-top:2px; }
+
+  /* MATCH CENTER */
+  .mc-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; border:1px solid var(--line); border-radius:6px; background:var(--panel); padding:14px 18px; }
+  .mc-vs { font-family:"Chakra Petch",sans-serif; font-size:18px; font-weight:700; }
+  .mc-vs .a { color:var(--gold); } .mc-vs .b { color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .chip { display:inline-flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:5px 10px; font-size:11.5px; color:var(--muted); cursor:pointer; font-family:"IBM Plex Mono",monospace; }
+  .chip.on { border-color:var(--gold); color:var(--text); }
+  .chip .d { width:9px; height:9px; border-radius:2px; }
+  .d.w { background:var(--win); } .d.l { background:var(--loss); } .d.e { background:var(--equal); } .d.t { background:var(--tradeoff); }
+
+  .stage { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  @media (max-width:820px) { .stage { grid-template-columns:1fr; } }
+  .pane { border:1px solid var(--line); border-radius:6px; background:var(--panel); overflow:hidden; }
+  .pane-head { display:flex; align-items:baseline; gap:10px; padding:9px 14px; border-bottom:1px solid var(--line); }
+  .pane-head .pn { font-family:"Chakra Petch",sans-serif; font-weight:600; font-size:14px; }
+  .pane.challenger .pn { color:var(--gold); }
+  .pane-head .pm { margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); }
+  .pane-head .pm b { color:var(--text); font-weight:600; }
+  canvas { display:block; width:100%; height:auto; background:#0a0e13; }
+  .pane-foot { min-height:44px; padding:8px 14px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
+  .sw-badge { display:inline-block; font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:11px; letter-spacing:.06em; color:#0c1016; background:var(--gold); border-radius:3px; padding:1px 8px; margin-right:8px; }
+  .dead { color:var(--loss); }
+
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); padding:10px 14px; }
+  .controls button { background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:4px; padding:6px 14px; font-family:"Chakra Petch",sans-serif; font-size:12.5px; font-weight:600; cursor:pointer; }
+  .controls button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+  .controls button.acc { border-color:var(--gold); color:var(--gold); }
+  .controls input[type=range] { flex:1; min-width:140px; accent-color:var(--gold); }
+  .turnlbl { font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted); min-width:86px; }
+  .div-banner { margin-top:10px; font-family:"Chakra Petch",sans-serif; font-size:13px; font-weight:600; letter-spacing:.06em; color:var(--gold); border:1px dashed var(--gold); border-radius:4px; padding:6px 14px; display:none; }
+  .div-banner.on { display:block; }
+
+  .feed { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; }
+  .ev { font-family:"IBM Plex Mono",monospace; font-size:11px; border:1px solid var(--line); border-radius:3px; background:var(--panel); color:var(--muted); padding:3px 9px; cursor:pointer; }
+  .ev.sw { border-color:var(--gold); color:var(--gold); }
+  .ev.dv { border-color:var(--tradeoff); color:var(--tradeoff); }
+
+  /* LINEAGE */
+  .tree { border-left:2px solid var(--line); margin-left:10px; padding-left:22px; }
+  .node { position:relative; margin:14px 0; }
+  .node::before { content:""; position:absolute; left:-24px; top:18px; width:16px; height:2px; background:var(--line); }
+  .pcard { border:1px solid var(--line); border-radius:6px; background:var(--panel); padding:12px 16px; cursor:pointer; max-width:560px; }
+  .pcard:hover { background:var(--panel-2); }
+  .pcard .pname { font-family:"Chakra Petch",sans-serif; font-size:15px; font-weight:600; }
+  .pcard.champ { border-color:var(--gold); } .pcard.champ .pname { color:var(--gold); }
+  .pcard.dead-p .pname { color:var(--muted); }
+  .pcard.bench { border-color:var(--violet); } .pcard.bench .pname { color:var(--violet); }
+  .pcard .psub { color:var(--faint); font-size:11.5px; font-family:"IBM Plex Mono",monospace; }
+  .pcard .pdetail { display:none; margin-top:10px; border-top:1px dashed var(--line); padding-top:8px; font-size:12.5px; color:var(--muted); }
+  .pcard.open .pdetail { display:block; }
+  .pdetail dt { color:var(--faint); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; margin-top:6px; }
+  .pdetail dd { margin:0; color:var(--text); font-size:12.5px; }
+
+  footer { margin-top:44px; border-top:1px solid var(--line); padding-top:12px; color:var(--faint); font-size:11.5px; display:flex; flex-wrap:wrap; gap:4px 22px; }
+  footer .lock { color:var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">NEDO 3D-BPP · Expert Iteration League</div>
+      <h1>パッキングリーグ観戦室</h1>
+    </div>
+    <nav>
+      <button id="tab-league" class="on">リーグ</button>
+      <button id="tab-match">観戦</button>
+      <button id="tab-tree">系譜</button>
+    </nav>
+  </header>
+
+  <!-- ============ LEAGUE ============ -->
+  <div class="view on" id="view-league">
+    <section>
+      <div class="banner">
+        <span class="crown">👑</span>
+        <div>
+          <div class="name">Preference One <span class="mono" style="font-size:12px;color:var(--muted)">pi1-pref-g1</span></div>
+          <div class="sub">Generation 1 Champion — 初のニューラル王者（preference蒸留・探索なし・SLA内）</div>
+        </div>
+        <div class="rec">
+          王座戦: <span class="mono">1勝0敗6分3保留</span> vs Legacy Zero<br>
+          benchmark: <span class="mono">1勝2敗</span> vs The Oracle（below）
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>リーグ構成 — 二層トラック</h2>
+      <div class="tracks">
+        <div class="track production">
+          <div class="track-head"><span class="tag">Production Line</span><span class="note">昇格ゲートはこの列のchampionに対してのみ。全員SLA内。</span></div>
+          <div class="roster">
+            <div class="member"><div class="role">Anchor · gen 0</div><div class="name">pi0-legacy</div><div class="desc">Legacy Zero — 手書きrank-0。永久アンカー。</div></div>
+            <div class="member champ"><div class="role">Champion · gen 1</div><div class="name">pi1-pref-g1 👑</div><div class="desc">Preference One — P(alt ≻ incumbent)。τ=0.5超のみswitch。</div></div>
+            <div class="member pending"><div class="role">Challenger · Round 1/10</div><div class="name">pi2-pref-w5</div><div class="desc">wave-5教師（118セル）で訓練予定。シーズン進行中。</div></div>
+          </div>
+        </div>
+        <div class="track benchmark">
+          <div class="track-head"><span class="tag">Teacher Benchmark</span><span class="note">ゲートも拒否権もなし。到達度（below / at / beats）のみ報告。</span></div>
+          <div class="roster">
+            <div class="member"><div class="role">Benchmark</div><div class="name">pi0-search</div><div class="desc">The Oracle — rank-0＋全候補terminal探索。SLA外。並べば探索圧縮、超えれば大breakthrough。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Game of the Match</h2>
+      <div id="hl-cards"></div>
+    </section>
+
+    <section>
+      <h2>対戦履歴</h2>
+      <table class="matches">
+        <thead><tr><th>#</th><th>対戦</th><th>星取</th><th>判定</th><th>集計</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">003</td><td><b>pi1-pref-g1</b> vs pi0-legacy</td><td class="wl"><b>1</b>-<s>0</s>-6-<i>3</i></td><td><span class="pill gold">👑 昇格</span></td><td class="mono">placed +2 · viol −1</td></tr>
+          <tr><td class="mono">003b</td><td>pi1-pref-g1 vs pi0-search</td><td class="wl"><b>1</b>-<s>2</s>-1-<i>6</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">fill −1.48 · viol −1</td></tr>
+          <tr><td class="mono">002B</td><td>pi1-geometry-g0 vs pi0-search</td><td class="wl"><b>0</b>-<s>2</s>-3-<i>5</i></td><td><span class="pill red">棄却</span></td><td class="mono">行動模倣はrank-0に退化</td></tr>
+          <tr><td class="mono">002A</td><td>pi1-geometry-w3 vs pi0-search</td><td class="wl"><b>1</b>-<s>2</s>-2-<i>5</i></td><td><span class="pill red">棄却</span></td><td class="mono">対legacyでは1-0-7-2</td></tr>
+          <tr><td class="mono">001</td><td>pi0-search vs pi0-legacy</td><td class="wl"><b>3</b>-<s>0</s>-3-<i>4</i></td><td><span class="pill gold">勝利</span></td><td class="mono">探索の教師信号を実証</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- ============ MATCH CENTER ============ -->
+  <div class="view" id="view-match">
+    <div class="mc-head">
+      <span class="pill gold">MATCH 003</span>
+      <span class="mc-vs"><span class="a" id="mc-cha">—</span> <span style="color:var(--faint)">vs</span> <span class="b" id="mc-opp">—</span></span>
+      <span class="pill gold" id="mc-verdict">👑 PROMOTED</span>
+      <span class="mono" style="margin-left:auto;color:var(--muted);font-size:12px" id="mc-counts"></span>
+    </div>
+    <div class="chips" id="cell-chips"></div>
+    <div class="div-banner" id="div-banner"></div>
+    <div class="stage">
+      <div class="pane challenger">
+        <div class="pane-head"><span class="pn" id="pa-name"></span><span class="pm" id="pa-metrics"></span></div>
+        <canvas id="cv-a" width="520" height="430"></canvas>
+        <div class="pane-foot" id="pa-foot"></div>
+      </div>
+      <div class="pane">
+        <div class="pane-head"><span class="pn" id="pb-name"></span><span class="pm" id="pb-metrics"></span></div>
+        <canvas id="cv-b" width="520" height="430"></canvas>
+        <div class="pane-foot" id="pb-foot"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="btn-play" class="acc">▶ 再生</button>
+      <span class="turnlbl" id="turn-lbl">TURN 0</span>
+      <input type="range" id="turn-slider" min="0" max="1" value="0" step="1" aria-label="turn">
+      <button id="btn-div">⚡ 分岐へ</button>
+      <button id="btn-end">≫ 最終盤面</button>
+      <button id="btn-speed">速度 ×1</button>
+    </div>
+    <div class="feed" id="ev-feed"></div>
+  </div>
+
+  <!-- ============ LINEAGE ============ -->
+  <div class="view" id="view-tree">
+    <section>
+      <h2>方策の系統樹</h2>
+      <div id="tree-root"></div>
+    </section>
+  </div>
+
+  <footer>
+    <span class="lock">🔒 観戦はread-only — リーグ結果から手動でtraining matrixをtuningしない（凍結評価が人間経由で漏れるため）。研究判断はtraining側diagnosticのみから。</span>
+    <span>branch: work/terminal-rollout-oracle · registry gen 1 · シーズンRound 1/10進行中 · 2026-08-25</span>
+  </footer>
+</div>
+
+<script id="match-data" type="application/json">__MATCH_DATA__</script>
+<script>
+"use strict";
+const MATCH = JSON.parse(document.getElementById("match-data").textContent);
+const DISPLAY = {
+  "pi1-pref-g1": "Preference One", "pi0-legacy": "Legacy Zero",
+  "pi0-search": "The Oracle",
+};
+const REL_CLASS = { challenger_wins:"w", member_wins:"l", equal:"e", incomparable:"t" };
+const REL_LABEL = { challenger_wins:"勝", member_wins:"敗", equal:"分", incomparable:"保" };
+
+/* ---------- tabs ---------- */
+const tabs = { league:"view-league", match:"view-match", tree:"view-tree" };
+for (const key of Object.keys(tabs)) {
+  document.getElementById("tab-"+key).addEventListener("click", () => showTab(key));
+}
+function showTab(key) {
+  for (const k of Object.keys(tabs)) {
+    document.getElementById("tab-"+k).classList.toggle("on", k===key);
+    document.getElementById(tabs[k]).classList.toggle("on", k===key);
+  }
+  if (key === "match") requestAnimationFrame(render);
+}
+
+/* ---------- league: highlights ---------- */
+const TAG_LABEL = {
+  switch_decided_it:"⚡ switchが勝敗を決めた", challenger_win:"挑戦者勝利",
+  champion_win:"王者の貫禄", trade_off:"最後までトレードオフ",
+  fill_gap:"fill差", placed_gap:"配置数差",
+};
+const hlHost = document.getElementById("hl-cards");
+MATCH.highlights.slice(0, 4).forEach((h, i) => {
+  const card = document.createElement("div");
+  card.className = "hl-card";
+  const short = h.cell.replace("-permute", " ");
+  card.innerHTML =
+    `<div class="hlk">${i===0 ? "🏅 GAME OF THE MATCH" : "HIGHLIGHT"}</div>` +
+    `<div class="hlt">${short}</div>` +
+    `<div class="hld">${h.tags.map(t=>TAG_LABEL[t]||t).join(" · ")} — ` +
+    (h.divergence_turn!=null ? `Turn ${h.divergence_turn}で分岐` : "全手一致") +
+    (h.switch_turns.length ? ` · switch @${h.switch_turns.join(",")}` : "") +
+    ` · fillΔ ${h.fill_delta>0?"+":""}${h.fill_delta} · placedΔ ${h.placed_delta>0?"+":""}${h.placed_delta}</div>`;
+  card.addEventListener("click", () => { selectCell(h.cell); showTab("match"); });
+  hlHost.appendChild(card);
+});
+
+/* ---------- match center state ---------- */
+const cellNames = Object.keys(MATCH.cells);
+let currentCell = MATCH.highlights.length ? MATCH.highlights[0].cell : cellNames[0];
+let turn = 0, playing = false, speed = 1, timer = null;
+
+document.getElementById("mc-cha").textContent = DISPLAY[MATCH.challenger] || MATCH.challenger;
+document.getElementById("mc-opp").textContent = DISPLAY[MATCH.opponent] || MATCH.opponent;
+document.getElementById("mc-verdict").textContent = MATCH.promoted ? "👑 PROMOTED" : "棄却";
+document.getElementById("mc-counts").textContent =
+  `W${MATCH.counts.challenger_wins}-L${MATCH.counts.member_wins}-E${MATCH.counts.equal}-T${MATCH.counts.incomparable}`;
+
+const chipsHost = document.getElementById("cell-chips");
+cellNames.forEach(cell => {
+  const chip = document.createElement("button");
+  chip.className = "chip"; chip.dataset.cell = cell;
+  chip.innerHTML = `<span class="d ${REL_CLASS[MATCH.relations[cell]]||"e"}"></span>` +
+    cell.replace("-permute","").replace("dual-preloaded-dedicated","dpd")
+        .replace("dual-shelf-mixed","dsm").replace("dual-empty","de")
+        .replace("single-empty-noshelf","sen").replace("single-empty-shelf","ses")
+        .replace("single-preloaded","sp");
+  chip.addEventListener("click", () => selectCell(cell));
+  chipsHost.appendChild(chip);
+});
+
+function cellData() { return MATCH.cells[currentCell]; }
+function maxTurn() {
+  const c = cellData();
+  return Math.max(...Object.values(c.arms).map(a => a.steps.length));
+}
+function selectCell(cell) {
+  currentCell = cell; turn = 0; stop();
+  for (const chip of chipsHost.children) chip.classList.toggle("on", chip.dataset.cell === cell);
+  const slider = document.getElementById("turn-slider");
+  slider.max = maxTurn(); slider.value = 0;
+  buildFeed(); render();
+}
+
+/* ---------- controls ---------- */
+const slider = document.getElementById("turn-slider");
+slider.addEventListener("input", () => { turn = +slider.value; render(); });
+document.getElementById("btn-div").addEventListener("click", () => {
+  const d = cellData().divergence_turn;
+  if (d != null) { turn = d + 1; slider.value = turn; render(); }
+});
+document.getElementById("btn-end").addEventListener("click", () => {
+  turn = maxTurn(); slider.value = turn; render();
+});
+document.getElementById("btn-play").addEventListener("click", () => playing ? stop() : play());
+document.getElementById("btn-speed").addEventListener("click", () => {
+  speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
+  document.getElementById("btn-speed").textContent = "速度 ×" + speed;
+  if (playing) { stop(); play(); }
+});
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function play() {
+  playing = true; document.getElementById("btn-play").textContent = "⏸ 停止";
+  const base = reduced ? 0 : 620;
+  timer = setInterval(() => {
+    if (turn >= maxTurn()) { stop(); return; }
+    turn += 1; slider.value = turn; render();
+  }, Math.max(120, base / speed));
+}
+function stop() {
+  playing = false; document.getElementById("btn-play").textContent = "▶ 再生";
+  if (timer) clearInterval(timer); timer = null;
+}
+
+/* ---------- event feed ---------- */
+function buildFeed() {
+  const host = document.getElementById("ev-feed");
+  host.textContent = "";
+  const c = cellData();
+  if (c.divergence_turn != null) {
+    const b = document.createElement("button");
+    b.className = "ev dv"; b.textContent = `T${c.divergence_turn} 分岐`;
+    b.addEventListener("click", () => { turn = c.divergence_turn + 1; slider.value = turn; render(); });
+    host.appendChild(b);
+  }
+  for (const s of c.arms[MATCH.challenger].steps) {
+    if (!s.switched) continue;
+    const b = document.createElement("button");
+    b.className = "ev sw";
+    b.textContent = `T${s.t} ⚡SWITCH ${s.conf!=null ? Math.round(s.conf*100)+"%" : ""}`;
+    b.addEventListener("click", () => { turn = s.t + 1; slider.value = turn; render(); });
+    host.appendChild(b);
+  }
+}
+
+/* ---------- isometric renderer ---------- */
+const COS = Math.cos(Math.PI/6), SIN = Math.sin(Math.PI/6);
+function makeView(containers) {
+  let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9,maxZ=0;
+  for (const c of containers) {
+    minX = Math.min(minX, c.center[0]-c.length/2);
+    maxX = Math.max(maxX, c.center[0]+c.length/2);
+    minY = Math.min(minY, c.center[1]-c.width/2);
+    maxY = Math.max(maxY, c.center[1]+c.width/2);
+    maxZ = Math.max(maxZ, c.center[2]+c.height/2);
+  }
+  const corners = [];
+  for (const x of [minX,maxX]) for (const y of [minY,maxY]) for (const z of [0,maxZ])
+    corners.push([(x-y)*COS, (x+y)*SIN - z]);
+  const xs = corners.map(p=>p[0]), ys = corners.map(p=>p[1]);
+  const w = 520, h = 430, pad = 30;
+  const scale = Math.min((w-2*pad)/(Math.max(...xs)-Math.min(...xs)),
+                         (h-2*pad)/(Math.max(...ys)-Math.min(...ys)));
+  const ox = -Math.min(...xs)*scale + pad;
+  const oy = -Math.min(...ys)*scale + pad;
+  return function proj(x, y, z) {
+    return [ (x-y)*COS*scale + ox, h - ((x+y)*SIN - z)*scale - oy ];
+  };
+}
+function boxFaces(ctx, proj, cx, cy, cz, dx, dy, dz, hue, glow) {
+  const x0=cx-dx/2, x1=cx+dx/2, y0=cy-dy/2, y1=cy+dy/2, z0=cz-dz/2, z1=cz+dz/2;
+  const P = (x,y,z)=>proj(x,y,z);
+  const top = [P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)];
+  const right = [P(x1,y0,z0),P(x1,y1,z0),P(x1,y1,z1),P(x1,y0,z1)];
+  const front = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y0,z1),P(x0,y0,z1)];
+  const face = (pts, light) => {
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${hue} 42% ${light}%)`;
+    ctx.fill();
+    ctx.strokeStyle = glow ? "#e2b555" : `hsl(${hue} 30% 18%)`;
+    ctx.lineWidth = glow ? 2 : 0.7;
+    ctx.stroke();
+  };
+  face(front, 34); face(right, 26); face(top, 52);
+}
+function drawContainer(ctx, proj, c) {
+  const x0=c.center[0]-c.length/2, x1=c.center[0]+c.length/2;
+  const y0=c.center[1]-c.width/2, y1=c.center[1]+c.width/2;
+  const z0=c.center[2]-c.height/2, z1=c.center[2]+c.height/2;
+  const P=(x,y,z)=>proj(x,y,z);
+  ctx.strokeStyle = "#31405280"; ctx.lineWidth = 1;
+  const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
+  ctx.fillStyle = "#12181f";
+  const floor = [P(x0,y0,z0),P(x1,y0,z0),P(x1,y1,z0),P(x0,y1,z0)];
+  ctx.beginPath(); ctx.moveTo(floor[0][0],floor[0][1]);
+  for (const p of floor.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.fill();
+  poly(floor);
+  poly([P(x0,y0,z1),P(x1,y0,z1),P(x1,y1,z1),P(x0,y1,z1)]);
+  for (const [x,y] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]) {
+    const a=P(x,y,z0), b=P(x,y,z1);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+  }
+}
+function drawArm(canvasId, armName, footId, metricsId) {
+  const c = cellData();
+  const arm = c.arms[armName];
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  ctx.clearRect(0,0,520,430);
+  ctx.fillStyle = "#0a0e13"; ctx.fillRect(0,0,520,430);
+  const proj = makeView(c.containers);
+  for (const cont of c.containers) drawContainer(ctx, proj, cont);
+  const visible = arm.steps.slice(0, turn);
+  const sorted = visible.slice().sort((a,b)=>(a.pos[0]+a.pos[1]) - (b.pos[0]+b.pos[1]) || a.pos[2]-b.pos[2]);
+  const last = visible.length ? visible[visible.length-1] : null;
+  for (const s of sorted) {
+    const hue = (s.item * 47) % 360;
+    boxFaces(ctx, proj, s.pos[0], s.pos[1], s.pos[2],
+             s.dims[0], s.dims[1], s.dims[2], hue,
+             last && s.t === last.t && (s.switched || s.t === c.divergence_turn));
+  }
+  const foot = document.getElementById(footId);
+  if (!last) {
+    foot.textContent = "開始前 — 同じstream・同じseedから出発";
+  } else {
+    let html = "";
+    if (last.switched) html += `<span class="sw-badge">⚡ SWITCH${last.conf!=null ? " " + Math.round(last.conf*100) + "%" : ""}</span>`;
+    html += `T${last.t}: item ${last.item} → 容器${last.cont} (${last.pos.map(v=>v.toFixed(2)).join(", ")}) o${last.o}`;
+    if (turn >= arm.steps.length) {
+      const t = arm.termination;
+      const genuine = ["stream_exhausted", "no_retained_candidate",
+                       "no_safe_retained_candidate"];
+      html += genuine.includes(t) ? ` · ✅ 完了 (${t})`
+            : ` · <span class="dead">💀 ${t}</span>`;
+    }
+    foot.innerHTML = html;
+  }
+  const m = document.getElementById(metricsId);
+  if (last) m.innerHTML = `placed <b>${last.placed}</b> · fill <b>${last.fill.toFixed(2)}</b>`;
+  else m.innerHTML = `最終: placed <b>${arm.final.placed}</b> · fill <b>${arm.final.fill}</b>`;
+}
+function render() {
+  const c = cellData();
+  document.getElementById("pa-name").textContent = DISPLAY[MATCH.challenger] || MATCH.challenger;
+  document.getElementById("pb-name").textContent = DISPLAY[MATCH.opponent] || MATCH.opponent;
+  document.getElementById("turn-lbl").textContent = "TURN " + turn + " / " + maxTurn();
+  const banner = document.getElementById("div-banner");
+  if (c.divergence_turn != null && turn > c.divergence_turn) {
+    banner.textContent = `TURN ${c.divergence_turn} — POLICIES DIVERGE（ここから別の未来）`;
+    banner.classList.add("on");
+  } else if (c.divergence_turn != null) {
+    banner.textContent = `この局面は TURN ${c.divergence_turn} で分岐します`;
+    banner.classList.add("on");
+  } else {
+    banner.classList.remove("on");
+  }
+  drawArm("cv-a", MATCH.challenger, "pa-foot", "pa-metrics");
+  drawArm("cv-b", MATCH.opponent, "pb-foot", "pb-metrics");
+}
+
+/* ---------- lineage ---------- */
+const LINEAGE = [
+  { id:"pi0-legacy", show:"Legacy Zero", cls:"", depth:0, sub:"anchor · gen 0 · 手書きrank-0",
+    detail:{ "正体":"人間が書いたルールベース方策。リーグの永久アンカーで、全ての系譜の根。",
+      "リーグ記録":"bootstrap完走。match 001でThe Oracleに0-3、match 003でPreference Oneに0-1で王座陥落。" } },
+  { id:"pi0-search", show:"The Oracle", cls:"bench", depth:1, sub:"benchmark · rank-0 + terminal search (SLA外)",
+    detail:{ "正体":"全候補を本物のterminalまで物理でロールアウトして選ぶ教師アーム。蒸留の基準線。",
+      "記録":"vs Legacy Zero 3-0-3-4。現在は全挑戦者のbenchmark（below/at/beats判定）。" } },
+  { id:"pi1-imitation-w3", show:"Imitation W3", cls:"dead-p", depth:1, sub:"❌ 行動模倣 · 36セル教師",
+    detail:{ "objective":"s → 教師の選択action（cross-entropy）", "corpus":"wave-3 · 36セル",
+      "記録":"vs Oracle 1-2-2-5（棄却）· vs Legacy 1-0-7-2 — NNとして初めて旧本番を上回ったが当時のゲートはOracle戦だった。" } },
+  { id:"pi1-geometry-g0", show:"Geometry G0", cls:"dead-p", depth:1, sub:"❌ 行動模倣 · 100セル教師",
+    detail:{ "objective":"行動模倣（データ3倍）", "corpus":"wave-4 · 100セル · OOF一致89.4%",
+      "教訓":"データを増やすほどrank-0に退化（教師の9割がincumbent維持のため）。vs Oracle 0-2-3-5。この失敗がpreference蒸留への転換を決めた。" } },
+  { id:"pi1-pref-g1", show:"Preference One 👑", cls:"champ", depth:1, sub:"champion · gen 1 · preference蒸留",
+    detail:{ "objective":"P(alternate ≻ incumbent | s) — terminal dominanceペア(1803/正129)のpairwise logistic。incumbentは構造的に0.5。",
+      "実行則":"τ=0.5を明確に超えるalternateのみswitch（OOF: pair AUC 0.745 · 誤switch 7.4% · IV recall 24%）",
+      "リーグ記録":"vs Legacy Zero 1-0-6-3 → 👑昇格（placed +2, viol −1）",
+      "benchmark":"vs The Oracle 1-2-1-6 (below) — dsm-181ではOracle自身から勝利",
+      "得意/苦手":"得意: dsm-181 (switch勝ち) · 苦手: dsm-167/173のfill獲得（次世代教師の重点）" } },
+  { id:"pi2-pref-w5", show:"Preference Two (訓練中)", cls:"dead-p", depth:2, sub:"challenger · Round 1/10 · wave-5教師 118セル",
+    detail:{ "状態":"シーズンRound 1。wave-5採取（新streams 199/211/223）→ preference再蒸留 → Preference Oneに挑戦予定。" } },
+];
+const treeHost = document.getElementById("tree-root");
+let container = treeHost;
+const levels = [treeHost];
+for (const node of LINEAGE) {
+  while (levels.length - 1 > node.depth) levels.pop();
+  while (levels.length - 1 < node.depth) {
+    const t = document.createElement("div"); t.className = "tree";
+    levels[levels.length-1].appendChild(t); levels.push(t);
+  }
+  const wrap = document.createElement("div"); wrap.className = "node";
+  const card = document.createElement("div"); card.className = "pcard " + node.cls;
+  let detail = "";
+  for (const [k, v] of Object.entries(node.detail))
+    detail += `<dt>${k}</dt><dd>${v}</dd>`;
+  card.innerHTML = `<div class="pname">${node.show}</div>` +
+    `<div class="psub">${node.id} · ${node.sub}</div>` +
+    `<dl class="pdetail">${detail}</dl>`;
+  card.addEventListener("click", () => card.classList.toggle("open"));
+  wrap.appendChild(card);
+  levels[levels.length-1].appendChild(wrap);
+}
+
+/* init */
+selectCell(currentCell);
+</script>

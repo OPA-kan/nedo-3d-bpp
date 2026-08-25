@@ -61,3 +61,17 @@ Anchor/previous/milestone collapse detection is unchanged (aggregate
 thresholds only). Under this structure, match 002's pi1-geometry-w3
 (1-0-7-2 over pi0-legacy) would have promoted; the bar it failed was
 the benchmark bar, which is now reported instead of gating.
+
+## Spectator system (added same day)
+
+`scripts/build_spectator_data.py` turns a match's two episode-manifest
+trees + the frozen scenario geometry + the league report into one
+replay JSON (side-by-side placement sequences with rotated dims,
+first-divergence turn, switch confidences, auto-extracted highlights);
+`reports/league/spectator/shell.html` is the broadcast UI (league top,
+match center with isometric canvas replay, policy lineage tree) that
+embeds it. **Spectating is read-only by contract**: league results and
+replays are for watching and debugging comprehension only — training
+matrices are never tuned from them, because the frozen eval set would
+leak through the human. Research decisions come from training-side
+diagnostics alone.
