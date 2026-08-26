@@ -437,6 +437,28 @@ class RolloutTriggerTests(unittest.TestCase):
                 state, candidates, incumbent_id="a"
             )
             self.assertAlmostEqual(still["b"], base["b"], places=5)
+            persistent_dir = root / "persistent-model"
+            metadata = online.materialize(
+                persistent_dir,
+                memory={"lineage": "shun-long", "training_pairs": 1},
+            )
+            persistent = LearnedAllocatorPolicy(persistent_dir)
+            carried = persistent.score_candidates(
+                state, candidates, incumbent_id="a"
+            )
+            self.assertAlmostEqual(carried["b"], adapted["b"], places=5)
+            self.assertEqual(
+                metadata["memory"]["contract"],
+                "persistent_preference_head_memory_v1",
+            )
+            # Reloading the original artifact still gives the untouched theta.
+            original_again = LearnedAllocatorPolicy(model_dir)
+            self.assertAlmostEqual(
+                original_again.score_candidates(
+                    state, candidates, incumbent_id="a"
+                )["b"],
+                base["b"], places=5,
+            )
 
     @unittest.skipUnless(TORCH_AVAILABLE, "torch not installed")
     def test_saved_ensemble_round_trips_and_scores_live_candidates(self):

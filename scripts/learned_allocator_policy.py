@@ -255,11 +255,23 @@ class OnlineAdapterPolicy(LearnedAllocatorPolicy):
         alternate_id: str, alternate_wins: bool,
     ) -> dict[str, Any] | None:
         """SGD on phi from one strict-dominance fork verdict, or None."""
-        torch = self._torch
         example = self.build_example(
             snapshot, root_candidates, incumbent_id=incumbent_id,
         )
-        if example is None or alternate_id not in example["candidate_ids"]:
+        if example is None:
+            return None
+        return self.update_from_example(
+            example, alternate_id=alternate_id,
+            alternate_wins=alternate_wins,
+        )
+
+    def update_from_example(
+        self, example: dict[str, Any], *, alternate_id: str,
+        alternate_wins: bool,
+    ) -> dict[str, Any] | None:
+        """Apply one verified pair already encoded in training format."""
+        torch = self._torch
+        if alternate_id not in example["candidate_ids"]:
             return None
         index = example["candidate_ids"].index(alternate_id)
         target = torch.tensor(1.0 if alternate_wins else 0.0)
@@ -298,3 +310,39 @@ class OnlineAdapterPolicy(LearnedAllocatorPolicy):
             "trust_radius": self.trust_radius,
             "adapter_norms": self.adapter_norms(),
         }
+
+    def materialize(
+        self, output_dir: pathlib.Path, *, memory: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Merge phi into a load-compatible frozen preference ensemble.
+
+        The source model files and in-memory theta remain untouched.  The
+        returned artifact can be loaded by ``LearnedAllocatorPolicy`` and is
+        therefore suitable for a later frozen league challenge that isolates
+        carried memory from race-time fork authority.
+        """
+        output_dir = pathlib.Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        metadata = json.loads(json.dumps(self.metadata))
+        for index, ((model, _stats), (weight, bias)) in enumerate(zip(
+            self.members, self._adapters
+        )):
+            state = {
+                key: value.detach().clone()
+                for key, value in model.state_dict().items()
+            }
+            state["score.2.weight"] += weight.detach().unsqueeze(0)
+            state["score.2.bias"] += bias.detach()
+            weights_name = str(metadata["members"][index]["weights"])
+            self._torch.save(state, output_dir / weights_name)
+        metadata["memory"] = {
+            "contract": "persistent_preference_head_memory_v1",
+            "updates_applied": int(self.updates_applied),
+            "adapter_norms": self.adapter_norms(),
+            **memory,
+        }
+        (output_dir / "model.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return metadata

@@ -1,0 +1,119 @@
+name: Cup preference memory distillation
+run-name: >-
+  Shun Long · Cup ${{ inputs.cup_id }} memory · ${{ inputs.cup_run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cup_run_id:
+        description: Successful Diversity Cup run containing all cell artifacts
+        required: true
+      cup_id:
+        description: Preregistered Cup number (for provenance)
+        required: true
+      base_model_run_id:
+        description: Frozen preference champion model run
+        required: true
+      expected_pairs:
+        description: Preregistered strict-pair count
+        required: true
+      passes:
+        description: Ordered passes over verified pairs (fixed at 1 for Cup 003)
+        required: false
+        default: "1"
+  # Register a new dispatch-only workflow on this non-default research
+  # branch.  The job guard makes the indexing run a no-op.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/cup-preference-distillation.yml
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cup-preference-distillation-${{ inputs.cup_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  distill:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-learning.txt
+      - run: pip install -r requirements-learning.txt
+      - name: Verify Cup memory contracts
+        run: >-
+          python -m unittest
+          tests.test_build_cup_preference_dataset
+          tests.test_train_rollout_trigger
+          tests.test_cup_preference_distillation_workflow
+          -v
+      - name: Download all Cup cell artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cup-cell-*
+          path: reports/cup-memory/source
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.cup_run_id }}
+      - name: Download frozen preference champion
+        uses: actions/download-artifact@v4
+        with:
+          name: rollout-policy-model
+          path: reports/cup-memory/base-model
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.base_model_run_id }}
+      - name: Build leakage-safe Cup preference dataset
+        run: >-
+          python scripts/build_cup_preference_dataset.py
+          --cup-root reports/cup-memory/source
+          --expected-pairs "${{ inputs.expected_pairs }}"
+          --output reports/cup-memory/dataset.json
+      - name: Distil persistent Shun Long head memory
+        run: >-
+          python scripts/distill_persistent_preference_memory.py
+          --dataset reports/cup-memory/dataset.json
+          --dataset-root reports/cup-memory/source
+          --base-model-dir reports/cup-memory/base-model
+          --output-model-dir reports/cup-memory/model
+          --report reports/cup-memory/report.json
+          --cup-run-id "${{ inputs.cup_run_id }}"
+          --base-model-run-id "${{ inputs.base_model_run_id }}"
+          --cup-id "${{ inputs.cup_id }}"
+          --passes "${{ inputs.passes }}"
+          --learning-rate 0.05
+          --update-steps 2
+          --trust-radius 1.0
+      - name: Publish capability summary
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          report = json.load(open("reports/cup-memory/report.json"))
+          oof = report["leave_one_course_cell_out"]
+          print("# Shun Long Cup-memory distillation")
+          print()
+          print(f"- pairs: {report['memory']['training_pairs']}")
+          print(f"- course-cell groups: {len(report['memory']['training_groups'])}")
+          print(f"- held-out AUC: {oof['before']['auc']} -> {oof['after']['auc']}")
+          print(f"- held-out log loss: {oof['before']['log_loss']:.4f} -> "
+                f"{oof['after']['log_loss']:.4f}")
+          print("- league status: capability only; no match or promotion dispatched")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cup-memory-distillation-${{ github.run_id }}
+          path: reports/cup-memory/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shun-long-policy-model
+          path: reports/cup-memory/model/

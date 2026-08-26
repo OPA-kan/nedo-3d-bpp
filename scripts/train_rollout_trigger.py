@@ -191,7 +191,7 @@ def load_examples(
                 f"{row.get('root_id')}: selected/incumbent candidate missing"
             )
         # pairwise preference labels vs the incumbent, derived from the
-        # SAME 5-head terminal dominance rule the search executes with
+        # SAME 4-head terminal dominance rule the search executes with
         # (never a synthesized scalar): 1 = this alternate's genuine
         # terminal outcome strictly dominates the incumbent's, 0 = it
         # does not, -1 = masked (the incumbent itself, or a censored

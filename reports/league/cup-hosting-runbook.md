@@ -65,10 +65,12 @@ and the recovery path if its dispatch step fails after preregistration.
 
 - Never touch `reports/league/season/*`, `registry.json`, the
   hard-state/learning matrices, or the frozen eval variants.
-- Never feed `side-corpus-pairs.jsonl` into any training run. Mixing
-  cup pairs into a generation's corpus is a separate experiment that
-  needs its own preregistration (see below) and belongs to whoever
-  runs the distillation line.
+- Never feed `side-corpus-pairs.jsonl` into the season learner or any
+  training run automatically. Mixing Cup pairs is a separate experiment.
+  The first such experiment is explicitly preregistered in
+  `reports/self-play-packing/shun-long-cup-memory-distillation.md` and may
+  run only through `cup-preference-distillation.yml`; it emits a standalone
+  capability artifact and cannot dispatch a match or alter season state.
 - Course primes are single-use per source. When the pool runs dry,
   extend `STREAM_VARIANTS` in `scripts/build_scenario_matrix.py` (that
   IS a code change — coordinate first).
