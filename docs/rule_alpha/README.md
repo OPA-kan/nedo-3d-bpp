@@ -74,11 +74,13 @@ simulator's own mesh code — that
 * the chamfer meets the left wall at `z = 0.4177`;
 * the wedge above the bevel is **0.078 m² in cross section, 0.111 m³ in total**.
 
-### The floor-lift subtlety
+### Release-and-drop: why there are two poses
 
-`PlacementValidator.check_inclusion` accepts a pose only when every corner
-satisfies `dots <= inclusion_margin`, and `inclusion_margin` is **−0.005**. A
-box resting exactly on the floor plane gives `dots = 0` and is **refused**.
+The robot cannot set cargo down in contact; it has to release a little above
+the resting surface and let it drop. `PlacementValidator.check_inclusion`
+enforces that on the **commanded** pose: every corner must satisfy
+`dots <= inclusion_margin`, and with `inclusion_margin = −0.005` a pose that
+touches the floor plane (`dots = 0`) is refused.
 
 So rule-alpha separates two poses:
 
@@ -91,49 +93,82 @@ So rule-alpha separates two poses:
 
 The lift stays under the validator's 0.05 m "direct rest" window, so a floor
 placement still travels in at floor height rather than being flown in from
-above.
+above. This is compliance with the placement spec, not a workaround.
 
 > Note for whoever owns `agent/agent.py`: on this frozen `main`,
-> `Geometry.valid()` cannot accept **any** floor placement, because
-> `inside_container` demands 16 mm of clearance from the floor plane while
-> `support_ratio` demands contact within 6 mm. rule-alpha works around it
-> locally; it did not change the production module.
+> `Geometry.valid()` cannot accept **any** floor placement, because it applies
+> both requirements to the *same* pose — `inside_container` wants 16 mm of
+> clearance from the floor plane while `support_ratio` wants contact within
+> 6 mm. Release-and-drop is exactly why those two have to be tested on
+> different poses. rule-alpha separates them locally; it did not change the
+> production module.
 
-### Finding: `inclusion_margin = -0.005` zeroes the fill score of floor cargo
+### Finding: the settled-pose margin is a crush check, and its sign decides everything
 
-The same −5 mm margin is used by `Evaluator.calculate_fill_rate`, but there it
-is applied to the **settled** pose. A box that has settled on the floor sits a
-few micrometres *into* the floor plane (PyBullet contact penetration), so its
-floor-plane term is `+6e-06`, which is `> -0.005`, and the evaluator marks it
-`not inside (hit boundary plane)` and drops its volume.
+`Evaluator.calculate_fill_rate` applies the same `inclusion_margin` to the
+**settled** pose. Because the container floor is a wall of real thickness and
+PyBullet resolves contact with a load-dependent penetration, a settled box
+sits slightly *into* the floor plane — and the heavier the stack on top of it,
+the deeper. That is what the margin is there to catch: cargo crushed into the
+container body is not really inside it.
 
-Measured, not inferred — the same four accepted placements, the same run, only
-the margin changed:
+rule-alpha measures the curve rather than assuming it
+(`.venv312/bin/python -m rule_alpha.penetration`, raw data in
+`reports/rule_alpha/penetration.json`). One 0.60 × 0.45 × 0.25 m box on the
+floor, then 18 kg boxes stacked on top of it:
+
+| bottom box | load resting on it | penetration into the floor plane |
+|---|---|---|
+| hard | 0 kg | 0.012 mm |
+| hard | 36 kg | 0.019 mm |
+| hard | 72 kg | 0.058 mm |
+| **soft** | 0 kg | **9.005 mm** |
+| **soft** | 36 kg | **26.857 mm** |
+| **soft** | 72 kg | **47.271 mm** |
+
+Two things fall out of this.
+
+**The crush check is a soft-cargo check.** A hard box never gets near a 5 mm
+budget — 0.058 mm under 90 kg total, roughly 80× of headroom. A soft box is
+already 9 mm in under its own weight, and 47 mm — a fifth of its own height —
+with four boxes on it. So "stack too much and it sinks out" is real, and it is
+a statement about soft cargo on the floor, not about mass in general.
+
+**The sign is doing the opposite of that.** `inclusion_margin = -0.005`
+requires 5 mm of *clearance* at evaluation time; a penetration tolerance would
+be `+0.005`. The difference is not academic:
 
 ```
 inclusion_margin=-0.0050  placed=4  evaluation={'fill_score': 0.00, ...}
 inclusion_margin=+0.0050  placed=4  evaluation={'fill_score': 7.57, ...}
 ```
 
-The scenario sweep demonstrates the same thing without any patching. Across
-all twelve `--physics` runs, **every** attempted placement was accepted by the
-validator, and exactly one scenario scored above zero — `06-soft-priority-heavy`,
-the only one that got cargo onto a shelf (6 SP items on the priority shelf,
-`fill_score` 7.60). Its 12 floor-resting items contributed nothing.
+Same accepted placements, same run, only the margin flipped. And the scenario
+sweep reproduces it without any patching: across all twelve `--physics` runs
+every attempted placement was accepted by the validator, yet exactly one
+scenario scored above zero — `06-soft-priority-heavy`, the only one that got
+cargo onto a **shelf** (6 SP items, `fill_score` 7.60). Its 12 floor-resting
+items contributed nothing, because a shelf is not one of the container planes
+the evaluator tests, so cargo standing on one is far above the floor plane and
+sails through.
 
-Every placement passed `check_inclusion`, the transport sweep and the settle
-check in both runs; only the scoring changed. On this snapshot, with
-`simulator/configs/sample_config.json` as shipped, **cargo resting on the
-container floor contributes nothing to `fill_score`** — only cargo stacked at
-least 5 mm above the floor plane counts. Whether the intended value is
-`+0.005` (a penetration tolerance) rather than `-0.005` (a required clearance)
-is a question for whoever owns the config; rule-alpha only reports it. To
-reproduce:
+Under `+0.005` the whole design coheres: hard cargo on the floor counts, soft
+cargo crushed onto the floor does not, and soft cargo on a shelf does. Under
+`-0.005` as shipped in `simulator/configs/sample_config.json`, **nothing that
+rests on the container floor can ever score**, whatever it is made of. Which
+value the real competition config carries is worth checking; rule-alpha only
+reports what this snapshot does.
 
-```bash
-.venv312/bin/python -m rule_alpha.runner --scenarios 01-normal-no-shelf --physics
-# then flip validator.inclusion_margin in rule_alpha/physics.py:scenario_to_config
-```
+### What that means for the rules here
+
+Soft cargo belongs on the shelf, and now there is a number for why: on the
+floor it sinks 9 mm unloaded and 47 mm loaded. rule-alpha already sends soft
+cargo to the shelf first (§2) and never treats a soft item as a support
+surface. It does still fall back to the floor soft-strip when the shelf is
+full, because the spec asks for that — but every scenario reports the floor
+area carrying each support type (`support_type_area` → `soft-only`), so how
+much soft cargo ended up on the floor is visible per board. Under either sign
+convention that is the cargo most at risk.
 
 ---
 
@@ -508,6 +543,7 @@ rule_alpha/
   diagnostics.py  heightmap, plateaus, holes, typed support, corridor
   episode.py      analytic Layer 1 driver + JSONL logging
   physics.py      the same planner inside the real PyBullet environment
+  penetration.py  measures settled penetration into the floor plane vs load
   agent.py        the official get_init_states / optimize / policy interface
   visualize.py    the four views and the diagnostic overlay
   scenarios.py    the twelve scenarios
