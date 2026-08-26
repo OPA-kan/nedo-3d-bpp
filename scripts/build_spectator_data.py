@@ -16,9 +16,14 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import sys
 from typing import Any
 
-from scripts.build_scenario_matrix import (
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.build_scenario_matrix import (  # noqa: E402
     DEFAULT_SOURCE,
     SCENARIOS,
     build_scenario,
