@@ -4,12 +4,13 @@ Date: 2026-08-26. Episodes run 32925104549 (episodes succeeded; the
 `standings` job in that run crashed — see "Standings recovery" below).
 Preregistration: `reports/self-play-packing/diversity-cup-design.md`
 (Cup 002+ amendment: exact current-agent anchor) + ledger row 002.
-Field: champion プリフヒバリ (pi2-pref-w6, plain), the shipped
-`agent/agent.py::Agent.policy` as `current-agent`, and three mining
-studs, all forking against the champion's own ensemble (learning run
-32890092906). Six virgin cells, primes 401-443, fork budget 12/episode.
-Scored under the 4-head dominance rule (surface_total_variation
-excluded — same amendment).
+Field: champion プリフヒバリ (pi2-pref-w6, plain), ジ・アーモンド
+(ジ系列, the shipped `agent/agent.py::Agent.policy` run as
+`current-agent` — named after this cup, its first outing), and three
+mining studs, all forking against the champion's own ensemble
+(learning run 32890092906). Six virgin cells, primes 401-443, fork
+budget 12/episode. Scored under the 4-head dominance rule
+(surface_total_variation excluded — same amendment).
 
 ## Standings recovery
 
@@ -35,20 +36,20 @@ artifacts — no re-run of the field was needed or performed.
 | グリッドオー (rule-grid) | 0.84 | 34 | 34 | **7** | **16129** |
 | カベヅタイ (rule-edge) | 0.82 | 37 | 37 | **7** | 14644 |
 | テイジュウシン (rule-lowcog) | 0.85 | 27 | 27 | 3 | 10638 |
-| current-agent | 0.95 | 19 | 19 | 0 | 0 |
+| ジ・アーモンド (current-agent) | 0.95 | 19 | 19 | 0 | 0 |
 
 - **State diversity holds again**: 82-95% novel boards across all four
-  actors, current-agent highest of all (0.95) — the shipped hand-coded
-  agent visits states even further from the champion's distribution
-  than the rule studs do.
-- **current-agent mined nothing decisive** (0/19 forks strict): every
+  actors, ジ・アーモンド highest of all (0.95) — the shipped
+  hand-coded agent visits states even further from the champion's
+  distribution than the rule studs do.
+- **ジ・アーモンド mined nothing decisive** (0/19 forks strict): every
   disagreement against the champion ensemble ended tied or
   incomparable at genuine terminal. It still contributes state
   diversity, just not preference-pair yield, this cup.
 - Side corpus: **17 preference pairs** banked (7 grid + 7 edge + 3
   lowcog; `side-corpus-pairs.jsonl` in the run artifact — not
   committed, not fed to training, same boundary as Cup 001).
-- **current-agent's own robustness under this harness is the notable
+- **ジ・アーモンド's own robustness under this harness is the notable
   result**: it reached genuine termination in only 1 of 6 cells (the
   other 5 hit the 40-step cap or a physically rejected action first),
   and missed the physically-screened safe-candidate support set on
@@ -57,7 +58,7 @@ artifacts — no re-run of the field was needed or performed.
   a safe one — not a claim about the competition score, and not a
   claim the rule studs or champion share (their support-miss counts
   are 0).
-- current-agent still set the cup's single best terminal fill
+- ジ・アーモンド still set the cup's single best terminal fill
   (`fill_score_proxy` 35.21, 22 placed, single-empty-noshelf cell) —
   the one cell it did reach genuine termination in.
 
@@ -65,22 +66,22 @@ artifacts — no re-run of the field was needed or performed.
 
 W-L-D-∥ (challenger wins–member wins–equal–incomparable), first-named
 first; U = cells where the pairing was unmeasured (a non-genuine
-current-agent episode with no post-shake heads):
+ジ・アーモンド episode with no post-shake heads):
 
 | pairing | result |
 |---|---|
-| プリフヒバリ vs current-agent | 0-0-0-1, U5 |
+| プリフヒバリ vs ジ・アーモンド | 0-0-0-1, U5 |
 | プリフヒバリ vs グリッドオー | 0-1-0-5 |
 | プリフヒバリ vs テイジュウシン | 1-1-0-4 |
 | プリフヒバリ vs カベヅタイ | 0-1-0-5 |
-| current-agent vs グリッドオー | 0-0-0-1, U5 |
-| current-agent vs テイジュウシン | 0-0-0-1, U5 |
-| current-agent vs カベヅタイ | 0-0-0-1, U5 |
+| ジ・アーモンド vs グリッドオー | 0-0-0-1, U5 |
+| ジ・アーモンド vs テイジュウシン | 0-0-0-1, U5 |
+| ジ・アーモンド vs カベヅタイ | 0-0-0-1, U5 |
 | グリッドオー vs テイジュウシン | 0-2-0-4 |
 | グリッドオー vs カベヅタイ | 1-2-0-3 |
 | テイジュウシン vs カベヅタイ | 2-0-0-4 |
 
-current-agent's races are mostly unmeasured (5 of 6 cells each), not
+ジ・アーモンド's races are mostly unmeasured (5 of 6 cells each), not
 losses — the harness has no result to report there, and that absence
 is itself the finding above, not hidden inside a 0-0-0-6 line.
 Among the champion and the three rule studs (all fully measured,
@@ -95,7 +96,7 @@ signal — no promotion or gating logic reads this table.
 ## Calibration of the planning numbers
 
 17 strict pairs from 6 cells (vs 15 for Cup 001), still tracking the
-runbook's 40-90/cup estimate at the low end when current-agent (which
+runbook's 40-90/cup estimate at the low end when ジ・アーモンド (which
 mined 0) is included. Cup 001's cadence estimate stands: 12-cell
 courses roughly double the take if hosting cadence becomes the
 constraint.
