@@ -117,6 +117,51 @@ class FloorLiftTest(unittest.TestCase):
         self.assertTrue(lifted.center[2] > settled.center[2])
         self.assertTrue(model.inside(lifted, DEFAULT_CONFIG.inclusion_clearance))
 
+    def test_the_floor_lift_is_never_applied_twice(self):
+        """rule-alpha delegates the release height to the shared helper.
+
+        Both modules know about release-and-drop, so both would happily add a
+        lift.  Two lifts put the commanded pose 4 cm up while the transport
+        sweep — which is derived from the shared helper — still modelled 2 cm,
+        and tall wall-front cargo ended up inside the small shelf's safety
+        margin.
+        """
+        from rule_alpha._reuse import simulator_action_center
+
+        container, model = _model()
+        dz = 0.24
+        settled = AABB((0.3, 0.2, model.z_floor + dz / 2.0), (0.6, 0.4, dz), "settled")
+
+        shared = float(simulator_action_center(settled, container)[2])
+        commanded = float(
+            layer1.action_center(settled, model, container, DEFAULT_CONFIG)[2]
+        )
+        settled_z = float(settled.center[2])
+
+        # exactly one lift, and it is the shared helper's when it applies one
+        self.assertGreater(commanded, settled_z)
+        self.assertAlmostEqual(commanded, shared, places=9)
+        self.assertLessEqual(
+            commanded - settled_z, DEFAULT_CONFIG.floor_action_lift + 1e-9
+        )
+
+    def test_a_shelf_placement_keeps_only_the_shelf_lift(self):
+        from rule_alpha._reuse import simulator_action_center
+
+        container, model = _model()
+        shelf = model.small_shelf
+        dz = 0.30
+        settled = AABB(
+            (float(shelf.center[0]), 0.0, float(shelf.maximum[2]) + dz / 2.0),
+            (0.2, 0.4, dz), "settled",
+        )
+        shared = float(simulator_action_center(settled, container)[2])
+        commanded = float(
+            layer1.action_center(settled, model, container, DEFAULT_CONFIG)[2]
+        )
+        self.assertAlmostEqual(commanded, shared, places=9)
+        self.assertGreater(commanded, float(settled.center[2]))
+
     def test_lift_stays_inside_the_validator_direct_rest_window(self):
         # above 0.05 m the validator stops treating it as a direct rest and
         # flies the item in from 8 cm up instead

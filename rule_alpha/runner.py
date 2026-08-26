@@ -37,6 +37,7 @@ def _row(result) -> dict:
         rows.append(
             {
                 "container": container["container_index"],
+                "placed_total": container["placed_total"],
                 "shelf": container["container"]["has_shelf"],
                 "priority": container["container"]["is_prioritized"],
                 "floor_coverage": container["floor_coverage"],

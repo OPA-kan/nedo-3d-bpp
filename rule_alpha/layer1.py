@@ -314,11 +314,19 @@ def _supports(model: ContainerModel, container: dict, config, allow_item_tops: b
 def action_center(box: AABB, model: ContainerModel, container: dict, config):
     """The pose rule-alpha *commands*, as opposed to the settled pose it draws.
 
-    ``simulator_action_center`` already models the lift a shelf placement needs
-    to clear the shelf during transport; the floor needs its own lift because
-    the official inclusion margin refuses a box that touches the floor plane.
+    ``simulator_action_center`` is the single source of truth for the release
+    height, and the transport sweep is derived from it, so rule-alpha must not
+    add a lift the sweep does not know about.  It only fills the gap when the
+    shared helper applied no lift at all — which is what an older
+    ``agent/agent.py`` without a floor lift would do.  Adding one on top of an
+    existing lift moved the commanded pose 4 cm up while the sweep was still
+    modelled at 2 cm, and put tall wall-front items inside the small shelf's
+    safety margin.
     """
     centre = np.asarray(simulator_action_center(box, container), dtype=np.float64)
+    already_lifted = abs(float(centre[2]) - float(box.center[2])) > 1e-9
+    if already_lifted:
+        return centre
     if abs(float(box.minimum[2]) - model.z_floor) <= config.contact_tolerance:
         centre[2] += config.floor_action_lift
     return centre
