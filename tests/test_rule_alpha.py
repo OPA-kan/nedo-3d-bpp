@@ -287,6 +287,95 @@ class DiagnosticsTest(unittest.TestCase):
         self.assertGreater(report["largest_open_free_area"], hole["area"])
 
 
+class VolumeReportTest(unittest.TestCase):
+    def test_usable_volume_matches_the_simulator_formula(self):
+        """The denominator must be the one the official evaluator divides by."""
+        from rule_alpha.geometry import simulator_container_volume
+
+        for shelf in (False, True):
+            container = make_container_dict(index=0, require_shelf=shelf, **ULD)
+            model = ContainerModel(container, DEFAULT_CONFIG)
+            expected = simulator_container_volume(
+                ULD["length"], ULD["width"], ULD["height"], ULD["thickness"],
+                ULD["cut_x"], ULD["cut_y"], 0.0, shelf,
+            )
+            self.assertAlmostEqual(model.usable_volume, expected, places=9)
+            self.assertAlmostEqual(model.usable_volume, container["volume"], places=9)
+
+    def test_observation_volume_wins_over_the_recomputed_one(self):
+        container = make_container_dict(index=0, **ULD)
+        container["volume"] = 3.5
+        model = ContainerModel(container, DEFAULT_CONFIG)
+        self.assertAlmostEqual(model.usable_volume, 3.5)
+
+    def test_volume_report_is_internally_consistent(self):
+        from rule_alpha.diagnostics import volume_report
+        from rule_alpha.episode import run_episode
+        from rule_alpha.scenarios import Scenario, _normal_container, _stream
+
+        scenario = Scenario(
+            name="volume-test", description="",
+            containers=[_normal_container(shelf=True)],
+            items=_stream(77, 14, soft_ratio=0.3),
+        )
+        result = run_episode(scenario, DEFAULT_CONFIG, snapshot_steps=0)
+        board = result.board
+        placements = board.placements[0]
+        report = volume_report(board.model(0), placements, DEFAULT_CONFIG)
+
+        self.assertGreater(report["placed_volume_m3"], 0.0)
+        self.assertAlmostEqual(
+            report["placed_volume_m3"],
+            report["placed_volume_floor_m3"] + report["placed_volume_shelf_m3"],
+            places=6,
+        )
+        self.assertAlmostEqual(
+            report["volume_fill_ratio"],
+            round(
+                report["placed_volume_m3"]
+                / report["usable_container_volume_m3"], 4,
+            ),
+            places=4,
+        )
+        # structural cargo counts towards occupied volume, unlike flatness
+        self.assertLessEqual(
+            report["placed_volume_structural_m3"], report["placed_volume_m3"]
+        )
+        # one layer cannot fill a 1.6 m container
+        self.assertLess(report["volume_fill_ratio"], 0.5)
+
+    def test_shelf_cargo_does_not_stretch_the_layer1_envelope(self):
+        """A shelf item sits at ~1.3 m; counting it would make the floor slab
+        look 1.3 m tall over floor that nothing stands on."""
+        from rule_alpha.diagnostics import volume_report
+        from rule_alpha.episode import run_episode
+        from rule_alpha.scenarios import Scenario, _normal_container, _stream
+
+        scenario = Scenario(
+            name="shelf-envelope", description="",
+            containers=[_normal_container(shelf=True)],
+            items=_stream(91, 16, soft_ratio=0.5),
+        )
+        result = run_episode(scenario, DEFAULT_CONFIG, snapshot_steps=0)
+        board = result.board
+        placements = board.placements[0]
+        shelf_items = [p for p in placements if p.surface == "shelf"]
+        floor_items = [p for p in placements if p.surface != "shelf"]
+        if not shelf_items or not floor_items:
+            self.skipTest("scenario produced no mixed floor/shelf board")
+
+        model = board.model(0)
+        report = volume_report(model, placements, DEFAULT_CONFIG)
+        tallest_floor = max(p.top_z for p in floor_items) - model.z_floor
+        tallest_any = max(p.top_z for p in placements) - model.z_floor
+
+        self.assertAlmostEqual(
+            report["layer1_envelope_height_m"], round(tallest_floor, 4), places=3
+        )
+        self.assertLess(report["layer1_envelope_height_m"], tallest_any)
+        self.assertLessEqual(report["layer1_volume_fill_ratio"], 1.0)
+
+
 class RoutingTest(unittest.TestCase):
     def _board(self):
         priority = make_container_dict(index=0, is_prioritized=True,

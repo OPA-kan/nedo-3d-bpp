@@ -102,6 +102,27 @@ def cut_corner_planes(length, width, height, thickness, cut_x, cut_y, buffer=0.0
     return points, normals
 
 
+
+def simulator_container_volume(length, width, height, thickness, cut_x, cut_y,
+                               buffer=0.0, require_shelf=False):
+    """The ``container.volume`` the simulator computes in ``Container.create``.
+
+    This is the denominator the official ``Evaluator.calculate_fill_rate``
+    divides by, so rule-alpha must use exactly the same definition rather than
+    inventing its own "usable volume".
+    """
+    inner_length = length - 2 * thickness
+    inner_width = width - 2 * thickness
+    inner_height = height - thickness - buffer
+    base_volume = inner_length * inner_width * inner_height
+    cut_volume = 0.5 * (cut_x - thickness) * (cut_y - thickness) * inner_width
+    small_shelf_volume = cut_x * thickness * inner_width
+    shelf_volume = 0.0
+    if require_shelf:
+        shelf_volume = inner_length * thickness * ((width / 2.0) - 2 * thickness)
+    return base_volume - cut_volume - small_shelf_volume - shelf_volume
+
+
 # ---------------------------------------------------------------------------
 # Container model
 # ---------------------------------------------------------------------------
@@ -173,6 +194,20 @@ class ContainerModel:
             self.y_back - clr,
         )
         self.usable_floor_area = self.floor_rect.area
+
+        # --- usable volume ----------------------------------------------
+        # The observation carries the value the official Evaluator divides by,
+        # so use it when present and fall back to the simulator's own formula
+        # (Container.create) when a scenario builds a container offline.
+        declared = container.get("volume")
+        self.usable_volume = (
+            float(declared) if declared is not None
+            else simulator_container_volume(
+                self.length, self.width, self.height, self.thickness,
+                self.cut_x, self.cut_y, self.buffer,
+                container_requires_shelf(container),
+            )
+        )
 
         # --- shelves ----------------------------------------------------
         self.shelves = list(shelf_aabbs(container))
@@ -380,6 +415,7 @@ class ContainerModel:
             "z_chamfer_top": round(self.z_chamfer_top, 4),
             "shelf_bottom_z": round(self.shelf_bottom_z, 4),
             "usable_floor_area": round(self.usable_floor_area, 4),
+            "usable_container_volume_m3": round(self.usable_volume, 5),
             "slope_wedge_cross_area": round(self.slope_wedge_area, 5),
             "slope_wedge_volume": round(
                 self.slope_wedge_area * (self.y_back - self.y_opening), 5
@@ -421,16 +457,9 @@ def make_container_dict(
     points, normals = cut_corner_planes(
         length, width, height, thickness, cut_x, cut_y, buffer, offset_x
     )
-    inner_length = length - 2 * thickness
-    inner_width = width - 2 * thickness
-    inner_height = height - thickness - buffer
-    base_volume = inner_length * inner_width * inner_height
-    cut_volume = 0.5 * (cut_x - thickness) * (cut_y - thickness) * inner_width
-    small_shelf_volume = cut_x * thickness * inner_width
-    shelf_volume = 0.0
-    if require_shelf:
-        shelf_volume = inner_length * thickness * ((width / 2.0) - 2 * thickness)
-    volume = base_volume - cut_volume - small_shelf_volume - shelf_volume
+    volume = simulator_container_volume(
+        length, width, height, thickness, cut_x, cut_y, buffer, require_shelf
+    )
 
     return {
         # raw kwargs the official ``Container`` dataclass accepts, kept so a

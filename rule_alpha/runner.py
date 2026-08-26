@@ -66,11 +66,20 @@ def _row(result) -> dict:
                 ],
                 "support_type_area": container["support_type_area"],
                 "zones": container["zones"],
+                **container["volume"],
             }
         )
+    placed_volume = sum(r["placed_volume_m3"] for r in rows)
+    usable_volume = sum(r["usable_container_volume_m3"] for r in rows)
     return {
         "scenario": summary["scenario"],
         "description": summary["description"],
+        "placed_volume_m3": round(placed_volume, 5),
+        "usable_container_volume_m3": round(usable_volume, 5),
+        "volume_fill_ratio": round(placed_volume / max(usable_volume, 1e-9), 4),
+        "official_evaluator_fill_score": None,
+        "official_evaluator_fill_score_unavailable_reason":
+            "physics run not requested (pass --physics)",
         "items_in_stream": summary["items_in_stream"],
         "items_placed": summary["items_placed"],
         "items_unplaced": summary["items_unplaced"],
@@ -96,10 +105,12 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
         "",
         "## Per-scenario headline",
         "",
-        "| scenario | placed / stream | floor cov. | largest plateau "
-        "(of floor) | largest built plateau (of built) | plateaus | roughness | "
-        "interior holes | largest hole | free rect | wall h/H | corridor lanes |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| scenario | placed / stream | floor cov. | placed vol. m³ | "
+        "usable vol. m³ | volume fill | layer1 vol. fill | official fill_score | "
+        "largest plateau (of floor) | largest built plateau (of built) | "
+        "plateaus | roughness | interior holes | largest hole | free rect | "
+        "wall h/H | corridor lanes |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for row in rows:
         for container in row["containers"]:
@@ -108,7 +119,9 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 tag = "P" if container["priority"] else "N"
                 label = f"{row['scenario']} (c{container['container']}·{tag})"
             lines.append(
-                "| {name} | {placed}/{total} | {cov:.2f} | {plat:.2f} | "
+                "| {name} | {placed}/{total} | {cov:.2f} | {vol:.3f} | "
+                "{usable:.3f} | {vfill:.4f} | {l1fill} | {official} | "
+                "{plat:.2f} | "
                 "{built:.2f} | {pc} | "
                 "{rough:.3f} | {ih} | {lih:.3f} | {rect:.2f} | {wall:.2f} | "
                 "{lane:.2f} |".format(
@@ -116,6 +129,19 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                     placed=row["items_placed"],
                     total=row["items_in_stream"],
                     cov=container["floor_coverage"],
+                    vol=container["placed_volume_m3"],
+                    usable=container["usable_container_volume_m3"],
+                    vfill=container["volume_fill_ratio"],
+                    l1fill=(
+                        f"{container['layer1_volume_fill_ratio']:.3f}"
+                        if container["layer1_volume_fill_ratio"] is not None
+                        else "n/a"
+                    ),
+                    official=(
+                        f"{row['official_evaluator_fill_score']:.2f}"
+                        if row["official_evaluator_fill_score"] is not None
+                        else "null"
+                    ),
                     plat=container["largest_plateau_ratio"],
                     built=container["largest_built_plateau_ratio"],
                     pc=container["plateau_count"],
@@ -128,7 +154,64 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 )
             )
 
-    lines += ["", "## Scenarios", ""]
+    lines += [
+        "",
+        "## 3D fill by scenario",
+        "",
+        "`placed_count` / `floor_coverage` / `volume_fill_ratio` at a glance. "
+        "Floor coverage is a 2D number — the share of usable floor with "
+        "something standing on it — while `volume_fill_ratio` is 3D, so a "
+        "board can cover the floor completely and still fill very little of "
+        "the ULD. That gap is the size of the Layer 2 opportunity.",
+        "",
+        "| scenario | placed_count | floor_coverage | volume_fill_ratio |",
+        "|---|---|---|---|",
+    ]
+    for row in rows:
+        for container in row["containers"]:
+            label = row["scenario"]
+            if len(row["containers"]) > 1:
+                tag = "P" if container["priority"] else "N"
+                label = f"{row['scenario']} (c{container['container']}·{tag})"
+            lines.append(
+                "| {name} | {count} | {cov:.2f} | {vfill:.4f} |".format(
+                    name=label,
+                    count=container["placed_total"],
+                    cov=container["floor_coverage"],
+                    vfill=container["volume_fill_ratio"],
+                )
+            )
+
+    lines += [
+        "",
+        "### What these mean",
+        "",
+        "- `placed_volume_m3` — sum of the oriented box volumes this container "
+        "holds, floor and shelf alike. Structural cargo (wall-front, "
+        "elongated, slope-infill) **is** included: the flatness metric masks "
+        "it because it is meant to be tall, but occupied volume is occupied "
+        "volume.",
+        "- `usable_container_volume_m3` — the simulator's own "
+        "`container.volume` (inner box, minus the chamfer wedge, minus the "
+        "small shelf, minus the main shelf when present). This is the "
+        "denominator `Evaluator.calculate_fill_rate` divides by, so it is "
+        "taken from the observation when there is one and recomputed with the "
+        "same formula otherwise.",
+        "- `volume_fill_ratio` — the two above, divided. Layer 1 alone cannot "
+        "fill a 1.5 m tall ULD, so single-digit percentages here are the "
+        "expected result, not a failure.",
+        "- `layer1_volume_fill_ratio` — the same placed volume over the "
+        "*Layer 1 envelope*: usable floor area × the height Layer 1 actually "
+        "reached. This measures how solid the slab Layer 1 built is, so a "
+        "board of tall thin spikes scores low however tall it is.",
+        "- `official_evaluator_fill_score` — only from a `--physics` run, and "
+        "only per scenario: the official evaluator scores a whole episode "
+        "across all containers, so there is no per-container value. When it "
+        "is `null` the row carries the reason.",
+        "",
+        "## Scenarios",
+        "",
+    ]
     for row in rows:
         lines += [
             f"### {row['scenario']}",
@@ -142,6 +225,16 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
             f"- roles: `{row['role_histogram']}`",
             f"- winning archetypes: `{row['archetype_histogram']}`",
             f"- placed by class/surface: `{row['placed_class_histogram']}`",
+            f"- 3D fill: placed `{row['placed_volume_m3']}` m³ of "
+            f"`{row['usable_container_volume_m3']}` m³ usable = "
+            f"`{row['volume_fill_ratio']}`",
+            (
+                f"- official evaluator fill_score: "
+                f"`{row['official_evaluator_fill_score']}`"
+                if row["official_evaluator_fill_score"] is not None
+                else f"- official evaluator fill_score: `null` — "
+                     f"{row['official_evaluator_fill_score_unavailable_reason']}"
+            ),
             "",
         ]
         for container in row["containers"]:
@@ -170,6 +263,15 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 f"`{container['wall_height_ratio']}`",
                 f"- transport corridor free `{container['corridor_free_ratio']}`, "
                 f"clear entry lanes `{container['corridor_clear_lane_ratio']}`",
+                f"- 3D fill: placed `{container['placed_volume_m3']}` m³ "
+                f"(floor `{container['placed_volume_floor_m3']}`, shelf "
+                f"`{container['placed_volume_shelf_m3']}`, structural "
+                f"`{container['placed_volume_structural_m3']}`) of "
+                f"`{container['usable_container_volume_m3']}` m³ usable = "
+                f"`{container['volume_fill_ratio']}`; within the Layer 1 "
+                f"envelope ({container['layer1_envelope_height_m']} m tall, "
+                f"`{container['layer1_envelope_volume_m3']}` m³) = "
+                f"`{container['layer1_volume_fill_ratio']}`",
                 f"- typed support area: `{container['support_type_area']}`",
                 "- zone occupancy: "
                 + ", ".join(
@@ -250,7 +352,19 @@ def main(argv=None) -> int:
         )
 
         if args.physics:
-            physics_rows.append(_run_physics(scenario, config, out))
+            physics_row = _run_physics(scenario, config, out)
+            physics_rows.append(physics_row)
+            evaluation = physics_row.get("evaluation") or {}
+            score = evaluation.get("fill_score")
+            if score is None:
+                rows[-1]["official_evaluator_fill_score_unavailable_reason"] = (
+                    physics_row.get("error", "the physics run produced no evaluation")
+                )
+            else:
+                rows[-1]["official_evaluator_fill_score"] = round(float(score), 4)
+                rows[-1].pop(
+                    "official_evaluator_fill_score_unavailable_reason", None
+                )
 
     if physics_rows:
         (out / "physics.md").write_text(

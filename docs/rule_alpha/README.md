@@ -383,6 +383,25 @@ and two plateau ratios:
 Typed support is stored per cell so a future Layer 2 can read it:
 `hard`, `soft-only`, `priority-only`, `soft+priority-only`, `free-floor`.
 
+### 3D fill
+
+Floor coverage is a 2D number and says nothing about how much of the ULD is
+actually full, so every container also reports its volume:
+
+| field | meaning |
+|---|---|
+| `placed_volume_m3` | Σ oriented box volume in this container, floor and shelf alike. Structural cargo (wall-front, elongated, slope-infill) **is** counted — the flatness metric masks it because it is meant to be tall, but occupied volume is occupied volume. |
+| `usable_container_volume_m3` | the simulator's own `container.volume`: inner box, minus the chamfer wedge, minus the small shelf, minus the main shelf when present. This is exactly what `Evaluator.calculate_fill_rate` divides by, so it is read from the observation when there is one and recomputed with the same formula (`simulator_container_volume`) otherwise. |
+| `volume_fill_ratio` | the two above, divided. One layer cannot fill a 1.6 m ULD, so 0.10–0.25 is the expected range, not a failure. |
+| `layer1_volume_fill_ratio` | how *solid* the floor slab is: floor cargo volume ÷ (usable floor area × the height floor cargo reached). Shelf cargo is excluded from both sides — it lives above a shelf, and counting an item at z ≈ 1.3 m would stretch the envelope over floor nothing is standing on. |
+| `official_evaluator_fill_score` | only from a `--physics` run, and only per scenario: the official evaluator scores a whole episode across all containers, so there is no per-container value. `null` rows carry the reason. |
+
+The two ratios answer different questions, and the gap between them is the
+interesting part. `12-large-hard-only` covers 80 % of the floor with a 0.32 m
+slab that is 64 % solid — a proper flat layer that has barely started on the
+ULD (`volume_fill_ratio` 0.10). `07-elongated-heavy` reaches 1.29 m but is only
+34 % solid, because it is spikes with air between them.
+
 ### Transport corridor
 
 Two things are reported, because they are not the same:
