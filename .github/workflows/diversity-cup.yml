@@ -1,6 +1,6 @@
 name: Diversity Cup
 run-name: >-
-  Diversity Cup · teacher mining vs ${{ inputs.model_run_id }}
+  Diversity Cup ${{ inputs.cup_id || '001' }} · teacher mining vs ${{ inputs.model_run_id }}
 
 # Teacher-mining event, preregistered in
 # reports/self-play-packing/diversity-cup-design.md. Dispatch-only and
@@ -27,6 +27,18 @@ on:
         description: Counterfactual forks per stud episode
         required: false
         default: "12"
+      cup_id:
+        description: Cup number for the ledger (e.g. "002")
+        required: false
+        default: "001"
+      cells:
+        description: >-
+          JSON array of {cell,scenario,stream} for the six-cell course.
+          Streams must be fresh, never-reused primes from the 401-599
+          pool (allocation ledger: reports/league/cup-ledger.md).
+          Empty uses the Cup 001 course.
+        required: false
+        default: ""
   # Registration-only trigger: a dispatch-only workflow on a
   # non-default branch is never indexed (404 on dispatch) until it has
   # at least one run. Edits to this file produce an instantly-skipped
@@ -51,13 +63,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {cell: dual-preloaded-dedicated-permute-000-401, scenario: dual-preloaded-dedicated, stream: permute-000-401}
-          - {cell: dual-empty-permute-000-419, scenario: dual-empty, stream: permute-000-419}
-          - {cell: single-empty-noshelf-permute-000-431, scenario: single-empty-noshelf, stream: permute-000-431}
-          - {cell: dual-shelf-mixed-permute-001-409, scenario: dual-shelf-mixed, stream: permute-001-409}
-          - {cell: single-empty-shelf-permute-001-421, scenario: single-empty-shelf, stream: permute-001-421}
-          - {cell: single-preloaded-permute-000-433, scenario: single-preloaded, stream: permute-000-433}
+        # the course comes from the dispatch input, so hosting a cup is
+        # a dispatch plus a ledger row — never a code change; the
+        # fallback below is the preregistered Cup 001 course
+        include: >-
+          ${{ fromJSON(inputs.cells || '[
+            {"cell":"dual-preloaded-dedicated-permute-000-401","scenario":"dual-preloaded-dedicated","stream":"permute-000-401"},
+            {"cell":"dual-empty-permute-000-419","scenario":"dual-empty","stream":"permute-000-419"},
+            {"cell":"single-empty-noshelf-permute-000-431","scenario":"single-empty-noshelf","stream":"permute-000-431"},
+            {"cell":"dual-shelf-mixed-permute-001-409","scenario":"dual-shelf-mixed","stream":"permute-001-409"},
+            {"cell":"single-empty-shelf-permute-001-421","scenario":"single-empty-shelf","stream":"permute-001-421"},
+            {"cell":"single-preloaded-permute-000-433","scenario":"single-preloaded","stream":"permute-000-433"}
+          ]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:

@@ -94,5 +94,12 @@ say so explicitly.
 - Read-only spectating unchanged: cup standings are content and
   diagnostics; no manual tuning of anything from them beyond the
   preregistered side-corpus path above.
-- One look, honestly counted: the cup runs once per model generation
-  at most; repeats require a new preregistration here.
+- Repeats, honestly counted: cups may be hosted periodically (the
+  Codex session hosts them; procedure in
+  `reports/league/cup-hosting-runbook.md`) under a rolling
+  preregistration — each cup's course must be fresh never-reused
+  primes from the 401-599 pool, appended to
+  `reports/league/cup-ledger.md` BEFORE dispatch, with the same
+  protocol and fork budget. Novelty saturation (total novel-board
+  rate < ~0.30 two cups running) pauses hosting until the next
+  generation promotes.

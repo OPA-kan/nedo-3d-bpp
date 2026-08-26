@@ -110,10 +110,33 @@ STREAM_VARIANTS = (
     "permute-001-331", "permute-001-337", "permute-001-347",
     "permute-001-349", "permute-001-353", "permute-001-359",
     "permute-001-367", "permute-001-373", "permute-001-379",
-    # Diversity Cup side-corpus streams: primes 401+ are disjoint from
-    # both the frozen eval variants and every season-1 wave prime
-    "permute-000-401", "permute-000-419", "permute-000-431",
-    "permute-000-433", "permute-001-409", "permute-001-421",
+    # Diversity Cup side-corpus stream pool: primes 401-599 are disjoint
+    # from both the frozen eval variants and every season-1 wave prime.
+    # Cups draw fresh, never-reused streams from this pool (allocation
+    # tracked in reports/league/cup-ledger.md) so hosting a cup needs a
+    # dispatch, not a code change.
+    "permute-000-401", "permute-000-409", "permute-000-419",
+    "permute-000-421", "permute-000-431", "permute-000-433",
+    "permute-000-439", "permute-000-443", "permute-000-449",
+    "permute-000-457", "permute-000-461", "permute-000-463",
+    "permute-000-467", "permute-000-479", "permute-000-487",
+    "permute-000-491", "permute-000-499", "permute-000-503",
+    "permute-000-509", "permute-000-521", "permute-000-523",
+    "permute-000-541", "permute-000-547", "permute-000-557",
+    "permute-000-563", "permute-000-569", "permute-000-571",
+    "permute-000-577", "permute-000-587", "permute-000-593",
+    "permute-000-599",
+    "permute-001-401", "permute-001-409", "permute-001-419",
+    "permute-001-421", "permute-001-431", "permute-001-433",
+    "permute-001-439", "permute-001-443", "permute-001-449",
+    "permute-001-457", "permute-001-461", "permute-001-463",
+    "permute-001-467", "permute-001-479", "permute-001-487",
+    "permute-001-491", "permute-001-499", "permute-001-503",
+    "permute-001-509", "permute-001-521", "permute-001-523",
+    "permute-001-541", "permute-001-547", "permute-001-557",
+    "permute-001-563", "permute-001-569", "permute-001-571",
+    "permute-001-577", "permute-001-587", "permute-001-593",
+    "permute-001-599",
 )
 
 

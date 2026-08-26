@@ -17,7 +17,7 @@ class DiversityCupWorkflowTests(unittest.TestCase):
         self.text = WORKFLOW.read_text(encoding="utf-8")
 
     def cup_streams(self):
-        return set(re.findall(r"stream: (permute-\d+-\d+)", self.text))
+        return set(re.findall(r'"stream":"(permute-\d+-\d+)"', self.text))
 
     def test_dispatch_only_and_season_isolated(self):
         # the push trigger exists ONLY to register the workflow (a
@@ -37,7 +37,9 @@ class DiversityCupWorkflowTests(unittest.TestCase):
         self.assertNotIn("registry.json", self.text)
 
     def test_six_cells_run_champion_and_three_mining_studs(self):
-        self.assertEqual(self.text.count("- {cell: "), 6)
+        # the course is a dispatch input; the baked default is Cup 001
+        self.assertIn("fromJSON(inputs.cells ||", self.text)
+        self.assertEqual(self.text.count('"cell":"'), 6)
         self.assertEqual(len(self.cup_streams()), 6)
         self.assertIn("--policy learned", self.text)
         self.assertIn("for stud in rule-grid rule-lowcog rule-edge", self.text)
