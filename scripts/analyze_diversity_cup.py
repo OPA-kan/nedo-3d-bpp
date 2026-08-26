@@ -152,16 +152,29 @@ def pairwise_tables(
         for second in HORSES[index + 1:]:
             counts = {
                 "challenger_wins": 0, "member_wins": 0,
-                "equal": 0, "incomparable": 0,
+                "equal": 0, "incomparable": 0, "unmeasured": 0,
             }
             relations = {}
             for cell, horses in sorted(cup.items()):
                 if first not in horses or second not in horses:
                     continue
-                relation = paired_relation(
-                    episode_outcome(horses[first])["heads"],
-                    episode_outcome(horses[second])["heads"],
-                )
+                # current-agent always executes its own action, including
+                # a physically rejected one (diversity-cup-design.md), so
+                # its episode can legitimately end in a non-genuine
+                # termination with no shake test and thus no
+                # post_shake_* heads. league.episode_outcome() is
+                # deliberately strict for the frozen league eval cells,
+                # where every episode is guaranteed to reach genuine
+                # termination; here that guarantee doesn't hold, so treat
+                # the missing-head ValueError as an honest "unmeasured"
+                # cell instead of failing the whole report.
+                try:
+                    relation = paired_relation(
+                        episode_outcome(horses[first])["heads"],
+                        episode_outcome(horses[second])["heads"],
+                    )
+                except ValueError:
+                    relation = "unmeasured"
                 relations[cell] = relation
                 counts[relation] += 1
             tables[f"{first}_vs_{second}"] = {

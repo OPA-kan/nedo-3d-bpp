@@ -12,7 +12,7 @@ artifact is read.
 |---|---|---|---|---|---|---|---|---|
 | 001 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 401,419,431,433 · 001: 409,421 | 32920552027 | 15 | 0.81-0.84 | inaugural; 94/94 disagreements forked (budget never binding), strict rate 16%; race tables almost all incomparable |
 
-| 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | pending | pending | pending | preregistered five-horse field incl current-agent; dispatched under the 4-head dominance rule (surface_total_variation excluded, see amendment below) |
+| 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | 32925104549 | 17 | 0.82-0.95 | five-horse field incl current-agent, 4-head dominance rule (surface excluded); standings job crashed on missing post-shake heads for current-agent's 5 non-genuine episodes, fixed and recomputed locally from the same run's artifacts (no re-run) — see `reports/league/diversity-cup-002.md`; current-agent mined 0/19 strict pairs and missed candidate support on 132/164 steps |
 
 Pool allocation note: primes used so far: 401, 409, 419, 421, 431, 433
 (cup 001; note 000/001 sides used are what the row lists — a prime may

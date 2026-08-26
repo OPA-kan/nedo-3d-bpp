@@ -13,7 +13,10 @@ FINAL = {
 }
 
 
-def manifest(policy, fingerprints, mining=None, final=None):
+def manifest(
+    policy, fingerprints, mining=None, final=None,
+    *, termination="stream_exhausted", genuine_termination=True,
+):
     records = []
     for index, fingerprint in enumerate(fingerprints):
         record = {
@@ -25,8 +28,8 @@ def manifest(policy, fingerprints, mining=None, final=None):
             record["mining"] = mining[index]
         records.append(record)
     episode = {
-        "steps": len(records), "termination": "stream_exhausted",
-        "genuine_termination": True,
+        "steps": len(records), "termination": termination,
+        "genuine_termination": genuine_termination,
         "records": records,
         "final_metrics": dict(final or FINAL),
     }
@@ -154,6 +157,39 @@ class DiversityCupAnalysisTests(unittest.TestCase):
         self.assertEqual(
             grid_row["event_coverage"]["soft_violation_gain"], 1
         )
+
+    def test_non_genuine_termination_is_unmeasured_not_a_crash(self):
+        # current-agent always executes its own action, including a
+        # physically rejected one, so its episode can legitimately end
+        # without a shake test (no post_shake_* heads). The race table
+        # must record that pairing as "unmeasured" rather than raising.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            cell = root / "cup-cell-dual-empty-permute-000-419"
+            for horse, payload in (
+                ("learned", manifest("learned", ["f1"])),
+                ("current-agent", manifest(
+                    "current-agent", ["a1"],
+                    final={"placed_count": 3, "fill_score_proxy": 2.0,
+                           "soft_covered_by_other": 0,
+                           "priority_covered_by_other": 0,
+                           "priority_misrouted": 0},
+                    termination="selected_action_failure",
+                    genuine_termination=False,
+                )),
+            ):
+                target = cell / horse / "rollout"
+                target.mkdir(parents=True)
+                (target / "manifest.json").write_text(
+                    json.dumps(payload), encoding="utf-8"
+                )
+            report = analyze(root)
+
+        table = report["race_tables"]["learned_vs_current-agent"]
+        self.assertEqual(table["relations"]["dual-empty-permute-000-419"],
+                          "unmeasured")
+        self.assertEqual(table["counts"]["unmeasured"], 1)
+        self.assertEqual(sum(table["counts"].values()), 1)
 
 
 if __name__ == "__main__":
