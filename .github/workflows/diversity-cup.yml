@@ -27,6 +27,15 @@ on:
         description: Counterfactual forks per stud episode
         required: false
         default: "12"
+  # Registration-only trigger: a dispatch-only workflow on a
+  # non-default branch is never indexed (404 on dispatch) until it has
+  # at least one run. Edits to this file produce an instantly-skipped
+  # run; the guard below keeps push events from ever running the cup.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/diversity-cup.yml
 
 permissions:
   contents: read
@@ -38,6 +47,7 @@ concurrency:
 
 jobs:
   episodes:
+    if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:

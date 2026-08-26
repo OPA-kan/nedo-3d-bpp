@@ -20,10 +20,17 @@ class DiversityCupWorkflowTests(unittest.TestCase):
         return set(re.findall(r"stream: (permute-\d+-\d+)", self.text))
 
     def test_dispatch_only_and_season_isolated(self):
-        # the cup can never start itself from a push and never writes
-        # to the season ledger, registry or matrices
-        self.assertNotIn("push:", self.text)
+        # the push trigger exists ONLY to register the workflow (a
+        # dispatch-only workflow on a non-default branch is never
+        # indexed); the event guard keeps pushes from running the cup,
+        # and nothing writes to the season ledger, registry or matrices
         self.assertIn("workflow_dispatch:", self.text)
+        self.assertIn(
+            "if: github.event_name == 'workflow_dispatch'", self.text
+        )
+        push_paths = self.text.split("push:")[1].split("permissions:")[0]
+        self.assertIn(".github/workflows/diversity-cup.yml", push_paths)
+        self.assertNotIn("scripts/", push_paths)
         self.assertIn("contents: read", self.text)
         self.assertNotIn("git push", self.text)
         self.assertNotIn("reports/league/season", self.text)
