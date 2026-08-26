@@ -65,18 +65,23 @@ preference policy (pair AUC 0.745). Every cup pair is decisive by
 construction and comes from states the champion line does not visit —
 per-pair value should be at least comparable.
 
-Expected cup yield: 18 stud-episodes x up to 12 forks = ≤216 forks;
-observed strict-dominance rates on forks run ~20-40%, so plan on
-**roughly 40-90 strict pairs per cup**. Milestones:
+Measured yield (Cup 001 actuals, `diversity-cup-001.md`): ~5.2
+disagreements per stud episode, 94/94 disagreements forked (the budget
+of 12 never bound), strict-dominance rate 16% → **15 strict pairs per
+6-cell cup**, novelty 0.81-0.84. Milestones at the 6-cell format:
 
 | cups (same champion) | ~decisive pairs | what it buys |
 |---|---|---|
-| 1 | 40-90 | calibration probe: how wrong is the champion off-distribution; not enough to move training |
-| 3-5 | 150-400 | exceeds the main corpus's decisive-pair count (129) — enough to preregister a mixed-corpus challenger (cup pairs as a 10-20% auxiliary slice) and expect a measurable effect |
-| 8-12 | 600-1000 | enough for the clean A/B: two challengers on the same wave, identical except with/without the cup slice, one extra title look (preregister it) |
+| 1-3 | 15-45 | calibration probe: how wrong is the champion off-distribution; not enough to move training |
+| ~9 | ~130 | matches the decisive-pair count that trained the first promoted policy — enough to preregister a mixed-corpus challenger (cup pairs as a 10-20% auxiliary slice) and expect a measurable effect |
+| ~18 | ~270 | the clean A/B: two challengers on the same wave, identical except with/without the cup slice, one extra title look (preregister it) |
 
-These are order-of-magnitude planning numbers from observed rates, not
-promises — the ledger's per-cup actuals override them.
+If cadence matters, the lever is a LARGER COURSE (the `cells` input
+takes any number of cells; 12 cells ≈ double the take, halving the
+cup count above), NOT a bigger fork budget — the harvest is
+disagreement-limited. Course-size changes need a design-record
+amendment first. The ledger's per-cup actuals always override these
+planning numbers.
 
 **Stopping rule (novelty saturation)**: if total `novel_board_rate`
 drops below ~0.30 for two consecutive cups against the same champion,
