@@ -110,6 +110,20 @@ class RuleAlphaConfig:
     structure.  Above this cap the item is ordinary tall cargo and belongs on
     the perimeter instead."""
 
+    tall_perimeter_max_footprint_fraction: float = 0.18
+    """An item whose best footprint exceeds this share of the usable floor is
+    prime foundation material and lies flat, however tall it could stand.  The
+    perimeter is for cargo that is awkward to lay down, not for the big flat
+    boxes the foundation is made of — without this cap a stream of large hard
+    cargo stands every item on end and Layer 1 has no flat surface left."""
+
+    tall_perimeter_min_height: float = 0.30
+    """A standing pose at least this tall may go against the left/right
+    perimeter or the back wall instead of lying flat.  This is the fallback for
+    cargo that is too tall to be wall-front material but not slender enough to
+    be classified elongated: without it such an item is simply laid down, which
+    spends floor area to store air above it."""
+
     wall_front_strip_fraction: float = 0.22
     """Share of the usable floor length reserved for the slope wall front.  The
     soft edge zone starts just inside it, because on this ULD the chamfer and
@@ -122,6 +136,27 @@ class RuleAlphaConfig:
     wall_front_depth_target: float = 0.85
     """Stop pushing wall-front placements once they span this share of the
     container depth: the wall is a wall, not a second foundation."""
+
+    # ------------------------------------------------------------------
+    # Triangle zone: RESERVE -> INFILL -> CLOSE
+    # ------------------------------------------------------------------
+    triangle_weight_soft: float = 1.0
+    triangle_weight_bridge: float = 0.8
+    triangle_weight_area: float = 1.2
+    triangle_weight_fill: float = 0.9
+    triangle_weight_bottleneck: float = 0.6
+    """R = w_soft p_soft + w_bridge p_bridge + w_area A - w_fill F - w_bn B.
+    Placing ordinary cargo against the chamfer foot destroys the pocket above
+    the wedge for good, while reserving it costs only the volume withheld right
+    now.  The score prices that asymmetry instead of predicting arrivals."""
+
+    triangle_reserve_threshold: float = 0.25
+    """Reserve while R exceeds this; release below it."""
+
+    triangle_pocket_ladder_depth: int = 2
+    """How far down POCKET_LADDER (soft, soft+priority, priority, plain) a
+    bridge top will serve while the zone is still reserved.  2 means soft,
+    soft+priority and priority may use it; plain cargo has to wait for CLOSE."""
 
     slope_pocket_margin: float = 0.004
     """Extra clearance demanded inside the reserved slope pocket."""

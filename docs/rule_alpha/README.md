@@ -205,6 +205,29 @@ policy.
 | wall-front / elongated hard | maximise `dz`, then lowest `R` |
 | elongated **soft** | lies flat like plain cargo — a soft bag is not a structural member |
 
+### Tall perimeter: the fallback when the wall front says no
+
+An item can be too tall to be wall-front material without being slender enough
+to be classified elongated. Before this role existed such an item had no
+structural option at all — the max-footprint rule simply laid it down, spending
+floor area to store the air above it. The fallback order is
+
+```
+wall-front  →  tall-perimeter  →  max-footprint
+```
+
+`tall-perimeter` accepts a genuinely standing pose (taller than the item's
+flattest), at least `tall_perimeter_min_height`, touching the left or right
+edge or the back wall. The tipping veto and the transport check decide the
+rest, and the pose is masked from flatness like any other structural piece.
+
+It is capped by footprint (`tall_perimeter_max_footprint_fraction`) for the
+same reason the wall front is: without the cap, `12-large-hard-only` stood
+**all ten** of its large boxes on end and Layer 1 was left with no flat surface
+whatsoever (`foundation_slab_fill_ratio` came back `null` — there was no
+foundation to measure). The perimeter is for cargo that is awkward to lay down,
+not for the big flat boxes the foundation is made of.
+
 `R = dz / min(dx, dy)` is the tip-over proxy. The spec's bands are recorded on
 every step (`tipping_band`): `< 1.5` normal, `[1.5, 2)` wall preferred,
 `[2, 3)` wall strongly preferred, `>= 3` corner/backing required. rule-alpha
@@ -332,6 +355,71 @@ in the role histogram. It is the one documented exception to "Layer 1 only".
 A second finding: **nothing can rest on the bevel itself.** For the shipped
 ULD the bevel is 42.3° (`tan = 0.909`) against a lateral friction of 0.8, so a
 box placed on it slides. The wedge is wall-front territory, not storage.
+
+### The triangle as a three-state resource
+
+Placing ordinary hard cargo against the chamfer foot is **irreversible**: the
+pocket above the wedge is gone for the rest of the episode. Leaving the strip
+empty costs only the volume it withholds right now. Under an unknown arrival
+order that asymmetry is the whole argument, so rule-alpha prices the *option*
+an action would destroy instead of trying to predict what is coming
+(`rule_alpha/triangle.py`).
+
+```
+   RESERVE  ──bridge placed──▶  INFILL  ──score falls──▶  CLOSE
+      │                                                     ▲
+      └────────────── score falls ──────────────────────────┘
+```
+
+* **RESERVE** — the slope strip is held for a bridge; ordinary hard cargo is
+  kept out (veto `triangle-reserve`).
+* **INFILL** — a bridge is standing and its top is a *restricted-support
+  zone*, offered down `POCKET_LADDER` = soft → soft+priority → priority →
+  plain, only as far as `triangle_pocket_ladder_depth`.
+* **CLOSE** — the reservation is not worth its cost; the strip and the pocket
+  are released to anything that fits.
+
+The reservation is priced, not scheduled:
+
+```
+R = w_pocket·p_pocket + w_bridge·p_bridge + w_area·A − w_fill·F − w_bottleneck·B
+```
+
+`p_pocket` is **demand** (share of the stream that could use a bridge top) and
+`p_bridge` is **feasibility** (share that could be one). Both gate the benefit
+terms: a pocket nobody can build is worth nothing, and so is a pocket nobody
+wants. Without that gate a stream of plain hard cargo scores high on
+feasibility alone and reserves a strip for a customer that never arrives —
+`12-large-hard-only` did exactly that before the gate went in. `F` (floor
+fill) and `B` (blocked entry lanes) rise as the board fills, so the
+reservation decays on its own rather than needing a step count.
+
+Shares come from the manifest `optimize()` is handed; with no manifest the same
+arithmetic applies to whatever has been observed so far.
+
+### The bridge needs its own height rule, and the geometry says why
+
+This is worth stating because it constrains the design. The wedge is bounded
+by the chamfer, and the binding constraint on a floor-resting box is its
+**bottom** corner — so **no floor placement can overhang the wedge at any
+height**. The only way to get support over it is a box whose *top* clears
+`z_chamfer_top`, where the chamfer meets the wall.
+
+On the shipped ULD:
+
+| quantity | value |
+|---|---|
+| floor → chamfer top (minimum bridge height) | **0.3777 m** |
+| floor → shelf underside (the gap) | 0.7650 m |
+| ordinary wall-front cap (½ the gap) | **0.3825 m** |
+| bridge cap (what can be carried past the shelf) | 0.7190 m |
+
+The chamfer top sits at 0.494 of the gap and the ordinary cap is half of it, so
+under the wall-front rule alone a bridge has a **4.8 mm** band to live in —
+effectively impossible. So a bridge does not obey that cap. The cap exists to
+stop cargo being stood up for no reason; a bridge is stood up for a specific
+reason, and it gets the transport limit instead, with `z_chamfer_top` as its
+floor. A unit test pins both halves of this.
 
 ### Slope wall front
 

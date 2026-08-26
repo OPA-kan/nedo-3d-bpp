@@ -26,6 +26,7 @@ class RuleAlphaAgent:
         self.profiles: dict[int, cls.ItemProfile] = {}
         self.last_decision: layer1.Decision | None = None
         self.zone_scales: dict | None = None
+        self.triangle_profiles: list | None = None
         self.declined: list[int] = []
 
     def _reapply_zone_scales(self) -> None:
@@ -38,6 +39,8 @@ class RuleAlphaAgent:
                 self.board.models[idx].set_zone_scales(
                     scale["soft_zone_scale"], scale["priority_zone_scale"]
                 )
+        if self.triangle_profiles:
+            self.board.set_triangle_demand(self.triangle_profiles, self.config)
 
     # -- official interface ---------------------------------------------
     def get_init_states(self, init_states: dict):
@@ -59,6 +62,7 @@ class RuleAlphaAgent:
             )
         if self.board is not None:
             self.zone_scales = self.board.set_zone_demand(profiles, self.config)
+            self.triangle_profiles = profiles
         return layer1.constructive_order(profiles, self.config, reference)
 
     def policy(self, observation: dict):

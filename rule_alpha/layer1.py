@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import classify as cls
+from . import triangle as tri
 from ._reuse import (
     AABB,
     Geometry,
@@ -46,6 +47,7 @@ A_SP_CLUSTER = "sp-cluster"
 A_ELONGATED_WALL = "elongated-wall"
 A_SLOPE_INFILL = "slope-infill"
 A_WALL_FRONT = "wall-front"
+A_TALL_PERIMETER = "tall-perimeter"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -59,6 +61,7 @@ ALL_ARCHETYPES = (
     A_ELONGATED_WALL,
     A_SLOPE_INFILL,
     A_WALL_FRONT,
+    A_TALL_PERIMETER,
 )
 
 
@@ -130,7 +133,12 @@ class Placement:
 
     @property
     def is_structural(self) -> bool:
-        return self.role in (cls.ROLE_WALL_FRONT, cls.ROLE_ELONGATED, cls.ROLE_SLOPE_INFILL)
+        return self.role in (
+            cls.ROLE_WALL_FRONT,
+            cls.ROLE_ELONGATED,
+            cls.ROLE_SLOPE_INFILL,
+            cls.ROLE_TALL_PERIMETER,
+        )
 
     @property
     def role_is_wall_front(self) -> bool:
@@ -199,6 +207,10 @@ class Board:
         self.models = [ContainerModel(c, config) for c in self.containers]
         self.placements: list[list[Placement]] = [[] for _ in self.containers]
         self._grids: list[FloorGrid | None] = [None for _ in self.containers]
+        self.triangle_demand: list = [
+            tri.TriangleDemand(source="no-manifest") for _ in self.containers
+        ]
+        self._triangle: list = [None for _ in self.containers]
 
     # -- accessors -------------------------------------------------------
     def model(self, idx: int) -> ContainerModel:
@@ -220,6 +232,35 @@ class Board:
 
     def has_priority_container(self) -> bool:
         return any(m.is_prioritized for m in self.models)
+
+    def set_triangle_demand(self, profiles, config) -> dict:
+        """Price the triangle reservation from the declared stream."""
+        out = {}
+        for idx, model in enumerate(self.models):
+            demand = tri.measure_demand(profiles, model, config)
+            self.triangle_demand[idx] = demand
+            out[idx] = demand.as_dict()
+        self._triangle = [None for _ in self.containers]
+        return out
+
+    def triangle_state(self, idx: int):
+        state = self._triangle[idx]
+        if state is None:
+            from .diagnostics import corridor_report
+
+            grid = self.grid(idx)
+            model = self.models[idx]
+            corridor = corridor_report(grid, model)
+            state = tri.evaluate(
+                model,
+                self.placements[idx],
+                self.triangle_demand[idx],
+                grid.coverage(),
+                1.0 - float(corridor["corridor_clear_lane_ratio"]),
+                self.config,
+            )
+            self._triangle[idx] = state
+        return state
 
     def set_zone_demand(self, profiles, config) -> dict:
         """Size the reserved edge strips from the declared manifest.
@@ -295,6 +336,7 @@ class Board:
         )
         self.placements[idx].append(placement)
         self._grids[idx] = None
+        self._triangle[idx] = None
 
 
 # ---------------------------------------------------------------------------
@@ -487,10 +529,13 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
                     continue
                 seen.add(key)
                 box = AABB((float(x), float(y), float(z)), (dx, dy, dz), "candidate")
-                if kind == "item" and not in_slope_pocket(
-                    box, model, config, pocket_ceiling
-                ):
-                    continue
+                if kind == "item":
+                    if not in_slope_pocket(box, model, config, pocket_ceiling):
+                        continue
+                    if not tri.pocket_allows(
+                        profile, board.triangle_state(container_idx), config
+                    ):
+                        continue
                 ok, why = validate(box, model, container, config)
                 if not ok:
                     continue
@@ -573,16 +618,55 @@ def _role_for(box, model, profile, orientation, board, container_idx, config,
     if (
         profile.cargo_class == cls.NORMAL_HARD
         and near_wall_front
-        and config.wall_front_min_height
-        <= orientation.dz
-        <= wall_front_height_limit(model, config)
         and wall_front_material(profile, model, config)
-        and _wall_front_wanted(board, container_idx, model, config)
+        and orientation.dz >= config.wall_front_min_height
     ):
-        return cls.ROLE_WALL_FRONT
+        limit = wall_front_height_limit(model, config)
+        # A bridge is stood up for a reason — reaching over the wedge — so it
+        # gets the transport limit as its cap instead of the ordinary "do not
+        # stand cargo up for nothing" cap, which leaves it a 5 mm band.
+        state = board.triangle_state(container_idx)
+        if state.state == tri.STATE_RESERVE and tri.is_bridge(box, model, config):
+            limit = tri.bridge_max_height(model, config)
+        if orientation.dz <= limit and _wall_front_wanted(
+            board, container_idx, model, config
+        ):
+            return cls.ROLE_WALL_FRONT
     if profile.is_elongated and not profile.is_soft:
         return cls.ROLE_ELONGATED
+    if is_tall_perimeter(box, model, profile, orientation, config):
+        return cls.ROLE_TALL_PERIMETER
     return cls.ROLE_NONE
+
+
+def is_tall_perimeter(box: AABB, model: ContainerModel, profile: cls.ItemProfile,
+                      orientation: cls.Orientation, config) -> bool:
+    """A standing pose parked against a wall rather than laid down.
+
+    This is the fallback for cargo that is too tall to be wall-front material
+    but not slender enough to be classified elongated.  Without it such an item
+    has no structural role at all and the max-footprint rule lays it down,
+    spending floor area to store the air above it.  It has to be a genuinely
+    standing pose (taller than the item's flattest one), tall enough to be
+    worth it, and touching a perimeter — the tipping veto and the transport
+    check decide the rest.
+    """
+    if profile.is_soft:
+        return False
+    if orientation.dz < config.tall_perimeter_min_height:
+        return False
+    budget = config.tall_perimeter_max_footprint_fraction * model.usable_floor_area
+    if profile.max_footprint > budget + 1e-9:
+        return False
+    flattest = min(o.dz for o in profile.orientations)
+    if orientation.dz <= flattest + 1e-9:
+        return False
+    rect = box_rect(box)
+    tol = config.settled_clearance * 1.6
+    against_left = abs(rect.x_min - model.floor_rect.x_min) <= tol
+    against_right = abs(model.floor_rect.x_max - rect.x_max) <= tol
+    against_back = abs(model.floor_rect.y_max - rect.y_max) <= tol
+    return bool(against_left or against_right or against_back)
 
 
 def wall_front_height_limit(model: ContainerModel, config) -> float:
@@ -916,6 +1000,15 @@ def _key_slope_infill(c):
     return (-c.features["slope_pocket_volume"], -c.features["y_back"])
 
 
+def _key_tall_perimeter(c):
+    return (
+        0 if c.features["has_backing"] else 1,
+        -c.features["top_z"],
+        -c.features["frontier_contact"],
+        -c.features["y_back"],
+    )
+
+
 def _key_wall_front(c):
     return (
         -c.features["top_z"],
@@ -936,6 +1029,7 @@ ARCHETYPE_KEYS = {
     A_ELONGATED_WALL: _key_elongated_wall,
     A_SLOPE_INFILL: _key_slope_infill,
     A_WALL_FRONT: _key_wall_front,
+    A_TALL_PERIMETER: _key_tall_perimeter,
 }
 
 
@@ -950,6 +1044,8 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
     tags.update({A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE, A_LARGEST_RESIDUAL})
     if candidate.role == cls.ROLE_WALL_FRONT:
         tags.add(A_WALL_FRONT)
+    if candidate.role == cls.ROLE_TALL_PERIMETER:
+        tags.add(A_TALL_PERIMETER)
     if candidate.profile.is_elongated:
         tags.add(A_ELONGATED_WALL)
     klass = candidate.profile.cargo_class
@@ -978,7 +1074,10 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         if profile.is_elongated:
             ladder.extend([A_ELONGATED_WALL, A_BACK_CORNER, A_MIN_HOLE])
         else:
-            ladder.extend([A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE, A_LARGEST_RESIDUAL])
+            ladder.extend([
+                A_TALL_PERIMETER, A_MAX_FOOTPRINT, A_BACK_CORNER,
+                A_MIN_HOLE, A_LARGEST_RESIDUAL,
+            ])
     elif klass == cls.SOFT:
         ladder.append(A_SHELF_SAVING)
         ladder.append(A_SOFT_EDGE)
@@ -1080,9 +1179,12 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if not survivors:
         return [], counts
 
-    # 2b. the slope wall-front strip belongs to wall material.  Without this the
-    #     foundation simply eats the strip and no wall is ever built.
-    if _wall_front_wanted(board, container_idx, model, config):
+    # 2b. the slope strip belongs to wall material, and while the triangle zone
+    #     is RESERVED it belongs to a bridge.  Putting ordinary cargo here is
+    #     irreversible: the pocket over the wedge is gone for the episode.
+    triangle_state = board.triangle_state(container_idx)
+    reserving = triangle_state.state == tri.STATE_RESERVE
+    if reserving or _wall_front_wanted(board, container_idx, model, config):
         kept = []
         for candidate in survivors:
             if (
@@ -1091,7 +1193,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 and candidate.features.get("wall_strip_fit", 0.0)
                 > config.zone_guard_fraction
             ):
-                drop(candidate, "wall-front-strip")
+                drop(candidate, "triangle-reserve" if reserving else "wall-front-strip")
             else:
                 kept.append(candidate)
         if kept:
@@ -1185,8 +1287,21 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         pool: list[Candidate] = []
         for surface_kinds, surface_policy in _surface_filters(profile, model, config):
             role_hint = cls.ROLE_ELONGATED if profile.is_elongated else cls.ROLE_NONE
-            orientations = cls.orientation_order(profile, surface_policy, role_hint, config)
-            for orientation in orientations[:max_orientations]:
+            orientations = list(
+                cls.orientation_order(profile, surface_policy, role_hint, config)
+            )[:max_orientations]
+            if surface_policy == "floor" and not profile.is_soft:
+                # A standing pose can earn a place against a wall even when the
+                # item is not slender enough to be called elongated.  If it is
+                # never generated, max-footprint is the only option left and the
+                # item is laid down by default — which is what happened to every
+                # item the wall-front height cap turned away.
+                seen_orientations = {o.index for o in orientations}
+                for tall in cls.structural_orientation_order(profile, config)[:2]:
+                    if tall.index not in seen_orientations:
+                        orientations.append(tall)
+                        seen_orientations.add(tall.index)
+            for orientation in orientations:
                 pool.extend(
                     generate_candidates(
                         board, profile, container_idx, orientation, surface_kinds, config

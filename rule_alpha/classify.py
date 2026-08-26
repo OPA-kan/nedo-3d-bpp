@@ -23,6 +23,7 @@ ROLE_NONE = "none"
 ROLE_ELONGATED = "elongated"
 ROLE_WALL_FRONT = "wall-front"
 ROLE_SLOPE_INFILL = "slope-infill"
+ROLE_TALL_PERIMETER = "tall-perimeter"
 
 # --- tipping bands -----------------------------------------------------------
 TIP_NORMAL = "normal"
@@ -205,7 +206,7 @@ def orientation_order(profile: ItemProfile, surface: str, role: str, config):
     """Dispatch to the orientation rule that matches surface and role."""
     if surface == "shelf":
         return shelf_orientation_order(profile, config)
-    if role in (ROLE_WALL_FRONT, ROLE_ELONGATED) and not profile.is_soft:
+    if role in (ROLE_WALL_FRONT, ROLE_ELONGATED, ROLE_TALL_PERIMETER) and not profile.is_soft:
         # The structural exception is for hard cargo only: a soft item cannot be
         # a structural member, so a long soft bag still lies down.
         return structural_orientation_order(profile, config)

@@ -159,6 +159,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
         (m for m in board.models if not m.is_prioritized), board.models[0]
     )
     zone_scales = board.set_zone_demand(profiles, config)
+    triangle_demand = board.set_triangle_demand(profiles, config)
     order = layer1.constructive_order(profiles, config, reference_model)
     by_index = {p.index: p for p in profiles}
     queue = [by_index[i] for i in order]
@@ -241,7 +242,10 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
     result.snapshots = sorted(m for m in marks if 0 <= m <= total)
 
     reports = [
-        board_report(board.model(i), board.placements[i], config)
+        board_report(
+            board.model(i), board.placements[i], config,
+            triangle_state=board.triangle_state(i),
+        )
         for i in range(len(board.models))
     ]
     placed = sum(len(p) for p in board.placements)
@@ -255,6 +259,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
         "runtime_seconds": round(time.perf_counter() - started, 2),
         "elongation_tau": config.elongation_tau,
         "zone_scales": zone_scales,
+        "triangle_demand": triangle_demand,
         "containers": reports,
         "class_histogram": _class_histogram(profiles),
         "placed_class_histogram": _placed_histogram(board),

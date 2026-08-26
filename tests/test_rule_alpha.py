@@ -499,6 +499,192 @@ class VolumeReportTest(unittest.TestCase):
         self.assertAlmostEqual(without["structural_volume_m3"], 0.0)
 
 
+class TrianglePocketTest(unittest.TestCase):
+    """The RESERVE -> INFILL -> CLOSE machine around the chamfer wedge."""
+
+    def _profiles(self, spec):
+        out = []
+        for index, (dims, flags) in enumerate(spec):
+            item = {
+                "index": index, "length": dims[0], "width": dims[1],
+                "height": dims[2], "mass": 8.0,
+                "is_soft": flags.get("soft", False),
+                "is_prioritized": flags.get("priority", False),
+            }
+            out.append(cls.classify_item(index, item, DEFAULT_CONFIG))
+        return out
+
+    def test_a_bridge_must_clear_the_chamfer_top(self):
+        """Below that height nothing placed on it can reach over the wedge."""
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
+        low = tri.bridge_min_height(model)
+        self.assertAlmostEqual(low, model.z_chamfer_top - model.z_floor, places=9)
+
+        short = AABB(
+            (model.x_floor_min + 0.15, 0.0, model.z_floor + (low - 0.05) / 2.0),
+            (0.30, 0.30, low - 0.05), "short",
+        )
+        tall = AABB(
+            (model.x_floor_min + 0.15, 0.0, model.z_floor + (low + 0.05) / 2.0),
+            (0.30, 0.30, low + 0.05), "tall",
+        )
+        self.assertFalse(tri.is_bridge(short, model, DEFAULT_CONFIG))
+        self.assertTrue(tri.is_bridge(tall, model, DEFAULT_CONFIG))
+
+    def test_the_ordinary_wall_front_cap_leaves_no_room_for_a_bridge(self):
+        """Why a bridge needs its own height rule.
+
+        The chamfer top sits at 0.494 of the floor-to-shelf gap and the
+        wall-front cap is half of it, so the two rules overlap in a band a few
+        millimetres wide.  A bridge is stood up on purpose, so it gets the
+        transport limit as its cap instead.
+        """
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
+        ordinary = layer1.wall_front_height_limit(model, DEFAULT_CONFIG)
+        low = tri.bridge_min_height(model)
+        self.assertLess(ordinary - low, 0.01)
+        self.assertGreater(tri.bridge_max_height(model, DEFAULT_CONFIG), low + 0.2)
+
+    def test_no_pocket_customers_means_closed(self):
+        """A pocket nobody wants is not worth an irreversible reservation."""
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
+        hard_only = self._profiles([((0.6, 0.4, 0.5), {})] * 6)
+        demand = tri.measure_demand(hard_only, model, DEFAULT_CONFIG)
+        self.assertEqual(demand.p_pocket, 0.0)
+        state = tri.evaluate(model, [], demand, 0.0, 0.0, DEFAULT_CONFIG)
+        self.assertEqual(state.state, tri.STATE_CLOSED)
+        self.assertIn("no customer", state.reason)
+
+    def test_soft_rich_stream_reserves_and_a_full_board_releases(self):
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
+        mixed = self._profiles(
+            [((0.6, 0.4, 0.5), {})] * 3 + [((0.5, 0.4, 0.3), {"soft": True})] * 3
+        )
+        demand = tri.measure_demand(mixed, model, DEFAULT_CONFIG)
+        self.assertGreater(demand.p_pocket, 0.0)
+        self.assertGreater(demand.p_bridge, 0.0)
+
+        early = tri.evaluate(model, [], demand, 0.0, 0.0, DEFAULT_CONFIG)
+        self.assertEqual(early.state, tri.STATE_RESERVE)
+
+        # the reservation is priced, not permanent: a full board with a
+        # blocked entry lane releases it
+        late = tri.evaluate(model, [], demand, 0.95, 1.0, DEFAULT_CONFIG)
+        self.assertEqual(late.state, tri.STATE_CLOSED)
+        self.assertLess(late.score, early.score)
+
+    def test_pocket_is_restricted_while_reserved_and_open_once_closed(self):
+        from rule_alpha import triangle as tri
+
+        plain = self._profiles([((0.4, 0.3, 0.2), {})])[0]
+        soft = self._profiles([((0.4, 0.3, 0.2), {"soft": True})])[0]
+        infill = tri.TriangleState(state=tri.STATE_INFILL, score=1.0)
+        closed = tri.TriangleState(state=tri.STATE_CLOSED, score=-1.0)
+
+        self.assertTrue(tri.pocket_allows(soft, infill, DEFAULT_CONFIG))
+        self.assertFalse(tri.pocket_allows(plain, infill, DEFAULT_CONFIG))
+        self.assertTrue(tri.pocket_allows(plain, closed, DEFAULT_CONFIG))
+
+    def test_an_incidental_bridge_does_not_hold_the_pocket_hostage(self):
+        """If the reservation is not worth keeping, a bridge that went up for
+        other reasons must not keep plain cargo out of the pocket."""
+        from rule_alpha import triangle as tri
+        from rule_alpha.scenarios import _normal_container
+
+        container = _normal_container()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        model = board.model(0)
+        hard_only = self._profiles([((0.6, 0.4, 0.5), {})] * 6)
+        demand = tri.measure_demand(hard_only, model, DEFAULT_CONFIG)
+
+        bridge = layer1.Placement(
+            profile=hard_only[0],
+            orientation=cls.Orientation(0, 0.3, 0.3, 0.5),
+            container_idx=0,
+            box=AABB(
+                (model.x_floor_min + 0.15, 0.0, model.z_floor + 0.25),
+                (0.3, 0.3, 0.5), "settled",
+            ),
+            surface="floor", surface_name="floor",
+            role=cls.ROLE_WALL_FRONT, archetype="test", reason="test",
+        )
+        state = tri.evaluate(model, [bridge], demand, 0.2, 0.0, DEFAULT_CONFIG)
+        self.assertEqual(state.state, tri.STATE_CLOSED)
+        self.assertEqual(state.bridge_item, hard_only[0].index)
+        self.assertTrue(tri.pocket_allows(hard_only[0], state, DEFAULT_CONFIG))
+
+
+class TallPerimeterTest(unittest.TestCase):
+    def test_prime_foundation_material_still_lies_flat(self):
+        """Without a footprint cap a stream of big hard boxes stands every item
+        on end and Layer 1 keeps no flat surface at all."""
+        _container, model = _model()
+        big = {
+            "index": 0, "length": 0.75, "width": 0.56, "height": 0.30,
+            "mass": 15.0, "is_soft": False, "is_prioritized": False,
+        }
+        profile = cls.classify_item(0, big, DEFAULT_CONFIG)
+        standing = max(profile.orientations, key=lambda o: o.dz)
+        box = AABB(
+            (model.floor_rect.x_max - standing.dx / 2.0, 0.0,
+             model.z_floor + standing.dz / 2.0),
+            (standing.dx, standing.dy, standing.dz), "probe",
+        )
+        self.assertGreater(standing.dz, DEFAULT_CONFIG.tall_perimeter_min_height)
+        self.assertFalse(
+            layer1.is_tall_perimeter(box, model, profile, standing, DEFAULT_CONFIG)
+        )
+
+    def test_an_awkward_tall_box_may_stand_against_a_wall(self):
+        _container, model = _model()
+        awkward = {
+            "index": 1, "length": 0.55, "width": 0.40, "height": 0.30,
+            "mass": 9.0, "is_soft": False, "is_prioritized": False,
+        }
+        profile = cls.classify_item(1, awkward, DEFAULT_CONFIG)
+        standing = max(profile.orientations, key=lambda o: o.dz)
+        at_wall = AABB(
+            (model.floor_rect.x_max - standing.dx / 2.0, 0.0,
+             model.z_floor + standing.dz / 2.0),
+            (standing.dx, standing.dy, standing.dz), "probe",
+        )
+        in_middle = AABB(
+            (0.1, 0.0, model.z_floor + standing.dz / 2.0),
+            (standing.dx, standing.dy, standing.dz), "probe",
+        )
+        self.assertTrue(
+            layer1.is_tall_perimeter(at_wall, model, profile, standing, DEFAULT_CONFIG)
+        )
+        self.assertFalse(
+            layer1.is_tall_perimeter(in_middle, model, profile, standing, DEFAULT_CONFIG)
+        )
+
+    def test_a_soft_item_never_stands_at_the_perimeter(self):
+        _container, model = _model()
+        bag = {
+            "index": 2, "length": 0.55, "width": 0.40, "height": 0.30,
+            "mass": 9.0, "is_soft": True, "is_prioritized": False,
+        }
+        profile = cls.classify_item(2, bag, DEFAULT_CONFIG)
+        standing = max(profile.orientations, key=lambda o: o.dz)
+        box = AABB(
+            (model.floor_rect.x_max - standing.dx / 2.0, 0.0,
+             model.z_floor + standing.dz / 2.0),
+            (standing.dx, standing.dy, standing.dz), "probe",
+        )
+        self.assertFalse(
+            layer1.is_tall_perimeter(box, model, profile, standing, DEFAULT_CONFIG)
+        )
+
+
 class RoutingTest(unittest.TestCase):
     def _board(self):
         priority = make_container_dict(index=0, is_prioritized=True,

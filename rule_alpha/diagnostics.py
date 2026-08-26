@@ -569,7 +569,8 @@ def corridor_report(grid: FloorGrid, model: ContainerModel) -> dict:
 # ---------------------------------------------------------------------------
 # Full report
 # ---------------------------------------------------------------------------
-def board_report(model: ContainerModel, placements, config, cell: float | None = None) -> dict:
+def board_report(model: ContainerModel, placements, config, cell: float | None = None,
+                 triangle_state=None) -> dict:
     grid = build_floor_grid(model, placements, cell or config.grid_cell)
     plateaus = plateau_report(grid, config)
     holes = hole_report(grid, config)
@@ -591,6 +592,7 @@ def board_report(model: ContainerModel, placements, config, cell: float | None =
         "corridor": corridor_report(grid, model),
         "zones": zone_report(grid, model),
         "order": order_report(model, placements),
+        "triangle": (triangle_state.as_dict() if triangle_state is not None else None),
         "support_type_area": {
             SUPPORT_NAMES[int(code)]: round(
                 float((grid.support == code)[grid.usable & grid.occupied].sum())
