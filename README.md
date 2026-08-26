@@ -14,6 +14,21 @@
 
 `archive/colab/` は過去の実行履歴を保存するだけで、開発手順の正本ではありません。
 
+## rule-alpha（第1層ルールベース試作）
+
+`rule_alpha/` は、第1層だけを組むルールベースの**独立した試作**です。スコア
+改善が目的ではなく、「このルールを入れると実際にどう積むのか」を人が目視して
+次の設計議論に入れる状態を作るためのものです。`agent/agent.py`（提出対象の
+production policy）には一切触れず、そこにある幾何・搬送・物理ユーティリティを
+読み取り専用で再利用します。
+
+```powershell
+python -m rule_alpha.runner --out reports/rule_alpha
+```
+
+- ルール・分類・画像の読み方・既知の制約: `docs/rule_alpha/README.md`
+- 12シナリオの結果一覧と画像: `reports/rule_alpha/report.md`
+
 ## CPUで実行
 
 Python 3.12を推奨します。

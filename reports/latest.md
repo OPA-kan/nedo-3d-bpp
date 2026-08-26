@@ -1,15 +1,15 @@
 # CPU verification report
 
-- Timestamp: `2026-07-28T09:46:24+09:00`
-- Git SHA: `7b2b4853df393c3d715f578a48b6abc0a55cf660`
-- Python: `3.12.13 (main, Mar  3 2026, 15:01:35) [MSC v.1944 64 bit (AMD64)]`
-- Platform: `Windows-11-10.0.26200-SP0`
-- Processor: `Intel64 Family 6 Model 186 Stepping 3, GenuineIntel`
+- Timestamp: `2026-08-26T11:35:08+00:00`
+- Git SHA: `5e4aa00f23a362b2ca5d516bcf21434b787953bd`
+- Python: `3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]`
+- Platform: `Linux-6.18.44-fc-v21-x86_64-with-glibc2.39`
+- Processor: `x86_64`
 
 ## Unit tests
 
 - Status: `PASS`
-- Runtime: `6.731 s`
+- Runtime: `11.067 s`
 - Command: `python -m unittest discover -s tests -v`
 
 ## Simulator
@@ -47,12 +47,47 @@ test_optimize_is_deterministic_and_returns_a_permutation (test_agent.OfflineOpti
 test_optimize_never_returns_worse_than_constructive_seed (test_agent.OfflineOptimizationTests.test_optimize_never_returns_worse_than_constructive_seed) ... ok
 test_pair_macro_neighbor_keeps_internal_order_and_permutation (test_agent.OfflineOptimizationTests.test_pair_macro_neighbor_keeps_internal_order_and_permutation) ... ok
 test_pair_macro_records_executable_order_layout_and_signature (test_agent.OfflineOptimizationTests.test_pair_macro_records_executable_order_layout_and_signature) ... ok
+test_a_long_soft_bag_still_lies_flat (test_rule_alpha.ClassificationTest.test_a_long_soft_bag_still_lies_flat) ... ok
+test_elongation_uses_max_over_median (test_rule_alpha.ClassificationTest.test_elongation_uses_max_over_median) ... ok
+test_floor_policy_maximises_footprint_shelf_policy_minimises_it (test_rule_alpha.ClassificationTest.test_floor_policy_maximises_footprint_shelf_policy_minimises_it) ... ok
+test_four_cargo_classes (test_rule_alpha.ClassificationTest.test_four_cargo_classes) ... ok
+test_structural_policy_buys_height (test_rule_alpha.ClassificationTest.test_structural_policy_buys_height) ... ok
+test_tipping_bands_follow_the_spec (test_rule_alpha.ClassificationTest.test_tipping_bands_follow_the_spec) ... ok
+test_chamfer_is_a_bottom_edge_bevel_not_a_top_corner (test_rule_alpha.DerivedGeometryTest.test_chamfer_is_a_bottom_edge_bevel_not_a_top_corner) ... ok
+test_floor_limit_is_independent_of_item_height (test_rule_alpha.DerivedGeometryTest.test_floor_limit_is_independent_of_item_height)
+The binding corner is the bottom one, so a tall box gains nothing. ... ok
+test_planes_match_the_simulator_mesh (test_rule_alpha.DerivedGeometryTest.test_planes_match_the_simulator_mesh)
+The analytic cross section must equal the simulator's own planes. ... ok
+test_connected_components_counts_islands (test_rule_alpha.DiagnosticsTest.test_connected_components_counts_islands) ... ok
+test_interior_hole_is_separated_from_open_free_space (test_rule_alpha.DiagnosticsTest.test_interior_hole_is_separated_from_open_free_space) ... ok
+test_largest_rectangle (test_rule_alpha.DiagnosticsTest.test_largest_rectangle) ... ok
+test_reachable_from_boundary_finds_enclosed_cells (test_rule_alpha.DiagnosticsTest.test_reachable_from_boundary_finds_enclosed_cells) ... ok
+test_every_placement_is_valid_against_the_board_before_it (test_rule_alpha.EpisodeTest.test_every_placement_is_valid_against_the_board_before_it) ... ok
+test_layer_one_stays_on_floor_and_shelves (test_rule_alpha.EpisodeTest.test_layer_one_stays_on_floor_and_shelves) ... ok
+test_no_plain_floor_placement_stands_on_a_small_face (test_rule_alpha.EpisodeTest.test_no_plain_floor_placement_stands_on_a_small_face) ... ok
+test_something_gets_placed (test_rule_alpha.EpisodeTest.test_something_gets_placed) ... ok
+test_step_log_round_trips_as_jsonl (test_rule_alpha.EpisodeTest.test_step_log_round_trips_as_jsonl) ... ok
+test_summary_carries_the_required_diagnostics (test_rule_alpha.EpisodeTest.test_summary_carries_the_required_diagnostics) ... ok
+test_tall_poses_always_have_a_wall_or_a_backing_item (test_rule_alpha.EpisodeTest.test_tall_poses_always_have_a_wall_or_a_backing_item) ... ok
+test_lift_stays_inside_the_validator_direct_rest_window (test_rule_alpha.FloorLiftTest.test_lift_stays_inside_the_validator_direct_rest_window) ... ok
+test_settled_floor_pose_would_fail_the_official_margin (test_rule_alpha.FloorLiftTest.test_settled_floor_pose_would_fail_the_official_margin)
+Documents why placements are commanded above the floor. ... ok
+test_reuse_bridge_loads_the_production_helpers (test_rule_alpha.ProductionPolicyUntouchedTest.test_reuse_bridge_loads_the_production_helpers) ... ok
+test_rule_alpha_is_not_imported_by_the_production_agent (test_rule_alpha.ProductionPolicyUntouchedTest.test_rule_alpha_is_not_imported_by_the_production_agent) ... ok
+test_plain_hard_prefers_the_normal_container_but_may_use_the_priority_one (test_rule_alpha.RoutingTest.test_plain_hard_prefers_the_normal_container_but_may_use_the_priority_one) ... ok
+test_priority_and_soft_priority_prefer_the_priority_container (test_rule_alpha.RoutingTest.test_priority_and_soft_priority_prefer_the_priority_container) ... ok
+test_soft_only_never_enters_a_priority_container (test_rule_alpha.RoutingTest.test_soft_only_never_enters_a_priority_container) ... ok
+test_a_mere_overhang_is_not_slope_infill (test_rule_alpha.SlopeGateTest.test_a_mere_overhang_is_not_slope_infill) ... ok
+test_a_real_pocket_box_is_slope_infill (test_rule_alpha.SlopeGateTest.test_a_real_pocket_box_is_slope_infill) ... ok
+test_bevel_is_too_steep_to_rest_on (test_rule_alpha.SlopeGateTest.test_bevel_is_too_steep_to_rest_on) ... ok
+test_no_floor_resting_box_can_reach_the_pocket (test_rule_alpha.SlopeGateTest.test_no_floor_resting_box_can_reach_the_pocket)
+The negative finding the README states: the wedge is unreachable ... ok
 test_missing_or_empty_evaluation_fails (test_run_checks.EvaluationStatusTests.test_missing_or_empty_evaluation_fails) ... ok
 test_process_success_does_not_hide_physics_failure (test_run_checks.EvaluationStatusTests.test_process_success_does_not_hide_physics_failure) ... ok
 test_valid_safe_cases_pass (test_run_checks.EvaluationStatusTests.test_valid_safe_cases_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 29 tests in 6.003s
+Ran 60 tests in 10.843s
 
 OK
 ```
