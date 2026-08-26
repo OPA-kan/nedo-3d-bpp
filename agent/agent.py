@@ -15,8 +15,14 @@ import numpy as np
 # - The simulator only offsets containers on the world X axis.
 # - Boundary clearance includes official, physics-settle, and float32 guards.
 # - Transport clearance includes the official 15 mm plus a float32 guard.
-# - Candidate poses represent final support contact.
+# - Candidate poses represent final support contact (the SETTLED pose).
+# - The pose sent to the simulator is the COMMANDED pose: the robot releases
+#   above the resting surface and the item drops.  Containment is therefore
+#   tested on the commanded pose, support on the settled pose; testing both on
+#   one pose is unsatisfiable and makes floor placements unreachable.
 # - Shelf actions are lifted 5.1 cm to avoid the validator's direct-rest path.
+# - Floor actions are lifted 2.0 cm to clear the official 5 mm inclusion margin
+#   while staying inside the validator's 5 cm direct-rest window.
 OFFICIAL_INCLUSION_CLEARANCE = 0.005
 PHYSICS_BOUNDARY_GUARD = 0.010
 FLOAT32_CLEARANCE_GUARD = 0.001
@@ -37,6 +43,13 @@ SIMULATOR_START_MARGIN = 0.01
 SIMULATOR_CEILING_MARGIN = 0.018
 SIMULATOR_CEILING_CLIP_EPS = 0.0005
 SHELF_ACTION_LIFT = 0.051
+# The robot releases cargo above its resting surface and lets it drop, so a
+# floor placement is commanded slightly high and settles down.  It has to clear
+# the official 5 mm inclusion margin (a pose touching the floor plane scores
+# dots == 0 and is refused) while staying under the validator's 0.05 m
+# "direct rest" window, so the transport sweep keeps running at floor height
+# instead of being lifted SIMULATOR_DROP_HEIGHT above it.
+FLOOR_ACTION_LIFT = 0.020
 CONTACT_TOLERANCE = 0.006
 MIN_SUPPORT_RATIO = 0.55
 POLICY_BUDGET_SECONDS = 6.5
@@ -571,6 +584,7 @@ def transport_samples(candidate, container, step: float = TRANSPORT_SAMPLE_STEP)
 
 
 def simulator_action_center(candidate, container):
+    """The pose to command for a settled candidate (release-and-drop)."""
     action_center = np.asarray(candidate.center, dtype=np.float64).copy()
     for shelf in shelf_aabbs(container):
         if (
@@ -579,7 +593,11 @@ def simulator_action_center(candidate, container):
             and xy_overlap_area(candidate, shelf) > EPS
         ):
             action_center[2] += SHELF_ACTION_LIFT
-            break
+            return action_center
+
+    floor_top = float(container["thickness"]) + float(container.get("buffer", 0.0))
+    if abs(float(candidate.minimum[2]) - floor_top) <= CONTACT_TOLERANCE:
+        action_center[2] += FLOOR_ACTION_LIFT
     return action_center
 
 
@@ -605,7 +623,7 @@ def support_surfaces(container):
 
 class Geometry:
     @staticmethod
-    def inside_container(candidate, container):
+    def inside_container(candidate, container, floor_clearance=None):
         points = container.get("points")
         normals = container.get("n_vecs")
         if points is None or normals is None:
@@ -619,7 +637,14 @@ class Geometry:
             np.sum(normals * (center_world - points), axis=1)
             + np.abs(normals) @ half_size
         )
-        return bool(np.all(signed_extents <= -INCLUSION_CLEARANCE + EPS))
+        limits = np.full(
+            signed_extents.shape, -INCLUSION_CLEARANCE, dtype=np.float64
+        )
+        if floor_clearance is not None:
+            floor_planes = np.nonzero(normals[:, 2] < -0.99)[0]
+            if len(floor_planes):
+                limits[floor_planes[0]] = -float(floor_clearance)
+        return bool(np.all(signed_extents <= limits + EPS))
 
     @staticmethod
     def clears_static_geometry(candidate, container):
@@ -770,18 +795,35 @@ class Geometry:
 
     @classmethod
     def valid(cls, candidate, container):
+        # A candidate is a *settled* pose: its bottom is in contact with the
+        # surface it rests on.  The simulator never sees that pose directly.
+        # The robot releases above the surface and lets the item drop, so
+        # check_inclusion runs on the commanded pose, and the item is only in
+        # contact afterwards.  Testing containment on the settled pose asks it
+        # to be both touching the floor (for support) and INCLUSION_CLEARANCE
+        # clear of it (for containment) at once, which nothing can satisfy —
+        # no floor placement was reachable at all.
+        commanded = AABB(
+            center=tuple(simulator_action_center(candidate, container)),
+            size=candidate.size,
+            name="commanded_pose",
+        )
         drop_pose = AABB(
             center=(
-                float(candidate.center[0]),
-                float(candidate.center[1]),
-                float(candidate.center[2]) + SIMULATOR_DROP_HEIGHT,
+                float(commanded.center[0]),
+                float(commanded.center[1]),
+                float(commanded.center[2]) + SIMULATOR_DROP_HEIGHT,
             ),
             size=candidate.size,
             name="drop_pose",
         )
         return (
-            cls.inside_container(candidate, container)
+            cls.inside_container(commanded, container)
             and cls.inside_container(drop_pose, container)
+            # the settled pose still has to be inside, but it rests *on* the
+            # floor, so the floor plane gets a zero margin rather than a
+            # clearance requirement
+            and cls.inside_container(candidate, container, floor_clearance=0.0)
             and cls.clears_static_geometry(candidate, container)
             and cls.has_stable_support(candidate, container)
             and cls.transport_path_clear(candidate, container)

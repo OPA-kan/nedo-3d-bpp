@@ -34,6 +34,48 @@ def sample_container(
     }
 
 
+def _container_planes(container):
+    """Boundary planes of a container, built by the simulator's own mesh code.
+
+    Returns ``(points, n_vecs)`` in world coordinates, i.e. exactly what the
+    environment puts in the observation.
+    """
+    import os
+    import tempfile
+
+    simulator_src = pathlib.Path(__file__).parents[1] / "simulator" / "src"
+    if str(simulator_src) not in sys.path:
+        sys.path.insert(0, str(simulator_src))
+    from ground_handling.utils import aff, write_open_cut_corner_cup_obj
+
+    with tempfile.TemporaryDirectory() as directory:
+        points, normals = write_open_cut_corner_cup_obj(
+            os.path.join(directory, "uld.obj"),
+            width=container["length"],
+            height=container["height"],
+            cut_x=container["cut_x"],
+            cut_y=container.get("cut_y", 0.4),
+            depth=container["width"],
+            wall=container["thickness"],
+            bottom=container["thickness"],
+        )
+    rotation = [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
+    offset = (
+        container_offset(container),
+        0.0,
+        container["height"] / 2.0 + container.get("buffer", 0.0),
+    )
+    return (
+        [list(point) for point in aff(points, rotation, offset)],
+        [list(normal) for normal in aff(normals, rotation, (0, 0, 0))],
+    )
+
+
+def container_offset(container):
+    center = container.get("center")
+    return 0.0 if center is None else float(center[0])
+
+
 def sample_item(
     index,
     length=0.3,
@@ -135,6 +177,13 @@ class GeometryContractTests(unittest.TestCase):
         )
 
     def test_floor_direct_rest_transport_stays_at_contact_height(self):
+        """A floor placement keeps the validator's direct-rest path.
+
+        It is commanded FLOOR_ACTION_LIFT above contact — the robot releases
+        and the item drops — but that stays inside the validator's 0.05 m
+        direct-rest window, so the sweep is *not* raised by
+        SIMULATOR_DROP_HEIGHT the way a shelf placement is.
+        """
         container = sample_container(require_shelf=False, cut_x=0.0)
         item_height = 0.2
         center_z = container["thickness"] + item_height / 2.0
@@ -145,7 +194,51 @@ class GeometryContractTests(unittest.TestCase):
 
         sweep = agent.transport_sweep(candidate, container)
 
-        self.assertAlmostEqual(sweep.center[2], center_z)
+        commanded_z = center_z + agent.FLOOR_ACTION_LIFT
+        self.assertAlmostEqual(sweep.center[2], commanded_z)
+        self.assertLess(agent.FLOOR_ACTION_LIFT, 0.05)
+        self.assertLess(
+            sweep.center[2], commanded_z + agent.SIMULATOR_DROP_HEIGHT
+        )
+
+    def test_floor_placement_is_reachable_at_all(self):
+        """Containment is tested on the commanded pose, support on the settled
+        one.  Testing both on a single pose is unsatisfiable: the item would
+        have to touch the floor and clear it by INCLUSION_CLEARANCE at once,
+        which made every floor placement invalid."""
+        container = sample_container(require_shelf=False, center_x=0.0)
+        container["points"], container["n_vecs"] = _container_planes(container)
+        item_height = 0.213
+        candidate = agent.AABB(
+            (0.5, 0.3, container["thickness"] + item_height / 2.0),
+            (0.7, 0.5, item_height),
+        )
+
+        self.assertAlmostEqual(
+            agent.Geometry.support_ratio(candidate, container), 1.0
+        )
+        self.assertTrue(agent.Geometry.valid(candidate, container))
+
+        commanded = agent.simulator_action_center(candidate, container)
+        self.assertAlmostEqual(
+            float(commanded[2]),
+            float(candidate.center[2]) + agent.FLOOR_ACTION_LIFT,
+        )
+        # the commanded pose clears the official inclusion margin; the settled
+        # pose is allowed to rest on the floor plane
+        self.assertTrue(
+            agent.Geometry.inside_container(
+                agent.AABB(tuple(commanded), candidate.size), container
+            )
+        )
+        self.assertFalse(
+            agent.Geometry.inside_container(candidate, container)
+        )
+        self.assertTrue(
+            agent.Geometry.inside_container(
+                candidate, container, floor_clearance=0.0
+            )
+        )
 
     def test_transport_sweeps_include_official_y_then_x_legs(self):
         container = sample_container()
