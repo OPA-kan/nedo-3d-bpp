@@ -57,9 +57,9 @@ Frozen rules of the fork:
   - dual-shelf-mixed-permute-001-409
   - single-empty-shelf-permute-001-421
   - single-preloaded-permute-000-433
-- **Model**: the current champion ensemble artifact (learning run
-  32913958448 lineage — whatever `rollout-policy-model` run id is
-  passed at dispatch, recorded in the manifest).
+- **Model**: the current champion's own ensemble artifact — learning
+  run 32890092906 (the run that trained プリフヒバリ); the run id
+  passed at dispatch is recorded in every manifest.
 
 ## Scoring: research standings first, race standings second
 
