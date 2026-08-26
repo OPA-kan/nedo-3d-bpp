@@ -408,13 +408,16 @@ def volume_report(model: ContainerModel, placements, config) -> dict:
     * ``volume_fill_ratio`` — the two above, divided.  This is the Layer 1
       share of the *whole* ULD, so it is necessarily small: one layer cannot
       fill a 1.5 m tall container.
-    * ``layer1_volume_fill_ratio`` — how solid the floor slab is: the volume
-      resting on the floor, divided by the *Layer 1 envelope* (usable floor
-      area times the height that floor cargo reached).  Shelf cargo is left
-      out of both sides — it lives above a shelf, not in the floor slab, and
-      counting a shelf item at z = 1.3 m would stretch the envelope over floor
-      that nothing is standing on.  A board of tall thin spikes scores low here
-      however tall it is.
+    * ``foundation_slab_fill_ratio`` — how densely and evenly the *normal*
+      Layer 1 foundation was built: normal floor cargo volume, divided by the
+      usable floor area times the height that normal floor cargo reached.
+      Excluded from **both** sides: shelf cargo, wall-front, elongated
+      structural and slope structural.  That is the same mask the flatness
+      metric uses, and for the same reason — those pieces are deliberately
+      tall, so letting one of them set the envelope height would make the
+      foundation look full of air when it is not.  Their volume is not lost:
+      it stays in ``volume_fill_ratio`` and is called out as
+      ``structural_volume_m3``.
     """
     placed_volume = float(sum(p.volume for p in placements))
     usable_volume = float(model.usable_volume)
@@ -422,29 +425,34 @@ def volume_report(model: ContainerModel, placements, config) -> dict:
     floor_placements = [p for p in placements if p.surface != "shelf"]
     shelf_placements = [p for p in placements if p.surface == "shelf"]
 
-    floor_volume = float(sum(p.volume for p in floor_placements))
-    floor_tops = [p.top_z for p in floor_placements]
-    layer1_height = max(
-        0.0, (max(floor_tops) if floor_tops else model.z_floor) - model.z_floor
+    # the normal foundation: floor cargo that is not a deliberately tall
+    # structural piece.  Same mask as the flatness metric.
+    foundation = [p for p in floor_placements if not p.is_structural]
+    foundation_volume = float(sum(p.volume for p in foundation))
+    foundation_tops = [p.top_z for p in foundation]
+    foundation_height = max(
+        0.0,
+        (max(foundation_tops) if foundation_tops else model.z_floor) - model.z_floor,
     )
-    envelope = model.usable_floor_area * layer1_height
+    envelope = model.usable_floor_area * foundation_height
     return {
         "placed_volume_m3": round(placed_volume, 5),
         "usable_container_volume_m3": round(usable_volume, 5),
         "volume_fill_ratio": round(placed_volume / max(usable_volume, 1e-9), 4),
-        "layer1_envelope_height_m": round(layer1_height, 4),
-        "layer1_envelope_volume_m3": round(envelope, 5),
-        "layer1_volume_fill_ratio": (
-            round(floor_volume / envelope, 4) if envelope > 1e-9 else None
+        "foundation_volume_m3": round(foundation_volume, 5),
+        "foundation_slab_height_m": round(foundation_height, 4),
+        "foundation_slab_volume_m3": round(envelope, 5),
+        "foundation_slab_fill_ratio": (
+            round(foundation_volume / envelope, 4) if envelope > 1e-9 else None
+        ),
+        "structural_volume_m3": round(
+            float(sum(p.volume for p in placements if p.is_structural)), 5
         ),
         "placed_volume_floor_m3": round(
             float(sum(p.volume for p in floor_placements)), 5
         ),
         "placed_volume_shelf_m3": round(
             float(sum(p.volume for p in shelf_placements)), 5
-        ),
-        "placed_volume_structural_m3": round(
-            float(sum(p.volume for p in placements if p.is_structural)), 5
         ),
         # the official Evaluator produces one score per episode, not per
         # container, so it is attached at scenario level (see the runner)

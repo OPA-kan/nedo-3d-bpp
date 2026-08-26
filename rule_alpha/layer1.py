@@ -549,7 +549,12 @@ def in_slope_pocket(box: AABB, model: ContainerModel, config,
 def _role_for(box, model, profile, orientation, board, container_idx, config,
               surface: str, pocket_ceiling: float | None = None) -> str:
     if surface == "shelf":
-        return cls.ROLE_ELONGATED if profile.is_elongated else cls.ROLE_NONE
+        # A shelf placement is never a structural member: its pose comes from
+        # the shelf orientation policy, not from the structural exception, and
+        # it is not part of the floor foundation.  Tagging it "elongated" here
+        # would put it behind the structural mask and inflate
+        # structural_volume_m3 with cargo that is just lying on a shelf.
+        return cls.ROLE_NONE
     if in_slope_pocket(box, model, config, pocket_ceiling):
         return cls.ROLE_SLOPE_INFILL
     near_wall_front = (

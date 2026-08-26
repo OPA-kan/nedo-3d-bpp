@@ -339,41 +339,117 @@ class VolumeReportTest(unittest.TestCase):
         )
         # structural cargo counts towards occupied volume, unlike flatness
         self.assertLessEqual(
-            report["placed_volume_structural_m3"], report["placed_volume_m3"]
+            report["structural_volume_m3"], report["placed_volume_m3"]
         )
         # one layer cannot fill a 1.6 m container
         self.assertLess(report["volume_fill_ratio"], 0.5)
 
-    def test_shelf_cargo_does_not_stretch_the_layer1_envelope(self):
-        """A shelf item sits at ~1.3 m; counting it would make the floor slab
-        look 1.3 m tall over floor that nothing stands on."""
+    def test_structural_and_shelf_cargo_stay_out_of_the_foundation_slab(self):
+        """The slab ratio uses the same mask as the flatness metric.
+
+        A shelf item sits at ~1.3 m and a wall-front piece is deliberately
+        tall; letting either set the envelope height would divide the normal
+        foundation by floor it never covered.
+        """
         from rule_alpha.diagnostics import volume_report
         from rule_alpha.episode import run_episode
         from rule_alpha.scenarios import Scenario, _normal_container, _stream
 
         scenario = Scenario(
-            name="shelf-envelope", description="",
+            name="slab-mask", description="",
             containers=[_normal_container(shelf=True)],
             items=_stream(91, 16, soft_ratio=0.5),
         )
         result = run_episode(scenario, DEFAULT_CONFIG, snapshot_steps=0)
         board = result.board
         placements = board.placements[0]
-        shelf_items = [p for p in placements if p.surface == "shelf"]
-        floor_items = [p for p in placements if p.surface != "shelf"]
-        if not shelf_items or not floor_items:
-            self.skipTest("scenario produced no mixed floor/shelf board")
+        excluded = [
+            p for p in placements
+            if p.surface == "shelf" or p.is_structural
+        ]
+        foundation = [
+            p for p in placements
+            if p.surface != "shelf" and not p.is_structural
+        ]
+        if not excluded or not foundation:
+            self.skipTest("scenario produced no mixed board")
 
         model = board.model(0)
         report = volume_report(model, placements, DEFAULT_CONFIG)
-        tallest_floor = max(p.top_z for p in floor_items) - model.z_floor
-        tallest_any = max(p.top_z for p in placements) - model.z_floor
 
+        foundation_height = max(p.top_z for p in foundation) - model.z_floor
         self.assertAlmostEqual(
-            report["layer1_envelope_height_m"], round(tallest_floor, 4), places=3
+            report["foundation_slab_height_m"],
+            round(foundation_height, 4),
+            places=3,
         )
-        self.assertLess(report["layer1_envelope_height_m"], tallest_any)
-        self.assertLessEqual(report["layer1_volume_fill_ratio"], 1.0)
+        self.assertAlmostEqual(
+            report["foundation_volume_m3"],
+            round(sum(p.volume for p in foundation), 5),
+            places=4,
+        )
+        # the excluded cargo is not lost: it still counts in the total
+        self.assertGreater(
+            report["placed_volume_m3"], report["foundation_volume_m3"]
+        )
+        self.assertLessEqual(report["foundation_slab_fill_ratio"], 1.0)
+
+    def test_a_lone_tall_structural_piece_does_not_flatten_the_slab_ratio(self):
+        """The regression this rename exists for."""
+        from rule_alpha.diagnostics import volume_report
+        from rule_alpha import classify as cls, layer1
+        from rule_alpha._reuse import AABB
+        from rule_alpha.scenarios import _normal_container
+
+        container = _normal_container()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        model = board.model(0)
+
+        def placement(index, dims, centre, role):
+            item = {
+                "index": index, "length": dims[0], "width": dims[1],
+                "height": dims[2], "mass": 8.0,
+                "is_soft": False, "is_prioritized": False,
+            }
+            profile = cls.classify_item(index, item, DEFAULT_CONFIG)
+            return layer1.Placement(
+                profile=profile,
+                orientation=cls.Orientation(0, *dims),
+                container_idx=0,
+                box=AABB(centre, dims, "settled"),
+                surface="floor", surface_name="floor",
+                role=role, archetype="test", reason="test",
+            )
+
+        flat = [
+            placement(0, (0.6, 0.4, 0.2), (0.2, 0.2, model.z_floor + 0.1),
+                      cls.ROLE_NONE),
+            placement(1, (0.6, 0.4, 0.2), (0.85, 0.2, model.z_floor + 0.1),
+                      cls.ROLE_NONE),
+        ]
+        spike = placement(
+            2, (0.3, 0.3, 1.0), (-0.4, 0.2, model.z_floor + 0.5),
+            cls.ROLE_WALL_FRONT,
+        )
+
+        without = volume_report(model, flat, DEFAULT_CONFIG)
+        with_spike = volume_report(model, flat + [spike], DEFAULT_CONFIG)
+
+        # the 1 m spike must not move the slab height or its ratio
+        self.assertAlmostEqual(
+            with_spike["foundation_slab_height_m"],
+            without["foundation_slab_height_m"],
+        )
+        self.assertAlmostEqual(
+            with_spike["foundation_slab_fill_ratio"],
+            without["foundation_slab_fill_ratio"],
+        )
+        # but its volume is still counted in the total, and called out
+        self.assertGreater(
+            with_spike["volume_fill_ratio"], without["volume_fill_ratio"]
+        )
+        self.assertAlmostEqual(with_spike["structural_volume_m3"], 0.09, places=5)
+        self.assertAlmostEqual(without["structural_volume_m3"], 0.0)
 
 
 class RoutingTest(unittest.TestCase):

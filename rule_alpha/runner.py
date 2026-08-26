@@ -106,7 +106,8 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
         "## Per-scenario headline",
         "",
         "| scenario | placed / stream | floor cov. | placed vol. m³ | "
-        "usable vol. m³ | volume fill | layer1 vol. fill | official fill_score | "
+        "usable vol. m³ | volume fill | structural m³ | foundation slab fill | "
+        "official fill_score | "
         "largest plateau (of floor) | largest built plateau (of built) | "
         "plateaus | roughness | interior holes | largest hole | free rect | "
         "wall h/H | corridor lanes |",
@@ -120,7 +121,7 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 label = f"{row['scenario']} (c{container['container']}·{tag})"
             lines.append(
                 "| {name} | {placed}/{total} | {cov:.2f} | {vol:.3f} | "
-                "{usable:.3f} | {vfill:.4f} | {l1fill} | {official} | "
+                "{usable:.3f} | {vfill:.4f} | {struct:.3f} | {slab} | {official} | "
                 "{plat:.2f} | "
                 "{built:.2f} | {pc} | "
                 "{rough:.3f} | {ih} | {lih:.3f} | {rect:.2f} | {wall:.2f} | "
@@ -132,9 +133,10 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                     vol=container["placed_volume_m3"],
                     usable=container["usable_container_volume_m3"],
                     vfill=container["volume_fill_ratio"],
-                    l1fill=(
-                        f"{container['layer1_volume_fill_ratio']:.3f}"
-                        if container["layer1_volume_fill_ratio"] is not None
+                    struct=container["structural_volume_m3"],
+                    slab=(
+                        f"{container['foundation_slab_fill_ratio']:.3f}"
+                        if container["foundation_slab_fill_ratio"] is not None
                         else "n/a"
                     ),
                     official=(
@@ -200,10 +202,18 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
         "- `volume_fill_ratio` — the two above, divided. Layer 1 alone cannot "
         "fill a 1.5 m tall ULD, so single-digit percentages here are the "
         "expected result, not a failure.",
-        "- `layer1_volume_fill_ratio` — the same placed volume over the "
-        "*Layer 1 envelope*: usable floor area × the height Layer 1 actually "
-        "reached. This measures how solid the slab Layer 1 built is, so a "
-        "board of tall thin spikes scores low however tall it is.",
+        "- `structural_volume_m3` — how much of the placed volume went into "
+        "wall-front, elongated and slope structure. Counted in "
+        "`volume_fill_ratio` like everything else; broken out because it is "
+        "spent on structure rather than on foundation.",
+        "- `foundation_slab_fill_ratio` — how densely and evenly the *normal* "
+        "Layer 1 foundation was built: normal floor cargo volume ÷ (usable "
+        "floor area × the height normal floor cargo reached). Shelf cargo, "
+        "wall-front, elongated and slope structure are excluded from **both** "
+        "sides — the same mask the flatness metric uses, and for the same "
+        "reason: those pieces are deliberately tall, so letting one of them "
+        "set the envelope height would make the foundation look full of air "
+        "when it is not.",
         "- `official_evaluator_fill_score` — only from a `--physics` run, and "
         "only per scenario: the official evaluator scores a whole episode "
         "across all containers, so there is no per-container value. When it "
@@ -265,13 +275,16 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 f"clear entry lanes `{container['corridor_clear_lane_ratio']}`",
                 f"- 3D fill: placed `{container['placed_volume_m3']}` m³ "
                 f"(floor `{container['placed_volume_floor_m3']}`, shelf "
-                f"`{container['placed_volume_shelf_m3']}`, structural "
-                f"`{container['placed_volume_structural_m3']}`) of "
+                f"`{container['placed_volume_shelf_m3']}`, of which structural "
+                f"`{container['structural_volume_m3']}`) of "
                 f"`{container['usable_container_volume_m3']}` m³ usable = "
-                f"`{container['volume_fill_ratio']}`; within the Layer 1 "
-                f"envelope ({container['layer1_envelope_height_m']} m tall, "
-                f"`{container['layer1_envelope_volume_m3']}` m³) = "
-                f"`{container['layer1_volume_fill_ratio']}`",
+                f"`{container['volume_fill_ratio']}`",
+                f"- foundation slab: normal floor cargo "
+                f"`{container['foundation_volume_m3']}` m³ in a "
+                f"{container['foundation_slab_height_m']} m slab "
+                f"(`{container['foundation_slab_volume_m3']}` m³) = "
+                f"`{container['foundation_slab_fill_ratio']}` — structural and "
+                f"shelf cargo excluded from both sides",
                 f"- typed support area: `{container['support_type_area']}`",
                 "- zone occupancy: "
                 + ", ".join(

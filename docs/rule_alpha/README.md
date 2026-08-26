@@ -95,13 +95,13 @@ The lift stays under the validator's 0.05 m "direct rest" window, so a floor
 placement still travels in at floor height rather than being flown in from
 above. This is compliance with the placement spec, not a workaround.
 
-> Note for whoever owns `agent/agent.py`: on this frozen `main`,
-> `Geometry.valid()` cannot accept **any** floor placement, because it applies
-> both requirements to the *same* pose — `inside_container` wants 16 mm of
-> clearance from the floor plane while `support_ratio` wants contact within
-> 6 mm. Release-and-drop is exactly why those two have to be tested on
-> different poses. rule-alpha separates them locally; it did not change the
-> production module.
+> This is the same defect rule-alpha first reported in `agent/agent.py`, where
+> `Geometry.valid()` applied both requirements to the *same* pose —
+> `inside_container` wanting 16 mm of clearance from the floor plane while
+> `support_ratio` wanted contact within 6 mm — so no floor placement was
+> reachable at all (measured: 0 of 20 floor candidates valid). That is now
+> fixed in the production module along the same two-pose lines; see
+> `FLOOR_ACTION_LIFT` and the Geometry contract comment there.
 
 ### Finding: the settled-pose margin is a crush check, and its sign decides everything
 
@@ -393,14 +393,32 @@ actually full, so every container also reports its volume:
 | `placed_volume_m3` | Σ oriented box volume in this container, floor and shelf alike. Structural cargo (wall-front, elongated, slope-infill) **is** counted — the flatness metric masks it because it is meant to be tall, but occupied volume is occupied volume. |
 | `usable_container_volume_m3` | the simulator's own `container.volume`: inner box, minus the chamfer wedge, minus the small shelf, minus the main shelf when present. This is exactly what `Evaluator.calculate_fill_rate` divides by, so it is read from the observation when there is one and recomputed with the same formula (`simulator_container_volume`) otherwise. |
 | `volume_fill_ratio` | the two above, divided. One layer cannot fill a 1.6 m ULD, so 0.10–0.25 is the expected range, not a failure. |
-| `layer1_volume_fill_ratio` | how *solid* the floor slab is: floor cargo volume ÷ (usable floor area × the height floor cargo reached). Shelf cargo is excluded from both sides — it lives above a shelf, and counting an item at z ≈ 1.3 m would stretch the envelope over floor nothing is standing on. |
+| `structural_volume_m3` | how much of the placed volume went into wall-front, elongated and slope structure. Counted in `volume_fill_ratio` like everything else; broken out because it is spent on structure rather than on foundation. |
+| `foundation_slab_fill_ratio` | how densely and evenly the *normal* Layer 1 foundation was built: normal floor cargo volume ÷ (usable floor area × the height normal floor cargo reached). Shelf cargo, wall-front, elongated and slope structure are excluded from **both** sides. |
 | `official_evaluator_fill_score` | only from a `--physics` run, and only per scenario: the official evaluator scores a whole episode across all containers, so there is no per-container value. `null` rows carry the reason. |
 
-The two ratios answer different questions, and the gap between them is the
-interesting part. `12-large-hard-only` covers 80 % of the floor with a 0.32 m
-slab that is 64 % solid — a proper flat layer that has barely started on the
-ULD (`volume_fill_ratio` 0.10). `07-elongated-heavy` reaches 1.29 m but is only
-34 % solid, because it is spikes with air between them.
+The four numbers have four separate jobs, and no number does two of them:
+
+* `floor_coverage` — how much of the floor is covered, in XY.
+* `volume_fill_ratio` — how much of the ULD is used, everything included.
+* `structural_volume_m3` — how much was spent on wall / elongated structure.
+* `foundation_slab_fill_ratio` — how densely the normal foundation was built.
+
+The mask on the last one matters. Structural pieces are excluded from the
+flatness metric because they are *meant* to be tall; letting one of them set
+the slab's envelope height would contradict that — a single 1 m wall-front
+piece would divide the foundation by a 1 m slab it never fills, and report a
+tidy floor as full of air. A regression test pins this: adding a 1 m
+wall-front spike to a flat board leaves `foundation_slab_fill_ratio` and
+`foundation_slab_height_m` unchanged, while `volume_fill_ratio` rises and
+`structural_volume_m3` accounts for it.
+
+The gap between the ratios is where the reading is. `12-large-hard-only`
+covers 80 % of the floor with a 0.32 m slab that is 64 % solid — a proper flat
+layer that has barely started on the ULD (`volume_fill_ratio` 0.10).
+`07-elongated-heavy` reaches `volume_fill_ratio` 0.22 off only 60 % floor
+coverage, by standing long cargo up: that is the structural exception paying
+for itself in volume, which is a result to weigh rather than a fault.
 
 ### Transport corridor
 
