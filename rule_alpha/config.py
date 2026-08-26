@@ -86,8 +86,87 @@ class RuleAlphaConfig:
     """How far the corridor reaches in from the opening."""
 
     corridor_release_fill: float = 0.62
-    """Floor coverage above which the corridor stops being protected.  Below
-    this the corridor is a hard veto; above it, only a soft penalty."""
+    """Floor coverage below which the corridor is a hard veto.  Kept alongside
+    the reachability price rather than replaced by it: the price is evaluated
+    on a shortlist that is already back-biased, so it almost never charges
+    anybody, while this crude threshold is what actually keeps the opening
+    clear early.  Set it to 0.0 to run on the price alone."""
+
+    # ------------------------------------------------------------------
+    # Back-first foundation, and reachability priced above coverage
+    # ------------------------------------------------------------------
+    back_first_slack: float = 0.10
+    """How far in front of the deepest *good* placement an ordinary foundation
+    candidate may still sit.  The principle is not "prefer the back" as a
+    tie-break but "do not advance without a reason": while a good legal
+    placement remains further in, a candidate this much closer to the opening
+    is refused outright."""
+
+    back_first_hole_tolerance: float = 0.012
+    """A back placement only counts as *good*, and so only holds the frontier
+    back, if it opens no more interior hole than this.  Otherwise "deepest"
+    would be satisfied by wedging something into a corner and leaving a hole in
+    front of it."""
+
+    stranded_veto_area: float = 0.12
+    """A floor placement that strands more than this much still-reachable free
+    floor is refused while any alternative exists.  This replaces the old
+    coverage-triggered corridor release: the corridor is protected early
+    because blocking it is expensive *in reachability*, and released late for
+    the same reason, without a threshold having to name the moment."""
+
+    reach_probe_heights: tuple = (0.0, 0.20, 0.40)
+    """Working heights at which the approach is priced.  Asking only at a
+    candidate's own top is vacuous -- a box travelling at 0.40 clears a wall
+    whose top is 0.40, so a wall never seals anything at its own height.  What
+    a wall actually costs is delivery to the *lower* ground behind it, so the
+    question has to be asked at the heights a later item might arrive at."""
+
+    sealed_veto_area: float = 0.30
+    """The same question as ``stranded_veto_area`` asked across
+    ``reach_probe_heights`` and taking the worst: how much ground that was
+    still usable *at some working height* does standing this tall here seal
+    off?  A tall box with lower, still-open ground behind
+    it is a wall across the approach, because the validator sweeps straight in.
+    A tall box with ground behind it that is already built on above its top
+    seals nothing and is not charged -- which is the difference between pricing
+    a wall and merely punishing height."""
+
+    # ------------------------------------------------------------------
+    # Large sets the frontier, small follows it
+    # ------------------------------------------------------------------
+    foundation_large_quantile: float = 0.60
+    """Hard cargo at or above this quantile of the manifest's hard footprints
+    is *frontier material*: it is placed back-first and densely, and is not
+    spent standing up.  Measured against the manifest rather than an absolute
+    area because a stream of uniformly small boxes still has a largest box, and
+    that box is still the one that should set the frontier."""
+
+    foundation_small_quantile: float = 0.40
+    """Below this quantile hard cargo is a *follower*: it fills gaps, clusters
+    at the back, and is refused a placement that would break the free rectangle
+    the outstanding large cargo still needs."""
+
+    compaction_min_gain: float = 0.008
+    """Do not bother sliding a chosen box less than this."""
+
+    compaction_iterations: int = 7
+    """Bisection steps when searching the furthest legal travel.  Seven gets
+    within a millimetre of the limit over the container depth."""
+
+    perimeter_prefers_depth: bool = True
+    """Whether a tall perimeter item is chosen by how far back it can stand
+    rather than by how tall it is."""
+
+    frontier_prefers_lying: bool = True
+    """Whether frontier material is stopped from standing up while a foundation
+    placement exists.  The tall-perimeter *role* already has its own footprint
+    cap, so this is a second, blunter filter and worth being able to switch
+    off."""
+
+    small_hard_fit_guard: bool = True
+    """Whether a follower may destroy the last free rectangle that still admits
+    the largest outstanding frontier item."""
 
     # ------------------------------------------------------------------
     # Slope / wall-front

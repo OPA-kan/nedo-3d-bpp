@@ -266,6 +266,34 @@ def build_scenarios() -> list[Scenario]:
         )
     )
 
+    # ------------------------------------------------------------------
+    # 13: the adversarial order for "large sets the frontier"
+    # ------------------------------------------------------------------
+    def small_then_large(rng, index, soft, priority):
+        """Twelve small hard boxes, then eight large ones.
+
+        The failure this is built to catch: with only the next item visible,
+        a run of small cargo arrives first, spreads itself over the floor, and
+        leaves nothing but slivers for the large cargo behind it.  Nothing in
+        the stream is unusual on its own -- the *order* is the attack.
+        """
+        if index < 12:
+            return _item(index, rng.uniform(0.30, 0.40), rng.uniform(0.24, 0.34),
+                         rng.uniform(0.18, 0.28), mass=round(rng.uniform(4, 9), 1))
+        return _item(index, rng.uniform(0.70, 0.78), rng.uniform(0.50, 0.60),
+                     rng.uniform(0.26, 0.36), mass=round(rng.uniform(12, 20), 1))
+
+    scenarios.append(
+        Scenario(
+            name="13-small-first-then-large",
+            description="Small hard cargo first, large hard cargo after: does "
+                        "the follower rule stop the small boxes from carving "
+                        "up the bays the large ones still need?",
+            containers=[_normal_container()],
+            items=_stream(1300, 20, builder=small_then_large),
+        )
+    )
+
     return scenarios
 
 

@@ -216,6 +216,13 @@ class Board:
             tri.WedgeDemand(source="no-manifest") for _ in self.containers
         ]
         self._triangle: list = [None for _ in self.containers]
+        self._reach: list = [None for _ in self.containers]
+        # manifest-derived: what the outstanding frontier cargo still needs.
+        # The manifest is handed to optimize(), so reading it is information the
+        # policy legitimately has -- not a peek at future arrivals.
+        self.foundation_pending: dict[int, tuple[float, float]] = {}
+        self.large_threshold: float = float("inf")
+        self.small_threshold: float = 0.0
 
     # -- accessors -------------------------------------------------------
     def model(self, idx: int) -> ContainerModel:
@@ -342,6 +349,106 @@ class Board:
         self.placements[idx].append(placement)
         self._grids[idx] = None
         self._triangle[idx] = None
+        self._reach = [None for _ in self.containers]
+        self.foundation_pending.pop(placement.profile.index, None)
+
+
+    # -- reachability and frontier demand --------------------------------
+    def floor_reach(self, idx: int) -> tuple[float, float]:
+        """``(reachable, sealed)`` bare floor area, cached per board state."""
+        return self.reach_at_height(idx, 0.0)
+
+    def reach_at_height(self, idx: int, z_rel: float) -> tuple[float, float]:
+        """``(reachable, sealed)`` usable area at a working height.
+
+        Cached per board state and rounded height, because the same few working
+        heights recur across a step's candidates.
+        """
+        cache = self._reach[idx]
+        if cache is None:
+            cache = {}
+            self._reach[idx] = cache
+        key = round(float(z_rel), 3)
+        if key not in cache:
+            cache[key] = reach_at(self.grid(idx), self.models[idx].z_floor, key)
+        return cache[key]
+
+    def set_foundation_demand(self, profiles, config) -> dict:
+        """Split the hard manifest into frontier material and followers.
+
+        Measured as quantiles of *this* manifest rather than an absolute area:
+        a stream of uniformly small boxes still has a largest box, and that box
+        is still the one that should set the frontier.
+        """
+        hard = [
+            p for p in profiles
+            if p.cargo_class == cls.NORMAL_HARD and not p.is_elongated
+        ]
+        self.foundation_pending = {}
+        if not hard:
+            self.large_threshold = float("inf")
+            self.small_threshold = 0.0
+            return {"large_threshold": None, "small_threshold": None, "pending": 0}
+
+        footprints = sorted(p.max_footprint for p in hard)
+        self.large_threshold = float(
+            np.quantile(footprints, config.foundation_large_quantile)
+        )
+        self.small_threshold = float(
+            np.quantile(footprints, config.foundation_small_quantile)
+        )
+        for profile in hard:
+            if profile.max_footprint >= self.large_threshold - 1e-12:
+                self.foundation_pending[profile.index] = _flattest_floor_rect(profile)
+        return {
+            "large_threshold": round(self.large_threshold, 4),
+            "small_threshold": round(self.small_threshold, 4),
+            "pending": len(self.foundation_pending),
+        }
+
+    def is_frontier_material(self, profile) -> bool:
+        return (
+            profile.cargo_class == cls.NORMAL_HARD
+            and not profile.is_elongated
+            and profile.max_footprint >= self.large_threshold - 1e-12
+        )
+
+    def is_follower(self, profile) -> bool:
+        return (
+            profile.cargo_class == cls.NORMAL_HARD
+            and not profile.is_elongated
+            and profile.max_footprint <= self.small_threshold + 1e-12
+        )
+
+    def foundation_still_fits(self, idx: int, dims, placing) -> bool:
+        """Would the largest outstanding frontier item still fit afterwards?
+
+        ``dims`` is the largest free rectangle left by the candidate.  This is
+        a proxy -- an item can fit somewhere that is not the single maximal
+        rectangle -- but it is the cheap, monotone question, and it is the one
+        that catches a small box laid across the middle of the only bay a big
+        one had left.
+        """
+        pending = [
+            rect for index, rect in self.foundation_pending.items()
+            if index != placing.index
+        ]
+        if not pending:
+            return True
+        want = max(pending, key=lambda r: r[0] * r[1])
+        return _rect_fits(want, dims)
+
+
+def _flattest_floor_rect(profile) -> tuple[float, float]:
+    """The footprint an item takes when laid down as flat as it can be."""
+    best = min(profile.orientations, key=lambda o: (round(o.dz, 6), -o.footprint))
+    return (float(best.dx), float(best.dy))
+
+
+def _rect_fits(want: tuple[float, float], have: tuple[float, float]) -> bool:
+    w, h = want
+    a, b = have
+    return (w <= a + 1e-9 and h <= b + 1e-9) or (h <= a + 1e-9 and w <= b + 1e-9)
 
 
 # ---------------------------------------------------------------------------
@@ -840,6 +947,46 @@ def _has_backing(box: AABB, model: ContainerModel, container: dict, config) -> b
     return False
 
 
+def reach_at(grid, z_floor: float, z_rel: float, extra_mask=None,
+             extra_top: float = 0.0) -> tuple[float, float]:
+    """``(usable-and-reachable, usable-but-sealed)`` area at working height ``z``.
+
+    The validator sweeps straight in along ``y`` at the target ``x``, so a cell
+    is reachable for something whose underside is ``z_rel`` above the floor
+    exactly when nothing between it and the opening in its own column stands
+    higher than ``z_rel``.  "Usable at ``z``" means the terrain there is at or
+    below ``z`` -- bare floor at ``z`` = 0, and anything you could still build
+    on at greater heights.
+
+    Everything usable but not reachable is *sealed*: a per-placement legality
+    check cannot see it, because each individual placement was legal when it
+    was made.
+
+    ``z_rel`` = 0 is the floor case and the one that is exact.  Evaluating the
+    same question at a candidate's own top is what prices a wall: a tall box
+    with lower ground behind it seals that ground for everything after it --
+    but only if the ground was still worth something, which is why this asks
+    about usable area rather than about height alone.
+    """
+    height = grid.height - z_floor
+    if extra_mask is not None:
+        height = np.where(extra_mask, max(extra_top, 0.0), height)
+    running = np.maximum.accumulate(height, axis=1)
+    before = np.concatenate(
+        [np.zeros((height.shape[0], 1)), running[:, :-1]], axis=1
+    )
+    usable = grid.usable & (height <= z_rel + 1e-9)
+    reachable = usable & (before <= z_rel + 1e-9)
+    reachable_area = float(reachable.sum()) * grid.cell_area
+    usable_area = float(usable.sum()) * grid.cell_area
+    return reachable_area, usable_area - reachable_area
+
+
+def floor_reach(grid, z_floor: float, extra_mask=None) -> tuple[float, float]:
+    """``reach_at`` at floor level: what can still be put on the bare floor."""
+    return reach_at(grid, z_floor, 0.0, extra_mask, 0.0)
+
+
 def compute_features(candidate: Candidate, board: Board, config,
                      with_grid: bool = True, with_rect: bool = False) -> None:
     model = board.model(candidate.container_idx)
@@ -891,7 +1038,13 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("open_free_area", 0.0)
         features.setdefault("free_component_count", 0)
         features.setdefault("largest_residual_rect", 0.0)
+        features.setdefault("largest_residual_rect_dims", (0.0, 0.0))
         features.setdefault("neighbour_height_step", 0.0)
+        # a shelf or step placement takes nothing away from the floor approach
+        features.setdefault("stranded_added", 0.0)
+        features.setdefault("reach_free_after", 0.0)
+        features.setdefault("sealed_added", 0.0)
+        features.setdefault("large_fit_kept", True)
         return
 
     grid = board.grid(candidate.container_idx)
@@ -912,13 +1065,49 @@ def compute_features(candidate: Candidate, board: Board, config,
     else:
         features["neighbour_height_step"] = 0.0
 
+    # what this placement costs the way in.  ``reachable_before`` is a property
+    # of the board, so it is cached per step rather than recomputed per
+    # candidate.
+    top_rel = float(box.maximum[2]) - model.z_floor
+    reach_after, stranded_after = floor_reach(grid, model.z_floor, mask)
+    reachable_before, stranded_before = board.floor_reach(candidate.container_idx)
+    features["reach_free_after"] = reach_after
+    features["reach_loss"] = max(0.0, reachable_before - reach_after)
+    features["stranded_added"] = max(0.0, stranded_after - stranded_before)
+
+    # the same question asked at the heights a later item might arrive at.  It
+    # cannot be asked at this box's own top: a box travelling at 0.40 clears a
+    # wall whose top is 0.40, so a wall never seals anything at its own height
+    # and the answer would always be zero.  What a wall really costs is
+    # delivery to the lower ground behind it.
+    worst = 0.0
+    for probe in config.reach_probe_heights:
+        if probe >= top_rel - 1e-9:
+            continue  # this box is not in the way at or above its own top
+        _r_before, sealed_before = board.reach_at_height(
+            candidate.container_idx, probe
+        )
+        _r_after, sealed_after = reach_at(
+            grid, model.z_floor, probe, mask, top_rel
+        )
+        worst = max(worst, sealed_after - sealed_before)
+    features["sealed_added"] = max(0.0, worst)
+
     if with_rect:
         from .diagnostics import largest_rectangle_in_mask
 
-        cells, _ = largest_rectangle_in_mask(reached)
+        cells, cell_box = largest_rectangle_in_mask(reached)
         features["largest_residual_rect"] = cells * grid.cell_area
+        r0, c0, r1, c1 = cell_box
+        dims = ((r1 - r0 + 1) * grid.cell, (c1 - c0 + 1) * grid.cell) if cells else (0.0, 0.0)
+        features["largest_residual_rect_dims"] = dims
+        features["large_fit_kept"] = board.foundation_still_fits(
+            candidate.container_idx, dims, candidate.profile
+        )
     else:
         features.setdefault("largest_residual_rect", 0.0)
+        features.setdefault("largest_residual_rect_dims", (0.0, 0.0))
+        features.setdefault("large_fit_kept", True)
 
 
 def _count_components(mask: np.ndarray) -> int:
@@ -938,6 +1127,7 @@ def _key_max_footprint(c):
     return (
         -c.features["footprint"],
         -c.features["y_back"],
+        c.features.get("stranded_added", 0.0),
         -c.features["frontier_contact"],
         c.features["top_z"],
     )
@@ -946,6 +1136,7 @@ def _key_max_footprint(c):
 def _key_back_corner(c):
     return (
         -c.features["y_back"],
+        c.features.get("stranded_added", 0.0),
         -c.features["frontier_contact"],
         -c.features["footprint"],
     )
@@ -955,6 +1146,7 @@ def _key_min_hole(c):
     return (
         c.features["new_interior_hole_area"],
         c.features["free_component_count"],
+        c.features.get("stranded_added", 0.0),
         -c.features["y_back"],
     )
 
@@ -963,6 +1155,7 @@ def _key_largest_residual(c):
     return (
         -c.features["largest_residual_rect"],
         c.features["new_interior_hole_area"],
+        c.features.get("stranded_added", 0.0),
         -c.features["y_back"],
     )
 
@@ -1004,6 +1197,7 @@ def _key_sp_cluster(c):
 def _key_elongated_wall(c):
     return (
         0 if c.features["has_backing"] else 1,
+        -c.features["y_back"],
         -c.features["wall_contact"],
         -c.features["top_z"],
     )
@@ -1023,13 +1217,17 @@ def _key_wedge_cap(c):
     return (c.box.minimum[0], -c.features["y_back"], c.features["footprint"])
 
 
-def _key_tall_perimeter(c):
-    return (
-        0 if c.features["has_backing"] else 1,
-        -c.features["top_z"],
-        -c.features["frontier_contact"],
-        -c.features["y_back"],
-    )
+def _key_tall_perimeter(c, depth_first: bool = True):
+    # "the deepest legal perimeter", not "the tallest anywhere".  Height used to
+    # come first, which is how tall items ended up at the opening with lower
+    # terrain behind them -- the one arrangement the straight-in sweep cannot
+    # cope with.
+    backing = 0 if c.features["has_backing"] else 1
+    if depth_first:
+        return (backing, -c.features["y_back"], -c.features["top_z"],
+                -c.features["frontier_contact"])
+    return (backing, -c.features["top_z"], -c.features["frontier_contact"],
+            -c.features["y_back"])
 
 
 def _key_wall_front(c):
@@ -1100,10 +1298,33 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             ladder.append(A_WALL_FRONT)
         if profile.is_elongated:
             ladder.extend([A_ELONGATED_WALL, A_BACK_CORNER, A_MIN_HOLE])
-        else:
+        elif not config.frontier_prefers_lying:
             ladder.extend([
                 A_TALL_PERIMETER, A_MAX_FOOTPRINT, A_BACK_CORNER,
                 A_MIN_HOLE, A_LARGEST_RESIDUAL,
+            ])
+        elif board.is_frontier_material(profile):
+            # Frontier material builds the skeleton: lay it down, back first
+            # and dense.  Standing it up is demoted below every foundation
+            # archetype -- a big flat hard box spent as a tall perimeter is the
+            # one item that could have made a large connected support and did
+            # not.
+            ladder.extend([
+                A_MAX_FOOTPRINT, A_BACK_CORNER, A_LARGEST_RESIDUAL,
+                A_MIN_HOLE, A_TALL_PERIMETER,
+            ])
+        elif board.is_follower(profile):
+            # Followers do not get to decide where the frontier is.  Close a
+            # hole, keep the residual rectangle whole, cluster at the back --
+            # and only then behave like foundation.
+            ladder.extend([
+                A_MIN_HOLE, A_LARGEST_RESIDUAL, A_BACK_CORNER,
+                A_TALL_PERIMETER, A_MAX_FOOTPRINT,
+            ])
+        else:
+            ladder.extend([
+                A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE,
+                A_LARGEST_RESIDUAL, A_TALL_PERIMETER,
             ])
     elif klass == cls.SOFT:
         ladder.append(A_SHELF_SAVING)
@@ -1163,10 +1384,16 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if not survivors:
         return [], counts
 
-    # 1. transport corridor: while the board is young the opening is off
-    #    limits; once the rest of the floor is spent the corridor is released,
-    #    and even then a non-corridor candidate always wins (see the ladder
-    #    tie-break).
+    # 1. the way in, priced instead of scheduled.  The old rule protected the
+    #    corridor until floor coverage passed a fixed threshold and then let go
+    #    of it all at once, which is what left empty floor behind a wall.  What
+    #    actually matters is not where the box is but what it seals off: a
+    #    placement is refused when it strands still-reachable floor, or when it
+    #    stands higher than the terrain behind it.  Early on that protects the
+    #    corridor by itself, because blocking a column of an empty board
+    #    strands the whole column; late on it releases the corridor by itself,
+    #    because there is nothing left behind to strand.  No threshold has to
+    #    name the moment.
     if coverage < config.corridor_release_fill:
         kept = []
         for candidate in survivors:
@@ -1179,6 +1406,20 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 kept.append(candidate)
         if kept:
             survivors = kept
+
+    kept = []
+    for candidate in survivors:
+        if candidate.surface != "floor":
+            kept.append(candidate)
+            continue
+        if candidate.features.get("stranded_added", 0.0) > config.stranded_veto_area:
+            drop(candidate, "strands-reachable-floor")
+        elif candidate.features.get("sealed_added", 0.0) > config.sealed_veto_area:
+            drop(candidate, "seals-usable-ground-behind")
+        else:
+            kept.append(candidate)
+    if kept:
+        survivors = kept
 
     # 2. reserved edge zones.  No fallback: the soft and priority strips belong
     #    to constrained cargo for the whole of Layer 1.  Letting plain hard
@@ -1255,7 +1496,113 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if kept:
         survivors = kept
 
+    # 5. a follower may not break the last bay the frontier cargo still needs.
+    #    The manifest is given to optimize(), so the outstanding large
+    #    footprints are known; this is not a peek at arrival order.
+    if config.small_hard_fit_guard and board.is_follower(survivors[0].profile):
+        kept = [c for c in survivors if c.features.get("large_fit_kept", True)]
+        if kept and len(kept) < len(survivors):
+            for candidate in survivors:
+                if candidate not in kept:
+                    drop(candidate, "breaks-frontier-bay")
+            survivors = kept
+
+    # 6. back-first, as a principle rather than a tie-break.  While a *good*
+    #    legal placement remains further in, a candidate nearer the opening is
+    #    refused outright -- it is not merely ranked below.  "Good" excludes a
+    #    deep placement that only got there by opening a hole in front of
+    #    itself, which is how "deepest wins" degenerates into corner-stuffing.
+    #
+    #    Structural roles are exempt because their depth is dictated by
+    #    something other than the frontier: the wall front has to stand on the
+    #    chamfer foot for the full depth, and a wedge step's position is fixed
+    #    by the step underneath it.
+    exempt = (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL)
+    good = [
+        c for c in survivors
+        if c.surface == "floor"
+        and c.role not in exempt
+        and c.features.get("new_interior_hole_area", 0.0)
+        <= config.back_first_hole_tolerance
+        and c.features.get("stranded_added", 0.0) <= config.stranded_veto_area
+    ]
+    if good:
+        frontier = max(c.features["y_back"] for c in good)
+        limit = frontier - config.back_first_slack
+        kept = [
+            c for c in survivors
+            if c.surface != "floor"
+            or c.role in exempt
+            or c.features["y_back"] >= limit - 1e-9
+        ]
+        if kept and len(kept) < len(survivors):
+            for candidate in survivors:
+                if candidate not in kept:
+                    drop(candidate, "not-back-first")
+            survivors = kept
+
     return survivors, counts
+
+
+def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
+                      config) -> AABB:
+    """Push a chosen box as far in as it will legally go, then sideways.
+
+    Candidate x/y anchors are enumerated from a fixed list, so a box often
+    lands a few centimetres short of what is legal simply because no anchor sat
+    there.  That slack is worth nothing to anybody: it is gap between the item
+    and whatever is behind it.
+
+    Two rules make this safe rather than merely tighter.  Compaction must not
+    strand reachable floor -- pushing back is normally the *opposite* of
+    stranding, but a box slid behind a gap can seal it -- and only a wall or
+    perimeter role is pushed sideways, because moving ordinary foundation
+    against a wall is how the centre gets hollowed out.
+    """
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    grid = board.grid(container_idx)
+    _reach_before, stranded_before = board.floor_reach(container_idx)
+
+    def acceptable(candidate: AABB) -> bool:
+        ok, _why = validate(candidate, model, container, config)
+        if not ok:
+            return False
+        _reach, stranded = floor_reach(
+            grid, model.z_floor, grid.rect_mask(box_rect(candidate))
+        )
+        return stranded <= stranded_before + 1e-9
+
+    def slide(current: AABB, axis: int, limit: float) -> AABB:
+        """Binary search the furthest legal travel along one axis."""
+        reach = limit - float(current.center[axis])
+        if abs(reach) < config.compaction_min_gain:
+            return current
+        low, high = 0.0, reach
+        best = current
+        for _ in range(config.compaction_iterations):
+            mid = 0.5 * (low + high)
+            centre = list(current.center)
+            centre[axis] = float(current.center[axis]) + mid
+            trial = AABB(tuple(centre), current.size, current.name)
+            if acceptable(trial):
+                best, low = trial, mid
+            else:
+                high = mid
+        return best
+
+    rect = model.floor_rect
+    moved = slide(box, 1, rect.y_max - float(box.size[1]) / 2.0)
+    if role in (cls.ROLE_WALL_FRONT, cls.ROLE_TALL_PERIMETER, cls.ROLE_ELONGATED):
+        half = float(moved.size[0]) / 2.0
+        centre_x = float(moved.center[0])
+        target = (
+            rect.x_min + half
+            if centre_x < 0.5 * (rect.x_min + rect.x_max)
+            else rect.x_max - half
+        )
+        moved = slide(moved, 0, target)
+    return moved
 
 
 # ---------------------------------------------------------------------------
@@ -1388,10 +1735,14 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                 continue
             # inside every archetype, a candidate that leaves the opening alone
             # beats one that does not
+            key_fn = ARCHETYPE_KEYS[name]
+            if name == A_TALL_PERIMETER:
+                depth_first = config.perimeter_prefers_depth
+                key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
             pool_for_archetype.sort(
                 key=lambda c: (
                     c.features.get("corridor_overlap", 0.0) > 1e-4,
-                    *ARCHETYPE_KEYS[name](c),
+                    *key_fn(c),
                 )
             )
             chosen = pool_for_archetype[0]
@@ -1401,17 +1752,29 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             chosen = survivors[0]
             chosen_archetype = "fallback"
 
+        box = chosen.box
+        if chosen.surface == "floor" and config.compaction_iterations > 0:
+            box = compact_backwards(box, board, container_idx, chosen.role, config)
+
         placement = Placement(
             profile=profile,
             orientation=chosen.orientation,
             container_idx=container_idx,
-            box=chosen.box,
+            box=box,
             surface=chosen.surface,
             surface_name=chosen.surface_name,
             role=chosen.role,
             archetype=chosen_archetype,
             reason=_reason_for(chosen, chosen_archetype, board, config),
-            features={k: _round(v) for k, v in chosen.features.items()},
+            features={
+                **{k: _round(v) for k, v in chosen.features.items()},
+                "compacted_y_m": _round(
+                    float(box.center[1]) - float(chosen.box.center[1])
+                ),
+                "compacted_x_m": _round(
+                    float(box.center[0]) - float(chosen.box.center[0])
+                ),
+            },
             container_is_prioritized=model.is_prioritized,
             container_has_shelf=model.has_shelf,
         )

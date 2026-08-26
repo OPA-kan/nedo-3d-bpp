@@ -455,6 +455,13 @@ left of the floor limit, below the chamfer top **and** above the chamfer line â€
 counting "everything left of the floor limit" would also count space above the
 chamfer top, which was never wedge.
 
+### Frozen
+
+`wedge_overhang_fraction` is **frozen at 0.25** on the strength of the
+measurement below: pushing harder recovers more wedge area, the simulator
+accepts it, and it packs worse.  The staircase is treated as settled; work has
+moved on to the foundation (`foundation_rework.md`).
+
 ### The steps do not touch the slope, and mostly cannot
 
 Look at any staircase picture and the steps are visibly *off* the chamfer: the

@@ -160,6 +160,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
     )
     zone_scales = board.set_zone_demand(profiles, config)
     triangle_demand = board.set_triangle_demand(profiles, config)
+    foundation_demand = board.set_foundation_demand(profiles, config)
     order = layer1.constructive_order(profiles, config, reference_model)
     by_index = {p.index: p for p in profiles}
     queue = [by_index[i] for i in order]
@@ -260,6 +261,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
         "elongation_tau": config.elongation_tau,
         "zone_scales": zone_scales,
         "triangle_demand": triangle_demand,
+        "foundation_demand": foundation_demand,
         "containers": reports,
         "class_histogram": _class_histogram(profiles),
         "placed_class_histogram": _placed_histogram(board),

@@ -42,6 +42,8 @@ from .diagnostics import (
     build_floor_grid,
     connected_components,
     largest_rectangle_in_mask,
+    order_report,
+    volume_report,
 )
 from .geometry import ContainerModel, Rect
 
@@ -157,6 +159,19 @@ def normal_hard_report(model: ContainerModel, placements, config) -> dict:
         k = min(2, max(0, int((mid_y - rect.y_min) / max(depth, 1e-9) * 3)))
         thirds[k].append(p.top_z - model.z_floor)
 
+    # The terrace question is about the *foundation slab*, so the structural
+    # members are masked out the same way ``foundation_slab_fill_ratio`` masks
+    # them: the wall front is meant to be tall and runs the whole depth, so
+    # averaging it into the depth thirds reports a front wall that is really
+    # just the chamfer wall seen end-on.
+    slab: list[list[float]] = [[], [], []]
+    for p in floor_hard:
+        if p.is_structural:
+            continue
+        mid_y = 0.5 * (p.rect.y_min + p.rect.y_max)
+        k = min(2, max(0, int((mid_y - rect.y_min) / max(depth, 1e-9) * 3)))
+        slab[k].append(p.top_z - model.z_floor)
+
     back = sum(v for k, v in cells.items() if k.endswith("-back"))
     centre = sum(v for k, v in cells.items() if k.startswith("centre-"))
     return {
@@ -169,6 +184,9 @@ def normal_hard_report(model: ContainerModel, placements, config) -> dict:
         "cell_share": {k: round(v / total_area, 3) for k, v in cells.items()},
         "height_by_y_third": [
             round(sum(t) / len(t), 3) if t else None for t in thirds
+        ],
+        "slab_height_by_y_third": [
+            round(sum(t) / len(t), 3) if t else None for t in slab
         ],
     }
 
@@ -628,4 +646,25 @@ def container_terrain(model: ContainerModel, placements, config) -> dict:
         "buildable": buildable_report(terrain, model, config),
         "shelf": shelf_report(model, placements, config),
         "access": front_mean,
+        "order": order_report(model, placements),
+        "volume": volume_report(model, placements, config),
+        "compaction": compaction_report(placements),
+    }
+
+
+def compaction_report(placements) -> dict:
+    """How much slack the backward compaction actually took out."""
+    moved = [
+        p for p in placements
+        if p.surface == "floor" and abs(p.features.get("compacted_y_m", 0.0)) > 1e-6
+    ]
+    if not moved:
+        return {"items_moved": 0, "total_y_m": 0.0, "max_y_m": 0.0, "total_x_m": 0.0}
+    ys = [float(p.features.get("compacted_y_m", 0.0)) for p in moved]
+    xs = [abs(float(p.features.get("compacted_x_m", 0.0))) for p in placements]
+    return {
+        "items_moved": len(moved),
+        "total_y_m": round(sum(ys), 4),
+        "max_y_m": round(max(ys), 4),
+        "total_x_m": round(sum(xs), 4),
     }

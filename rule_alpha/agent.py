@@ -41,6 +41,13 @@ class RuleAlphaAgent:
                 )
         if self.triangle_profiles:
             self.board.set_triangle_demand(self.triangle_profiles, self.config)
+            self.board.set_foundation_demand(self.triangle_profiles, self.config)
+            for placements in self.board.placements:
+                for placement in placements:
+                    self.board.foundation_pending.pop(placement.profile.index, None)
+            for container in self.board.containers:
+                for packed in container.get("packed_items", []):
+                    self.board.foundation_pending.pop(int(packed.get("index", -1)), None)
 
     # -- official interface ---------------------------------------------
     def get_init_states(self, init_states: dict):
@@ -63,6 +70,7 @@ class RuleAlphaAgent:
         if self.board is not None:
             self.zone_scales = self.board.set_zone_demand(profiles, self.config)
             self.triangle_profiles = profiles
+            self.board.set_foundation_demand(profiles, self.config)
         return layer1.constructive_order(profiles, self.config, reference)
 
     def policy(self, observation: dict):

@@ -938,3 +938,89 @@ class TerrainSurveyTest(unittest.TestCase):
                            with_soft["buildable_area_m2"])
         self.assertAlmostEqual(with_hard["soft_capped_area_m2"], 0.0)
         self.assertGreater(with_soft["soft_capped_area_m2"], 0.2)
+
+
+class FoundationPrincipleTest(unittest.TestCase):
+    """The back-first / frontier-follower rules added for Layer 2's benefit."""
+
+    def _profiles(self, sizes):
+        out = []
+        for index, (dx, dy, dz) in enumerate(sizes):
+            item = {
+                "index": index, "length": dx, "width": dy, "height": dz,
+                "mass": 8.0, "is_soft": False, "is_prioritized": False,
+            }
+            out.append(cls.classify_item(index, item, DEFAULT_CONFIG))
+        return out
+
+    def test_a_wall_at_the_opening_seals_the_floor_behind_it(self):
+        """`reach_at` is what prices the approach, so it has to see this."""
+        container, model = _model()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        grid = board.grid(0)
+        rect = model.floor_rect
+        wall = Rect(
+            rect.x_min + 0.01, rect.x_max - 0.01,
+            rect.y_min + 0.10, rect.y_min + 0.40,
+        )
+        reach_open, sealed_open = layer1.reach_at(grid, model.z_floor, 0.0)
+        reach_walled, sealed_walled = layer1.reach_at(
+            grid, model.z_floor, 0.0, grid.rect_mask(wall), 0.4
+        )
+        self.assertGreater(reach_open, 1.5)
+        self.assertLess(reach_walled, 0.25 * reach_open)
+        self.assertGreater(sealed_walled, sealed_open + 1.0)
+
+    def test_ground_already_built_on_above_the_wall_is_not_charged(self):
+        """The difference between pricing a wall and punishing height."""
+        container, model = _model()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        grid = board.grid(0)
+        rect = model.floor_rect
+        wall = Rect(
+            rect.x_min + 0.01, rect.x_max - 0.01,
+            rect.y_min + 0.10, rect.y_min + 0.40,
+        )
+        mask = grid.rect_mask(wall)
+        # asked at the wall's own top the answer is zero, and has to be: a box
+        # travelling at 0.40 clears a wall whose top is 0.40
+        _r, sealed_at_top = layer1.reach_at(grid, model.z_floor, 0.40, mask, 0.40)
+        _r0, open_at_top = layer1.reach_at(grid, model.z_floor, 0.40)
+        self.assertAlmostEqual(sealed_at_top, open_at_top, places=6)
+        # asked at a height the wall really blocks, it is expensive
+        _r2, sealed_below = layer1.reach_at(grid, model.z_floor, 0.20, mask, 0.40)
+        _r3, open_below = layer1.reach_at(grid, model.z_floor, 0.20)
+        self.assertGreater(sealed_below, open_below + 1.0)
+
+    def test_the_manifest_splits_into_frontier_and_followers(self):
+        container, model = _model()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        profiles = self._profiles(
+            [(0.30, 0.25, 0.20)] * 5 + [(0.75, 0.55, 0.30)] * 5
+        )
+        summary = board.set_foundation_demand(profiles, DEFAULT_CONFIG)
+        self.assertEqual(summary["pending"], 5)
+        self.assertTrue(board.is_frontier_material(profiles[-1]))
+        self.assertTrue(board.is_follower(profiles[0]))
+        self.assertFalse(board.is_follower(profiles[-1]))
+        # placing a frontier item takes it out of the outstanding demand
+        self.assertIn(profiles[-1].index, board.foundation_pending)
+
+    def test_a_follower_may_not_destroy_the_last_frontier_bay(self):
+        container, model = _model()
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        profiles = self._profiles(
+            [(0.30, 0.25, 0.20)] * 5 + [(0.75, 0.55, 0.30)] * 5
+        )
+        board.set_foundation_demand(profiles, DEFAULT_CONFIG)
+        follower = profiles[0]
+        self.assertTrue(
+            board.foundation_still_fits(0, (0.80, 0.60), follower)
+        )
+        self.assertFalse(
+            board.foundation_still_fits(0, (0.50, 0.50), follower)
+        )
+        # orientation of the bay does not matter, only that it admits the item
+        self.assertTrue(
+            board.foundation_still_fits(0, (0.60, 0.80), follower)
+        )
