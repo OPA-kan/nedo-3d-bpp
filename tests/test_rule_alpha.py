@@ -499,8 +499,8 @@ class VolumeReportTest(unittest.TestCase):
         self.assertAlmostEqual(without["structural_volume_m3"], 0.0)
 
 
-class TrianglePocketTest(unittest.TestCase):
-    """The RESERVE -> INFILL -> CLOSE machine around the chamfer wedge."""
+class WedgeStaircaseTest(unittest.TestCase):
+    """RAW -> STAIRCASE -> SOFT_READY -> CLOSED around the chamfer wedge."""
 
     def _profiles(self, spec):
         out = []
@@ -514,112 +514,134 @@ class TrianglePocketTest(unittest.TestCase):
             out.append(cls.classify_item(index, item, DEFAULT_CONFIG))
         return out
 
-    def test_a_bridge_must_clear_the_chamfer_top(self):
-        """Below that height nothing placed on it can reach over the wedge."""
+    def test_the_first_step_cannot_overhang_but_the_second_can(self):
+        """At floor height the chamfer limit *is* the floor limit."""
         from rule_alpha import triangle as tri
 
         _container, model = _model()
-        low = tri.bridge_min_height(model)
-        self.assertAlmostEqual(low, model.z_chamfer_top - model.z_floor, places=9)
-
-        short = AABB(
-            (model.x_floor_min + 0.15, 0.0, model.z_floor + (low - 0.05) / 2.0),
-            (0.30, 0.30, low - 0.05), "short",
+        at_floor = tri.max_overhang(
+            model, model.x_floor_min, model.z_floor, 0.40, DEFAULT_CONFIG
         )
+        self.assertAlmostEqual(at_floor, 0.0, places=6)
+
+        higher = tri.max_overhang(
+            model, model.x_floor_min, model.z_floor + 0.20, 0.40, DEFAULT_CONFIG
+        )
+        self.assertGreater(higher, 0.05)
+
+    def test_stability_binds_before_the_chamfer_does(self):
+        """Which is what lets the staircase keep climbing past the chamfer top
+        instead of stalling there."""
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
+        width = 0.40
+        bottom = model.z_floor + 0.20
+        geometric = model.x_floor_min - model.x_limit_at_height(bottom)
+        allowed = tri.max_overhang(
+            model, model.x_floor_min, bottom, width, DEFAULT_CONFIG
+        )
+        self.assertLess(allowed, geometric)
+        self.assertAlmostEqual(
+            allowed, DEFAULT_CONFIG.wedge_overhang_fraction * width, places=6
+        )
+
+    def test_the_overhang_cap_keeps_support_above_the_official_floor(self):
+        """o <= 0.4w is what the 0.6 support ratio allows; we stay under it."""
+        fraction = DEFAULT_CONFIG.wedge_overhang_fraction
+        implied_support = 1.0 - fraction
+        self.assertGreater(implied_support, DEFAULT_CONFIG.min_support_ratio)
+        self.assertLess(fraction, 0.4)
+
+    def test_recovered_area_never_exceeds_the_wedge(self):
+        """Counting "everything left of the floor limit" also counts space
+        above the chamfer top, which was never wedge."""
+        from rule_alpha import triangle as tri
+
+        _container, model = _model()
         tall = AABB(
-            (model.x_floor_min + 0.15, 0.0, model.z_floor + (low + 0.05) / 2.0),
-            (0.30, 0.30, low + 0.05), "tall",
+            (model.x_wall_min + 0.3, 0.0, model.z_floor + 0.6),
+            (0.6, 0.4, 1.2), "tall",
         )
-        self.assertFalse(tri.is_bridge(short, model, DEFAULT_CONFIG))
-        self.assertTrue(tri.is_bridge(tall, model, DEFAULT_CONFIG))
+        area = tri.wedge_overlap_area(model, tall)
+        self.assertLessEqual(area, model.slope_wedge_area + 1e-6)
+        self.assertGreater(area, 0.0)
 
-    def test_the_ordinary_wall_front_cap_leaves_no_room_for_a_bridge(self):
-        """Why a bridge needs its own height rule.
-
-        The chamfer top sits at 0.494 of the floor-to-shelf gap and the
-        wall-front cap is half of it, so the two rules overlap in a band a few
-        millimetres wide.  A bridge is stood up on purpose, so it gets the
-        transport limit as its cap instead.
-        """
+    def test_no_step_material_means_closed(self):
+        """Cap customers are worthless without something to build the stairs."""
         from rule_alpha import triangle as tri
 
         _container, model = _model()
-        ordinary = layer1.wall_front_height_limit(model, DEFAULT_CONFIG)
-        low = tri.bridge_min_height(model)
-        self.assertLess(ordinary - low, 0.01)
-        self.assertGreater(tri.bridge_max_height(model, DEFAULT_CONFIG), low + 0.2)
-
-    def test_no_pocket_customers_means_closed(self):
-        """A pocket nobody wants is not worth an irreversible reservation."""
-        from rule_alpha import triangle as tri
-
-        _container, model = _model()
-        hard_only = self._profiles([((0.6, 0.4, 0.5), {})] * 6)
-        demand = tri.measure_demand(hard_only, model, DEFAULT_CONFIG)
-        self.assertEqual(demand.p_pocket, 0.0)
+        soft_only = self._profiles([((0.5, 0.4, 0.3), {"soft": True})] * 8)
+        demand = tri.measure_demand(soft_only, model, DEFAULT_CONFIG)
+        self.assertEqual(demand.p_step, 0.0)
+        self.assertGreater(demand.p_cap, 0.0)
         state = tri.evaluate(model, [], demand, 0.0, 0.0, DEFAULT_CONFIG)
         self.assertEqual(state.state, tri.STATE_CLOSED)
-        self.assertIn("no customer", state.reason)
 
-    def test_soft_rich_stream_reserves_and_a_full_board_releases(self):
+    def test_a_mixed_stream_starts_raw_and_a_full_board_closes(self):
         from rule_alpha import triangle as tri
 
         _container, model = _model()
         mixed = self._profiles(
-            [((0.6, 0.4, 0.5), {})] * 3 + [((0.5, 0.4, 0.3), {"soft": True})] * 3
+            [((0.35, 0.30, 0.20), {})] * 4
+            + [((0.5, 0.4, 0.3), {"soft": True})] * 4
         )
         demand = tri.measure_demand(mixed, model, DEFAULT_CONFIG)
-        self.assertGreater(demand.p_pocket, 0.0)
-        self.assertGreater(demand.p_bridge, 0.0)
+        self.assertGreater(demand.p_step, 0.0)
 
         early = tri.evaluate(model, [], demand, 0.0, 0.0, DEFAULT_CONFIG)
-        self.assertEqual(early.state, tri.STATE_RESERVE)
+        self.assertEqual(early.state, tri.STATE_RAW)
 
-        # the reservation is priced, not permanent: a full board with a
-        # blocked entry lane releases it
         late = tri.evaluate(model, [], demand, 0.95, 1.0, DEFAULT_CONFIG)
         self.assertEqual(late.state, tri.STATE_CLOSED)
         self.assertLess(late.score, early.score)
 
-    def test_pocket_is_restricted_while_reserved_and_open_once_closed(self):
+    def test_the_strip_is_held_for_step_material_then_released(self):
         from rule_alpha import triangle as tri
 
-        plain = self._profiles([((0.4, 0.3, 0.2), {})])[0]
-        soft = self._profiles([((0.4, 0.3, 0.2), {"soft": True})])[0]
-        infill = tri.TriangleState(state=tri.STATE_INFILL, score=1.0)
-        closed = tri.TriangleState(state=tri.STATE_CLOSED, score=-1.0)
+        _container, model = _model()
+        small = self._profiles([((0.35, 0.30, 0.20), {})])[0]
+        big = self._profiles([((0.75, 0.55, 0.30), {})])[0]
+        soft = self._profiles([((0.5, 0.4, 0.3), {"soft": True})])[0]
 
-        self.assertTrue(tri.pocket_allows(soft, infill, DEFAULT_CONFIG))
-        self.assertFalse(tri.pocket_allows(plain, infill, DEFAULT_CONFIG))
-        self.assertTrue(tri.pocket_allows(plain, closed, DEFAULT_CONFIG))
+        growing = tri.WedgeState(state=tri.STATE_STAIRCASE, score=1.0)
+        capping = tri.WedgeState(state=tri.STATE_SOFT_READY, score=1.0)
+        closed = tri.WedgeState(state=tri.STATE_CLOSED, score=-1.0)
 
-    def test_an_incidental_bridge_does_not_hold_the_pocket_hostage(self):
-        """If the reservation is not worth keeping, a bridge that went up for
-        other reasons must not keep plain cargo out of the pocket."""
-        from rule_alpha import triangle as tri
-        from rule_alpha.scenarios import _normal_container
-
-        container = _normal_container()
-        board = layer1.Board([container], DEFAULT_CONFIG)
-        model = board.model(0)
-        hard_only = self._profiles([((0.6, 0.4, 0.5), {})] * 6)
-        demand = tri.measure_demand(hard_only, model, DEFAULT_CONFIG)
-
-        bridge = layer1.Placement(
-            profile=hard_only[0],
-            orientation=cls.Orientation(0, 0.3, 0.3, 0.5),
-            container_idx=0,
-            box=AABB(
-                (model.x_floor_min + 0.15, 0.0, model.z_floor + 0.25),
-                (0.3, 0.3, 0.5), "settled",
-            ),
-            surface="floor", surface_name="floor",
-            role=cls.ROLE_WALL_FRONT, archetype="test", reason="test",
+        self.assertTrue(
+            tri.strip_reserved_for(small, growing, model, DEFAULT_CONFIG)
         )
-        state = tri.evaluate(model, [bridge], demand, 0.2, 0.0, DEFAULT_CONFIG)
-        self.assertEqual(state.state, tri.STATE_CLOSED)
-        self.assertEqual(state.bridge_item, hard_only[0].index)
-        self.assertTrue(tri.pocket_allows(hard_only[0], state, DEFAULT_CONFIG))
+        self.assertFalse(
+            tri.strip_reserved_for(big, growing, model, DEFAULT_CONFIG)
+        )
+        self.assertFalse(
+            tri.strip_reserved_for(soft, growing, model, DEFAULT_CONFIG)
+        )
+        # once the climb is done the top is for soft
+        self.assertTrue(
+            tri.strip_reserved_for(soft, capping, model, DEFAULT_CONFIG)
+        )
+        # and a closed zone takes anything
+        self.assertTrue(tri.strip_reserved_for(big, closed, model, DEFAULT_CONFIG))
+
+    def test_a_step_must_rest_on_the_step_below(self):
+        from rule_alpha import triangle as tri
+        from rule_alpha.geometry import Rect
+
+        _container, model = _model()
+        support = Rect(model.x_floor_min, model.x_floor_min + 0.45, -0.2, 0.2)
+        bottom = model.z_floor + 0.22
+        legal = AABB(
+            (model.x_floor_min - 0.08 + 0.20, 0.0, bottom + 0.10),
+            (0.40, 0.35, 0.20), "step",
+        )
+        greedy = AABB(
+            (model.x_floor_min - 0.30 + 0.20, 0.0, bottom + 0.10),
+            (0.40, 0.35, 0.20), "step",
+        )
+        self.assertTrue(tri.is_wedge_step(legal, support, model, DEFAULT_CONFIG))
+        self.assertFalse(tri.is_wedge_step(greedy, support, model, DEFAULT_CONFIG))
 
 
 class TallPerimeterTest(unittest.TestCase):
@@ -757,7 +779,9 @@ class EpisodeTest(unittest.TestCase):
     def test_layer_one_stays_on_floor_and_shelves(self):
         for placement in self.result.sequence:
             if placement.surface == "item":
-                self.assertEqual(placement.role, cls.ROLE_SLOPE_INFILL)
+                # the one documented exception to floor-and-shelves: a wedge
+                # staircase step rests on the step below it
+                self.assertEqual(placement.role, cls.ROLE_WEDGE_STEP)
             else:
                 self.assertIn(placement.surface, ("floor", "shelf"))
 

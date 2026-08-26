@@ -24,6 +24,7 @@ ROLE_ELONGATED = "elongated"
 ROLE_WALL_FRONT = "wall-front"
 ROLE_SLOPE_INFILL = "slope-infill"
 ROLE_TALL_PERIMETER = "tall-perimeter"
+ROLE_WEDGE_STEP = "wedge-step"
 
 # --- tipping bands -----------------------------------------------------------
 TIP_NORMAL = "normal"
@@ -202,10 +203,25 @@ def structural_orientation_order(profile: ItemProfile, config) -> list[Orientati
     )
 
 
+def wedge_step_orientation_order(profile: ItemProfile, config) -> list[Orientation]:
+    """Staircase rule: stay low, then keep the footprint that carries the next
+    step.  A tall step eats the headroom under the shelf that the rest of the
+    climb needs, and a narrow one gives the step above nothing to stand on."""
+    usable = [
+        o for o in profile.orientations if o.dz <= config.wedge_step_max_height
+    ] or list(profile.orientations)
+    return sorted(
+        usable,
+        key=lambda o: (round(o.dz, 6), -round(o.footprint, 6), o.index),
+    )
+
+
 def orientation_order(profile: ItemProfile, surface: str, role: str, config):
     """Dispatch to the orientation rule that matches surface and role."""
     if surface == "shelf":
         return shelf_orientation_order(profile, config)
+    if surface == "wedge":
+        return wedge_step_orientation_order(profile, config)
     if role in (ROLE_WALL_FRONT, ROLE_ELONGATED, ROLE_TALL_PERIMETER) and not profile.is_soft:
         # The structural exception is for hard cargo only: a soft item cannot be
         # a structural member, so a long soft bag still lies down.

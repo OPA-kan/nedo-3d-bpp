@@ -1,30 +1,56 @@
-"""The slope triangle as a three-state resource: RESERVE -> INFILL -> CLOSE.
+"""The chamfer wedge as a staircase, not a wall.
 
-Why a state machine at all
---------------------------
-Placing ordinary hard cargo against the chamfer foot is **irreversible**: the
-pocket above the wedge is gone for the rest of the episode.  Leaving the strip
-empty costs only the volume it holds right now.  Under an unknown arrival
-order the asymmetry is the whole argument — so rather than predicting which
-items are coming, rule-alpha puts a price on the *option* an action destroys.
+The wedge is not a small notch.  On the shipped ULD the chamfer top is 0.378 m
+above the floor while the usable height under the shelf is 0.765 m, so nearly
+the lower half of the cross section is cut away.  Writing that off as dead
+volume is expensive.
 
-    RESERVE   keep the strip for a bridge; ordinary hard cargo stays out
-    INFILL    a bridge is standing; its top is a restricted-support zone
-    CLOSE     the reservation is not worth its cost any more; release it
+The obvious answer — stand one box tall enough to bridge straight to the
+chamfer top — is the wrong shape.  It demands a single 0.378 m piece, that
+piece still has to be delivered past the shelf, and it recovers nothing below
+its own top.  The cheaper structure grows instead:
 
-The geometry that forces the design
------------------------------------
-The wedge is bounded by the chamfer, and the binding constraint on a
-floor-resting box is its **bottom** corner, so no floor placement can overhang
-the wedge at any height.  The only way to get support over it is a box whose
-*top* clears the point where the chamfer meets the wall — ``z_chamfer_top``.
-On the shipped ULD that is 0.378 m above the floor.
+    wedge  ->  small-hard staircase  ->  soft cap
 
-That is why a bridge does **not** obey the ordinary wall-front height cap.
-The cap exists to stop cargo being stood up for no reason; a bridge is stood
-up for a specific reason, and half the floor-to-shelf gap (0.383 m) leaves it
-a 5 mm band to live in.  A bridge instead gets the transport limit as its cap,
-and ``z_chamfer_top`` as its floor.
+    shelf
+    ────────────────────────────
+              soft  soft            <- upper wedge: soft disposal zone
+            ████████
+              █████                 <- small cargo; each top is a new support
+            ████████
+          ██████████                <- first step: an ordinary low box on the floor
+        ╱
+       ╱   wedge
+      ╱________________________
+
+Each box sits on the flat top of the one below and reaches a little further
+towards the wall.  No single item has to be tall, so the wall front can stay
+low and keep the transport lane open, and the volume is recovered by small
+cargo that is awkward to place anywhere else.
+
+How far a step may reach
+------------------------
+Two limits, whichever is tighter:
+
+* the chamfer, ``x_limit_at_height(bottom_z)``;
+* stability.  A step overhanging its support by ``o`` out of width ``w`` has
+  support ratio ``(w - o) / w``, so the official 0.6 floor gives ``o <= 0.4w``.
+  rule-alpha uses ``wedge_overhang_fraction`` (0.25) because the centre of mass
+  and the settle step are not modelled exactly.
+
+From the second step on it is *stability* that binds, not the chamfer — which
+is why the staircase keeps climbing at a steady rate instead of stalling when
+it reaches the chamfer top.
+
+States
+------
+    RAW         nothing at the foot yet; the first step is a low floor box
+    STAIRCASE   steps are growing; small hard cargo is wanted here
+    SOFT_READY  the remainder is short and awkward: soft cargo is pushed in
+    CLOSED      released to whatever fits
+
+Leaving the strip is priced rather than scheduled: committing it to ordinary
+cargo is irreversible, while withholding it costs only the volume it holds now.
 """
 
 from __future__ import annotations
@@ -32,47 +58,50 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from . import classify as cls
-from .geometry import ContainerModel, Rect
+from .geometry import ContainerModel, Rect, box_rect
 
 
-STATE_RESERVE = "reserve"
-STATE_INFILL = "infill"
+STATE_RAW = "raw-wedge"
+STATE_STAIRCASE = "staircase"
+STATE_SOFT_READY = "soft-ready"
 STATE_CLOSED = "closed"
 
-# who may stand on a bridge top, best first.  A bridge is built for soft cargo,
-# but committing to soft alone over-specialises: if none arrives the structure
-# is wasted, so the zone degrades through the other constrained classes before
-# it is released to plain cargo.
-POCKET_LADDER = (cls.SOFT, cls.SOFT_PRIORITY, cls.PRIORITY, cls.NORMAL_HARD)
+# who may take the top of the staircase, best first.  Holding out for soft
+# alone over-specialises, so the zone degrades through the other constrained
+# classes before it is released.
+CAP_LADDER = (cls.SOFT, cls.SOFT_PRIORITY, cls.PRIORITY, cls.NORMAL_HARD)
 
 
 @dataclass
-class TriangleDemand:
+class WedgeDemand:
     """Arrival mix used to price the reservation."""
 
-    p_pocket: float = 0.0
-    """Share of the stream that could actually *use* a bridge top."""
+    p_step: float = 0.0
+    """Share of the stream small enough to be a staircase step."""
+    p_cap: float = 0.0
+    """Share that could take the cap once the staircase is up."""
     p_soft: float = 0.0
-    p_bridge: float = 0.0
-    """Share that could *be* a bridge — feasibility, not demand."""
     source: str = "unknown"
 
     def as_dict(self) -> dict:
         return {
-            "p_pocket_customers": round(self.p_pocket, 4),
+            "p_step_capable": round(self.p_step, 4),
+            "p_cap_customers": round(self.p_cap, 4),
             "p_soft": round(self.p_soft, 4),
-            "p_bridge_capable": round(self.p_bridge, 4),
             "source": self.source,
         }
 
 
 @dataclass
-class TriangleState:
+class WedgeState:
     state: str
     score: float
     terms: dict = field(default_factory=dict)
-    bridge_item: int | None = None
-    bridge_top_z: float | None = None
+    steps: int = 0
+    top_z: float = 0.0
+    left_reach: float = 0.0
+    next_gain: float = 0.0
+    recovered_area: float = 0.0
     reason: str = ""
 
     def as_dict(self) -> dict:
@@ -80,224 +109,273 @@ class TriangleState:
             "state": self.state,
             "reserve_score": round(self.score, 4),
             "terms": self.terms,
-            "bridge_item": self.bridge_item,
-            "bridge_top_z": (
-                round(self.bridge_top_z, 4) if self.bridge_top_z is not None else None
-            ),
+            "staircase_steps": self.steps,
+            "staircase_top_z": round(self.top_z, 4),
+            "left_reach_x": round(self.left_reach, 4),
+            "next_step_gain_m": round(self.next_gain, 4),
+            "wedge_recovered_area_m2": round(self.recovered_area, 5),
             "reason": self.reason,
         }
 
 
 # ---------------------------------------------------------------------------
-# Geometry of the bridge
+# Geometry
 # ---------------------------------------------------------------------------
-def bridge_min_height(model: ContainerModel) -> float:
-    """A bridge top has to clear the point where the chamfer meets the wall.
-
-    Below that the box is just a short wall-front piece: nothing placed on it
-    can reach out over the wedge, because the chamfer still cuts the space at
-    that height.
-    """
-    return max(0.0, model.z_chamfer_top - model.z_floor)
+def strip_rect(model: ContainerModel) -> Rect:
+    """Floor footprint the staircase is built in."""
+    return model.wall_front_strip
 
 
-def bridge_max_height(model: ContainerModel, config) -> float:
-    """What can still be carried in past the shelf above the strip."""
-    gap = max(0.0, model.shelf_bottom_z - model.z_floor)
-    return max(0.0, gap - (config.floor_action_lift + config.settled_clearance))
+def in_strip(box, model: ContainerModel, config) -> bool:
+    return box_rect(box).x_min <= model.x_floor_min + config.wall_front_band
 
 
-def bridge_capable(profile: cls.ItemProfile, model: ContainerModel, config) -> bool:
-    """Does this item have a pose that could serve as a bridge?"""
-    if profile.is_soft or profile.is_prioritized:
+def wedge_ceiling(model: ContainerModel, config) -> float:
+    """The staircase has to stay under the shelf above the strip."""
+    return model.shelf_bottom_z - config.settled_clearance
+
+
+def max_overhang(model: ContainerModel, support_left_x: float, bottom_z: float,
+                 width: float, config) -> float:
+    """How far a step resting at ``bottom_z`` may reach past its support."""
+    geometric = support_left_x - model.x_limit_at_height(bottom_z)
+    stability = config.wedge_overhang_fraction * width
+    return max(0.0, min(geometric, stability))
+
+
+def step_capable(profile: cls.ItemProfile, model: ContainerModel, config) -> bool:
+    """Small hard cargo that could serve as a staircase step."""
+    if profile.is_soft:
         return False
-    low, high = bridge_min_height(model), bridge_max_height(model, config)
-    if low > high:
-        return False
-    budget = config.wall_front_max_footprint_fraction * model.usable_floor_area
+    budget = config.wedge_step_max_footprint_fraction * model.usable_floor_area
     return any(
-        low <= orientation.dz <= high and orientation.footprint <= budget + 1e-9
+        orientation.footprint <= budget + 1e-9
+        and orientation.dz <= config.wedge_step_max_height
         for orientation in profile.orientations
     )
 
 
-def is_bridge(box, model: ContainerModel, config) -> bool:
-    """A settled box that actually opens the pocket over the wedge."""
-    from .geometry import box_rect
+def staircase(model: ContainerModel, placements, config):
+    """Placements forming the staircase, lowest first."""
+    return sorted(
+        (p for p in placements
+         if p.surface != "shelf" and in_strip(p.box, model, config)),
+        key=lambda p: p.top_z,
+    )
 
+
+def staircase_profile(model: ContainerModel, placements, config):
+    """``(top_z, left_reach, recovered_cross_section)`` of the staircase."""
+    steps = staircase(model, placements, config)
+    if not steps:
+        return model.z_floor, model.x_floor_min, 0.0
+    top = max(p.top_z for p in steps)
+    left = min(p.rect.x_min for p in steps)
+    recovered = sum(wedge_overlap_area(model, p.box) for p in steps)
+    return top, left, recovered
+
+
+def wedge_overlap_area(model: ContainerModel, box, slices: int = 24) -> float:
+    """Cross-section of the wedge triangle this box actually occupies.
+
+    Only the part left of the floor limit, below the chamfer top and above the
+    chamfer line counts.  Summing "everything left of the floor limit" would
+    also count the space above the chamfer top, which is ordinary container
+    volume that was never wedge.
+    """
     rect = box_rect(box)
-    at_foot = rect.x_min <= model.x_floor_min + config.wall_front_band
-    tall_enough = float(box.maximum[2]) >= model.z_chamfer_top - 1e-6
-    low_enough = (
-        float(box.maximum[2]) - model.z_floor <= bridge_max_height(model, config) + 1e-6
+    z0 = max(float(box.minimum[2]), model.z_floor)
+    z1 = min(float(box.maximum[2]), model.z_chamfer_top)
+    if z1 <= z0:
+        return 0.0
+    step = (z1 - z0) / slices
+    area = 0.0
+    for index in range(slices):
+        z = z0 + (index + 0.5) * step
+        right = min(rect.x_max, model.x_floor_min)
+        leftmost = max(rect.x_min, model.x_limit_at_height(z))
+        area += max(0.0, right - leftmost) * step
+    return area
+
+
+def next_step_gain(model: ContainerModel, placements, config,
+                   width: float | None = None) -> float:
+    """Leftward reach the staircase can still win.  Zero means the climb is over.
+
+    With no steps yet the answer is not "zero": the *first* step cannot
+    overhang at all, because at floor height the chamfer limit is exactly the
+    floor limit.  What matters is what the step after it would unlock, so an
+    empty strip is probed with a nominal first step.
+    """
+    steps = staircase(model, placements, config)
+    probe = config.wedge_step_probe_width if width is None else width
+    if not steps:
+        nominal_top = model.z_floor + config.wedge_step_probe_height
+        return max_overhang(model, model.x_floor_min, nominal_top, probe, config)
+    top, left, _ = staircase_profile(model, placements, config)
+    if top >= wedge_ceiling(model, config):
+        return 0.0
+    return max_overhang(model, left, top, probe, config)
+
+
+def is_wedge_step(box, support_rect: Rect, model: ContainerModel, config) -> bool:
+    """A legal staircase step: in the strip, reaching left, within the limits."""
+    rect = box_rect(box)
+    if not in_strip(box, model, config):
+        return False
+    if float(box.maximum[2]) > wedge_ceiling(model, config) + 1e-9:
+        return False
+    overhang = support_rect.x_min - rect.x_min
+    if overhang < -1e-9:
+        return False
+    allowed = max_overhang(
+        model, support_rect.x_min, float(box.minimum[2]),
+        float(box.size[0]), config,
     )
-    return bool(at_foot and tall_enough and low_enough)
-
-
-def pocket_rect(model: ContainerModel) -> Rect:
-    """Footprint of the wedge a bridge makes reachable."""
-    return Rect(
-        model.x_wall_min,
-        model.x_floor_min,
-        model.floor_rect.y_min,
-        model.floor_rect.y_max,
-    )
-
-
-def potential_support_area(model: ContainerModel) -> float:
-    """Support area a bridge would create that cannot exist otherwise."""
-    return pocket_rect(model).area
+    return overhang <= allowed + 1e-9
 
 
 # ---------------------------------------------------------------------------
 # Demand
 # ---------------------------------------------------------------------------
 def measure_demand(profiles, model: ContainerModel, config,
-                   source: str = "declared-manifest") -> TriangleDemand:
-    """Share of the stream that would make the reservation pay off.
+                   source: str = "declared-manifest") -> WedgeDemand:
+    """Shares of the declared stream that make the reservation pay off.
 
     The environment hands the whole manifest to ``optimize()``, so this reads a
-    list it was given.  With no manifest, pass whatever has been observed so
-    far and the same arithmetic applies to the sample instead.
+    list it was given.  With no manifest, pass what has been observed so far and
+    the same arithmetic applies to the sample.
     """
     if not profiles:
-        return TriangleDemand(source="empty-stream")
+        return WedgeDemand(source="empty-stream")
     total = float(len(profiles))
-    allowed = set(POCKET_LADDER[: config.triangle_pocket_ladder_depth + 1])
-    customers = sum(1 for p in profiles if p.cargo_class in allowed)
-    soft = sum(1 for p in profiles if p.is_soft)
-    bridges = sum(1 for p in profiles if bridge_capable(p, model, config))
-    return TriangleDemand(
-        p_pocket=customers / total,
-        p_soft=soft / total,
-        p_bridge=bridges / total,
+    allowed = set(CAP_LADDER[: config.wedge_cap_ladder_depth + 1])
+    return WedgeDemand(
+        p_step=sum(1 for p in profiles if step_capable(p, model, config)) / total,
+        p_cap=sum(1 for p in profiles if p.cargo_class in allowed) / total,
+        p_soft=sum(1 for p in profiles if p.is_soft) / total,
         source=source,
     )
 
 
 # ---------------------------------------------------------------------------
-# The state machine
+# State machine
 # ---------------------------------------------------------------------------
-def reserve_score(model: ContainerModel, demand: TriangleDemand, floor_fill: float,
-                  bottleneck: float, config) -> tuple[float, dict]:
-    """R = w1 p_pocket + w2 p_bridge + w3 A_potential - w4 F - w5 B.
+def reserve_score(model: ContainerModel, demand: WedgeDemand, floor_fill: float,
+                  bottleneck: float, remaining: float, config):
+    """R = w_step p_step + w_cap p_cap + w_area A_remaining - w_fill F - w_bn B.
 
-    ``p_pocket`` is demand and ``p_bridge`` is feasibility, and the benefit
-    terms are gated on both: a pocket nobody can fill is worth nothing, and so
-    is a pocket nobody wants.  Without that gate a stream of plain hard cargo
-    scores high on feasibility alone and reserves a strip for a customer that
-    never comes.
+    ``A_remaining`` is the share of the wedge still worth chasing, so the score
+    decays on its own as the staircase runs out of room — no step counter.
+    Nothing in the stream that can be a step means the reservation is worthless
+    regardless of the other terms.
     """
-    area_term = potential_support_area(model) / max(1e-9, model.usable_floor_area)
-    if demand.p_pocket <= 0.0 or demand.p_bridge <= 0.0:
-        area_term = 0.0
     terms = {
-        "p_pocket_customers": round(demand.p_pocket, 4),
-        "p_soft": round(demand.p_soft, 4),
-        "p_bridge_capable": round(demand.p_bridge, 4),
-        "potential_support_ratio": round(area_term, 4),
+        "p_step_capable": round(demand.p_step, 4),
+        "p_cap_customers": round(demand.p_cap, 4),
+        "remaining_wedge_share": round(remaining, 4),
         "floor_fill": round(floor_fill, 4),
         "transport_bottleneck": round(bottleneck, 4),
     }
-    if demand.p_pocket <= 0.0 or demand.p_bridge <= 0.0:
+    if demand.p_step < config.wedge_min_step_share:
+        # cap customers are worth nothing without something to build the
+        # staircase out of: holding the strip for soft cargo that has no way to
+        # get up there is the waste this score exists to prevent
         return -1.0, terms
     score = (
-        config.triangle_weight_soft * demand.p_pocket
-        + config.triangle_weight_bridge * demand.p_bridge
-        + config.triangle_weight_area * area_term
-        - config.triangle_weight_fill * floor_fill
-        - config.triangle_weight_bottleneck * bottleneck
+        config.wedge_weight_step * demand.p_step
+        + config.wedge_weight_cap * demand.p_cap
+        + config.wedge_weight_area * remaining
+        - config.wedge_weight_fill * floor_fill
+        - config.wedge_weight_bottleneck * bottleneck
     )
     return score, terms
 
 
-def evaluate(model: ContainerModel, placements, demand: TriangleDemand,
-             floor_fill: float, bottleneck: float, config) -> TriangleState:
-    """Current state of one container's triangle zone."""
-    bridge = next(
-        (p for p in placements
-         if p.surface != "shelf" and is_bridge(p.box, model, config)),
-        None,
+def evaluate(model: ContainerModel, placements, demand: WedgeDemand,
+             floor_fill: float, bottleneck: float, config) -> WedgeState:
+    steps = staircase(model, placements, config)
+    top, left, recovered = staircase_profile(model, placements, config)
+    gain = next_step_gain(model, placements, config)
+    remaining = max(0.0, 1.0 - recovered / max(1e-9, model.slope_wedge_area))
+    score, terms = reserve_score(
+        model, demand, floor_fill, bottleneck, remaining, config
     )
-    score, terms = reserve_score(model, demand, floor_fill, bottleneck, config)
+    common = dict(
+        score=score, terms=terms, steps=len(steps), top_z=top,
+        left_reach=left, next_gain=gain, recovered_area=recovered,
+    )
 
-    if bridge is not None and (
-        score <= config.triangle_reserve_threshold or demand.p_pocket <= 0.0
-    ):
-        # a bridge went up anyway (the wall-front rule reached that height on
-        # its own) but the reservation is not worth keeping, so the pocket is
-        # open to whatever fits rather than held for a customer that is not
-        # coming
-        return TriangleState(
-            state=STATE_CLOSED, score=score, terms=terms,
-            bridge_item=bridge.profile.index, bridge_top_z=bridge.top_z,
+    if gain <= config.wedge_min_step_gain:
+        # nothing more to win by climbing.  What is left is short and awkward,
+        # which is exactly what soft cargo absorbs well.
+        if demand.p_cap > 0.0 and steps and recovered > 0.0:
+            return WedgeState(
+                state=STATE_SOFT_READY,
+                reason=(
+                    f"staircase tops out at z={top:.3f} and the next step would "
+                    f"gain only {gain:.3f} m: the remainder is a soft disposal "
+                    "zone"
+                ),
+                **common,
+            )
+        return WedgeState(
+            state=STATE_CLOSED,
+            reason="no further step is worth taking and no cap customer is coming",
+            **common,
+        )
+
+    if score <= config.wedge_reserve_threshold:
+        return WedgeState(
+            state=STATE_CLOSED,
             reason=(
-                f"item {bridge.profile.index} happens to bridge the wedge, but "
-                f"the reservation scores {score:.3f}: the pocket is released to "
-                "ordinary cargo"
+                f"reserve score {score:.3f} <= {config.wedge_reserve_threshold}: "
+                "the strip is released to ordinary cargo"
             ),
+            **common,
         )
 
-    if bridge is not None:
-        return TriangleState(
-            state=STATE_INFILL,
-            score=score,
-            terms=terms,
-            bridge_item=bridge.profile.index,
-            bridge_top_z=bridge.top_z,
+    if steps:
+        return WedgeState(
+            state=STATE_STAIRCASE,
             reason=(
-                f"item {bridge.profile.index} bridges the wedge at "
-                f"z={bridge.top_z:.3f} (chamfer top {model.z_chamfer_top:.3f}); "
-                "its top is a restricted-support zone"
+                f"{len(steps)} step(s) to z={top:.3f}, reach x={left:.3f}; the "
+                f"next could add {gain:.3f} m"
             ),
+            **common,
         )
-
-    if bridge_min_height(model) > bridge_max_height(model, config):
-        return TriangleState(
-            state=STATE_CLOSED, score=score, terms=terms,
-            reason="no bridge height is both tall enough to clear the chamfer "
-                   "and low enough to be carried past the shelf",
-        )
-
-    if demand.p_pocket <= 0.0:
-        return TriangleState(
-            state=STATE_CLOSED, score=score, terms=terms,
-            reason="no soft, soft+priority or priority cargo in the stream: a "
-                   "bridge would open a pocket with no customer",
-        )
-    if demand.p_bridge <= 0.0:
-        return TriangleState(
-            state=STATE_CLOSED, score=score, terms=terms,
-            reason="nothing in the stream can serve as a bridge",
-        )
-
-    if score > config.triangle_reserve_threshold:
-        return TriangleState(
-            state=STATE_RESERVE, score=score, terms=terms,
-            reason=(
-                f"reserve score {score:.3f} > {config.triangle_reserve_threshold}: "
-                "the option is worth more than the volume it withholds"
-            ),
-        )
-    return TriangleState(
-        state=STATE_CLOSED, score=score, terms=terms,
+    return WedgeState(
+        state=STATE_RAW,
         reason=(
-            f"reserve score {score:.3f} <= {config.triangle_reserve_threshold}: "
-            "released to ordinary cargo"
+            "no step yet: the first is an ordinary low box on the floor at the "
+            "chamfer foot"
         ),
+        **common,
     )
 
 
-def pocket_allows(profile: cls.ItemProfile, state: TriangleState, config) -> bool:
-    """May this item stand on the bridge top?
+# ---------------------------------------------------------------------------
+# Who may use the zone
+# ---------------------------------------------------------------------------
+def cap_allows(profile: cls.ItemProfile, state: WedgeState, config) -> bool:
+    """May this item take the top of the staircase?"""
+    if state.state == STATE_CLOSED:
+        return True
+    if state.state != STATE_SOFT_READY:
+        return False
+    return CAP_LADDER.index(profile.cargo_class) <= config.wedge_cap_ladder_depth
 
-    Restricted-support zone: the pocket is built for soft cargo, but holding
-    out for soft alone over-specialises.  The ladder degrades through the other
-    constrained classes, and only a CLOSED zone takes plain cargo.
+
+def strip_reserved_for(profile: cls.ItemProfile, state: WedgeState,
+                       model: ContainerModel, config) -> bool:
+    """May this item occupy the strip at all?
+
+    While the staircase is growing the strip belongs to cargo that can be a
+    step; once it is soft-ready it belongs to the cap ladder.  Ordinary cargo
+    gets in only when the zone is CLOSED.
     """
     if state.state == STATE_CLOSED:
         return True
-    if state.state != STATE_INFILL:
-        return False
-    rank = POCKET_LADDER.index(profile.cargo_class)
-    return rank <= config.triangle_pocket_ladder_depth
+    if state.state in (STATE_RAW, STATE_STAIRCASE):
+        return step_capable(profile, model, config)
+    return cap_allows(profile, state, config)

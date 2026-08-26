@@ -356,70 +356,158 @@ A second finding: **nothing can rest on the bevel itself.** For the shipped
 ULD the bevel is 42.3° (`tan = 0.909`) against a lateral friction of 0.8, so a
 box placed on it slides. The wedge is wall-front territory, not storage.
 
-### The triangle as a three-state resource
+### The wedge as a staircase, not a wall
 
-Placing ordinary hard cargo against the chamfer foot is **irreversible**: the
-pocket above the wedge is gone for the rest of the episode. Leaving the strip
-empty costs only the volume it withholds right now. Under an unknown arrival
-order that asymmetry is the whole argument, so rule-alpha prices the *option*
-an action would destroy instead of trying to predict what is coming
-(`rule_alpha/triangle.py`).
+The wedge is not a small notch: the chamfer top is 0.378 m above the floor
+while the usable height under the shelf is 0.765 m, so **nearly the lower half
+of the cross section is cut away**. Writing that off as dead volume is
+expensive.
 
-```
-   RESERVE  ──bridge placed──▶  INFILL  ──score falls──▶  CLOSE
-      │                                                     ▲
-      └────────────── score falls ──────────────────────────┘
-```
+The first design here tried to bridge it in one move — stand a single box tall
+enough to reach the chamfer top, so cargo above could span the wedge. That is
+the wrong shape. It demands one 0.378 m piece, the piece still has to be
+delivered past the shelf, and it recovers nothing below its own top. Worse, the
+ordinary wall-front cap is half the floor-to-shelf gap (0.383 m), so such a
+bridge had a **4.8 mm** band to exist in.
 
-* **RESERVE** — the slope strip is held for a bridge; ordinary hard cargo is
-  kept out (veto `triangle-reserve`).
-* **INFILL** — a bridge is standing and its top is a *restricted-support
-  zone*, offered down `POCKET_LADDER` = soft → soft+priority → priority →
-  plain, only as far as `triangle_pocket_ladder_depth`.
-* **CLOSE** — the reservation is not worth its cost; the strip and the pocket
-  are released to anything that fits.
-
-The reservation is priced, not scheduled:
+The structure that actually fits grows instead (`rule_alpha/triangle.py`):
 
 ```
-R = w_pocket·p_pocket + w_bridge·p_bridge + w_area·A − w_fill·F − w_bottleneck·B
+    wedge  ->  small-hard staircase  ->  soft cap
+
+    shelf
+    ────────────────────────────
+              soft  soft            <- upper wedge: soft disposal zone
+            ████████
+              █████                 <- small cargo; each top is a new support
+            ████████
+          ██████████                <- first step: an ordinary low box on the floor
+        ╱
+       ╱   wedge
+      ╱________________________
 ```
 
-`p_pocket` is **demand** (share of the stream that could use a bridge top) and
-`p_bridge` is **feasibility** (share that could be one). Both gate the benefit
-terms: a pocket nobody can build is worth nothing, and so is a pocket nobody
-wants. Without that gate a stream of plain hard cargo scores high on
-feasibility alone and reserves a strip for a customer that never arrives —
-`12-large-hard-only` did exactly that before the gate went in. `F` (floor
-fill) and `B` (blocked entry lanes) rise as the board fills, so the
-reservation decays on its own rather than needing a step count.
+Each box sits on the flat top of the one below and reaches a little further
+towards the wall. No single item has to be tall, so **the wall front can stay
+low and keep the transport lane open** while the volume is recovered by small
+cargo that is awkward to place anywhere else. The two jobs are separated:
+wall-front protects transport, the staircase recovers the wedge.
 
-Shares come from the manifest `optimize()` is handed; with no manifest the same
-arithmetic applies to whatever has been observed so far.
+**How far a step may reach** — two limits, whichever is tighter:
 
-### The bridge needs its own height rule, and the geometry says why
+* the chamfer, `x_limit_at_height(bottom_z)`;
+* stability. A step overhanging its support by `o` out of width `w` has support
+  ratio `(w − o) / w`, so the official 0.6 floor gives `o ≤ 0.4w`. rule-alpha
+  uses `wedge_overhang_fraction` = 0.25, deliberately under it, because the
+  centre of mass and the settle step are not modelled exactly.
 
-This is worth stating because it constrains the design. The wedge is bounded
-by the chamfer, and the binding constraint on a floor-resting box is its
-**bottom** corner — so **no floor placement can overhang the wedge at any
-height**. The only way to get support over it is a box whose *top* clears
-`z_chamfer_top`, where the chamfer meets the wall.
+From the **second** step on it is stability that binds, not the chamfer — which
+is why the staircase keeps climbing at a steady rate instead of stalling at the
+chamfer top. Measured on the shipped ULD with 0.40 m boxes:
 
-On the shipped ULD:
+| step | bottom z | chamfer allows | support starts at | left face |
+|---|---|---|---|---|
+| 1 | 0.040 | −0.545 | −0.545 | −0.545 (no overhang possible) |
+| 2 | 0.240 | −0.765 | −0.545 | **−0.645** |
+| 3 | 0.440 | −0.960 | −0.645 | **−0.745** |
+| 4 | 0.640 | −0.960 | −0.745 | **−0.845** |
 
-| quantity | value |
-|---|---|
-| floor → chamfer top (minimum bridge height) | **0.3777 m** |
-| floor → shelf underside (the gap) | 0.7650 m |
-| ordinary wall-front cap (½ the gap) | **0.3825 m** |
-| bridge cap (what can be carried past the shelf) | 0.7190 m |
+The first step cannot overhang at all: at floor height the chamfer limit *is*
+the floor limit. That is why an empty strip is probed with a nominal first step
+when asking what the climb is still worth.
 
-The chamfer top sits at 0.494 of the gap and the ordinary cap is half of it, so
-under the wall-front rule alone a bridge has a **4.8 mm** band to live in —
-effectively impossible. So a bridge does not obey that cap. The cap exists to
-stop cargo being stood up for no reason; a bridge is stood up for a specific
-reason, and it gets the transport limit instead, with `z_chamfer_top` as its
-floor. A unit test pins both halves of this.
+### States
+
+```
+   RAW ──first step──▶ STAIRCASE ──climb exhausted──▶ SOFT_READY ──▶ CLOSED
+    │                      │                              │
+    └──────────── score falls ─────────────────────────────┘
+```
+
+* **RAW** — nothing at the foot; the first step is an ordinary low floor box.
+* **STAIRCASE** — steps are growing; the strip is held for cargo that can *be*
+  a step (`wedge_step_max_footprint_fraction`, `wedge_step_max_height`).
+* **SOFT_READY** — the next step would gain less than `wedge_min_step_gain`.
+  What is left is short and awkward, which is what soft cargo absorbs well, so
+  the top is offered down `CAP_LADDER` = soft → soft+priority → priority →
+  plain.
+* **CLOSED** — released to whatever fits.
+
+Leaving the strip is **priced, not scheduled**, because committing it to
+ordinary cargo is irreversible while withholding it costs only the volume held
+right now:
+
+```
+R = w_step·p_step + w_cap·p_cap + w_area·A_remaining − w_fill·F − w_bottleneck·B
+```
+
+`p_step` is what could *be* a step and `p_cap` is what could *use* the top.
+Below `wedge_min_step_share` the score is forced negative: cap customers are
+worth nothing without something to build the stairs out of, and holding the
+strip for soft cargo that has no way to get up there is exactly the waste the
+score exists to prevent. `A_remaining` shrinks as the staircase eats the wedge,
+and `F` and `B` rise as the board fills, so the reservation decays on its own
+without a step counter.
+
+`wedge_recovered_area_m2` reports how much of the wedge cross section the
+staircase actually clawed back. It counts only the part of each step that is
+left of the floor limit, below the chamfer top **and** above the chamfer line —
+counting "everything left of the floor limit" would also count space above the
+chamfer top, which was never wedge.
+
+### What the measurement actually says: most streams have no step material
+
+The staircase only exists if the stream contains cargo small enough to *be* a
+step — footprint ≤ 0.203 m² and `dz` ≤ 0.35 m under the shipped config. Scoring
+`p_step` (the share of the manifest that qualifies) and `p_cap` (the share that
+could use the top) across all twelve scenarios at `optimize()` time:
+
+| scenario | `p_step` | `p_cap` | state at step 0 |
+|---|---|---|---|
+| 01-normal-no-shelf | 0.23 | 0.23 | `raw-wedge` — reserves |
+| 02-normal-with-shelf | 0.23 | 0.23 | `raw-wedge` — reserves |
+| 03-priority-plus-normal | 0.15 | 0.25 | `raw-wedge` — reserves |
+| 04-soft-heavy | 0.04 | 0.77 | closed — too little step material |
+| 05-priority-heavy-no-priority-uld | 0.19 | 0.00 | `raw-wedge` — reserves |
+| 06-soft-priority-heavy | 0.03 | 0.76 | closed — too little step material |
+| 07-elongated-heavy | 0.41 | 0.05 | `raw-wedge` — reserves |
+| 08-slope-exploitation | 0.90 | 0.00 | `raw-wedge` — reserves |
+| 09-mixed-random | 0.09 | 0.41 | closed — too little step material |
+| 10-awkward-holes | 0.12 | 0.12 | `raw-wedge` — reserves |
+| 11-lookahead-3 | 0.09 | 0.41 | closed — too little step material |
+| 12-large-hard-only | 0.00 | 0.00 | closed — too little step material |
+
+Typical competition cargo is 0.45–0.75 m on a side, which is *not* small enough
+to be a step, so on most streams the strip is not worth withholding. Note also
+that every row that reserves at step 0 except 07 and 08 still ends `closed`:
+`F` and `B` rise as the board fills, so the reservation is given back on its own
+without anyone having to schedule a release.
+
+Closing the strip is not the same as refusing to climb, though. `CLOSED` only
+means the strip is no longer *held* for step material; a step that turns up
+anyway is still placed. End state and recovered wedge cross section (out of the
+0.0785 m² available):
+
+| scenario | end state | recovered m² | share of wedge |
+|---|---|---|---|
+| 08-slope-exploitation | `staircase` | 0.0273 | 35 % |
+| 02-normal-with-shelf | `closed` | 0.0144 | 18 % |
+| 04-soft-heavy | `closed` | 0.0120 | 15 % |
+| 01-normal-no-shelf | `closed` | 0.0100 | 13 % |
+| 07-elongated-heavy | `soft-ready` | 0.0054 | 7 % |
+| 10-awkward-holes | `closed` | 0.0012 | 2 % |
+| 05-priority-heavy-no-priority-uld | `closed` | 0.0001 | 0 % |
+| 03, 06, 09, 11, 12 | `closed` | 0.0000 | 0 % |
+
+Only 08 — small low boxes on purpose — is still climbing when the stream runs
+out. Everywhere else the staircase is an opportunistic 0–18 %, taken without
+having reserved anything for it.
+
+This is a finding, not a defect to tune away. The wedge staircase is a
+*conditional* mechanism: worth having for small-cargo streams, worth nothing for
+large-cargo ones, and cheap enough to leave switched on either way because the
+option price releases the strip by itself. For the common case the honest lever
+is the wall front, not the staircase.
 
 ### Slope wall front
 

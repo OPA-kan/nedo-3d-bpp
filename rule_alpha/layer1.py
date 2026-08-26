@@ -48,6 +48,8 @@ A_ELONGATED_WALL = "elongated-wall"
 A_SLOPE_INFILL = "slope-infill"
 A_WALL_FRONT = "wall-front"
 A_TALL_PERIMETER = "tall-perimeter"
+A_WEDGE_STEP = "wedge-step"
+A_WEDGE_CAP = "wedge-soft-cap"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -62,6 +64,8 @@ ALL_ARCHETYPES = (
     A_SLOPE_INFILL,
     A_WALL_FRONT,
     A_TALL_PERIMETER,
+    A_WEDGE_STEP,
+    A_WEDGE_CAP,
 )
 
 
@@ -138,6 +142,7 @@ class Placement:
             cls.ROLE_ELONGATED,
             cls.ROLE_SLOPE_INFILL,
             cls.ROLE_TALL_PERIMETER,
+            cls.ROLE_WEDGE_STEP,
         )
 
     @property
@@ -208,7 +213,7 @@ class Board:
         self.placements: list[list[Placement]] = [[] for _ in self.containers]
         self._grids: list[FloorGrid | None] = [None for _ in self.containers]
         self.triangle_demand: list = [
-            tri.TriangleDemand(source="no-manifest") for _ in self.containers
+            tri.WedgeDemand(source="no-manifest") for _ in self.containers
         ]
         self._triangle: list = [None for _ in self.containers]
 
@@ -479,6 +484,16 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
     ]
     if allow_item_tops:
         xs.append(model.x_wall_min + dx / 2.0 + config.inclusion_clearance)
+        # the next staircase step reaches past the one it stands on, as far as
+        # the chamfer and the support ratio allow
+        for box in packed:
+            if not tri.in_strip(box, model, config):
+                continue
+            support_left = float(box.minimum[0])
+            bottom_z = float(box.maximum[2])
+            overhang = tri.max_overhang(model, support_left, bottom_z, dx, config)
+            xs.append(support_left - overhang + dx / 2.0)
+            xs.append(support_left + dx / 2.0)
     for box in packed:
         xs.extend(
             (
@@ -519,8 +534,8 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
         top = float(surface.maximum[2]) if kind != "floor" else model.z_floor
         z = top + dz / 2.0
         if kind == "item":
-            # slope-infill only: the item top must border the pocket
-            if float(surface.minimum[0]) > model.x_floor_min + 0.02:
+            # staircase only: the support has to be a step in the strip
+            if not tri.in_strip(surface, model, config):
                 continue
         for x in xs:
             for y in ys:
@@ -530,11 +545,11 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
                 seen.add(key)
                 box = AABB((float(x), float(y), float(z)), (dx, dy, dz), "candidate")
                 if kind == "item":
-                    if not in_slope_pocket(box, model, config, pocket_ceiling):
+                    state = board.triangle_state(container_idx)
+                    support_rect = box_rect(surface)
+                    if not tri.is_wedge_step(box, support_rect, model, config):
                         continue
-                    if not tri.pocket_allows(
-                        profile, board.triangle_state(container_idx), config
-                    ):
+                    if not tri.strip_reserved_for(profile, state, model, config):
                         continue
                 ok, why = validate(box, model, container, config)
                 if not ok:
@@ -603,6 +618,8 @@ def in_slope_pocket(box: AABB, model: ContainerModel, config,
 
 def _role_for(box, model, profile, orientation, board, container_idx, config,
               surface: str, pocket_ceiling: float | None = None) -> str:
+    if surface == "item":
+        return cls.ROLE_WEDGE_STEP
     if surface == "shelf":
         # A shelf placement is never a structural member: its pose comes from
         # the shelf orientation policy, not from the structural exception, and
@@ -621,15 +638,11 @@ def _role_for(box, model, profile, orientation, board, container_idx, config,
         and wall_front_material(profile, model, config)
         and orientation.dz >= config.wall_front_min_height
     ):
-        limit = wall_front_height_limit(model, config)
-        # A bridge is stood up for a reason — reaching over the wedge — so it
-        # gets the transport limit as its cap instead of the ordinary "do not
-        # stand cargo up for nothing" cap, which leaves it a 5 mm band.
-        state = board.triangle_state(container_idx)
-        if state.state == tri.STATE_RESERVE and tri.is_bridge(box, model, config):
-            limit = tri.bridge_max_height(model, config)
-        if orientation.dz <= limit and _wall_front_wanted(
-            board, container_idx, model, config
+        # The wall front stays low on purpose: the wedge volume is recovered by
+        # the staircase above it, not by one tall piece, so the transport lane
+        # is never traded away for structure.
+        if orientation.dz <= wall_front_height_limit(model, config) and (
+            _wall_front_wanted(board, container_idx, model, config)
         ):
             return cls.ROLE_WALL_FRONT
     if profile.is_elongated and not profile.is_soft:
@@ -1000,6 +1013,16 @@ def _key_slope_infill(c):
     return (-c.features["slope_pocket_volume"], -c.features["y_back"])
 
 
+def _key_wedge_step(c):
+    # climb: reach as far towards the wall as the step legally can, and stay low
+    # so the next step still has headroom under the shelf
+    return (c.box.minimum[0], c.features["top_z"], -c.features["y_back"])
+
+
+def _key_wedge_cap(c):
+    return (c.box.minimum[0], -c.features["y_back"], c.features["footprint"])
+
+
 def _key_tall_perimeter(c):
     return (
         0 if c.features["has_backing"] else 1,
@@ -1030,6 +1053,8 @@ ARCHETYPE_KEYS = {
     A_SLOPE_INFILL: _key_slope_infill,
     A_WALL_FRONT: _key_wall_front,
     A_TALL_PERIMETER: _key_tall_perimeter,
+    A_WEDGE_STEP: _key_wedge_step,
+    A_WEDGE_CAP: _key_wedge_cap,
 }
 
 
@@ -1046,6 +1071,8 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         tags.add(A_WALL_FRONT)
     if candidate.role == cls.ROLE_TALL_PERIMETER:
         tags.add(A_TALL_PERIMETER)
+    if candidate.role == cls.ROLE_WEDGE_STEP:
+        tags.add(A_WEDGE_CAP if candidate.profile.is_soft else A_WEDGE_STEP)
     if candidate.profile.is_elongated:
         tags.add(A_ELONGATED_WALL)
     klass = candidate.profile.cargo_class
@@ -1067,7 +1094,7 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
     klass = profile.cargo_class
     wall_ratio = _wall_height_ratio(board, container_idx, model)
 
-    ladder: list[str] = [A_SLOPE_INFILL]
+    ladder: list[str] = [A_WEDGE_STEP, A_WEDGE_CAP, A_SLOPE_INFILL]
     if klass == cls.NORMAL_HARD:
         if wall_ratio < config.wall_front_target_ratio:
             ladder.append(A_WALL_FRONT)
@@ -1179,23 +1206,30 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if not survivors:
         return [], counts
 
-    # 2b. the slope strip belongs to wall material, and while the triangle zone
-    #     is RESERVED it belongs to a bridge.  Putting ordinary cargo here is
-    #     irreversible: the pocket over the wedge is gone for the episode.
-    triangle_state = board.triangle_state(container_idx)
-    reserving = triangle_state.state == tri.STATE_RESERVE
+    # 2b. the slope strip belongs to wall material, and while the wedge is not
+    #     CLOSED it belongs to staircase material.  Putting ordinary cargo at
+    #     the chamfer foot is irreversible: nothing can climb past it after,
+    #     so the whole wedge above is gone for the episode.
+    wedge_state = board.triangle_state(container_idx)
+    reserving = wedge_state.state != tri.STATE_CLOSED
     if reserving or _wall_front_wanted(board, container_idx, model, config):
         kept = []
         for candidate in survivors:
-            if (
-                candidate.surface == "floor"
-                and candidate.role != cls.ROLE_WALL_FRONT
-                and candidate.features.get("wall_strip_fit", 0.0)
-                > config.zone_guard_fraction
-            ):
-                drop(candidate, "triangle-reserve" if reserving else "wall-front-strip")
-            else:
+            if candidate.surface != "floor":
                 kept.append(candidate)
+                continue
+            if candidate.features.get("wall_strip_fit", 0.0) <= config.zone_guard_fraction:
+                kept.append(candidate)
+                continue
+            if candidate.role == cls.ROLE_WALL_FRONT:
+                kept.append(candidate)
+                continue
+            if reserving and tri.strip_reserved_for(
+                candidate.profile, wedge_state, model, config
+            ):
+                kept.append(candidate)
+                continue
+            drop(candidate, "wedge-reserve" if reserving else "wall-front-strip")
         if kept:
             survivors = kept
 
@@ -1273,7 +1307,7 @@ def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) ->
         out.append((("shelf",), "shelf"))
     out.append((("floor",), "floor"))
     if config.allow_slope_infill_on_items:
-        out.append((("item",), "floor"))
+        out.append((("item",), "wedge"))
     return out
 
 

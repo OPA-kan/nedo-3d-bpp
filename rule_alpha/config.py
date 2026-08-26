@@ -138,25 +138,55 @@ class RuleAlphaConfig:
     container depth: the wall is a wall, not a second foundation."""
 
     # ------------------------------------------------------------------
-    # Triangle zone: RESERVE -> INFILL -> CLOSE
+    # Chamfer wedge: RAW -> STAIRCASE -> SOFT_READY -> CLOSED
     # ------------------------------------------------------------------
-    triangle_weight_soft: float = 1.0
-    triangle_weight_bridge: float = 0.8
-    triangle_weight_area: float = 1.2
-    triangle_weight_fill: float = 0.9
-    triangle_weight_bottleneck: float = 0.6
-    """R = w_soft p_soft + w_bridge p_bridge + w_area A - w_fill F - w_bn B.
-    Placing ordinary cargo against the chamfer foot destroys the pocket above
-    the wedge for good, while reserving it costs only the volume withheld right
-    now.  The score prices that asymmetry instead of predicting arrivals."""
+    wedge_overhang_fraction: float = 0.25
+    """How far a staircase step may reach past the support under it, as a share
+    of its own width.  The official 0.6 support floor allows 0.4w; this is
+    deliberately under that, because the centre of mass and the settle step are
+    not modelled exactly."""
 
-    triangle_reserve_threshold: float = 0.25
-    """Reserve while R exceeds this; release below it."""
+    wedge_step_max_footprint_fraction: float = 0.10
+    """Only small cargo climbs the staircase.  A big box spent here is a big
+    box missing from the foundation."""
 
-    triangle_pocket_ladder_depth: int = 2
-    """How far down POCKET_LADDER (soft, soft+priority, priority, plain) a
-    bridge top will serve while the zone is still reserved.  2 means soft,
-    soft+priority and priority may use it; plain cargo has to wait for CLOSE."""
+    wedge_step_max_height: float = 0.35
+    """Each step stays low.  The point of a staircase is that no single item
+    has to be tall enough to bridge the wedge on its own, which is what lets
+    the wall front stay low and keep the transport lane open."""
+
+    wedge_min_step_gain: float = 0.03
+    """Below this much extra leftward reach a further step is not worth its
+    volume; the remainder becomes the soft disposal zone."""
+
+    wedge_step_probe_width: float = 0.40
+    """Nominal step width used to estimate the next step's gain before an item
+    is in hand."""
+
+    wedge_step_probe_height: float = 0.20
+    """Nominal first-step height used to ask what the *second* step would win,
+    since the first can never overhang."""
+
+    wedge_cap_ladder_depth: int = 1
+    """How far down CAP_LADDER (soft, soft+priority, priority, plain) the top of
+    the staircase will serve while the zone is still reserved."""
+
+    wedge_weight_step: float = 1.0
+    wedge_weight_cap: float = 0.6
+    wedge_weight_area: float = 0.6
+    wedge_weight_fill: float = 0.9
+    wedge_weight_bottleneck: float = 0.6
+    """R = w_step p_step + w_cap p_cap + w_area A_remaining - w_fill F - w_bn B.
+    Committing the strip to ordinary cargo is irreversible while withholding it
+    costs only the volume held now, so the score prices the option an action
+    would destroy rather than predicting arrivals."""
+
+    wedge_min_step_share: float = 0.10
+    """Below this share of step-capable cargo the strip is not worth holding:
+    cap customers cannot use a staircase that nothing can build."""
+
+    wedge_reserve_threshold: float = 0.25
+    """Keep the strip reserved while R exceeds this."""
 
     slope_pocket_margin: float = 0.004
     """Extra clearance demanded inside the reserved slope pocket."""

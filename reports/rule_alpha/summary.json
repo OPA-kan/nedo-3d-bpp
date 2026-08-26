@@ -22,9 +22,26 @@
     "wall_front_band": 0.1,
     "wall_front_target_ratio": 0.5,
     "wall_front_min_height": 0.25,
+    "wall_front_max_height_shelf_fraction": 0.5,
+    "tall_perimeter_max_footprint_fraction": 0.18,
+    "tall_perimeter_min_height": 0.3,
     "wall_front_strip_fraction": 0.22,
     "wall_front_max_footprint_fraction": 0.13,
     "wall_front_depth_target": 0.85,
+    "wedge_overhang_fraction": 0.25,
+    "wedge_step_max_footprint_fraction": 0.1,
+    "wedge_step_max_height": 0.35,
+    "wedge_min_step_gain": 0.03,
+    "wedge_step_probe_width": 0.4,
+    "wedge_step_probe_height": 0.2,
+    "wedge_cap_ladder_depth": 1,
+    "wedge_weight_step": 1.0,
+    "wedge_weight_cap": 0.6,
+    "wedge_weight_area": 0.6,
+    "wedge_weight_fill": 0.9,
+    "wedge_weight_bottleneck": 0.6,
+    "wedge_min_step_share": 0.1,
+    "wedge_reserve_threshold": 0.25,
     "slope_pocket_margin": 0.004,
     "slope_pocket_min_penetration": 0.06,
     "slope_pocket_min_share": 0.5,
@@ -39,6 +56,7 @@
     "shortlist_size": 60,
     "residual_rect_shortlist": 24,
     "zone_guard_fraction": 0.15,
+    "frontier_item_contact_weight": 2.0,
     "zone_reference_share": 0.25,
     "layer1_only": true,
     "allow_slope_infill_on_items": true
@@ -47,259 +65,320 @@
     {
       "scenario": "01-normal-no-shelf",
       "description": "Single ULD without a shelf, mostly plain hard cargo. The reference picture for the rectangular floor rule.",
+      "placed_volume_m3": 0.82744,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.2065,
+      "official_evaluator_fill_score": 2.553,
       "items_in_stream": 26,
-      "items_placed": 9,
-      "items_unplaced": 17,
+      "items_placed": 12,
+      "items_unplaced": 14,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
         "wall-front": 3,
-        "none": 5,
-        "elongated": 1
+        "tall-perimeter": 3,
+        "wedge-step": 3,
+        "none": 3
       },
       "archetype_histogram": {
         "wall-front": 3,
-        "max-footprint": 3,
-        "elongated-wall": 1,
+        "tall-perimeter": 3,
+        "wedge-step": 3,
+        "max-footprint": 1,
         "shelf-space-saving": 2
       },
       "placed_class_histogram": {
         "normal-hard/floor": 7,
+        "normal-hard/item": 3,
         "soft/shelf": 2
       },
-      "runtime_seconds": 10.16,
+      "runtime_seconds": 31.05,
       "containers": [
         {
           "container": 0,
+          "placed_total": 12,
           "shelf": false,
           "priority": false,
-          "floor_coverage": 0.699,
-          "largest_plateau_ratio": 0.301,
-          "largest_built_plateau_ratio": 0.4661,
-          "plateau_count": 4,
-          "local_roughness": 0.0081,
-          "height_spread": 0.256,
-          "structural_mask_fraction": 0.3004,
+          "floor_coverage": 0.7099,
+          "largest_plateau_ratio": 0.2901,
+          "largest_built_plateau_ratio": 1.0,
+          "plateau_count": 2,
+          "local_roughness": 0.0058,
+          "height_spread": 0.213,
+          "structural_mask_fraction": 0.517,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.6064,
-          "largest_free_rect": 0.2464,
-          "wall_height_ratio": 0.4699,
+          "remaining_contiguous_free_area": 0.5844,
+          "largest_free_rect": 0.2376,
+          "wall_height_ratio": 0.2484,
           "wall_front_items": 3,
-          "corridor_free_ratio": 0.5627,
+          "corridor_free_ratio": 0.5166,
           "corridor_clear_lane_ratio": 0.4706,
           "support_type_area": {
-            "hard": 1.4084
+            "hard": 1.4304
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4416,
-              "occupied_area": 0.3504,
-              "occupancy": 0.7935,
+              "occupied_area": 0.3776,
+              "occupancy": 0.8551,
               "by_support_type": {
-                "hard": 0.3504
+                "hard": 0.3776
               }
             },
             "soft_zone": {
               "area": 0.304,
-              "occupied_area": 0.034,
-              "occupancy": 0.1118,
+              "occupied_area": 0.0604,
+              "occupancy": 0.1987,
               "by_support_type": {
-                "hard": 0.034
+                "hard": 0.0604
               }
             },
             "priority_zone": {
               "area": 0.096,
-              "occupied_area": 0.0608,
-              "occupancy": 0.6333,
+              "occupied_area": 0.0672,
+              "occupancy": 0.7,
               "by_support_type": {
-                "hard": 0.0608
+                "hard": 0.0672
               }
             },
             "corridor": {
               "area": 0.3128,
-              "occupied_area": 0.1368,
-              "occupancy": 0.4373,
+              "occupied_area": 0.1512,
+              "occupancy": 0.4834,
               "by_support_type": {
-                "hard": 0.1368
+                "hard": 0.1512
               }
             },
             "back_band": {
               "area": 0.8468,
-              "occupied_area": 0.7016,
-              "occupancy": 0.8285,
+              "occupied_area": 0.6804,
+              "occupancy": 0.8035,
               "by_support_type": {
-                "hard": 0.7016
+                "hard": 0.6804
               }
             },
             "centre_band": {
               "area": 0.8832,
-              "occupied_area": 0.7512,
-              "occupancy": 0.8505,
+              "occupied_area": 0.7028,
+              "occupancy": 0.7957,
               "by_support_type": {
-                "hard": 0.7512
+                "hard": 0.7028
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.8333,
+          "back_to_front_violations": 2,
+          "max_backtrack_m": 0.339,
+          "frontier_depth_used": 0.9518,
+          "placed_volume_m3": 0.82744,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.2065,
+          "foundation_volume_m3": 0.08011,
+          "foundation_slab_height_m": 0.213,
+          "foundation_slab_volume_m3": 0.43221,
+          "foundation_slab_fill_ratio": 0.1853,
+          "structural_volume_m3": 0.58268,
+          "placed_volume_floor_m3": 0.66278,
+          "placed_volume_shelf_m3": 0.16466,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "02-normal-with-shelf",
       "description": "Same cargo mix in a shelf ULD: shows where the soft items go once a shelf exists, and what the shelf does to the back half of the floor.",
+      "placed_volume_m3": 1.01192,
+      "usable_container_volume_m3": 4.1903,
+      "volume_fill_ratio": 0.2415,
+      "official_evaluator_fill_score": 1.4915,
       "items_in_stream": 26,
-      "items_placed": 12,
-      "items_unplaced": 14,
+      "items_placed": 13,
+      "items_unplaced": 13,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "wall-front": 1,
-        "none": 9,
-        "elongated": 2
+        "wall-front": 2,
+        "elongated": 1,
+        "tall-perimeter": 3,
+        "wedge-step": 1,
+        "none": 6
       },
       "archetype_histogram": {
-        "wall-front": 1,
-        "max-footprint": 4,
-        "elongated-wall": 2,
+        "wall-front": 2,
+        "elongated-wall": 1,
+        "tall-perimeter": 3,
+        "wedge-step": 1,
+        "max-footprint": 1,
         "shelf-space-saving": 5
       },
       "placed_class_histogram": {
         "normal-hard/floor": 7,
+        "normal-hard/item": 1,
         "soft/shelf": 5
       },
-      "runtime_seconds": 14.52,
+      "runtime_seconds": 34.91,
       "containers": [
         {
           "container": 0,
+          "placed_total": 13,
           "shelf": true,
           "priority": false,
-          "floor_coverage": 0.6242,
-          "largest_plateau_ratio": 0.3758,
-          "largest_built_plateau_ratio": 0.316,
-          "plateau_count": 5,
-          "local_roughness": 0.0109,
-          "height_spread": 0.348,
-          "structural_mask_fraction": 0.2203,
+          "floor_coverage": 0.622,
+          "largest_plateau_ratio": 0.378,
+          "largest_built_plateau_ratio": 1.0,
+          "plateau_count": 2,
+          "local_roughness": 0.0066,
+          "height_spread": 0.375,
+          "structural_mask_fraction": 0.5516,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.8008,
-          "largest_free_rect": 0.448,
-          "wall_height_ratio": 0.4669,
-          "wall_front_items": 1,
-          "corridor_free_ratio": 0.3578,
-          "corridor_clear_lane_ratio": 0.0588,
+          "remaining_contiguous_free_area": 0.8056,
+          "largest_free_rect": 0.296,
+          "wall_height_ratio": 0.213,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.7917,
+          "corridor_clear_lane_ratio": 0.5,
           "support_type_area": {
-            "hard": 1.3304
+            "hard": 1.3256
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4608,
-              "occupied_area": 0.0896,
-              "occupancy": 0.1944,
+              "occupied_area": 0.384,
+              "occupancy": 0.8333,
               "by_support_type": {
-                "hard": 0.0896
+                "hard": 0.384
               }
             },
             "soft_zone": {
               "area": 0.1176,
-              "occupied_area": 0.0528,
-              "occupancy": 0.449,
+              "occupied_area": 0.05,
+              "occupancy": 0.4252,
               "by_support_type": {
-                "hard": 0.0528
+                "hard": 0.05
               }
             },
             "priority_zone": {
               "area": 0.1008,
-              "occupied_area": 0.056,
-              "occupancy": 0.5556,
+              "occupied_area": 0.0224,
+              "occupancy": 0.2222,
               "by_support_type": {
-                "hard": 0.056
+                "hard": 0.0224
               }
             },
             "corridor": {
               "area": 0.3264,
-              "occupied_area": 0.2096,
-              "occupancy": 0.6422,
+              "occupied_area": 0.068,
+              "occupancy": 0.2083,
               "by_support_type": {
-                "hard": 0.2096
+                "hard": 0.068
               }
             },
             "back_band": {
               "area": 0.888,
-              "occupied_area": 0.58,
-              "occupancy": 0.6532,
+              "occupied_area": 0.74,
+              "occupancy": 0.8333,
               "by_support_type": {
-                "hard": 0.58
+                "hard": 0.74
               }
             },
             "centre_band": {
               "area": 1.296,
-              "occupied_area": 1.0468,
-              "occupancy": 0.8077,
+              "occupied_area": 0.7184,
+              "occupancy": 0.5543,
               "by_support_type": {
-                "hard": 1.0468
+                "hard": 0.7184
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.6923,
+          "back_to_front_violations": 4,
+          "max_backtrack_m": 0.388,
+          "frontier_depth_used": 0.8541,
+          "placed_volume_m3": 1.01192,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.2415,
+          "foundation_volume_m3": 0.05794,
+          "foundation_slab_height_m": 0.375,
+          "foundation_slab_volume_m3": 0.80487,
+          "foundation_slab_fill_ratio": 0.072,
+          "structural_volume_m3": 0.53615,
+          "placed_volume_floor_m3": 0.59409,
+          "placed_volume_shelf_m3": 0.41783,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "03-priority-plus-normal",
       "description": "Priority ULD (index 0) next to a normal ULD. Tests the routing rules: soft-only never enters the priority container, plain hard may but only inside its budget.",
+      "placed_volume_m3": 2.0754,
+      "usable_container_volume_m3": 8.19728,
+      "volume_fill_ratio": 0.2532,
+      "official_evaluator_fill_score": 1.4726,
       "items_in_stream": 40,
-      "items_placed": 19,
-      "items_unplaced": 21,
+      "items_placed": 27,
+      "items_unplaced": 13,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "wall-front": 6,
-        "none": 11,
-        "elongated": 2
+        "tall-perimeter": 11,
+        "none": 9,
+        "elongated": 1,
+        "wall-front": 4,
+        "wedge-step": 2
       },
       "archetype_histogram": {
-        "wall-front": 6,
-        "max-footprint": 8,
+        "wall-front": 4,
+        "tall-perimeter": 10,
+        "wedge-step": 2,
+        "max-footprint": 6,
         "shelf-space-saving": 5
       },
       "placed_class_histogram": {
-        "normal-hard/floor": 13,
-        "priority/floor": 1,
+        "normal-hard/floor": 17,
+        "priority/floor": 3,
         "soft-priority/shelf": 3,
+        "normal-hard/item": 2,
         "soft/shelf": 2
       },
-      "runtime_seconds": 20.76,
+      "runtime_seconds": 68.94,
       "containers": [
         {
           "container": 0,
+          "placed_total": 13,
           "shelf": true,
           "priority": true,
-          "floor_coverage": 0.5794,
-          "largest_plateau_ratio": 0.4206,
-          "largest_built_plateau_ratio": 0.4878,
-          "plateau_count": 4,
-          "local_roughness": 0.0074,
-          "height_spread": 0.331,
-          "structural_mask_fraction": 0.2023,
+          "floor_coverage": 0.714,
+          "largest_plateau_ratio": 0.286,
+          "largest_built_plateau_ratio": 0.5725,
+          "plateau_count": 3,
+          "local_roughness": 0.0136,
+          "height_spread": 0.521,
+          "structural_mask_fraction": 0.4927,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.8964,
-          "largest_free_rect": 0.3036,
-          "wall_height_ratio": 0.2961,
-          "wall_front_items": 2,
-          "corridor_free_ratio": 0.5061,
-          "corridor_clear_lane_ratio": 0.0882,
+          "remaining_contiguous_free_area": 0.6096,
+          "largest_free_rect": 0.192,
+          "wall_height_ratio": 0.0,
+          "wall_front_items": 0,
+          "corridor_free_ratio": 0.1618,
+          "corridor_clear_lane_ratio": 0.0294,
           "support_type_area": {
-            "hard": 1.126,
-            "priority-only": 0.1088
+            "hard": 1.0284,
+            "priority-only": 0.4932
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4608,
-              "occupied_area": 0.1984,
-              "occupancy": 0.4306,
+              "occupied_area": 0.2368,
+              "occupancy": 0.5139,
               "by_support_type": {
-                "hard": 0.1984
+                "hard": 0.116,
+                "priority-only": 0.1208
               }
             },
             "soft_zone": {
@@ -310,633 +389,78 @@
             },
             "priority_zone": {
               "area": 0.084,
-              "occupied_area": 0.066,
-              "occupancy": 0.7857,
+              "occupied_area": 0.048,
+              "occupancy": 0.5714,
               "by_support_type": {
-                "hard": 0.032,
-                "priority-only": 0.034
+                "hard": 0.048
               }
             },
             "corridor": {
               "area": 0.3264,
-              "occupied_area": 0.1612,
-              "occupancy": 0.4939,
+              "occupied_area": 0.2736,
+              "occupancy": 0.8382,
               "by_support_type": {
-                "hard": 0.1612
+                "priority-only": 0.2736
               }
             },
             "back_band": {
               "area": 0.888,
-              "occupied_area": 0.5788,
-              "occupancy": 0.6518,
+              "occupied_area": 0.6188,
+              "occupancy": 0.6968,
               "by_support_type": {
-                "hard": 0.5788
+                "hard": 0.6188
               }
             },
             "centre_band": {
               "area": 1.5264,
-              "occupied_area": 0.9124,
-              "occupancy": 0.5977,
+              "occupied_area": 1.1928,
+              "occupancy": 0.7814,
               "by_support_type": {
-                "hard": 0.8376,
-                "priority-only": 0.0748
+                "hard": 0.8204,
+                "priority-only": 0.3724
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.4615,
+          "back_to_front_violations": 7,
+          "max_backtrack_m": 0.94,
+          "frontier_depth_used": 0.9892,
+          "placed_volume_m3": 1.09834,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.2621,
+          "foundation_volume_m3": 0.17588,
+          "foundation_slab_height_m": 0.521,
+          "foundation_slab_volume_m3": 1.11824,
+          "foundation_slab_fill_ratio": 0.1573,
+          "structural_volume_m3": 0.69824,
+          "placed_volume_floor_m3": 0.87413,
+          "placed_volume_shelf_m3": 0.22421,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         },
         {
           "container": 1,
+          "placed_total": 14,
           "shelf": false,
           "priority": false,
-          "floor_coverage": 0.7445,
-          "largest_plateau_ratio": 0.2555,
-          "largest_built_plateau_ratio": 0.2684,
-          "plateau_count": 5,
-          "local_roughness": 0.0141,
-          "height_spread": 0.48,
-          "structural_mask_fraction": 0.3369,
+          "floor_coverage": 0.8007,
+          "largest_plateau_ratio": 0.1993,
+          "largest_built_plateau_ratio": 0.6064,
+          "plateau_count": 3,
+          "local_roughness": 0.0183,
+          "height_spread": 0.499,
+          "structural_mask_fraction": 0.6206,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.5148,
-          "largest_free_rect": 0.126,
-          "wall_height_ratio": 0.2627,
+          "remaining_contiguous_free_area": 0.4016,
+          "largest_free_rect": 0.08,
+          "wall_height_ratio": 0.2451,
           "wall_front_items": 4,
-          "corridor_free_ratio": 0.3453,
-          "corridor_clear_lane_ratio": 0.2647,
+          "corridor_free_ratio": 0.2212,
+          "corridor_clear_lane_ratio": 0.1765,
           "support_type_area": {
-            "hard": 1.5
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4416,
-              "occupied_area": 0.3584,
-              "occupancy": 0.8116,
-              "by_support_type": {
-                "hard": 0.3584
-              }
-            },
-            "soft_zone": {
-              "area": 0.224,
-              "occupied_area": 0.13,
-              "occupancy": 0.5804,
-              "by_support_type": {
-                "hard": 0.13
-              }
-            },
-            "priority_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "corridor": {
-              "area": 0.3128,
-              "occupied_area": 0.2048,
-              "occupancy": 0.6547,
-              "by_support_type": {
-                "hard": 0.2048
-              }
-            },
-            "back_band": {
-              "area": 0.8468,
-              "occupied_area": 0.71,
-              "occupancy": 0.8385,
-              "by_support_type": {
-                "hard": 0.71
-              }
-            },
-            "centre_band": {
-              "area": 1.1868,
-              "occupied_area": 0.8548,
-              "occupancy": 0.7203,
-              "by_support_type": {
-                "hard": 0.8548
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scenario": "04-soft-heavy",
-      "description": "Soft-dominated stream into a shelf ULD: shelf saturates early, the rest must cluster on the left soft strip.",
-      "items_in_stream": 26,
-      "items_placed": 12,
-      "items_unplaced": 14,
-      "stop_reason": "stream-exhausted",
-      "role_histogram": {
-        "wall-front": 1,
-        "none": 10,
-        "elongated": 1
-      },
-      "archetype_histogram": {
-        "wall-front": 1,
-        "max-footprint": 4,
-        "shelf-space-saving": 6,
-        "soft-edge": 1
-      },
-      "placed_class_histogram": {
-        "normal-hard/floor": 5,
-        "soft/shelf": 6,
-        "soft/floor": 1
-      },
-      "runtime_seconds": 25.32,
-      "containers": [
-        {
-          "container": 0,
-          "shelf": true,
-          "priority": false,
-          "floor_coverage": 0.6258,
-          "largest_plateau_ratio": 0.3742,
-          "largest_built_plateau_ratio": 0.2402,
-          "plateau_count": 6,
-          "local_roughness": 0.0128,
-          "height_spread": 0.425,
-          "structural_mask_fraction": 0.0351,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.7976,
-          "largest_free_rect": 0.322,
-          "wall_height_ratio": 0.439,
-          "wall_front_items": 1,
-          "corridor_free_ratio": 0.2341,
-          "corridor_clear_lane_ratio": 0.0294,
-          "support_type_area": {
-            "hard": 1.0956,
-            "soft-only": 0.238
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4608,
-              "occupied_area": 0.1568,
-              "occupancy": 0.3403,
-              "by_support_type": {
-                "hard": 0.0616,
-                "soft-only": 0.0952
-              }
-            },
-            "soft_zone": {
-              "area": 0.336,
-              "occupied_area": 0.1492,
-              "occupancy": 0.444,
-              "by_support_type": {
-                "hard": 0.0132,
-                "soft-only": 0.136
-              }
-            },
-            "priority_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "corridor": {
-              "area": 0.3264,
-              "occupied_area": 0.25,
-              "occupancy": 0.7659,
-              "by_support_type": {
-                "hard": 0.1344,
-                "soft-only": 0.1156
-              }
-            },
-            "back_band": {
-              "area": 0.888,
-              "occupied_area": 0.5456,
-              "occupancy": 0.6144,
-              "by_support_type": {
-                "hard": 0.5456
-              }
-            },
-            "centre_band": {
-              "area": 1.0944,
-              "occupied_area": 0.882,
-              "occupancy": 0.8059,
-              "by_support_type": {
-                "hard": 0.8752,
-                "soft-only": 0.0068
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scenario": "05-priority-heavy-no-priority-uld",
-      "description": "Priority-dominated stream with no priority ULD: the priority edge zone on the right is the only home.",
-      "items_in_stream": 26,
-      "items_placed": 9,
-      "items_unplaced": 17,
-      "stop_reason": "stream-exhausted",
-      "role_histogram": {
-        "wall-front": 3,
-        "none": 4,
-        "elongated": 2
-      },
-      "archetype_histogram": {
-        "wall-front": 3,
-        "max-footprint": 4,
-        "priority-edge": 2
-      },
-      "placed_class_histogram": {
-        "normal-hard/floor": 7,
-        "priority/floor": 2
-      },
-      "runtime_seconds": 6.82,
-      "containers": [
-        {
-          "container": 0,
-          "shelf": false,
-          "priority": false,
-          "floor_coverage": 0.7923,
-          "largest_plateau_ratio": 0.2077,
-          "largest_built_plateau_ratio": 0.3558,
-          "plateau_count": 5,
-          "local_roughness": 0.0151,
-          "height_spread": 0.393,
-          "structural_mask_fraction": 0.2835,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.4184,
-          "largest_free_rect": 0.1168,
-          "wall_height_ratio": 0.485,
-          "wall_front_items": 3,
-          "corridor_free_ratio": 0.1982,
-          "corridor_clear_lane_ratio": 0.0294,
-          "support_type_area": {
-            "hard": 1.4564,
-            "priority-only": 0.14
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4416,
-              "occupied_area": 0.36,
-              "occupancy": 0.8152,
-              "by_support_type": {
-                "hard": 0.36
-              }
-            },
-            "soft_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "priority_zone": {
-              "area": 0.304,
-              "occupied_area": 0.1784,
-              "occupancy": 0.5868,
-              "by_support_type": {
-                "hard": 0.0384,
-                "priority-only": 0.14
-              }
-            },
-            "corridor": {
-              "area": 0.3128,
-              "occupied_area": 0.2508,
-              "occupancy": 0.8018,
-              "by_support_type": {
-                "hard": 0.2508
-              }
-            },
-            "back_band": {
-              "area": 0.8468,
-              "occupied_area": 0.7392,
-              "occupancy": 0.8729,
-              "by_support_type": {
-                "hard": 0.7392
-              }
-            },
-            "centre_band": {
-              "area": 1.0488,
-              "occupied_area": 0.8452,
-              "occupancy": 0.8059,
-              "by_support_type": {
-                "hard": 0.8452
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scenario": "06-soft-priority-heavy",
-      "description": "Soft+priority dominated stream with a priority shelf ULD present: SP should prefer the priority shelf, then cluster.",
-      "items_in_stream": 34,
-      "items_placed": 22,
-      "items_unplaced": 12,
-      "stop_reason": "stream-exhausted",
-      "role_histogram": {
-        "none": 17,
-        "wall-front": 3,
-        "elongated": 2
-      },
-      "archetype_histogram": {
-        "wall-front": 3,
-        "max-footprint": 4,
-        "elongated-wall": 1,
-        "shelf-space-saving": 10,
-        "sp-cluster": 4
-      },
-      "placed_class_histogram": {
-        "normal-hard/floor": 8,
-        "soft-priority/shelf": 10,
-        "soft-priority/floor": 4
-      },
-      "runtime_seconds": 32.46,
-      "containers": [
-        {
-          "container": 0,
-          "shelf": true,
-          "priority": true,
-          "floor_coverage": 0.5285,
-          "largest_plateau_ratio": 0.4715,
-          "largest_built_plateau_ratio": 0.2884,
-          "plateau_count": 5,
-          "local_roughness": 0.0121,
-          "height_spread": 0.52,
-          "structural_mask_fraction": 0.0,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 1.0048,
-          "largest_free_rect": 0.3744,
-          "wall_height_ratio": 0.0,
-          "wall_front_items": 0,
-          "corridor_free_ratio": 0.2096,
-          "corridor_clear_lane_ratio": 0.0294,
-          "support_type_area": {
-            "hard": 0.2944,
-            "soft+priority-only": 0.832
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4608,
-              "occupied_area": 0.0552,
-              "occupancy": 0.1198,
-              "by_support_type": {
-                "soft+priority-only": 0.0552
-              }
-            },
-            "soft_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "priority_zone": {
-              "area": 0.3192,
-              "occupied_area": 0.1296,
-              "occupancy": 0.406,
-              "by_support_type": {
-                "soft+priority-only": 0.1296
-              }
-            },
-            "corridor": {
-              "area": 0.3264,
-              "occupied_area": 0.258,
-              "occupancy": 0.7904,
-              "by_support_type": {
-                "soft+priority-only": 0.258
-              }
-            },
-            "back_band": {
-              "area": 0.888,
-              "occupied_area": 0.44,
-              "occupancy": 0.4955,
-              "by_support_type": {
-                "hard": 0.2944,
-                "soft+priority-only": 0.1456
-              }
-            },
-            "centre_band": {
-              "area": 1.1232,
-              "occupied_area": 0.7668,
-              "occupancy": 0.6827,
-              "by_support_type": {
-                "hard": 0.1196,
-                "soft+priority-only": 0.6472
-              }
-            }
-          }
-        },
-        {
-          "container": 1,
-          "shelf": false,
-          "priority": false,
-          "floor_coverage": 0.7526,
-          "largest_plateau_ratio": 0.2474,
-          "largest_built_plateau_ratio": 0.3115,
-          "plateau_count": 5,
-          "local_roughness": 0.0101,
-          "height_spread": 0.361,
-          "structural_mask_fraction": 0.2198,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.4984,
-          "largest_free_rect": 0.1456,
-          "wall_height_ratio": 0.4667,
-          "wall_front_items": 3,
-          "corridor_free_ratio": 0.3427,
-          "corridor_clear_lane_ratio": 0.0588,
-          "support_type_area": {
-            "hard": 1.286,
-            "soft+priority-only": 0.2304
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4416,
-              "occupied_area": 0.3132,
-              "occupancy": 0.7092,
-              "by_support_type": {
-                "hard": 0.294,
-                "soft+priority-only": 0.0192
-              }
-            },
-            "soft_zone": {
-              "area": 0.24,
-              "occupied_area": 0.1036,
-              "occupancy": 0.4317,
-              "by_support_type": {
-                "hard": 0.0076,
-                "soft+priority-only": 0.096
-              }
-            },
-            "priority_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "corridor": {
-              "area": 0.3128,
-              "occupied_area": 0.2056,
-              "occupancy": 0.6573,
-              "by_support_type": {
-                "hard": 0.0136,
-                "soft+priority-only": 0.192
-              }
-            },
-            "back_band": {
-              "area": 0.8468,
-              "occupied_area": 0.7452,
-              "occupancy": 0.88,
-              "by_support_type": {
-                "hard": 0.7452
-              }
-            },
-            "centre_band": {
-              "area": 1.1592,
-              "occupied_area": 0.9708,
-              "occupancy": 0.8375,
-              "by_support_type": {
-                "hard": 0.8556,
-                "soft+priority-only": 0.1152
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scenario": "07-elongated-heavy",
-      "description": "Long thin cargo (rho 2.5-6): the structural exception path. Watch where the wall / corner preference sends them and which poses the tipping bands refuse.",
-      "items_in_stream": 22,
-      "items_placed": 14,
-      "items_unplaced": 8,
-      "stop_reason": "stream-exhausted",
-      "role_histogram": {
-        "elongated": 13,
-        "wall-front": 1
-      },
-      "archetype_histogram": {
-        "elongated-wall": 13,
-        "wall-front": 1
-      },
-      "placed_class_histogram": {
-        "normal-hard/floor": 14
-      },
-      "runtime_seconds": 15.3,
-      "containers": [
-        {
-          "container": 0,
-          "shelf": false,
-          "priority": false,
-          "floor_coverage": 0.5958,
-          "largest_plateau_ratio": 0.4042,
-          "largest_built_plateau_ratio": 0.0,
-          "plateau_count": 1,
-          "local_roughness": 0.0,
-          "height_spread": 0.0,
-          "structural_mask_fraction": 0.5958,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.8144,
-          "largest_free_rect": 0.18,
-          "wall_height_ratio": 0.1765,
-          "wall_front_items": 1,
-          "corridor_free_ratio": 0.5895,
-          "corridor_clear_lane_ratio": 0.2941,
-          "support_type_area": {
-            "hard": 1.2004
-          },
-          "zones": {
-            "wall_front_strip": {
-              "area": 0.4416,
-              "occupied_area": 0.2128,
-              "occupancy": 0.4819,
-              "by_support_type": {
-                "hard": 0.2128
-              }
-            },
-            "soft_zone": {
-              "area": 0.032,
-              "occupied_area": 0.0028,
-              "occupancy": 0.0875,
-              "by_support_type": {
-                "hard": 0.0028
-              }
-            },
-            "priority_zone": {
-              "area": 0.0,
-              "occupied_area": 0.0,
-              "occupancy": 0.0,
-              "by_support_type": {}
-            },
-            "corridor": {
-              "area": 0.3128,
-              "occupied_area": 0.1284,
-              "occupancy": 0.4105,
-              "by_support_type": {
-                "hard": 0.1284
-              }
-            },
-            "back_band": {
-              "area": 0.8468,
-              "occupied_area": 0.5744,
-              "occupancy": 0.6783,
-              "by_support_type": {
-                "hard": 0.5744
-              }
-            },
-            "centre_band": {
-              "area": 1.518,
-              "occupied_area": 0.9816,
-              "occupancy": 0.6466,
-              "by_support_type": {
-                "hard": 0.9816
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scenario": "08-slope-exploitation",
-      "description": "Small low boxes that would fit the chamfer wedge if it were reachable. This scenario exists to show whether the slope pocket is usable at all from a floor layer.",
-      "items_in_stream": 30,
-      "items_placed": 12,
-      "items_unplaced": 18,
-      "stop_reason": "stream-exhausted",
-      "role_histogram": {
-        "wall-front": 5,
-        "none": 7
-      },
-      "archetype_histogram": {
-        "wall-front": 5,
-        "max-footprint": 7
-      },
-      "placed_class_histogram": {
-        "normal-hard/floor": 12
-      },
-      "runtime_seconds": 18.17,
-      "containers": [
-        {
-          "container": 0,
-          "shelf": false,
-          "priority": false,
-          "floor_coverage": 0.8148,
-          "largest_plateau_ratio": 0.1852,
-          "largest_built_plateau_ratio": 0.1965,
-          "plateau_count": 8,
-          "local_roughness": 0.0148,
-          "height_spread": 0.288,
-          "structural_mask_fraction": 0.2843,
-          "interior_hole_count": 0,
-          "interior_hole_area": 0,
-          "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.3732,
-          "largest_free_rect": 0.112,
-          "wall_height_ratio": 0.2869,
-          "wall_front_items": 5,
-          "corridor_free_ratio": 0.3312,
-          "corridor_clear_lane_ratio": 0.1471,
-          "support_type_area": {
-            "hard": 1.6416
+            "hard": 1.6132
           },
           "zones": {
             "wall_front_strip": {
@@ -948,6 +472,717 @@
               }
             },
             "soft_zone": {
+              "area": 0.224,
+              "occupied_area": 0.15,
+              "occupancy": 0.6696,
+              "by_support_type": {
+                "hard": 0.15
+              }
+            },
+            "priority_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "corridor": {
+              "area": 0.3128,
+              "occupied_area": 0.2436,
+              "occupancy": 0.7788,
+              "by_support_type": {
+                "hard": 0.2436
+              }
+            },
+            "back_band": {
+              "area": 0.8468,
+              "occupied_area": 0.702,
+              "occupancy": 0.829,
+              "by_support_type": {
+                "hard": 0.702
+              }
+            },
+            "centre_band": {
+              "area": 1.1868,
+              "occupied_area": 0.902,
+              "occupancy": 0.76,
+              "by_support_type": {
+                "hard": 0.902
+              }
+            }
+          },
+          "back_to_front_adherence": 0.8571,
+          "back_to_front_violations": 2,
+          "max_backtrack_m": 0.5,
+          "frontier_depth_used": 0.966,
+          "placed_volume_m3": 0.97706,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.2438,
+          "foundation_volume_m3": 0.12939,
+          "foundation_slab_height_m": 0.499,
+          "foundation_slab_volume_m3": 1.01255,
+          "foundation_slab_fill_ratio": 0.1278,
+          "structural_volume_m3": 0.66488,
+          "placed_volume_floor_m3": 0.79427,
+          "placed_volume_shelf_m3": 0.18279,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        }
+      ]
+    },
+    {
+      "scenario": "04-soft-heavy",
+      "description": "Soft-dominated stream into a shelf ULD: shelf saturates early, the rest must cluster on the left soft strip.",
+      "placed_volume_m3": 1.1759,
+      "usable_container_volume_m3": 4.1903,
+      "volume_fill_ratio": 0.2806,
+      "official_evaluator_fill_score": 13.87,
+      "items_in_stream": 26,
+      "items_placed": 15,
+      "items_unplaced": 11,
+      "stop_reason": "stream-exhausted",
+      "role_histogram": {
+        "wall-front": 2,
+        "wedge-step": 1,
+        "tall-perimeter": 3,
+        "none": 9
+      },
+      "archetype_histogram": {
+        "wall-front": 2,
+        "wedge-step": 1,
+        "tall-perimeter": 3,
+        "shelf-space-saving": 6,
+        "soft-edge": 3
+      },
+      "placed_class_histogram": {
+        "normal-hard/floor": 5,
+        "normal-hard/item": 1,
+        "soft/shelf": 6,
+        "soft/floor": 3
+      },
+      "runtime_seconds": 52.54,
+      "containers": [
+        {
+          "container": 0,
+          "placed_total": 15,
+          "shelf": true,
+          "priority": false,
+          "floor_coverage": 0.6685,
+          "largest_plateau_ratio": 0.3315,
+          "largest_built_plateau_ratio": 0.4452,
+          "plateau_count": 4,
+          "local_roughness": 0.0129,
+          "height_spread": 0.465,
+          "structural_mask_fraction": 0.3587,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.7064,
+          "largest_free_rect": 0.2576,
+          "wall_height_ratio": 0.2175,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.4081,
+          "corridor_clear_lane_ratio": 0.3824,
+          "support_type_area": {
+            "hard": 0.7644,
+            "soft-only": 0.6604
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4608,
+              "occupied_area": 0.4208,
+              "occupancy": 0.9132,
+              "by_support_type": {
+                "hard": 0.2752,
+                "soft-only": 0.1456
+              }
+            },
+            "soft_zone": {
+              "area": 0.336,
+              "occupied_area": 0.2748,
+              "occupancy": 0.8179,
+              "by_support_type": {
+                "hard": 0.0232,
+                "soft-only": 0.2516
+              }
+            },
+            "priority_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "corridor": {
+              "area": 0.3264,
+              "occupied_area": 0.1932,
+              "occupancy": 0.5919,
+              "by_support_type": {
+                "soft-only": 0.1932
+              }
+            },
+            "back_band": {
+              "area": 0.888,
+              "occupied_area": 0.5676,
+              "occupancy": 0.6392,
+              "by_support_type": {
+                "hard": 0.5676
+              }
+            },
+            "centre_band": {
+              "area": 1.0944,
+              "occupied_area": 0.614,
+              "occupancy": 0.561,
+              "by_support_type": {
+                "hard": 0.3508,
+                "soft-only": 0.2632
+              }
+            }
+          },
+          "back_to_front_adherence": 0.6,
+          "back_to_front_violations": 6,
+          "max_backtrack_m": 0.608,
+          "frontier_depth_used": 0.9736,
+          "placed_volume_m3": 1.1759,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.2806,
+          "foundation_volume_m3": 0.22593,
+          "foundation_slab_height_m": 0.465,
+          "foundation_slab_volume_m3": 0.99804,
+          "foundation_slab_fill_ratio": 0.2264,
+          "structural_volume_m3": 0.41151,
+          "placed_volume_floor_m3": 0.63744,
+          "placed_volume_shelf_m3": 0.53846,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        }
+      ]
+    },
+    {
+      "scenario": "05-priority-heavy-no-priority-uld",
+      "description": "Priority-dominated stream with no priority ULD: the priority edge zone on the right is the only home.",
+      "placed_volume_m3": 0.68123,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.17,
+      "official_evaluator_fill_score": 0.0,
+      "items_in_stream": 26,
+      "items_placed": 9,
+      "items_unplaced": 17,
+      "stop_reason": "stream-exhausted",
+      "role_histogram": {
+        "wall-front": 3,
+        "tall-perimeter": 3,
+        "none": 2,
+        "wedge-step": 1
+      },
+      "archetype_histogram": {
+        "wall-front": 3,
+        "tall-perimeter": 2,
+        "max-footprint": 1,
+        "priority-edge": 2,
+        "wedge-step": 1
+      },
+      "placed_class_histogram": {
+        "normal-hard/floor": 6,
+        "priority/floor": 2,
+        "priority/item": 1
+      },
+      "runtime_seconds": 20.59,
+      "containers": [
+        {
+          "container": 0,
+          "placed_total": 9,
+          "shelf": false,
+          "priority": false,
+          "floor_coverage": 0.7632,
+          "largest_plateau_ratio": 0.2368,
+          "largest_built_plateau_ratio": 0.7481,
+          "plateau_count": 3,
+          "local_roughness": 0.0133,
+          "height_spread": 0.493,
+          "structural_mask_fraction": 0.5267,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.4772,
+          "largest_free_rect": 0.0816,
+          "wall_height_ratio": 0.2464,
+          "wall_front_items": 3,
+          "corridor_free_ratio": 0.1637,
+          "corridor_clear_lane_ratio": 0.1176,
+          "support_type_area": {
+            "hard": 0.7988,
+            "priority-only": 0.7388
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4416,
+              "occupied_area": 0.384,
+              "occupancy": 0.8696,
+              "by_support_type": {
+                "hard": 0.2048,
+                "priority-only": 0.1792
+              }
+            },
+            "soft_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "priority_zone": {
+              "area": 0.304,
+              "occupied_area": 0.1896,
+              "occupancy": 0.6237,
+              "by_support_type": {
+                "priority-only": 0.1896
+              }
+            },
+            "corridor": {
+              "area": 0.3128,
+              "occupied_area": 0.2616,
+              "occupancy": 0.8363,
+              "by_support_type": {
+                "priority-only": 0.2616
+              }
+            },
+            "back_band": {
+              "area": 0.8468,
+              "occupied_area": 0.7076,
+              "occupancy": 0.8356,
+              "by_support_type": {
+                "hard": 0.7076
+              }
+            },
+            "centre_band": {
+              "area": 1.0488,
+              "occupied_area": 0.8356,
+              "occupancy": 0.7967,
+              "by_support_type": {
+                "hard": 0.4656,
+                "priority-only": 0.37
+              }
+            }
+          },
+          "back_to_front_adherence": 0.5556,
+          "back_to_front_violations": 4,
+          "max_backtrack_m": 0.93,
+          "frontier_depth_used": 0.9887,
+          "placed_volume_m3": 0.68123,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.17,
+          "foundation_volume_m3": 0.1615,
+          "foundation_slab_height_m": 0.493,
+          "foundation_slab_volume_m3": 1.00037,
+          "foundation_slab_fill_ratio": 0.1614,
+          "structural_volume_m3": 0.51973,
+          "placed_volume_floor_m3": 0.68123,
+          "placed_volume_shelf_m3": 0.0,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        }
+      ]
+    },
+    {
+      "scenario": "06-soft-priority-heavy",
+      "description": "Soft+priority dominated stream with a priority shelf ULD present: SP should prefer the priority shelf, then cluster.",
+      "placed_volume_m3": 2.04887,
+      "usable_container_volume_m3": 8.19728,
+      "volume_fill_ratio": 0.2499,
+      "official_evaluator_fill_score": 9.7846,
+      "items_in_stream": 34,
+      "items_placed": 24,
+      "items_unplaced": 10,
+      "stop_reason": "stream-exhausted",
+      "role_histogram": {
+        "none": 16,
+        "wall-front": 2,
+        "wedge-step": 2,
+        "tall-perimeter": 3,
+        "elongated": 1
+      },
+      "archetype_histogram": {
+        "wall-front": 2,
+        "wedge-step": 2,
+        "tall-perimeter": 3,
+        "elongated-wall": 1,
+        "shelf-space-saving": 10,
+        "sp-cluster": 6
+      },
+      "placed_class_histogram": {
+        "soft-priority/shelf": 10,
+        "soft-priority/floor": 6,
+        "normal-hard/floor": 6,
+        "normal-hard/item": 2
+      },
+      "runtime_seconds": 40.96,
+      "containers": [
+        {
+          "container": 0,
+          "placed_total": 12,
+          "shelf": true,
+          "priority": true,
+          "floor_coverage": 0.586,
+          "largest_plateau_ratio": 0.414,
+          "largest_built_plateau_ratio": 0.2594,
+          "plateau_count": 6,
+          "local_roughness": 0.0156,
+          "height_spread": 0.44,
+          "structural_mask_fraction": 0.0,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.8824,
+          "largest_free_rect": 0.2592,
+          "wall_height_ratio": 0.0,
+          "wall_front_items": 0,
+          "corridor_free_ratio": 0.4216,
+          "corridor_clear_lane_ratio": 0.0588,
+          "support_type_area": {
+            "soft+priority-only": 1.2488
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4608,
+              "occupied_area": 0.2656,
+              "occupancy": 0.5764,
+              "by_support_type": {
+                "soft+priority-only": 0.2656
+              }
+            },
+            "soft_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "priority_zone": {
+              "area": 0.3192,
+              "occupied_area": 0.1276,
+              "occupancy": 0.3997,
+              "by_support_type": {
+                "soft+priority-only": 0.1276
+              }
+            },
+            "corridor": {
+              "area": 0.3264,
+              "occupied_area": 0.1888,
+              "occupancy": 0.5784,
+              "by_support_type": {
+                "soft+priority-only": 0.1888
+              }
+            },
+            "back_band": {
+              "area": 0.888,
+              "occupied_area": 0.4632,
+              "occupancy": 0.5216,
+              "by_support_type": {
+                "soft+priority-only": 0.4632
+              }
+            },
+            "centre_band": {
+              "area": 1.1232,
+              "occupied_area": 0.7324,
+              "occupancy": 0.6521,
+              "by_support_type": {
+                "soft+priority-only": 0.7324
+              }
+            }
+          },
+          "back_to_front_adherence": 0.75,
+          "back_to_front_violations": 3,
+          "max_backtrack_m": 0.632,
+          "frontier_depth_used": 0.9757,
+          "placed_volume_m3": 1.13592,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.2711,
+          "foundation_volume_m3": 0.43335,
+          "foundation_slab_height_m": 0.44,
+          "foundation_slab_volume_m3": 0.94439,
+          "foundation_slab_fill_ratio": 0.4589,
+          "structural_volume_m3": 0.0,
+          "placed_volume_floor_m3": 0.43335,
+          "placed_volume_shelf_m3": 0.70256,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        },
+        {
+          "container": 1,
+          "placed_total": 12,
+          "shelf": false,
+          "priority": false,
+          "floor_coverage": 0.6405,
+          "largest_plateau_ratio": 0.3595,
+          "largest_built_plateau_ratio": 1.0,
+          "plateau_count": 2,
+          "local_roughness": 0.0084,
+          "height_spread": 0.361,
+          "structural_mask_fraction": 0.5229,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.7244,
+          "largest_free_rect": 0.216,
+          "wall_height_ratio": 0.2216,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.5345,
+          "corridor_clear_lane_ratio": 0.1765,
+          "support_type_area": {
+            "hard": 1.0536,
+            "soft+priority-only": 0.2368
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4416,
+              "occupied_area": 0.2944,
+              "occupancy": 0.6667,
+              "by_support_type": {
+                "hard": 0.256,
+                "soft+priority-only": 0.0384
+              }
+            },
+            "soft_zone": {
+              "area": 0.24,
+              "occupied_area": 0.152,
+              "occupancy": 0.6333,
+              "by_support_type": {
+                "hard": 0.056,
+                "soft+priority-only": 0.096
+              }
+            },
+            "priority_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "corridor": {
+              "area": 0.3128,
+              "occupied_area": 0.1456,
+              "occupancy": 0.4655,
+              "by_support_type": {
+                "soft+priority-only": 0.1456
+              }
+            },
+            "back_band": {
+              "area": 0.8468,
+              "occupied_area": 0.6444,
+              "occupancy": 0.761,
+              "by_support_type": {
+                "hard": 0.6444
+              }
+            },
+            "centre_band": {
+              "area": 1.1592,
+              "occupied_area": 0.676,
+              "occupancy": 0.5832,
+              "by_support_type": {
+                "hard": 0.5736,
+                "soft+priority-only": 0.1024
+              }
+            }
+          },
+          "back_to_front_adherence": 0.6667,
+          "back_to_front_violations": 4,
+          "max_backtrack_m": 0.208,
+          "frontier_depth_used": 0.8965,
+          "placed_volume_m3": 0.91295,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.2278,
+          "foundation_volume_m3": 0.08658,
+          "foundation_slab_height_m": 0.361,
+          "foundation_slab_volume_m3": 0.73252,
+          "foundation_slab_fill_ratio": 0.1182,
+          "structural_volume_m3": 0.6419,
+          "placed_volume_floor_m3": 0.72849,
+          "placed_volume_shelf_m3": 0.18447,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        }
+      ]
+    },
+    {
+      "scenario": "07-elongated-heavy",
+      "description": "Long thin cargo (rho 2.5-6): the structural exception path. Watch where the wall / corner preference sends them and which poses the tipping bands refuse.",
+      "placed_volume_m3": 1.08325,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.2703,
+      "official_evaluator_fill_score": 2.0553,
+      "items_in_stream": 22,
+      "items_placed": 16,
+      "items_unplaced": 6,
+      "stop_reason": "stream-exhausted",
+      "role_histogram": {
+        "elongated": 12,
+        "wall-front": 1,
+        "wedge-step": 2,
+        "none": 1
+      },
+      "archetype_histogram": {
+        "elongated-wall": 12,
+        "wall-front": 1,
+        "wedge-step": 2,
+        "shelf-space-saving": 1
+      },
+      "placed_class_histogram": {
+        "normal-hard/floor": 13,
+        "normal-hard/item": 2,
+        "soft/shelf": 1
+      },
+      "runtime_seconds": 22.01,
+      "containers": [
+        {
+          "container": 0,
+          "placed_total": 16,
+          "shelf": false,
+          "priority": false,
+          "floor_coverage": 0.5976,
+          "largest_plateau_ratio": 0.4024,
+          "largest_built_plateau_ratio": 0.0,
+          "plateau_count": 1,
+          "local_roughness": 0.0,
+          "height_spread": 0.0,
+          "structural_mask_fraction": 0.5976,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.8108,
+          "largest_free_rect": 0.264,
+          "wall_height_ratio": 0.1765,
+          "wall_front_items": 1,
+          "corridor_free_ratio": 0.7749,
+          "corridor_clear_lane_ratio": 0.5294,
+          "support_type_area": {
+            "hard": 1.204
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4416,
+              "occupied_area": 0.3,
+              "occupancy": 0.6793,
+              "by_support_type": {
+                "hard": 0.3
+              }
+            },
+            "soft_zone": {
+              "area": 0.032,
+              "occupied_area": 0.0136,
+              "occupancy": 0.425,
+              "by_support_type": {
+                "hard": 0.0136
+              }
+            },
+            "priority_zone": {
+              "area": 0.0,
+              "occupied_area": 0.0,
+              "occupancy": 0.0,
+              "by_support_type": {}
+            },
+            "corridor": {
+              "area": 0.3128,
+              "occupied_area": 0.0704,
+              "occupancy": 0.2251,
+              "by_support_type": {
+                "hard": 0.0704
+              }
+            },
+            "back_band": {
+              "area": 0.8468,
+              "occupied_area": 0.6228,
+              "occupancy": 0.7355,
+              "by_support_type": {
+                "hard": 0.6228
+              }
+            },
+            "centre_band": {
+              "area": 1.518,
+              "occupied_area": 0.8816,
+              "occupancy": 0.5808,
+              "by_support_type": {
+                "hard": 0.8816
+              }
+            }
+          },
+          "back_to_front_adherence": 0.3125,
+          "back_to_front_violations": 11,
+          "max_backtrack_m": 0.9,
+          "frontier_depth_used": 0.9532,
+          "placed_volume_m3": 1.08325,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.2703,
+          "foundation_volume_m3": 0.0,
+          "foundation_slab_height_m": 0.0,
+          "foundation_slab_volume_m3": 0.0,
+          "foundation_slab_fill_ratio": null,
+          "structural_volume_m3": 1.05119,
+          "placed_volume_floor_m3": 1.05119,
+          "placed_volume_shelf_m3": 0.03207,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+        }
+      ]
+    },
+    {
+      "scenario": "08-slope-exploitation",
+      "description": "Small low boxes that would fit the chamfer wedge if it were reachable. This scenario exists to show whether the slope pocket is usable at all from a floor layer.",
+      "placed_volume_m3": 0.56302,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.1405,
+      "official_evaluator_fill_score": 2.2277,
+      "items_in_stream": 30,
+      "items_placed": 15,
+      "items_unplaced": 15,
+      "stop_reason": "stream-exhausted",
+      "role_histogram": {
+        "wall-front": 2,
+        "tall-perimeter": 6,
+        "wedge-step": 4,
+        "none": 3
+      },
+      "archetype_histogram": {
+        "wall-front": 2,
+        "tall-perimeter": 6,
+        "wedge-step": 4,
+        "max-footprint": 3
+      },
+      "placed_class_histogram": {
+        "normal-hard/floor": 11,
+        "normal-hard/item": 4
+      },
+      "runtime_seconds": 57.01,
+      "containers": [
+        {
+          "container": 0,
+          "placed_total": 15,
+          "shelf": false,
+          "priority": false,
+          "floor_coverage": 0.642,
+          "largest_plateau_ratio": 0.358,
+          "largest_built_plateau_ratio": 0.3975,
+          "plateau_count": 4,
+          "local_roughness": 0.0094,
+          "height_spread": 0.284,
+          "structural_mask_fraction": 0.4173,
+          "interior_hole_count": 0,
+          "interior_hole_area": 0,
+          "largest_interior_hole_area": 0.0,
+          "remaining_contiguous_free_area": 0.7212,
+          "largest_free_rect": 0.2632,
+          "wall_height_ratio": 0.215,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.7468,
+          "corridor_clear_lane_ratio": 0.3529,
+          "support_type_area": {
+            "hard": 1.2936
+          },
+          "zones": {
+            "wall_front_strip": {
+              "area": 0.4416,
+              "occupied_area": 0.3712,
+              "occupancy": 0.8406,
+              "by_support_type": {
+                "hard": 0.3712
+              }
+            },
+            "soft_zone": {
               "area": 0.0,
               "occupied_area": 0.0,
               "occupancy": 0.0,
@@ -961,193 +1196,250 @@
             },
             "corridor": {
               "area": 0.3128,
-              "occupied_area": 0.2092,
-              "occupancy": 0.6688,
+              "occupied_area": 0.0792,
+              "occupancy": 0.2532,
               "by_support_type": {
-                "hard": 0.2092
+                "hard": 0.0792
               }
             },
             "back_band": {
               "area": 0.8468,
-              "occupied_area": 0.72,
-              "occupancy": 0.8503,
+              "occupied_area": 0.6732,
+              "occupancy": 0.795,
               "by_support_type": {
-                "hard": 0.72
+                "hard": 0.6732
               }
             },
             "centre_band": {
               "area": 1.5732,
-              "occupied_area": 1.232,
-              "occupancy": 0.7831,
+              "occupied_area": 0.9224,
+              "occupancy": 0.5863,
               "by_support_type": {
-                "hard": 1.232
+                "hard": 0.9224
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.6,
+          "back_to_front_violations": 6,
+          "max_backtrack_m": 0.439,
+          "frontier_depth_used": 0.9872,
+          "placed_volume_m3": 0.56302,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.1405,
+          "foundation_volume_m3": 0.12081,
+          "foundation_slab_height_m": 0.284,
+          "foundation_slab_volume_m3": 0.57628,
+          "foundation_slab_fill_ratio": 0.2096,
+          "structural_volume_m3": 0.44222,
+          "placed_volume_floor_m3": 0.56302,
+          "placed_volume_shelf_m3": 0.0,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "09-mixed-random",
       "description": "Realistic mixed stream matching the official sample config class ratios.",
+      "placed_volume_m3": 1.24617,
+      "usable_container_volume_m3": 4.1903,
+      "volume_fill_ratio": 0.2974,
+      "official_evaluator_fill_score": 1.0086,
       "items_in_stream": 34,
-      "items_placed": 11,
-      "items_unplaced": 23,
+      "items_placed": 16,
+      "items_unplaced": 18,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "wall-front": 1,
-        "none": 10
+        "wall-front": 2,
+        "tall-perimeter": 5,
+        "wedge-step": 1,
+        "none": 8
       },
       "archetype_histogram": {
-        "wall-front": 1,
-        "max-footprint": 4,
+        "wall-front": 2,
+        "tall-perimeter": 3,
+        "wedge-step": 1,
+        "max-footprint": 1,
+        "priority-edge": 3,
         "shelf-space-saving": 6
       },
       "placed_class_histogram": {
-        "normal-hard/floor": 5,
+        "normal-hard/floor": 6,
+        "normal-hard/item": 1,
+        "priority/floor": 3,
         "soft-priority/shelf": 2,
         "soft/shelf": 4
       },
-      "runtime_seconds": 23.65,
+      "runtime_seconds": 61.02,
       "containers": [
         {
           "container": 0,
+          "placed_total": 16,
           "shelf": true,
           "priority": false,
-          "floor_coverage": 0.5002,
-          "largest_plateau_ratio": 0.4998,
-          "largest_built_plateau_ratio": 0.2788,
-          "plateau_count": 5,
-          "local_roughness": 0.0095,
-          "height_spread": 0.38,
-          "structural_mask_fraction": 0.0479,
+          "floor_coverage": 0.7074,
+          "largest_plateau_ratio": 0.2926,
+          "largest_built_plateau_ratio": 0.5689,
+          "plateau_count": 3,
+          "local_roughness": 0.0079,
+          "height_spread": 0.211,
+          "structural_mask_fraction": 0.5193,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 1.0652,
-          "largest_free_rect": 0.4788,
-          "wall_height_ratio": 0.4818,
-          "wall_front_items": 1,
-          "corridor_free_ratio": 0.625,
-          "corridor_clear_lane_ratio": 0.5,
+          "remaining_contiguous_free_area": 0.6236,
+          "largest_free_rect": 0.152,
+          "wall_height_ratio": 0.2468,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.2917,
+          "corridor_clear_lane_ratio": 0.0588,
           "support_type_area": {
-            "hard": 1.066
+            "hard": 1.032,
+            "priority-only": 0.4756
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4608,
-              "occupied_area": 0.084,
-              "occupancy": 0.1823,
+              "occupied_area": 0.3412,
+              "occupancy": 0.7405,
               "by_support_type": {
-                "hard": 0.084
+                "hard": 0.3412
               }
             },
             "soft_zone": {
               "area": 0.2688,
-              "occupied_area": 0.0224,
-              "occupancy": 0.0833,
+              "occupied_area": 0.146,
+              "occupancy": 0.5432,
               "by_support_type": {
-                "hard": 0.0224
+                "hard": 0.032,
+                "priority-only": 0.114
               }
             },
             "priority_zone": {
               "area": 0.2184,
-              "occupied_area": 0.0308,
-              "occupancy": 0.141,
+              "occupied_area": 0.1768,
+              "occupancy": 0.8095,
               "by_support_type": {
-                "hard": 0.0308
+                "priority-only": 0.1768
               }
             },
             "corridor": {
               "area": 0.3264,
-              "occupied_area": 0.1224,
-              "occupancy": 0.375,
+              "occupied_area": 0.2312,
+              "occupancy": 0.7083,
               "by_support_type": {
-                "hard": 0.1224
+                "priority-only": 0.2312
               }
             },
             "back_band": {
               "area": 0.888,
-              "occupied_area": 0.6032,
-              "occupancy": 0.6793,
+              "occupied_area": 0.7292,
+              "occupancy": 0.8212,
               "by_support_type": {
-                "hard": 0.6032
+                "hard": 0.7292
               }
             },
             "centre_band": {
               "area": 0.8352,
-              "occupied_area": 0.654,
-              "occupancy": 0.783,
+              "occupied_area": 0.5588,
+              "occupancy": 0.6691,
               "by_support_type": {
-                "hard": 0.654
+                "hard": 0.374,
+                "priority-only": 0.1848
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.625,
+          "back_to_front_violations": 6,
+          "max_backtrack_m": 0.478,
+          "frontier_depth_used": 0.9649,
+          "placed_volume_m3": 1.24617,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.2974,
+          "foundation_volume_m3": 0.08312,
+          "foundation_slab_height_m": 0.211,
+          "foundation_slab_volume_m3": 0.45288,
+          "foundation_slab_fill_ratio": 0.1835,
+          "structural_volume_m3": 0.59422,
+          "placed_volume_floor_m3": 0.67735,
+          "placed_volume_shelf_m3": 0.56882,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "10-awkward-holes",
       "description": "Deliberately badly tiling sizes: the hole diagnostics scenario. Interior holes here are the point, not a bug.",
+      "placed_volume_m3": 0.84231,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.2102,
+      "official_evaluator_fill_score": 1.2279,
       "items_in_stream": 26,
-      "items_placed": 10,
-      "items_unplaced": 16,
+      "items_placed": 12,
+      "items_unplaced": 14,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "wall-front": 4,
+        "wall-front": 3,
+        "wedge-step": 1,
         "elongated": 2,
-        "none": 4
+        "tall-perimeter": 3,
+        "none": 3
       },
       "archetype_histogram": {
-        "wall-front": 4,
-        "elongated-wall": 1,
-        "max-footprint": 3,
+        "wall-front": 3,
+        "wedge-step": 1,
+        "elongated-wall": 2,
+        "tall-perimeter": 3,
+        "max-footprint": 1,
         "shelf-space-saving": 2
       },
       "placed_class_histogram": {
-        "normal-hard/floor": 8,
+        "normal-hard/floor": 9,
+        "normal-hard/item": 1,
         "soft/shelf": 2
       },
-      "runtime_seconds": 7.72,
+      "runtime_seconds": 19.65,
       "containers": [
         {
           "container": 0,
+          "placed_total": 12,
           "shelf": false,
           "priority": false,
-          "floor_coverage": 0.6736,
-          "largest_plateau_ratio": 0.3264,
-          "largest_built_plateau_ratio": 0.3464,
-          "plateau_count": 4,
-          "local_roughness": 0.0121,
-          "height_spread": 0.34,
-          "structural_mask_fraction": 0.3143,
+          "floor_coverage": 0.7495,
+          "largest_plateau_ratio": 0.2505,
+          "largest_built_plateau_ratio": 1.0,
+          "plateau_count": 2,
+          "local_roughness": 0.0048,
+          "height_spread": 0.33,
+          "structural_mask_fraction": 0.6325,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.6576,
-          "largest_free_rect": 0.28,
-          "wall_height_ratio": 0.4837,
-          "wall_front_items": 4,
-          "corridor_free_ratio": 0.2468,
+          "remaining_contiguous_free_area": 0.5048,
+          "largest_free_rect": 0.1976,
+          "wall_height_ratio": 0.2418,
+          "wall_front_items": 3,
+          "corridor_free_ratio": 0.4054,
           "corridor_clear_lane_ratio": 0.0882,
           "support_type_area": {
-            "hard": 1.3572
+            "hard": 1.51
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4416,
-              "occupied_area": 0.3372,
-              "occupancy": 0.7636,
+              "occupied_area": 0.3904,
+              "occupancy": 0.8841,
               "by_support_type": {
-                "hard": 0.3372
+                "hard": 0.3904
               }
             },
             "soft_zone": {
               "area": 0.128,
-              "occupied_area": 0.06,
-              "occupancy": 0.4688,
+              "occupied_area": 0.076,
+              "occupancy": 0.5938,
               "by_support_type": {
-                "hard": 0.06
+                "hard": 0.076
               }
             },
             "priority_zone": {
@@ -1158,179 +1450,234 @@
             },
             "corridor": {
               "area": 0.3128,
-              "occupied_area": 0.2356,
-              "occupancy": 0.7532,
+              "occupied_area": 0.186,
+              "occupancy": 0.5946,
               "by_support_type": {
-                "hard": 0.2356
+                "hard": 0.186
               }
             },
             "back_band": {
               "area": 0.8468,
-              "occupied_area": 0.5432,
-              "occupancy": 0.6415,
+              "occupied_area": 0.7156,
+              "occupancy": 0.8451,
               "by_support_type": {
-                "hard": 0.5432
+                "hard": 0.7156
               }
             },
             "centre_band": {
               "area": 1.3524,
-              "occupied_area": 0.9488,
-              "occupancy": 0.7016,
+              "occupied_area": 0.9508,
+              "occupancy": 0.703,
               "by_support_type": {
-                "hard": 0.9488
+                "hard": 0.9508
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.5833,
+          "back_to_front_violations": 5,
+          "max_backtrack_m": 0.492,
+          "frontier_depth_used": 0.9844,
+          "placed_volume_m3": 0.84231,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.2102,
+          "foundation_volume_m3": 0.07979,
+          "foundation_slab_height_m": 0.33,
+          "foundation_slab_volume_m3": 0.66962,
+          "foundation_slab_fill_ratio": 0.1192,
+          "structural_volume_m3": 0.63698,
+          "placed_volume_floor_m3": 0.71678,
+          "placed_volume_shelf_m3": 0.12553,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "11-lookahead-3",
       "description": "Same mix as 09 but with look_ahead=3, to see whether the pool ordering rule changes the board shape.",
+      "placed_volume_m3": 1.2754,
+      "usable_container_volume_m3": 4.1903,
+      "volume_fill_ratio": 0.3044,
+      "official_evaluator_fill_score": 1.6037,
       "items_in_stream": 34,
-      "items_placed": 13,
-      "items_unplaced": 21,
+      "items_placed": 16,
+      "items_unplaced": 18,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "wall-front": 4,
-        "none": 9
+        "wall-front": 2,
+        "wedge-step": 2,
+        "tall-perimeter": 4,
+        "none": 8
       },
       "archetype_histogram": {
-        "wall-front": 4,
-        "max-footprint": 3,
+        "wall-front": 2,
+        "wedge-step": 2,
+        "tall-perimeter": 3,
+        "max-footprint": 2,
+        "priority-edge": 1,
         "shelf-space-saving": 6
       },
       "placed_class_histogram": {
         "normal-hard/floor": 7,
+        "normal-hard/item": 2,
+        "priority/floor": 1,
         "soft-priority/shelf": 2,
         "soft/shelf": 4
       },
-      "runtime_seconds": 66.13,
+      "runtime_seconds": 121.14,
       "containers": [
         {
           "container": 0,
+          "placed_total": 16,
           "shelf": true,
           "priority": false,
-          "floor_coverage": 0.67,
-          "largest_plateau_ratio": 0.33,
-          "largest_built_plateau_ratio": 0.385,
-          "plateau_count": 4,
-          "local_roughness": 0.0074,
-          "height_spread": 0.248,
-          "structural_mask_fraction": 0.3542,
+          "floor_coverage": 0.6867,
+          "largest_plateau_ratio": 0.3133,
+          "largest_built_plateau_ratio": 0.5383,
+          "plateau_count": 3,
+          "local_roughness": 0.0146,
+          "height_spread": 0.531,
+          "structural_mask_fraction": 0.4733,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.7032,
-          "largest_free_rect": 0.2088,
-          "wall_height_ratio": 0.3247,
-          "wall_front_items": 4,
-          "corridor_free_ratio": 0.5159,
-          "corridor_clear_lane_ratio": 0.4412,
+          "remaining_contiguous_free_area": 0.6676,
+          "largest_free_rect": 0.2592,
+          "wall_height_ratio": 0.2468,
+          "wall_front_items": 2,
+          "corridor_free_ratio": 0.462,
+          "corridor_clear_lane_ratio": 0.2353,
           "support_type_area": {
-            "hard": 1.428
+            "hard": 1.346,
+            "priority-only": 0.1176
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4608,
-              "occupied_area": 0.4096,
-              "occupancy": 0.8889,
+              "occupied_area": 0.4352,
+              "occupancy": 0.9444,
               "by_support_type": {
-                "hard": 0.4096
+                "hard": 0.3456,
+                "priority-only": 0.0896
               }
             },
             "soft_zone": {
               "area": 0.2688,
-              "occupied_area": 0.1596,
-              "occupancy": 0.5938,
+              "occupied_area": 0.1252,
+              "occupancy": 0.4658,
               "by_support_type": {
-                "hard": 0.1596
+                "hard": 0.0972,
+                "priority-only": 0.028
               }
             },
             "priority_zone": {
               "area": 0.2184,
-              "occupied_area": 0.0328,
-              "occupancy": 0.1502,
+              "occupied_area": 0.0272,
+              "occupancy": 0.1245,
               "by_support_type": {
-                "hard": 0.0328
+                "hard": 0.0272
               }
             },
             "corridor": {
               "area": 0.3264,
-              "occupied_area": 0.158,
-              "occupancy": 0.4841,
+              "occupied_area": 0.1756,
+              "occupancy": 0.538,
               "by_support_type": {
-                "hard": 0.158
+                "hard": 0.17,
+                "priority-only": 0.0056
               }
             },
             "back_band": {
               "area": 0.888,
-              "occupied_area": 0.6424,
-              "occupancy": 0.7234,
+              "occupied_area": 0.7008,
+              "occupancy": 0.7892,
               "by_support_type": {
-                "hard": 0.6424
+                "hard": 0.7008
               }
             },
             "centre_band": {
               "area": 0.8352,
-              "occupied_area": 0.4992,
-              "occupancy": 0.5977,
+              "occupied_area": 0.6672,
+              "occupancy": 0.7989,
               "by_support_type": {
-                "hard": 0.4992
+                "hard": 0.6672
               }
             }
-          }
+          },
+          "back_to_front_adherence": 0.6875,
+          "back_to_front_violations": 5,
+          "max_backtrack_m": 0.316,
+          "frontier_depth_used": 0.9649,
+          "placed_volume_m3": 1.2754,
+          "usable_container_volume_m3": 4.1903,
+          "volume_fill_ratio": 0.3044,
+          "foundation_volume_m3": 0.18215,
+          "foundation_slab_height_m": 0.531,
+          "foundation_slab_volume_m3": 1.1397,
+          "foundation_slab_fill_ratio": 0.1598,
+          "structural_volume_m3": 0.5609,
+          "placed_volume_floor_m3": 0.74306,
+          "placed_volume_shelf_m3": 0.53234,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     },
     {
       "scenario": "12-large-hard-only",
       "description": "Only large plain hard cargo: the best case for the rectangular floor rule, and the flatness reference.",
+      "placed_volume_m3": 0.43769,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.1092,
+      "official_evaluator_fill_score": 0.0,
       "items_in_stream": 20,
       "items_placed": 4,
       "items_unplaced": 16,
       "stop_reason": "stream-exhausted",
       "role_histogram": {
-        "none": 4
+        "none": 3,
+        "tall-perimeter": 1
       },
       "archetype_histogram": {
-        "max-footprint": 4
+        "max-footprint": 3,
+        "tall-perimeter": 1
       },
       "placed_class_histogram": {
         "normal-hard/floor": 4
       },
-      "runtime_seconds": 1.61,
+      "runtime_seconds": 3.7,
       "containers": [
         {
           "container": 0,
+          "placed_total": 4,
           "shelf": false,
           "priority": false,
-          "floor_coverage": 0.7965,
-          "largest_plateau_ratio": 0.2057,
-          "largest_built_plateau_ratio": 0.2582,
-          "plateau_count": 5,
-          "local_roughness": 0.0092,
+          "floor_coverage": 0.6869,
+          "largest_plateau_ratio": 0.3131,
+          "largest_built_plateau_ratio": 0.3375,
+          "plateau_count": 4,
+          "local_roughness": 0.0091,
           "height_spread": 0.32,
-          "structural_mask_fraction": 0.0,
+          "structural_mask_fraction": 0.0774,
           "interior_hole_count": 0,
           "interior_hole_area": 0,
           "largest_interior_hole_area": 0.0,
-          "remaining_contiguous_free_area": 0.41,
-          "largest_free_rect": 0.1776,
+          "remaining_contiguous_free_area": 0.6308,
+          "largest_free_rect": 0.2736,
           "wall_height_ratio": 0.0,
           "wall_front_items": 0,
-          "corridor_free_ratio": 0.3184,
-          "corridor_clear_lane_ratio": 0.0294,
+          "corridor_free_ratio": 0.7609,
+          "corridor_clear_lane_ratio": 0.5,
           "support_type_area": {
-            "hard": 1.6048
+            "hard": 1.384
           },
           "zones": {
             "wall_front_strip": {
               "area": 0.4416,
-              "occupied_area": 0.4112,
-              "occupancy": 0.9312,
+              "occupied_area": 0.2776,
+              "occupancy": 0.6286,
               "by_support_type": {
-                "hard": 0.4112
+                "hard": 0.2776
               }
             },
             "soft_zone": {
@@ -1347,29 +1694,45 @@
             },
             "corridor": {
               "area": 0.3128,
-              "occupied_area": 0.2132,
-              "occupancy": 0.6816,
+              "occupied_area": 0.0748,
+              "occupancy": 0.2391,
               "by_support_type": {
-                "hard": 0.2132
+                "hard": 0.0748
               }
             },
             "back_band": {
               "area": 0.8468,
-              "occupied_area": 0.716,
-              "occupancy": 0.8455,
+              "occupied_area": 0.7276,
+              "occupancy": 0.8592,
               "by_support_type": {
-                "hard": 0.716
+                "hard": 0.7276
               }
             },
             "centre_band": {
               "area": 1.5732,
-              "occupied_area": 1.1936,
-              "occupancy": 0.7587,
+              "occupied_area": 1.1064,
+              "occupancy": 0.7033,
               "by_support_type": {
-                "hard": 1.1936
+                "hard": 1.1064
               }
             }
-          }
+          },
+          "back_to_front_adherence": 1.0,
+          "back_to_front_violations": 0,
+          "max_backtrack_m": 0.0,
+          "frontier_depth_used": 0.9277,
+          "placed_volume_m3": 0.43769,
+          "usable_container_volume_m3": 4.00698,
+          "volume_fill_ratio": 0.1092,
+          "foundation_volume_m3": 0.33047,
+          "foundation_slab_height_m": 0.32,
+          "foundation_slab_volume_m3": 0.64933,
+          "foundation_slab_fill_ratio": 0.5089,
+          "structural_volume_m3": 0.10723,
+          "placed_volume_floor_m3": 0.43769,
+          "placed_volume_shelf_m3": 0.0,
+          "official_evaluator_fill_score": null,
+          "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
         }
       ]
     }
@@ -1377,123 +1740,123 @@
   "physics": [
     {
       "scenario": "01-normal-no-shelf",
-      "attempted": 5,
-      "accepted": 5,
+      "attempted": 8,
+      "accepted": 8,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.19230769230769232
+        "fill_score": 2.5530323116484848,
+        "num_placed_items": 0.3076923076923077
       },
-      "runtime_seconds": 2.67
+      "runtime_seconds": 14.31
     },
     {
       "scenario": "02-normal-with-shelf",
-      "attempted": 5,
-      "accepted": 5,
+      "attempted": 6,
+      "accepted": 6,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.19230769230769232
+        "fill_score": 1.4915041963542501,
+        "num_placed_items": 0.23076923076923078
       },
-      "runtime_seconds": 2.1
+      "runtime_seconds": 6.25
     },
     {
       "scenario": "03-priority-plus-normal",
-      "attempted": 13,
-      "accepted": 13,
+      "attempted": 19,
+      "accepted": 19,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.325
+        "fill_score": 1.4725677175843692,
+        "num_placed_items": 0.475
       },
-      "runtime_seconds": 11.4
+      "runtime_seconds": 49.83
     },
     {
       "scenario": "04-soft-heavy",
-      "attempted": 4,
-      "accepted": 4,
-      "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.15384615384615385
-      },
-      "runtime_seconds": 1.64
-    },
-    {
-      "scenario": "05-priority-heavy-no-priority-uld",
-      "attempted": 7,
-      "accepted": 7,
-      "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.2692307692307692
-      },
-      "runtime_seconds": 4.21
-    },
-    {
-      "scenario": "06-soft-priority-heavy",
-      "attempted": 18,
-      "accepted": 18,
-      "evaluation": {
-        "fill_score": 7.602111188101419,
-        "num_placed_items": 0.5294117647058824
-      },
-      "runtime_seconds": 20.15
-    },
-    {
-      "scenario": "07-elongated-heavy",
       "attempted": 13,
       "accepted": 13,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.5909090909090909
+        "fill_score": 13.87001029042284,
+        "num_placed_items": 0.5
       },
-      "runtime_seconds": 17.23
+      "runtime_seconds": 27.05
+    },
+    {
+      "scenario": "05-priority-heavy-no-priority-uld",
+      "attempted": 6,
+      "accepted": 6,
+      "evaluation": {
+        "fill_score": 0,
+        "num_placed_items": 0.23076923076923078
+      },
+      "runtime_seconds": 8.17
+    },
+    {
+      "scenario": "06-soft-priority-heavy",
+      "attempted": 21,
+      "accepted": 21,
+      "evaluation": {
+        "fill_score": 9.784642954736205,
+        "num_placed_items": 0.6176470588235294
+      },
+      "runtime_seconds": 31.49
+    },
+    {
+      "scenario": "07-elongated-heavy",
+      "attempted": 14,
+      "accepted": 14,
+      "evaluation": {
+        "fill_score": 2.0552571315625543,
+        "num_placed_items": 0.6363636363636364
+      },
+      "runtime_seconds": 20.61
     },
     {
       "scenario": "08-slope-exploitation",
-      "attempted": 9,
-      "accepted": 9,
+      "attempted": 11,
+      "accepted": 11,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.3
+        "fill_score": 2.2276783289942332,
+        "num_placed_items": 0.36666666666666664
       },
-      "runtime_seconds": 8.93
+      "runtime_seconds": 23.95
     },
     {
       "scenario": "09-mixed-random",
       "attempted": 5,
       "accepted": 5,
       "evaluation": {
-        "fill_score": 0,
+        "fill_score": 1.0085787809189977,
         "num_placed_items": 0.14705882352941177
       },
-      "runtime_seconds": 3.01
+      "runtime_seconds": 7.23
     },
     {
       "scenario": "10-awkward-holes",
-      "attempted": 7,
-      "accepted": 7,
+      "attempted": 10,
+      "accepted": 10,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.2692307692307692
+        "fill_score": 1.2279334840038967,
+        "num_placed_items": 0.38461538461538464
       },
-      "runtime_seconds": 4.81
+      "runtime_seconds": 13.46
     },
     {
       "scenario": "11-lookahead-3",
-      "attempted": 5,
-      "accepted": 5,
+      "attempted": 7,
+      "accepted": 7,
       "evaluation": {
-        "fill_score": 0,
-        "num_placed_items": 0.14705882352941177
+        "fill_score": 1.6037156254056986,
+        "num_placed_items": 0.20588235294117646
       },
-      "runtime_seconds": 3.39
+      "runtime_seconds": 13.16
     },
     {
       "scenario": "12-large-hard-only",
-      "attempted": 4,
-      "accepted": 4,
+      "attempted": 3,
+      "accepted": 3,
       "evaluation": {
         "fill_score": 0,
-        "num_placed_items": 0.2
+        "num_placed_items": 0.15
       },
-      "runtime_seconds": 0.75
+      "runtime_seconds": 1.21
     }
   ]
 }

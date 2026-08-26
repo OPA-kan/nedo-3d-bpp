@@ -45,6 +45,8 @@ ROLE_EDGE = {
     cls.ROLE_WALL_FRONT: ("#c0392b", 2.4, "solid"),
     cls.ROLE_ELONGATED: ("#e07b00", 2.0, "dashed"),
     cls.ROLE_SLOPE_INFILL: ("#b52ea8", 2.2, "dashdot"),
+    cls.ROLE_TALL_PERIMETER: ("#1f7a8c", 2.2, "solid"),
+    cls.ROLE_WEDGE_STEP: ("#7a5c00", 2.2, "dashdot"),
 }
 ZONE_STYLE = {
     "wall_front_strip": ("#c0392b", "slope wall-front strip"),
@@ -136,7 +138,7 @@ def draw_top(ax, model: ContainerModel, placements, show_zones=True):
     shelf_items = [p for p in placements if p.surface == "shelf"]
     for placement in floor_items + shelf_items:
         rect = placement.rect
-        edge, width, style = ROLE_EDGE[placement.role]
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
         on_shelf = placement.surface == "shelf"
         ax.add_patch(
             patches.Rectangle(
@@ -190,7 +192,7 @@ def draw_opening_view(ax, model: ContainerModel, placements):
         )
     for placement in sorted(placements, key=lambda p: p.rect.x_min):
         rect = placement.rect
-        edge, width, style = ROLE_EDGE[placement.role]
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
         ax.add_patch(
             patches.Rectangle(
                 (rect.y_min, float(placement.box.minimum[2])),
@@ -255,7 +257,7 @@ def draw_slope_view(ax, model: ContainerModel, placements):
         )
     for placement in sorted(placements, key=lambda p: -p.rect.y_min):
         rect = placement.rect
-        edge, width, style = ROLE_EDGE[placement.role]
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
         ax.add_patch(
             patches.Rectangle(
                 (rect.x_min, float(placement.box.minimum[2])),
@@ -377,7 +379,7 @@ def draw_fill_progression(ax, model: ContainerModel, placements):
     for placement in ordered:
         rect = placement.rect
         colour = CLASS_COLOR[placement.profile.cargo_class]
-        edge, width, style = ROLE_EDGE[placement.role]
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
         ax.bar(
             placement.step, rect.y_max - rect.y_min, bottom=rect.y_min,
             width=0.72, color=colour, edgecolor=edge, linewidth=width,
