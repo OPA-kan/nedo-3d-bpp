@@ -15,9 +15,16 @@ teacher collection
 Each expensive workflow has a `season_wave` input. An empty value preserves
 the old standalone behavior. A non-empty value dispatches the next stage only
 after its own required job succeeds. The title-match finalizer is idempotent by
-match run ID, commits the generated registry/ledger/replay, and explicitly
-dispatches the next collection. At wave 14 it writes the final season summary,
-sets `active=false`, and does not dispatch another run.
+match run ID and commits the generated registry/ledger/replay. At wave 14 it
+writes the final season summary and sets `active=false`.
+
+**Wave application is the monitor session's job, not CI's**: applying the
+next preregistered wave edits the collection/learning workflow files, and
+the Actions token cannot push `.github/workflows` changes (this is what
+broke the first wave-7 finalizer pushes). After a finalizer's ledger push
+lands, the monitor session runs `apply_season_wave.py --wave <state.wave>`,
+runs the workflow tests, and pushes; that push starts the next collection
+via the collection workflow's own push trigger.
 
 The state is `reports/league/season/state.json`. If infrastructure interrupts
 the chain, resume the current stage with the same wave and recorded upstream

@@ -131,3 +131,22 @@ stage/job polling rather than placement-level live video streaming.
    even when deterministic outputs are identical.
 5. Resume ordinary event-chain monitoring only after the wave-7 ledger push
    blocker is cleared. Do not dispatch wave 8 manually.
+
+## Resolution addendum (Claude session, 01:2x UTC)
+
+- The wave-7 ledger was reconstructed by deterministically re-running
+  `league_season.py finish` with run 32916368296's own artifacts
+  (report/registry) and run IDs — the computed verdict is preserved
+  bit-for-bit in meaning (プリフスバル rejected 0-2-5-3), no fourth
+  evaluation was executed. Round-3 row, state (round 4, wave 8,
+  challenger pi3-pref-w8 プリフダイフク), replay and match report are
+  committed from the session, whose credentials may push workflow files.
+- Permanent fix: the finalizer no longer stages workflow files or
+  dispatches the next collection; automation.md now assigns wave
+  application to the monitor session (Actions tokens cannot push
+  `.github/workflows`). Wave 8 was applied in the same push, which
+  starts its collection via the push trigger.
+- Look accounting: the wave-7 challenger evaluation executed three
+  times (two finalizer failures + one recovery), deterministic and
+  identical; recorded in `match-season-w7-pi3-pref-w7.md` context and
+  `exhibition-001-shun-hibari.md`.

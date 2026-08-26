@@ -253,9 +253,12 @@ jobs:
               out.write(f"active={str(state['active']).lower()}\n")
               out.write(f"next_wave={state.get('next_wave') or ''}\n")
           PY
-          if [ "$(python -c 'import json; print(str(json.load(open("reports/league/season/state.json"))["active"]).lower())')" = "true" ]; then
-            python scripts/apply_season_wave.py --wave "$(python -c 'import json; print(json.load(open("reports/league/season/state.json"))["wave"])')"
-          fi
+          # The next preregistered wave edits the collection/learning
+          # workflow files, which the Actions token is NOT permitted to
+          # push (GITHUB_TOKEN cannot update .github/workflows). Applying
+          # the wave is therefore the monitor session's job after this
+          # finalizer's ledger push lands; its push starts the next
+          # collection via that workflow's own push trigger.
       - name: Build broadcast replay data
         if: inputs.season_wave != ''
         shell: bash
@@ -275,7 +278,7 @@ jobs:
             --match reports/league/spectator/match.json \
             --live-status reports/league/spectator/live.json \
             --output-dir reports/league/spectator/site
-      - name: Commit the ledger, replay and next preregistered wave
+      - name: Commit the season ledger and replay
         if: inputs.season_wave != ''
         shell: bash
         run: |
@@ -288,25 +291,11 @@ jobs:
             reports/league/spectator/live.json \
             reports/league/spectator/match.json \
             reports/league/spectator/site \
-            "reports/league/match-season-w${{ inputs.season_wave }}-${{ inputs.challenger_name }}.md" \
-            .github/workflows/terminal-rollout-hard-state.yml \
-            .github/workflows/rollout-geometry-policy-learning.yml
+            "reports/league/match-season-w${{ inputs.season_wave }}-${{ inputs.challenger_name }}.md"
           if ! git diff --cached --quiet; then
-            git commit -m "Season wave ${{ inputs.season_wave }}: record title match and advance"
+            git commit -m "Season wave ${{ inputs.season_wave }}: record title match"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
-      - name: Dispatch next teacher wave
-        if: inputs.season_wave != '' && steps.season.outputs.active == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NEXT_WAVE: ${{ steps.season.outputs.next_wave }}
-        run: >-
-          gh workflow run terminal-rollout-hard-state.yml
-          --repo "$GITHUB_REPOSITORY"
-          --ref "$GITHUB_REF_NAME"
-          -f max_steps=40
-          -f rollout_max_steps=40
-          -f season_wave="$NEXT_WAVE"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

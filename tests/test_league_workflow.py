@@ -70,15 +70,26 @@ class LeagueWorkflowTests(unittest.TestCase):
         self.assertIn('mode="bootstrap"; name="pi0-legacy"', self.text)
         self.assertIn('mode="audit"; name="pi0-legacy"', self.text)
 
-    def test_season_match_records_replay_and_dispatches_next_wave(self):
+    def test_season_match_records_ledger_but_never_touches_workflows(self):
         self.assertIn("collection_run_id:", self.text)
         self.assertIn("season_wave:", self.text)
         self.assertIn("league_season.py finish", self.text)
         self.assertIn("build_spectator_data.py", self.text)
         self.assertIn("render_league_spectator.py", self.text)
-        self.assertIn("apply_season_wave.py", self.text)
-        self.assertIn("gh workflow run terminal-rollout-hard-state.yml", self.text)
-        self.assertIn("steps.season.outputs.active == 'true'", self.text)
+        # GITHUB_TOKEN cannot push .github/workflows: the finalizer must
+        # neither apply the next wave nor stage workflow files nor
+        # dispatch the next collection — that is the monitor session's
+        # job after the ledger push lands (see season/automation.md)
+        self.assertNotIn("apply_season_wave.py", self.text)
+        self.assertNotIn(
+            "gh workflow run terminal-rollout-hard-state.yml", self.text
+        )
+        commit_step = self.text.split(
+            "Commit the season ledger and replay"
+        )[1].split("- uses:")[0]
+        self.assertNotIn(".github/workflows", commit_step.replace(
+            "# push (GITHUB_TOKEN cannot update .github/workflows)", ""
+        ))
 
     def test_pages_is_opt_in_but_room_artifact_is_always_published(self):
         self.assertIn("packing-league-room-${{ github.run_id }}", self.text)
