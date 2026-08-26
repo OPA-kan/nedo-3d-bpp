@@ -1,5 +1,7 @@
 import json
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -98,6 +100,36 @@ class DiversityCupHostingTests(unittest.TestCase):
             ledger.write_text(pending, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "pending preregistration"):
                 preregister(ledger, STATE, date="2026-08-26")
+
+    def test_cli_can_run_as_a_direct_script(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            ledger = tmp_path / "cup-ledger.md"
+            state = tmp_path / "state.json"
+            names = tmp_path / "names.json"
+            ledger.write_text(LEDGER, encoding="utf-8")
+            state.write_text(json.dumps(STATE), encoding="utf-8")
+            names.write_text(
+                json.dumps({"names": {"w6": {"name": "bird"}}}),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "host_diversity_cup.py"),
+                    "--ledger", str(ledger),
+                    "--state", str(state),
+                    "--names", str(names),
+                    "--date", "2026-08-26",
+                ],
+                cwd=tmp_path,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(completed.stdout)["cup_id"], "002")
 
 
 if __name__ == "__main__":
