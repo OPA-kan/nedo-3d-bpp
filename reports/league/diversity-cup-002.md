@@ -9,8 +9,22 @@ Field: champion プリフヒバリ (pi2-pref-w6, plain), ジ・アーモンド
 `current-agent` — named after this cup, its first outing), and three
 mining studs, all forking against the champion's own ensemble
 (learning run 32890092906). Six virgin cells, primes 401-443, fork
-budget 12/episode. Scored under the 4-head dominance rule
-(surface_total_variation excluded — same amendment).
+budget 12/episode.
+
+**Correction (2026-08-26, same day):** this cup's episodes were
+auto-dispatched at 03:04:57Z on commit `88fc535`, which still carried
+the *original 5-head* `DOMINANCE_HEADS` (surface_total_variation
+included). The surface-exclusion fix (`1087667`) landed at 05:27:29Z,
+about two hours after these episodes ran — it could only affect the
+*standings reconstruction* below (which uses the unrelated, always
+surface-free `league.py` `LEAGUE_HEADS` for race tables), not the
+strict-pairs mining that happens live inside each episode via
+`vector_search_root`. So despite what an earlier version of this file
+said, **Cup 002's 17 strict pairs were mined under the OLD 5-head
+rule**, same as Cup 001. Cup 003 is the first cup run entirely under
+the 4-head rule; see `reports/league/diversity-cup-003.md` for the
+yield comparison this makes possible (17 -> 56 pairs, same 6-cell
+format, same champion).
 
 ## Standings recovery
 
