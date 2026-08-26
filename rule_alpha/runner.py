@@ -300,7 +300,13 @@ def _physics_markdown(rows: list[dict]) -> str:
         "A `fill_score` of 0.00 next to accepted placements is not a packing "
         "failure. `Evaluator.calculate_fill_rate` re-tests the *settled* pose "
         "against `inclusion_margin = -0.005`, and a box resting on the floor "
-        "sits micrometres inside the floor plane, so its volume is discarded. "
+        "sits micrometres *inside* the floor plane, so its volume is "
+        "discarded.",
+        "",
+        "The table demonstrates this on its own: the only scenario with a "
+        "non-zero score is the only one that got cargo onto a **shelf**. Its "
+        "floor-resting items scored nothing either — the shelf items are "
+        "raised well clear of the floor plane, so they survive the margin. "
         "See the finding in `docs/rule_alpha/README.md` section 1.",
         "",
     ]

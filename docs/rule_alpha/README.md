@@ -115,6 +115,12 @@ inclusion_margin=-0.0050  placed=4  evaluation={'fill_score': 0.00, ...}
 inclusion_margin=+0.0050  placed=4  evaluation={'fill_score': 7.57, ...}
 ```
 
+The scenario sweep demonstrates the same thing without any patching. Across
+all twelve `--physics` runs, **every** attempted placement was accepted by the
+validator, and exactly one scenario scored above zero — `06-soft-priority-heavy`,
+the only one that got cargo onto a shelf (6 SP items on the priority shelf,
+`fill_score` 7.60). Its 12 floor-resting items contributed nothing.
+
 Every placement passed `check_inclusion`, the transport sweep and the settle
 check in both runs; only the scoring changed. On this snapshot, with
 `simulator/configs/sample_config.json` as shipped, **cargo resting on the
