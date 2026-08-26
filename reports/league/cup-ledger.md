@@ -14,6 +14,8 @@ artifact is read.
 
 | 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | 32925104549 | 17 | 0.82-0.95 | five-horse field incl ジ・アーモンド (current-agent, ジ系列, named at this cup), 4-head dominance rule (surface excluded); standings job crashed on missing post-shake heads for its 5 non-genuine episodes, fixed and recomputed locally from the same run's artifacts (no re-run) — see `reports/league/diversity-cup-002.md`; ジ・アーモンド mined 0/19 strict pairs and missed candidate support on 132/164 steps |
 
+| 003 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 449,457,461,463 · 001: 431,433 | pending | pending | pending | preregistered five-horse field incl current-agent |
+
 Pool allocation note: primes used so far: 401, 409, 419, 421, 431, 433
 (cup 001; note 000/001 sides used are what the row lists — a prime may
 be reused on the OTHER source only if the ledger shows it was never
