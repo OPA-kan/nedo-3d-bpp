@@ -855,3 +855,86 @@ class ProductionPolicyUntouchedTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TerrainSurveyTest(unittest.TestCase):
+    """The read-only survey behind the Layer 2 terrain report."""
+
+    def _placement(self, model, x, y, dx, dy, dz, soft=False, prioritized=False,
+                   step=1):
+        item = {
+            "index": step, "length": dx, "width": dy, "height": dz,
+            "mass": 10.0, "is_soft": soft, "is_prioritized": prioritized,
+        }
+        profile = cls.classify_item(step, item, DEFAULT_CONFIG)
+        orientation = profile.orientations[0]
+        box = AABB(
+            (x, y, model.z_floor + dz / 2.0), (dx, dy, dz), f"item{step}"
+        )
+        return layer1.Placement(
+            profile=profile, orientation=orientation, container_idx=0, box=box,
+            surface="floor", surface_name="floor", role=cls.ROLE_NONE,
+            archetype=layer1.A_MAX_FOOTPRINT, reason="test", step=step,
+        )
+
+    def test_the_partition_tiles_the_usable_floor_exactly(self):
+        """Every cell disjoint, and together the whole floor — otherwise the
+        per-cell areas in the report would not add up to anything."""
+        from rule_alpha import terrain as trn
+
+        _container, model = _model()
+        grid = trn.build_terrain(model, [], DEFAULT_CONFIG).grid
+        seen = np.zeros(grid.usable.shape, dtype=np.int32)
+        for rect in trn.cell_rects(model, DEFAULT_CONFIG).values():
+            seen += (grid.rect_mask(rect) & grid.usable).astype(np.int32)
+        self.assertTrue((seen[grid.usable] == 1).all(),
+                        "the partition has a gap or an overlap")
+        self.assertTrue((seen[~grid.usable] == 0).all(), "cell outside floor")
+
+    def test_a_wall_across_the_opening_strands_the_floor_behind_it(self):
+        """The point of `reach_report`: empty is not the same as reachable."""
+        from rule_alpha import terrain as trn
+
+        _container, model = _model()
+        rect = model.floor_rect
+        wall = self._placement(
+            model,
+            x=0.5 * (rect.x_min + rect.x_max),
+            y=rect.y_min + 0.2,
+            dx=rect.x_max - rect.x_min - 0.02, dy=0.30, dz=0.40,
+        )
+        terrain = trn.build_terrain(model, [wall], DEFAULT_CONFIG)
+        reach = trn.reach_report(terrain, model)
+
+        # plenty of bare floor is left ...
+        free_area = float(terrain.grid.free_mask().sum()) * terrain.grid.cell_area
+        self.assertGreater(free_area, 1.0)
+        # ... and almost none of it can still be reached at floor level
+        self.assertLess(reach["0.00"]["reachable_free_m2"], 0.2 * free_area)
+        # stepping over the wall opens it up again
+        self.assertGreater(
+            reach["0.60"]["reachable_ratio"], reach["0.00"]["reachable_ratio"]
+        )
+
+    def test_a_soft_top_is_not_counted_as_buildable(self):
+        from rule_alpha import terrain as trn
+
+        _container, model = _model()
+        rect = model.floor_rect
+        centre_x = 0.5 * (rect.x_min + rect.x_max)
+        centre_y = 0.5 * (rect.y_min + rect.y_max)
+        hard = self._placement(model, centre_x, centre_y, 0.6, 0.5, 0.3)
+        soft = self._placement(
+            model, centre_x, centre_y, 0.6, 0.5, 0.3, soft=True, step=2
+        )
+
+        with_hard = trn.buildable_report(
+            trn.build_terrain(model, [hard], DEFAULT_CONFIG), model, DEFAULT_CONFIG
+        )
+        with_soft = trn.buildable_report(
+            trn.build_terrain(model, [soft], DEFAULT_CONFIG), model, DEFAULT_CONFIG
+        )
+        self.assertGreater(with_hard["buildable_area_m2"],
+                           with_soft["buildable_area_m2"])
+        self.assertAlmostEqual(with_hard["soft_capped_area_m2"], 0.0)
+        self.assertGreater(with_soft["soft_capped_area_m2"], 0.2)
