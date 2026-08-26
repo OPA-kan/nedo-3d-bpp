@@ -455,6 +455,80 @@ left of the floor limit, below the chamfer top **and** above the chamfer line �
 counting "everything left of the floor limit" would also count space above the
 chamfer top, which was never wedge.
 
+### The steps do not touch the slope, and mostly cannot
+
+Look at any staircase picture and the steps are visibly *off* the chamfer: the
+bottom-left edge hangs in space instead of meeting the slope.  Measured on
+`08-slope-exploitation`:
+
+| step | dz | dx | left face | chamfer at that height | **gap** | dx/dz |
+|---|---|---|---|---|---|---|
+| 4 | 0.230 | 0.517 | −0.658 | −0.821 | 0.163 | 2.25 |
+| 8 | 0.176 | 0.496 | −0.782 | −0.960 | 0.178 | 2.82 |
+| 10 | 0.285 | 0.473 | −0.647 | −0.821 | 0.174 | 1.66 |
+| 15 | 0.165 | 0.431 | −0.636 | −0.960 | 0.324 | 2.61 |
+
+This is geometry, not a tuning miss.  The chamfer recedes **1.100 m of x per
+metre of z** — a 47.7° slope.  A step of height `dz` must move `1.1·dz` left to
+stay on it, and the support ratio only allows `f·dx`.  So a step tracks the
+slope exactly when
+
+```
+dx / dz  >=  1.1 / f
+```
+
+which is **4.4** at the shipped `wedge_overhang_fraction` = 0.25, and **2.75**
+even at the official limit `f` = 0.4.  Ordinary baggage is roughly cubic, so
+almost nothing qualifies.  Share of each stream with *any* pose that could
+track, with the footprint cap lifted so the cap is not what is being measured:
+
+| | 01 | 02 | 03 | 04 | 05 | 06 | 07 | 08 | 09 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| f = 0.25 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | **0.77** | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| f = 0.40 | 0.23 | 0.23 | 0.17 | 0.15 | 0.27 | 0.15 | 0.95 | 0.20 | 0.06 | 0.23 | 0.06 | 0.60 |
+
+Only `07-elongated-heavy`, which is made of long thin items on purpose, has
+supply.  **"Pick cargo that can track the slope" has no stock to pick from.**
+
+Nor is the pose choice being wasted.  Of the four steps above, three already
+use the best step-legal pose available; the fourth looks like it settled for
+`dx/dz` = 1.66 over an available 2.75, but that flatter pose is 0.285 deep in
+`y` against a shallower support and loses the support ratio — it generates two
+candidates reaching −0.563 against the chosen pose's twenty reaching −0.647.
+The planner picks the pose that reaches furthest, which is the right rule.
+
+**Pushing harder recovers area and loses cargo.**  Raising `f` does exactly
+what the algebra says on the wedge, and the simulator accepts every placement
+at every value tested — nothing tips, nothing penetrates:
+
+| `f` | support ratio | recovered m² | of the wedge | worst gap | placed (08) | fill (08) |
+|---|---|---|---|---|---|---|
+| 0.25 | 0.75 | 0.0273 | 0.35 | 0.324 | 15 | 0.141 |
+| 0.30 | 0.70 | 0.0336 | 0.43 | 0.302 | 15 | 0.141 |
+| 0.35 | 0.65 | 0.0398 | 0.51 | 0.281 | 15 | 0.141 |
+| 0.40 | 0.60 | 0.0461 | 0.59 | 0.259 | 15 | 0.141 |
+
+Recovered area rises by two thirds and **not one extra item goes in** — on a
+board with fifteen items still unplaced.  Across all twelve scenarios `f` = 0.35
+is a net *loss*: **179 → 176 placed, mean fill 0.2303 → 0.2283**, giving up one
+item on `06` and two on `07`.  The mechanism is visible in `07`: it places the
+same two wedge steps at both settings and loses an elongated wall and a shelf
+item instead.  The overhang is not free — it reaches further into a strip that
+the wall front and the elongated walls are also using.
+
+So `wedge_overhang_fraction` stays at 0.25.  It is the value that keeps a real
+5-point margin under the official 0.6 support floor *and* the value that packs
+best; `recovered_area_m2` is a diagnostic, not an objective, and this is what
+optimising it directly costs.
+
+The residual sliver is a property of the problem: an axis-aligned box resting
+on a horizontal surface always leaves a triangle against a 47.7° wall, and
+overhang can only claw back the fraction the support ratio pays for.  At
+`f` = 0.25 with the cargo that actually arrives, roughly a third of the wedge
+cross section is recoverable and the rest is not reachable by any box on any
+flat support.  Treating that remainder as wall-front territory rather than
+storage is the honest reading.
+
 ### What the measurement actually says: most streams have no step material
 
 The staircase only exists if the stream contains cargo small enough to *be* a
