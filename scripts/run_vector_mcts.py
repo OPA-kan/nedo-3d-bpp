@@ -53,6 +53,7 @@ import math
 import pathlib
 import sys
 import time
+import weakref
 from typing import Any, Callable
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -92,6 +93,7 @@ from scripts.run_self_play_packing import (  # noqa: E402
     build_exact_physical_legal_filter,
 )
 from scripts.run_single_agent_packing import _fresh_env  # noqa: E402
+from scripts import env_checkpoint  # noqa: E402
 from scripts.single_agent_packing import (  # noqa: E402
     component_delta_vector,
 )
@@ -665,8 +667,21 @@ def _terminal_rollout(
 
 def _rollout(
     task_config, *, environment_seed: int, prefix_actions, actions,
+    prefix_env: Any | None = None,
+    prefix_checkpoint: env_checkpoint.EnvCheckpoint | None = None,
 ) -> dict[str, Any]:
-    """Replay prefix + tree actions in a fresh env; step-by-step metrics."""
+    """Replay prefix + tree actions in an env; step-by-step metrics.
+
+    Every call replays the same ``prefix_actions`` before its own
+    ``actions`` -- across the many sibling calls one ``vector_search_root``
+    makes, that prefix is identical work paid over and over. When the
+    caller passes ``prefix_env``/``prefix_checkpoint`` (a live env already
+    parked right after the prefix, per ``scripts/env_checkpoint.py``),
+    this restores that checkpoint instead of rebuilding the env and
+    replaying the prefix from scratch, then steps only through ``actions``
+    on the shared env. Falls back to full fresh-env replay when either is
+    omitted -- unchanged behavior for every existing caller.
+    """
     rollout_started = time.perf_counter()
     timing = {
         "contract": "root_physical_rollout_wall_clock_v1",
@@ -674,23 +689,32 @@ def _rollout(
         "prefix_replay_seconds": 0.0,
         "action_evaluation_seconds": 0.0,
     }
+    shared = prefix_env is not None and prefix_checkpoint is not None
     phase_started = time.perf_counter()
-    env = _fresh_env(task_config)
-    try:
-        env.reset_settings()
-        env.reset_item_stream()
-        observation, _info = env.reset(seed=environment_seed)
+    if shared:
+        env = prefix_env
+        env_checkpoint.restore(prefix_checkpoint, env)
+        observation = env._get_obs()
         timing["setup_seconds"] += time.perf_counter() - phase_started
-        prefix_steps = 0
-        phase_started = time.perf_counter()
-        for action in prefix_actions:
-            observation, _r, terminated, truncated, info = env.step(action)
-            prefix_steps += 1
-            if not _safe(_status(info)) or terminated or truncated:
-                raise RuntimeError("prefix replay failed")
-        timing["prefix_replay_seconds"] += (
-            time.perf_counter() - phase_started
-        )
+        prefix_steps = len(prefix_actions)
+    else:
+        env = _fresh_env(task_config)
+    try:
+        if not shared:
+            env.reset_settings()
+            env.reset_item_stream()
+            observation, _info = env.reset(seed=environment_seed)
+            timing["setup_seconds"] += time.perf_counter() - phase_started
+            prefix_steps = 0
+            phase_started = time.perf_counter()
+            for action in prefix_actions:
+                observation, _r, terminated, truncated, info = env.step(action)
+                prefix_steps += 1
+                if not _safe(_status(info)) or terminated or truncated:
+                    raise RuntimeError("prefix replay failed")
+            timing["prefix_replay_seconds"] += (
+                time.perf_counter() - phase_started
+            )
         vectors = []
         terminated = truncated = False
         safe = True
@@ -721,7 +745,35 @@ def _rollout(
             "physical_step_equivalents": prefix_steps + attempted_steps,
             "timing": timing,
             "env": env,
+            "env_is_shared": shared,
         }
+    except Exception:
+        if not shared:
+            env.close()
+        raise
+
+
+def _build_prefix_checkpoint(
+    task_config, *, environment_seed: int, prefix_actions,
+):
+    """Build one persistent env, replay ``prefix_actions`` once, and
+    capture an ``env_checkpoint`` of the result.
+
+    A dedicated helper rather than reusing ``_rollout(actions=[])`` so
+    that this construction never routes through ``_rollout`` -- tests
+    mock ``_rollout`` at the module level, and this must still build a
+    real env in that case. Caller owns closing the returned env.
+    """
+    env = _fresh_env(task_config)
+    try:
+        env.reset_settings()
+        env.reset_item_stream()
+        env.reset(seed=environment_seed)
+        for action in prefix_actions:
+            _observation, _r, terminated, truncated, info = env.step(action)
+            if not _safe(_status(info)) or terminated or truncated:
+                raise RuntimeError("prefix replay failed")
+        return env, env_checkpoint.capture(env)
     except Exception:
         env.close()
         raise
@@ -741,6 +793,7 @@ def vector_search_root(
     item_symmetry_cache_shadow: bool = False,
     item_symmetry_terminal_cache: bool = False,
     leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
+    shared_prefix_env: bool = False,
 ) -> dict[str, Any]:
     search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -784,6 +837,24 @@ def vector_search_root(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
     )
+    # Every try_action_path() call below replays the same prefix_actions
+    # before its own actions -- across the many sibling calls one search
+    # makes, that prefix is identical work paid over and over. Opt-in
+    # (default off, unchanged behavior): build the prefix once and let
+    # _rollout restore an env_checkpoint of it instead of rebuilding +
+    # replaying the prefix on every single call. weakref.finalize (not a
+    # try/finally around the whole search below) guarantees prefix_env
+    # gets closed even if a search step raises, without having to wrap
+    # the rest of this function's body.
+    prefix_env = None
+    prefix_checkpoint = None
+    prefix_finalizer = None
+    if shared_prefix_env:
+        prefix_env, prefix_checkpoint = _build_prefix_checkpoint(
+            task_config, environment_seed=environment_seed,
+            prefix_actions=prefix_actions,
+        )
+        prefix_finalizer = weakref.finalize(prefix_env, prefix_env.close)
     if (leaf_eval == "rollout" or terminal_audit) and terminal_rollout_fn is None:
         legal_filter = build_exact_physical_legal_filter(
             task_config, case_id=case_id, environment_seed=environment_seed,
@@ -852,6 +923,7 @@ def vector_search_root(
         result = _rollout(
             task_config, environment_seed=environment_seed,
             prefix_actions=prefix_actions, actions=actions,
+            prefix_env=prefix_env, prefix_checkpoint=prefix_checkpoint,
         )
         physical_steps += len(actions)
         physical_step_equivalents += int(
@@ -871,6 +943,7 @@ def vector_search_root(
             root_timing.get("action_evaluation_seconds", 0.0)
         )
         env = result.pop("env")
+        env_is_shared = result.pop("env_is_shared", False)
         try:
             if not result["safe"] or len(result["step_deltas"]) < len(actions):
                 return None
@@ -1133,7 +1206,8 @@ def vector_search_root(
                     cursor = nodes[cursor]["parent"]
             return key
         finally:
-            env.close()
+            if not env_is_shared:
+                env.close()
 
     root_rows = []
     root_prior = 1.0 / len(root_candidates)
@@ -1264,8 +1338,13 @@ def vector_search_root(
     timing_totals["search_total_seconds"] = (
         time.perf_counter() - search_started
     )
+    if prefix_finalizer is not None:
+        # Prompt cleanup on the normal-return path; weakref.finalize is
+        # the safety net for any path that raised before reaching here.
+        prefix_finalizer()
     return {
         "step": int(step),
+        "shared_prefix_env": bool(shared_prefix_env),
         "leaf_eval": leaf_eval,
         "terminal_audit": bool(terminal_audit),
         "allocation": allocation,
@@ -1375,6 +1454,16 @@ def main() -> int:
             "identical-item quotient states; never caches censored results"
         ),
     )
+    parser.add_argument(
+        "--shared-prefix-env", action="store_true",
+        help=(
+            "Build one persistent env per root and restore an "
+            "env_checkpoint of it before every candidate/deepening "
+            "rollout instead of rebuilding a fresh env and replaying "
+            "prefix_actions from scratch each call; verified equivalent "
+            "to the default in tests.test_vector_mcts_shared_prefix_env"
+        ),
+    )
     parser.add_argument("--max-roots", type=int, default=None)
     parser.add_argument("--beta-model-dir", type=pathlib.Path, default=None)
     parser.add_argument("--beta-proposals", type=int, default=6)
@@ -1477,6 +1566,7 @@ def main() -> int:
                 item_symmetry_terminal_cache=(
                     args.item_symmetry_terminal_cache
                 ),
+                shared_prefix_env=args.shared_prefix_env,
             )
             result["root_id"] = record["root_id"]
             result["snapshot_path"] = record.get("snapshot_path")
