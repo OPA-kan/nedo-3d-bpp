@@ -127,3 +127,46 @@ Cup 002+ therefore has five horses: frozen learned champion,
 include current-agent support misses and maximum terminal fill with horse,
 cell and placed count. This changes the actor field, not the fork budget,
 course isolation, dominance rule or no-auto-training boundary.
+
+## Cup 002+ amendment: surface_total_variation drops out of the fork dominance rule
+
+Date: 2026-08-26 (second amendment, made after Cup 002 was preregistered
+above but before it dispatched — the ledger row was still `pending` —
+so this does reach Cup 002, superseding "not... dominance rule" in the
+amendment above for this one axis).
+
+`surface_total_variation_delta` is removed from the strict 5-head
+dominance rule everywhere it decided a fork/pair verdict:
+`DOMINANCE_HEADS` in `run_vector_mcts.py`,
+`build_terminal_rollout_trigger_dataset.py` and
+`train_delta_y_head.py`, and `OBJECTIVE_METRICS` in
+`aggregate_terminal_rollout_policy.py`. The rule is now 4-head:
+fill_gain, soft_violation_gain, priority_covered_gain,
+priority_misrouted_gain.
+
+Reason: `surface_total_variation` is a heightmap-adjacency proxy
+(`docs/theory/ABC_IMPLEMENTATION_SPEC.md` section 9), not one of the
+official-aligned heads — `scripts/league.py`'s `LEAGUE_HEADS` never
+included it, and `MULTI_HEAD_SPECS` already tags it
+`"minimize_proxy"` rather than `"minimize"`, which
+`audit_paired_physical_contract.py`'s `PARETO_OBJECTIVES` already uses
+to exclude it from the audited confidence-Pareto frontier. The 5-head
+copies used for the Cup fork verdict, preference-distillation
+`beats_incumbent` labels and the online adapter's fork gate were the
+only places still giving it equal veto power in strict dominance, so
+an unvalidated axis could tie-break or invalidate an otherwise clean
+fill/soft/priority win. This amendment brings those copies in line
+with the pattern the rest of the codebase already uses.
+
+Not affected: it remains a reported/regressed diagnostic wherever it
+already was (`COMPONENT_HEADS` in `train_delta_y_head.py`, the
+`CANDIDATE_HEADS` model input features in `train_rollout_trigger.py`,
+`REPORT_METRICS` in `aggregate_terminal_rollout_policy.py`); only its
+role in *deciding* a strict-dominance winner is removed. League
+promotion (`league.py`), the season registry and Cup 001's already-run
+result are unaffected — Cup 001's strict-pair count and novel-board
+rate were produced under the old 5-head rule and are not directly
+comparable to Cup 002 onward. Full unit suite green after the change
+(`python -m unittest discover -s tests`, 1554 tests, the one failure
+being the pre-existing Python-3.12 gate in
+`audit_deadline_rollout.py`, unrelated to this change).

@@ -8,12 +8,14 @@ import json
 import pathlib
 from typing import Any
 
+# surface_total_variation stays out of the win/loss decision (it is
+# still tracked below in REPORT_METRICS/REPORT_DIRECTIONS) — see the
+# matching comment on DOMINANCE_HEADS in run_vector_mcts.py.
 OBJECTIVE_METRICS = {
     "fill_score_proxy": +1.0,
     "soft_covered_by_other": -1.0,
     "priority_covered_by_other": -1.0,
     "priority_misrouted": -1.0,
-    "surface_total_variation": -1.0,
 }
 REPORT_METRICS = (
     "placed_count",

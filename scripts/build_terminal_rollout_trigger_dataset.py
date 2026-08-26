@@ -13,12 +13,14 @@ import json
 import pathlib
 from typing import Any, Callable
 
+# surface_total_variation_delta is deliberately excluded here too; see
+# the matching comment on DOMINANCE_HEADS in run_vector_mcts.py, which
+# this dataset's H1/terminal Pareto ids must stay consistent with.
 DOMINANCE_HEADS = {
     "fill_gain": +1.0,
     "soft_violation_gain": -1.0,
     "priority_covered_gain": -1.0,
     "priority_misrouted_gain": -1.0,
-    "surface_total_variation_delta": -1.0,
 }
 EPS = 1e-9
 

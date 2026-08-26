@@ -96,12 +96,19 @@ from scripts.single_agent_packing import (  # noqa: E402
     component_delta_vector,
 )
 
+# surface_total_variation_delta is deliberately excluded: it is a
+# heightmap-adjacency proxy (ABC_IMPLEMENTATION_SPEC.md 9), not an
+# official-aligned head, and MULTI_HEAD_SPECS already tags it
+# "minimize_proxy" rather than "minimize" for that reason (mirrors
+# PARETO_OBJECTIVES in audit_paired_physical_contract.py, which drops
+# it from the audited frontier the same way). Giving it equal veto
+# power in strict dominance let an unvalidated axis block or flip
+# fill/soft/priority-clear verdicts.
 DOMINANCE_HEADS = {
     "fill_gain": +1.0,
     "soft_violation_gain": -1.0,
     "priority_covered_gain": -1.0,
     "priority_misrouted_gain": -1.0,
-    "surface_total_variation_delta": -1.0,
 }
 EPS = 1e-9
 GENUINE_TERMINATIONS = {

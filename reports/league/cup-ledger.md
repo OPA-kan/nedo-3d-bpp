@@ -12,9 +12,17 @@ artifact is read.
 |---|---|---|---|---|---|---|---|---|
 | 001 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 401,419,431,433 · 001: 409,421 | 32920552027 | 15 | 0.81-0.84 | inaugural; 94/94 disagreements forked (budget never binding), strict rate 16%; race tables almost all incomparable |
 
-| 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | pending | pending | pending | preregistered five-horse field incl current-agent |
+| 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | pending | pending | pending | preregistered five-horse field incl current-agent; dispatched under the 4-head dominance rule (surface_total_variation excluded, see amendment below) |
 
 Pool allocation note: primes used so far: 401, 409, 419, 421, 431, 433
 (cup 001; note 000/001 sides used are what the row lists — a prime may
 be reused on the OTHER source only if the ledger shows it was never
 run on that source).
+
+Methodology boundary: Cup 001's fork verdicts (strict pairs, novel
+board rate) were decided under the original 5-head dominance rule,
+which included `surface_total_variation_delta`. From Cup 002 onward
+that axis is excluded from the dominance decision (design:
+`reports/self-play-packing/diversity-cup-design.md`, "Cup 002+
+amendment: surface_total_variation drops out of the fork dominance
+rule"). Cup 001's numbers are not directly comparable to Cup 002+.

@@ -36,12 +36,18 @@ COMPONENT_HEADS = (
     "priority_covered_gain", "priority_misrouted_gain",
     "center_of_mass_z_delta", "surface_total_variation_delta",
 )
+# The model still regresses surface_total_variation_delta (see
+# COMPONENT_HEADS) as a diagnostic auxiliary target, but it stays out
+# of DOMINANCE_HEADS: shadow_metrics()'s verdict() zeroes any head
+# missing from this dict (`DOMINANCE_HEADS.get(head, 0.0)`), so the
+# ground-truth/predicted a_dominates/b_dominates confusion matrix no
+# longer lets an unvalidated proxy axis decide or block a verdict, in
+# line with DOMINANCE_HEADS in run_vector_mcts.py.
 DOMINANCE_HEADS = {
     "fill_gain": +1.0,
     "soft_violation_gain": -1.0,
     "priority_covered_gain": -1.0,
     "priority_misrouted_gain": -1.0,
-    "surface_total_variation_delta": -1.0,
 }
 MODEL_SEMANTICS = "paired_difference_delta_y_v1"
 
