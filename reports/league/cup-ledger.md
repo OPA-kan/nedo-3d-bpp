@@ -13,14 +13,31 @@ artifact is read.
 | 001 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 401,419,431,433 · 001: 409,421 | 32920552027 | 15 | 0.81-0.84 | inaugural; 94/94 disagreements forked (budget never binding), strict rate 16%; race tables almost all incomparable |
 
 | 002 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 409,421,439,443 · 001: 401,419 | 32925104549 | 17 | 0.82-0.95 | five-horse field incl ジ・アーモンド (current-agent, ジ系列, named at this cup); **mined under the OLD 5-head rule** (episodes dispatched 03:04:57Z on `88fc535`, before the surface-exclusion fix `1087667` at 05:27:29Z — corrected in the row below, this row's own earlier text was wrong); standings job crashed on missing post-shake heads for ジ・アーモンド's 5 non-genuine episodes, fixed and recomputed locally from the same run's artifacts (no re-run) — see `reports/league/diversity-cup-002.md`; ジ・アーモンド mined 0/19 strict pairs and missed candidate support on 132/164 steps |
-| 003 アーモンドビレッジ | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 449,457,461,463 · 001: 431,433 | 32935678296 | 56 | 0.79-0.96 | first cup run entirely under the **4-head dominance rule** (surface excluded, fix `1087667`); dispatched via the one-click `host-diversity-cup.yml` host, which auto-drew fresh primes and preregistered this row; standings succeeded cleanly this time (no crash) — see `reports/league/diversity-cup-003.md`; ジ・アーモンド mined 11/19 strict pairs (vs 0/19 in Cup 002) but reached genuine termination in 0/6 cells (worse than Cup 002's 1/6) |
+| 003 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 449,457,461,463 · 001: 431,433 | 32935678296 | 56 | 0.79-0.96 | 「アーモンドビレッジ」; first cup run entirely under the **4-head dominance rule** (surface excluded, fix `1087667`); dispatched via the one-click `host-diversity-cup.yml` host, which auto-drew fresh primes and preregistered this row; standings succeeded cleanly this time (no crash) — see `reports/league/diversity-cup-003.md`; ジ・アーモンド mined 11/19 strict pairs (vs 0/19 in Cup 002) but reached genuine termination in 0/6 cells (worse than Cup 002's 1/6) |
 
-| 003 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 467,479,487,491 · 001: 439,443 | pending | pending | pending | preregistered five-horse field incl current-agent |
+| 004 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 467,479,487,491 · 001: 439,443 | pending | pending | pending | preregistered five-horse field incl current-agent |
 
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
-431, 433, 439, 443, 449, 457, 461, 463 · 001: 401, 409, 419, 421, 431,
-433 (a prime may be reused on the OTHER source only if the ledger
-shows it was never run on that source).
+431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491 · 001: 401,
+409, 419, 421, 431, 433, 439, 443 (a prime may be reused on the OTHER
+source only if the ledger shows it was never run on that source).
+
+Hosting bug (2026-08-26): the row above for Cup 003 briefly read
+"003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s
+`next_cup_id()` matches `^\|\s*(\d{3})\s*\|` — a bare 3-digit id with
+nothing else in that cell — so the nickname suffix made the regex miss
+that row entirely; the next `host-diversity-cup.yml` run (course
+000:467,479,487,491 · 001:439,443, run `32947834246`) recomputed
+`next_id` from only rows 001/002 and re-dispatched as "Diversity Cup
+003" again — a second, colliding "003". The **course itself was
+unaffected** (`used_primes()` reads the streams column with a separate
+regex and correctly saw all of 001-003's primes as used, so the new
+course is genuinely fresh, not a reused/duplicate one) — only the
+ledger row number and the dispatched run's display title were wrong.
+Fixed here by moving the nickname out of the `cup` column into notes
+and renumbering that row 004. Lesson: never put anything but the bare
+`NNN` id in the `cup` column; a nickname belongs in notes or in the
+per-cup report title only.
 
 Methodology boundary: Cup 001 AND Cup 002's fork verdicts (strict
 pairs, novel board rate) were both decided under the original 5-head
