@@ -250,6 +250,7 @@
         <tbody id="match-history">
           <tr data-season="true"><td class="mono">005</td><td><b>プリフヒバリ</b> vs プリファースト</td><td class="wl"><b>1</b>-<s>0</s>-3-<i>6</i></td><td><span class="pill gold">👑 昇格 · 第2世代</span></td><td class="mono">viol −1 · fillΔ +2.54 · 勝着 dsm-173</td></tr>
           <tr><td class="mono">005b</td><td>プリフヒバリ vs センリガン</td><td class="wl"><b>1</b>-<s>2</s>-3-<i>4</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">hard非劣化 · dsm-181でセンリガンに勝利</td></tr>
+          <tr><td class="mono">EXH-001</td><td><b>シュンヒバリ</b> vs プリフヒバリ</td><td class="wl"><b>1</b>-<s>0</s>-8-<i>1</i></td><td><span class="pill violet">🎪 EXHIBITION</span></td><td class="mono">同一重み+試合中学習 · 勝着dsm-173はfork発の switch+更新 · 14 fork/3更新 · 昇格対象外</td></tr>
           <tr data-season="true"><td class="mono">004</td><td><b>プリフツバキ</b> vs プリファースト</td><td class="wl"><b>0</b>-<s>1</s>-7-<i>2</i></td><td><span class="pill red">🛡 王座防衛</span></td><td class="mono">viol −1 だが placed −2 · 敗着はdsm-181</td></tr>
           <tr><td class="mono">003</td><td><b>プリファースト</b> vs ハコブネ</td><td class="wl"><b>1</b>-<s>0</s>-6-<i>3</i></td><td><span class="pill gold">👑 昇格</span></td><td class="mono">placed +2 · viol −1</td></tr>
           <tr><td class="mono">003b</td><td>プリファースト vs センリガン</td><td class="wl"><b>1</b>-<s>2</s>-1-<i>6</i></td><td><span class="pill violet">BELOW BENCHMARK</span></td><td class="mono">fill −1.48 · viol −1</td></tr>
@@ -503,8 +504,14 @@ document.getElementById("mc-no").textContent = "MATCH " + MATCH.match_id;
 document.getElementById("mc-cha").textContent = displayName(MATCH.challenger);
 document.getElementById("mc-opp").textContent = displayName(MATCH.opponent);
 const verdictEl = document.getElementById("mc-verdict");
-verdictEl.textContent = MATCH.promoted ? "👑 PROMOTED" : "🛡 王座防衛";
-if (!MATCH.promoted) { verdictEl.classList.remove("gold"); verdictEl.classList.add("red"); }
+const IS_EXHIBITION = String(MATCH.match_id || "").startsWith("exhibition");
+verdictEl.textContent = IS_EXHIBITION ? "🎪 EXHIBITION"
+  : MATCH.promoted ? "👑 PROMOTED" : "🛡 王座防衛";
+if (IS_EXHIBITION) {
+  verdictEl.classList.remove("gold"); verdictEl.classList.add("violet");
+} else if (!MATCH.promoted) {
+  verdictEl.classList.remove("gold"); verdictEl.classList.add("red");
+}
 document.getElementById("mc-counts").textContent =
   `W${MATCH.counts.challenger_wins}-L${MATCH.counts.member_wins}-E${MATCH.counts.equal}-T${MATCH.counts.incomparable}`;
 
