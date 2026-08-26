@@ -18,13 +18,19 @@ after its own required job succeeds. The title-match finalizer is idempotent by
 match run ID and commits the generated registry/ledger/replay. At wave 14 it
 writes the final season summary and sets `active=false`.
 
-**Wave application is the monitor session's job, not CI's**: applying the
-next preregistered wave edits the collection/learning workflow files, and
-the Actions token cannot push `.github/workflows` changes (this is what
-broke the first wave-7 finalizer pushes). After a finalizer's ledger push
-lands, the monitor session runs `apply_season_wave.py --wave <state.wave>`,
-runs the workflow tests, and pushes; that push starts the next collection
-via the collection workflow's own push trigger.
+**Wave application is a session job, not CI's**: applying the next
+preregistered wave edits the collection/learning workflow files, and the
+Actions token cannot push `.github/workflows` changes (this is what broke
+the first wave-7 finalizer pushes). After a finalizer's ledger push lands,
+the operating session performs the round turnover in
+`reports/league/season-operations-runbook.md`: apply the wave, run the
+workflow tests, commit with `[skip ci]` (so the push trigger does not
+start a season_wave-less collection that would break the chain at
+collection→learning), push, and dispatch the collection WITH
+`season_wave=<N>` — from there the chain self-continues through
+distillation, the title match, the promotion verdict and the ledger
+commit. The Codex session operates this loop; Claude is backstop and
+publishes the claude.ai spectator artifact.
 
 The state is `reports/league/season/state.json`. If infrastructure interrupts
 the chain, resume the current stage with the same wave and recorded upstream
