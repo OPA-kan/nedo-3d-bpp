@@ -278,9 +278,21 @@ def run_episode(
     online_fork_budget: int = 4, online_band: float = 0.15,
     online_learning_rate: float = 0.05, online_update_steps: int = 2,
     online_trust_radius: float = 1.0,
+    mine_model_dir: pathlib.Path | None = None,
+    mine_fork_budget: int = 12,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    mining_policy = None
+    if mine_model_dir is not None:
+        if policy not in RULE_POLICIES:
+            raise ValueError(
+                "counterfactual mining is a rule-stud feature: the stud"
+                " executes its own action and forks the champion's"
+            )
+        from scripts.learned_allocator_policy import LearnedAllocatorPolicy
+
+        mining_policy = LearnedAllocatorPolicy(mine_model_dir)
     learned_policy = None
     if policy in LEARNED_POLICIES:
         if model_dir is None:
@@ -315,6 +327,10 @@ def run_episode(
         termination = None
         online_forks_used = 0
         online_updates = 0
+        mining_forks_used = 0
+        mining_disagreements = 0
+        mining_pairs = 0
+        mining_fork_step_equivalents = 0
         for step in range(max_steps):
             decision_started = time.perf_counter()
             phase_started = time.perf_counter()
@@ -483,6 +499,105 @@ def run_episode(
                                 time.perf_counter() - fork_started
                             ),
                         }
+            mining_event = None
+            if mining_policy is not None:
+                # counterfactual mining: fork the stud's action against
+                # the frozen champion's choice at the SAME state. The
+                # stud's own action is ALWAYS the one executed — mining
+                # never bends its state distribution.
+                rule_id = selection["selected_candidate_id"]
+                incumbent_id = selection["incumbent_candidate_id"]
+                scores = mining_policy.score_candidates(
+                    snapshot, search.get("root_candidates") or [],
+                    incumbent_id=incumbent_id,
+                ) if incumbent_id else {}
+                champion_id = (
+                    max(scores, key=lambda cid: (scores[cid], cid))
+                    if scores else None
+                )
+                if champion_id is not None and champion_id != rule_id:
+                    mining_disagreements += 1
+                    if mining_forks_used >= mine_fork_budget:
+                        mining_event = {
+                            "skipped": "fork_budget_exhausted",
+                            "rule_candidate_id": rule_id,
+                            "champion_candidate_id": champion_id,
+                        }
+                    else:
+                        fork_started = time.perf_counter()
+                        pair_ids = {rule_id, champion_id}
+                        pair = [
+                            candidate for candidate in candidates
+                            if str(_candidate_record(candidate)["candidate_id"])
+                            in pair_ids
+                        ]
+                        fork = vector_search_root(
+                            agent_module, task_config, case_id=case_id,
+                            environment_seed=environment_seed,
+                            prefix_actions=list(executed),
+                            root_candidates=pair,
+                            attempt_budget=attempt_budget,
+                            deep_top_k=top_k,
+                            expansions=0,
+                            max_depth=1,
+                            step=step,
+                            leaf_eval="rollout",
+                            rollout_top_k=rollout_top_k,
+                            rollout_max_steps=rollout_max_steps,
+                            allocation="frontier",
+                            item_symmetry_cache_shadow=True,
+                            item_symmetry_terminal_cache=True,
+                        )
+                        mining_forks_used += 1
+                        mining_fork_step_equivalents += int(
+                            fork.get("physical_step_equivalents", 0)
+                        )
+                        complete = bool(fork.get("terminal_truth_complete"))
+                        frontier = {
+                            str(value) for value in
+                            fork.get("terminal_pareto_candidates") or []
+                        }
+                        winner = None
+                        if complete and len(frontier) == 1:
+                            winner = next(iter(frontier))
+                        if winner in pair_ids:
+                            mining_pairs += 1
+                        mining_event = {
+                            "rule_candidate_id": rule_id,
+                            "champion_candidate_id": champion_id,
+                            "champion_probability": float(
+                                scores[champion_id]
+                            ),
+                            "terminal_truth_complete": complete,
+                            "terminal_pareto_candidates": sorted(frontier),
+                            "winner_candidate_id": winner,
+                            "pair_rows": [
+                                {
+                                    key: row.get(key)
+                                    for key in (
+                                        "root_candidate_id",
+                                        "terminal_genuine",
+                                        "terminal_termination",
+                                        "terminal_vector",
+                                    )
+                                }
+                                for row in fork.get("root_candidates") or []
+                            ],
+                            "fork_physical_steps": int(
+                                fork.get("physical_steps", 0)
+                            ),
+                            "fork_physical_step_equivalents": int(
+                                fork.get("physical_step_equivalents", 0)
+                            ),
+                            "fork_terminal_rollout_physical_steps": int(
+                                fork.get(
+                                    "terminal_rollout_physical_steps", 0
+                                )
+                            ),
+                            "fork_seconds": (
+                                time.perf_counter() - fork_started
+                            ),
+                        }
             before = cumulative_metrics(env)
             action = _candidate_action(chosen)
             phase_started = time.perf_counter()
@@ -514,6 +629,7 @@ def run_episode(
                 "timing": timing,
                 "status": status,
                 **({"online": online_event} if online_event else {}),
+                **({"mining": mining_event} if mining_event else {}),
             })
             if not _safe(status):
                 termination = "selected_action_failure"
@@ -557,6 +673,19 @@ def run_episode(
             "online_adapter_norms": (
                 learned_policy.adapter_norms()
                 if policy == "online" else None
+            ),
+            "mining_disagreements": (
+                mining_disagreements if mining_policy is not None else None
+            ),
+            "mining_forks": (
+                mining_forks_used if mining_policy is not None else None
+            ),
+            "mining_strict_pairs": (
+                mining_pairs if mining_policy is not None else None
+            ),
+            "mining_fork_physical_step_equivalents": (
+                mining_fork_step_equivalents
+                if mining_policy is not None else None
             ),
             "terminal_dominance_switches": sum(
                 bool(record["selection"]["switched"])
@@ -638,12 +767,25 @@ def main() -> int:
     parser.add_argument("--online-learning-rate", type=float, default=0.05)
     parser.add_argument("--online-update-steps", type=int, default=2)
     parser.add_argument("--online-trust-radius", type=float, default=1.0)
+    parser.add_argument(
+        "--mine-against-model", type=pathlib.Path, default=None,
+        help="rule studs only: fork the stud's action against this"
+             " frozen champion ensemble's choice at every disagreement"
+             " (the stud still executes its own action)",
+    )
+    parser.add_argument("--mine-fork-budget", type=int, default=12)
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
     if (args.policy in LEARNED_POLICIES) != (args.model_dir is not None):
         raise SystemExit(
             "--model-dir is required for --policy learned/online and"
             " forbidden otherwise"
+        )
+    if args.mine_against_model is not None and (
+        args.policy not in RULE_POLICIES
+    ):
+        raise SystemExit(
+            "--mine-against-model is only valid with a rule-* policy"
         )
     require_supported_python()
     config = json.loads(args.config.read_text(encoding="utf-8"))
@@ -664,6 +806,8 @@ def main() -> int:
         online_learning_rate=args.online_learning_rate,
         online_update_steps=args.online_update_steps,
         online_trust_radius=args.online_trust_radius,
+        mine_model_dir=args.mine_against_model,
+        mine_fork_budget=args.mine_fork_budget,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -735,6 +879,15 @@ def main() -> int:
                 "adapter_lifetime": "single_episode",
             },
         } if args.policy == "online" else None,
+        "mining_contract": {
+            "champion_model_dir": str(args.mine_against_model),
+            "fork_budget": args.mine_fork_budget,
+            "rule": (
+                "stud_executes_own_action;"
+                " fork_champion_argmax_on_disagreement;"
+                " strict_terminal_dominance_pairs_only"
+            ),
+        } if args.mine_against_model is not None else None,
         "episodes": [episode],
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)

@@ -110,6 +110,10 @@ STREAM_VARIANTS = (
     "permute-001-331", "permute-001-337", "permute-001-347",
     "permute-001-349", "permute-001-353", "permute-001-359",
     "permute-001-367", "permute-001-373", "permute-001-379",
+    # Diversity Cup side-corpus streams: primes 401+ are disjoint from
+    # both the frozen eval variants and every season-1 wave prime
+    "permute-000-401", "permute-000-419", "permute-000-431",
+    "permute-000-433", "permute-001-409", "permute-001-421",
 )
 
 

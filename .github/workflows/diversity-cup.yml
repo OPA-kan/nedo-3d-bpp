@@ -1,0 +1,136 @@
+name: Diversity Cup
+run-name: >-
+  Diversity Cup · teacher mining vs ${{ inputs.model_run_id }}
+
+# Teacher-mining event, preregistered in
+# reports/self-play-packing/diversity-cup-design.md. Dispatch-only and
+# fully outside season 1: cup streams (primes 401+) are disjoint from
+# the frozen eval variants and every preregistered wave, and nothing
+# here writes to the season ledger, registry, or matrices. Each cell is
+# run by the frozen champion (novelty baseline) and by the three rule
+# studs, each stud mining counterfactual dominance pairs against the
+# champion ensemble at every action disagreement.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_run_id:
+        description: >-
+          Actions run id whose rollout-policy-model artifact holds the
+          frozen champion ensemble the studs mine against
+        required: true
+      model_artifact:
+        description: Artifact name of the frozen policy model
+        required: false
+        default: "rollout-policy-model"
+      mine_fork_budget:
+        description: Counterfactual forks per stud episode
+        required: false
+        default: "12"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: diversity-cup-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  episodes:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {cell: dual-preloaded-dedicated-permute-000-401, scenario: dual-preloaded-dedicated, stream: permute-000-401}
+          - {cell: dual-empty-permute-000-419, scenario: dual-empty, stream: permute-000-419}
+          - {cell: single-empty-noshelf-permute-000-431, scenario: single-empty-noshelf, stream: permute-000-431}
+          - {cell: dual-shelf-mixed-permute-001-409, scenario: dual-shelf-mixed, stream: permute-001-409}
+          - {cell: single-empty-shelf-permute-001-421, scenario: single-empty-shelf, stream: permute-001-421}
+          - {cell: single-preloaded-permute-000-433, scenario: single-preloaded, stream: permute-000-433}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-simulator.txt
+      - run: pip install -r requirements-simulator.txt
+      - run: pip install -r requirements-learning.txt
+      - name: Fetch frozen champion model
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.model_artifact }}
+          run-id: ${{ inputs.model_run_id }}
+          github-token: ${{ github.token }}
+          path: reports/cup/model
+      - name: Build cup scenario
+        run: >-
+          python scripts/build_scenario_matrix.py
+          --stream-variant "${{ matrix.stream }}"
+          --output-dir reports/cup/configs/${{ matrix.cell }}
+      - name: Run the field (champion + three mining studs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          config="reports/cup/configs/${{ matrix.cell }}/${{ matrix.scenario }}.json"
+          python scripts/run_terminal_rollout_policy.py \
+            --config "$config" \
+            --case m-${{ matrix.scenario }} \
+            --environment-seed 42 \
+            --attempt-budget 128 \
+            --top-k 3 \
+            --rollout-top-k 3 \
+            --rollout-max-steps 40 \
+            --max-steps 40 \
+            --policy learned \
+            --model-dir reports/cup/model \
+            --output-dir reports/cup/episodes/${{ matrix.cell }}/learned/rollout
+          for stud in rule-grid rule-lowcog rule-edge; do
+            python scripts/run_terminal_rollout_policy.py \
+              --config "$config" \
+              --case m-${{ matrix.scenario }} \
+              --environment-seed 42 \
+              --attempt-budget 128 \
+              --top-k 3 \
+              --rollout-top-k 3 \
+              --rollout-max-steps 40 \
+              --max-steps 40 \
+              --policy "$stud" \
+              --mine-against-model reports/cup/model \
+              --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
+              --output-dir reports/cup/episodes/${{ matrix.cell }}/$stud/rollout
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cup-cell-${{ matrix.cell }}
+          path: reports/cup/episodes/${{ matrix.cell }}/
+
+  standings:
+    needs: episodes
+    if: always() && needs.episodes.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cup-cell-*
+          path: reports/cup/results
+      - name: Score the cup
+        run: >-
+          python scripts/analyze_diversity_cup.py
+          --root reports/cup/results
+          --output reports/cup/out/cup-report.json
+          --pairs-out reports/cup/out/side-corpus-pairs.jsonl
+      - run: python -m json.tool reports/cup/out/cup-report.json | head -60 >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diversity-cup-result-${{ github.run_id }}
+          path: reports/cup/out/
