@@ -28,8 +28,8 @@ if str(ROOT) not in sys.path:
 from scripts.league import episode_outcome, paired_relation  # noqa: E402
 
 CHAMPION = "learned"
-STUDS = ("rule-grid", "rule-lowcog", "rule-edge")
-HORSES = (CHAMPION,) + STUDS
+MINERS = ("current-agent", "rule-grid", "rule-lowcog", "rule-edge")
+HORSES = (CHAMPION,) + MINERS
 EVENT_HEADS = (
     "soft_violation_gain", "priority_covered_gain",
     "priority_misrouted_gain",
@@ -89,6 +89,18 @@ def stud_metrics(
         event for event in forked
         if event.get("winner_candidate_id") is not None
     ]
+    actor_wins = 0
+    champion_wins = 0
+    for event in strict:
+        actor_id = event.get("actor_candidate_id") or event.get(
+            "rule_candidate_id"
+        )
+        if event.get("winner_candidate_id") == actor_id:
+            actor_wins += 1
+        elif event.get("winner_candidate_id") == event.get(
+            "champion_candidate_id"
+        ):
+            champion_wins += 1
     coverage = {head: 0 for head in EVENT_HEADS}
     for event in strict:
         for row in event.get("pair_rows", []):
@@ -113,6 +125,11 @@ def stud_metrics(
         "disagreements": int(episode.get("mining_disagreements") or 0),
         "forks": int(episode.get("mining_forks") or 0),
         "strict_pairs": strict_pairs,
+        "actor_wins": actor_wins,
+        "champion_wins": champion_wins,
+        "candidate_support_misses": int(
+            episode.get("current_agent_support_misses") or 0
+        ),
         "fork_physical_step_equivalents": fork_equiv,
         "pairs_per_million_step_equivalents": (
             strict_pairs / fork_equiv * 1e6 if fork_equiv else 0.0
@@ -158,7 +175,7 @@ def side_corpus(
 ) -> list[dict[str, Any]]:
     pairs = []
     for cell, horses in sorted(cup.items()):
-        for horse in STUDS:
+        for horse in MINERS:
             manifest = horses.get(horse)
             if not manifest:
                 continue
@@ -169,10 +186,15 @@ def side_corpus(
                 pairs.append({
                     "cell": cell,
                     "stud": horse,
+                    "actor_policy": event.get("actor_policy") or horse,
                     "step": event["step"],
                     "root_id": event.get("root_id"),
                     "snapshot_path": event.get("snapshot_path"),
-                    "rule_candidate_id": event["rule_candidate_id"],
+                    "actor_candidate_id": (
+                        event.get("actor_candidate_id")
+                        or event.get("rule_candidate_id")
+                    ),
+                    "rule_candidate_id": event.get("rule_candidate_id"),
                     "champion_candidate_id": event["champion_candidate_id"],
                     "champion_probability": event.get(
                         "champion_probability"
@@ -188,10 +210,10 @@ def analyze(root: pathlib.Path) -> dict[str, Any]:
     studs = [
         stud_metrics(cell, horse, horses[horse], horses.get(CHAMPION))
         for cell, horses in sorted(cup.items())
-        for horse in STUDS if horse in horses
+        for horse in MINERS if horse in horses
     ]
     totals = {}
-    for horse in STUDS:
+    for horse in MINERS:
         rows = [row for row in studs if row["horse"] == horse]
         boards = sum(row["boards"] for row in rows)
         novel = sum(row["novel_boards"] for row in rows)
@@ -205,11 +227,44 @@ def analyze(root: pathlib.Path) -> dict[str, Any]:
             "disagreements": sum(row["disagreements"] for row in rows),
             "forks": sum(row["forks"] for row in rows),
             "strict_pairs": pairs,
+            "actor_wins": sum(row["actor_wins"] for row in rows),
+            "champion_wins": sum(row["champion_wins"] for row in rows),
+            "candidate_support_misses": sum(
+                row["candidate_support_misses"] for row in rows
+            ),
             "fork_physical_step_equivalents": equiv,
             "pairs_per_million_step_equivalents": (
                 pairs / equiv * 1e6 if equiv else 0.0
             ),
         }
+    terminal_rows = []
+    for cell, horses in sorted(cup.items()):
+        for horse, manifest in sorted(horses.items()):
+            final = manifest["episodes"][0].get("final_metrics") or {}
+            fill = final.get("fill_score_proxy")
+            if isinstance(fill, (int, float)):
+                terminal_rows.append({
+                    "cell": cell,
+                    "horse": horse,
+                    "fill_score_proxy": float(fill),
+                    "placed_count": final.get("placed_count"),
+                })
+    max_by_horse = {}
+    for row in terminal_rows:
+        previous = max_by_horse.get(row["horse"])
+        if previous is None or row["fill_score_proxy"] > previous[
+            "fill_score_proxy"
+        ]:
+            max_by_horse[row["horse"]] = row
+    max_terminal_fill = (
+        max(
+            terminal_rows,
+            key=lambda row: (
+                row["fill_score_proxy"], row["horse"], row["cell"]
+            ),
+        )
+        if terminal_rows else None
+    )
     corpus = side_corpus(cup)
     return {
         "contract": "diversity_cup_report_v1",
@@ -222,6 +277,8 @@ def analyze(root: pathlib.Path) -> dict[str, Any]:
         "stud_totals": totals,
         "race_tables": pairwise_tables(cup),
         "side_corpus_pairs": len(corpus),
+        "max_terminal_fill": max_terminal_fill,
+        "max_terminal_fill_by_horse": max_by_horse,
     }
 
 
@@ -261,6 +318,7 @@ def main() -> int:
             }
             for horse, row in report["stud_totals"].items()
         },
+        "max_terminal_fill": report["max_terminal_fill"],
     }, ensure_ascii=False, indent=2))
     return 0
 

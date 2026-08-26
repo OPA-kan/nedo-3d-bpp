@@ -41,7 +41,9 @@ from scripts.build_replay_dataset import (  # noqa: E402
     state_snapshot,
 )
 from scripts.counterfactual_graph import (  # noqa: E402
+    BranchCandidate,
     board_fingerprint,
+    canonical_action,
     item_symmetry_board_fingerprint,
     stable_id,
 )
@@ -58,8 +60,13 @@ from scripts.run_vector_mcts import vector_search_root  # noqa: E402
 from scripts.single_agent_packing import GENUINE_TERMINATIONS  # noqa: E402
 
 RULE_POLICIES = {"rule-grid", "rule-lowcog", "rule-edge"}
+CURRENT_AGENT_POLICY = "current-agent"
+MINING_POLICIES = RULE_POLICIES | {CURRENT_AGENT_POLICY}
 LEARNED_POLICIES = {"learned", "online"}
-POLICIES = {"legacy", "terminal-rollout"} | LEARNED_POLICIES | RULE_POLICIES
+POLICIES = (
+    {"legacy", "terminal-rollout", CURRENT_AGENT_POLICY}
+    | LEARNED_POLICIES | RULE_POLICIES
+)
 BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v3_wall_clock"
 TIMING_CONTRACT = "decision_wall_clock_v1"
 RULE_GRID_PITCH = 0.25
@@ -104,9 +111,54 @@ def _rank_key(candidate: Any) -> tuple[int, str]:
     )
 
 
+def add_current_agent_candidate(
+    candidates: list[Any], action: dict[str, Any],
+    observation: dict[str, Any],
+) -> tuple[list[Any], str, bool]:
+    """Union the exact shipped ``Agent.policy`` action into Cup support.
+
+    The current agent owns its own generator, rescue and guard stack.  Its
+    action may therefore be absent from the item-stratified Cup provider.
+    Reuse an exact command match when present; otherwise add one auditable
+    root candidate so PyBullet, the champion scorer and the paired terminal
+    fork all see the same action.
+    """
+    command = canonical_action(action)
+    for candidate in candidates:
+        if canonical_action(_candidate_action(candidate)) == command:
+            return list(candidates), str(
+                _candidate_record(candidate)["candidate_id"]
+            ), True
+    pool = observation.get("pool_list") or []
+    pool_index = int(command["item_idx"])
+    stable_item_index = (
+        int(pool[pool_index].get("index", pool_index))
+        if 0 <= pool_index < len(pool) else None
+    )
+    candidate_id = stable_id("candidate", {
+        "action": command,
+        "kind": "current_agent_policy",
+        "stable_item_index": stable_item_index,
+    })
+    current = BranchCandidate(
+        candidate_id=candidate_id,
+        command_action=command,
+        selection={
+            "provider": "exact_current_agent_policy",
+            "rank": -1,
+            "pool_index": pool_index,
+            "stable_item_index": stable_item_index,
+            "candidate_kind": "current_agent_policy",
+            "candidate_support_hit": False,
+        },
+    )
+    return list(candidates) + [current], candidate_id, False
+
+
 def choose_root_candidate(
     candidates: list[Any], search_result: dict[str, Any], *, policy: str,
     learned_scorer: Any | None = None,
+    forced_candidate_id: str | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     """Choose conservatively from physically safe root candidates."""
     if policy not in POLICIES:
@@ -125,6 +177,37 @@ def choose_root_candidate(
         ),
         key=_rank_key,
     )
+    if policy == CURRENT_AGENT_POLICY:
+        if forced_candidate_id is None:
+            raise ValueError("current-agent policy requires its exact candidate id")
+        exact = next(
+            (
+                candidate for candidate in candidates
+                if str(_candidate_record(candidate)["candidate_id"])
+                == str(forced_candidate_id)
+            ),
+            None,
+        )
+        if exact is None:
+            raise ValueError("current-agent exact candidate is absent from union")
+        incumbent_id = (
+            str(_candidate_record(ranked[0])["candidate_id"])
+            if ranked else None
+        )
+        exact_id = str(forced_candidate_id)
+        return exact, {
+            "policy": policy,
+            "reason": "current_agent_policy",
+            "switched": exact_id != incumbent_id,
+            "incumbent_candidate_id": incumbent_id,
+            "selected_candidate_id": exact_id,
+            "selected_safe": exact_id in safe_ids,
+            "candidate_support_hit": bool(
+                _candidate_selection(exact).get(
+                    "candidate_support_hit", True
+                )
+            ),
+        }
     if not ranked:
         return None, {
             "policy": policy,
@@ -285,9 +368,9 @@ def run_episode(
         raise ValueError(f"unsupported policy: {policy}")
     mining_policy = None
     if mine_model_dir is not None:
-        if policy not in RULE_POLICIES:
+        if policy not in MINING_POLICIES:
             raise ValueError(
-                "counterfactual mining is a rule-stud feature: the stud"
+                "counterfactual mining requires a diversity actor: the actor"
                 " executes its own action and forks the champion's"
             )
         from scripts.learned_allocator_policy import LearnedAllocatorPolicy
@@ -320,6 +403,10 @@ def run_episode(
     env = _fresh_env(task_config)
     try:
         env.reset_settings()
+        current_solver = None
+        if policy == CURRENT_AGENT_POLICY:
+            current_solver = agent_module.Agent("")
+            current_solver.get_init_states(env.get_init_states())
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
         executed: list[Any] = []
@@ -353,8 +440,26 @@ def run_episode(
                 encoding="utf-8",
             )
             state_capture_seconds = time.perf_counter() - phase_started
+            actor_policy_seconds = 0.0
+            current_candidate_id = None
+            current_support_hit = None
+            current_action = None
+            if current_solver is not None:
+                phase_started = time.perf_counter()
+                current_action = canonical_action(
+                    current_solver.policy(observed)
+                )
+                actor_policy_seconds = time.perf_counter() - phase_started
             phase_started = time.perf_counter()
             candidates = list(provider(env, observation, int(top_k)))
+            if current_action is not None:
+                (
+                    candidates,
+                    current_candidate_id,
+                    current_support_hit,
+                ) = add_current_agent_candidate(
+                    candidates, current_action, observed,
+                )
             provider_seconds = time.perf_counter() - phase_started
             if not candidates:
                 termination = "no_retained_candidate"
@@ -395,7 +500,12 @@ def run_episode(
             chosen, selection = choose_root_candidate(
                 candidates, search, policy=policy,
                 learned_scorer=learned_scorer,
+                forced_candidate_id=current_candidate_id,
             )
+            if current_support_hit is not None:
+                selection["candidate_support_hit"] = bool(
+                    current_support_hit
+                )
             selection_seconds = time.perf_counter() - phase_started
             if chosen is None:
                 termination = "no_safe_retained_candidate"
@@ -505,7 +615,7 @@ def run_episode(
                 # the frozen champion's choice at the SAME state. The
                 # stud's own action is ALWAYS the one executed — mining
                 # never bends its state distribution.
-                rule_id = selection["selected_candidate_id"]
+                actor_id = selection["selected_candidate_id"]
                 incumbent_id = selection["incumbent_candidate_id"]
                 scores = mining_policy.score_candidates(
                     snapshot, search.get("root_candidates") or [],
@@ -515,17 +625,22 @@ def run_episode(
                     max(scores, key=lambda cid: (scores[cid], cid))
                     if scores else None
                 )
-                if champion_id is not None and champion_id != rule_id:
+                if champion_id is not None and champion_id != actor_id:
                     mining_disagreements += 1
                     if mining_forks_used >= mine_fork_budget:
                         mining_event = {
                             "skipped": "fork_budget_exhausted",
-                            "rule_candidate_id": rule_id,
+                            "actor_policy": policy,
+                            "actor_candidate_id": actor_id,
+                            **(
+                                {"rule_candidate_id": actor_id}
+                                if policy in RULE_POLICIES else {}
+                            ),
                             "champion_candidate_id": champion_id,
                         }
                     else:
                         fork_started = time.perf_counter()
-                        pair_ids = {rule_id, champion_id}
+                        pair_ids = {actor_id, champion_id}
                         pair = [
                             candidate for candidate in candidates
                             if str(_candidate_record(candidate)["candidate_id"])
@@ -563,7 +678,12 @@ def run_episode(
                         if winner in pair_ids:
                             mining_pairs += 1
                         mining_event = {
-                            "rule_candidate_id": rule_id,
+                            "actor_policy": policy,
+                            "actor_candidate_id": actor_id,
+                            **(
+                                {"rule_candidate_id": actor_id}
+                                if policy in RULE_POLICIES else {}
+                            ),
                             "champion_candidate_id": champion_id,
                             "champion_probability": float(
                                 scores[champion_id]
@@ -608,6 +728,7 @@ def run_episode(
             timing = {
                 "contract": TIMING_CONTRACT,
                 "state_capture_seconds": state_capture_seconds,
+                "actor_policy_seconds": actor_policy_seconds,
                 "provider_seconds": provider_seconds,
                 "search_seconds": search_seconds,
                 "selection_seconds": selection_seconds,
@@ -686,6 +807,15 @@ def run_episode(
             "mining_fork_physical_step_equivalents": (
                 mining_fork_step_equivalents
                 if mining_policy is not None else None
+            ),
+            "current_agent_support_misses": (
+                sum(
+                    not bool(record["selection"].get(
+                        "candidate_support_hit", True
+                    ))
+                    for record in records
+                )
+                if policy == CURRENT_AGENT_POLICY else None
             ),
             "terminal_dominance_switches": sum(
                 bool(record["selection"]["switched"])
@@ -782,10 +912,10 @@ def main() -> int:
             " forbidden otherwise"
         )
     if args.mine_against_model is not None and (
-        args.policy not in RULE_POLICIES
+        args.policy not in MINING_POLICIES
     ):
         raise SystemExit(
-            "--mine-against-model is only valid with a rule-* policy"
+            "--mine-against-model is valid only with current-agent/rule-*"
         )
     require_supported_python()
     config = json.loads(args.config.read_text(encoding="utf-8"))
@@ -831,6 +961,10 @@ def main() -> int:
             "online": (
                 "adapted_argmax_with_gated_ab_terminal_fork;"
                 " fork winner executed; adapter discarded at episode end"
+            ),
+            "current-agent": (
+                "exact_stateful_agent_policy; action unioned into physical"
+                " candidate support before champion comparison"
             ),
             "legacy": "legacy_safe_rank0",
             "rule-grid": "rule_heuristic_argmin_over_safe_candidates",
@@ -882,8 +1016,9 @@ def main() -> int:
         "mining_contract": {
             "champion_model_dir": str(args.mine_against_model),
             "fork_budget": args.mine_fork_budget,
+            "actor_policy": args.policy,
             "rule": (
-                "stud_executes_own_action;"
+                "actor_executes_own_action;"
                 " fork_champion_argmax_on_disagreement;"
                 " strict_terminal_dominance_pairs_only"
             ),

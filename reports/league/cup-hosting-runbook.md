@@ -5,7 +5,26 @@ is a **dispatch plus a ledger row — never a code change**. Design and
 frozen rules: `reports/self-play-packing/diversity-cup-design.md`.
 Scoring: `scripts/analyze_diversity_cup.py` (runs inside the workflow).
 
+## One-click hosting (preferred for a human operator)
+
+Open GitHub Actions → **Host Diversity Cup (one click)** → **Run
+workflow**. Both inputs may stay blank: the workflow resolves the current
+champion's learning run from season state, draws the next unused six
+source-specific streams, appends and pushes the ledger preregistration,
+then dispatches the Cup. Optional inputs only override the model run or
+assert the expected next Cup number. The job refuses to proceed while
+another Cup is queued/running.
+
+This workflow is only a host. The physics event remains
+`diversity-cup.yml`, and all manual rules below remain the recovery/audit
+contract. Cup 002+ runs the five-horse field including the exact stateful
+current agent. The aggregate report includes maximum terminal fill and
+current-agent candidate-support misses.
+
 ## Per-cup procedure
+
+The following is the transparent manual equivalent of the one-click host
+and the recovery path if its dispatch step fails after preregistration.
 
 1. **Pick the champion model.** The studs mine against the CURRENT
    champion's ensemble. Find the learning run id of the round that

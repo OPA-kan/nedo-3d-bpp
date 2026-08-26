@@ -103,3 +103,27 @@ say so explicitly.
   protocol and fork budget. Novelty saturation (total novel-board
   rate < ~0.30 two cups running) pauses hosting until the next
   generation promotes.
+
+## Cup 002+ amendment: exact current-agent anchor
+
+Date: 2026-08-26. Cup 001 remains the four-horse event reported above.
+Starting with Cup 002, the field adds `current-agent`: one stateful
+instance of the shipped `agent/agent.py::Agent.policy`, initialized once
+and advanced exactly once per live step. This is not the older `legacy`
+Cup mode (rank-0 over the Cup provider). Its own generator, rescue,
+fallback and guard stack choose the action.
+
+The exact action is unioned into the bounded Cup root support before
+physical measurement. A support hit/miss is recorded; a miss is not
+silently replaced by the nearest provider candidate. The actor always
+executes its own action, including a physically rejected action, so race
+outcomes remain faithful. When physically comparable, the same terminal
+fork used for the rule studs compares it with the frozen champion action.
+Environment dominance, not imitation of the hand-coded agent, decides the
+teacher.
+
+Cup 002+ therefore has five horses: frozen learned champion,
+`current-agent`, `rule-grid`, `rule-lowcog` and `rule-edge`. Reports must
+include current-agent support misses and maximum terminal fill with horse,
+cell and placed count. This changes the actor field, not the fork budget,
+course isolation, dominance rule or no-auto-training boundary.

@@ -1,0 +1,124 @@
+name: Host Diversity Cup (one click)
+run-name: Host next Diversity Cup
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_run_id:
+        description: Optional champion learning run override (blank = season state)
+        required: false
+        default: ""
+      cup_id:
+        description: Optional next Cup number (blank = ledger next id)
+        required: false
+        default: ""
+  # Register this non-default-branch workflow without hosting on push.
+  push:
+    branches:
+      - work/terminal-rollout-oracle
+    paths:
+      - .github/workflows/host-diversity-cup.yml
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: diversity-cup-hosting
+  cancel-in-progress: false
+
+jobs:
+  host:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/terminal-rollout-oracle
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refuse a duplicate live Cup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          running="$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow diversity-cup.yml --limit 20 \
+            --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          test "$running" = "0" || {
+            echo "A Diversity Cup is already queued or in progress" >&2
+            exit 1
+          }
+      - name: Respect season compute priority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for workflow in terminal-rollout-hard-state.yml league-match.yml; do
+            running="$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow "$workflow" --limit 20 \
+              --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+            test "$running" = "0" || {
+              echo "Season workflow ${workflow} has queued/in-progress work; Cup waits" >&2
+              exit 1
+            }
+          done
+      - name: Draw course and preregister ledger row
+        id: plan
+        shell: bash
+        run: |
+          args=()
+          if [[ -n "${{ inputs.model_run_id }}" ]]; then
+            args+=(--model-run-id "${{ inputs.model_run_id }}")
+          fi
+          if [[ -n "${{ inputs.cup_id }}" ]]; then
+            args+=(--cup-id "${{ inputs.cup_id }}")
+          fi
+          python scripts/host_diversity_cup.py \
+            --github-output "$GITHUB_OUTPUT" "${args[@]}"
+      - name: Verify the frozen champion artifact before committing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODEL_RUN_ID: ${{ steps.plan.outputs.model_run_id }}
+        run: |
+          found="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${MODEL_RUN_ID}/artifacts" \
+            --jq '[.artifacts[] | select(.name == "rollout-policy-model" and (.expired | not))] | length')"
+          test "$found" -gt 0 || {
+            echo "rollout-policy-model is absent/expired for run ${MODEL_RUN_ID}" >&2
+            exit 1
+          }
+      - name: Commit preregistration before dispatch
+        env:
+          CUP_ID: ${{ steps.plan.outputs.cup_id }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/league/cup-ledger.md
+          git commit -m "Preregister Diversity Cup ${CUP_ID} [skip ci]"
+          git pull --rebase origin work/terminal-rollout-oracle
+          git push origin HEAD:work/terminal-rollout-oracle
+      - name: Dispatch the preregistered Cup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CUP_ID: ${{ steps.plan.outputs.cup_id }}
+          MODEL_RUN_ID: ${{ steps.plan.outputs.model_run_id }}
+          CELLS_JSON: ${{ steps.plan.outputs.cells_json }}
+        run: |
+          # Recheck immediately before dispatch: another host must not spend
+          # a second course after our ledger commit.
+          running="$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow diversity-cup.yml --limit 20 \
+            --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          test "$running" = "0" || {
+            echo "A Diversity Cup appeared after preregistration; refusing duplicate dispatch" >&2
+            exit 1
+          }
+          gh workflow run diversity-cup.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref work/terminal-rollout-oracle \
+            -f "model_run_id=${MODEL_RUN_ID}" \
+            -f "cup_id=${CUP_ID}" \
+            -f "mine_fork_budget=12" \
+            -f "cells=${CELLS_JSON}"
+          echo "Hosted Diversity Cup ${CUP_ID} vs model ${MODEL_RUN_ID}" >> "$GITHUB_STEP_SUMMARY"

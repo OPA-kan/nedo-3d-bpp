@@ -36,12 +36,13 @@ class DiversityCupWorkflowTests(unittest.TestCase):
         self.assertNotIn("reports/league/season", self.text)
         self.assertNotIn("registry.json", self.text)
 
-    def test_six_cells_run_champion_and_three_mining_studs(self):
+    def test_six_cells_run_champion_current_agent_and_three_mining_studs(self):
         # the course is a dispatch input; the baked default is Cup 001
         self.assertIn("fromJSON(inputs.cells ||", self.text)
         self.assertEqual(self.text.count('"cell":"'), 6)
         self.assertEqual(len(self.cup_streams()), 6)
         self.assertIn("--policy learned", self.text)
+        self.assertIn("--policy current-agent", self.text)
         self.assertIn("for stud in rule-grid rule-lowcog rule-edge", self.text)
         self.assertIn("--mine-against-model reports/cup/model", self.text)
         self.assertIn("--mine-fork-budget", self.text)
