@@ -67,6 +67,14 @@ def _row(result) -> dict:
                 ],
                 "support_type_area": container["support_type_area"],
                 "zones": container["zones"],
+                "back_to_front_adherence": container["order"][
+                    "back_to_front_adherence"
+                ],
+                "back_to_front_violations": container["order"][
+                    "back_to_front_violations"
+                ],
+                "max_backtrack_m": container["order"]["max_backtrack_m"],
+                "frontier_depth_used": container["order"]["frontier_depth_used"],
                 **container["volume"],
             }
         )
@@ -167,8 +175,9 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
         "board can cover the floor completely and still fill very little of "
         "the ULD. That gap is the size of the Layer 2 opportunity.",
         "",
-        "| scenario | placed_count | floor_coverage | volume_fill_ratio |",
-        "|---|---|---|---|",
+        "| scenario | placed_count | floor_coverage | volume_fill_ratio | "
+        "back-to-front adherence |",
+        "|---|---|---|---|---|",
     ]
     for row in rows:
         for container in row["containers"]:
@@ -177,11 +186,12 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 tag = "P" if container["priority"] else "N"
                 label = f"{row['scenario']} (c{container['container']}·{tag})"
             lines.append(
-                "| {name} | {count} | {cov:.2f} | {vfill:.4f} |".format(
+                "| {name} | {count} | {cov:.2f} | {vfill:.4f} | {b2f:.2f} |".format(
                     name=label,
                     count=container["placed_total"],
                     cov=container["floor_coverage"],
                     vfill=container["volume_fill_ratio"],
+                    b2f=container["back_to_front_adherence"],
                 )
             )
 
@@ -286,6 +296,12 @@ def _markdown(rows: list[dict], config: RuleAlphaConfig, images: dict) -> str:
                 f"(`{container['foundation_slab_volume_m3']}` m³) = "
                 f"`{container['foundation_slab_fill_ratio']}` — structural and "
                 f"shelf cargo excluded from both sides",
+                f"- back-to-front: adherence "
+                f"`{container['back_to_front_adherence']}` "
+                f"(`{container['back_to_front_violations']}` placements landed "
+                f"behind the frontier, worst backtrack "
+                f"`{container['max_backtrack_m']}` m), frontier reached "
+                f"`{container['frontier_depth_used']}` of the depth",
                 f"- typed support area: `{container['support_type_area']}`",
                 "- zone occupancy: "
                 + ", ".join(

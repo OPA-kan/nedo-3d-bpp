@@ -98,7 +98,8 @@ def _settled_placements(observation, board_models, intent, config):
             record = intent.get(index)
             if record is None:
                 continue
-            profile, orientation, role, archetype, surface, surface_name = record
+            (profile, orientation, role, archetype, surface, surface_name,
+             step_index) = record
             pos = packed.get("pos")
             if pos is None:
                 continue
@@ -120,6 +121,7 @@ def _settled_placements(observation, board_models, intent, config):
                     archetype=archetype,
                     reason="settled pose reported by the simulator",
                     settle_note="pybullet",
+                    step=step_index,
                 )
             )
     return per_container
@@ -173,6 +175,7 @@ def run_physics_episode(scenario, config, max_steps: int = 400,
                     placement.archetype,
                     placement.surface,
                     placement.surface_name,
+                    len(steps) + 1,
                 )
                 observation, _reward, terminated, truncated, info = env.step(action)
                 status = (info or {}).get("status", {})

@@ -207,9 +207,10 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
                 cursor += 1
             continue
 
+        step += 1
+        decision.placement.step = step
         board.apply(decision.placement)
         result.sequence.append(decision.placement)
-        step += 1
         result.steps.append(
             StepLog(
                 step=step,

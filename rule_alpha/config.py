@@ -103,6 +103,13 @@ class RuleAlphaConfig:
     wall_front_min_height: float = 0.25
     """Below this an item is not worth spending on the wall front."""
 
+    wall_front_max_height_shelf_fraction: float = 0.5
+    """Cap on wall-front height, as a share of the gap between the floor and
+    the shelf above the slope strip.  A taller piece has nowhere to go: it
+    cannot be carried past the small shelf, and it spends a large item on
+    structure.  Above this cap the item is ordinary tall cargo and belongs on
+    the perimeter instead."""
+
     wall_front_strip_fraction: float = 0.22
     """Share of the usable floor length reserved for the slope wall front.  The
     soft edge zone starts just inside it, because on this ULD the chamfer and
@@ -166,6 +173,12 @@ class RuleAlphaConfig:
     """A plain hard item may not cover more than this share of its footprint
     with a reserved soft / priority edge strip.  Low on purpose: several items
     each nicking a corner of a strip add up to a strip that is gone."""
+
+    frontier_item_contact_weight: float = 2.0
+    """How much more a candidate that packs against already-settled cargo is
+    worth than one that hugs a far wall.  Extending the packed frontier is what
+    keeps the leftover space in one piece at an edge, instead of a strip up the
+    middle of the container."""
 
     zone_reference_share: float = 0.25
     """Share of the declared stream (by footprint) at which a reserved edge

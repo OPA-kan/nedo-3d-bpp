@@ -341,9 +341,31 @@ that are *not* prime foundation material:
 
 * base area ≤ 13 % of the usable floor (bigger boxes stay flat in the
   foundation),
-* a pose at least 0.25 m tall,
+* a pose between 0.25 m and `wall_front_height_limit()` tall,
 * stop when the wall spans 85 % of the depth **or** reaches half the container
   height.
+
+**The height cap is the important one.** The wall front lives *under the small
+shelf*, so a piece that fills most of that gap has nowhere to go: at the
+commanded release height the transport sweep no longer clears the shelf
+underside by the official 15 mm. The cap is the lower of
+
+* half the floor-to-shelf gap — above that the piece is ordinary tall cargo and
+  does more good on the perimeter than as structure, and
+* what can actually be carried in: `gap − (floor_action_lift +
+  settled_clearance)`.
+
+For the shipped ULD that is **0.383 m**. Before the cap, `10-awkward-holes`
+built a wall of four 0.71–0.74 m pieces that the real validator refused to
+transport, and spent four large items doing it. With the cap those pieces are
+reclassified and go to the perimeter, and the board gains an item and 8 points
+of floor coverage.
+
+There is a cost, and `08-slope-exploitation` pays it: its cargo is small and
+not elongated, so capped pieces lie flat as foundation instead of standing as
+walls, which fits fewer items (12 → 9) and 5 points less floor coverage. That
+is the trade the rule is making on purpose — standing medium cargo up to make
+a wall buys floor area at the price of a structure that cannot be delivered.
 
 `wall_height / container_height` is printed on every picture and logged on
 every step.
@@ -420,6 +442,22 @@ layer that has barely started on the ULD (`volume_fill_ratio` 0.10).
 coverage, by standing long cargo up: that is the structural exception paying
 for itself in volume, which is a result to weigh rather than a fault.
 
+### Back-to-front adherence
+
+Layer 1 is supposed to fill from the back wall towards the opening, and when it
+does not, the gaps show up between columns. Every container reports it rather
+than leaving it to impression:
+
+* `back_to_front_adherence` — the share of placements that did **not** land
+  entirely behind the frontier (the most forward point reached so far).
+* `back_to_front_violations`, `max_backtrack_m` — how many went back, and how
+  far the worst one did.
+* `frontier_depth_used` — how much of the depth the frontier covered.
+
+Frontiers are tracked **per surface**: the floor and each shelf fill
+independently, so a bag going onto a shelf is not counted as landing behind the
+floor frontier.
+
 ### Transport corridor
 
 Two things are reported, because they are not the same:
@@ -460,6 +498,10 @@ to leave it. Every stream is seeded.
 
 Each PNG has four panels and a three-line caption of the headline diagnostics.
 
+Six panels, and every figure is written as **both PNG and SVG** — the
+clearances that decide whether a placement is legal are millimetres wide, and a
+raster at this size loses them, so zoom into the `.svg`.
+
 **top view** — the floor plan.
 * Fill colour is the cargo class: tan `normal-hard`, blue `soft`, green
   `priority`, purple `soft+priority`.
@@ -480,6 +522,18 @@ Each PNG has four panels and a three-line caption of the headline diagnostics.
 * white = free floor still connected to the perimeter,
 * black = **interior hole**, labelled `H<id>` with its area,
 * grey = outside the usable floor (the pocket).
+
+**placement order** — the same footprint, numbered by placement step and
+shaded from dark (first) to light (last), with an arrow chain through the
+centroids. This is the picture for "was it filled from the back forward?": a
+jump from the back to the opening and back again reads as a zig-zag instead of
+having to be reconstructed from the step log.
+
+**fill progression** — placement step across, depth down. Each bar is the
+item's depth span; the red ticks are the frontier after that step. A board that
+respects back-first draws a staircase falling to the right; a bar that climbs
+back up after the frontier has moved on is cargo placed behind something
+already packed.
 
 **opening view** — looking along +X: depth against height, opening on the left.
 This is the picture for "does the board slope up towards the back" and "is

@@ -369,10 +369,12 @@ class VolumeReportTest(unittest.TestCase):
         report = volume_report(board.model(0), placements, DEFAULT_CONFIG)
 
         self.assertGreater(report["placed_volume_m3"], 0.0)
+        # each field is rounded to 5 dp independently, so the split can differ
+        # from the total by a rounding step
         self.assertAlmostEqual(
             report["placed_volume_m3"],
             report["placed_volume_floor_m3"] + report["placed_volume_shelf_m3"],
-            places=6,
+            places=4,
         )
         self.assertAlmostEqual(
             report["volume_fill_ratio"],

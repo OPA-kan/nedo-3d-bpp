@@ -20,6 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.patches as patches
+import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
@@ -274,6 +275,134 @@ def draw_slope_view(ax, model: ContainerModel, placements):
     ax.tick_params(labelsize=7)
 
 
+
+
+def draw_order(ax, model: ContainerModel, placements):
+    """Top view labelled by placement order, with the path between centroids.
+
+    This is the picture for "was it filled from the back forward?".  The arrow
+    chain is the order the rules actually chose, so a jump from the back to the
+    opening and back again is visible as a zig-zag rather than having to be
+    inferred from the step log.
+    """
+    ax.set_title("placement order (top view)", fontsize=10)
+    ax.set_xlabel("x  [m]")
+    ax.set_ylabel("y  [m]   opening -Y  ...  back +Y")
+
+    ax.add_patch(
+        patches.Rectangle(
+            (model.x_wall_min, model.y_opening),
+            model.x_wall_max - model.x_wall_min,
+            model.y_back - model.y_opening,
+            fill=False, edgecolor="#222222", linewidth=1.8, zorder=4,
+        )
+    )
+    ax.add_patch(
+        patches.Rectangle(
+            (model.x_wall_min, model.y_opening),
+            model.x_floor_min - model.x_wall_min,
+            model.y_back - model.y_opening,
+            facecolor="#bbbbbb", edgecolor="none", alpha=0.55, zorder=0,
+        )
+    )
+
+    ordered = sorted(placements, key=lambda p: p.step)
+    if not ordered:
+        ax.set_xlim(model.x_wall_min - 0.05, model.x_wall_max + 0.05)
+        ax.set_ylim(model.y_opening - 0.05, model.y_back + 0.05)
+        ax.set_aspect("equal")
+        return
+
+    palette = plt.get_cmap("viridis")
+    span = max(1, len(ordered) - 1)
+    centres = []
+    for position, placement in enumerate(ordered):
+        rect = placement.rect
+        colour = palette(position / span)
+        on_shelf = placement.surface == "shelf"
+        ax.add_patch(
+            patches.Rectangle(
+                (rect.x_min, rect.y_min),
+                rect.x_max - rect.x_min,
+                rect.y_max - rect.y_min,
+                facecolor=colour,
+                edgecolor="#ffffff" if not on_shelf else "#7d3cbd",
+                linewidth=1.2,
+                linestyle="solid" if not on_shelf else "dotted",
+                alpha=0.45 if on_shelf else 0.9,
+                zorder=5,
+            )
+        )
+        cx = 0.5 * (rect.x_min + rect.x_max)
+        cy = 0.5 * (rect.y_min + rect.y_max)
+        centres.append((cx, cy))
+        ax.text(
+            cx, cy, f"{placement.step}",
+            ha="center", va="center", fontsize=8, fontweight="bold",
+            color="white", zorder=7,
+            path_effects=[
+                path_effects.withStroke(linewidth=2.0, foreground="#00000090")
+            ],
+        )
+
+    for (x0, y0), (x1, y1) in zip(centres, centres[1:]):
+        ax.annotate(
+            "", xy=(x1, y1), xytext=(x0, y0),
+            arrowprops=dict(arrowstyle="->", color="#d62828", lw=1.2,
+                            alpha=0.85, shrinkA=6, shrinkB=6),
+            zorder=8,
+        )
+
+    ax.axvline(model.x_floor_min, color="#c0392b", linewidth=1.0, linestyle="-.")
+    ax.set_xlim(model.x_wall_min - 0.05, model.x_wall_max + 0.05)
+    ax.set_ylim(model.y_opening - 0.05, model.y_back + 0.05)
+    ax.set_aspect("equal")
+    ax.tick_params(labelsize=7)
+
+
+def draw_fill_progression(ax, model: ContainerModel, placements):
+    """Depth against step: does the frontier march from the back to the opening?
+
+    Each bar spans the item's depth.  A board that respects "back first" draws
+    a staircase falling to the right; a bar that jumps back up after the
+    frontier has moved forward is cargo placed behind something already
+    packed.
+    """
+    ax.set_title("fill progression (depth vs step)", fontsize=10)
+    ax.set_xlabel("placement step")
+    ax.set_ylabel("y  [m]   back +Y  ->  opening -Y")
+
+    ordered = sorted(placements, key=lambda p: p.step)
+    frontier = model.y_back
+    for placement in ordered:
+        rect = placement.rect
+        colour = CLASS_COLOR[placement.profile.cargo_class]
+        edge, width, style = ROLE_EDGE[placement.role]
+        ax.bar(
+            placement.step, rect.y_max - rect.y_min, bottom=rect.y_min,
+            width=0.72, color=colour, edgecolor=edge, linewidth=width,
+            linestyle=style, alpha=0.5 if placement.surface == "shelf" else 0.9,
+        )
+        frontier = min(frontier, rect.y_min)
+        ax.plot(
+            [placement.step - 0.36, placement.step + 0.36], [frontier, frontier],
+            color="#d62828", linewidth=1.4, zorder=5,
+        )
+
+    ax.axhline(model.y_back, color="#666666", linestyle=":", linewidth=1.0)
+    ax.axhline(model.y_opening, color="#d93b3b", linestyle=":", linewidth=1.0)
+    ax.text(0.5, model.y_back, " back wall", fontsize=6, color="#666666",
+            va="bottom")
+    ax.text(0.5, model.y_opening, " opening", fontsize=6, color="#d93b3b",
+            va="bottom")
+    ax.set_ylim(model.y_opening - 0.06, model.y_back + 0.06)
+    ax.invert_yaxis()
+    if ordered:
+        ax.set_xlim(0.4, max(p.step for p in ordered) + 0.6)
+    ax.tick_params(labelsize=7)
+    ax.grid(axis="y", alpha=0.2)
+
+
 def draw_diagnostic(ax, model: ContainerModel, placements, config):
     """Top-view overlay: plateaus, holes, zones, structural mask, corridor."""
     ax.set_title("top-view diagnostics", fontsize=10)
@@ -367,18 +496,22 @@ def _legend_handles():
 # ---------------------------------------------------------------------------
 def render_container(model: ContainerModel, placements, config, title: str,
                      path: pathlib.Path) -> dict:
-    figure = plt.figure(figsize=(15.5, 9.2))
-    grid_spec = figure.add_gridspec(2, 2, height_ratios=[1.15, 1.0], hspace=0.32,
-                                    wspace=0.18, top=0.80)
+    figure = plt.figure(figsize=(20.5, 9.6))
+    grid_spec = figure.add_gridspec(2, 3, height_ratios=[1.15, 1.0], hspace=0.34,
+                                    wspace=0.22, top=0.80)
     ax_top = figure.add_subplot(grid_spec[0, 0])
-    ax_diag = figure.add_subplot(grid_spec[0, 1])
+    ax_order = figure.add_subplot(grid_spec[0, 1])
+    ax_diag = figure.add_subplot(grid_spec[0, 2])
     ax_open = figure.add_subplot(grid_spec[1, 0])
     ax_slope = figure.add_subplot(grid_spec[1, 1])
+    ax_progress = figure.add_subplot(grid_spec[1, 2])
 
     draw_top(ax_top, model, placements)
+    draw_order(ax_order, model, placements)
     plateaus, holes = draw_diagnostic(ax_diag, model, placements, config)
     draw_opening_view(ax_open, model, placements)
     draw_slope_view(ax_slope, model, placements)
+    draw_fill_progression(ax_progress, model, placements)
 
     from .diagnostics import build_floor_grid, corridor_report, wall_front_report
 
@@ -410,7 +543,10 @@ def render_container(model: ContainerModel, placements, config, title: str,
         handles=_legend_handles(), loc="lower center", ncol=6, fontsize=7,
         frameon=False, bbox_to_anchor=(0.5, -0.01),
     )
-    figure.savefig(path, dpi=115, bbox_inches="tight")
+    figure.savefig(path, dpi=110, bbox_inches="tight")
+    # SVG alongside: the boards are worth zooming into, and a raster at this
+    # size loses the clearances that decide whether a placement is legal
+    figure.savefig(path.with_suffix(".svg"), bbox_inches="tight")
     plt.close(figure)
     return {"flatness": plateaus, "holes": holes}
 

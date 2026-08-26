@@ -462,6 +462,54 @@ def volume_report(model: ContainerModel, placements, config) -> dict:
     }
 
 
+def order_report(model: ContainerModel, placements) -> dict:
+    """Did the board fill from the back wall towards the opening?
+
+    The frontier is the most forward point reached so far.  A placement whose
+    whole footprint sits *behind* that frontier means the rules went back to
+    fill something the frontier had already passed — the zig-zag that leaves
+    gaps between columns.  Counting it makes the pictures arguable instead of
+    impressionistic.
+    """
+    # one frontier per surface: the floor and a shelf are filled independently,
+    # and a bag going onto a shelf is not "behind" the floor frontier
+    ordered = sorted(placements, key=lambda p: p.step)
+    frontiers: dict[str, float] = {}
+    violations = []
+    for placement in ordered:
+        rect = placement.rect
+        key = placement.surface_name or placement.surface
+        frontier = frontiers.get(key, model.y_back)
+        if rect.y_min > frontier + 1e-6:
+            violations.append(
+                {
+                    "step": placement.step,
+                    "item_index": placement.profile.index,
+                    "surface": key,
+                    "backtrack_m": round(rect.y_min - frontier, 4),
+                }
+            )
+        frontiers[key] = min(frontier, rect.y_min)
+
+    frontier = frontiers.get("floor", model.y_back)
+    total = len(ordered)
+    return {
+        "placements": total,
+        "back_to_front_violations": len(violations),
+        "back_to_front_adherence": (
+            round(1.0 - len(violations) / total, 4) if total else 1.0
+        ),
+        "max_backtrack_m": round(
+            max((v["backtrack_m"] for v in violations), default=0.0), 4
+        ),
+        "violations": violations[:8],
+        "final_frontier_y": round(frontier, 4),
+        "frontier_depth_used": round(
+            (model.y_back - frontier) / max(1e-9, model.y_back - model.y_opening), 4
+        ),
+    }
+
+
 def zone_report(grid: FloorGrid, model: ContainerModel) -> dict:
     """How much of each reserved zone was actually used, and by what.
 
@@ -542,6 +590,7 @@ def board_report(model: ContainerModel, placements, config, cell: float | None =
         "wall_front": wall_front_report(model, placements, config),
         "corridor": corridor_report(grid, model),
         "zones": zone_report(grid, model),
+        "order": order_report(model, placements),
         "support_type_area": {
             SUPPORT_NAMES[int(code)]: round(
                 float((grid.support == code)[grid.usable & grid.occupied].sum())

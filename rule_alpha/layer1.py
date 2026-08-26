@@ -114,6 +114,7 @@ class Placement:
     settle_note: str = "analytic"
     container_is_prioritized: bool = False
     container_has_shelf: bool = False
+    step: int = 0
 
     @property
     def rect(self) -> Rect:
@@ -143,6 +144,7 @@ class Placement:
             "class": self.profile.cargo_class,
             "role": self.role,
             "elongation_rho": round(self.profile.elongation, 3),
+            "step": self.step,
             "container_idx": self.container_idx,
             "container_is_prioritized": self.container_is_prioritized,
             "container_has_shelf": self.container_has_shelf,
@@ -571,7 +573,9 @@ def _role_for(box, model, profile, orientation, board, container_idx, config,
     if (
         profile.cargo_class == cls.NORMAL_HARD
         and near_wall_front
-        and orientation.dz >= config.wall_front_min_height
+        and config.wall_front_min_height
+        <= orientation.dz
+        <= wall_front_height_limit(model, config)
         and wall_front_material(profile, model, config)
         and _wall_front_wanted(board, container_idx, model, config)
     ):
@@ -579,6 +583,25 @@ def _role_for(box, model, profile, orientation, board, container_idx, config,
     if profile.is_elongated and not profile.is_soft:
         return cls.ROLE_ELONGATED
     return cls.ROLE_NONE
+
+
+def wall_front_height_limit(model: ContainerModel, config) -> float:
+    """How tall a slope wall-front piece may be.
+
+    Two limits, whichever is lower:
+
+    * half the floor-to-shelf gap.  The wall front lives under the small shelf,
+      and a piece that fills most of that gap leaves the strip unusable while
+      spending a large item on structure — ordinary tall cargo does more good
+      on the perimeter.
+    * what can actually be carried in: the commanded pose is lifted for
+      release-and-drop, and the transport sweep still has to clear the shelf
+      underside by the official safety margin.
+    """
+    gap = max(0.0, model.shelf_bottom_z - model.z_floor)
+    transportable = gap - (config.floor_action_lift + config.settled_clearance)
+    return max(0.0, min(config.wall_front_max_height_shelf_fraction * gap,
+                        transportable))
 
 
 def wall_front_material(profile: cls.ItemProfile, model: ContainerModel, config) -> bool:
@@ -649,6 +672,25 @@ def _wall_contact(box: AABB, model: ContainerModel, container: dict, config) -> 
     return contact
 
 
+def _item_contact(box: AABB, container: dict, config) -> float:
+    """Shared boundary length with already-settled items (walls excluded)."""
+    tol = config.settled_clearance * 1.6
+    rect = box_rect(box)
+    contact = 0.0
+    for packed, _soft, _prio in packed_aabbs_local(container):
+        pr = box_rect(packed)
+        z_overlap = min(float(packed.maximum[2]), float(box.maximum[2])) - max(
+            float(packed.minimum[2]), float(box.minimum[2])
+        )
+        if z_overlap <= 0.02:
+            continue
+        if abs(pr.x_min - rect.x_max) <= tol or abs(rect.x_min - pr.x_max) <= tol:
+            contact += max(0.0, min(pr.y_max, rect.y_max) - max(pr.y_min, rect.y_min))
+        if abs(pr.y_min - rect.y_max) <= tol or abs(rect.y_min - pr.y_max) <= tol:
+            contact += max(0.0, min(pr.x_max, rect.x_max) - max(pr.x_min, rect.x_min))
+    return contact
+
+
 def _cluster_contact(box: AABB, container: dict, want_soft: bool, want_prio: bool,
                      config) -> float:
     tol = config.settled_clearance * 1.6
@@ -715,6 +757,14 @@ def compute_features(candidate: Candidate, board: Board, config,
     features["footprint"] = candidate.orientation.footprint
     features["volume"] = float(np.prod(box.size))
     features["wall_contact"] = _wall_contact(box, model, container, config)
+    features["item_contact"] = _item_contact(box, container, config)
+    # extending the packed frontier beats hugging a far wall: it is what keeps
+    # the leftover space in one piece at an edge instead of a strip up the
+    # middle
+    features["frontier_contact"] = (
+        features["wall_contact"]
+        + config.frontier_item_contact_weight * features["item_contact"]
+    )
     features["has_backing"] = _has_backing(box, model, container, config)
     features["corridor_overlap"] = rect.overlap_area(model.corridor)
     features["soft_zone_fit"] = rect.overlap_area(model.soft_zone) / max(rect.area, 1e-9)
@@ -788,11 +838,20 @@ def _count_components(mask: np.ndarray) -> int:
 # Archetype comparators
 # ---------------------------------------------------------------------------
 def _key_max_footprint(c):
-    return (-c.features["footprint"], -c.features["y_back"], c.features["top_z"])
+    return (
+        -c.features["footprint"],
+        -c.features["y_back"],
+        -c.features["frontier_contact"],
+        c.features["top_z"],
+    )
 
 
 def _key_back_corner(c):
-    return (-c.features["y_back"], -c.features["wall_contact"], -c.features["footprint"])
+    return (
+        -c.features["y_back"],
+        -c.features["frontier_contact"],
+        -c.features["footprint"],
+    )
 
 
 def _key_min_hole(c):
@@ -812,7 +871,13 @@ def _key_largest_residual(c):
 
 
 def _key_shelf_saving(c):
-    return (c.features["footprint"], c.orientation.tipping_ratio, -c.features["y_back"])
+    # the shelf fills from the back too: a bag left by the opening is a bag in
+    # the way of everything that comes after it
+    return (
+        c.features["footprint"],
+        -c.features["y_back"],
+        c.orientation.tipping_ratio,
+    )
 
 
 def _key_soft_edge(c):
