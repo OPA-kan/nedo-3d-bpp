@@ -99,6 +99,36 @@ class RuleAlphaConfig:
     corridor_depth_fraction: float = 0.34
     """How far the corridor reaches in from the opening."""
 
+    # ------------------------------------------------------------------
+    # Layer 2: grow hard support from hard support
+    # ------------------------------------------------------------------
+    layer2_enabled: bool = True
+    """Allow placements on normal-hard item tops."""
+
+    layer2_family_quota: int = 12
+    """How many candidates each proposal family keeps *before* the families are
+    unioned.  Layer 1's single shortlist sorts everything by depth and truncates,
+    which is how five separate rules there ended up no-ops -- they were written
+    downstream of a decision the shortlist had already made.  A bridge must not
+    have to out-depth a floor candidate to be considered at all."""
+
+    max_orientations_layer2: int = 3
+    """How many poses a Layer 2 proposal may try.  Its own ordering, because a
+    bridge wants the widest flattest pose and the floor policy would not have
+    offered it."""
+
+    layer2_max_level_step: float = 0.45
+    """A terrace or bridge may sit at most this far above the support it grows
+    from.  Higher than that is not growth, it is a new tower."""
+
+    wedge_bridge_strip: float = 0.25
+    """How far in from the chamfer foot a hard top still counts as wedge-side,
+    and so as something a wedge bridge can reach out from."""
+
+    plateau_merge_min_gain: float = 0.02
+    """Minimum growth in the largest connected hard plateau for a bridge to be
+    worth the item.  Below this it is an ordinary placement wearing a costume."""
+
     corridor_release_fill: float = 0.62
     """Floor coverage below which the corridor is a hard veto.  Kept alongside
     the reachability price rather than replaced by it: the price is evaluated

@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import classify as cls
+from . import layer2 as l2
 from . import stability
 from . import triangle as tri
 from ._reuse import (
@@ -50,6 +51,9 @@ A_WALL_FRONT = "wall-front"
 A_TALL_PERIMETER = "tall-perimeter"
 A_WEDGE_STEP = "wedge-step"
 A_WEDGE_CAP = "wedge-soft-cap"
+A_TERRACE = "terrace-extension"
+A_BRIDGE = "plateau-merge"
+A_WEDGE_BRIDGE = "wedge-bridge"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -66,6 +70,9 @@ ALL_ARCHETYPES = (
     A_TALL_PERIMETER,
     A_WEDGE_STEP,
     A_WEDGE_CAP,
+    A_TERRACE,
+    A_BRIDGE,
+    A_WEDGE_BRIDGE,
 )
 
 
@@ -193,6 +200,7 @@ class Candidate:
     surface: str
     surface_name: str
     role: str
+    family: str = "floor"
     features: dict = field(default_factory=dict)
     archetypes: set = field(default_factory=set)
     vetoes: list = field(default_factory=list)
@@ -217,6 +225,7 @@ class Board:
         ]
         self._triangle: list = [None for _ in self.containers]
         self._reach: list = [None for _ in self.containers]
+        self._plateau: list = [None for _ in self.containers]
         # manifest-derived: what the outstanding frontier cargo still needs.
         # The manifest is handed to optimize(), so reading it is information the
         # policy legitimately has -- not a peek at future arrivals.
@@ -350,10 +359,22 @@ class Board:
         self._grids[idx] = None
         self._triangle[idx] = None
         self._reach = [None for _ in self.containers]
+        self._plateau = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
 
     # -- reachability and frontier demand --------------------------------
+    def plateau_stats(self, idx: int) -> dict:
+        """Connected hard plateau statistics, cached per board state."""
+        cached = self._plateau[idx]
+        if cached is None:
+            cached = l2.hard_plateau_stats(
+                self.grid(idx), self.models[idx].z_floor,
+                self.config.plateau_height_tolerance,
+            )
+            self._plateau[idx] = cached
+        return cached
+
     def floor_reach(self, idx: int) -> tuple[float, float]:
         """``(reachable, sealed)`` bare floor area, cached per board state."""
         return self.reach_at_height(idx, 0.0)
@@ -680,6 +701,11 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
                         surface=kind,
                         surface_name=name,
                         role=role,
+                        family=(
+                            l2.FAMILY_SHELF if kind == "shelf"
+                            else l2.FAMILY_WEDGE_STEP if kind == "item"
+                            else l2.FAMILY_FLOOR
+                        ),
                     )
                 )
                 if len(candidates) >= config.max_candidates_per_orientation:
@@ -993,6 +1019,29 @@ def floor_reach(grid, z_floor: float, extra_mask=None) -> tuple[float, float]:
     return reach_at(grid, z_floor, 0.0, extra_mask, 0.0)
 
 
+def _plateau_after(grid, model: ContainerModel, rect: Rect, top_z: float,
+                   config) -> dict:
+    """Hard plateau statistics with one extra hard top stamped in.
+
+    Works on a shallow copy of the two arrays the statistic reads, so the real
+    grid is untouched and no cache has to be invalidated.
+    """
+    import copy as _copy
+
+    from .diagnostics import SUPPORT_HARD
+
+    scratch = _copy.copy(grid)
+    scratch.height = grid.height.copy()
+    scratch.support = grid.support.copy()
+    mask = grid.rect_mask(rect)
+    higher = mask & (top_z >= scratch.height - 1e-9)
+    scratch.height[higher] = top_z
+    scratch.support[higher] = SUPPORT_HARD
+    return l2.hard_plateau_stats(
+        scratch, model.z_floor, config.plateau_height_tolerance
+    )
+
+
 def compute_features(candidate: Candidate, board: Board, config,
                      with_grid: bool = True, with_rect: bool = False) -> None:
     model = board.model(candidate.container_idx)
@@ -1039,6 +1088,24 @@ def compute_features(candidate: Candidate, board: Board, config,
         else 0.0
     )
 
+    # what this placement does to the connected hard plateau, which is the
+    # thing Layer 2 exists to grow.  Cheap: one stamp on a copied grid.
+    if with_grid and candidate.surface == "item" and candidate.role in (
+        l2.ROLE_TERRACE, l2.ROLE_BRIDGE, l2.ROLE_WEDGE_BRIDGE
+    ):
+        grid = board.grid(candidate.container_idx)
+        before = board.plateau_stats(candidate.container_idx)
+        after = _plateau_after(grid, model, rect, float(box.maximum[2]), config)
+        features["plateau_gain"] = max(0.0, after["largest"] - before["largest"])
+        features["hard_plateau_largest"] = after["largest"]
+        features["hard_plateau_total_gain"] = after["total"] - before["total"]
+        state = stability.evaluate(box, container, config)
+        features["stability_margin"] = state.margin
+        features["support_contacts"] = state.contact_count
+        features["support_area_ratio"] = round(
+            min(1.0, state.contact_area / max(1e-9, rect.area)), 4
+        )
+
     if not with_grid or candidate.surface != "floor":
         features.setdefault("new_interior_hole_area", 0.0)
         features.setdefault("open_free_area", 0.0)
@@ -1051,6 +1118,9 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("reach_free_after", 0.0)
         features.setdefault("sealed_added", 0.0)
         features.setdefault("large_fit_kept", True)
+        features.setdefault("plateau_gain", 0.0)
+        features.setdefault("hard_plateau_largest", 0.0)
+        features.setdefault("stability_margin", 0.0)
         return
 
     grid = board.grid(candidate.container_idx)
@@ -1244,6 +1314,35 @@ def _key_wall_front(c):
     )
 
 
+def _key_terrace(c):
+    # widen the plateau, and prefer the growth that keeps the back high
+    return (
+        -c.features.get("plateau_gain", 0.0),
+        -c.features.get("hard_plateau_largest", 0.0),
+        c.features.get("sealed_added", 0.0),
+        -c.features["y_back"],
+    )
+
+
+def _key_bridge(c):
+    # a merge is worth exactly the plateau it creates that did not exist
+    return (
+        -c.features.get("plateau_gain", 0.0),
+        -c.features.get("stability_margin", 0.0),
+        c.features.get("sealed_added", 0.0),
+        -c.features["y_back"],
+    )
+
+
+def _key_wedge_bridge(c):
+    # reach over the bevel first, then the plateau it lands
+    return (
+        c.box.minimum[0],
+        -c.features.get("plateau_gain", 0.0),
+        -c.features.get("stability_margin", 0.0),
+    )
+
+
 ARCHETYPE_KEYS = {
     A_MAX_FOOTPRINT: _key_max_footprint,
     A_BACK_CORNER: _key_back_corner,
@@ -1259,6 +1358,9 @@ ARCHETYPE_KEYS = {
     A_TALL_PERIMETER: _key_tall_perimeter,
     A_WEDGE_STEP: _key_wedge_step,
     A_WEDGE_CAP: _key_wedge_cap,
+    A_TERRACE: _key_terrace,
+    A_BRIDGE: _key_bridge,
+    A_WEDGE_BRIDGE: _key_wedge_bridge,
 }
 
 
@@ -1277,6 +1379,12 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         tags.add(A_TALL_PERIMETER)
     if candidate.role == cls.ROLE_WEDGE_STEP:
         tags.add(A_WEDGE_CAP if candidate.profile.is_soft else A_WEDGE_STEP)
+    if candidate.role == l2.ROLE_TERRACE:
+        tags.add(A_TERRACE)
+    if candidate.role == l2.ROLE_BRIDGE:
+        tags.add(A_BRIDGE)
+    if candidate.role == l2.ROLE_WEDGE_BRIDGE:
+        tags.add(A_WEDGE_BRIDGE)
     if candidate.profile.is_elongated:
         tags.add(A_ELONGATED_WALL)
     klass = candidate.profile.cargo_class
@@ -1299,6 +1407,12 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
     wall_ratio = _wall_height_ratio(board, container_idx, model)
 
     ladder: list[str] = [A_WEDGE_STEP, A_WEDGE_CAP, A_SLOPE_INFILL]
+    if config.layer2_enabled and klass == cls.NORMAL_HARD:
+        # growth before ground: a bridge or a terrace turns two supports into
+        # one bigger one, which is worth more than another footprint on a floor
+        # that Layer 1 has already spent.  They are still only reachable when a
+        # candidate exists, so this costs nothing on an empty board.
+        ladder.extend([A_BRIDGE, A_WEDGE_BRIDGE, A_TERRACE])
     if klass == cls.NORMAL_HARD:
         if wall_ratio < config.wall_front_target_ratio:
             ladder.append(A_WALL_FRONT)
@@ -1353,6 +1467,73 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             seen.add(name)
             out.append(name)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Layer 2 candidate generation
+# ---------------------------------------------------------------------------
+def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
+                               container_idx: int, orientation: cls.Orientation,
+                               config) -> list[Candidate]:
+    """Terrace extensions, plateau merges and wedge bridges, on hard tops.
+
+    Kept apart from ``generate_candidates`` because these are *proposals of a
+    different kind*, and mixing them into one list is what lets a single
+    depth-sorted shortlist quietly delete a whole behaviour.
+    """
+    if not config.layer2_enabled or profile.cargo_class != cls.NORMAL_HARD:
+        return []
+
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+    gap = config.settled_clearance
+    tops = l2.hard_tops(container, model, config)
+    if not tops:
+        return []
+
+    proposals: list[tuple[str, str, float, float, float]] = []
+    for level, members in l2.level_groups(tops, config.contact_tolerance):
+        bottom = level
+        if bottom - model.z_floor > config.layer2_max_level_step + 1e-9:
+            # growth from the floor upward, not a tower started in mid-air
+            if bottom + dz > model.z_ceiling:
+                continue
+        if bottom + dz > model.z_ceiling:
+            continue
+        for rect in members:
+            for x, y in l2.terrace_anchors(rect, dx, dy, gap):
+                proposals.append((l2.FAMILY_TERRACE, l2.ROLE_TERRACE, x, y, bottom))
+        for x, y in l2.bridge_anchors(members, dx, dy):
+            proposals.append((l2.FAMILY_BRIDGE, l2.ROLE_BRIDGE, x, y, bottom))
+        for x, y in l2.wedge_bridge_anchors(members, model, bottom, dx, dy, config):
+            proposals.append(
+                (l2.FAMILY_WEDGE_BRIDGE, l2.ROLE_WEDGE_BRIDGE, x, y, bottom)
+            )
+
+    candidates: list[Candidate] = []
+    seen = set()
+    for family, role, x, y, bottom in proposals:
+        key = (round(x, 4), round(y, 4), round(bottom, 4), orientation.index, family)
+        if key in seen:
+            continue
+        seen.add(key)
+        box = AABB(
+            (float(x), float(y), float(bottom) + dz / 2.0), (dx, dy, dz), "candidate"
+        )
+        ok, _why = validate(box, model, container, config)
+        if not ok:
+            continue
+        candidates.append(
+            Candidate(
+                box=box, profile=profile, orientation=orientation,
+                container_idx=container_idx, surface="item",
+                surface_name="hard-top", role=role, family=family,
+            )
+        )
+        if len(candidates) >= config.max_candidates_per_orientation:
+            break
+    return candidates
 
 
 # ---------------------------------------------------------------------------
@@ -1664,6 +1845,14 @@ def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) ->
     return out
 
 
+def _shortlist_key(candidate: Candidate):
+    """Depth first, then contact.  Applied *within* a family, never across."""
+    return (
+        -candidate.features["y_back"],
+        -candidate.features["wall_contact"],
+    )
+
+
 def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     max_orientations: int = 3) -> Decision | None:
     best: Decision | None = None
@@ -1696,6 +1885,19 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                 )
             if surface_kinds == ("shelf",) and pool:
                 break  # shelf is strongly preferred for soft cargo
+
+        # Layer 2 proposals are generated over their own orientation set: a
+        # bridge wants the widest, flattest pose, which the floor policy would
+        # not have offered.
+        if config.layer2_enabled and profile.cargo_class == cls.NORMAL_HARD:
+            for orientation in cls.layer2_orientation_order(profile, config)[
+                : config.max_orientations_layer2
+            ]:
+                pool.extend(
+                    generate_layer2_candidates(
+                        board, profile, container_idx, orientation, config
+                    )
+                )
         if not pool:
             continue
 
@@ -1705,17 +1907,27 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         # reach one centimetre deeper.
         for candidate in pool:
             compute_features(candidate, board, config, with_grid=False)
-        by_orientation: dict[int, list[Candidate]] = {}
+        # Shortlist per (family, orientation), not globally.  A single
+        # depth-sorted truncation is what made five separate Layer 1 rules
+        # no-ops: it decided the answer before they ran.  Every family keeps its
+        # own quota and they are unioned afterwards, so a bridge never has to
+        # out-depth a floor candidate merely to be looked at.
+        buckets: dict[tuple[str, int], list[Candidate]] = {}
         for candidate in pool:
-            by_orientation.setdefault(candidate.orientation.index, []).append(candidate)
-        per_orientation = max(
-            8, config.shortlist_size // max(1, len(by_orientation))
+            buckets.setdefault(
+                (candidate.family, candidate.orientation.index), []
+            ).append(candidate)
+        families = {family for family, _ in buckets}
+        per_bucket = max(
+            4,
+            config.layer2_family_quota
+            // max(1, len(buckets) // max(1, len(families))),
         )
         shortlist = []
-        for group in by_orientation.values():
-            group.sort(key=lambda c: (-c.features["y_back"], -c.features["wall_contact"]))
-            shortlist.extend(group[:per_orientation])
-        shortlist.sort(key=lambda c: (-c.features["y_back"], -c.features["wall_contact"]))
+        for group in buckets.values():
+            group.sort(key=_shortlist_key)
+            shortlist.extend(group[:per_bucket])
+        shortlist.sort(key=_shortlist_key)
         for position, candidate in enumerate(shortlist):
             compute_features(
                 candidate, board, config, with_grid=True,

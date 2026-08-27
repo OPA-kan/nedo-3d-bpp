@@ -776,14 +776,35 @@ class EpisodeTest(unittest.TestCase):
             )
             board.apply(placement)
 
-    def test_layer_one_stays_on_floor_and_shelves(self):
+    def test_only_declared_roles_build_on_item_tops(self):
+        """Floor, shelf, or one of the roles that is *about* standing on
+        cargo: the wedge staircase, and Layer 2's growth families."""
+        from rule_alpha import layer2 as l2
+
+        allowed = (
+            cls.ROLE_WEDGE_STEP, l2.ROLE_TERRACE, l2.ROLE_BRIDGE,
+            l2.ROLE_WEDGE_BRIDGE,
+        )
         for placement in self.result.sequence:
             if placement.surface == "item":
-                # the one documented exception to floor-and-shelves: a wedge
-                # staircase step rests on the step below it
-                self.assertEqual(placement.role, cls.ROLE_WEDGE_STEP)
+                self.assertIn(placement.role, allowed)
             else:
                 self.assertIn(placement.surface, ("floor", "shelf"))
+
+    def test_everything_on_an_item_top_rests_on_hard_cargo(self):
+        """Soft and priority cargo deforms, so it is never structure."""
+        from rule_alpha import stability
+
+        board = layer1.Board(self.scenario.containers, DEFAULT_CONFIG)
+        for placement in self.result.sequence:
+            if placement.surface == "item":
+                state = stability.evaluate(
+                    placement.box, board.container(placement.container_idx),
+                    DEFAULT_CONFIG,
+                )
+                self.assertGreater(state.contact_count, 0)
+                self.assertGreaterEqual(state.margin, DEFAULT_CONFIG.com_margin)
+            board.apply(placement)
 
     def test_no_plain_floor_placement_stands_on_a_small_face(self):
         for placement in self.result.sequence:

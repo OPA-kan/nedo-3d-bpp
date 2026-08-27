@@ -216,6 +216,21 @@ def wedge_step_orientation_order(profile: ItemProfile, config) -> list[Orientati
     )
 
 
+def layer2_orientation_order(profile: ItemProfile, config) -> list[Orientation]:
+    """Widest and flattest first.
+
+    A bridge is bought by its span and paid for by its height: reach across the
+    gap comes from ``dx``/``dy``, while ``dz`` is headroom spent on every layer
+    above it.  So this ranks by how much floor plan the pose covers per metre
+    of height it costs, which is the opposite of the shelf policy and not what
+    the floor policy asks for either.
+    """
+    return sorted(
+        profile.orientations,
+        key=lambda o: (-round(o.footprint / max(o.dz, 1e-6), 6), o.dz, o.index),
+    )
+
+
 def orientation_order(profile: ItemProfile, surface: str, role: str, config):
     """Dispatch to the orientation rule that matches surface and role."""
     if surface == "shelf":
