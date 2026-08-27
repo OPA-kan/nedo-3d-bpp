@@ -125,6 +125,19 @@ class RuleAlphaConfig:
     """How far in from the chamfer foot a hard top still counts as wedge-side,
     and so as something a wedge bridge can reach out from."""
 
+    layer2_bridge_level_tolerance: float = 0.06
+    """How far apart two hard tops may be and still be offered as a pair to
+    bridge across.
+
+    A rigid box with a flat underside only *touches* the higher of two supports,
+    so grouping strictly by contact tolerance finds almost nothing: cargo heights
+    do not coincide to within 6 mm, and 12 of 13 levels on a real board are
+    singletons.  Spanning the lower one anyway is still worth proposing, because
+    the merge Layer 2 wants is of the resulting *tops* -- what it can build on
+    next -- not of the supports.  Whether it stands up is then decided by the
+    support polygon rather than by this number.
+    """
+
     plateau_merge_min_gain: float = 0.02
     """Minimum growth in the largest connected hard plateau for a bridge to be
     worth the item.  Below this it is an ordinary placement wearing a costume."""

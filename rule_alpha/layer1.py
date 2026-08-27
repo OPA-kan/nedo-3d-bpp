@@ -1493,22 +1493,28 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
         return []
 
     proposals: list[tuple[str, str, float, float, float]] = []
-    for level, members in l2.level_groups(tops, config.contact_tolerance):
-        bottom = level
-        if bottom - model.z_floor > config.layer2_max_level_step + 1e-9:
-            # growth from the floor upward, not a tower started in mid-air
-            if bottom + dz > model.z_ceiling:
-                continue
-        if bottom + dz > model.z_ceiling:
+
+    # A terrace sits on *one* top, so it uses that top's own height.  Grouping
+    # first and building at the group's level would float the box above every
+    # member but the tallest, which is how the first version of this quietly
+    # lost most of its candidates.
+    for rect, top in tops:
+        if top + dz > model.z_ceiling:
             continue
-        for rect in members:
-            for x, y in l2.terrace_anchors(rect, dx, dy, gap):
-                proposals.append((l2.FAMILY_TERRACE, l2.ROLE_TERRACE, x, y, bottom))
+        for x, y in l2.terrace_anchors(rect, dx, dy, gap):
+            proposals.append((l2.FAMILY_TERRACE, l2.ROLE_TERRACE, x, y, top))
+
+    # A bridge spans two, so it needs the pairing -- and rests on the higher.
+    for level, members in l2.level_groups(
+        tops, config.layer2_bridge_level_tolerance
+    ):
+        if level + dz > model.z_ceiling:
+            continue
         for x, y in l2.bridge_anchors(members, dx, dy):
-            proposals.append((l2.FAMILY_BRIDGE, l2.ROLE_BRIDGE, x, y, bottom))
-        for x, y in l2.wedge_bridge_anchors(members, model, bottom, dx, dy, config):
+            proposals.append((l2.FAMILY_BRIDGE, l2.ROLE_BRIDGE, x, y, level))
+        for x, y in l2.wedge_bridge_anchors(members, model, level, dx, dy, config):
             proposals.append(
-                (l2.FAMILY_WEDGE_BRIDGE, l2.ROLE_WEDGE_BRIDGE, x, y, bottom)
+                (l2.FAMILY_WEDGE_BRIDGE, l2.ROLE_WEDGE_BRIDGE, x, y, level)
             )
 
     candidates: list[Candidate] = []

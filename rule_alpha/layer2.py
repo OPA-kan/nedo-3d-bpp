@@ -35,9 +35,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import classify as cls
-from . import stability
-from ._reuse import AABB, packed_aabbs_local
+from ._reuse import packed_aabbs_local
 from .geometry import ContainerModel, Rect, box_rect
 
 
@@ -78,21 +76,23 @@ def hard_tops(container: dict, model: ContainerModel, config) -> list[tuple[Rect
     return out
 
 
-def level_groups(tops, tolerance: float) -> list[tuple[float, list[Rect]]]:
+def level_groups(tops, tolerance: float) -> list[tuple[float, list]]:
     """Group hard tops into working heights.
 
-    A bridge needs its supports at the *same* height, within the contact
-    tolerance, because the box has one flat underside.
+    The group's level is the *highest* member, because that is the one a flat
+    underside actually rests on.  Each member keeps its own top so callers can
+    tell a true bridge (two supports in contact) from a span over a lower
+    neighbour (one support, and a cantilever).
     """
-    groups: list[tuple[float, list[Rect]]] = []
-    for rect, top in sorted(tops, key=lambda item: item[1]):
-        for index, (level, members) in enumerate(groups):
-            if abs(level - top) <= tolerance:
-                members.append(rect)
+    groups: list[list] = []
+    for rect, top in sorted(tops, key=lambda item: item[1], reverse=True):
+        for members in groups:
+            if abs(members[0][1] - top) <= tolerance:
+                members.append((rect, top))
                 break
         else:
-            groups.append((top, [rect]))
-    return groups
+            groups.append([(rect, top)])
+    return [(members[0][1], members) for members in groups]
 
 
 # ---------------------------------------------------------------------------
@@ -118,17 +118,20 @@ def terrace_anchors(rect: Rect, dx: float, dy: float, gap: float) -> list[tuple[
     ]
 
 
-def bridge_anchors(members: list[Rect], dx: float, dy: float) -> list[tuple[float, float]]:
-    """Centres that span a gap between two hard tops at the same height.
+def bridge_anchors(members: list[tuple[Rect, float]], dx: float,
+                   dy: float) -> list[tuple[float, float]]:
+    """Centres that span the gap between two hard tops.
 
     Only pairs whose gap the box can actually cross are offered, and the centre
-    is placed over the middle of the gap so the centre of mass lands between
-    the two supports rather than on one of them.
+    goes over the middle of the gap, so that when the two tops really are level
+    the centre of mass lands between them rather than on one.  When they are
+    not level the box rests on the higher one alone and this is a cantilever;
+    the support polygon decides, not this function.
     """
     out = []
     for i in range(len(members)):
         for j in range(i + 1, len(members)):
-            a, b = members[i], members[j]
+            a, b = members[i][0], members[j][0]
             for axis in (0, 1):
                 lo, hi = (a, b) if _low(a, axis) <= _low(b, axis) else (b, a)
                 gap_lo, gap_hi = _high(lo, axis), _low(hi, axis)
@@ -169,7 +172,7 @@ def wedge_bridge_anchors(members: list[Rect], model: ContainerModel, bottom_z: f
     """
     limit = model.x_limit_at_height(bottom_z)
     out = []
-    for rect in members:
+    for rect, _top in members:
         if rect.x_min > model.x_floor_min + config.wedge_bridge_strip:
             continue  # not on the wedge side; ordinary bridging covers it
         # as far left as the chamfer allows, and as far as half the box width
