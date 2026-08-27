@@ -585,6 +585,29 @@ def _anchor_values(values, low, high, limit):
     return seen
 
 
+def stack_level(box: AABB, container: dict, config) -> int:
+    """How many layers of cargo this box would make, counting the floor as 1.
+
+    Walks the column under the box's centre: anything hard whose footprint
+    covers that point and whose top is at or below this box's underside is a
+    layer beneath it.
+    """
+    cx, cy = float(box.center[0]), float(box.center[1])
+    bottom = float(box.minimum[2])
+    below = 0
+    for packed, is_soft, is_prioritized in packed_aabbs_local(container):
+        if is_soft or is_prioritized:
+            continue
+        rect = box_rect(packed)
+        if not (rect.x_min - 1e-9 <= cx <= rect.x_max + 1e-9):
+            continue
+        if not (rect.y_min - 1e-9 <= cy <= rect.y_max + 1e-9):
+            continue
+        if float(packed.maximum[2]) <= bottom + config.contact_tolerance:
+            below += 1
+    return below + 1
+
+
 def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
                    ) -> tuple[float, int]:
     """``(largest free rectangle, free component count)`` left on a shelf.
@@ -1717,6 +1740,7 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
 def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                  config) -> tuple[list[Candidate], dict]:
     model = board.model(container_idx)
+    container = board.container(container_idx)
     grid = board.grid(container_idx)
     coverage = grid.coverage()
     counts: dict[str, int] = {}
@@ -1900,6 +1924,46 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                     if candidate not in kept:
                         drop(candidate, "not-right-front")
                 survivors = kept
+
+    # 4d. hard yields the front band.  The right front is where typed cargo
+    #     lands when the shelf overflows and the front centre is the way in;
+    #     hard is the class with somewhere else to be, because it grows from
+    #     the back.  Only while it *has* somewhere else -- the fallback keeps a
+    #     board that has nothing left from stalling.
+    if config.hard_avoids_front:
+        floor_rect = model.floor_rect
+        front_limit = floor_rect.y_min + config.hard_front_band
+        kept = [
+            c for c in survivors
+            if c.surface != "floor"
+            or c.profile.cargo_class != cls.NORMAL_HARD
+            or c.role in (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP)
+            or c.box.center[1] >= front_limit
+        ]
+        if kept and len(kept) < len(survivors):
+            for candidate in survivors:
+                if candidate not in kept:
+                    drop(candidate, "hard-yields-the-front")
+            survivors = kept
+
+    # 4e. how many layers deep this would be.  The wedge staircase is exempt:
+    #     it is a ramp, not a stack, and each step rests on the one below by
+    #     construction.
+    if config.layer2_max_layers > 0:
+        kept = []
+        for candidate in survivors:
+            if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
+                kept.append(candidate)
+                continue
+            if candidate.surface != "item":
+                kept.append(candidate)
+                continue
+            if stack_level(candidate.box, container, config) <= config.layer2_max_layers:
+                kept.append(candidate)
+            else:
+                drop(candidate, "too-many-layers")
+        if kept:
+            survivors = kept
 
     # 5. a follower may not break the last bay the frontier cargo still needs.
     #    The manifest is given to optimize(), so the outstanding large

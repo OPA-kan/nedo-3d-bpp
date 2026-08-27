@@ -151,6 +151,24 @@ class RuleAlphaConfig:
     a person reaching in can get to.  The left band is not an option: it is the
     chamfer's, and the wall front is already there."""
 
+    hard_avoids_front: bool = True
+    """Keep normal-hard off the front band while it has anywhere else to go.
+
+    The right front is where typed cargo goes when the shelf overflows, and the
+    front centre is the way in.  Hard is the class with somewhere else to be --
+    it grows from the back -- so it is the one that should yield."""
+
+    hard_front_band: float = 0.35
+    """How much of the depth, measured from the opening, counts as the front
+    band hard should yield."""
+
+    layer2_max_layers: int = 2
+    """How many layers of cargo may be stacked, floor included.
+
+    Two means: the floor layer, and one layer on top of it.  The wedge
+    staircase is exempt -- it is not a stack, it is a ramp, and each step rests
+    on the one below by construction."""
+
     typed_front_right_slack: float = 0.25
     """How far off the best right-front placement a typed floor candidate may
     still sit.  In units of the normalised corner distance, so 0.25 is a
