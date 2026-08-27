@@ -121,6 +121,41 @@ class RuleAlphaConfig:
     """A terrace or bridge may sit at most this far above the support it grows
     from.  Higher than that is not growth, it is a new tower."""
 
+    # ------------------------------------------------------------------
+    # Typed cargo: the shelf first, and the right front when it overflows
+    # ------------------------------------------------------------------
+    shelf_own_anchors: bool = True
+    """Offer a shelf placement anchors measured from the shelf itself.
+
+    The anchor set was built from the floor rect and shared with every surface,
+    so a shelf candidate was never offered the shelf's own back corner, nor a
+    position flush beside something already up there.  That is why shelf cargo
+    sat at the front and used a fifth of the area."""
+
+    shelf_residual_key: bool = True
+    """Rank shelf candidates by what they leave behind, not just by footprint.
+
+    Back-most feasible, then the largest free rectangle remaining, then least
+    fragmentation.  A shelf is scarce in area: landing in the middle of an
+    empty one can consume a fifth of it and destroy all of it."""
+
+    shelf_depth_bucket: float = 0.05
+    """"Back-most" to within this much is not a real preference.  Comparing
+    depth exactly means the residual-area term never decides anything."""
+
+    typed_floor_right_front: bool = True
+    """Soft and priority that reach the floor go to the right front.
+
+    Hard grows from the back and especially the back right, so typed cargo
+    wants the opposite corner -- the last place hard wants, and the first place
+    a person reaching in can get to.  The left band is not an option: it is the
+    chamfer's, and the wall front is already there."""
+
+    typed_front_right_slack: float = 0.25
+    """How far off the best right-front placement a typed floor candidate may
+    still sit.  In units of the normalised corner distance, so 0.25 is a
+    quarter of the way back across the container."""
+
     wedge_approach_band: float = 0.30
     """How far in from the chamfer foot counts as the *approach* to the wedge.
 

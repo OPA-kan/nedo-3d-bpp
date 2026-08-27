@@ -585,6 +585,86 @@ def _anchor_values(values, low, high, limit):
     return seen
 
 
+def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
+                   ) -> tuple[float, int]:
+    """``(largest free rectangle, free component count)`` left on a shelf.
+
+    The shelf is the scarce surface and it is scarce in *area*, not in volume,
+    so what matters about a shelf placement is the shape of what it leaves
+    behind.  Landing in the middle of an empty shelf can consume a fifth of it
+    and destroy all of it, by cutting the one free rectangle into four useless
+    slivers.
+    """
+    from .diagnostics import connected_components, largest_rectangle_in_mask
+
+    cell = config.candidate_grid_cell
+    x0, y0 = float(shelf.minimum[0]), float(shelf.minimum[1])
+    nx = max(1, int(round(float(shelf.size[0]) / cell)))
+    ny = max(1, int(round(float(shelf.size[1]) / cell)))
+    xs = x0 + (np.arange(nx) + 0.5) * cell
+    ys = y0 + (np.arange(ny) + 0.5) * cell
+    xx, yy = np.meshgrid(xs, ys, indexing="ij")
+
+    free = np.ones((nx, ny), dtype=bool)
+    top = float(shelf.maximum[2])
+    occupied = [rect]
+    for box, _soft, _prio in packed_aabbs_local(container):
+        if abs(float(box.minimum[2]) - top) > config.contact_tolerance:
+            continue
+        occupied.append(box_rect(box))
+    for taken in occupied:
+        free &= ~(
+            (xx >= taken.x_min - 1e-9) & (xx <= taken.x_max + 1e-9)
+            & (yy >= taken.y_min - 1e-9) & (yy <= taken.y_max + 1e-9)
+        )
+
+    cells, _box = largest_rectangle_in_mask(free)
+    _labels, count = connected_components(free)
+    return cells * cell * cell, count
+
+
+def _shelf_anchors(shelf: AABB, container: dict, dx: float, dy: float,
+                   gap: float, config) -> tuple[list, list]:
+    """Anchors measured from the shelf itself, and from what is already on it.
+
+    Back corner first, then flush against every edge of every item already up
+    there, so the shelf packs from the back and from the sides instead of one
+    item landing in the middle of it.
+    """
+    rect = Rect(
+        float(shelf.minimum[0]), float(shelf.maximum[0]),
+        float(shelf.minimum[1]), float(shelf.maximum[1]),
+    )
+    top = float(shelf.maximum[2])
+    xs = [rect.x_min + dx / 2.0, rect.x_max - dx / 2.0]
+    ys = [rect.y_max - dy / 2.0, rect.y_min + dy / 2.0]
+    for box, _soft, _prio in packed_aabbs_local(container):
+        if abs(float(box.minimum[2]) - top) > config.contact_tolerance:
+            continue  # resting on some other surface, not this shelf
+        xs.extend(
+            (
+                float(box.minimum[0]) - dx / 2.0 - gap,
+                float(box.maximum[0]) + dx / 2.0 + gap,
+            )
+        )
+        ys.extend(
+            (
+                float(box.minimum[1]) - dy / 2.0 - gap,
+                float(box.maximum[1]) + dy / 2.0 + gap,
+            )
+        )
+    return (
+        _anchor_values(
+            sorted(xs), rect.x_min + dx / 2.0, rect.x_max - dx / 2.0 + 1e-9,
+            config.max_anchor_x,
+        ),
+        _anchor_values(
+            sorted(ys, reverse=True), rect.y_min + dy / 2.0,
+            rect.y_max - dy / 2.0 + 1e-9, config.max_anchor_y,
+        ),
+    )
+
+
 def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: int,
                         orientation: cls.Orientation, surface_filter, config) -> list[Candidate]:
     model = board.model(container_idx)
@@ -667,12 +747,27 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
     for surface, kind, name in surfaces:
         top = float(surface.maximum[2]) if kind != "floor" else model.z_floor
         z = top + dz / 2.0
+        surface_xs, surface_ys = xs, ys
+        if kind == "shelf" and config.shelf_own_anchors:
+            # A shelf is its own surface with its own back corner.  Sharing the
+            # floor's anchors meant a shelf placement was never offered the
+            # shelf's back edge, nor a position flush beside something already
+            # up there -- which is precisely why shelf cargo sat at the front
+            # and used a fifth of the area.
+            shelf_xs, shelf_ys = _shelf_anchors(
+                surface, container, dx, dy, gap, config
+            )
+            # union, shelf-derived first: the shared floor anchors still find
+            # perfectly good positions, they just never included the shelf's
+            # own back corner.  Replacing them lost more than it gained.
+            surface_xs = shelf_xs + [x for x in xs if x not in shelf_xs]
+            surface_ys = shelf_ys + [y for y in ys if y not in shelf_ys]
         if kind == "item":
             # staircase only: the support has to be a step in the strip
             if not tri.in_strip(surface, model, config):
                 continue
-        for x in xs:
-            for y in ys:
+        for x in surface_xs:
+            for y in surface_ys:
                 key = (round(x, 4), round(y, 4), round(z, 4))
                 if key in seen:
                     continue
@@ -1117,6 +1212,18 @@ def compute_features(candidate: Candidate, board: Board, config,
     features["edge_affinity"] = max(
         rect.overlap_area(model.left_edge), rect.overlap_area(model.right_edge)
     ) / max(rect.area, 1e-9)
+    # distance from the right-front corner, normalised: 0 there, 1 at the far
+    # back left.  Typed cargo on the floor is ranked by this rather than by
+    # depth, because depth is what hard wants and these two must not compete
+    # for the same corner.
+    floor = model.floor_rect
+    span_x = max(floor.x_max - floor.x_min, 1e-9)
+    span_y = max(floor.y_max - floor.y_min, 1e-9)
+    features["front_right_cost"] = round(
+        (floor.x_max - 0.5 * (rect.x_min + rect.x_max)) / span_x
+        + (0.5 * (rect.y_min + rect.y_max) - floor.y_min) / span_y,
+        6,
+    )
     features["soft_cluster"] = _cluster_contact(box, container, True, False, config)
     features["priority_cluster"] = _cluster_contact(box, container, False, True, config)
     features["sp_cluster"] = _cluster_contact(box, container, True, True, config)
@@ -1145,6 +1252,16 @@ def compute_features(candidate: Candidate, board: Board, config,
         features["support_area_ratio"] = round(
             min(1.0, state.contact_area / max(1e-9, rect.area)), 4
         )
+
+    if with_grid and candidate.surface == "shelf" and config.shelf_residual_key:
+        shelf = next(
+            (s for s in shelf_aabbs(container) if s.name == candidate.surface_name),
+            None,
+        )
+        if shelf is not None:
+            residual, fragments = shelf_residual(shelf, container, rect, config)
+            features["shelf_residual_rect"] = residual
+            features["shelf_fragments"] = fragments
 
     if not with_grid or candidate.surface != "floor":
         features.setdefault("new_interior_hole_area", 0.0)
@@ -1276,21 +1393,33 @@ def _key_largest_residual(c):
     )
 
 
-def _key_shelf_saving(c):
-    # the shelf fills from the back too: a bag left by the opening is a bag in
-    # the way of everything that comes after it
+def _key_shelf_saving(c, depth_bucket: float = 0.05):  # noqa: D401
+    """Back-most feasible, then keep the biggest bay whole, then least
+    fragmentation.
+
+    Depth is bucketed rather than compared exactly, because "back-most" to
+    within a few centimetres is not a real preference and comparing it exactly
+    means the residual-area term never gets to decide anything.  A shelf is
+    scarce in area, so what a placement leaves behind matters more than the
+    last two centimetres of push-in.
+    """
+    depth = -round(c.features["y_back"] / max(depth_bucket, 1e-6))
     return (
+        depth,
+        -c.features.get("shelf_residual_rect", 0.0),
+        c.features.get("shelf_fragments", 0),
         c.features["footprint"],
-        -c.features["y_back"],
         c.orientation.tipping_ratio,
     )
 
 
 def _key_soft_edge(c):
+    # right front, not merely "in the zone": hard grows from the back right, so
+    # typed cargo wants the opposite corner and wants it measured, not implied.
     return (
         -c.features["soft_zone_fit"],
         -c.features["soft_cluster"],
-        -c.features["y_back"],
+        c.features.get("front_right_cost", 0.0),
     )
 
 
@@ -1298,7 +1427,7 @@ def _key_priority_edge(c):
     return (
         -c.features["priority_zone_fit"],
         -c.features["priority_cluster"],
-        -c.features["y_back"],
+        c.features.get("front_right_cost", 0.0),
     )
 
 
@@ -1306,7 +1435,7 @@ def _key_sp_cluster(c):
     return (
         -c.features["sp_cluster"],
         -max(c.features["priority_zone_fit"], c.features["soft_zone_fit"]),
-        -c.features["y_back"],
+        c.features.get("front_right_cost", 0.0),
     )
 
 
@@ -1745,6 +1874,33 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if kept:
         survivors = kept
 
+    # 4c. typed cargo that reaches the floor goes to the right front, as a
+    #     principle rather than a tie-break.  The zone rect and the ranking key
+    #     were both tried on their own and moved nothing: half of it landed
+    #     elsewhere either way, because by the time a key runs the shortlist
+    #     has already chosen which candidates exist.  So refuse the others
+    #     outright while a right-front placement is available.
+    if config.typed_floor_right_front:
+        typed = [
+            c for c in survivors
+            if c.surface == "floor"
+            and (c.profile.is_soft or c.profile.is_prioritized)
+        ]
+        if typed:
+            best = min(c.features.get("front_right_cost", 9.9) for c in typed)
+            kept = [
+                c for c in survivors
+                if c.surface != "floor"
+                or not (c.profile.is_soft or c.profile.is_prioritized)
+                or c.features.get("front_right_cost", 9.9)
+                <= best + config.typed_front_right_slack
+            ]
+            if kept and len(kept) < len(survivors):
+                for candidate in survivors:
+                    if candidate not in kept:
+                        drop(candidate, "not-right-front")
+                survivors = kept
+
     # 5. a follower may not break the last bay the frontier cargo still needs.
     #    The manifest is given to optimize(), so the outstanding large
     #    footprints are known; this is not a peek at arrival order.
@@ -1907,8 +2063,26 @@ def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) ->
     return out
 
 
-def _shortlist_key(candidate: Candidate):
-    """Depth first, then contact.  Applied *within* a family, never across."""
+def _shortlist_key(candidate: Candidate, typed_right_front: bool = True):
+    """What "the best few" means, per family.
+
+    Depth first for cargo that builds the foundation -- but *not* for soft and
+    priority on the floor.  Those want the right front, the corner hard is
+    growing away from, and ranking them by depth here is what made both the
+    zone rect and the ranking key inert: by the time either ran, the shortlist
+    had already thrown away every front-right candidate.  Third time this
+    pattern has appeared, so it is worth saying plainly: a rule downstream of a
+    truncation cannot undo the truncation.
+    """
+    if (
+        typed_right_front
+        and candidate.surface == "floor"
+        and (candidate.profile.is_soft or candidate.profile.is_prioritized)
+    ):
+        return (
+            candidate.features.get("front_right_cost", 9.9),
+            -candidate.features["wall_contact"],
+        )
     return (
         -candidate.features["y_back"],
         -candidate.features["wall_contact"],
@@ -1986,10 +2160,11 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             // max(1, len(buckets) // max(1, len(families))),
         )
         shortlist = []
+        typed_rf = config.typed_floor_right_front
         for group in buckets.values():
-            group.sort(key=_shortlist_key)
+            group.sort(key=lambda c: _shortlist_key(c, typed_rf))
             shortlist.extend(group[:per_bucket])
-        shortlist.sort(key=_shortlist_key)
+        shortlist.sort(key=lambda c: _shortlist_key(c, typed_rf))
         for position, candidate in enumerate(shortlist):
             compute_features(
                 candidate, board, config, with_grid=True,
@@ -2016,6 +2191,14 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             # inside every archetype, a candidate that leaves the opening alone
             # beats one that does not
             key_fn = ARCHETYPE_KEYS[name]
+            if name == A_SHELF_SAVING and not config.shelf_residual_key:
+                key_fn = lambda c: (  # noqa: E731
+                    c.features["footprint"], -c.features["y_back"],
+                    c.orientation.tipping_ratio,
+                )
+            if name == A_SHELF_SAVING and config.shelf_residual_key:
+                bucket = config.shelf_depth_bucket
+                key_fn = lambda c: _key_shelf_saving(c, bucket)  # noqa: E731
             if name == A_TALL_PERIMETER:
                 depth_first = config.perimeter_prefers_depth
                 key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731

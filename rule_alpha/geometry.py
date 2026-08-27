@@ -304,15 +304,28 @@ class ContainerModel:
             rect.x_max - priority_w, rect.x_max, rect.y_min, rect.y_max
         )
 
-        self.soft_zone = Rect(
-            rect.x_min + wall_strip,
-            rect.x_min + wall_strip + soft_w,
-            rect.y_min,
-            rect.y_max - back_depth,
-        )
+        # Typed cargo that reaches the floor goes to the *right front*, both
+        # classes.  Hard fills from the back and especially the back right, so
+        # this is the opposite corner: the last place hard wants and the first
+        # place a person reaching in can get to.  The left band is not an
+        # option -- it is the chamfer's, and the wall front is already there.
+        # Priority takes the outermost strip because it is the class that has
+        # to come out again; soft sits immediately inboard of it.
         self.priority_zone = Rect(
             rect.x_max - priority_w, rect.x_max, rect.y_min, rect.y_max - back_depth
         )
+        if getattr(cfg, "typed_floor_right_front", True):
+            self.soft_zone = Rect(
+                max(rect.x_min + wall_strip, rect.x_max - priority_w - soft_w),
+                rect.x_max - priority_w,
+                rect.y_min,
+                rect.y_max - back_depth,
+            )
+        else:
+            self.soft_zone = Rect(
+                rect.x_min + wall_strip, rect.x_min + wall_strip + soft_w,
+                rect.y_min, rect.y_max - back_depth,
+            )
         centre = 0.5 * (rect.x_min + rect.x_max)
         self.corridor = Rect(
             centre - corridor_w / 2.0,
