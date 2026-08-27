@@ -1169,6 +1169,25 @@ def _has_backing(box: AABB, model: ContainerModel, container: dict, config) -> b
     return False
 
 
+def terrain_behind(grid, rect: Rect) -> float:
+    """Highest terrain standing between ``rect`` and the back wall.
+
+    Only the columns ``rect`` itself occupies count, because delivery is a
+    straight sweep in y at the target's own x: what a box in front of you
+    blocks is your column, not the whole floor.  With nothing behind it the
+    answer is the floor, which is what makes "stay lower than what is behind
+    you" also mean "do not be the first thing in an empty column".
+    """
+    columns = (grid.xs >= rect.x_min - 1e-9) & (grid.xs <= rect.x_max + 1e-9)
+    if not columns.any():
+        return float(grid.model.z_floor)
+    behind = grid.usable & (grid.yy > rect.y_max - 1e-9)
+    behind = behind & columns[:, None]
+    if not behind.any():
+        return float(grid.model.z_floor)
+    return float(grid.height[behind].max())
+
+
 def reach_at(grid, z_floor: float, z_rel: float, extra_mask=None,
              extra_top: float = 0.0) -> tuple[float, float]:
     """``(usable-and-reachable, usable-but-sealed)`` area at working height ``z``.
@@ -1333,6 +1352,7 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("plateau_gain", 0.0)
         features.setdefault("hard_plateau_largest", 0.0)
         features.setdefault("stability_margin", 0.0)
+        features.setdefault("terrain_behind", float(model.z_floor))
         return
 
     grid = board.grid(candidate.container_idx)
@@ -1352,6 +1372,8 @@ def compute_features(candidate: Candidate, board: Board, config,
         )
     else:
         features["neighbour_height_step"] = 0.0
+
+    features["terrain_behind"] = terrain_behind(grid, rect)
 
     # what this placement costs the way in.  ``reachable_before`` is a property
     # of the board, so it is cached per step rather than recomputed per
@@ -2067,11 +2089,39 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                         drop(candidate, "not-right-front")
                 survivors = kept
 
-    # 4d. hard yields the front band.  The right front is where typed cargo
-    #     lands when the shelf overflows and the front centre is the way in;
-    #     hard is the class with somewhere else to be, because it grows from
-    #     the back.  Only while it *has* somewhere else -- the fallback keeps a
-    #     board that has nothing left from stalling.
+    # 4g. the front is open, on one condition: stay low.
+    #     Yielding the whole front band was the wrong shape of rule.  The
+    #     opening is wide, so the front is not scarce as *space* -- what makes
+    #     it precious is the sight line down each column, and only a box that
+    #     stands taller than what is behind it spends that.  So the band stops
+    #     being a no-go area and becomes a height limit: a hard box may sit at
+    #     the front for as long as it stays under the terrain behind it in its
+    #     own columns.  On an empty column that terrain is the floor, which is
+    #     how back-first survives the change without a second rule.
+    if config.front_stays_low:
+        front_limit = model.floor_rect.y_min + config.hard_front_band
+        kept = []
+        for candidate in survivors:
+            if (
+                candidate.surface != "floor"
+                or candidate.profile.cargo_class != cls.NORMAL_HARD
+                or candidate.role in (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP)
+                or candidate.box.center[1] >= front_limit
+                or float(candidate.box.maximum[2])
+                <= candidate.features.get("terrain_behind", model.z_floor)
+                + config.front_height_slack + 1e-9
+            ):
+                kept.append(candidate)
+            else:
+                drop(candidate, "front-would-stand-too-tall")
+        if kept and len(kept) < len(survivors):
+            survivors = kept
+
+    # 4d. hard yields the front band.  Superseded by 4g and off by default;
+    #     kept switchable so the two can be compared.  The right front is where
+    #     typed cargo lands when the shelf overflows and the front centre is the
+    #     way in; hard is the class with somewhere else to be, because it grows
+    #     from the back.
     if config.hard_avoids_front:
         floor_rect = model.floor_rect
         front_limit = floor_rect.y_min + config.hard_front_band
@@ -2431,13 +2481,36 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         for family, _index in buckets:
             poses_in_family[family] = poses_in_family.get(family, 0) + 1
         shortlist = []
+        chosen_ids = set()
         typed_rf = config.typed_floor_right_front
+        front_limit = model.floor_rect.y_min + config.hard_front_band
         for (family, _index), group in buckets.items():
             per_bucket = max(
                 4, config.layer2_family_quota // max(1, poses_in_family[family])
             )
             group.sort(key=lambda c: _shortlist_key(c, typed_rf))
-            shortlist.extend(group[:per_bucket])
+            take = list(group[:per_bucket])
+            # The front gets slots of its own.  Hard floor candidates are
+            # ranked by depth and the quota cuts the shallow ones, so a front
+            # placement never reached a veto to be judged on its merits -- the
+            # band rule that was supposed to govern the front turned out to be
+            # inert for exactly this reason, and removing it changed one
+            # placement in thirteen scenarios.  Ranked by height, because a low
+            # box at the front is the one that costs nothing.
+            if config.front_shortlist_quota > 0 and family == l2.FAMILY_FLOOR:
+                front = [
+                    c for c in group
+                    if c.profile.cargo_class == cls.NORMAL_HARD
+                    and c.box.center[1] < front_limit
+                ]
+                front.sort(
+                    key=lambda c: (c.features["top_z"], -c.features["y_back"])
+                )
+                take.extend(front[: config.front_shortlist_quota])
+            for candidate in take:
+                if id(candidate) not in chosen_ids:
+                    chosen_ids.add(id(candidate))
+                    shortlist.append(candidate)
         shortlist.sort(key=lambda c: _shortlist_key(c, typed_rf))
         for position, candidate in enumerate(shortlist):
             compute_features(

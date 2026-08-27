@@ -151,12 +151,39 @@ class RuleAlphaConfig:
     a person reaching in can get to.  The left band is not an option: it is the
     chamfer's, and the wall front is already there."""
 
-    hard_avoids_front: bool = True
-    """Keep normal-hard off the front band while it has anywhere else to go.
+    front_shortlist_quota: int = 4
+    """Shortlist slots reserved for front-band hard candidates, ranked lowest
+    first.  Zero turns the reservation off.
 
-    The right front is where typed cargo goes when the shelf overflows, and the
-    front centre is the way in.  Hard is the class with somewhere else to be --
-    it grows from the back -- so it is the one that should yield."""
+    Hard floor candidates are shortlisted by depth, so the front ones were cut
+    before any veto saw them -- which is why the band rule meant to govern the
+    front was measurably inert: removing it altogether moved one placement in
+    thirteen scenarios.  A rule downstream of a truncation cannot undo the
+    truncation, so opening the front means giving it slots, not permission."""
+
+    front_stays_low: bool = True
+    """The front is open to hard cargo, provided it stays lower than the
+    terrain behind it in its own columns.
+
+    Yielding the whole front band was the wrong shape of rule.  The opening is
+    wide, so the front is not scarce as *space*; what is scarce is the sight
+    line down each column, and only a box standing taller than what is behind
+    it spends any.  A low box at the front blocks nothing and is ordinary
+    support.  On a column with nothing behind it the terrain is the floor, so
+    the same rule still says "not first" -- back-first needs no second rule."""
+
+    front_height_slack: float = 0.05
+    """How far above the terrain behind it a front box may still reach.
+
+    Cargo heights do not line up to the millimetre, and refusing a box that
+    overtops its backing by a centimetre would forbid a flush front row for no
+    gain in reachability."""
+
+    hard_avoids_front: bool = False
+    """Superseded by ``front_stays_low``; kept so the two can be compared.
+
+    Keeps normal-hard off the front band entirely while it has anywhere else to
+    go -- a no-go area rather than a height limit."""
 
     hard_front_band: float = 0.35
     """How much of the depth, measured from the opening, counts as the front

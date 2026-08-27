@@ -1373,3 +1373,41 @@ class WedgePricingTest(unittest.TestCase):
             model.z_floor + 0.30, 1, True,
         )
         self.assertGreater(lane_bottleneck(grid, model, strip), 0.9)
+
+
+class FrontStaysLowTest(unittest.TestCase):
+    """The front is open to hard cargo as long as it stays low."""
+
+    def test_terrain_behind_is_measured_in_the_box_s_own_columns(self):
+        """Delivery is a straight sweep in y at the target's x, so what counts
+        is what stands in *that* column -- not the tallest thing on the floor."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.02)
+        # something tall at the back, but off to the +x side
+        grid.stamp(Rect(0.40, 0.90, 0.30, 0.60), model.z_floor + 0.60, 1, True)
+
+        under_it = Rect(0.50, 0.80, -0.60, -0.30)
+        self.assertAlmostEqual(
+            layer1.terrain_behind(grid, under_it), model.z_floor + 0.60, places=6
+        )
+        # a rect in a different column sees only the floor behind it
+        beside_it = Rect(-0.30, -0.05, -0.60, -0.30)
+        self.assertAlmostEqual(
+            layer1.terrain_behind(grid, beside_it), model.z_floor, places=6
+        )
+
+    def test_nothing_behind_means_the_floor_which_keeps_back_first(self):
+        _container, model = _model()
+        grid = FloorGrid(model, 0.02)
+        front = Rect(-0.20, 0.20, model.floor_rect.y_min,
+                     model.floor_rect.y_min + 0.30)
+        self.assertAlmostEqual(
+            layer1.terrain_behind(grid, front), model.z_floor, places=6
+        )
+        # ...and a rect flush against the back wall has nothing behind it
+        # either, which is why the height rule only ever runs at the front
+        back = Rect(-0.20, 0.20, model.floor_rect.y_max - 0.30,
+                    model.floor_rect.y_max)
+        self.assertAlmostEqual(
+            layer1.terrain_behind(grid, back), model.z_floor, places=6
+        )
