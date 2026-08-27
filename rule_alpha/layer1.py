@@ -20,10 +20,10 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import classify as cls
+from . import stability
 from . import triangle as tri
 from ._reuse import (
     AABB,
-    Geometry,
     packed_aabbs_local,
     shelf_aabbs,
     simulator_action_center,
@@ -525,12 +525,18 @@ def validate(box: AABB, model: ContainerModel, container: dict, config) -> tuple
         if penetrates_with_lateral_clearance(box, packed, config.settled_clearance):
             return False, "overlaps-packed-item"
 
-    metrics = Geometry.support_metrics(box, container)
-    if metrics.ratio < config.min_support_ratio:
-        return False, "insufficient-support"
-    if metrics.center_margin < 0.0:
-        # centre of mass outside the contact patch: it would topple on settle
-        return False, "unstable-centre-of-mass"
+    # Stability, not bureaucracy.  The competition has no support-ratio rule;
+    # ``place_item`` just drops the box and checks it did not move.  A rigid
+    # body topples exactly when its centre of mass leaves the convex hull of
+    # its contact patches, and that criterion reproduces both measured shapes:
+    # a cantilever going marginal at o = w/2, and a bridge holding on two small
+    # contacts.  The old largest-single-patch ratio got the first right by
+    # accident and made the second impossible.
+    stable, margin = stability.is_stable(box, container, config)
+    if not stable:
+        return False, (
+            "no-support" if margin == -float("inf") else "centre-of-mass-outside-support"
+        )
 
     for sample in samples:
         for obstacle in shelf_aabbs(container):

@@ -546,12 +546,12 @@ class WedgeStaircaseTest(unittest.TestCase):
             allowed, DEFAULT_CONFIG.wedge_overhang_fraction * width, places=6
         )
 
-    def test_the_overhang_cap_keeps_support_above_the_official_floor(self):
-        """o <= 0.4w is what the 0.6 support ratio allows; we stay under it."""
+    def test_the_overhang_cap_stays_inside_the_toppling_limit(self):
+        """A step topples at o = w/2, where the centre of mass leaves the
+        support polygon.  There is no official support-ratio floor to compare
+        against -- that was rule-alpha's own rule."""
         fraction = DEFAULT_CONFIG.wedge_overhang_fraction
-        implied_support = 1.0 - fraction
-        self.assertGreater(implied_support, DEFAULT_CONFIG.min_support_ratio)
-        self.assertLess(fraction, 0.4)
+        self.assertLess(fraction, 0.5)
 
     def test_recovered_area_never_exceeds_the_wedge(self):
         """Counting "everything left of the floor limit" also counts space
@@ -1024,3 +1024,80 @@ class FoundationPrincipleTest(unittest.TestCase):
         self.assertTrue(
             board.foundation_still_fits(0, (0.60, 0.80), follower)
         )
+
+
+class StabilityTest(unittest.TestCase):
+    """Centre of mass inside the support polygon, checked against the
+    simulator measurements in ``docs/rule_alpha/support_rule_correction.md``."""
+
+    PIER = (0.30, 0.50, 0.30)
+    DECK_DY, DECK_DZ = 0.45, 0.22
+
+    def _container(self, piers):
+        packed = []
+        for index, x in enumerate(piers):
+            packed.append({
+                "index": index, "length": self.PIER[0], "width": self.PIER[1],
+                "height": self.PIER[2], "mass": 12.0, "is_soft": False,
+                "is_prioritized": False, "orientation": 0,
+                "dims": self.PIER,
+                "pos": (x, 0.15, 0.02 + self.PIER[2] / 2.0),
+            })
+        return {
+            "length": 2.0, "width": 1.5, "height": 1.6, "thickness": 0.02,
+            "buffer": 0.0, "cut_x": 0.0, "cut_y": 0.0, "center": (0, 0, 0),
+            "packed_items": packed,
+        }
+
+    def _deck(self, x, dx):
+        from rule_alpha._reuse import AABB
+        return AABB(
+            (x, 0.15, 0.02 + self.PIER[2] + self.DECK_DZ / 2.0),
+            (dx, self.DECK_DY, self.DECK_DZ), "deck",
+        )
+
+    def test_a_cantilever_goes_marginal_at_half_its_width(self):
+        """Measured on the simulator: clean at o/w = 0.50, tips at 0.60.  The
+        criterion has to predict that, not be fitted to it."""
+        from rule_alpha import stability
+
+        container = self._container([0.0])
+        width = 0.70
+        margins = {}
+        for fraction in (0.25, 0.40, 0.50, 0.60):
+            x = -self.PIER[0] / 2.0 - fraction * width + width / 2.0
+            margins[fraction] = stability.evaluate(
+                self._deck(x, width), container, DEFAULT_CONFIG
+            ).margin
+
+        self.assertGreater(margins[0.25], margins[0.40])
+        self.assertGreater(margins[0.40], 0.0)
+        self.assertAlmostEqual(margins[0.50], 0.0, places=6)
+        self.assertLess(margins[0.60], 0.0)
+
+    def test_a_bridge_holds_on_two_contacts_the_old_rule_refused(self):
+        """Single contact 0.24 of the footprint, accepted by the simulator."""
+        from rule_alpha import stability
+
+        span = 0.65 + self.PIER[0]
+        container = self._container([-span / 2.0, +span / 2.0])
+        deck = self._deck(0.0, 1.25)
+        state = stability.evaluate(deck, container, DEFAULT_CONFIG)
+        self.assertEqual(state.contact_count, 2)
+        self.assertGreater(state.margin, 0.1)
+        # ... and what the discarded rule would have said about it
+        self.assertLess(
+            stability.support_area_ratio(deck, container, DEFAULT_CONFIG),
+            DEFAULT_CONFIG.min_support_ratio,
+        )
+
+    def test_soft_cargo_is_not_structure(self):
+        from rule_alpha import stability
+
+        container = self._container([0.0])
+        container["packed_items"][0]["is_soft"] = True
+        state = stability.evaluate(
+            self._deck(0.0, 0.70), container, DEFAULT_CONFIG
+        )
+        self.assertEqual(state.contact_count, 0)
+        self.assertFalse(state.supported)

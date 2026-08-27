@@ -41,6 +41,20 @@ class RuleAlphaConfig:
     """Vertical slack that still counts as "resting on"."""
 
     min_support_ratio: float = 0.60
+    """Kept for diagnostics and for the wedge's own reach arithmetic.  It is
+    *not* an official rule -- the competition has no support-ratio test -- and
+    it is no longer what accepts or refuses a placement.  See ``com_margin``."""
+
+    com_margin: float = 0.030
+    """How far inside the support polygon the centre of mass must project.
+
+    A rigid body topples exactly when its centre of mass leaves the convex hull
+    of its contact patches, so that -- not a contact-area fraction -- is the
+    criterion.  It predicts both measured shapes: a cantilever is stable to
+    ``o = w/2`` (measured: clean at 0.50, tips at 0.60) and a bridge is stable
+    however small each individual contact is (measured: accepted at a single
+    contact of 0.24).  The margin is the allowance for the release drop and the
+    settle transient, which the static criterion does not model."""
     """Minimum share of a footprint that must sit on a real support surface."""
 
     # ------------------------------------------------------------------
@@ -219,11 +233,14 @@ class RuleAlphaConfig:
     # ------------------------------------------------------------------
     # Chamfer wedge: RAW -> STAIRCASE -> SOFT_READY -> CLOSED
     # ------------------------------------------------------------------
-    wedge_overhang_fraction: float = 0.25
+    wedge_overhang_fraction: float = 0.30
     """How far a staircase step may reach past the support under it, as a share
-    of its own width.  The official 0.6 support floor allows 0.4w; this is
-    deliberately under that, because the centre of mass and the settle step are
-    not modelled exactly."""
+    of its own width.  There is no official support floor -- that was
+    rule-alpha's own rule -- and the measured limit is ``o = w/2``, where the
+    centre of mass leaves the support polygon.  This stays under it: a step
+    lands on the step below, whose own top is not perfectly flat once settled,
+    so the static criterion is optimistic here in a way it is not on the
+    floor."""
 
     wedge_step_max_footprint_fraction: float = 0.10
     """Only small cargo climbs the staircase.  A big box spent here is a big
