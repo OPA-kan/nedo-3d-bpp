@@ -65,7 +65,7 @@ def _cell_table(cells: dict) -> list[str]:
 
 
 def build(out_dir: pathlib.Path, config, scenarios, images: bool) -> dict:
-    from rule_alpha.terrain_view import render_terrain
+    from rule_alpha.terrain_view import render_stack, render_terrain
 
     out_dir.mkdir(parents=True, exist_ok=True)
     image_dir = out_dir / "images"
@@ -91,11 +91,16 @@ def build(out_dir: pathlib.Path, config, scenarios, images: bool) -> dict:
                 trn.container_terrain(model, placements, config)
             )
             if images:
-                path = image_dir / scenario.name / f"c{idx}_terrain.png"
-                for written in render_terrain(
+                base = image_dir / scenario.name
+                label = f"{scenario.name} — container {idx}"
+                for written in render_stack(
                     model, placements, config,
-                    f"{scenario.name} — container {idx} — Layer 1 terrain",
-                    path,
+                    f"{label} — how Layer 1 stacked it",
+                    base / f"c{idx}_stack.png",
+                ) + render_terrain(
+                    model, placements, config,
+                    f"{label} — Layer 1 terrain",
+                    base / f"c{idx}_terrain.png",
                 ):
                     entry["images"].append(
                         written.relative_to(out_dir).as_posix()

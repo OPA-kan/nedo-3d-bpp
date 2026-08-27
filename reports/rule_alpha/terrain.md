@@ -27,22 +27,23 @@ the rules steer by, so the tables can show where the two disagree.
 |---|---|---|---|---|---|---|---|---|---|
 | 01-normal-no-shelf | 11/26 | 0.629 | 0.762 | 0.362 | 0.466 | 0.3348 | 0.377 | 1 | 0.155 | 0.258 |
 | 02-normal-with-shelf | 13/26 | 0.680 | 0.872 | 0.222 | 0.718 | 0.4692 | 0.293 | 2 | 0.169 | 0.429 |
-| 03-priority-plus-normal | 25/40 | 0.724 | 0.872 | 0.368 | 0.519 | 0.5704 | 0.157 | 4 | 0.187 | 0.095 |
-| 04-soft-heavy | 13/26 | 0.623 | 0.607 | 0.530 | 0.359 | 0.2380 | 0.378 | 1 | 0.199 | 0.353 |
+| 03-priority-plus-normal | 25/40 | 0.717 | 0.733 | 0.394 | 0.517 | 0.6520 | 0.157 | 4 | 0.101 | 0.176 |
+| 04-soft-heavy | 13/26 | 0.623 | 0.607 | 0.530 | 0.688 | 0.2940 | 0.378 | 1 | 0.173 | 0.593 |
 | 05-priority-heavy-no-priority-uld | 9/26 | 0.661 | 0.776 | 0.363 | 0.311 | 0.8068 | 0.000 | 3 | 0.101 | 0.247 |
-| 06-soft-priority-heavy | 24/34 | — | — | — | 0.329 | 1.4292 | 0.493 | 5 | 0.230 | 0.514 |
+| 06-soft-priority-heavy | 24/34 | — | — | — | 0.354 | 1.3776 | 0.496 | 5 | 0.199 | 0.622 |
 | 07-elongated-heavy | 16/22 | 0.608 | 0.731 | 0.196 | 0.533 | 0.0000 | 0.073 | 0 | 0.346 | 0.223 |
 | 08-slope-exploitation | 15/30 | 0.568 | 0.708 | 0.410 | 0.623 | 0.0000 | 0.000 | 0 | 0.205 | 0.507 |
 | 09-mixed-random | 14/34 | 0.676 | 0.869 | 0.240 | 0.780 | 0.3880 | 0.399 | 2 | 0.186 | 0.521 |
 | 10-awkward-holes | 12/26 | 0.562 | 0.566 | 0.214 | 0.568 | 0.0000 | 0.287 | 0 | 0.151 | 0.293 |
-| 11-lookahead-3 | 16/34 | 0.609 | 0.645 | 0.421 | 0.846 | 0.1176 | 0.399 | 1 | 0.201 | 0.176 |
+| 11-lookahead-3 | 16/34 | 0.608 | 0.645 | 0.421 | 0.846 | 0.1176 | 0.399 | 1 | 0.201 | 0.203 |
 | 12-large-hard-only | 4/20 | 0.593 | 0.592 | 0.000 | 0.687 | 0.0000 | 0.000 | 0 | 0.257 | 0.795 |
-| 13-small-first-then-large | 13/20 | 0.587 | 0.604 | 0.505 | 0.779 | 0.0000 | 0.000 | 0 | 0.298 | 0.808 |
+| 13-small-first-then-large | 13/20 | 0.587 | 0.604 | 0.505 | 0.779 | 0.0000 | 0.000 | 0 | 0.273 | 0.808 |
 
 ## 01-normal-no-shelf
 
 Single ULD without a shelf, mostly plain hard cargo. The reference picture for the rectangular floor rule.
 
+![01-normal-no-shelf](images/01-normal-no-shelf/c0_stack.png)
 ![01-normal-no-shelf](images/01-normal-no-shelf/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=11)
@@ -79,6 +80,7 @@ Single ULD without a shelf, mostly plain hard cargo. The reference picture for t
 
 Same cargo mix in a shelf ULD: shows where the soft items go once a shelf exists, and what the shelf does to the back half of the floor.
 
+![02-normal-with-shelf](images/02-normal-with-shelf/c0_stack.png)
 ![02-normal-with-shelf](images/02-normal-with-shelf/c0_terrain.png)
 
 ### container 0  (shelf=True, priority=False, placed=13)
@@ -117,41 +119,43 @@ Same cargo mix in a shelf ULD: shows where the soft items go once a shelf exists
 
 Priority ULD (index 0) next to a normal ULD. Tests the routing rules: soft-only never enters the priority container, plain hard may but only inside its budget.
 
+![03-priority-plus-normal](images/03-priority-plus-normal/c0_stack.png)
 ![03-priority-plus-normal](images/03-priority-plus-normal/c0_terrain.png)
+![03-priority-plus-normal](images/03-priority-plus-normal/c1_stack.png)
 ![03-priority-plus-normal](images/03-priority-plus-normal/c1_terrain.png)
 
 ### container 0  (shelf=True, priority=True, placed=12)
 
 | cell | coverage | mean h | max h | hard top m² | soft top m² | items | first step |
 |---|---|---|---|---|---|---|---|
-| `chamfer-back` | 0.882 | 0.362 | 0.721 | 0.1968 | 0.0000 | 1 | 12 |
-| `left-back` | 0.764 | 0.260 | 0.721 | 0.1752 | 0.0000 | 0 | — |
-| `centre-back` | 0.961 | 0.265 | 0.483 | 0.2628 | 0.0000 | 1 | 13 |
-| `right-back` | 0.854 | 0.450 | 0.689 | 0.2336 | 0.0000 | 2 | 14 |
-| `chamfer-front` | 0.660 | 0.431 | 0.721 | 0.0672 | 0.0000 | 2 | 16 |
-| `left-front` | 0.244 | 0.173 | 0.721 | 0.0000 | 0.0000 | 1 | 19 |
-| `centre-front` | 0.852 | 0.270 | 0.483 | 0.0432 | 0.0000 | 1 | 18 |
-| `right-front` | 0.803 | 0.379 | 0.598 | 0.0456 | 0.0000 | 1 | 17 |
+| `chamfer-back` | 0.854 | 0.342 | 0.649 | 0.1968 | 0.0000 | 1 | 12 |
+| `left-back` | 0.675 | 0.162 | 0.285 | 0.1752 | 0.0000 | 0 | — |
+| `centre-back` | 0.972 | 0.211 | 0.218 | 0.2052 | 0.0000 | 1 | 13 |
+| `right-back` | 0.728 | 0.383 | 0.740 | 0.1832 | 0.0000 | 1 | 14 |
+| `chamfer-front` | 0.681 | 0.396 | 0.649 | 0.0672 | 0.0000 | 2 | 16 |
+| `left-front` | 0.547 | 0.285 | 0.721 | 0.0000 | 0.0000 | 1 | 19 |
+| `centre-front` | 0.664 | 0.224 | 0.721 | 0.0000 | 0.0000 | 1 | 17 |
+| `right-front` | 0.902 | 0.568 | 0.740 | 0.1196 | 0.0000 | 2 | 15 |
 
-**normal-hard floor layer** — 5 items, 1.0333 m²; centroid (x=0.503, y=0.724) in normalised floor coordinates; back share 0.872, centre share 0.368; mean top height by depth third (front→back) [None, 0.566, 0.397].
+**normal-hard floor layer** — 5 items, 0.9662 m²; centroid (x=0.507, y=0.717) in normalised floor coordinates; back share 0.733, centre share 0.394; mean top height by depth third (front→back) [None, 0.695, 0.397].
 
-**surface** — buildable 0.519 (1.1052 m², 3 pads), soft-capped 0.5704 m². Support area {'free-floor': 0.5364, 'hard': 1.0244, 'soft-only': 0.0, 'priority-only': 0.5704, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.5364, '0.15-0.30': 0.8288, '0.30-0.50': 0.2072, '0.50-0.80': 0.5588, '0.80+': 0.0}.
+**surface** — buildable 0.517 (1.1008 m², 3 pads), soft-capped 0.6520 m². Support area {'free-floor': 0.532, 'hard': 0.9472, 'soft-only': 0.0, 'priority-only': 0.652, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.532, '0.15-0.30': 0.8808, '0.30-0.50': 0.0, '0.50-0.80': 0.7184, '0.80+': 0.0}.
 
 **shelf** — {'has_shelf': True, 'headroom_m': 0.73, 'headroom_volume_m3': 1.425, 'shelf_area_m2': 1.952, 'shelf_volume_used_m3': 0.2242, 'shelf_fill_ratio': 0.157, 'shelf_items': 3, 'shelf_footprint_ratio': 0.268, 'max_used_height_m': 0.654, 'headroom_height_used_ratio': 0.896, 'back_share_of_shelf_area': 1.0, 'overflow_items': 4, 'overflow_volume_m3': 0.2788}
 
-**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.559, 'mean_height_m': 0.123, 'max_height_m': 0.279}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.148, 'mean_height_m': 0.27, 'max_height_m': 0.483}, 'approach': {'width_m': 1.48, 'median_clearance_m': 0.942, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.187, 'reachable_free_m2': 0.3684, 'reachable_back_ratio': 0.023}, '0.20': {'reachable_ratio': 0.187, 'reachable_free_m2': 0.3684, 'reachable_back_ratio': 0.023}, '0.40': {'reachable_ratio': 0.351, 'reachable_free_m2': 0.3848, 'reachable_back_ratio': 0.095}, '0.60': {'reachable_ratio': 0.632, 'reachable_free_m2': 0.436, 'reachable_back_ratio': 0.487}}, 'clear_lane_width_m': 0.12, 'front_half_max_height_m': 0.721, 'back_half_mean_height_m': 0.332}
+**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.404, 'mean_height_m': 0.323, 'max_height_m': 0.721}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.336, 'mean_height_m': 0.224, 'max_height_m': 0.721}, 'approach': {'width_m': 1.48, 'median_clearance_m': 0.891, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.101, 'reachable_free_m2': 0.1852, 'reachable_back_ratio': 0.014}, '0.20': {'reachable_ratio': 0.101, 'reachable_free_m2': 0.1852, 'reachable_back_ratio': 0.014}, '0.40': {'reachable_ratio': 0.22, 'reachable_free_m2': 0.19, 'reachable_back_ratio': 0.176}, '0.60': {'reachable_ratio': 0.41, 'reachable_free_m2': 0.3592, 'reachable_back_ratio': 0.351}}, 'clear_lane_width_m': 0.02, 'front_half_max_height_m': 0.74, 'back_half_mean_height_m': 0.27}
 
-**tall structure** — 5 tall-perimeter items, back share 0.400, median step back 14.500 vs front 17.000.
+**tall structure** — 5 tall-perimeter items, back share 0.200, median step back 14.000 vs front 17.000.
 
 | step | role | cell | height m | footprint m² | class |
 |---|---|---|---|---|---|
 | 12 | wall-front | `chamfer-back` | 0.285 | 0.2100 | normal-hard |
 | 14 | tall-perimeter | `right-back` | 0.689 | 0.1172 | normal-hard |
-| 15 | tall-perimeter | `right-back` | 0.483 | 0.1931 | normal-hard |
+| 15 | tall-perimeter | `right-front` | 0.740 | 0.1261 | normal-hard |
 | 16 | tall-perimeter | `chamfer-front` | 0.649 | 0.1322 | normal-hard |
-| 17 | tall-perimeter | `right-front` | 0.598 | 0.1098 | priority |
+| 18 | tall-perimeter | `chamfer-front` | 0.532 | 0.1387 | priority |
 | 19 | elongated | `left-front` | 0.721 | 0.1108 | priority |
-| 20 | tall-perimeter | `chamfer-front` | 0.650 | 0.0916 | priority |
+| 20 | tall-perimeter | `right-front` | 0.650 | 0.0916 | priority |
 
 ### container 1  (shelf=False, priority=False, placed=13)
 
@@ -190,6 +194,7 @@ Priority ULD (index 0) next to a normal ULD. Tests the routing rules: soft-only 
 
 Soft-dominated stream into a shelf ULD: shelf saturates early, the rest must cluster on the left soft strip.
 
+![04-soft-heavy](images/04-soft-heavy/c0_stack.png)
 ![04-soft-heavy](images/04-soft-heavy/c0_terrain.png)
 
 ### container 0  (shelf=True, priority=False, placed=13)
@@ -200,18 +205,18 @@ Soft-dominated stream into a shelf ULD: shelf saturates early, the rest must clu
 | `left-back` | 0.436 | 0.189 | 0.652 | 0.1256 | 0.0000 | 1 | 1 |
 | `centre-back` | 0.933 | 0.242 | 0.266 | 0.2552 | 0.0000 | 1 | 4 |
 | `right-back` | 0.541 | 0.179 | 0.504 | 0.1480 | 0.0000 | 0 | — |
-| `chamfer-front` | 0.665 | 0.251 | 0.425 | 0.0512 | 0.1020 | 0 | — |
-| `left-front` | 0.517 | 0.213 | 0.425 | 0.0128 | 0.1360 | 1 | 11 |
+| `chamfer-front` | 0.769 | 0.250 | 0.342 | 0.0512 | 0.1260 | 0 | — |
+| `left-front` | 0.628 | 0.212 | 0.342 | 0.0128 | 0.1680 | 1 | 11 |
 | `centre-front` | 0.632 | 0.150 | 0.237 | 0.1728 | 0.0000 | 1 | 6 |
 | `right-front` | 0.535 | 0.206 | 0.504 | 0.1464 | 0.0000 | 1 | 5 |
 
 **normal-hard floor layer** — 5 items, 1.1130 m²; centroid (x=0.519, y=0.623) in normalised floor coordinates; back share 0.607, centre share 0.530; mean top height by depth third (front→back) [None, 0.341, 0.301].
 
-**surface** — buildable 0.359 (0.7656 m², 3 pads), soft-capped 0.2380 m². Support area {'free-floor': 0.7572, 'hard': 1.136, 'soft-only': 0.238, 'priority-only': 0.0, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.7572, '0.15-0.30': 0.6936, '0.30-0.50': 0.3876, '0.50-0.80': 0.2928, '0.80+': 0.0}.
+**surface** — buildable 0.688 (1.4668 m², 4 pads), soft-capped 0.2940 m². Support area {'free-floor': 0.7012, 'hard': 1.136, 'soft-only': 0.294, 'priority-only': 0.0, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.7012, '0.15-0.30': 0.6936, '0.30-0.50': 0.4436, '0.50-0.80': 0.2928, '0.80+': 0.0}.
 
 **shelf** — {'has_shelf': True, 'headroom_m': 0.73, 'headroom_volume_m3': 1.425, 'shelf_area_m2': 1.952, 'shelf_volume_used_m3': 0.5385, 'shelf_fill_ratio': 0.378, 'shelf_items': 6, 'shelf_footprint_ratio': 0.557, 'max_used_height_m': 0.558, 'headroom_height_used_ratio': 0.764, 'back_share_of_shelf_area': 0.87, 'overflow_items': 1, 'overflow_volume_m3': 0.1004}
 
-**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.45, 'mean_height_m': 0.182, 'max_height_m': 0.425}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.368, 'mean_height_m': 0.15, 'max_height_m': 0.237}, 'approach': {'width_m': 1.48, 'median_clearance_m': 1.115, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.48, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.199, 'reachable_free_m2': 0.3952, 'reachable_back_ratio': 0.017}, '0.20': {'reachable_ratio': 0.199, 'reachable_free_m2': 0.3952, 'reachable_back_ratio': 0.017}, '0.40': {'reachable_ratio': 0.476, 'reachable_free_m2': 0.404, 'reachable_back_ratio': 0.353}, '0.60': {'reachable_ratio': 0.878, 'reachable_free_m2': 0.7488, 'reachable_back_ratio': 0.756}}, 'clear_lane_width_m': 0.08, 'front_half_max_height_m': 0.504, 'back_half_mean_height_m': 0.266}
+**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.371, 'mean_height_m': 0.186, 'max_height_m': 0.342}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.368, 'mean_height_m': 0.15, 'max_height_m': 0.237}, 'approach': {'width_m': 1.48, 'median_clearance_m': 1.198, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.48, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.173, 'reachable_free_m2': 0.3392, 'reachable_back_ratio': 0.017}, '0.20': {'reachable_ratio': 0.173, 'reachable_free_m2': 0.3392, 'reachable_back_ratio': 0.017}, '0.40': {'reachable_ratio': 0.761, 'reachable_free_m2': 0.5736, 'reachable_back_ratio': 0.593}, '0.60': {'reachable_ratio': 0.878, 'reachable_free_m2': 0.6928, 'reachable_back_ratio': 0.756}}, 'clear_lane_width_m': 0.08, 'front_half_max_height_m': 0.504, 'back_half_mean_height_m': 0.266}
 
 **tall structure** — 1 tall-perimeter items, back share 0.000, median step back — vs front 5.000.
 
@@ -226,6 +231,7 @@ Soft-dominated stream into a shelf ULD: shelf saturates early, the rest must clu
 
 Priority-dominated stream with no priority ULD: the priority edge zone on the right is the only home.
 
+![05-priority-heavy-no-priority-uld](images/05-priority-heavy-no-priority-uld/c0_stack.png)
 ![05-priority-heavy-no-priority-uld](images/05-priority-heavy-no-priority-uld/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=9)
@@ -264,29 +270,31 @@ Priority-dominated stream with no priority ULD: the priority edge zone on the ri
 
 Soft+priority dominated stream with a priority shelf ULD present: SP should prefer the priority shelf, then cluster.
 
+![06-soft-priority-heavy](images/06-soft-priority-heavy/c0_stack.png)
 ![06-soft-priority-heavy](images/06-soft-priority-heavy/c0_terrain.png)
+![06-soft-priority-heavy](images/06-soft-priority-heavy/c1_stack.png)
 ![06-soft-priority-heavy](images/06-soft-priority-heavy/c1_terrain.png)
 
 ### container 0  (shelf=True, priority=True, placed=12)
 
 | cell | coverage | mean h | max h | hard top m² | soft top m² | items | first step |
 |---|---|---|---|---|---|---|---|
-| `chamfer-back` | 0.972 | 0.314 | 0.343 | 0.0000 | 0.2240 | 1 | 16 |
-| `left-back` | 0.486 | 0.169 | 0.440 | 0.0000 | 0.1400 | 0 | — |
-| `centre-back` | 0.944 | 0.241 | 0.440 | 0.0000 | 0.2584 | 1 | 13 |
-| `right-back` | 0.547 | 0.139 | 0.440 | 0.0000 | 0.1496 | 0 | — |
-| `chamfer-front` | 0.806 | 0.197 | 0.245 | 0.0000 | 0.1856 | 1 | 17 |
-| `left-front` | 0.732 | 0.235 | 0.440 | 0.0000 | 0.2108 | 0 | — |
-| `centre-front` | 0.776 | 0.287 | 0.440 | 0.0000 | 0.2124 | 2 | 14 |
-| `right-front` | 0.177 | 0.078 | 0.440 | 0.0000 | 0.0484 | 0 | — |
+| `chamfer-back` | 0.188 | 0.070 | 0.375 | 0.0000 | 0.0432 | 0 | — |
+| `left-back` | 0.950 | 0.356 | 0.375 | 0.0000 | 0.2736 | 1 | 14 |
+| `centre-back` | 0.944 | 0.256 | 0.520 | 0.0000 | 0.2584 | 1 | 13 |
+| `right-back` | 0.526 | 0.138 | 0.520 | 0.0000 | 0.1440 | 0 | — |
+| `chamfer-front` | 0.944 | 0.207 | 0.219 | 0.0000 | 0.2176 | 1 | 19 |
+| `left-front` | 0.142 | 0.031 | 0.219 | 0.0000 | 0.0408 | 0 | — |
+| `centre-front` | 0.833 | 0.281 | 0.520 | 0.0000 | 0.2280 | 2 | 16 |
+| `right-front` | 0.629 | 0.190 | 0.520 | 0.0000 | 0.1720 | 0 | — |
 
 **normal-hard floor layer** — 0 items, 0.0000 m²; centroid (x=—, y=—) in normalised floor coordinates; back share —, centre share —; mean top height by depth third (front→back) [None, None, None].
 
-**surface** — buildable 0.329 (0.7020 m², 1 pads), soft-capped 1.4292 m². Support area {'free-floor': 0.702, 'hard': 0.0, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 1.4292}.  Height bands {'0.00-0.15': 0.702, '0.15-0.30': 0.612, '0.30-0.50': 0.8172, '0.50-0.80': 0.0, '0.80+': 0.0}.
+**surface** — buildable 0.354 (0.7536 m², 1 pads), soft-capped 1.3776 m². Support area {'free-floor': 0.7536, 'hard': 0.0, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 1.3776}.  Height bands {'0.00-0.15': 0.7536, '0.15-0.30': 0.8704, '0.30-0.50': 0.3168, '0.50-0.80': 0.1904, '0.80+': 0.0}.
 
-**shelf** — {'has_shelf': True, 'headroom_m': 0.73, 'headroom_volume_m3': 1.425, 'shelf_area_m2': 1.952, 'shelf_volume_used_m3': 0.7026, 'shelf_fill_ratio': 0.493, 'shelf_items': 7, 'shelf_footprint_ratio': 0.668, 'max_used_height_m': 0.644, 'headroom_height_used_ratio': 0.882, 'back_share_of_shelf_area': 0.899, 'overflow_items': 5, 'overflow_volume_m3': 0.4446}
+**shelf** — {'has_shelf': True, 'headroom_m': 0.73, 'headroom_volume_m3': 1.425, 'shelf_area_m2': 1.952, 'shelf_volume_used_m3': 0.7065, 'shelf_fill_ratio': 0.496, 'shelf_items': 7, 'shelf_footprint_ratio': 0.698, 'max_used_height_m': 0.63, 'headroom_height_used_ratio': 0.863, 'back_share_of_shelf_area': 0.861, 'overflow_items': 5, 'overflow_volume_m3': 0.4141}
 
-**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.183, 'mean_height_m': 0.265, 'max_height_m': 0.324}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.224, 'mean_height_m': 0.287, 'max_height_m': 0.44}, 'approach': {'width_m': 1.48, 'median_clearance_m': 1.158, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.48, 'width_over_0.50m': 1.48, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.23, 'reachable_free_m2': 0.464, 'reachable_back_ratio': 0.111}, '0.20': {'reachable_ratio': 0.23, 'reachable_free_m2': 0.464, 'reachable_back_ratio': 0.111}, '0.40': {'reachable_ratio': 0.689, 'reachable_free_m2': 0.6084, 'reachable_back_ratio': 0.514}, '0.60': {'reachable_ratio': 1.0, 'reachable_free_m2': 0.702, 'reachable_back_ratio': 1.0}}, 'clear_lane_width_m': 0.18, 'front_half_max_height_m': 0.44, 'back_half_mean_height_m': 0.211}
+**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.581, 'mean_height_m': 0.103, 'max_height_m': 0.245}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.167, 'mean_height_m': 0.281, 'max_height_m': 0.52}, 'approach': {'width_m': 1.48, 'median_clearance_m': 1.308, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.48, 'width_over_0.50m': 1.48, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.199, 'reachable_free_m2': 0.3964, 'reachable_back_ratio': 0.047}, '0.20': {'reachable_ratio': 0.199, 'reachable_free_m2': 0.3964, 'reachable_back_ratio': 0.047}, '0.40': {'reachable_ratio': 0.764, 'reachable_free_m2': 0.7312, 'reachable_back_ratio': 0.622}, '0.60': {'reachable_ratio': 1.0, 'reachable_free_m2': 0.7536, 'reachable_back_ratio': 1.0}}, 'clear_lane_width_m': 0.38, 'front_half_max_height_m': 0.52, 'back_half_mean_height_m': 0.213}
 
 **tall structure** — 0 tall-perimeter items, back share —, median step back — vs front —.
 
@@ -296,20 +304,20 @@ Soft+priority dominated stream with a priority shelf ULD present: SP should pref
 |---|---|---|---|---|---|---|---|
 | `chamfer-back` | 0.971 | 0.613 | 0.643 | 0.2176 | 0.0000 | 3 | 2 |
 | `left-back` | 0.877 | 0.446 | 0.643 | 0.2332 | 0.0000 | 1 | 1 |
-| `centre-back` | 0.405 | 0.136 | 0.451 | 0.1076 | 0.0000 | 0 | — |
-| `right-back` | 0.943 | 0.250 | 0.451 | 0.2508 | 0.0000 | 2 | 5 |
+| `centre-back` | 0.224 | 0.066 | 0.749 | 0.0596 | 0.0000 | 0 | — |
+| `right-back` | 0.943 | 0.318 | 0.749 | 0.2508 | 0.0000 | 2 | 5 |
 | `chamfer-front` | 0.735 | 0.501 | 0.695 | 0.1600 | 0.0000 | 1 | 8 |
-| `left-front` | 0.754 | 0.316 | 0.695 | 0.0316 | 0.1632 | 1 | 23 |
-| `centre-front` | 0.324 | 0.142 | 0.646 | 0.0452 | 0.0384 | 0 | — |
-| `right-front` | 0.824 | 0.503 | 0.646 | 0.2128 | 0.0000 | 1 | 7 |
+| `left-front` | 0.531 | 0.220 | 0.695 | 0.0316 | 0.1056 | 0 | — |
+| `centre-front` | 0.519 | 0.198 | 0.749 | 0.0152 | 0.1188 | 1 | 23 |
+| `right-front` | 0.824 | 0.547 | 0.749 | 0.2128 | 0.0000 | 1 | 7 |
 
-**normal-hard floor layer** — 6 items, 1.1857 m²; centroid (x=0.525, y=0.597) in normalised floor coordinates; back share 0.734, centre share 0.000; mean top height by depth third (front→back) [0.67, 0.395, 0.272].
+**normal-hard floor layer** — 6 items, 1.1067 m²; centroid (x=0.520, y=0.603) in normalised floor coordinates; back share 0.715, centre share 0.000; mean top height by depth third (front→back) [0.67, 0.544, 0.272].
 
-**surface** — buildable 0.476 (0.9588 m², 5 pads), soft-capped 0.2016 m². Support area {'free-floor': 0.5544, 'hard': 1.2588, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 0.2016}.  Height bands {'0.00-0.15': 0.5544, '0.15-0.30': 0.24, '0.30-0.50': 0.5016, '0.50-0.80': 0.7188, '0.80+': 0.0}.
+**surface** — buildable 0.476 (0.9588 m², 5 pads), soft-capped 0.2244 m². Support area {'free-floor': 0.6096, 'hard': 1.1808, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 0.2244}.  Height bands {'0.00-0.15': 0.6096, '0.15-0.30': 0.24, '0.30-0.50': 0.332, '0.50-0.80': 0.8332, '0.80+': 0.0}.
 
-**shelf** — {'has_shelf': True, 'headroom_m': 0.725, 'headroom_volume_m3': 0.437, 'shelf_area_m2': 0.6028, 'shelf_volume_used_m3': 0.1871, 'shelf_fill_ratio': 0.428, 'shelf_items': 3, 'shelf_footprint_ratio': 0.598, 'max_used_height_m': 0.656, 'headroom_height_used_ratio': 0.905, 'back_share_of_shelf_area': 0.414, 'overflow_items': 1, 'overflow_volume_m3': 0.0773}
+**shelf** — {'has_shelf': True, 'headroom_m': 0.725, 'headroom_volume_m3': 0.437, 'shelf_area_m2': 0.6028, 'shelf_volume_used_m3': 0.2092, 'shelf_fill_ratio': 0.479, 'shelf_items': 3, 'shelf_footprint_ratio': 0.812, 'max_used_height_m': 0.644, 'headroom_height_used_ratio': 0.888, 'back_share_of_shelf_area': 0.49, 'overflow_items': 1, 'overflow_volume_m3': 0.0779}
 
-**access** — {'corridor': {'area_m2': 0.3128, 'free_ratio': 0.463, 'mean_height_m': 0.201, 'max_height_m': 0.375}, 'front_centre': {'area_m2': 0.2584, 'free_ratio': 0.676, 'mean_height_m': 0.142, 'max_height_m': 0.646}, 'approach': {'width_m': 1.46, 'median_clearance_m': 0.884, 'max_clearance_m': 1.155, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.152, 'reachable_free_m2': 0.278, 'reachable_back_ratio': 0.0}, '0.20': {'reachable_ratio': 0.152, 'reachable_free_m2': 0.278, 'reachable_back_ratio': 0.0}, '0.40': {'reachable_ratio': 0.341, 'reachable_free_m2': 0.3628, 'reachable_back_ratio': 0.137}, '0.60': {'reachable_ratio': 0.473, 'reachable_free_m2': 0.5064, 'reachable_back_ratio': 0.37}}, 'clear_lane_width_m': 0.0, 'front_half_max_height_m': 0.695, 'back_half_mean_height_m': 0.351}
+**access** — {'corridor': {'area_m2': 0.3128, 'free_ratio': 0.522, 'mean_height_m': 0.164, 'max_height_m': 0.343}, 'front_centre': {'area_m2': 0.2584, 'free_ratio': 0.481, 'mean_height_m': 0.198, 'max_height_m': 0.749}, 'approach': {'width_m': 1.46, 'median_clearance_m': 0.835, 'max_clearance_m': 1.53, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.215, 'reachable_free_m2': 0.406, 'reachable_back_ratio': 0.078}, '0.20': {'reachable_ratio': 0.215, 'reachable_free_m2': 0.406, 'reachable_back_ratio': 0.078}, '0.40': {'reachable_ratio': 0.457, 'reachable_free_m2': 0.56, 'reachable_back_ratio': 0.342}, '0.60': {'reachable_ratio': 0.457, 'reachable_free_m2': 0.56, 'reachable_back_ratio': 0.342}}, 'clear_lane_width_m': 0.16, 'front_half_max_height_m': 0.749, 'back_half_mean_height_m': 0.35}
 
 **tall structure** — 2 tall-perimeter items, back share 0.500, median step back 6.000 vs front 7.000.
 
@@ -317,7 +325,7 @@ Soft+priority dominated stream with a priority shelf ULD present: SP should pref
 |---|---|---|---|---|---|
 | 1 | wall-front | `left-back` | 0.338 | 0.2335 | normal-hard |
 | 3 | wall-front | `chamfer-back` | 0.339 | 0.1958 | normal-hard |
-| 6 | tall-perimeter | `right-back` | 0.451 | 0.1985 | normal-hard |
+| 6 | tall-perimeter | `right-back` | 0.749 | 0.1195 | normal-hard |
 | 7 | tall-perimeter | `right-front` | 0.646 | 0.1806 | normal-hard |
 | 8 | elongated | `chamfer-front` | 0.695 | 0.1344 | normal-hard |
 
@@ -326,6 +334,7 @@ Soft+priority dominated stream with a priority shelf ULD present: SP should pref
 
 Long thin cargo (rho 2.5-6): the structural exception path. Watch where the wall / corner preference sends them and which poses the tipping bands refuse.
 
+![07-elongated-heavy](images/07-elongated-heavy/c0_stack.png)
 ![07-elongated-heavy](images/07-elongated-heavy/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=16)
@@ -372,6 +381,7 @@ Long thin cargo (rho 2.5-6): the structural exception path. Watch where the wall
 
 Small low boxes that would fit the chamfer wedge if it were reachable. This scenario exists to show whether the slope pocket is usable at all from a floor layer.
 
+![08-slope-exploitation](images/08-slope-exploitation/c0_stack.png)
 ![08-slope-exploitation](images/08-slope-exploitation/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=15)
@@ -409,6 +419,7 @@ Small low boxes that would fit the chamfer wedge if it were reachable. This scen
 
 Realistic mixed stream matching the official sample config class ratios.
 
+![09-mixed-random](images/09-mixed-random/c0_stack.png)
 ![09-mixed-random](images/09-mixed-random/c0_terrain.png)
 
 ### container 0  (shelf=True, priority=False, placed=14)
@@ -446,6 +457,7 @@ Realistic mixed stream matching the official sample config class ratios.
 
 Deliberately badly tiling sizes: the hole diagnostics scenario. Interior holes here are the point, not a bug.
 
+![10-awkward-holes](images/10-awkward-holes/c0_stack.png)
 ![10-awkward-holes](images/10-awkward-holes/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=12)
@@ -487,6 +499,7 @@ Deliberately badly tiling sizes: the hole diagnostics scenario. Interior holes h
 
 Same mix as 09 but with look_ahead=3, to see whether the pool ordering rule changes the board shape.
 
+![11-lookahead-3](images/11-lookahead-3/c0_stack.png)
 ![11-lookahead-3](images/11-lookahead-3/c0_terrain.png)
 
 ### container 0  (shelf=True, priority=False, placed=16)
@@ -499,16 +512,16 @@ Same mix as 09 but with look_ahead=3, to see whether the pool ordering rule chan
 | `right-back` | 0.652 | 0.285 | 0.500 | 0.1784 | 0.0000 | 1 | 6 |
 | `chamfer-front` | 0.944 | 0.657 | 0.723 | 0.2176 | 0.0000 | 1 | 8 |
 | `left-front` | 0.208 | 0.110 | 0.723 | 0.0600 | 0.0000 | 0 | — |
-| `centre-front` | 0.648 | 0.346 | 0.738 | 0.1772 | 0.0000 | 2 | 7 |
-| `right-front` | 0.570 | 0.378 | 0.738 | 0.0384 | 0.0000 | 1 | 9 |
+| `centre-front` | 0.639 | 0.340 | 0.738 | 0.1748 | 0.0000 | 2 | 7 |
+| `right-front` | 0.579 | 0.385 | 0.738 | 0.0408 | 0.0000 | 1 | 9 |
 
-**normal-hard floor layer** — 7 items, 1.3694 m²; centroid (x=0.442, y=0.609) in normalised floor coordinates; back share 0.645, centre share 0.421; mean top height by depth third (front→back) [0.73, 0.296, 0.392].
+**normal-hard floor layer** — 7 items, 1.3694 m²; centroid (x=0.444, y=0.608) in normalised floor coordinates; back share 0.645, centre share 0.421; mean top height by depth third (front→back) [0.73, 0.296, 0.392].
 
 **surface** — buildable 0.846 (1.8020 m², 7 pads), soft-capped 0.1176 m². Support area {'free-floor': 0.5764, 'hard': 1.4372, 'soft-only': 0.0, 'priority-only': 0.1176, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.5764, '0.15-0.30': 0.4536, '0.30-0.50': 0.0816, '0.50-0.80': 1.0196, '0.80+': 0.0}.
 
 **shelf** — {'has_shelf': True, 'headroom_m': 0.73, 'headroom_volume_m3': 1.425, 'shelf_area_m2': 1.952, 'shelf_volume_used_m3': 0.5688, 'shelf_fill_ratio': 0.399, 'shelf_items': 6, 'shelf_footprint_ratio': 0.53, 'max_used_height_m': 0.648, 'headroom_height_used_ratio': 0.888, 'back_share_of_shelf_area': 0.813, 'overflow_items': 1, 'overflow_volume_m3': 0.087}
 
-**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.724, 'mean_height_m': 0.203, 'max_height_m': 0.738}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.352, 'mean_height_m': 0.346, 'max_height_m': 0.738}, 'approach': {'width_m': 1.48, 'median_clearance_m': 0.82, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.201, 'reachable_free_m2': 0.3988, 'reachable_back_ratio': 0.014}, '0.20': {'reachable_ratio': 0.201, 'reachable_free_m2': 0.3988, 'reachable_back_ratio': 0.014}, '0.40': {'reachable_ratio': 0.295, 'reachable_free_m2': 0.4268, 'reachable_back_ratio': 0.176}, '0.60': {'reachable_ratio': 0.335, 'reachable_free_m2': 0.4268, 'reachable_back_ratio': 0.229}}, 'clear_lane_width_m': 0.02, 'front_half_max_height_m': 0.738, 'back_half_mean_height_m': 0.401}
+**access** — {'corridor': {'area_m2': 0.3264, 'free_ratio': 0.729, 'mean_height_m': 0.2, 'max_height_m': 0.738}, 'front_centre': {'area_m2': 0.2736, 'free_ratio': 0.361, 'mean_height_m': 0.34, 'max_height_m': 0.738}, 'approach': {'width_m': 1.48, 'median_clearance_m': 0.82, 'max_clearance_m': 1.54, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.201, 'reachable_free_m2': 0.3996, 'reachable_back_ratio': 0.014}, '0.20': {'reachable_ratio': 0.201, 'reachable_free_m2': 0.3996, 'reachable_back_ratio': 0.014}, '0.40': {'reachable_ratio': 0.312, 'reachable_free_m2': 0.4284, 'reachable_back_ratio': 0.203}, '0.60': {'reachable_ratio': 0.352, 'reachable_free_m2': 0.4284, 'reachable_back_ratio': 0.256}}, 'clear_lane_width_m': 0.02, 'front_half_max_height_m': 0.738, 'back_half_mean_height_m': 0.401}
 
 **tall structure** — 3 tall-perimeter items, back share 0.333, median step back 6.000 vs front 8.500.
 
@@ -526,6 +539,7 @@ Same mix as 09 but with look_ahead=3, to see whether the pool ordering rule chan
 
 Only large plain hard cargo: the best case for the rectangular floor rule, and the flatness reference.
 
+![12-large-hard-only](images/12-large-hard-only/c0_stack.png)
 ![12-large-hard-only](images/12-large-hard-only/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=4)
@@ -560,6 +574,7 @@ Only large plain hard cargo: the best case for the rectangular floor rule, and t
 
 Small hard cargo first, large hard cargo after: does the follower rule stop the small boxes from carving up the bays the large ones still need?
 
+![13-small-first-then-large](images/13-small-first-then-large/c0_stack.png)
 ![13-small-first-then-large](images/13-small-first-then-large/c0_terrain.png)
 
 ### container 0  (shelf=False, priority=False, placed=13)
@@ -571,17 +586,17 @@ Small hard cargo first, large hard cargo after: does the follower rule stop the 
 | `centre-back` | 0.821 | 0.186 | 0.271 | 0.2184 | 0.0000 | 2 | 6 |
 | `right-back` | 0.809 | 0.161 | 0.246 | 0.2152 | 0.0000 | 2 | 7 |
 | `chamfer-front` | 0.325 | 0.193 | 0.607 | 0.0708 | 0.0000 | 2 | 10 |
-| `left-front` | 0.045 | 0.014 | 0.309 | 0.0116 | 0.0000 | 0 | — |
+| `left-front` | 0.853 | 0.264 | 0.309 | 0.2204 | 0.0000 | 0 | — |
 | `centre-front` | 0.853 | 0.264 | 0.309 | 0.2204 | 0.0000 | 1 | 13 |
-| `right-front` | 0.808 | 0.250 | 0.309 | 0.2088 | 0.0000 | 0 | — |
+| `right-front` | 0.045 | 0.014 | 0.309 | 0.0116 | 0.0000 | 0 | — |
 
-**normal-hard floor layer** — 10 items, 1.2872 m²; centroid (x=0.567, y=0.587) in normalised floor coordinates; back share 0.604, centre share 0.505; mean top height by depth third (front→back) [0.309, 0.271, 0.243].
+**normal-hard floor layer** — 10 items, 1.2872 m²; centroid (x=0.486, y=0.587) in normalised floor coordinates; back share 0.604, centre share 0.505; mean top height by depth third (front→back) [0.309, 0.271, 0.243].
 
-**surface** — buildable 0.779 (1.5700 m², 6 pads), soft-capped 0.0000 m². Support area {'free-floor': 0.688, 'hard': 1.3268, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.688, '0.15-0.30': 0.6308, '0.30-0.50': 0.5448, '0.50-0.80': 0.1512, '0.80+': 0.0}.
+**surface** — buildable 0.779 (1.5700 m², 6 pads), soft-capped 0.0000 m². Support area {'free-floor': 0.6764, 'hard': 1.3384, 'soft-only': 0.0, 'priority-only': 0.0, 'soft+priority-only': 0.0}.  Height bands {'0.00-0.15': 0.6764, '0.15-0.30': 0.6308, '0.30-0.50': 0.5564, '0.50-0.80': 0.1512, '0.80+': 0.0}.
 
 **shelf** — {'has_shelf': True, 'headroom_m': 0.725, 'headroom_volume_m3': 0.437, 'shelf_area_m2': 0.6028, 'shelf_volume_used_m3': 0, 'shelf_fill_ratio': 0.0, 'shelf_items': 0, 'shelf_footprint_ratio': 0.0, 'max_used_height_m': 0.0, 'headroom_height_used_ratio': 0.0, 'back_share_of_shelf_area': None, 'overflow_items': 0, 'overflow_volume_m3': 0}
 
-**access** — {'corridor': {'area_m2': 0.3128, 'free_ratio': 0.563, 'mean_height_m': 0.135, 'max_height_m': 0.309}, 'front_centre': {'area_m2': 0.2584, 'free_ratio': 0.147, 'mean_height_m': 0.264, 'max_height_m': 0.309}, 'approach': {'width_m': 1.46, 'median_clearance_m': 1.221, 'max_clearance_m': 1.53, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.298, 'reachable_free_m2': 0.572, 'reachable_back_ratio': 0.095}, '0.20': {'reachable_ratio': 0.298, 'reachable_free_m2': 0.572, 'reachable_back_ratio': 0.095}, '0.40': {'reachable_ratio': 0.872, 'reachable_free_m2': 0.6756, 'reachable_back_ratio': 0.808}, '0.60': {'reachable_ratio': 0.872, 'reachable_free_m2': 0.6756, 'reachable_back_ratio': 0.808}}, 'clear_lane_width_m': 0.4, 'front_half_max_height_m': 0.607, 'back_half_mean_height_m': 0.236}
+**access** — {'corridor': {'area_m2': 0.3128, 'free_ratio': 0.217, 'mean_height_m': 0.242, 'max_height_m': 0.309}, 'front_centre': {'area_m2': 0.2584, 'free_ratio': 0.147, 'mean_height_m': 0.264, 'max_height_m': 0.309}, 'approach': {'width_m': 1.46, 'median_clearance_m': 1.221, 'max_clearance_m': 1.53, 'width_over_0.30m': 1.46, 'width_over_0.50m': 1.46, 'width_over_0.70m': 1.46}, 'reach': {'0.00': {'reachable_ratio': 0.273, 'reachable_free_m2': 0.522, 'reachable_back_ratio': 0.058}, '0.20': {'reachable_ratio': 0.365, 'reachable_free_m2': 0.528, 'reachable_back_ratio': 0.24}, '0.40': {'reachable_ratio': 0.872, 'reachable_free_m2': 0.664, 'reachable_back_ratio': 0.808}, '0.60': {'reachable_ratio': 0.872, 'reachable_free_m2': 0.664, 'reachable_back_ratio': 0.808}}, 'clear_lane_width_m': 0.38, 'front_half_max_height_m': 0.607, 'back_half_mean_height_m': 0.236}
 
 **tall structure** — 0 tall-perimeter items, back share —, median step back — vs front —.
 

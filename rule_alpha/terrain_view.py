@@ -15,6 +15,7 @@ Four panels per container, all read-only:
 
 from __future__ import annotations
 
+import math
 import pathlib
 
 import matplotlib
@@ -236,16 +237,222 @@ def draw_support_map(ax, terrain, model: ContainerModel, config):
     ax.tick_params(labelsize=7)
 
 
+# ---------------------------------------------------------------------------
+# Isometric stack view
+# ---------------------------------------------------------------------------
+_ISO_U = 1.0 / math.sqrt(2.0)
+_ISO_V = 1.0 / math.sqrt(6.0)
+
+
+def _iso(x: float, y: float, z: float) -> tuple[float, float]:
+    """True isometric projection for a viewer at ``(+x, -y, +z)``.
+
+    Derived rather than guessed: with the view direction ``d = (1, -1, 1)``,
+    screen-up is ``z`` with ``d`` projected out and screen-right is ``s x d``,
+    which gives these two rows.  The three faces that can be seen are therefore
+    the ``+x`` side, the ``-y`` side -- the one facing the loading opening --
+    and the top; the back of the container falls up-and-left, further away, as
+    it should.  Painting far-to-near gives exact occlusion for axis-aligned
+    boxes that do not overlap, which is what a settled board is.
+    """
+    return ((x + y) * _ISO_U, (-x + y + 2.0 * z) * _ISO_V)
+
+
+def _shade(colour: str, factor: float) -> tuple:
+    rgb = matplotlib.colors.to_rgb(colour)
+    return tuple(min(1.0, max(0.0, c * factor)) for c in rgb)
+
+
+def _iso_box(ax, box, colour, edge, linewidth, style, alpha=1.0, label=None):
+    """Three visible faces, each shaded so the solid reads as a solid."""
+    x0, y0, z0 = (float(v) for v in box.minimum)
+    x1, y1, z1 = (float(v) for v in box.maximum)
+    faces = (
+        # top, brightest
+        ([(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)], 1.0),
+        # the face towards the opening
+        ([(x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1)], 0.78),
+        # the +x face
+        ([(x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)], 0.58),
+    )
+    for corners, factor in faces:
+        ax.add_patch(
+            patches.Polygon(
+                [_iso(*c) for c in corners], closed=True,
+                facecolor=_shade(colour, factor), edgecolor=edge,
+                linewidth=linewidth, linestyle=style, alpha=alpha, zorder=5,
+            )
+        )
+    if label is not None:
+        u, v = _iso(0.5 * (x0 + x1), y0, 0.5 * (z0 + z1))
+        ax.text(u, v, label, ha="center", va="center", fontsize=7,
+                color="white", zorder=9,
+                path_effects=[
+                    path_effects.withStroke(linewidth=2.0, foreground="#000000aa")
+                ])
+
+
+def _iso_depth(box) -> float:
+    """Distance from the viewer at ``(+x, -y, +z)``; smaller is further away."""
+    return (
+        float(box.minimum[0]) - float(box.maximum[1]) + float(box.minimum[2])
+    )
+
+
+def draw_iso_stack(ax, model: ContainerModel, placements, config,
+                   numbered: bool = True):
+    ax.set_title("how it is stacked  (isometric, viewed from the opening)",
+                 fontsize=10)
+    ax.set_axis_off()
+
+    # container: the floor pentagon extruded, drawn as a wireframe so nothing
+    # is hidden behind it
+    section = _cross_section(model)
+    for y, width in ((model.y_opening, 1.6), (model.y_back, 0.9)):
+        ax.add_patch(
+            patches.Polygon(
+                [_iso(px, y, pz) for px, pz in section], closed=True,
+                fill=False, edgecolor="#333333", linewidth=width, zorder=1,
+            )
+        )
+    for px, pz in section:
+        a, b = _iso(px, model.y_opening, pz), _iso(px, model.y_back, pz)
+        ax.plot([a[0], b[0]], [a[1], b[1]], color="#333333", linewidth=0.8,
+                alpha=0.6, zorder=1)
+
+    for shelf in model.shelves:
+        _iso_box(ax, shelf, "#7d3cbd", "#4b2273", 0.8, "solid", alpha=0.45)
+
+    for placement in sorted(placements, key=lambda p: _iso_depth(p.box)):
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
+        _iso_box(
+            ax, placement.box,
+            CLASS_COLOR[placement.profile.cargo_class],
+            edge, width, style,
+            label=str(placement.step) if numbered else None,
+        )
+
+    corners = [
+        _iso(x, y, z)
+        for x in (model.x_wall_min, model.x_wall_max)
+        for y in (model.y_opening, model.y_back)
+        for z in (0.0, model.height)
+    ]
+    us = [c[0] for c in corners]
+    vs = [c[1] for c in corners]
+    ax.set_xlim(min(us) - 0.1, max(us) + 0.1)
+    ax.set_ylim(min(vs) - 0.1, max(vs) + 0.1)
+    ax.set_aspect("equal")
+
+
+def draw_side_elevation(ax, model: ContainerModel, placements, config):
+    """Looking along +X: depth against height — the terrace question itself.
+
+    ``H_back >= H_mid >= H_front`` is not a matter of taste: the validator
+    sweeps straight in, so a profile that rises towards the opening seals
+    everything behind it.  This is the view that shows whether it does.
+    """
+    ax.set_title("side elevation  (depth profile — is the back higher?)",
+                 fontsize=10)
+    ax.set_xlabel("y  [m]     opening -Y  ->  back +Y")
+    ax.set_ylabel("z  [m]")
+
+    ax.add_patch(
+        patches.Rectangle(
+            (model.y_opening, model.z_floor),
+            model.y_back - model.y_opening,
+            model.z_ceiling - model.z_floor,
+            fill=False, edgecolor="#222222", linewidth=1.8, zorder=8,
+        )
+    )
+    for shelf in model.shelves:
+        ax.add_patch(
+            patches.Rectangle(
+                (float(shelf.minimum[1]), float(shelf.minimum[2])),
+                float(shelf.size[1]), float(shelf.size[2]),
+                facecolor="#7d3cbd", edgecolor="#4b2273", alpha=0.6, zorder=7,
+            )
+        )
+
+    span = max(model.x_wall_max - model.x_wall_min, 1e-9)
+    for placement in sorted(placements, key=lambda p: p.rect.x_min):
+        rect = placement.rect
+        edge, width, style = ROLE_EDGE.get(placement.role, ROLE_EDGE[cls.ROLE_NONE])
+        across = (rect.x_min - model.x_wall_min) / span
+        ax.add_patch(
+            patches.Rectangle(
+                (rect.y_min, float(placement.box.minimum[2])),
+                rect.y_max - rect.y_min, float(placement.box.size[2]),
+                facecolor=CLASS_COLOR[placement.profile.cargo_class],
+                edgecolor=edge, linewidth=width, linestyle=style,
+                # further across = paler, so the overlap is readable
+                alpha=0.85 - 0.5 * across,
+                zorder=5 + int(10 * (1.0 - across)),
+            )
+        )
+
+    # the floor terrain seen from the side: the highest thing at each depth
+    grid = trn.build_terrain(model, placements, config).grid
+    profile = np.where(grid.usable, grid.height, np.nan)
+    with np.errstate(invalid="ignore"):
+        skyline = np.nanmax(profile, axis=0)
+    ax.step(grid.ys, skyline, where="mid", color="#d62828", linewidth=1.6,
+            zorder=12, label="floor skyline")
+    ax.legend(loc="upper left", fontsize=6, frameon=False)
+
+    ax.set_xlim(model.y_opening - 0.05, model.y_back + 0.05)
+    ax.set_ylim(0.0, model.height + 0.05)
+    ax.set_aspect("equal")
+    ax.tick_params(labelsize=7)
+
+
+def render_stack(model: ContainerModel, placements, config, title: str,
+                 path: pathlib.Path) -> list:
+    """The stack on its own, square, because it is the picture people read."""
+    figure, ax = plt.subplots(figsize=(11.0, 10.0))
+    figure.suptitle(title, fontsize=12)
+    draw_iso_stack(ax, model, placements, config)
+    ax.set_title("")  # the figure title already says it
+    figure.legend(
+        handles=_stack_legend(), loc="lower center", ncol=6, fontsize=7,
+        frameon=False,
+    )
+    figure.tight_layout(rect=(0, 0.06, 1, 0.96))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    written = []
+    for suffix in (".png", ".svg"):
+        target = path.with_suffix(suffix)
+        figure.savefig(target, dpi=140)
+        written.append(target)
+    plt.close(figure)
+    return written
+
+
+def _stack_legend():
+    return (
+        [patches.Patch(facecolor=colour, edgecolor="#333333", label=name)
+         for name, colour in CLASS_COLOR.items()]
+        + [Line2D([0], [0], color=colour, lw=lw, linestyle=style,
+                  label=f"role: {role}")
+           for role, (colour, lw, style) in ROLE_EDGE.items()
+           if role != cls.ROLE_NONE]
+        + [Line2D([0], [0], color="#7d3cbd", lw=1.4, linestyle="-",
+                  label="shelf")]
+    )
+
+
 def render_terrain(model: ContainerModel, placements, config, title: str,
                    path: pathlib.Path) -> list:
     terrain = trn.build_terrain(model, placements, config)
-    figure, axes = plt.subplots(2, 2, figsize=(15.0, 13.5))
+    figure, axes = plt.subplots(3, 2, figsize=(15.0, 19.5))
     figure.suptitle(title, fontsize=12)
 
     draw_opening_elevation(axes[0][0], model, placements, config)
-    draw_role_order_top(axes[0][1], model, placements, config)
-    draw_height_map(axes[1][0], terrain, model, config)
-    draw_support_map(axes[1][1], terrain, model, config)
+    draw_side_elevation(axes[0][1], model, placements, config)
+    draw_role_order_top(axes[1][0], model, placements, config)
+    draw_height_map(axes[1][1], terrain, model, config)
+    draw_support_map(axes[2][0], terrain, model, config)
+    axes[2][1].set_axis_off()
 
     figure.legend(
         handles=(
@@ -260,7 +467,7 @@ def render_terrain(model: ContainerModel, placements, config, title: str,
         ),
         loc="lower center", ncol=6, fontsize=7, frameon=False,
     )
-    figure.tight_layout(rect=(0, 0.05, 1, 0.965), h_pad=3.0)
+    figure.tight_layout(rect=(0, 0.035, 1, 0.975), h_pad=3.0)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     written = []
