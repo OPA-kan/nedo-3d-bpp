@@ -791,6 +791,37 @@ def _role_for(box, model, profile, orientation, board, container_idx, config,
     return cls.ROLE_NONE
 
 
+def in_wedge_approach(rect: Rect, model: ContainerModel, config) -> bool:
+    """Is this footprint in the band everything wedge-side is delivered through?
+
+    The chamfer runs the whole depth and the sweep comes straight in along
+    ``y``, so a single band of ``x`` carries the approach to every wedge step
+    and every terrace above them.  Depth does not enter into it: a tall box at
+    the back of this band blocks nothing, but one at the front blocks all of it,
+    and ``sealed_added`` already prices that difference.  What this identifies
+    is *which columns matter*.
+    """
+    return rect.x_min <= model.x_floor_min + config.wedge_approach_band + 1e-9
+
+
+def blocks_wedge_approach(box: AABB, model: ContainerModel, role: str,
+                          config) -> bool:
+    """A placement that stands tall in the wedge approach.
+
+    The wall front is exempt: it is *meant* to be the wall against the chamfer
+    foot and already has its own, lower, height cap.  Wedge steps and slope
+    infill are exempt because they are the thing being protected.
+    """
+    if role in (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
+        return False
+    if not in_wedge_approach(box_rect(box), model, config):
+        return False
+    return (
+        float(box.maximum[2]) - model.z_floor
+        > config.wedge_approach_max_height + 1e-9
+    )
+
+
 def is_tall_perimeter(box: AABB, model: ContainerModel, profile: cls.ItemProfile,
                       orientation: cls.Orientation, config) -> bool:
     """A standing pose parked against a wall rather than laid down.
@@ -814,6 +845,15 @@ def is_tall_perimeter(box: AABB, model: ContainerModel, profile: cls.ItemProfile
     if orientation.dz <= flattest + 1e-9:
         return False
     rect = box_rect(box)
+    if in_wedge_approach(rect, model, config) and (
+        orientation.dz > config.wedge_approach_max_height + 1e-9
+    ):
+        # Standing up here is the one placement that costs more than it buys:
+        # it seals the approach to every wedge step and every terrace above
+        # them.  Laid flat the same item is a low top a terrace can grow from.
+        # The test is the height, not the label, so one setting governs both
+        # this and the veto and the pair can be switched off together.
+        return False
     tol = config.settled_clearance * 1.6
     against_left = abs(rect.x_min - model.floor_rect.x_min) <= tol
     against_right = abs(model.floor_rect.x_max - rect.x_max) <= tol
@@ -1684,6 +1724,22 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
         ratio = candidate.orientation.tipping_ratio
         if ratio >= config.max_freestanding_ratio and not candidate.features["has_backing"]:
             drop(candidate, "free-standing-tipping-risk")
+        else:
+            kept.append(candidate)
+    if kept:
+        survivors = kept
+
+    # 4b. height in the wedge approach.  Scoped to that band on purpose: tall
+    #     cargo on the right perimeter or against the back wall is still wanted,
+    #     because nothing is delivered through those columns afterwards.  Here
+    #     it is, so a tall box buys one item's volume and pays with access to
+    #     everything wedge-side behind and above it.
+    kept = []
+    for candidate in survivors:
+        if candidate.surface == "floor" and blocks_wedge_approach(
+            candidate.box, model, candidate.role, config
+        ):
+            drop(candidate, "blocks-wedge-approach")
         else:
             kept.append(candidate)
     if kept:

@@ -121,6 +121,24 @@ class RuleAlphaConfig:
     """A terrace or bridge may sit at most this far above the support it grows
     from.  Higher than that is not growth, it is a new tower."""
 
+    wedge_approach_band: float = 0.30
+    """How far in from the chamfer foot counts as the *approach* to the wedge.
+
+    The chamfer runs the full depth, and the validator sweeps straight in along
+    ``y`` at the target ``x``, so everything a wedge step or an upper terrace on
+    that side will ever be reached through shares this band of ``x``.  Whatever
+    stands here decides what can still be delivered behind it."""
+
+    wedge_approach_max_height: float = 0.45
+    """How tall an ordinary placement in that band may be.
+
+    Standing cargo up here is the single worst thing to do on this board: it
+    buys one item's volume and pays for it with access to the whole wedge side
+    behind and above it.  Laid flat, the same item gives a low top that a
+    terrace can grow from.  This does *not* apply anywhere else -- tall cargo
+    on the right perimeter or the back wall is still wanted, because nothing is
+    delivered through those columns afterwards."""
+
     wedge_bridge_strip: float = 0.25
     """How far in from the chamfer foot a hard top still counts as wedge-side,
     and so as something a wedge bridge can reach out from."""
@@ -276,7 +294,7 @@ class RuleAlphaConfig:
     # ------------------------------------------------------------------
     # Chamfer wedge: RAW -> STAIRCASE -> SOFT_READY -> CLOSED
     # ------------------------------------------------------------------
-    wedge_overhang_fraction: float = 0.30
+    wedge_overhang_fraction: float = 0.40
     """How far a staircase step may reach past the support under it, as a share
     of its own width.  There is no official support floor -- that was
     rule-alpha's own rule -- and the measured limit is ``o = w/2``, where the
