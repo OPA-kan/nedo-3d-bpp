@@ -1122,3 +1122,74 @@ class StabilityTest(unittest.TestCase):
         )
         self.assertEqual(state.contact_count, 0)
         self.assertFalse(state.supported)
+
+
+class LayerDepthTest(unittest.TestCase):
+    """Layer depth comes from the support relation, not from the column
+    under the candidate's centre."""
+
+    def _container(self, packed):
+        return {
+            "length": 2.0, "width": 1.5, "height": 1.6, "thickness": 0.02,
+            "buffer": 0.0, "cut_x": 0.0, "cut_y": 0.0, "center": (0, 0, 0),
+            "packed_items": packed,
+        }
+
+    def _item(self, index, x, y, z, dims, layer):
+        return {
+            "index": index, "length": dims[0], "width": dims[1],
+            "height": dims[2], "mass": 10.0, "is_soft": False,
+            "is_prioritized": False, "orientation": 0, "dims": dims,
+            "pos": (x, y, z), "layer": layer,
+        }
+
+    def test_an_offset_box_takes_the_depth_of_what_holds_it_up(self):
+        """The case a centre-column count gets wrong: the centre sits over the
+        first-layer item while the second-layer one beside it is the support."""
+        floor_z = 0.02
+        wide = (1.00, 0.60, 0.30)
+        upper = (0.40, 0.60, 0.30)
+        packed = [
+            # L1 across the middle
+            self._item(0, 0.0, 0.0, floor_z + 0.15, wide, 1),
+            # L2 sitting on its right half
+            self._item(1, 0.30, 0.0, floor_z + 0.45, upper, 2),
+        ]
+        container = self._container(packed)
+
+        # a box resting on the L2 item, but offset so its centre is over the
+        # L1 item below
+        box = AABB((0.12, 0.0, floor_z + 0.75), (0.50, 0.60, 0.30), "candidate")
+        self.assertEqual(
+            layer1.stack_level(box, container, cls.ROLE_NONE, DEFAULT_CONFIG), 3
+        )
+
+    def test_floor_and_shelf_are_the_first_layer(self):
+        container = self._container([])
+        box = AABB((0.0, 0.0, 0.02 + 0.15), (0.5, 0.4, 0.30), "candidate")
+        self.assertEqual(
+            layer1.stack_level(box, container, cls.ROLE_NONE, DEFAULT_CONFIG), 1
+        )
+
+    def test_a_wedge_step_is_a_structural_base_not_a_storey(self):
+        """A chain of wedge steps must not charge its depth to the cargo above
+        it, or the staircase forbids itself two steps in."""
+        floor_z = 0.02
+        dims = (0.40, 0.50, 0.20)
+        packed = [
+            self._item(0, -0.40, 0.0, floor_z + 0.10, dims, layer1.WEDGE_BASE_LAYER),
+            self._item(1, -0.50, 0.0, floor_z + 0.30, dims, layer1.WEDGE_BASE_LAYER),
+        ]
+        container = self._container(packed)
+
+        # another step on the chain: still a base, however deep the chain is
+        step = AABB((-0.60, 0.0, floor_z + 0.50), dims, "step")
+        self.assertEqual(
+            layer1.stack_level(step, container, cls.ROLE_WEDGE_STEP, DEFAULT_CONFIG),
+            layer1.WEDGE_BASE_LAYER,
+        )
+        # and normal cargo landing on the chain starts its own count at 1
+        normal = AABB((-0.50, 0.0, floor_z + 0.55), (0.4, 0.5, 0.3), "normal")
+        self.assertEqual(
+            layer1.stack_level(normal, container, cls.ROLE_NONE, DEFAULT_CONFIG), 1
+        )

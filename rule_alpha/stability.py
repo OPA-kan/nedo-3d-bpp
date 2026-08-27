@@ -32,7 +32,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from ._reuse import AABB, packed_aabbs_local, shelf_aabbs
+from ._reuse import AABB, packed_aabbs_local, packed_dimensions, shelf_aabbs
 from .geometry import Rect
 
 
@@ -82,6 +82,45 @@ def contact_patches(box: AABB, container: dict, tolerance: float) -> list[Rect]:
             continue
         patches.append(Rect(x_min, x_max, y_min, y_max))
     return patches
+
+
+def world_to_local_position(packed: dict, container: dict):
+    """Local-frame centre of a packed item, matching ``packed_aabbs_local``."""
+    offset_x = float(container.get("center", (0.0, 0.0, 0.0))[0])
+    pos = packed["pos"]
+    return (float(pos[0]) - offset_x, float(pos[1]), float(pos[2]))
+
+
+def supporting_items(box: AABB, container: dict, tolerance: float) -> list[dict]:
+    """The packed items this box actually rests on.
+
+    Same contact test as ``contact_patches``, but returning the items rather
+    than the rectangles, so a caller can read what those items *are* -- which is
+    what a layer tag needs and a geometric column count cannot give.
+    """
+    bottom = float(box.minimum[2])
+    out = []
+    for packed in container.get("packed_items", []):
+        if bool(packed.get("is_soft", False)) or bool(
+            packed.get("is_prioritized", False)
+        ):
+            continue
+        try:
+            dims = packed_dimensions(packed)
+            pos = world_to_local_position(packed, container)
+        except (KeyError, TypeError, ValueError):
+            continue
+        top = float(pos[2]) + float(dims[2]) / 2.0
+        if abs(bottom - top) > tolerance:
+            continue
+        x_min = max(float(box.minimum[0]), float(pos[0]) - float(dims[0]) / 2.0)
+        x_max = min(float(box.maximum[0]), float(pos[0]) + float(dims[0]) / 2.0)
+        y_min = max(float(box.minimum[1]), float(pos[1]) - float(dims[1]) / 2.0)
+        y_max = min(float(box.maximum[1]), float(pos[1]) + float(dims[1]) / 2.0)
+        if x_max - x_min <= 1e-9 or y_max - y_min <= 1e-9:
+            continue
+        out.append(packed)
+    return out
 
 
 def convex_hull(points) -> list[tuple[float, float]]:
@@ -209,4 +248,5 @@ def hull_area(polygon) -> float:
 __all__ = [
     "Stability", "contact_patches", "convex_hull", "evaluate", "hull_area",
     "is_stable", "point_margin", "support_area_ratio",
+    "supporting_items",
 ]

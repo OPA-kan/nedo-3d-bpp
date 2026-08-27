@@ -128,6 +128,7 @@ class Placement:
     settle_note: str = "analytic"
     container_is_prioritized: bool = False
     container_has_shelf: bool = False
+    layer: int = 1
     step: int = 0
 
     @property
@@ -353,6 +354,7 @@ class Board:
                     float(centre[2]),
                 ),
                 "belongs_to": model.index,
+                "layer": int(placement.layer),
             }
         )
         self.placements[idx].append(placement)
@@ -585,27 +587,34 @@ def _anchor_values(values, low, high, limit):
     return seen
 
 
-def stack_level(box: AABB, container: dict, config) -> int:
-    """How many layers of cargo this box would make, counting the floor as 1.
+WEDGE_BASE_LAYER = 0
+"""A wedge step's layer tag.
 
-    Walks the column under the box's centre: anything hard whose footprint
-    covers that point and whose top is at or below this box's underside is a
-    layer beneath it.
+Zero rather than a real depth, so a normal box landing on one gets
+``1 + 0 = 1`` and counts as a first layer.  A wedge step is a *structural
+base*, not a storey: the staircase is a ramp built out of the container's own
+geometry, and charging its depth to the cargo above it would forbid the
+mechanism the moment the chain got two steps long.
+"""
+
+
+def stack_level(box: AABB, container: dict, role: str, config) -> int:
+    """Layer depth from the actual support relation.
+
+        L(i) = 1                              resting on the floor or a shelf
+        L(i) = 1 + max L(j) over supports j   resting on cargo
+
+    Not "how many items are under the centre".  A box can be offset so that its
+    centre happens to sit over a first-layer item while it is really carried by
+    a second-layer one beside it -- and the other way round.  The depth that
+    matters is the one along the chain that holds it up.
     """
-    cx, cy = float(box.center[0]), float(box.center[1])
-    bottom = float(box.minimum[2])
-    below = 0
-    for packed, is_soft, is_prioritized in packed_aabbs_local(container):
-        if is_soft or is_prioritized:
-            continue
-        rect = box_rect(packed)
-        if not (rect.x_min - 1e-9 <= cx <= rect.x_max + 1e-9):
-            continue
-        if not (rect.y_min - 1e-9 <= cy <= rect.y_max + 1e-9):
-            continue
-        if float(packed.maximum[2]) <= bottom + config.contact_tolerance:
-            below += 1
-    return below + 1
+    if role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
+        return WEDGE_BASE_LAYER
+    supports = stability.supporting_items(box, container, config.contact_tolerance)
+    if not supports:
+        return 1  # floor or shelf
+    return 1 + max(int(p.get("layer", 1)) for p in supports)
 
 
 def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
@@ -1953,17 +1962,30 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
         kept = []
         for candidate in survivors:
             if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
-                kept.append(candidate)
+                kept.append(candidate)  # the ramp grows as far as it can
                 continue
             if candidate.surface != "item":
                 kept.append(candidate)
                 continue
-            if stack_level(candidate.box, container, config) <= config.layer2_max_layers:
+            level = stack_level(
+                candidate.box, container, candidate.role, config
+            )
+            if level <= config.layer2_max_layers:
                 kept.append(candidate)
             else:
                 drop(candidate, "too-many-layers")
-        if kept:
-            survivors = kept
+        # No fallback.  Every other veto here yields when it would leave
+        # nothing, because refusing an item outright is usually worse than a
+        # compromised placement.  This one is a structural limit, not a
+        # preference: a third layer is a third layer however badly the board
+        # wants one, and letting it through when nothing else fits is exactly
+        # how the cap silently stopped applying.
+        survivors = kept
+        if not survivors:
+            # the only structural veto with no fallback, so it is also the only
+            # one that can empty the list; everything after here assumes it is
+            # looking at at least one candidate
+            return [], counts
 
     # 5. a follower may not break the last bay the frontier cargo still needs.
     #    The manifest is given to optimize(), so the outstanding large
@@ -2304,6 +2326,9 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             },
             container_is_prioritized=model.is_prioritized,
             container_has_shelf=model.has_shelf,
+            layer=stack_level(
+                box, board.container(container_idx), chosen.role, config
+            ),
         )
         decision = Decision(
             placement=placement,
