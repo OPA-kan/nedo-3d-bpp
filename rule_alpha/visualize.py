@@ -47,6 +47,11 @@ ROLE_EDGE = {
     cls.ROLE_SLOPE_INFILL: ("#b52ea8", 2.2, "dashdot"),
     cls.ROLE_TALL_PERIMETER: ("#1f7a8c", 2.2, "solid"),
     cls.ROLE_WEDGE_STEP: ("#7a5c00", 2.2, "dashdot"),
+    # Layer 2 growth families, so a picture can answer "which of these is
+    # Layer 2 and what kind" without cross-referencing the step log
+    "terrace": ("#00a2a2", 2.6, "solid"),
+    "bridge": ("#d81b60", 3.0, "solid"),
+    "wedge-bridge": ("#8e24aa", 3.0, "dashed"),
 }
 ZONE_STYLE = {
     "wall_front_strip": ("#c0392b", "slope wall-front strip"),

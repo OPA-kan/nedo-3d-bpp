@@ -95,11 +95,11 @@ def build(out_dir: pathlib.Path, config, scenarios, images: bool) -> dict:
                 label = f"{scenario.name} — container {idx}"
                 for written in render_stack(
                     model, placements, config,
-                    f"{label} — how Layer 1 stacked it",
+                    f"{label} — how it is stacked (Layer 1 + Layer 2)",
                     base / f"c{idx}_stack.png",
                 ) + render_terrain(
                     model, placements, config,
-                    f"{label} — Layer 1 terrain",
+                    f"{label} — terrain",
                     base / f"c{idx}_terrain.png",
                 ):
                     entry["images"].append(
