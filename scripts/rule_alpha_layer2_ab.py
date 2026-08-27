@@ -64,11 +64,16 @@ def measure(result, config) -> dict:
     for placement in placements:
         family = (
             l2.FAMILY_SHELF if placement.surface == "shelf"
+            # role before surface: a hole fill on the floor is still a hole
+            # fill, and reading the surface first would count it as ordinary
+            # floor cargo and hide the family that placed it
+            else l2.FAMILY_HOLE_FILL if placement.role == l2.ROLE_HOLE_FILL
             else l2.FAMILY_FLOOR if placement.surface == "floor"
             else {
                 l2.ROLE_TERRACE: l2.FAMILY_TERRACE,
                 l2.ROLE_BRIDGE: l2.FAMILY_BRIDGE,
                 l2.ROLE_WEDGE_BRIDGE: l2.FAMILY_WEDGE_BRIDGE,
+                l2.ROLE_HOLE_FILL: l2.FAMILY_HOLE_FILL,
             }.get(placement.role, l2.FAMILY_WEDGE_STEP)
         )
         families[family] = families.get(family, 0) + 1

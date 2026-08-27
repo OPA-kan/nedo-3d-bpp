@@ -192,9 +192,85 @@ class RuleAlphaConfig:
     on the right perimeter or the back wall is still wanted, because nothing is
     delivered through those columns afterwards."""
 
+    wedge_top_must_advance: bool = True
+    """While the wedge is growing, a box resting on the strip has to climb it.
+
+    A terrace is proposed flush with a hard top and knows nothing about the
+    chamfer to its left, so it kept landing on the top step and sitting back
+    from the reach that step had won -- capping the staircase with a box that
+    gained no ground.  The cap ladder is exempt: taking the top is what soft
+    cargo is being held for."""
+
+    wedge_bottleneck_is_local: bool = True
+    """Price the wedge reservation by *its own* lane, not the central corridor.
+
+    Delivery is a straight sweep in y at the target's own x, so what stops a box
+    reaching the chamfer strip is what stands in the strip's columns.  Charging
+    it for the central corridor made the reservation self-defeating: the more
+    Layer 1 packed the middle, the sooner the wedge closed, and on the shipped
+    boards it closed with the strip still empty and 0.16 m of reach unspent."""
+
     wedge_bridge_strip: float = 0.25
     """How far in from the chamfer foot a hard top still counts as wedge-side,
     and so as something a wedge bridge can reach out from."""
+
+    hole_fill_enabled: bool = True
+    """Aim candidates at the gaps one layer could not close.
+
+    Every Layer 1 anchor is derived from the edge of something already packed,
+    and the pose offered there is whichever the orientation policy ranked first.
+    Neither of those knows the *shape* of the gap, so a 0.55 x 0.30 slot never
+    sees the 0.55 x 0.30 pose of a 0.30 x 0.55 box: no rule refused it, nothing
+    proposed it.  This family finds the pocket first and picks the pose to
+    match, which is where the 90-degree yaw comes from.
+    """
+
+    hole_fill_min_area: float = 0.05
+    """Smallest pocket worth aiming at, in m^2.  Below this nothing in a real
+    manifest fits anyway and the candidates are pure cost."""
+
+    hole_fill_min_enclosure: float = 0.50
+    """How much of a pocket's rim must be wall or higher ground before it counts
+    as a hole rather than as ordinary open floor.
+
+    The opening deliberately does not count as rim: a slot that runs out to the
+    door is still a slot, but the whole front of an empty container is not."""
+
+    hole_fill_max_rect_share: float = 0.20
+    """Largest pocket, as a share of the usable floor, that still counts as a
+    hole rather than as open floor.
+
+    Without it the criterion collapses: an empty container's floor is walled on
+    three sides, so it scores as fully enclosed.  What actually distinguishes a
+    hole is that the edge-derived anchors keep missing it, and they only miss
+    small ones -- a large clearing is what they are good at."""
+
+    hole_fill_min_coverage: float = 0.55
+    """How much of the pocket the box has to take for the placement to earn the
+    hole-fill archetype.
+
+    This is what stops the family from degenerating into "anywhere there is
+    room": a small box in a large clearing covers little of it and is judged as
+    ordinary floor cargo, while the same box in a slot its own size is exactly
+    the placement this family exists to find."""
+
+    hole_fill_min_headroom: float = 0.10
+    """A pocket with less than this much space above it can hold nothing."""
+
+    hole_fill_rects_per_region: int = 5
+    """How many rectangles to peel off one free region before moving on.
+
+    The first is usually the open middle and is thrown away as room; the pockets
+    are the lobes left behind it, so stopping at one finds nothing."""
+
+    hole_fill_max_holes: int = 8
+    """Pockets offered per decision, largest first."""
+
+    hole_fill_tier_tolerance: float = 0.01
+    """How close two poses' heights have to be to count as equally flat.
+
+    Poses are offered a pocket in tiers of equal height, flattest tier first, so
+    a box is stood on end only where nothing lying down would go in."""
 
     layer2_bridge_level_tolerance: float = 0.06
     """How far apart two hard tops may be and still be offered as a pair to
@@ -390,6 +466,14 @@ class RuleAlphaConfig:
     Committing the strip to ordinary cargo is irreversible while withholding it
     costs only the volume held now, so the score prices the option an action
     would destroy rather than predicting arrivals."""
+
+    wedge_min_step_count: int = 3
+    """...or simply this many step-capable items, whatever their share.
+
+    A staircase needs a number of steps, not a proportion of the manifest.  On
+    two of the shipped boards three step-capable items out of 34 scored 0.088
+    against a 0.10 share gate and the zone closed before the first placement --
+    with three perfectly good steps waiting in the stream."""
 
     wedge_min_step_share: float = 0.10
     """Below this share of step-capable cargo the strip is not worth holding:

@@ -569,6 +569,28 @@ def corridor_report(grid: FloorGrid, model: ContainerModel) -> dict:
 # ---------------------------------------------------------------------------
 # Full report
 # ---------------------------------------------------------------------------
+def lane_bottleneck(grid: FloorGrid, model: ContainerModel, rect: Rect) -> float:
+    """Share of ``rect``'s columns that no longer have a clear run to the door.
+
+    The same lane test ``corridor_report`` runs, aimed anywhere.  Delivery is a
+    straight sweep in y at the target's own x -- ``transport_sweeps`` clamps the
+    start to the target column -- so what blocks a delivery is what stands in
+    *that* column, not congestion somewhere else across the floor.
+    """
+    mask = grid.rect_mask(rect) & grid.usable
+    lanes = total = 0
+    for ix in range(grid.nx):
+        column = mask[ix]
+        if not column.any():
+            continue
+        total += 1
+        if not grid.occupied[ix][column].any():
+            lanes += 1
+    if total == 0:
+        return 0.0
+    return 1.0 - lanes / total
+
+
 def board_report(model: ContainerModel, placements, config, cell: float | None = None,
                  triangle_state=None) -> dict:
     grid = build_floor_grid(model, placements, cell or config.grid_cell)

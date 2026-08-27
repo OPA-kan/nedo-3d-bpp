@@ -22,10 +22,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from rule_alpha import classify as cls  # noqa: E402
 from rule_alpha import layer1  # noqa: E402
+from rule_alpha import layer2 as l2  # noqa: E402
 from rule_alpha._reuse import AABB  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 from rule_alpha.diagnostics import (  # noqa: E402
     FloorGrid,
+    lane_bottleneck,
     connected_components,
     hole_report,
     largest_rectangle_in_mask,
@@ -1193,3 +1195,181 @@ class LayerDepthTest(unittest.TestCase):
         self.assertEqual(
             layer1.stack_level(normal, container, cls.ROLE_NONE, DEFAULT_CONFIG), 1
         )
+
+
+class HoleFillTest(unittest.TestCase):
+    """A gap one layer could not close, and the pose that fits it.
+
+    The failure this family exists to fix is not a rule that refused anything.
+    It is that nothing ever *proposed* the rotated pose: every Layer 1 anchor
+    comes from the edge of something already packed, and the orientation was
+    picked before the board was looked at.  So the tests are about what gets
+    offered, not about what gets vetoed.
+    """
+
+    def _slot_grid(self, slot=Rect(0.0, 0.55, 0.0, 0.30)):
+        """A slot walled in by cargo, with ordinary open floor around it."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.02)
+        top = model.z_floor + 0.30
+        outer = Rect(slot.x_min - 0.30, slot.x_max + 0.30,
+                     slot.y_min - 0.30, slot.y_max + 0.30)
+        grid.stamp(Rect(outer.x_min, outer.x_max, outer.y_min, slot.y_min),
+                   top, 1, True)
+        grid.stamp(Rect(outer.x_min, outer.x_max, slot.y_max, outer.y_max),
+                   top, 1, True)
+        grid.stamp(Rect(outer.x_min, slot.x_min, slot.y_min, slot.y_max),
+                   top, 1, True)
+        grid.stamp(Rect(slot.x_max, outer.x_max, slot.y_min, slot.y_max),
+                   top, 1, True)
+        return model, grid
+
+    def test_the_slot_between_two_blocks_is_found(self):
+        model, grid = self._slot_grid()
+        holes = l2.surface_holes(grid, model, DEFAULT_CONFIG)
+        self.assertTrue(holes, "the slot must be reported as a hole")
+        # the ring also leaves thin dead strips against the walls, and those
+        # are pockets too -- so look the slot up rather than assuming it ranks
+        # first
+        slot = next(
+            (h for h in holes
+             if abs((h.rect.x_max - h.rect.x_min) - 0.55) < 0.05
+             and abs((h.rect.y_max - h.rect.y_min) - 0.30) < 0.05),
+            None,
+        )
+        self.assertIsNotNone(slot, f"no hole matched the slot: {holes}")
+        self.assertTrue(slot.on_floor)
+        self.assertGreater(slot.enclosure, 0.9)
+        # the ring leaves thin dead strips against the walls, and those are
+        # pockets too -- but none of the reported holes may be the open floor
+        for other in holes:
+            self.assertLess(
+                other.rect.area,
+                DEFAULT_CONFIG.hole_fill_max_rect_share * grid.usable_area,
+                "room must never be reported as a hole",
+            )
+
+    def test_open_floor_is_not_a_hole(self):
+        """Otherwise the family degenerates into "anywhere there is room".
+
+        This is the case the enclosure test alone gets wrong: an empty
+        container's floor is walled on three sides and scores as fully
+        enclosed, so what rules it out has to be its size."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.04)
+        holes = l2.surface_holes(grid, model, DEFAULT_CONFIG)
+        self.assertEqual(holes, [], "an empty container has no holes, only room")
+
+    def test_the_pose_offered_is_the_one_shaped_like_the_gap(self):
+        """The whole point: a 90 degree yaw, and only if it is needed."""
+        slot = l2.Hole(
+            rect=Rect(0.0, 0.55, 0.0, 0.30), bottom_z=0.04, area=0.165,
+            enclosure=1.0, on_floor=True,
+        )
+        wide = cls.Orientation(index=0, dx=0.50, dy=0.25, dz=0.40)
+        tall_but_thin = cls.Orientation(index=1, dx=0.25, dy=0.50, dz=0.40)
+        tier = l2.flattest_fitting_tier(
+            slot, [tall_but_thin, wide], gap=0.0, config=DEFAULT_CONFIG
+        )
+        self.assertEqual([o.index for o in tier], [0],
+                         "only the pose that fits the slot may be offered")
+
+    def test_lying_down_wins_whenever_lying_down_fits(self):
+        """"as horizontal as possible": an upright pose is offered only where
+        nothing flatter goes in at all."""
+        slot = l2.Hole(
+            rect=Rect(0.0, 0.55, 0.0, 0.30), bottom_z=0.04, area=0.165,
+            enclosure=1.0, on_floor=True,
+        )
+        flat = cls.Orientation(index=0, dx=0.50, dy=0.25, dz=0.20)
+        upright = cls.Orientation(index=2, dx=0.25, dy=0.20, dz=0.50)
+        tier = l2.flattest_fitting_tier(
+            slot, [upright, flat], gap=0.0, config=DEFAULT_CONFIG
+        )
+        self.assertEqual([o.index for o in tier], [0])
+
+        # ...and in a slot too narrow for the flat pose, the upright one is
+        # what is left, and it is offered rather than the item being refused
+        narrow = l2.Hole(
+            rect=Rect(0.0, 0.27, 0.0, 0.22), bottom_z=0.04, area=0.06,
+            enclosure=1.0, on_floor=True,
+        )
+        tier = l2.flattest_fitting_tier(
+            narrow, [upright, flat], gap=0.0, config=DEFAULT_CONFIG
+        )
+        self.assertEqual([o.index for o in tier], [2])
+
+    def test_anchors_seat_the_box_in_a_corner_of_the_pocket(self):
+        slot = l2.Hole(
+            rect=Rect(0.0, 0.60, 0.0, 0.40), bottom_z=0.04, area=0.24,
+            enclosure=1.0, on_floor=True,
+        )
+        anchors = l2.hole_anchors(slot, 0.50, 0.30, gap=0.0)
+        # back-right corner of the pocket first
+        self.assertEqual((0.35, 0.25), (round(anchors[0][0], 3), round(anchors[0][1], 3)))
+        # every anchor keeps the box inside the pocket
+        for x, y in anchors:
+            self.assertGreaterEqual(round(x - 0.25, 6), slot.rect.x_min)
+            self.assertLessEqual(round(x + 0.25, 6), slot.rect.x_max)
+            self.assertGreaterEqual(round(y - 0.15, 6), slot.rect.y_min)
+            self.assertLessEqual(round(y + 0.15, 6), slot.rect.y_max)
+
+    def test_a_box_loose_in_a_clearing_does_not_earn_the_archetype(self):
+        """Coverage is what separates "this plugs the gap" from "this fits"."""
+        _container, model = _model()
+        profile = cls.classify_item(
+            0,
+            {"index": 0, "length": 0.30, "width": 0.25, "height": 0.20,
+             "mass": 8.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+        candidate = layer1.Candidate(
+            box=AABB((0.0, 0.0, 0.19), (0.30, 0.25, 0.20), "c"),
+            profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="hole",
+            role=l2.ROLE_HOLE_FILL, family=l2.FAMILY_HOLE_FILL,
+        )
+        candidate.features["hole_coverage"] = 0.2
+        self.assertNotIn(
+            layer1.A_HOLE_FILL,
+            layer1.eligible_archetypes(candidate, DEFAULT_CONFIG),
+        )
+        candidate.features["hole_coverage"] = 0.9
+        self.assertIn(
+            layer1.A_HOLE_FILL,
+            layer1.eligible_archetypes(candidate, DEFAULT_CONFIG),
+        )
+
+
+class WedgePricingTest(unittest.TestCase):
+    """The wedge is charged for its own lane, and nothing caps it for free."""
+
+    def test_a_lane_is_blocked_by_its_own_column_not_by_the_floor(self):
+        """The bug this replaces: the reservation was priced by the *central*
+        corridor, so packing the middle of the floor closed a strip at the far
+        -X edge that nothing had been delivered to yet."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.02)
+        strip = model.wall_front_strip
+        # fill the middle of the floor solid, leaving the strip untouched
+        grid.stamp(
+            Rect(strip.x_max + 0.10, model.floor_rect.x_max,
+                 model.floor_rect.y_min, model.floor_rect.y_max),
+            model.z_floor + 0.30, 1, True,
+        )
+        self.assertEqual(lane_bottleneck(grid, model, strip), 0.0)
+        self.assertGreater(
+            lane_bottleneck(grid, model, model.corridor), 0.5,
+            "the corridor really is blocked -- that is the point: it is not "
+            "the wedge's lane",
+        )
+
+    def test_blocking_the_strip_itself_does_price_it(self):
+        _container, model = _model()
+        grid = FloorGrid(model, 0.02)
+        strip = model.wall_front_strip
+        grid.stamp(
+            Rect(strip.x_min, strip.x_max, strip.y_min, strip.y_max),
+            model.z_floor + 0.30, 1, True,
+        )
+        self.assertGreater(lane_bottleneck(grid, model, strip), 0.9)

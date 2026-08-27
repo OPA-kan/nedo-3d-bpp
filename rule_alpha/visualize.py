@@ -52,6 +52,7 @@ ROLE_EDGE = {
     "terrace": ("#00a2a2", 2.6, "solid"),
     "bridge": ("#d81b60", 3.0, "solid"),
     "wedge-bridge": ("#8e24aa", 3.0, "dashed"),
+    "hole-fill": ("#2e7d32", 2.6, "dotted"),
 }
 ZONE_STYLE = {
     "wall_front_strip": ("#c0392b", "slope wall-front strip"),

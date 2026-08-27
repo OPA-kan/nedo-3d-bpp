@@ -54,6 +54,7 @@ A_WEDGE_CAP = "wedge-soft-cap"
 A_TERRACE = "terrace-extension"
 A_BRIDGE = "plateau-merge"
 A_WEDGE_BRIDGE = "wedge-bridge"
+A_HOLE_FILL = "hole-fill"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -73,6 +74,7 @@ ALL_ARCHETYPES = (
     A_TERRACE,
     A_BRIDGE,
     A_WEDGE_BRIDGE,
+    A_HOLE_FILL,
 )
 
 
@@ -227,6 +229,7 @@ class Board:
         self._triangle: list = [None for _ in self.containers]
         self._reach: list = [None for _ in self.containers]
         self._plateau: list = [None for _ in self.containers]
+        self._holes: list = [None for _ in self.containers]
         # manifest-derived: what the outstanding frontier cargo still needs.
         # The manifest is handed to optimize(), so reading it is information the
         # policy legitimately has -- not a peek at future arrivals.
@@ -268,17 +271,26 @@ class Board:
     def triangle_state(self, idx: int):
         state = self._triangle[idx]
         if state is None:
-            from .diagnostics import corridor_report
+            from .diagnostics import corridor_report, lane_bottleneck
 
             grid = self.grid(idx)
             model = self.models[idx]
-            corridor = corridor_report(grid, model)
+            if self.config.wedge_bottleneck_is_local:
+                # Charge the reservation for congestion in the lane it actually
+                # uses.  It was charged for the *central* corridor, which the
+                # wedge strip does not go through: on the first board the strip
+                # was empty, 0.16 m of reach was still on offer, and the zone
+                # closed anyway because the middle of the floor had filled up.
+                bottleneck = lane_bottleneck(grid, model, model.wall_front_strip)
+            else:
+                corridor = corridor_report(grid, model)
+                bottleneck = 1.0 - float(corridor["corridor_clear_lane_ratio"])
             state = tri.evaluate(
                 model,
                 self.placements[idx],
                 self.triangle_demand[idx],
                 grid.coverage(),
-                1.0 - float(corridor["corridor_clear_lane_ratio"]),
+                bottleneck,
                 self.config,
             )
             self._triangle[idx] = state
@@ -362,6 +374,7 @@ class Board:
         self._triangle[idx] = None
         self._reach = [None for _ in self.containers]
         self._plateau = [None for _ in self.containers]
+        self._holes = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
 
@@ -375,6 +388,16 @@ class Board:
                 self.config.plateau_height_tolerance,
             )
             self._plateau[idx] = cached
+        return cached
+
+    def holes(self, idx: int) -> list:
+        """Pockets one layer could not close, cached per board state."""
+        cached = self._holes[idx]
+        if cached is None:
+            cached = l2.surface_holes(
+                self.grid(idx), self.models[idx], self.config
+            )
+            self._holes[idx] = cached
         return cached
 
     def floor_reach(self, idx: int) -> tuple[float, float]:
@@ -1535,6 +1558,17 @@ def _key_bridge(c):
     )
 
 
+def _key_hole_fill(c):
+    # take the most of the pocket, lying as flat as the pocket allows, and
+    # among equals the one furthest back
+    return (
+        -c.features.get("hole_coverage", 0.0),
+        c.orientation.dz,
+        -c.features["y_back"],
+        -c.features["frontier_contact"],
+    )
+
+
 def _key_wedge_bridge(c):
     # reach over the bevel first, then the plateau it lands
     return (
@@ -1562,6 +1596,7 @@ ARCHETYPE_KEYS = {
     A_TERRACE: _key_terrace,
     A_BRIDGE: _key_bridge,
     A_WEDGE_BRIDGE: _key_wedge_bridge,
+    A_HOLE_FILL: _key_hole_fill,
 }
 
 
@@ -1573,6 +1608,15 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
     if candidate.role == cls.ROLE_SLOPE_INFILL:
         tags.add(A_SLOPE_INFILL)
         return tags
+    if (
+        candidate.role == l2.ROLE_HOLE_FILL
+        and candidate.features.get("hole_coverage", 0.0)
+        >= config.hole_fill_min_coverage
+    ):
+        # only a placement that actually *plugs* the gap earns the tag.  A small
+        # box loose in a large clearing is ordinary floor cargo, and calling it
+        # a hole fill would turn the archetype into "anywhere there is room".
+        tags.add(A_HOLE_FILL)
     tags.update({A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE, A_LARGEST_RESIDUAL})
     if candidate.role == cls.ROLE_WALL_FRONT:
         tags.add(A_WALL_FRONT)
@@ -1608,6 +1652,14 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
     wall_ratio = _wall_height_ratio(board, container_idx, model)
 
     ladder: list[str] = [A_WEDGE_STEP, A_WEDGE_CAP, A_SLOPE_INFILL]
+    if config.hole_fill_enabled and klass == cls.NORMAL_HARD:
+        # A pocket the board already has is worth more than a pose that starts
+        # a new one, and the tag is only ever offered to a placement that fills
+        # most of the gap -- so this is not a licence to go anywhere.  It has to
+        # come before the foundation archetypes: put it after them and the
+        # highest-footprint candidate somewhere else always wins, which is why
+        # the gaps were still there.
+        ladder.append(A_HOLE_FILL)
     if config.layer2_enabled and klass == cls.NORMAL_HARD:
         # growth before ground: a bridge or a terrace turns two supports into
         # one bigger one, which is worth more than another footprint on a floor
@@ -1652,15 +1704,17 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         ladder.append(A_SOFT_EDGE)
         if profile.is_elongated:
             ladder.append(A_ELONGATED_WALL)
-        ladder.extend([A_MIN_HOLE, A_BACK_CORNER])
+        ladder.extend([A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER])
     elif klass == cls.PRIORITY:
         if model.is_prioritized:
-            ladder.extend([A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE])
+            ladder.extend([A_MAX_FOOTPRINT, A_BACK_CORNER, A_HOLE_FILL, A_MIN_HOLE])
         else:
-            ladder.extend([A_PRIORITY_EDGE, A_MIN_HOLE, A_BACK_CORNER])
+            ladder.extend([A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER])
     else:  # soft + priority
         ladder.append(A_SHELF_SAVING)
-        ladder.extend([A_SP_CLUSTER, A_PRIORITY_EDGE, A_MIN_HOLE, A_BACK_CORNER])
+        ladder.extend([
+            A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER,
+        ])
     ladder.append(A_MAX_FOOTPRINT)
     seen, out = set(), []
     for name in ladder:
@@ -1740,6 +1794,85 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
         )
         if len(candidates) >= config.max_candidates_per_orientation:
             break
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# Hole filling: aim at the gap, then pick the pose that fits it
+# ---------------------------------------------------------------------------
+def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
+                             container_idx: int, config) -> list[Candidate]:
+    """Candidates seated inside a pocket one layer could not close.
+
+    Generated over *all* the item's orientations at once, which is the whole
+    point: the pose has to be chosen against the shape of the hole, and the
+    per-orientation loops elsewhere have already committed to a pose before
+    they ever look at the board.  For each pocket only the flattest tier of
+    poses that fits is offered, so the box is laid down wherever lying down
+    works and stood up only where nothing else goes in.
+    """
+    if not config.hole_fill_enabled:
+        return []
+
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    gap = config.settled_clearance
+    holes = board.holes(container_idx)
+    if not holes:
+        return []
+
+    orientations = list(profile.orientations)
+    candidates: list[Candidate] = []
+    seen = set()
+    for hole in holes:
+        if not hole.on_floor and not config.layer2_enabled:
+            continue
+        for orientation in l2.flattest_fitting_tier(
+            hole, orientations, gap, config
+        ):
+            dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+            if hole.bottom_z + dz > model.z_ceiling:
+                continue
+            coverage = min(1.0, orientation.footprint / max(1e-9, hole.rect.area))
+            for x, y in l2.hole_anchors(hole, dx, dy, gap):
+                key = (round(x, 4), round(y, 4), round(hole.bottom_z, 4),
+                       orientation.index)
+                if key in seen:
+                    continue
+                seen.add(key)
+                box = AABB(
+                    (float(x), float(y), float(hole.bottom_z) + dz / 2.0),
+                    (dx, dy, dz), "candidate",
+                )
+                ok, _why = validate(box, model, container, config)
+                if not ok:
+                    continue
+                if (
+                    not hole.on_floor
+                    and config.layer2_max_layers > 0
+                    and stack_level(box, container, l2.ROLE_HOLE_FILL, config)
+                    > config.layer2_max_layers
+                ):
+                    # A notch high in the terrain is a real pocket and the cap
+                    # still refuses to fill it.  Charging it to the family's
+                    # quota here and letting the veto delete it later spends the
+                    # whole quota on placements that cannot happen -- which is
+                    # exactly what it did: every tagged candidate on the first
+                    # board died at the cap, and no floor hole was ever reached.
+                    continue
+                candidate = Candidate(
+                    box=box, profile=profile, orientation=orientation,
+                    container_idx=container_idx,
+                    surface="floor" if hole.on_floor else "item",
+                    surface_name="hole" if hole.on_floor else "hard-top",
+                    role=l2.ROLE_HOLE_FILL, family=l2.FAMILY_HOLE_FILL,
+                )
+                candidate.features["hole_coverage"] = coverage
+                candidate.features["hole_area"] = hole.area
+                candidate.features["hole_rect_area"] = hole.rect.area
+                candidates.append(candidate)
+                if len(candidates) >= config.max_candidates_per_orientation:
+                    return candidates
     return candidates
 
 
@@ -1955,6 +2088,38 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                     drop(candidate, "hard-yields-the-front")
             survivors = kept
 
+    # 4f. nothing may cap the staircase without climbing it.  A terrace is
+    #     proposed flush with an existing hard top, and nothing in that
+    #     proposal knows the chamfer is over to its left -- so on the shipped
+    #     boards a terrace repeatedly landed on the top step and sat *back*
+    #     from the reach that step had won (x=-0.495 on a step that had got to
+    #     -0.655), sealing the climb under a box that gained nothing.  While
+    #     the zone is still growing, a placement resting on the strip has to
+    #     advance it.  Soft, and the rest of the cap ladder, are exempt: taking
+    #     the top is what they are being held for.
+    if config.wedge_top_must_advance:
+        state = board.triangle_state(container_idx)
+        if state.state in (tri.STATE_RAW, tri.STATE_STAIRCASE):
+            kept = []
+            for candidate in survivors:
+                if (
+                    candidate.surface == "item"
+                    and candidate.role not in (
+                        cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL
+                    )
+                    and tri.in_strip(candidate.box, model, config)
+                    and not tri.cap_allows(candidate.profile, state, config)
+                    and float(candidate.box.minimum[0])
+                    > state.left_reach - config.wedge_min_step_gain
+                ):
+                    drop(candidate, "caps-the-staircase")
+                else:
+                    kept.append(candidate)
+            # a fallback: refusing the item outright is worse than one flat
+            # top, and the zone closes on its own soon enough
+            if kept:
+                survivors = kept
+
     # 4e. how many layers deep this would be.  The wedge staircase is exempt:
     #     it is a ramp, not a stack, and each step rests on the one below by
     #     construction.
@@ -2160,6 +2325,15 @@ def _shortlist_key(candidate: Candidate, typed_right_front: bool = True):
     pattern has appeared, so it is worth saying plainly: a rule downstream of a
     truncation cannot undo the truncation.
     """
+    if candidate.family == l2.FAMILY_HOLE_FILL:
+        # depth is the wrong question for a pocket: the one worth taking is the
+        # one this box fills, wherever it is.  Ranking these by depth alongside
+        # everything else would delete the far ones before the archetype ran --
+        # the same truncation mistake, in a new family.
+        return (
+            -candidate.features.get("hole_coverage", 0.0),
+            -candidate.features["y_back"],
+        )
     if (
         typed_right_front
         and candidate.surface == "floor"
@@ -2220,6 +2394,14 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                         board, profile, container_idx, orientation, config
                     )
                 )
+
+        # Hole filling is generated once for the whole item rather than per
+        # pose, because the pose is what it decides: which orientation to use
+        # is a property of the gap, and every loop above has already picked one
+        # before it looks at the board.
+        pool.extend(
+            generate_hole_candidates(board, profile, container_idx, config)
+        )
         if not pool:
             continue
 
@@ -2239,15 +2421,21 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             buckets.setdefault(
                 (candidate.family, candidate.orientation.index), []
             ).append(candidate)
-        families = {family for family, _ in buckets}
-        per_bucket = max(
-            4,
-            config.layer2_family_quota
-            // max(1, len(buckets) // max(1, len(families))),
-        )
+        # Each family's quota is divided among *its own* poses and nothing
+        # else's.  Deriving one shared number from the average number of poses
+        # per family coupled them: adding a family changed how many candidates
+        # every other family was allowed to keep, so turning one on or off
+        # perturbed decisions it had no business touching and no A/B on it
+        # could be read.
+        poses_in_family: dict[str, int] = {}
+        for family, _index in buckets:
+            poses_in_family[family] = poses_in_family.get(family, 0) + 1
         shortlist = []
         typed_rf = config.typed_floor_right_front
-        for group in buckets.values():
+        for (family, _index), group in buckets.items():
+            per_bucket = max(
+                4, config.layer2_family_quota // max(1, poses_in_family[family])
+            )
             group.sort(key=lambda c: _shortlist_key(c, typed_rf))
             shortlist.extend(group[:per_bucket])
         shortlist.sort(key=lambda c: _shortlist_key(c, typed_rf))

@@ -78,6 +78,15 @@ class WedgeDemand:
 
     p_step: float = 0.0
     """Share of the stream small enough to be a staircase step."""
+    n_step: int = 0
+    """...and how many items that is.
+
+    The share is the right unit for pricing -- a stream that is mostly steps is
+    a stream that wants a staircase -- but the wrong one for the go/no-go gate,
+    because a staircase needs a *number* of steps, not a proportion.  Three
+    step-capable items out of 34 is 0.088 and builds a perfectly good three-step
+    climb; the share gate refused it on two of the shipped boards before a
+    single item had been placed."""
     p_cap: float = 0.0
     """Share that could take the cap once the staircase is up."""
     p_soft: float = 0.0
@@ -86,6 +95,7 @@ class WedgeDemand:
     def as_dict(self) -> dict:
         return {
             "p_step_capable": round(self.p_step, 4),
+            "n_step_capable": self.n_step,
             "p_cap_customers": round(self.p_cap, 4),
             "p_soft": round(self.p_soft, 4),
             "source": self.source,
@@ -250,8 +260,10 @@ def measure_demand(profiles, model: ContainerModel, config,
         return WedgeDemand(source="empty-stream")
     total = float(len(profiles))
     allowed = set(CAP_LADDER[: config.wedge_cap_ladder_depth + 1])
+    n_step = sum(1 for p in profiles if step_capable(p, model, config))
     return WedgeDemand(
-        p_step=sum(1 for p in profiles if step_capable(p, model, config)) / total,
+        p_step=n_step / total,
+        n_step=n_step,
         p_cap=sum(1 for p in profiles if p.cargo_class in allowed) / total,
         p_soft=sum(1 for p in profiles if p.is_soft) / total,
         source=source,
@@ -277,10 +289,17 @@ def reserve_score(model: ContainerModel, demand: WedgeDemand, floor_fill: float,
         "floor_fill": round(floor_fill, 4),
         "transport_bottleneck": round(bottleneck, 4),
     }
-    if demand.p_step < config.wedge_min_step_share:
+    terms["n_step_capable"] = demand.n_step
+    if (
+        demand.p_step < config.wedge_min_step_share
+        and demand.n_step < config.wedge_min_step_count
+    ):
         # cap customers are worth nothing without something to build the
         # staircase out of: holding the strip for soft cargo that has no way to
-        # get up there is the waste this score exists to prevent
+        # get up there is the waste this score exists to prevent.  Enough
+        # *items* settles it either way, though -- a long manifest with three
+        # step-capable boxes can still build a three-step climb, and judging it
+        # by share alone shut the zone before anything was placed.
         return -1.0, terms
     score = (
         config.wedge_weight_step * demand.p_step
