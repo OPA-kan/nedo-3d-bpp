@@ -2466,8 +2466,14 @@ class Decision:
 def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) -> list[tuple]:
     """(surface kinds, orientation policy surface) pairs to try, in order."""
     out = []
-    wants_shelf = profile.is_soft and model.shelves
-    if wants_shelf:
+    if model.shelves and (profile.is_soft or config.shelf_takes_hard):
+        # The shelf is a second floor, not a soft dump.  It carries 1.87 m^2
+        # against the floor's 2.03, with 0.725 m of headroom over it against
+        # the floor's 0.765 -- and offering it only to soft cargo meant that on
+        # a manifest with no soft cargo it was measurably, exactly unused: five
+        # scenarios at 0.00 utilisation, one of them placing eighteen hard
+        # items with the shelf empty above them.  Soft still gets first refusal
+        # below; this only stops hard being unable to ask.
         out.append((("shelf",), "shelf"))
     out.append((("floor",), "floor"))
     if config.allow_slope_infill_on_items:
@@ -2540,8 +2546,10 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                         board, profile, container_idx, orientation, surface_kinds, config
                     )
                 )
-            if surface_kinds == ("shelf",) and pool:
-                break  # shelf is strongly preferred for soft cargo
+            if surface_kinds == ("shelf",) and pool and profile.is_soft:
+                break  # shelf is strongly preferred for soft cargo -- but only
+                # for soft: hard should weigh a shelf place against a floor one
+                # on the merits, not take the shelf merely because it fits.
 
         # Layer 2 proposals are generated over their own orientation set: a
         # bridge wants the widest, flattest pose, which the floor policy would

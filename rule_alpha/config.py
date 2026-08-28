@@ -124,6 +124,18 @@ class RuleAlphaConfig:
     # ------------------------------------------------------------------
     # Typed cargo: the shelf first, and the right front when it overflows
     # ------------------------------------------------------------------
+    shelf_takes_hard: bool = True
+    """Offer the shelf to normal-hard cargo as well, not only to soft.
+
+    The shelf is a second floor: 1.87 m^2 against the floor's 2.03, with
+    0.725 m of headroom above it against the floor's 0.765.  Offering it only
+    to soft cargo made its use a side effect of how much soft cargo happened to
+    arrive -- measured across the scenarios, utilisation tracked the soft count
+    one for one and was exactly 0.00 on all five manifests with no soft cargo,
+    including one that placed eighteen hard items under an empty shelf.  Soft
+    still gets first refusal on it; this only stops hard from being unable to
+    ask."""
+
     shelf_own_anchors: bool = True
     """Offer a shelf placement anchors measured from the shelf itself.
 
