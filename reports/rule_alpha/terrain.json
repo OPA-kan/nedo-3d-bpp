@@ -5,47 +5,48 @@
    "scenario": "01-normal-no-shelf",
    "description": "Single ULD without a shelf, mostly plain hard cargo. The reference picture for the rectangular floor rule.",
    "items_in_stream": 26,
-   "items_placed": 11,
+   "items_placed": 16,
    "role_histogram": {
-    "wall-front": 2,
-    "wedge-step": 1,
-    "terrace": 3,
-    "none": 2,
-    "tall-perimeter": 1,
-    "hole-fill": 2
+    "wall-front": 3,
+    "wedge-step": 2,
+    "terrace": 4,
+    "none": 3,
+    "hole-fill": 2,
+    "bridge": 1,
+    "tall-perimeter": 1
    },
    "containers": [
     {
      "container_index": 0,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 11,
+     "placed_total": 16,
      "normal_hard": {
-      "count": 3,
-      "footprint_m2": 0.7153,
-      "x_centroid": 0.435,
-      "y_centroid": 0.768,
-      "back_share": 1.0,
-      "centre_share": 0.0,
+      "count": 5,
+      "footprint_m2": 1.0001,
+      "x_centroid": 0.398,
+      "y_centroid": 0.689,
+      "back_share": 0.827,
+      "centre_share": 0.112,
       "cell_share": {
        "chamfer-back": 0.0,
-       "left-back": 0.674,
-       "centre-back": 0.0,
-       "right-back": 0.326,
-       "chamfer-front": 0.0,
+       "left-back": 0.482,
+       "centre-back": 0.112,
+       "right-back": 0.233,
+       "chamfer-front": 0.173,
        "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
-       null,
+       0.348,
        0.38,
-       0.351
+       0.472
       ],
       "slab_height_by_y_third": [
        null,
        null,
-       0.373
+       0.544
       ]
      },
      "tall": {
@@ -68,6 +69,14 @@
        },
        {
         "step": 8,
+        "role": "wall-front",
+        "cell": "chamfer-front",
+        "height_m": 0.348,
+        "footprint_m2": 0.1728,
+        "class": "normal-hard"
+       },
+       {
+        "step": 13,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.601,
@@ -78,33 +87,33 @@
       "tall_perimeter_count": 1,
       "tall_perimeter_back_share": 0.0,
       "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 8.0
+      "tall_perimeter_median_step_front": 13.0
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
        "coverage": 1.0,
-       "mean_height_m": 0.815,
-       "max_height_m": 1.226,
+       "mean_height_m": 0.933,
+       "max_height_m": 1.482,
        "hard_top_m2": 0.224,
        "soft_top_m2": 0.0,
-       "items": 3,
+       "items": 4,
        "classes": {
-        "normal-hard": 3
+        "normal-hard": 4
        },
        "roles": {
         "wedge-step": 1,
-        "terrace": 2
+        "terrace": 3
        },
        "first_step": 3,
-       "median_step": 4.0
+       "median_step": 4.5
       },
       "left-back": {
        "usable_m2": 0.266,
-       "coverage": 0.926,
-       "mean_height_m": 0.401,
-       "max_height_m": 1.226,
-       "hard_top_m2": 0.2464,
+       "coverage": 0.95,
+       "mean_height_m": 0.608,
+       "max_height_m": 1.482,
+       "hard_top_m2": 0.2528,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -118,22 +127,27 @@
       },
       "centre-back": {
        "usable_m2": 0.266,
-       "coverage": 0.198,
-       "mean_height_m": 0.104,
-       "max_height_m": 0.629,
-       "hard_top_m2": 0.0528,
+       "coverage": 0.668,
+       "mean_height_m": 0.679,
+       "max_height_m": 1.202,
+       "hard_top_m2": 0.1776,
        "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
+       "items": 2,
+       "classes": {
+        "normal-hard": 2
+       },
+       "roles": {
+        "hole-fill": 1,
+        "bridge": 1
+       },
+       "first_step": 11,
+       "median_step": 11.5
       },
       "right-back": {
        "usable_m2": 0.266,
        "coverage": 0.943,
-       "mean_height_m": 0.521,
-       "max_height_m": 0.629,
+       "mean_height_m": 0.822,
+       "max_height_m": 1.202,
        "hard_top_m2": 0.19,
        "soft_top_m2": 0.0,
        "items": 2,
@@ -144,32 +158,33 @@
         "terrace": 1
        },
        "first_step": 6,
-       "median_step": 6.5
+       "median_step": 7.5
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.629,
-       "mean_height_m": 0.567,
+       "coverage": 0.866,
+       "mean_height_m": 0.661,
        "max_height_m": 1.226,
-       "hard_top_m2": 0.0696,
-       "soft_top_m2": 0.0672,
-       "items": 1,
+       "hard_top_m2": 0.1884,
+       "soft_top_m2": 0.0,
+       "items": 2,
        "classes": {
-        "soft": 1
+        "normal-hard": 2
        },
        "roles": {
-        "hole-fill": 1
+        "wall-front": 1,
+        "wedge-step": 1
        },
-       "first_step": 10,
-       "median_step": 10.0
+       "first_step": 8,
+       "median_step": 9.0
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.488,
-       "mean_height_m": 0.285,
+       "coverage": 0.288,
+       "mean_height_m": 0.135,
        "max_height_m": 1.226,
-       "hard_top_m2": 0.0204,
-       "soft_top_m2": 0.0576,
+       "hard_top_m2": 0.0264,
+       "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -188,8 +203,8 @@
         "priority": 1
        },
        "roles": {},
-       "first_step": 9,
-       "median_step": 9.0
+       "first_step": 14,
+       "median_step": 14.0
       },
       "right-front": {
        "usable_m2": 0.2584,
@@ -207,32 +222,32 @@
         "tall-perimeter": 1,
         "hole-fill": 1
        },
-       "first_step": 8,
-       "median_step": 9.5
+       "first_step": 13,
+       "median_step": 14.5
       }
      },
      "support_area": {
-      "free-floor": 0.546,
-      "hard": 0.8032,
-      "soft-only": 0.204,
+      "free-floor": 0.4148,
+      "hard": 1.0592,
+      "soft-only": 0.0792,
       "priority-only": 0.4616,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.546,
+      "0.00-0.15": 0.4148,
       "0.15-0.30": 0.0,
-      "0.30-0.50": 0.6852,
-      "0.50-0.80": 0.5552,
-      "0.80+": 0.2284
+      "0.30-0.50": 0.6208,
+      "0.50-0.80": 0.482,
+      "0.80+": 0.4972
      },
      "buildable": {
-      "buildable_area_m2": 0.682,
-      "buildable_ratio": 0.338,
-      "soft_capped_area_m2": 0.6656,
-      "pad_count": 4,
+      "buildable_area_m2": 0.6112,
+      "buildable_ratio": 0.303,
+      "soft_capped_area_m2": 0.5408,
+      "pad_count": 3,
       "pads": [
        {
-        "height_m": 0.328,
+        "height_m": 1.202,
         "area_m2": 0.2304,
         "rect_m2": 0.2304,
         "rect_size_m": [
@@ -241,30 +256,21 @@
         ]
        },
        {
-        "height_m": 1.226,
-        "area_m2": 0.19,
-        "rect_m2": 0.19,
+        "height_m": 0.328,
+        "area_m2": 0.2208,
+        "rect_m2": 0.2176,
         "rect_size_m": [
-         0.38,
-         0.5
-        ]
-       },
-       {
-        "height_m": 0.629,
-        "area_m2": 0.1536,
-        "rect_m2": 0.1536,
-        "rect_size_m": [
-         0.48,
+         0.68,
          0.32
         ]
        },
        {
-        "height_m": 0.38,
-        "area_m2": 0.108,
-        "rect_m2": 0.108,
+        "height_m": 1.482,
+        "area_m2": 0.16,
+        "rect_m2": 0.16,
         "rect_size_m": [
-         0.3,
-         0.36
+         0.5,
+         0.32
         ]
        }
       ]
@@ -274,22 +280,22 @@
       "headroom_m": 0.725,
       "headroom_volume_m3": 0.437,
       "shelf_area_m2": 0.6028,
-      "shelf_volume_used_m3": 0,
-      "shelf_fill_ratio": 0.0,
-      "shelf_items": 0,
-      "shelf_footprint_ratio": 0.0,
-      "max_used_height_m": 0.0,
-      "headroom_height_used_ratio": 0.0,
-      "back_share_of_shelf_area": null,
-      "overflow_items": 4,
-      "overflow_volume_m3": 0.3556
+      "shelf_volume_used_m3": 0.0747,
+      "shelf_fill_ratio": 0.171,
+      "shelf_items": 1,
+      "shelf_footprint_ratio": 0.248,
+      "max_used_height_m": 0.499,
+      "headroom_height_used_ratio": 0.688,
+      "back_share_of_shelf_area": 0.0,
+      "overflow_items": 3,
+      "overflow_volume_m3": 0.2622
      },
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.271,
-       "mean_height_m": 0.284,
-       "max_height_m": 0.71
+       "free_ratio": 0.409,
+       "mean_height_m": 0.186,
+       "max_height_m": 0.315
       },
       "front_centre": {
        "area_m2": 0.2584,
@@ -307,35 +313,35 @@
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.118,
-        "reachable_free_m2": 0.2084,
+        "reachable_ratio": 0.149,
+        "reachable_free_m2": 0.2712,
         "reachable_back_ratio": 0.004
        },
        "0.20": {
-        "reachable_ratio": 0.118,
-        "reachable_free_m2": 0.2084,
+        "reachable_ratio": 0.149,
+        "reachable_free_m2": 0.2712,
         "reachable_back_ratio": 0.004
        },
        "0.40": {
-        "reachable_ratio": 0.417,
-        "reachable_free_m2": 0.4464,
-        "reachable_back_ratio": 0.327
+        "reachable_ratio": 0.411,
+        "reachable_free_m2": 0.3748,
+        "reachable_back_ratio": 0.231
        },
        "0.60": {
-        "reachable_ratio": 0.417,
-        "reachable_free_m2": 0.4464,
-        "reachable_back_ratio": 0.327
+        "reachable_ratio": 0.411,
+        "reachable_free_m2": 0.3748,
+        "reachable_back_ratio": 0.231
        }
       },
       "clear_lane_width_m": 0.02,
       "front_half_max_height_m": 1.226,
-      "back_half_mean_height_m": 0.446
+      "back_half_mean_height_m": 0.753
      },
      "order": {
-      "placements": 11,
-      "back_to_front_violations": 3,
-      "back_to_front_adherence": 0.7273,
-      "max_backtrack_m": 0.62,
+      "placements": 16,
+      "back_to_front_violations": 6,
+      "back_to_front_adherence": 0.625,
+      "max_backtrack_m": 0.5325,
       "violations": [
        {
         "step": 5,
@@ -353,29 +359,47 @@
         "step": 7,
         "item_index": 24,
         "surface": "hard-top",
-        "backtrack_m": 0.62
+        "backtrack_m": 0.312
+       },
+       {
+        "step": 9,
+        "item_index": 23,
+        "surface": "hard-top",
+        "backtrack_m": 0.467
+       },
+       {
+        "step": 12,
+        "item_index": 3,
+        "surface": "hard-top",
+        "backtrack_m": 0.5325
+       },
+       {
+        "step": 13,
+        "item_index": 4,
+        "surface": "floor",
+        "backtrack_m": 0.1697
        }
       ],
       "final_frontier_y": -0.661,
       "frontier_depth_used": 0.9546
      },
      "volume": {
-      "placed_volume_m3": 0.83277,
+      "placed_volume_m3": 1.17507,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.2078,
-      "foundation_volume_m3": 0.47942,
-      "foundation_slab_height_m": 1.226,
-      "foundation_slab_volume_m3": 2.48774,
-      "foundation_slab_fill_ratio": 0.1927,
-      "structural_volume_m3": 0.35335,
-      "placed_volume_floor_m3": 0.83277,
-      "placed_volume_shelf_m3": 0.0,
+      "volume_fill_ratio": 0.2933,
+      "foundation_volume_m3": 0.6415,
+      "foundation_slab_height_m": 1.482,
+      "foundation_slab_volume_m3": 3.00721,
+      "foundation_slab_fill_ratio": 0.2133,
+      "structural_volume_m3": 0.45883,
+      "placed_volume_floor_m3": 1.10034,
+      "placed_volume_shelf_m3": 0.07473,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
       "items_moved": 3,
-      "total_y_m": 0.434,
+      "total_y_m": 0.4432,
       "max_y_m": 0.3169,
       "total_x_m": 0.0
      }
@@ -387,18 +411,18 @@
     "images/01-normal-no-shelf/c0_terrain.png",
     "images/01-normal-no-shelf/c0_terrain.svg"
    ],
-   "runtime_seconds": 34.0
+   "runtime_seconds": 53.0
   },
   {
    "scenario": "02-normal-with-shelf",
    "description": "Same cargo mix in a shelf ULD: shows where the soft items go once a shelf exists, and what the shelf does to the back half of the floor.",
    "items_in_stream": 26,
-   "items_placed": 16,
+   "items_placed": 17,
    "role_histogram": {
     "wall-front": 3,
     "wedge-step": 3,
-    "none": 6,
-    "terrace": 3,
+    "none": 5,
+    "terrace": 5,
     "tall-perimeter": 1
    },
    "containers": [
@@ -406,7 +430,7 @@
      "container_index": 0,
      "has_shelf": true,
      "is_prioritized": false,
-     "placed_total": 16,
+     "placed_total": 17,
      "normal_hard": {
       "count": 6,
       "footprint_m2": 1.4635,
@@ -462,7 +486,7 @@
         "class": "normal-hard"
        },
        {
-        "step": 13,
+        "step": 15,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.59,
@@ -473,7 +497,7 @@
       "tall_perimeter_count": 1,
       "tall_perimeter_back_share": 0.0,
       "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 13.0
+      "tall_perimeter_median_step_front": 15.0
      },
      "cells": {
       "chamfer-back": {
@@ -560,10 +584,10 @@
       },
       "left-front": {
        "usable_m2": 0.288,
-       "coverage": 0.532,
-       "mean_height_m": 0.365,
-       "max_height_m": 1.027,
-       "hard_top_m2": 0.1532,
+       "coverage": 0.624,
+       "mean_height_m": 0.549,
+       "max_height_m": 1.237,
+       "hard_top_m2": 0.1796,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -573,27 +597,27 @@
       },
       "centre-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.778,
-       "mean_height_m": 0.627,
-       "max_height_m": 1.027,
-       "hard_top_m2": 0.2128,
+       "coverage": 0.944,
+       "mean_height_m": 1.123,
+       "max_height_m": 1.237,
+       "hard_top_m2": 0.2584,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 4,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 4
        },
        "roles": {
-        "terrace": 1
+        "terrace": 3
        },
        "first_step": 11,
-       "median_step": 11.5
+       "median_step": 12.5
       },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.699,
-       "mean_height_m": 0.411,
-       "max_height_m": 1.027,
-       "hard_top_m2": 0.0504,
+       "coverage": 0.806,
+       "mean_height_m": 0.626,
+       "max_height_m": 1.237,
+       "hard_top_m2": 0.0796,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -602,37 +626,37 @@
        "roles": {
         "tall-perimeter": 1
        },
-       "first_step": 13,
-       "median_step": 13.0
+       "first_step": 15,
+       "median_step": 15.0
       }
      },
      "support_area": {
-      "free-floor": 0.4368,
-      "hard": 1.5536,
+      "free-floor": 0.3356,
+      "hard": 1.6548,
       "soft-only": 0.0,
       "priority-only": 0.1408,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.4368,
+      "0.00-0.15": 0.3356,
       "0.15-0.30": 0.1712,
-      "0.30-0.50": 0.3652,
-      "0.50-0.80": 0.966,
-      "0.80+": 0.192
+      "0.30-0.50": 0.332,
+      "0.50-0.80": 0.8472,
+      "0.80+": 0.4452
      },
      "buildable": {
-      "buildable_area_m2": 1.1636,
-      "buildable_ratio": 0.546,
+      "buildable_area_m2": 1.138,
+      "buildable_ratio": 0.534,
       "soft_capped_area_m2": 0.1408,
       "pad_count": 6,
       "pads": [
        {
-        "height_m": 0.564,
-        "area_m2": 0.2808,
-        "rect_m2": 0.2808,
+        "height_m": 1.237,
+        "area_m2": 0.2852,
+        "rect_m2": 0.2852,
         "rect_size_m": [
-         0.54,
-         0.52
+         0.62,
+         0.46
         ]
        },
        {
@@ -654,11 +678,11 @@
         ]
        },
        {
-        "height_m": 1.027,
-        "area_m2": 0.192,
-        "rect_m2": 0.192,
+        "height_m": 0.564,
+        "area_m2": 0.162,
+        "rect_m2": 0.162,
         "rect_size_m": [
-         0.64,
+         0.54,
          0.3
         ]
        },
@@ -687,67 +711,67 @@
       "headroom_m": 0.73,
       "headroom_volume_m3": 1.425,
       "shelf_area_m2": 1.952,
-      "shelf_volume_used_m3": 0.2763,
-      "shelf_fill_ratio": 0.194,
-      "shelf_items": 3,
-      "shelf_footprint_ratio": 0.278,
+      "shelf_volume_used_m3": 0.1681,
+      "shelf_fill_ratio": 0.118,
+      "shelf_items": 2,
+      "shelf_footprint_ratio": 0.168,
       "max_used_height_m": 0.526,
       "headroom_height_used_ratio": 0.721,
-      "back_share_of_shelf_area": 0.724,
+      "back_share_of_shelf_area": 0.542,
       "overflow_items": 1,
       "overflow_volume_m3": 0.0814
      },
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.292,
-       "mean_height_m": 0.643,
-       "max_height_m": 1.027
+       "free_ratio": 0.078,
+       "mean_height_m": 1.072,
+       "max_height_m": 1.237
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.222,
-       "mean_height_m": 0.627,
-       "max_height_m": 1.027
+       "free_ratio": 0.056,
+       "mean_height_m": 1.123,
+       "max_height_m": 1.237
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 0.908,
+       "median_clearance_m": 0.45,
        "max_clearance_m": 1.265,
        "width_over_0.30m": 1.46,
-       "width_over_0.50m": 1.46,
-       "width_over_0.70m": 0.82
+       "width_over_0.50m": 0.54,
+       "width_over_0.70m": 0.52
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.096,
-        "reachable_free_m2": 0.1744,
+        "reachable_ratio": 0.061,
+        "reachable_free_m2": 0.1,
         "reachable_back_ratio": 0.0
        },
        "0.20": {
-        "reachable_ratio": 0.096,
-        "reachable_free_m2": 0.1744,
+        "reachable_ratio": 0.061,
+        "reachable_free_m2": 0.1,
         "reachable_back_ratio": 0.0
        },
        "0.40": {
-        "reachable_ratio": 0.119,
-        "reachable_free_m2": 0.176,
+        "reachable_ratio": 0.084,
+        "reachable_free_m2": 0.1016,
         "reachable_back_ratio": 0.002
        },
        "0.60": {
-        "reachable_ratio": 0.4,
-        "reachable_free_m2": 0.3348,
-        "reachable_back_ratio": 0.286
+        "reachable_ratio": 0.224,
+        "reachable_free_m2": 0.1816,
+        "reachable_back_ratio": 0.084
        }
       },
       "clear_lane_width_m": 0.0,
-      "front_half_max_height_m": 1.027,
+      "front_half_max_height_m": 1.237,
       "back_half_mean_height_m": 0.398
      },
      "order": {
-      "placements": 16,
+      "placements": 17,
       "back_to_front_violations": 1,
-      "back_to_front_adherence": 0.9375,
+      "back_to_front_adherence": 0.9412,
       "max_backtrack_m": 0.348,
       "violations": [
        {
@@ -761,16 +785,16 @@
       "frontier_depth_used": 0.9625
      },
      "volume": {
-      "placed_volume_m3": 1.24156,
+      "placed_volume_m3": 1.2733,
       "usable_container_volume_m3": 4.1903,
-      "volume_fill_ratio": 0.2963,
-      "foundation_volume_m3": 0.49296,
-      "foundation_slab_height_m": 1.027,
-      "foundation_slab_volume_m3": 2.20428,
-      "foundation_slab_fill_ratio": 0.2236,
+      "volume_fill_ratio": 0.3039,
+      "foundation_volume_m3": 0.63289,
+      "foundation_slab_height_m": 1.237,
+      "foundation_slab_volume_m3": 2.65501,
+      "foundation_slab_fill_ratio": 0.2384,
       "structural_volume_m3": 0.4723,
-      "placed_volume_floor_m3": 0.96527,
-      "placed_volume_shelf_m3": 0.27629,
+      "placed_volume_floor_m3": 1.1052,
+      "placed_volume_shelf_m3": 0.1681,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
@@ -788,19 +812,20 @@
     "images/02-normal-with-shelf/c0_terrain.png",
     "images/02-normal-with-shelf/c0_terrain.svg"
    ],
-   "runtime_seconds": 39.7
+   "runtime_seconds": 37.7
   },
   {
    "scenario": "03-priority-plus-normal",
    "description": "Priority ULD (index 0) next to a normal ULD. Tests the routing rules: soft-only never enters the priority container, plain hard may but only inside its budget.",
    "items_in_stream": 40,
-   "items_placed": 28,
+   "items_placed": 27,
    "role_histogram": {
     "wall-front": 4,
-    "terrace": 4,
-    "tall-perimeter": 4,
-    "none": 11,
-    "hole-fill": 3,
+    "terrace": 6,
+    "none": 10,
+    "hole-fill": 2,
+    "tall-perimeter": 2,
+    "elongated": 1,
     "wedge-step": 2
    },
    "containers": [
@@ -810,72 +835,72 @@
      "is_prioritized": true,
      "placed_total": 12,
      "normal_hard": {
-      "count": 4,
-      "footprint_m2": 1.1295,
-      "x_centroid": 0.478,
-      "y_centroid": 0.659,
-      "back_share": 0.684,
-      "centre_share": 0.0,
+      "count": 3,
+      "footprint_m2": 0.7404,
+      "x_centroid": 0.532,
+      "y_centroid": 0.816,
+      "back_share": 1.0,
+      "centre_share": 0.502,
       "cell_share": {
-       "chamfer-back": 0.223,
-       "left-back": 0.123,
-       "centre-back": 0.0,
-       "right-back": 0.337,
+       "chamfer-back": 0.284,
+       "left-back": 0.0,
+       "centre-back": 0.502,
+       "right-back": 0.214,
        "chamfer-front": 0.0,
-       "left-front": 0.316,
+       "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
        null,
-       0.261,
-       0.361
+       null,
+       0.348
       ],
       "slab_height_by_y_third": [
        null,
-       0.261,
-       0.218
+       null,
+       0.38
       ]
      },
      "tall": {
       "items": [
        {
-        "step": 8,
+        "step": 12,
         "role": "wall-front",
         "cell": "chamfer-back",
-        "height_m": 0.365,
-        "footprint_m2": 0.252,
+        "height_m": 0.285,
+        "footprint_m2": 0.21,
         "class": "normal-hard"
        },
        {
-        "step": 11,
-        "role": "tall-perimeter",
-        "cell": "left-back",
-        "height_m": 0.499,
-        "footprint_m2": 0.1394,
-        "class": "normal-hard"
-       },
-       {
-        "step": 16,
+        "step": 17,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.598,
         "footprint_m2": 0.1098,
         "class": "priority"
+       },
+       {
+        "step": 19,
+        "role": "elongated",
+        "cell": "chamfer-front",
+        "height_m": 0.721,
+        "footprint_m2": 0.1108,
+        "class": "priority"
        }
       ],
-      "tall_perimeter_count": 2,
-      "tall_perimeter_back_share": 0.5,
-      "tall_perimeter_median_step_back": 11.0,
-      "tall_perimeter_median_step_front": 16.0
+      "tall_perimeter_count": 1,
+      "tall_perimeter_back_share": 0.0,
+      "tall_perimeter_median_step_back": null,
+      "tall_perimeter_median_step_front": 17.0
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.2304,
-       "coverage": 0.941,
-       "mean_height_m": 0.549,
-       "max_height_m": 0.642,
-       "hard_top_m2": 0.1664,
+       "coverage": 0.972,
+       "mean_height_m": 0.489,
+       "max_height_m": 0.503,
+       "hard_top_m2": 0.224,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -885,32 +910,15 @@
         "wall-front": 1,
         "terrace": 1
        },
-       "first_step": 8,
-       "median_step": 8.5
+       "first_step": 12,
+       "median_step": 12.5
       },
       "left-back": {
        "usable_m2": 0.288,
-       "coverage": 0.835,
-       "mean_height_m": 0.395,
-       "max_height_m": 0.642,
-       "hard_top_m2": 0.2404,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "tall-perimeter": 1
-       },
-       "first_step": 11,
-       "median_step": 11.0
-      },
-      "centre-back": {
-       "usable_m2": 0.2736,
-       "coverage": 0.877,
-       "mean_height_m": 0.376,
-       "max_height_m": 0.499,
-       "hard_top_m2": 0.24,
+       "coverage": 0.861,
+       "mean_height_m": 0.326,
+       "max_height_m": 0.503,
+       "hard_top_m2": 0.248,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -918,12 +926,12 @@
        "first_step": null,
        "median_step": null
       },
-      "right-back": {
+      "centre-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.819,
-       "mean_height_m": 0.34,
-       "max_height_m": 0.435,
-       "hard_top_m2": 0.224,
+       "coverage": 1.0,
+       "mean_height_m": 0.478,
+       "max_height_m": 0.478,
+       "hard_top_m2": 0.2736,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -932,64 +940,79 @@
        "roles": {
         "terrace": 1
        },
-       "first_step": 13,
-       "median_step": 13.5
+       "first_step": 14,
+       "median_step": 14.5
       },
-      "chamfer-front": {
-       "usable_m2": 0.2304,
-       "coverage": 0.437,
-       "mean_height_m": 0.217,
-       "max_height_m": 0.497,
-       "hard_top_m2": 0.0,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "priority": 1
-       },
-       "roles": {
-        "hole-fill": 1
-       },
-       "first_step": 17,
-       "median_step": 17.0
-      },
-      "left-front": {
-       "usable_m2": 0.288,
-       "coverage": 0.7,
-       "mean_height_m": 0.183,
-       "max_height_m": 0.261,
-       "hard_top_m2": 0.2016,
+      "right-back": {
+       "usable_m2": 0.2736,
+       "coverage": 0.854,
+       "mean_height_m": 0.448,
+       "max_height_m": 0.598,
+       "hard_top_m2": 0.2256,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
         "normal-hard": 1
        },
-       "roles": {},
-       "first_step": 15,
-       "median_step": 15.0
+       "roles": {
+        "hole-fill": 1
+       },
+       "first_step": 16,
+       "median_step": 16.0
       },
-      "centre-front": {
-       "usable_m2": 0.2736,
-       "coverage": 0.877,
-       "mean_height_m": 0.267,
-       "max_height_m": 0.322,
-       "hard_top_m2": 0.0672,
+      "chamfer-front": {
+       "usable_m2": 0.2304,
+       "coverage": 0.5,
+       "mean_height_m": 0.36,
+       "max_height_m": 0.721,
+       "hard_top_m2": 0.0,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
         "priority": 1
        },
        "roles": {
-        "hole-fill": 1
+        "elongated": 1
        },
+       "first_step": 19,
+       "median_step": 19.0
+      },
+      "left-front": {
+       "usable_m2": 0.288,
+       "coverage": 0.472,
+       "mean_height_m": 0.219,
+       "max_height_m": 0.464,
+       "hard_top_m2": 0.0,
+       "soft_top_m2": 0.0,
+       "items": 1,
+       "classes": {
+        "priority": 1
+       },
+       "roles": {},
+       "first_step": 22,
+       "median_step": 22.0
+      },
+      "centre-front": {
+       "usable_m2": 0.2736,
+       "coverage": 0.738,
+       "mean_height_m": 0.212,
+       "max_height_m": 0.478,
+       "hard_top_m2": 0.0076,
+       "soft_top_m2": 0.0,
+       "items": 1,
+       "classes": {
+        "priority": 1
+       },
+       "roles": {},
        "first_step": 18,
        "median_step": 18.0
       },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.696,
-       "mean_height_m": 0.329,
+       "coverage": 0.62,
+       "mean_height_m": 0.282,
        "max_height_m": 0.598,
-       "hard_top_m2": 0.0,
+       "hard_top_m2": 0.002,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -998,64 +1021,46 @@
        "roles": {
         "tall-perimeter": 1
        },
-       "first_step": 16,
-       "median_step": 16.0
+       "first_step": 17,
+       "median_step": 17.0
       }
      },
      "support_area": {
-      "free-floor": 0.4772,
-      "hard": 1.1396,
+      "free-floor": 0.5292,
+      "hard": 0.9808,
       "soft-only": 0.0,
-      "priority-only": 0.5144,
+      "priority-only": 0.6212,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.4772,
-      "0.15-0.30": 0.38,
-      "0.30-0.50": 0.9492,
-      "0.50-0.80": 0.3248,
+      "0.00-0.15": 0.5292,
+      "0.15-0.30": 0.378,
+      "0.30-0.50": 0.4912,
+      "0.50-0.80": 0.7328,
       "0.80+": 0.0
      },
      "buildable": {
-      "buildable_area_m2": 1.086,
-      "buildable_ratio": 0.51,
-      "soft_capped_area_m2": 0.5144,
-      "pad_count": 4,
+      "buildable_area_m2": 0.7192,
+      "buildable_ratio": 0.337,
+      "soft_capped_area_m2": 0.6212,
+      "pad_count": 2,
       "pads": [
        {
-        "height_m": 0.435,
-        "area_m2": 0.3672,
-        "rect_m2": 0.3672,
+        "height_m": 0.503,
+        "area_m2": 0.364,
+        "rect_m2": 0.364,
         "rect_size_m": [
-         0.54,
-         0.68
+         0.52,
+         0.7
         ]
        },
        {
-        "height_m": 0.261,
+        "height_m": 0.478,
         "area_m2": 0.3552,
         "rect_m2": 0.3552,
         "rect_size_m": [
          0.48,
          0.74
-        ]
-       },
-       {
-        "height_m": 0.642,
-        "area_m2": 0.2208,
-        "rect_m2": 0.2208,
-        "rect_size_m": [
-         0.48,
-         0.46
-        ]
-       },
-       {
-        "height_m": 0.499,
-        "area_m2": 0.1428,
-        "rect_m2": 0.1428,
-        "rect_size_m": [
-         0.34,
-         0.42
         ]
        }
       ]
@@ -1072,124 +1077,124 @@
       "max_used_height_m": 0.654,
       "headroom_height_used_ratio": 0.896,
       "back_share_of_shelf_area": 1.0,
-      "overflow_items": 3,
-      "overflow_volume_m3": 0.2193
+      "overflow_items": 4,
+      "overflow_volume_m3": 0.2825
      },
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.245,
-       "mean_height_m": 0.217,
-       "max_height_m": 0.322
+       "free_ratio": 0.45,
+       "mean_height_m": 0.19,
+       "max_height_m": 0.464
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.123,
-       "mean_height_m": 0.267,
-       "max_height_m": 0.322
+       "free_ratio": 0.262,
+       "mean_height_m": 0.212,
+       "max_height_m": 0.478
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 1.218,
+       "median_clearance_m": 1.062,
        "max_clearance_m": 1.54,
-       "width_over_0.30m": 1.48,
-       "width_over_0.50m": 1.48,
-       "width_over_0.70m": 1.48
+       "width_over_0.30m": 1.46,
+       "width_over_0.50m": 1.46,
+       "width_over_0.70m": 1.46
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.185,
-        "reachable_free_m2": 0.3644,
-        "reachable_back_ratio": 0.032
+        "reachable_ratio": 0.206,
+        "reachable_free_m2": 0.41,
+        "reachable_back_ratio": 0.006
        },
        "0.20": {
-        "reachable_ratio": 0.185,
-        "reachable_free_m2": 0.3644,
-        "reachable_back_ratio": 0.032
+        "reachable_ratio": 0.206,
+        "reachable_free_m2": 0.41,
+        "reachable_back_ratio": 0.006
        },
        "0.40": {
-        "reachable_ratio": 0.511,
-        "reachable_free_m2": 0.4256,
-        "reachable_back_ratio": 0.205
+        "reachable_ratio": 0.351,
+        "reachable_free_m2": 0.4496,
+        "reachable_back_ratio": 0.033
        },
        "0.60": {
-        "reachable_ratio": 0.901,
-        "reachable_free_m2": 0.4772,
-        "reachable_back_ratio": 0.802
+        "reachable_ratio": 0.835,
+        "reachable_free_m2": 0.51,
+        "reachable_back_ratio": 0.784
        }
       },
-      "clear_lane_width_m": 0.16,
-      "front_half_max_height_m": 0.598,
-      "back_half_mean_height_m": 0.409
+      "clear_lane_width_m": 0.1,
+      "front_half_max_height_m": 0.721,
+      "back_half_mean_height_m": 0.431
      },
      "order": {
       "placements": 12,
       "back_to_front_violations": 2,
       "back_to_front_adherence": 0.8333,
-      "max_backtrack_m": 0.104,
+      "max_backtrack_m": 0.1877,
       "violations": [
        {
-        "step": 11,
-        "item_index": 3,
+        "step": 19,
+        "item_index": 20,
         "surface": "floor",
-        "backtrack_m": 0.104
+        "backtrack_m": 0.1877
        },
        {
-        "step": 16,
-        "item_index": 9,
+        "step": 22,
+        "item_index": 14,
         "surface": "floor",
-        "backtrack_m": 0.0464
+        "backtrack_m": 0.1409
        }
       ],
-      "final_frontier_y": -0.587,
-      "frontier_depth_used": 0.8831
+      "final_frontier_y": -0.6009,
+      "frontier_depth_used": 0.8925
      },
      "volume": {
-      "placed_volume_m3": 0.92786,
+      "placed_volume_m3": 0.90937,
       "usable_container_volume_m3": 4.1903,
-      "volume_fill_ratio": 0.2214,
-      "foundation_volume_m3": 0.47646,
-      "foundation_slab_height_m": 0.642,
-      "foundation_slab_volume_m3": 1.37794,
-      "foundation_slab_fill_ratio": 0.3458,
-      "structural_volume_m3": 0.22719,
-      "placed_volume_floor_m3": 0.70365,
+      "volume_fill_ratio": 0.217,
+      "foundation_volume_m3": 0.47977,
+      "foundation_slab_height_m": 0.542,
+      "foundation_slab_volume_m3": 1.16331,
+      "foundation_slab_fill_ratio": 0.4124,
+      "structural_volume_m3": 0.20539,
+      "placed_volume_floor_m3": 0.68516,
       "placed_volume_shelf_m3": 0.22421,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 2,
-      "total_y_m": 0.2078,
-      "max_y_m": 0.2034,
-      "total_x_m": 0.0
+      "items_moved": 4,
+      "total_y_m": 0.6243,
+      "max_y_m": 0.2543,
+      "total_x_m": 0.3962
      }
     },
     {
      "container_index": 1,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 16,
+     "placed_total": 15,
      "normal_hard": {
       "count": 5,
-      "footprint_m2": 1.0082,
-      "x_centroid": 0.4,
-      "y_centroid": 0.678,
-      "back_share": 0.813,
-      "centre_share": 0.457,
+      "footprint_m2": 0.9866,
+      "x_centroid": 0.407,
+      "y_centroid": 0.644,
+      "back_share": 0.805,
+      "centre_share": 0.503,
       "cell_share": {
-       "chamfer-back": 0.207,
-       "left-back": 0.149,
-       "centre-back": 0.457,
+       "chamfer-back": 0.15,
+       "left-back": 0.153,
+       "centre-back": 0.503,
        "right-back": 0.0,
-       "chamfer-front": 0.187,
+       "chamfer-front": 0.195,
        "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
-       null,
-       0.311,
+       0.287,
+       0.328,
        0.374
       ],
       "slab_height_by_y_third": [
@@ -1209,49 +1214,41 @@
         "class": "normal-hard"
        },
        {
-        "step": 4,
+        "step": 6,
         "role": "wall-front",
         "cell": "chamfer-back",
-        "height_m": 0.375,
-        "footprint_m2": 0.2089,
+        "height_m": 0.379,
+        "footprint_m2": 0.1476,
         "class": "normal-hard"
        },
        {
-        "step": 10,
+        "step": 7,
         "role": "wall-front",
         "cell": "chamfer-front",
-        "height_m": 0.344,
-        "footprint_m2": 0.1882,
+        "height_m": 0.287,
+        "footprint_m2": 0.1924,
         "class": "normal-hard"
-       },
-       {
-        "step": 19,
-        "role": "tall-perimeter",
-        "cell": "right-back",
-        "height_m": 0.65,
-        "footprint_m2": 0.0916,
-        "class": "priority"
        },
        {
         "step": 20,
         "role": "tall-perimeter",
         "cell": "right-front",
-        "height_m": 0.611,
-        "footprint_m2": 0.1412,
+        "height_m": 0.65,
+        "footprint_m2": 0.0916,
         "class": "priority"
        }
       ],
-      "tall_perimeter_count": 2,
-      "tall_perimeter_back_share": 0.5,
-      "tall_perimeter_median_step_back": 19.0,
+      "tall_perimeter_count": 1,
+      "tall_perimeter_back_share": 0.0,
+      "tall_perimeter_median_step_back": null,
       "tall_perimeter_median_step_front": 20.0
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
        "coverage": 0.914,
-       "mean_height_m": 0.473,
-       "max_height_m": 0.629,
+       "mean_height_m": 0.452,
+       "max_height_m": 0.585,
        "hard_top_m2": 0.2048,
        "soft_top_m2": 0.0,
        "items": 2,
@@ -1259,18 +1256,18 @@
         "normal-hard": 2
        },
        "roles": {
-        "wall-front": 1,
-        "wedge-step": 1
+        "wedge-step": 1,
+        "wall-front": 1
        },
-       "first_step": 4,
-       "median_step": 4.5
+       "first_step": 5,
+       "median_step": 5.5
       },
       "left-back": {
        "usable_m2": 0.266,
-       "coverage": 0.756,
-       "mean_height_m": 0.275,
-       "max_height_m": 0.601,
-       "hard_top_m2": 0.2012,
+       "coverage": 0.656,
+       "mean_height_m": 0.234,
+       "max_height_m": 0.585,
+       "hard_top_m2": 0.1744,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -1285,64 +1282,58 @@
       "centre-back": {
        "usable_m2": 0.266,
        "coverage": 0.913,
-       "mean_height_m": 0.519,
-       "max_height_m": 0.614,
+       "mean_height_m": 0.871,
+       "max_height_m": 0.973,
        "hard_top_m2": 0.2428,
        "soft_top_m2": 0.0,
-       "items": 3,
+       "items": 6,
        "classes": {
-        "normal-hard": 3
+        "normal-hard": 6
        },
        "roles": {
-        "terrace": 1
+        "terrace": 4
        },
        "first_step": 2,
-       "median_step": 3.0
+       "median_step": 6.5
       },
       "right-back": {
        "usable_m2": 0.266,
-       "coverage": 0.714,
-       "mean_height_m": 0.424,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.1276,
+       "coverage": 0.538,
+       "mean_height_m": 0.463,
+       "max_height_m": 0.973,
+       "hard_top_m2": 0.1432,
        "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "priority": 1
-       },
-       "roles": {
-        "tall-perimeter": 1
-       },
-       "first_step": 19,
-       "median_step": 19.0
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.934,
-       "mean_height_m": 0.525,
-       "max_height_m": 0.629,
-       "hard_top_m2": 0.1472,
-       "soft_top_m2": 0.056,
-       "items": 3,
+       "coverage": 0.765,
+       "mean_height_m": 0.461,
+       "max_height_m": 0.652,
+       "hard_top_m2": 0.1664,
+       "soft_top_m2": 0.0,
+       "items": 2,
        "classes": {
-        "normal-hard": 2,
-        "soft": 1
+        "normal-hard": 2
        },
        "roles": {
         "wall-front": 1,
-        "wedge-step": 1,
-        "hole-fill": 1
+        "wedge-step": 1
        },
-       "first_step": 10,
-       "median_step": 12.0
+       "first_step": 7,
+       "median_step": 7.5
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.582,
-       "mean_height_m": 0.17,
-       "max_height_m": 0.621,
-       "hard_top_m2": 0.0304,
-       "soft_top_m2": 0.016,
+       "coverage": 0.498,
+       "mean_height_m": 0.163,
+       "max_height_m": 0.354,
+       "hard_top_m2": 0.0488,
+       "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -1351,28 +1342,27 @@
       },
       "centre-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.893,
-       "mean_height_m": 0.321,
-       "max_height_m": 0.611,
-       "hard_top_m2": 0.0876,
+       "coverage": 0.971,
+       "mean_height_m": 0.524,
+       "max_height_m": 0.952,
+       "hard_top_m2": 0.0988,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 1,
        "classes": {
-        "normal-hard": 1,
         "priority": 1
        },
        "roles": {
-        "terrace": 1
+        "hole-fill": 1
        },
-       "first_step": 7,
-       "median_step": 14.0
+       "first_step": 21,
+       "median_step": 21.0
       },
       "right-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.701,
-       "mean_height_m": 0.43,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.0156,
+       "coverage": 0.458,
+       "mean_height_m": 0.311,
+       "max_height_m": 0.952,
+       "hard_top_m2": 0.0192,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -1386,45 +1376,54 @@
       }
      },
      "support_area": {
-      "free-floor": 0.4104,
-      "hard": 1.0572,
-      "soft-only": 0.072,
-      "priority-only": 0.4752,
+      "free-floor": 0.5852,
+      "hard": 1.0984,
+      "soft-only": 0.0,
+      "priority-only": 0.3312,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.4104,
-      "0.15-0.30": 0.3084,
-      "0.30-0.50": 0.3296,
-      "0.50-0.80": 0.9664,
-      "0.80+": 0.0
+      "0.00-0.15": 0.5852,
+      "0.15-0.30": 0.1076,
+      "0.30-0.50": 0.4844,
+      "0.50-0.80": 0.4072,
+      "0.80+": 0.4304
      },
      "buildable": {
-      "buildable_area_m2": 0.5416,
-      "buildable_ratio": 0.269,
-      "soft_capped_area_m2": 0.5472,
-      "pad_count": 3,
+      "buildable_area_m2": 0.6968,
+      "buildable_ratio": 0.346,
+      "soft_capped_area_m2": 0.3312,
+      "pad_count": 4,
       "pads": [
        {
-        "height_m": 0.614,
-        "area_m2": 0.232,
-        "rect_m2": 0.232,
+        "height_m": 0.973,
+        "area_m2": 0.2204,
+        "rect_m2": 0.2204,
         "rect_size_m": [
          0.58,
-         0.4
+         0.38
         ]
        },
        {
-        "height_m": 0.564,
-        "area_m2": 0.1872,
-        "rect_m2": 0.1872,
+        "height_m": 0.952,
+        "area_m2": 0.21,
+        "rect_m2": 0.21,
         "rect_size_m": [
-         0.36,
-         0.52
+         0.5,
+         0.42
         ]
        },
        {
-        "height_m": 0.601,
+        "height_m": 0.652,
+        "area_m2": 0.144,
+        "rect_m2": 0.144,
+        "rect_size_m": [
+         0.3,
+         0.48
+        ]
+       },
+       {
+        "height_m": 0.585,
         "area_m2": 0.1224,
         "rect_m2": 0.1224,
         "rect_size_m": [
@@ -1439,97 +1438,109 @@
       "headroom_m": 0.725,
       "headroom_volume_m3": 0.437,
       "shelf_area_m2": 0.6028,
-      "shelf_volume_used_m3": 0.2622,
-      "shelf_fill_ratio": 0.6,
-      "shelf_items": 3,
-      "shelf_footprint_ratio": 1.046,
+      "shelf_volume_used_m3": 0.2024,
+      "shelf_fill_ratio": 0.463,
+      "shelf_items": 2,
+      "shelf_footprint_ratio": 0.721,
       "max_used_height_m": 0.521,
       "headroom_height_used_ratio": 0.719,
-      "back_share_of_shelf_area": 0.348,
-      "overflow_items": 4,
-      "overflow_volume_m3": 0.2465
+      "back_share_of_shelf_area": 0.505,
+      "overflow_items": 2,
+      "overflow_volume_m3": 0.1458
      },
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.184,
-       "mean_height_m": 0.208,
+       "free_ratio": 0.238,
+       "mean_height_m": 0.282,
        "max_height_m": 0.621
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.107,
-       "mean_height_m": 0.321,
-       "max_height_m": 0.611
+       "free_ratio": 0.029,
+       "mean_height_m": 0.524,
+       "max_height_m": 0.952
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 0.919,
+       "median_clearance_m": 0.878,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
-       "width_over_0.70m": 1.46
+       "width_over_0.70m": 0.96
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.046,
-        "reachable_free_m2": 0.0644,
-        "reachable_back_ratio": 0.005
+        "reachable_ratio": 0.143,
+        "reachable_free_m2": 0.2588,
+        "reachable_back_ratio": 0.014
        },
        "0.20": {
-        "reachable_ratio": 0.046,
-        "reachable_free_m2": 0.0644,
-        "reachable_back_ratio": 0.005
+        "reachable_ratio": 0.143,
+        "reachable_free_m2": 0.2588,
+        "reachable_back_ratio": 0.014
        },
        "0.40": {
-        "reachable_ratio": 0.332,
-        "reachable_free_m2": 0.208,
-        "reachable_back_ratio": 0.238
+        "reachable_ratio": 0.442,
+        "reachable_free_m2": 0.384,
+        "reachable_back_ratio": 0.267
        },
        "0.60": {
-        "reachable_ratio": 0.41,
-        "reachable_free_m2": 0.2192,
-        "reachable_back_ratio": 0.326
+        "reachable_ratio": 0.448,
+        "reachable_free_m2": 0.384,
+        "reachable_back_ratio": 0.28
        }
       },
-      "clear_lane_width_m": 0.04,
-      "front_half_max_height_m": 0.65,
-      "back_half_mean_height_m": 0.421
+      "clear_lane_width_m": 0.16,
+      "front_half_max_height_m": 0.952,
+      "back_half_mean_height_m": 0.507
      },
      "order": {
-      "placements": 16,
-      "back_to_front_violations": 1,
-      "back_to_front_adherence": 0.9375,
-      "max_backtrack_m": 0.3399,
+      "placements": 15,
+      "back_to_front_violations": 3,
+      "back_to_front_adherence": 0.8,
+      "max_backtrack_m": 0.335,
       "violations": [
        {
-        "step": 19,
-        "item_index": 25,
+        "step": 4,
+        "item_index": 5,
+        "surface": "hard-top",
+        "backtrack_m": 0.013
+       },
+       {
+        "step": 9,
+        "item_index": 38,
         "surface": "floor",
-        "backtrack_m": 0.3399
+        "backtrack_m": 0.335
+       },
+       {
+        "step": 11,
+        "item_index": 3,
+        "surface": "hard-top",
+        "backtrack_m": 0.099
        }
       ],
-      "final_frontier_y": -0.709,
-      "frontier_depth_used": 0.9887
+      "final_frontier_y": -0.5839,
+      "frontier_depth_used": 0.8999
      },
      "volume": {
-      "placed_volume_m3": 1.07562,
+      "placed_volume_m3": 1.08262,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.2684,
-      "foundation_volume_m3": 0.36411,
-      "foundation_slab_height_m": 0.621,
-      "foundation_slab_volume_m3": 1.2601,
-      "foundation_slab_fill_ratio": 0.2889,
-      "structural_volume_m3": 0.44933,
-      "placed_volume_floor_m3": 0.81343,
-      "placed_volume_shelf_m3": 0.26219,
+      "volume_fill_ratio": 0.2702,
+      "foundation_volume_m3": 0.51704,
+      "foundation_slab_height_m": 0.973,
+      "foundation_slab_volume_m3": 1.97437,
+      "foundation_slab_fill_ratio": 0.2619,
+      "structural_volume_m3": 0.36322,
+      "placed_volume_floor_m3": 0.88026,
+      "placed_volume_shelf_m3": 0.20236,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
       "items_moved": 2,
-      "total_y_m": 0.6109,
-      "max_y_m": 0.5709,
+      "total_y_m": 0.2841,
+      "max_y_m": 0.159,
       "total_x_m": 0.0
      }
     }
@@ -1544,7 +1555,7 @@
     "images/03-priority-plus-normal/c1_terrain.png",
     "images/03-priority-plus-normal/c1_terrain.svg"
    ],
-   "runtime_seconds": 68.9
+   "runtime_seconds": 71.2
   },
   {
    "scenario": "04-soft-heavy",
@@ -1552,11 +1563,10 @@
    "items_in_stream": 26,
    "items_placed": 14,
    "role_histogram": {
-    "wall-front": 1,
-    "wedge-step": 1,
-    "none": 10,
-    "terrace": 1,
-    "hole-fill": 1
+    "wall-front": 2,
+    "wedge-step": 2,
+    "none": 9,
+    "terrace": 1
    },
    "containers": [
     {
@@ -1565,17 +1575,17 @@
      "is_prioritized": false,
      "placed_total": 14,
      "normal_hard": {
-      "count": 4,
-      "footprint_m2": 0.7356,
-      "x_centroid": 0.523,
-      "y_centroid": 0.749,
+      "count": 3,
+      "footprint_m2": 0.6333,
+      "x_centroid": 0.372,
+      "y_centroid": 0.743,
       "back_share": 1.0,
-      "centre_share": 0.358,
+      "centre_share": 0.416,
       "cell_share": {
-       "chamfer-back": 0.139,
-       "left-back": 0.209,
-       "centre-back": 0.358,
-       "right-back": 0.294,
+       "chamfer-back": 0.341,
+       "left-back": 0.242,
+       "centre-back": 0.416,
+       "right-back": 0.0,
        "chamfer-front": 0.0,
        "left-front": 0.0,
        "centre-front": 0.0,
@@ -1583,13 +1593,13 @@
       },
       "height_by_y_third": [
        null,
-       0.481,
-       0.353
+       0.37,
+       0.288
       ],
       "slab_height_by_y_third": [
        null,
-       0.481,
-       0.37
+       null,
+       0.241
       ]
      },
      "tall": {
@@ -1601,6 +1611,14 @@
         "height_m": 0.335,
         "footprint_m2": 0.1535,
         "class": "normal-hard"
+       },
+       {
+        "step": 3,
+        "role": "wall-front",
+        "cell": "chamfer-back",
+        "height_m": 0.37,
+        "footprint_m2": 0.2162,
+        "class": "normal-hard"
        }
       ],
       "tall_perimeter_count": 0,
@@ -1611,29 +1629,29 @@
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.2304,
-       "coverage": 0.819,
-       "mean_height_m": 0.536,
-       "max_height_m": 0.721,
-       "hard_top_m2": 0.1888,
+       "coverage": 0.944,
+       "mean_height_m": 0.591,
+       "max_height_m": 0.636,
+       "hard_top_m2": 0.2176,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 3,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 3
        },
        "roles": {
-        "wedge-step": 1,
-        "hole-fill": 1
+        "wedge-step": 2,
+        "wall-front": 1
        },
        "first_step": 2,
-       "median_step": 4.0
+       "median_step": 3.0
       },
       "left-back": {
        "usable_m2": 0.288,
-       "coverage": 0.692,
-       "mean_height_m": 0.274,
-       "max_height_m": 0.721,
-       "hard_top_m2": 0.1992,
-       "soft_top_m2": 0.0,
+       "coverage": 0.521,
+       "mean_height_m": 0.197,
+       "max_height_m": 0.617,
+       "hard_top_m2": 0.1068,
+       "soft_top_m2": 0.0432,
        "items": 1,
        "classes": {
         "normal-hard": 1
@@ -1646,26 +1664,11 @@
       },
       "centre-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.792,
-       "mean_height_m": 0.311,
-       "max_height_m": 0.636,
-       "hard_top_m2": 0.2168,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {},
-       "first_step": 5,
-       "median_step": 5.0
-      },
-      "right-back": {
-       "usable_m2": 0.2736,
-       "coverage": 0.778,
-       "mean_height_m": 0.48,
-       "max_height_m": 0.636,
-       "hard_top_m2": 0.2128,
-       "soft_top_m2": 0.0,
+       "coverage": 0.934,
+       "mean_height_m": 0.384,
+       "max_height_m": 0.478,
+       "hard_top_m2": 0.19,
+       "soft_top_m2": 0.0656,
        "items": 2,
        "classes": {
         "normal-hard": 2
@@ -1673,16 +1676,29 @@
        "roles": {
         "terrace": 1
        },
-       "first_step": 3,
-       "median_step": 3.5
+       "first_step": 5,
+       "median_step": 5.5
+      },
+      "right-back": {
+       "usable_m2": 0.2736,
+       "coverage": 0.841,
+       "mean_height_m": 0.354,
+       "max_height_m": 0.478,
+       "hard_top_m2": 0.154,
+       "soft_top_m2": 0.076,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
       },
       "chamfer-front": {
        "usable_m2": 0.2304,
-       "coverage": 0.24,
-       "mean_height_m": 0.078,
-       "max_height_m": 0.325,
-       "hard_top_m2": 0.0,
-       "soft_top_m2": 0.0552,
+       "coverage": 0.361,
+       "mean_height_m": 0.207,
+       "max_height_m": 0.636,
+       "hard_top_m2": 0.0832,
+       "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -1691,11 +1707,24 @@
       },
       "left-front": {
        "usable_m2": 0.288,
-       "coverage": 0.661,
-       "mean_height_m": 0.213,
-       "max_height_m": 0.325,
-       "hard_top_m2": 0.0064,
-       "soft_top_m2": 0.184,
+       "coverage": 0.287,
+       "mean_height_m": 0.096,
+       "max_height_m": 0.37,
+       "hard_top_m2": 0.0156,
+       "soft_top_m2": 0.0672,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "centre-front": {
+       "usable_m2": 0.2736,
+       "coverage": 0.401,
+       "mean_height_m": 0.131,
+       "max_height_m": 0.342,
+       "hard_top_m2": 0.0,
+       "soft_top_m2": 0.1096,
        "items": 1,
        "classes": {
         "soft": 1
@@ -1704,26 +1733,13 @@
        "first_step": 13,
        "median_step": 13.0
       },
-      "centre-front": {
-       "usable_m2": 0.2736,
-       "coverage": 0.493,
-       "mean_height_m": 0.193,
-       "max_height_m": 0.425,
-       "hard_top_m2": 0.0144,
-       "soft_top_m2": 0.1204,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.472,
-       "mean_height_m": 0.201,
-       "max_height_m": 0.425,
+       "coverage": 0.694,
+       "mean_height_m": 0.237,
+       "max_height_m": 0.342,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.1292,
+       "soft_top_m2": 0.19,
        "items": 1,
        "classes": {
         "soft": 1
@@ -1734,41 +1750,50 @@
       }
      },
      "support_area": {
-      "free-floor": 0.804,
-      "hard": 0.8384,
-      "soft-only": 0.4888,
+      "free-floor": 0.8124,
+      "hard": 0.7672,
+      "soft-only": 0.5516,
       "priority-only": 0.0,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.804,
-      "0.15-0.30": 0.2312,
-      "0.30-0.50": 0.57,
-      "0.50-0.80": 0.526,
+      "0.00-0.15": 0.8124,
+      "0.15-0.30": 0.0416,
+      "0.30-0.50": 0.9728,
+      "0.50-0.80": 0.3044,
       "0.80+": 0.0
      },
      "buildable": {
-      "buildable_area_m2": 0.6564,
-      "buildable_ratio": 0.308,
-      "soft_capped_area_m2": 0.4888,
-      "pad_count": 3,
+      "buildable_area_m2": 1.4192,
+      "buildable_ratio": 0.666,
+      "soft_capped_area_m2": 0.5516,
+      "pad_count": 4,
       "pads": [
        {
-        "height_m": 0.636,
-        "area_m2": 0.2808,
-        "rect_m2": 0.2808,
+        "height_m": 0.0,
+        "area_m2": 0.8124,
+        "rect_m2": 0.4664,
         "rect_size_m": [
-         0.54,
-         0.52
+         1.06,
+         0.44
         ]
        },
        {
-        "height_m": 0.241,
-        "area_m2": 0.2312,
-        "rect_m2": 0.1976,
+        "height_m": 0.478,
+        "area_m2": 0.3024,
+        "rect_m2": 0.3024,
         "rect_size_m": [
-         0.38,
-         0.52
+         0.72,
+         0.42
+        ]
+       },
+       {
+        "height_m": 0.636,
+        "area_m2": 0.16,
+        "rect_m2": 0.16,
+        "rect_size_m": [
+         0.32,
+         0.5
         ]
        },
        {
@@ -1800,61 +1825,73 @@
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.554,
-       "mean_height_m": 0.159,
-       "max_height_m": 0.425
+       "free_ratio": 0.915,
+       "mean_height_m": 0.028,
+       "max_height_m": 0.342
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.507,
-       "mean_height_m": 0.193,
-       "max_height_m": 0.425
+       "free_ratio": 0.599,
+       "mean_height_m": 0.131,
+       "max_height_m": 0.342
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 1.215,
+       "median_clearance_m": 1.198,
        "max_clearance_m": 1.54,
-       "width_over_0.30m": 1.48,
-       "width_over_0.50m": 1.48,
-       "width_over_0.70m": 1.48
+       "width_over_0.30m": 1.46,
+       "width_over_0.50m": 1.46,
+       "width_over_0.70m": 1.46
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.26,
-        "reachable_free_m2": 0.524,
-        "reachable_back_ratio": 0.026
+        "reachable_ratio": 0.321,
+        "reachable_free_m2": 0.6544,
+        "reachable_back_ratio": 0.053
        },
        "0.20": {
-        "reachable_ratio": 0.26,
-        "reachable_free_m2": 0.524,
-        "reachable_back_ratio": 0.026
+        "reachable_ratio": 0.321,
+        "reachable_free_m2": 0.6544,
+        "reachable_back_ratio": 0.053
        },
        "0.40": {
-        "reachable_ratio": 0.516,
-        "reachable_free_m2": 0.6464,
-        "reachable_back_ratio": 0.275
+        "reachable_ratio": 0.72,
+        "reachable_free_m2": 0.7996,
+        "reachable_back_ratio": 0.493
        },
        "0.60": {
-        "reachable_ratio": 0.74,
-        "reachable_free_m2": 0.7744,
-        "reachable_back_ratio": 0.481
+        "reachable_ratio": 0.855,
+        "reachable_free_m2": 0.7996,
+        "reachable_back_ratio": 0.764
        }
       },
-      "clear_lane_width_m": 0.2,
-      "front_half_max_height_m": 0.425,
-      "back_half_mean_height_m": 0.393
+      "clear_lane_width_m": 0.12,
+      "front_half_max_height_m": 0.636,
+      "back_half_mean_height_m": 0.371
      },
      "order": {
       "placements": 14,
-      "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8571,
-      "max_backtrack_m": 0.345,
+      "back_to_front_violations": 4,
+      "back_to_front_adherence": 0.7143,
+      "max_backtrack_m": 0.4823,
       "violations": [
+       {
+        "step": 5,
+        "item_index": 8,
+        "surface": "floor",
+        "backtrack_m": 0.4823
+       },
        {
         "step": 10,
         "item_index": 2,
         "surface": "small_shelf",
         "backtrack_m": 0.047
+       },
+       {
+        "step": 13,
+        "item_index": 13,
+        "surface": "floor",
+        "backtrack_m": 0.2216
        },
        {
         "step": 14,
@@ -1863,27 +1900,27 @@
         "backtrack_m": 0.345
        }
       ],
-      "final_frontier_y": -0.544,
-      "frontier_depth_used": 0.8541
+      "final_frontier_y": -0.518,
+      "frontier_depth_used": 0.8365
      },
      "volume": {
       "placed_volume_m3": 1.14825,
       "usable_container_volume_m3": 4.1903,
       "volume_fill_ratio": 0.274,
-      "foundation_volume_m3": 0.47652,
-      "foundation_slab_height_m": 0.721,
-      "foundation_slab_volume_m3": 1.5475,
-      "foundation_slab_fill_ratio": 0.3079,
-      "structural_volume_m3": 0.12005,
+      "foundation_volume_m3": 0.32241,
+      "foundation_slab_height_m": 0.478,
+      "foundation_slab_volume_m3": 1.02595,
+      "foundation_slab_fill_ratio": 0.3143,
+      "structural_volume_m3": 0.27416,
       "placed_volume_floor_m3": 0.59658,
       "placed_volume_shelf_m3": 0.55168,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 1,
-      "total_y_m": 0.0733,
-      "max_y_m": 0.0733,
+      "items_moved": 3,
+      "total_y_m": 0.8883,
+      "max_y_m": 0.4617,
       "total_x_m": 0.0
      }
     }
@@ -1894,7 +1931,7 @@
     "images/04-soft-heavy/c0_terrain.png",
     "images/04-soft-heavy/c0_terrain.svg"
    ],
-   "runtime_seconds": 39.6
+   "runtime_seconds": 40.4
   },
   {
    "scenario": "05-priority-heavy-no-priority-uld",
@@ -1905,8 +1942,8 @@
     "wall-front": 1,
     "wedge-step": 1,
     "terrace": 4,
-    "none": 2,
-    "tall-perimeter": 2,
+    "none": 3,
+    "tall-perimeter": 1,
     "hole-fill": 1
    },
    "containers": [
@@ -1960,20 +1997,12 @@
         "height_m": 0.699,
         "footprint_m2": 0.1258,
         "class": "priority"
-       },
-       {
-        "step": 10,
-        "role": "tall-perimeter",
-        "cell": "right-front",
-        "height_m": 0.647,
-        "footprint_m2": 0.1601,
-        "class": "priority"
        }
       ],
-      "tall_perimeter_count": 2,
+      "tall_perimeter_count": 1,
       "tall_perimeter_back_share": 0.0,
       "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 9.5
+      "tall_perimeter_median_step_front": 9.0
      },
      "cells": {
       "chamfer-back": {
@@ -1997,7 +2026,7 @@
       "left-back": {
        "usable_m2": 0.266,
        "coverage": 0.964,
-       "mean_height_m": 0.874,
+       "mean_height_m": 0.789,
        "max_height_m": 1.293,
        "hard_top_m2": 0.2564,
        "soft_top_m2": 0.0,
@@ -2009,14 +2038,14 @@
         "wall-front": 1
        },
        "first_step": 1,
-       "median_step": 4.0
+       "median_step": 4.5
       },
       "centre-back": {
        "usable_m2": 0.266,
-       "coverage": 0.502,
-       "mean_height_m": 0.216,
-       "max_height_m": 0.661,
-       "hard_top_m2": 0.1336,
+       "coverage": 0.623,
+       "mean_height_m": 0.343,
+       "max_height_m": 0.916,
+       "hard_top_m2": 0.1656,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -2026,59 +2055,44 @@
       },
       "right-back": {
        "usable_m2": 0.266,
-       "coverage": 0.877,
-       "mean_height_m": 0.487,
-       "max_height_m": 0.699,
-       "hard_top_m2": 0.19,
+       "coverage": 1.0,
+       "mean_height_m": 0.916,
+       "max_height_m": 0.916,
+       "hard_top_m2": 0.266,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 3,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 3
        },
        "roles": {
-        "terrace": 1
+        "terrace": 2
        },
        "first_step": 5,
-       "median_step": 5.5
+       "median_step": 6.0
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.239,
-       "mean_height_m": 0.112,
-       "max_height_m": 0.547,
+       "coverage": 0.344,
+       "mean_height_m": 0.221,
+       "max_height_m": 0.738,
        "hard_top_m2": 0.016,
        "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
-      "left-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.793,
-       "mean_height_m": 0.451,
-       "max_height_m": 0.661,
-       "hard_top_m2": 0.1288,
-       "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 1,
        "classes": {
-        "normal-hard": 1,
         "priority": 1
        },
        "roles": {
-        "terrace": 1,
         "hole-fill": 1
        },
-       "first_step": 8,
-       "median_step": 9.5
+       "first_step": 11,
+       "median_step": 11.0
       },
-      "centre-front": {
+      "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.573,
-       "mean_height_m": 0.369,
-       "max_height_m": 0.661,
-       "hard_top_m2": 0.084,
+       "coverage": 0.772,
+       "mean_height_m": 0.353,
+       "max_height_m": 0.738,
+       "hard_top_m2": 0.076,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -2086,51 +2100,66 @@
        "first_step": null,
        "median_step": null
       },
+      "centre-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.678,
+       "mean_height_m": 0.297,
+       "max_height_m": 0.916,
+       "hard_top_m2": 0.046,
+       "soft_top_m2": 0.0,
+       "items": 1,
+       "classes": {
+        "priority": 1
+       },
+       "roles": {},
+       "first_step": 10,
+       "median_step": 10.0
+      },
       "right-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.757,
-       "mean_height_m": 0.506,
-       "max_height_m": 0.699,
-       "hard_top_m2": 0.0,
+       "coverage": 0.729,
+       "mean_height_m": 0.491,
+       "max_height_m": 0.916,
+       "hard_top_m2": 0.0228,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 1,
        "classes": {
-        "priority": 2
+        "priority": 1
        },
        "roles": {
-        "tall-perimeter": 2
+        "tall-perimeter": 1
        },
        "first_step": 9,
-       "median_step": 9.5
+       "median_step": 9.0
       }
      },
      "support_area": {
-      "free-floor": 0.596,
-      "hard": 1.004,
+      "free-floor": 0.4936,
+      "hard": 1.044,
       "soft-only": 0.0,
-      "priority-only": 0.4148,
+      "priority-only": 0.4772,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.596,
-      "0.15-0.30": 0.1316,
-      "0.30-0.50": 0.0512,
-      "0.50-0.80": 0.9192,
-      "0.80+": 0.3168
+      "0.00-0.15": 0.4936,
+      "0.15-0.30": 0.304,
+      "0.30-0.50": 0.3028,
+      "0.50-0.80": 0.2328,
+      "0.80+": 0.6816
      },
      "buildable": {
-      "buildable_area_m2": 1.362,
-      "buildable_ratio": 0.676,
-      "soft_capped_area_m2": 0.4148,
-      "pad_count": 4,
+      "buildable_area_m2": 0.9148,
+      "buildable_ratio": 0.454,
+      "soft_capped_area_m2": 0.4772,
+      "pad_count": 3,
       "pads": [
        {
-        "height_m": 0.661,
-        "area_m2": 0.3072,
-        "rect_m2": 0.2816,
+        "height_m": 0.916,
+        "area_m2": 0.3648,
+        "rect_m2": 0.3648,
         "rect_size_m": [
-         0.44,
-         0.64
+         0.48,
+         0.76
         ]
        },
        {
@@ -2143,21 +2172,12 @@
         ]
        },
        {
-        "height_m": 0.523,
-        "area_m2": 0.19,
-        "rect_m2": 0.19,
+        "height_m": 0.298,
+        "area_m2": 0.2812,
+        "rect_m2": 0.2016,
         "rect_size_m": [
-         0.38,
-         0.5
-        ]
-       },
-       {
-        "height_m": -0.0,
-        "area_m2": 0.596,
-        "rect_m2": 0.1856,
-        "rect_size_m": [
-         0.32,
-         0.58
+         0.48,
+         0.42
         ]
        }
       ]
@@ -2175,59 +2195,59 @@
       "headroom_height_used_ratio": 0.0,
       "back_share_of_shelf_area": null,
       "overflow_items": 3,
-      "overflow_volume_m3": 0.262
+      "overflow_volume_m3": 0.2818
      },
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.329,
-       "mean_height_m": 0.413,
-       "max_height_m": 0.661
+       "free_ratio": 0.294,
+       "mean_height_m": 0.339,
+       "max_height_m": 0.738
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.427,
-       "mean_height_m": 0.369,
-       "max_height_m": 0.661
+       "free_ratio": 0.322,
+       "mean_height_m": 0.297,
+       "max_height_m": 0.916
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 0.883,
+       "median_clearance_m": 1.071,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
-       "width_over_0.70m": 1.46
+       "width_over_0.70m": 0.98
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.113,
-        "reachable_free_m2": 0.1984,
-        "reachable_back_ratio": 0.035
+        "reachable_ratio": 0.151,
+        "reachable_free_m2": 0.2748,
+        "reachable_back_ratio": 0.026
        },
        "0.20": {
-        "reachable_ratio": 0.113,
-        "reachable_free_m2": 0.1984,
-        "reachable_back_ratio": 0.035
+        "reachable_ratio": 0.151,
+        "reachable_free_m2": 0.2748,
+        "reachable_back_ratio": 0.026
        },
        "0.40": {
-        "reachable_ratio": 0.113,
-        "reachable_free_m2": 0.1984,
+        "reachable_ratio": 0.159,
+        "reachable_free_m2": 0.2748,
         "reachable_back_ratio": 0.035
        },
        "0.60": {
-        "reachable_ratio": 0.268,
-        "reachable_free_m2": 0.3116,
-        "reachable_back_ratio": 0.077
+        "reachable_ratio": 0.514,
+        "reachable_free_m2": 0.4612,
+        "reachable_back_ratio": 0.337
        }
       },
-      "clear_lane_width_m": 0.16,
-      "front_half_max_height_m": 0.699,
-      "back_half_mean_height_m": 0.634
+      "clear_lane_width_m": 0.18,
+      "front_half_max_height_m": 0.916,
+      "back_half_mean_height_m": 0.757
      },
      "order": {
       "placements": 11,
-      "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8182,
+      "back_to_front_violations": 3,
+      "back_to_front_adherence": 0.7273,
       "max_backtrack_m": 0.134,
       "violations": [
        {
@@ -2241,29 +2261,35 @@
         "item_index": 13,
         "surface": "hard-top",
         "backtrack_m": 0.106
+       },
+       {
+        "step": 10,
+        "item_index": 0,
+        "surface": "floor",
+        "backtrack_m": 0.03
        }
       ],
-      "final_frontier_y": -0.7006,
-      "frontier_depth_used": 0.9827
+      "final_frontier_y": -0.6286,
+      "frontier_depth_used": 0.9316
      },
      "volume": {
-      "placed_volume_m3": 0.8932,
+      "placed_volume_m3": 0.93967,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.2229,
-      "foundation_volume_m3": 0.55452,
+      "volume_fill_ratio": 0.2345,
+      "foundation_volume_m3": 0.70457,
       "foundation_slab_height_m": 1.293,
       "foundation_slab_volume_m3": 2.6237,
-      "foundation_slab_fill_ratio": 0.2114,
-      "structural_volume_m3": 0.33867,
-      "placed_volume_floor_m3": 0.8932,
+      "foundation_slab_fill_ratio": 0.2685,
+      "structural_volume_m3": 0.2351,
+      "placed_volume_floor_m3": 0.93967,
       "placed_volume_shelf_m3": 0.0,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 3,
-      "total_y_m": 0.3616,
-      "max_y_m": 0.3352,
+      "items_moved": 2,
+      "total_y_m": 0.1104,
+      "max_y_m": 0.0804,
       "total_x_m": 0.0
      }
     }
@@ -2274,40 +2300,40 @@
     "images/05-priority-heavy-no-priority-uld/c0_terrain.png",
     "images/05-priority-heavy-no-priority-uld/c0_terrain.svg"
    ],
-   "runtime_seconds": 26.4
+   "runtime_seconds": 27.4
   },
   {
    "scenario": "06-soft-priority-heavy",
    "description": "Soft+priority dominated stream with a priority shelf ULD present: SP should prefer the priority shelf, then cluster.",
    "items_in_stream": 34,
-   "items_placed": 27,
+   "items_placed": 24,
    "role_histogram": {
-    "none": 17,
-    "hole-fill": 4,
+    "none": 16,
     "wall-front": 1,
     "wedge-step": 1,
     "elongated": 1,
     "bridge": 1,
-    "terrace": 2
+    "terrace": 3,
+    "hole-fill": 1
    },
    "containers": [
     {
      "container_index": 0,
      "has_shelf": true,
      "is_prioritized": true,
-     "placed_total": 12,
+     "placed_total": 11,
      "normal_hard": {
-      "count": 1,
-      "footprint_m2": 0.3378,
-      "x_centroid": 0.747,
-      "y_centroid": 0.844,
-      "back_share": 1.0,
-      "centre_share": 0.0,
+      "count": 0,
+      "footprint_m2": 0.0,
+      "x_centroid": null,
+      "y_centroid": null,
+      "back_share": null,
+      "centre_share": null,
       "cell_share": {
        "chamfer-back": 0.0,
        "left-back": 0.0,
        "centre-back": 0.0,
-       "right-back": 1.0,
+       "right-back": 0.0,
        "chamfer-front": 0.0,
        "left-front": 0.0,
        "centre-front": 0.0,
@@ -2316,12 +2342,7 @@
       "height_by_y_third": [
        null,
        null,
-       0.265
-      ],
-      "slab_height_by_y_third": [
-       null,
-       null,
-       0.265
+       null
       ]
      },
      "tall": {
@@ -2334,11 +2355,11 @@
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.2304,
-       "coverage": 0.583,
-       "mean_height_m": 0.236,
-       "max_height_m": 0.549,
+       "coverage": 0.497,
+       "mean_height_m": 0.156,
+       "max_height_m": 0.324,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.1344,
+       "soft_top_m2": 0.1144,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -2347,28 +2368,26 @@
       },
       "left-back": {
        "usable_m2": 0.288,
-       "coverage": 0.8,
-       "mean_height_m": 0.309,
-       "max_height_m": 0.549,
+       "coverage": 0.696,
+       "mean_height_m": 0.212,
+       "max_height_m": 0.324,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.2304,
-       "items": 2,
+       "soft_top_m2": 0.2004,
+       "items": 1,
        "classes": {
-        "soft-priority": 2
+        "soft-priority": 1
        },
-       "roles": {
-        "hole-fill": 1
-       },
-       "first_step": 13,
-       "median_step": 15.5
+       "roles": {},
+       "first_step": 18,
+       "median_step": 18.0
       },
       "centre-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.895,
-       "mean_height_m": 0.238,
+       "coverage": 0.482,
+       "mean_height_m": 0.108,
        "max_height_m": 0.375,
-       "hard_top_m2": 0.1584,
-       "soft_top_m2": 0.0864,
+       "hard_top_m2": 0.0,
+       "soft_top_m2": 0.132,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -2377,56 +2396,54 @@
       },
       "right-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.944,
-       "mean_height_m": 0.287,
+       "coverage": 0.972,
+       "mean_height_m": 0.225,
        "max_height_m": 0.375,
-       "hard_top_m2": 0.1672,
-       "soft_top_m2": 0.0912,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {},
-       "first_step": 6,
-       "median_step": 6.0
-      },
-      "chamfer-front": {
-       "usable_m2": 0.2304,
-       "coverage": 0.252,
-       "mean_height_m": 0.144,
-       "max_height_m": 0.682,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.058,
+       "soft_top_m2": 0.266,
        "items": 1,
        "classes": {
         "soft-priority": 1
        },
-       "roles": {
-        "hole-fill": 1
-       },
-       "first_step": 19,
-       "median_step": 19.0
+       "roles": {},
+       "first_step": 13,
+       "median_step": 13.0
       },
-      "left-front": {
-       "usable_m2": 0.288,
-       "coverage": 0.403,
-       "mean_height_m": 0.167,
-       "max_height_m": 0.682,
+      "chamfer-front": {
+       "usable_m2": 0.2304,
+       "coverage": 0.252,
+       "mean_height_m": 0.055,
+       "max_height_m": 0.219,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.116,
+       "soft_top_m2": 0.058,
        "items": 0,
        "classes": {},
        "roles": {},
        "first_step": null,
        "median_step": null
       },
+      "left-front": {
+       "usable_m2": 0.288,
+       "coverage": 0.786,
+       "mean_height_m": 0.178,
+       "max_height_m": 0.245,
+       "hard_top_m2": 0.0,
+       "soft_top_m2": 0.2264,
+       "items": 1,
+       "classes": {
+        "soft-priority": 1
+       },
+       "roles": {},
+       "first_step": 19,
+       "median_step": 19.0
+      },
       "centre-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.632,
-       "mean_height_m": 0.168,
+       "coverage": 0.838,
+       "mean_height_m": 0.223,
        "max_height_m": 0.375,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.1728,
+       "soft_top_m2": 0.2292,
        "items": 1,
        "classes": {
         "soft-priority": 1
@@ -2437,11 +2454,11 @@
       },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.667,
-       "mean_height_m": 0.25,
+       "coverage": 0.861,
+       "mean_height_m": 0.323,
        "max_height_m": 0.375,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.1824,
+       "soft_top_m2": 0.2356,
        "items": 1,
        "classes": {
         "soft-priority": 1
@@ -2452,32 +2469,32 @@
       }
      },
      "support_area": {
-      "free-floor": 0.734,
-      "hard": 0.3256,
+      "free-floor": 0.6692,
+      "hard": 0.0,
       "soft-only": 0.0,
       "priority-only": 0.0,
-      "soft+priority-only": 1.0716
+      "soft+priority-only": 1.462
      },
      "height_bands": {
-      "0.00-0.15": 0.734,
-      "0.15-0.30": 0.6136,
+      "0.00-0.15": 0.6692,
+      "0.15-0.30": 0.8784,
       "0.30-0.50": 0.5836,
-      "0.50-0.80": 0.2,
+      "0.50-0.80": 0.0,
       "0.80+": 0.0
      },
      "buildable": {
-      "buildable_area_m2": 0.3256,
-      "buildable_ratio": 0.153,
-      "soft_capped_area_m2": 1.0716,
+      "buildable_area_m2": 0.6692,
+      "buildable_ratio": 0.314,
+      "soft_capped_area_m2": 1.462,
       "pad_count": 1,
       "pads": [
        {
-        "height_m": 0.265,
-        "area_m2": 0.3256,
-        "rect_m2": 0.3256,
+        "height_m": -0.0,
+        "area_m2": 0.6692,
+        "rect_m2": 0.2108,
         "rect_size_m": [
-         0.74,
-         0.44
+         0.34,
+         0.62
         ]
        }
       ]
@@ -2500,19 +2517,19 @@
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.659,
-       "mean_height_m": 0.095,
-       "max_height_m": 0.682
+       "free_ratio": 0.255,
+       "mean_height_m": 0.183,
+       "max_height_m": 0.375
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.368,
-       "mean_height_m": 0.168,
+       "free_ratio": 0.162,
+       "mean_height_m": 0.223,
        "max_height_m": 0.375
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 1.216,
+       "median_clearance_m": 1.295,
        "max_clearance_m": 1.54,
        "width_over_0.30m": 1.48,
        "width_over_0.50m": 1.48,
@@ -2520,35 +2537,35 @@
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.312,
-        "reachable_free_m2": 0.6372,
-        "reachable_back_ratio": 0.1
+        "reachable_ratio": 0.221,
+        "reachable_free_m2": 0.4452,
+        "reachable_back_ratio": 0.123
        },
        "0.20": {
-        "reachable_ratio": 0.312,
-        "reachable_free_m2": 0.6372,
-        "reachable_back_ratio": 0.1
+        "reachable_ratio": 0.221,
+        "reachable_free_m2": 0.4452,
+        "reachable_back_ratio": 0.123
        },
        "0.40": {
-        "reachable_ratio": 0.852,
-        "reachable_free_m2": 0.722,
-        "reachable_back_ratio": 0.797
+        "reachable_ratio": 1.0,
+        "reachable_free_m2": 0.6692,
+        "reachable_back_ratio": 1.0
        },
        "0.60": {
-        "reachable_ratio": 0.886,
-        "reachable_free_m2": 0.722,
-        "reachable_back_ratio": 0.865
+        "reachable_ratio": 1.0,
+        "reachable_free_m2": 0.6692,
+        "reachable_back_ratio": 1.0
        }
       },
-      "clear_lane_width_m": 0.18,
-      "front_half_max_height_m": 0.682,
-      "back_half_mean_height_m": 0.269
+      "clear_lane_width_m": 0.26,
+      "front_half_max_height_m": 0.375,
+      "back_half_mean_height_m": 0.177
      },
      "order": {
-      "placements": 12,
-      "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8333,
-      "max_backtrack_m": 0.3845,
+      "placements": 11,
+      "back_to_front_violations": 3,
+      "back_to_front_adherence": 0.7273,
+      "max_backtrack_m": 0.7685,
       "violations": [
        {
         "step": 15,
@@ -2560,30 +2577,36 @@
         "step": 18,
         "item_index": 28,
         "surface": "floor",
-        "backtrack_m": 0.3845
+        "backtrack_m": 0.7685
+       },
+       {
+        "step": 19,
+        "item_index": 3,
+        "surface": "floor",
+        "backtrack_m": 0.0578
        }
       ],
-      "final_frontier_y": -0.505,
-      "frontier_depth_used": 0.8277
+      "final_frontier_y": -0.6554,
+      "frontier_depth_used": 0.9294
      },
      "volume": {
-      "placed_volume_m3": 1.14374,
+      "placed_volume_m3": 1.05423,
       "usable_container_volume_m3": 4.1903,
-      "volume_fill_ratio": 0.273,
-      "foundation_volume_m3": 0.4927,
-      "foundation_slab_height_m": 0.682,
-      "foundation_slab_volume_m3": 1.4638,
-      "foundation_slab_fill_ratio": 0.3366,
+      "volume_fill_ratio": 0.2516,
+      "foundation_volume_m3": 0.40318,
+      "foundation_slab_height_m": 0.375,
+      "foundation_slab_volume_m3": 0.80487,
+      "foundation_slab_fill_ratio": 0.5009,
       "structural_volume_m3": 0.0,
-      "placed_volume_floor_m3": 0.4927,
+      "placed_volume_floor_m3": 0.40318,
       "placed_volume_shelf_m3": 0.65104,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
       "items_moved": 4,
-      "total_y_m": 0.8346,
-      "max_y_m": 0.3845,
+      "total_y_m": 1.4442,
+      "max_y_m": 0.7263,
       "total_x_m": 0.0
      }
     },
@@ -2591,7 +2614,7 @@
      "container_index": 1,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 15,
+     "placed_total": 13,
      "normal_hard": {
       "count": 3,
       "footprint_m2": 0.6099,
@@ -2647,30 +2670,31 @@
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
-       "coverage": 0.941,
-       "mean_height_m": 0.602,
-       "max_height_m": 0.656,
+       "coverage": 0.8,
+       "mean_height_m": 0.754,
+       "max_height_m": 1.262,
        "hard_top_m2": 0.1088,
-       "soft_top_m2": 0.102,
-       "items": 2,
+       "soft_top_m2": 0.0704,
+       "items": 3,
        "classes": {
-        "normal-hard": 1,
+        "normal-hard": 2,
         "soft-priority": 1
        },
        "roles": {
         "wedge-step": 1,
+        "terrace": 1,
         "hole-fill": 1
        },
        "first_step": 2,
-       "median_step": 12.5
+       "median_step": 6.0
       },
       "left-back": {
        "usable_m2": 0.266,
-       "coverage": 0.753,
-       "mean_height_m": 0.567,
-       "max_height_m": 0.995,
+       "coverage": 0.919,
+       "mean_height_m": 0.816,
+       "max_height_m": 1.262,
        "hard_top_m2": 0.1868,
-       "soft_top_m2": 0.0136,
+       "soft_top_m2": 0.0576,
        "items": 1,
        "classes": {
         "normal-hard": 1
@@ -2719,11 +2743,11 @@
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.625,
-       "mean_height_m": 0.371,
-       "max_height_m": 0.75,
+       "coverage": 0.425,
+       "mean_height_m": 0.159,
+       "max_height_m": 0.375,
        "hard_top_m2": 0.0,
-       "soft_top_m2": 0.136,
+       "soft_top_m2": 0.0924,
        "items": 0,
        "classes": {},
        "roles": {},
@@ -2732,44 +2756,11 @@
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.774,
-       "mean_height_m": 0.403,
+       "coverage": 0.467,
+       "mean_height_m": 0.183,
        "max_height_m": 0.995,
        "hard_top_m2": 0.0032,
-       "soft_top_m2": 0.1968,
-       "items": 2,
-       "classes": {
-        "soft-priority": 1,
-        "soft": 1
-       },
-       "roles": {
-        "hole-fill": 1
-       },
-       "first_step": 26,
-       "median_step": 26.5
-      },
-      "centre-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.82,
-       "mean_height_m": 0.252,
-       "max_height_m": 0.995,
-       "hard_top_m2": 0.0136,
-       "soft_top_m2": 0.1984,
-       "items": 1,
-       "classes": {
-        "soft-priority": 1
-       },
-       "roles": {},
-       "first_step": 25,
-       "median_step": 25.0
-      },
-      "right-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.731,
-       "mean_height_m": 0.285,
-       "max_height_m": 0.995,
-       "hard_top_m2": 0.0064,
-       "soft_top_m2": 0.1824,
+       "soft_top_m2": 0.1176,
        "items": 1,
        "classes": {
         "soft-priority": 1
@@ -2777,27 +2768,55 @@
        "roles": {},
        "first_step": 24,
        "median_step": 24.0
+      },
+      "centre-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.421,
+       "mean_height_m": 0.172,
+       "max_height_m": 0.995,
+       "hard_top_m2": 0.0136,
+       "soft_top_m2": 0.0952,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "right-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.525,
+       "mean_height_m": 0.193,
+       "max_height_m": 0.995,
+       "hard_top_m2": 0.0064,
+       "soft_top_m2": 0.1292,
+       "items": 1,
+       "classes": {
+        "soft-priority": 1
+       },
+       "roles": {},
+       "first_step": 23,
+       "median_step": 23.0
       }
      },
      "support_area": {
-      "free-floor": 0.3956,
+      "free-floor": 0.6624,
       "hard": 0.79,
-      "soft-only": 0.1568,
+      "soft-only": 0.0,
       "priority-only": 0.0,
-      "soft+priority-only": 0.6724
+      "soft+priority-only": 0.5624
      },
      "height_bands": {
-      "0.00-0.15": 0.3956,
-      "0.15-0.30": 0.2016,
-      "0.30-0.50": 0.4676,
-      "0.50-0.80": 0.416,
-      "0.80+": 0.534
+      "0.00-0.15": 0.6624,
+      "0.15-0.30": 0.0,
+      "0.30-0.50": 0.53,
+      "0.50-0.80": 0.154,
+      "0.80+": 0.6684
      },
      "buildable": {
-      "buildable_area_m2": 0.5684,
-      "buildable_ratio": 0.282,
-      "soft_capped_area_m2": 0.8292,
-      "pad_count": 3,
+      "buildable_area_m2": 0.4228,
+      "buildable_ratio": 0.21,
+      "soft_capped_area_m2": 0.5624,
+      "pad_count": 2,
       "pads": [
        {
         "height_m": 0.995,
@@ -2810,20 +2829,11 @@
        },
        {
         "height_m": 0.811,
-        "area_m2": 0.168,
-        "rect_m2": 0.168,
+        "area_m2": 0.1568,
+        "rect_m2": 0.156,
         "rect_size_m": [
-         0.56,
+         0.52,
          0.3
-        ]
-       },
-       {
-        "height_m": 0.643,
-        "area_m2": 0.1344,
-        "rect_m2": 0.1344,
-        "rect_size_m": [
-         0.42,
-         0.32
         ]
        }
       ]
@@ -2833,32 +2843,32 @@
       "headroom_m": 0.725,
       "headroom_volume_m3": 0.437,
       "shelf_area_m2": 0.6028,
-      "shelf_volume_used_m3": 0.2374,
-      "shelf_fill_ratio": 0.543,
-      "shelf_items": 3,
-      "shelf_footprint_ratio": 0.809,
-      "max_used_height_m": 0.644,
-      "headroom_height_used_ratio": 0.888,
-      "back_share_of_shelf_area": 0.492,
-      "overflow_items": 5,
-      "overflow_volume_m3": 0.3802
+      "shelf_volume_used_m3": 0.1529,
+      "shelf_fill_ratio": 0.35,
+      "shelf_items": 2,
+      "shelf_footprint_ratio": 0.592,
+      "max_used_height_m": 0.568,
+      "headroom_height_used_ratio": 0.783,
+      "back_share_of_shelf_area": 0.673,
+      "overflow_items": 3,
+      "overflow_volume_m3": 0.2396
      },
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.215,
-       "mean_height_m": 0.315,
-       "max_height_m": 0.75
+       "free_ratio": 0.696,
+       "mean_height_m": 0.11,
+       "max_height_m": 0.375
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.18,
-       "mean_height_m": 0.252,
+       "free_ratio": 0.579,
+       "mean_height_m": 0.172,
        "max_height_m": 0.995
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 0.78,
+       "median_clearance_m": 1.155,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
@@ -2866,35 +2876,35 @@
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.1,
-        "reachable_free_m2": 0.1716,
-        "reachable_back_ratio": 0.008
+        "reachable_ratio": 0.283,
+        "reachable_free_m2": 0.5404,
+        "reachable_back_ratio": 0.037
        },
        "0.20": {
-        "reachable_ratio": 0.1,
-        "reachable_free_m2": 0.1716,
-        "reachable_back_ratio": 0.008
+        "reachable_ratio": 0.283,
+        "reachable_free_m2": 0.5404,
+        "reachable_back_ratio": 0.037
        },
        "0.40": {
-        "reachable_ratio": 0.343,
-        "reachable_free_m2": 0.2464,
-        "reachable_back_ratio": 0.065
+        "reachable_ratio": 0.553,
+        "reachable_free_m2": 0.6412,
+        "reachable_back_ratio": 0.128
        },
        "0.60": {
-        "reachable_ratio": 0.343,
-        "reachable_free_m2": 0.2464,
-        "reachable_back_ratio": 0.065
+        "reachable_ratio": 0.553,
+        "reachable_free_m2": 0.6412,
+        "reachable_back_ratio": 0.128
        }
       },
-      "clear_lane_width_m": 0.04,
+      "clear_lane_width_m": 0.1,
       "front_half_max_height_m": 0.995,
-      "back_half_mean_height_m": 0.655
+      "back_half_mean_height_m": 0.753
      },
      "order": {
-      "placements": 15,
+      "placements": 13,
       "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8667,
-      "max_backtrack_m": 0.2677,
+      "back_to_front_adherence": 0.8462,
+      "max_backtrack_m": 0.2165,
       "violations": [
        {
         "step": 3,
@@ -2903,33 +2913,33 @@
         "backtrack_m": 0.021
        },
        {
-        "step": 26,
-        "item_index": 11,
-        "surface": "floor",
-        "backtrack_m": 0.2677
+        "step": 6,
+        "item_index": 30,
+        "surface": "hard-top",
+        "backtrack_m": 0.2165
        }
       ],
-      "final_frontier_y": -0.6427,
-      "frontier_depth_used": 0.9416
+      "final_frontier_y": -0.4636,
+      "frontier_depth_used": 0.8146
      },
      "volume": {
-      "placed_volume_m3": 1.17008,
+      "placed_volume_m3": 1.03446,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.292,
-      "foundation_volume_m3": 0.71867,
-      "foundation_slab_height_m": 0.995,
-      "foundation_slab_volume_m3": 2.01901,
-      "foundation_slab_fill_ratio": 0.356,
+      "volume_fill_ratio": 0.2582,
+      "foundation_volume_m3": 0.66759,
+      "foundation_slab_height_m": 1.262,
+      "foundation_slab_volume_m3": 2.56079,
+      "foundation_slab_fill_ratio": 0.2607,
       "structural_volume_m3": 0.21395,
-      "placed_volume_floor_m3": 0.93263,
-      "placed_volume_shelf_m3": 0.23745,
+      "placed_volume_floor_m3": 0.88155,
+      "placed_volume_shelf_m3": 0.15291,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 1,
-      "total_y_m": 0.0643,
-      "max_y_m": 0.0643,
+      "items_moved": 2,
+      "total_y_m": 0.2923,
+      "max_y_m": 0.2749,
       "total_x_m": 0.0
      }
     }
@@ -2944,16 +2954,16 @@
     "images/06-soft-priority-heavy/c1_terrain.png",
     "images/06-soft-priority-heavy/c1_terrain.svg"
    ],
-   "runtime_seconds": 52.4
+   "runtime_seconds": 47.2
   },
   {
    "scenario": "07-elongated-heavy",
    "description": "Long thin cargo (rho 2.5-6): the structural exception path. Watch where the wall / corner preference sends them and which poses the tipping bands refuse.",
    "items_in_stream": 22,
-   "items_placed": 16,
+   "items_placed": 18,
    "role_histogram": {
-    "elongated": 10,
-    "terrace": 2,
+    "elongated": 9,
+    "terrace": 5,
     "wall-front": 1,
     "wedge-step": 2,
     "hole-fill": 1
@@ -2963,31 +2973,31 @@
      "container_index": 0,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 16,
+     "placed_total": 18,
      "normal_hard": {
       "count": 11,
-      "footprint_m2": 1.0214,
-      "x_centroid": 0.522,
-      "y_centroid": 0.584,
-      "back_share": 0.799,
-      "centre_share": 0.353,
+      "footprint_m2": 1.081,
+      "x_centroid": 0.514,
+      "y_centroid": 0.586,
+      "back_share": 0.677,
+      "centre_share": 0.339,
       "cell_share": {
-       "chamfer-back": 0.23,
-       "left-back": 0.084,
-       "centre-back": 0.301,
-       "right-back": 0.184,
-       "chamfer-front": 0.053,
-       "left-front": 0.0,
-       "centre-front": 0.052,
-       "right-front": 0.097
+       "chamfer-back": 0.155,
+       "left-back": 0.062,
+       "centre-back": 0.187,
+       "right-back": 0.273,
+       "chamfer-front": 0.0,
+       "left-front": 0.171,
+       "centre-front": 0.152,
+       "right-front": 0.0
       },
       "height_by_y_third": [
-       0.978,
-       0.875,
-       1.167
+       0.909,
+       0.73,
+       1.27
       ],
       "slab_height_by_y_third": [
-       null,
+       0.933,
        null,
        null
       ]
@@ -3003,14 +3013,6 @@
         "class": "normal-hard"
        },
        {
-        "step": 3,
-        "role": "elongated",
-        "cell": "centre-back",
-        "height_m": 0.953,
-        "footprint_m2": 0.048,
-        "class": "normal-hard"
-       },
-       {
         "step": 4,
         "role": "wall-front",
         "cell": "chamfer-back",
@@ -3021,7 +3023,7 @@
        {
         "step": 7,
         "role": "elongated",
-        "cell": "centre-back",
+        "cell": "right-back",
         "height_m": 1.295,
         "footprint_m2": 0.0573,
         "class": "normal-hard"
@@ -3045,25 +3047,25 @@
        {
         "step": 10,
         "role": "elongated",
-        "cell": "chamfer-back",
+        "cell": "left-back",
         "height_m": 1.253,
         "footprint_m2": 0.0671,
         "class": "normal-hard"
        },
        {
-        "step": 12,
+        "step": 11,
         "role": "elongated",
-        "cell": "left-back",
-        "height_m": 1.116,
-        "footprint_m2": 0.0861,
+        "cell": "right-back",
+        "height_m": 1.026,
+        "footprint_m2": 0.0497,
         "class": "normal-hard"
        },
        {
-        "step": 13,
+        "step": 12,
         "role": "elongated",
-        "cell": "chamfer-front",
-        "height_m": 1.113,
-        "footprint_m2": 0.0536,
+        "cell": "left-front",
+        "height_m": 1.116,
+        "footprint_m2": 0.0861,
         "class": "normal-hard"
        },
        {
@@ -3077,9 +3079,9 @@
        {
         "step": 15,
         "role": "elongated",
-        "cell": "right-front",
-        "height_m": 0.933,
-        "footprint_m2": 0.0986,
+        "cell": "centre-front",
+        "height_m": 0.886,
+        "footprint_m2": 0.1115,
         "class": "normal-hard"
        }
       ],
@@ -3091,30 +3093,28 @@
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
-       "coverage": 0.943,
-       "mean_height_m": 0.933,
-       "max_height_m": 1.405,
-       "hard_top_m2": 0.2112,
+       "coverage": 0.904,
+       "mean_height_m": 0.651,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.2024,
        "soft_top_m2": 0.0,
-       "items": 5,
+       "items": 3,
        "classes": {
-        "normal-hard": 5
+        "normal-hard": 3
        },
        "roles": {
         "wall-front": 1,
-        "wedge-step": 2,
-        "elongated": 1,
-        "terrace": 1
+        "wedge-step": 2
        },
        "first_step": 4,
-       "median_step": 6.0
+       "median_step": 5.0
       },
       "left-back": {
        "usable_m2": 0.266,
-       "coverage": 0.792,
-       "mean_height_m": 0.975,
-       "max_height_m": 1.405,
-       "hard_top_m2": 0.2108,
+       "coverage": 0.561,
+       "mean_height_m": 0.619,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.1492,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -3123,151 +3123,127 @@
        "roles": {
         "elongated": 1
        },
-       "first_step": 12,
-       "median_step": 12.0
+       "first_step": 10,
+       "median_step": 10.0
       },
       "centre-back": {
        "usable_m2": 0.266,
-       "coverage": 0.699,
-       "mean_height_m": 0.874,
-       "max_height_m": 1.405,
-       "hard_top_m2": 0.186,
-       "soft_top_m2": 0.0,
-       "items": 4,
-       "classes": {
-        "normal-hard": 4
-       },
-       "roles": {
-        "elongated": 4
-       },
-       "first_step": 3,
-       "median_step": 7.5
-      },
-      "right-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.811,
-       "mean_height_m": 0.404,
-       "max_height_m": 1.281,
-       "hard_top_m2": 0.2156,
+       "coverage": 0.875,
+       "mean_height_m": 1.091,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.2328,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
         "normal-hard": 2
        },
        "roles": {
-        "elongated": 1,
-        "terrace": 1
+        "elongated": 2
+       },
+       "first_step": 8,
+       "median_step": 8.5
+      },
+      "right-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.889,
+       "mean_height_m": 0.627,
+       "max_height_m": 1.295,
+       "hard_top_m2": 0.2364,
+       "soft_top_m2": 0.0,
+       "items": 5,
+       "classes": {
+        "normal-hard": 5
+       },
+       "roles": {
+        "elongated": 3,
+        "terrace": 2
        },
        "first_step": 1,
-       "median_step": 1.5
+       "median_step": 3.0
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.346,
-       "mean_height_m": 0.246,
-       "max_height_m": 1.113,
-       "hard_top_m2": 0.0752,
+       "coverage": 0.614,
+       "mean_height_m": 0.801,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.1336,
        "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "elongated": 1
-       },
-       "first_step": 13,
-       "median_step": 13.0
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.368,
-       "mean_height_m": 0.367,
-       "max_height_m": 1.116,
-       "hard_top_m2": 0.0568,
-       "soft_top_m2": 0.0384,
-       "items": 1,
+       "coverage": 0.692,
+       "mean_height_m": 0.908,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.1788,
+       "soft_top_m2": 0.0,
+       "items": 5,
        "classes": {
-        "soft": 1
+        "normal-hard": 5
        },
        "roles": {
+        "elongated": 1,
+        "terrace": 3,
         "hole-fill": 1
        },
-       "first_step": 16,
+       "first_step": 12,
        "median_step": 16.0
       },
       "centre-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.452,
-       "mean_height_m": 0.479,
-       "max_height_m": 1.281,
-       "hard_top_m2": 0.1168,
+       "coverage": 0.602,
+       "mean_height_m": 0.773,
+       "max_height_m": 1.406,
+       "hard_top_m2": 0.1556,
        "soft_top_m2": 0.0,
-       "items": 1,
+       "items": 2,
        "classes": {
-        "normal-hard": 1
+        "normal-hard": 2
        },
        "roles": {
-        "elongated": 1
+        "elongated": 2
        },
        "first_step": 14,
-       "median_step": 14.0
+       "median_step": 14.5
       },
       "right-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.59,
-       "mean_height_m": 0.371,
-       "max_height_m": 1.281,
-       "hard_top_m2": 0.1524,
+       "coverage": 0.443,
+       "mean_height_m": 0.28,
+       "max_height_m": 1.328,
+       "hard_top_m2": 0.1144,
        "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "elongated": 1
-       },
-       "first_step": 15,
-       "median_step": 15.0
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
       }
      },
      "support_area": {
-      "free-floor": 0.7516,
-      "hard": 1.2248,
-      "soft-only": 0.0384,
+      "free-floor": 0.6116,
+      "hard": 1.4032,
+      "soft-only": 0.0,
       "priority-only": 0.0,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.7516,
-      "0.15-0.30": 0.024,
-      "0.30-0.50": 0.2996,
-      "0.50-0.80": 0.132,
-      "0.80+": 0.8076
+      "0.00-0.15": 0.6116,
+      "0.15-0.30": 0.0144,
+      "0.30-0.50": 0.1044,
+      "0.50-0.80": 0.3432,
+      "0.80+": 0.9412
      },
      "buildable": {
-      "buildable_area_m2": 1.3376,
-      "buildable_ratio": 0.664,
-      "soft_capped_area_m2": 0.0384,
-      "pad_count": 5,
+      "buildable_area_m2": 0.2408,
+      "buildable_ratio": 0.12,
+      "soft_capped_area_m2": 0.0,
+      "pad_count": 2,
       "pads": [
-       {
-        "height_m": 0.0,
-        "area_m2": 0.7516,
-        "rect_m2": 0.264,
-        "rect_size_m": [
-         0.66,
-         0.4
-        ]
-       },
-       {
-        "height_m": 1.405,
-        "area_m2": 0.256,
-        "rect_m2": 0.256,
-        "rect_size_m": [
-         0.8,
-         0.32
-        ]
-       },
        {
         "height_m": 0.621,
         "area_m2": 0.132,
@@ -3279,456 +3255,11 @@
        },
        {
         "height_m": 1.281,
-        "area_m2": 0.102,
-        "rect_m2": 0.102,
+        "area_m2": 0.1088,
+        "rect_m2": 0.1088,
         "rect_size_m": [
-         0.3,
-         0.34
-        ]
-       },
-       {
-        "height_m": 0.933,
-        "area_m2": 0.096,
-        "rect_m2": 0.096,
-        "rect_size_m": [
-         0.32,
-         0.3
-        ]
-       }
-      ]
-     },
-     "shelf": {
-      "has_shelf": true,
-      "headroom_m": 0.725,
-      "headroom_volume_m3": 0.437,
-      "shelf_area_m2": 0.6028,
-      "shelf_volume_used_m3": 0,
-      "shelf_fill_ratio": 0.0,
-      "shelf_items": 0,
-      "shelf_footprint_ratio": 0.0,
-      "max_used_height_m": 0.0,
-      "headroom_height_used_ratio": 0.0,
-      "back_share_of_shelf_area": null,
-      "overflow_items": 1,
-      "overflow_volume_m3": 0.0321
-     },
-     "access": {
-      "corridor": {
-       "area_m2": 0.3128,
-       "free_ratio": 0.724,
-       "mean_height_m": 0.264,
-       "max_height_m": 1.022
-      },
-      "front_centre": {
-       "area_m2": 0.2584,
-       "free_ratio": 0.548,
-       "mean_height_m": 0.479,
-       "max_height_m": 1.281
-      },
-      "approach": {
-       "width_m": 1.46,
-       "median_clearance_m": 0.417,
-       "max_clearance_m": 1.53,
-       "width_over_0.30m": 1.16,
-       "width_over_0.50m": 0.68,
-       "width_over_0.70m": 0.44
-      },
-      "reach": {
-       "0.00": {
-        "reachable_ratio": 0.257,
-        "reachable_free_m2": 0.4892,
-        "reachable_back_ratio": 0.008
-       },
-       "0.20": {
-        "reachable_ratio": 0.257,
-        "reachable_free_m2": 0.4892,
-        "reachable_back_ratio": 0.008
-       },
-       "0.40": {
-        "reachable_ratio": 0.365,
-        "reachable_free_m2": 0.4892,
-        "reachable_back_ratio": 0.145
-       },
-       "0.60": {
-        "reachable_ratio": 0.384,
-        "reachable_free_m2": 0.4892,
-        "reachable_back_ratio": 0.155
-       }
-      },
-      "clear_lane_width_m": 0.08,
-      "front_half_max_height_m": 1.281,
-      "back_half_mean_height_m": 0.791
-     },
-     "order": {
-      "placements": 16,
-      "back_to_front_violations": 10,
-      "back_to_front_adherence": 0.375,
-      "max_backtrack_m": 0.9,
-      "violations": [
-       {
-        "step": 3,
-        "item_index": 0,
-        "surface": "floor",
-        "backtrack_m": 0.838
-       },
-       {
-        "step": 4,
-        "item_index": 21,
-        "surface": "floor",
-        "backtrack_m": 0.112
-       },
-       {
-        "step": 6,
-        "item_index": 20,
-        "surface": "packed_item",
-        "backtrack_m": 0.594
-       },
-       {
-        "step": 7,
-        "item_index": 3,
-        "surface": "floor",
-        "backtrack_m": 0.9
-       },
-       {
-        "step": 8,
-        "item_index": 1,
-        "surface": "floor",
-        "backtrack_m": 0.596
-       },
-       {
-        "step": 9,
-        "item_index": 17,
-        "surface": "floor",
-        "backtrack_m": 0.233
-       },
-       {
-        "step": 10,
-        "item_index": 9,
-        "surface": "floor",
-        "backtrack_m": 0.4
-       },
-       {
-        "step": 11,
-        "item_index": 13,
-        "surface": "hard-top",
-        "backtrack_m": 0.304
-       }
-      ],
-      "final_frontier_y": -0.632,
-      "frontier_depth_used": 0.934
-     },
-     "volume": {
-      "placed_volume_m3": 1.06211,
-      "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.2651,
-      "foundation_volume_m3": 0.12601,
-      "foundation_slab_height_m": 1.405,
-      "foundation_slab_volume_m3": 2.85096,
-      "foundation_slab_fill_ratio": 0.0442,
-      "structural_volume_m3": 0.9361,
-      "placed_volume_floor_m3": 1.06211,
-      "placed_volume_shelf_m3": 0.0,
-      "official_evaluator_fill_score": null,
-      "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
-     },
-     "compaction": {
-      "items_moved": 0,
-      "total_y_m": 0.0,
-      "max_y_m": 0.0,
-      "total_x_m": 0.0
-     }
-    }
-   ],
-   "images": [
-    "images/07-elongated-heavy/c0_stack.png",
-    "images/07-elongated-heavy/c0_stack.svg",
-    "images/07-elongated-heavy/c0_terrain.png",
-    "images/07-elongated-heavy/c0_terrain.svg"
-   ],
-   "runtime_seconds": 20.5
-  },
-  {
-   "scenario": "08-slope-exploitation",
-   "description": "Small low boxes that would fit the chamfer wedge if it were reachable. This scenario exists to show whether the slope pocket is usable at all from a floor layer.",
-   "items_in_stream": 30,
-   "items_placed": 14,
-   "role_histogram": {
-    "wall-front": 4,
-    "none": 2,
-    "terrace": 3,
-    "hole-fill": 1,
-    "wedge-step": 3,
-    "tall-perimeter": 1
-   },
-   "containers": [
-    {
-     "container_index": 0,
-     "has_shelf": false,
-     "is_prioritized": false,
-     "placed_total": 14,
-     "normal_hard": {
-      "count": 8,
-      "footprint_m2": 1.084,
-      "x_centroid": 0.483,
-      "y_centroid": 0.625,
-      "back_share": 0.72,
-      "centre_share": 0.387,
-      "cell_share": {
-       "chamfer-back": 0.198,
-       "left-back": 0.0,
-       "centre-back": 0.387,
-       "right-back": 0.135,
-       "chamfer-front": 0.173,
-       "left-front": 0.0,
-       "centre-front": 0.0,
-       "right-front": 0.107
-      },
-      "height_by_y_third": [
-       0.356,
-       0.302,
-       0.304
-      ],
-      "slab_height_by_y_third": [
-       null,
-       0.167,
-       0.292
-      ]
-     },
-     "tall": {
-      "items": [
-       {
-        "step": 1,
-        "role": "wall-front",
-        "cell": "chamfer-back",
-        "height_m": 0.329,
-        "footprint_m2": 0.0952,
-        "class": "normal-hard"
-       },
-       {
-        "step": 4,
-        "role": "wall-front",
-        "cell": "chamfer-back",
-        "height_m": 0.298,
-        "footprint_m2": 0.1189,
-        "class": "normal-hard"
-       },
-       {
-        "step": 11,
-        "role": "wall-front",
-        "cell": "chamfer-front",
-        "height_m": 0.284,
-        "footprint_m2": 0.0769,
-        "class": "normal-hard"
-       },
-       {
-        "step": 12,
-        "role": "tall-perimeter",
-        "cell": "right-front",
-        "height_m": 0.459,
-        "footprint_m2": 0.1162,
-        "class": "normal-hard"
-       },
-       {
-        "step": 13,
-        "role": "wall-front",
-        "cell": "chamfer-front",
-        "height_m": 0.356,
-        "footprint_m2": 0.1108,
-        "class": "normal-hard"
-       }
-      ],
-      "tall_perimeter_count": 1,
-      "tall_perimeter_back_share": 0.0,
-      "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 12.0
-     },
-     "cells": {
-      "chamfer-back": {
-       "usable_m2": 0.224,
-       "coverage": 0.893,
-       "mean_height_m": 0.496,
-       "max_height_m": 0.582,
-       "hard_top_m2": 0.2,
-       "soft_top_m2": 0.0,
-       "items": 4,
-       "classes": {
-        "normal-hard": 4
-       },
-       "roles": {
-        "wall-front": 2,
-        "wedge-step": 2
-       },
-       "first_step": 1,
-       "median_step": 5.0
-      },
-      "left-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.648,
-       "mean_height_m": 0.233,
-       "max_height_m": 0.428,
-       "hard_top_m2": 0.1724,
-       "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
-      "centre-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.893,
-       "mean_height_m": 0.33,
-       "max_height_m": 0.428,
-       "hard_top_m2": 0.2376,
-       "soft_top_m2": 0.0,
-       "items": 3,
-       "classes": {
-        "normal-hard": 3
-       },
-       "roles": {
-        "terrace": 1
-       },
-       "first_step": 2,
-       "median_step": 3.0
-      },
-      "right-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.839,
-       "mean_height_m": 0.464,
-       "max_height_m": 0.582,
-       "hard_top_m2": 0.2232,
-       "soft_top_m2": 0.0,
-       "items": 2,
-       "classes": {
-        "normal-hard": 2
-       },
-       "roles": {
-        "hole-fill": 1,
-        "terrace": 1
-       },
-       "first_step": 5,
-       "median_step": 6.5
-      },
-      "chamfer-front": {
-       "usable_m2": 0.2176,
-       "coverage": 0.743,
-       "mean_height_m": 0.379,
-       "max_height_m": 0.601,
-       "hard_top_m2": 0.1616,
-       "soft_top_m2": 0.0,
-       "items": 3,
-       "classes": {
-        "normal-hard": 3
-       },
-       "roles": {
-        "wall-front": 2,
-        "wedge-step": 1
-       },
-       "first_step": 11,
-       "median_step": 13.0
-      },
-      "left-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.235,
-       "mean_height_m": 0.075,
-       "max_height_m": 0.339,
-       "hard_top_m2": 0.0608,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "terrace": 1
-       },
-       "first_step": 10,
-       "median_step": 10.0
-      },
-      "centre-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.235,
-       "mean_height_m": 0.058,
-       "max_height_m": 0.339,
-       "hard_top_m2": 0.0608,
-       "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
-      "right-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.282,
-       "mean_height_m": 0.129,
-       "max_height_m": 0.459,
-       "hard_top_m2": 0.0728,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "tall-perimeter": 1
-       },
-       "first_step": 12,
-       "median_step": 12.0
-      }
-     },
-     "support_area": {
-      "free-floor": 0.8256,
-      "hard": 1.1892,
-      "soft-only": 0.0,
-      "priority-only": 0.0,
-      "soft+priority-only": 0.0
-     },
-     "height_bands": {
-      "0.00-0.15": 0.8256,
-      "0.15-0.30": 0.1552,
-      "0.30-0.50": 0.5636,
-      "0.50-0.80": 0.4704,
-      "0.80+": 0.0
-     },
-     "buildable": {
-      "buildable_area_m2": 1.3352,
-      "buildable_ratio": 0.663,
-      "soft_capped_area_m2": 0.0,
-      "pad_count": 4,
-      "pads": [
-       {
-        "height_m": 0.0,
-        "area_m2": 0.8256,
-        "rect_m2": 0.5124,
-        "rect_size_m": [
-         1.22,
-         0.42
-        ]
-       },
-       {
-        "height_m": 0.428,
-        "area_m2": 0.2288,
-        "rect_m2": 0.2288,
-        "rect_size_m": [
-         0.52,
-         0.44
-        ]
-       },
-       {
-        "height_m": 0.582,
-        "area_m2": 0.1728,
-        "rect_m2": 0.1728,
-        "rect_size_m": [
-         0.36,
-         0.48
-        ]
-       },
-       {
-        "height_m": 0.582,
-        "area_m2": 0.108,
-        "rect_m2": 0.108,
-        "rect_size_m": [
-         0.3,
-         0.36
+         0.34,
+         0.32
         ]
        }
       ]
@@ -3751,19 +3282,421 @@
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.982,
-       "mean_height_m": 0.006,
-       "max_height_m": 0.339
+       "free_ratio": 0.453,
+       "mean_height_m": 0.699,
+       "max_height_m": 1.328
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.765,
-       "mean_height_m": 0.058,
-       "max_height_m": 0.339
+       "free_ratio": 0.398,
+       "mean_height_m": 0.773,
+       "max_height_m": 1.406
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 1.191,
+       "median_clearance_m": 0.124,
+       "max_clearance_m": 1.53,
+       "width_over_0.30m": 0.34,
+       "width_over_0.50m": 0.34,
+       "width_over_0.70m": 0.3
+      },
+      "reach": {
+       "0.00": {
+        "reachable_ratio": 0.213,
+        "reachable_free_m2": 0.4012,
+        "reachable_back_ratio": 0.027
+       },
+       "0.20": {
+        "reachable_ratio": 0.213,
+        "reachable_free_m2": 0.4012,
+        "reachable_back_ratio": 0.027
+       },
+       "0.40": {
+        "reachable_ratio": 0.242,
+        "reachable_free_m2": 0.4012,
+        "reachable_back_ratio": 0.055
+       },
+       "0.60": {
+        "reachable_ratio": 0.242,
+        "reachable_free_m2": 0.4012,
+        "reachable_back_ratio": 0.055
+       }
+      },
+      "clear_lane_width_m": 0.04,
+      "front_half_max_height_m": 1.406,
+      "back_half_mean_height_m": 0.751
+     },
+     "order": {
+      "placements": 18,
+      "back_to_front_violations": 11,
+      "back_to_front_adherence": 0.3889,
+      "max_backtrack_m": 0.782,
+      "violations": [
+       {
+        "step": 3,
+        "item_index": 0,
+        "surface": "hard-top",
+        "backtrack_m": 0.011
+       },
+       {
+        "step": 4,
+        "item_index": 21,
+        "surface": "floor",
+        "backtrack_m": 0.112
+       },
+       {
+        "step": 6,
+        "item_index": 20,
+        "surface": "packed_item",
+        "backtrack_m": 0.594
+       },
+       {
+        "step": 7,
+        "item_index": 3,
+        "surface": "floor",
+        "backtrack_m": 0.702
+       },
+       {
+        "step": 8,
+        "item_index": 1,
+        "surface": "floor",
+        "backtrack_m": 0.782
+       },
+       {
+        "step": 9,
+        "item_index": 17,
+        "surface": "floor",
+        "backtrack_m": 0.451
+       },
+       {
+        "step": 10,
+        "item_index": 9,
+        "surface": "floor",
+        "backtrack_m": 0.533
+       },
+       {
+        "step": 11,
+        "item_index": 13,
+        "surface": "floor",
+        "backtrack_m": 0.349
+       }
+      ],
+      "final_frontier_y": -0.493,
+      "frontier_depth_used": 0.8355
+     },
+     "volume": {
+      "placed_volume_m3": 1.23772,
+      "usable_container_volume_m3": 4.00698,
+      "volume_fill_ratio": 0.3089,
+      "foundation_volume_m3": 0.34919,
+      "foundation_slab_height_m": 1.406,
+      "foundation_slab_volume_m3": 2.85299,
+      "foundation_slab_fill_ratio": 0.1224,
+      "structural_volume_m3": 0.88853,
+      "placed_volume_floor_m3": 1.23772,
+      "placed_volume_shelf_m3": 0.0,
+      "official_evaluator_fill_score": null,
+      "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
+     },
+     "compaction": {
+      "items_moved": 1,
+      "total_y_m": 0.0821,
+      "max_y_m": 0.0821,
+      "total_x_m": 0.356
+     }
+    }
+   ],
+   "images": [
+    "images/07-elongated-heavy/c0_stack.png",
+    "images/07-elongated-heavy/c0_stack.svg",
+    "images/07-elongated-heavy/c0_terrain.png",
+    "images/07-elongated-heavy/c0_terrain.svg"
+   ],
+   "runtime_seconds": 21.8
+  },
+  {
+   "scenario": "08-slope-exploitation",
+   "description": "Small low boxes that would fit the chamfer wedge if it were reachable. This scenario exists to show whether the slope pocket is usable at all from a floor layer.",
+   "items_in_stream": 30,
+   "items_placed": 18,
+   "role_histogram": {
+    "wall-front": 3,
+    "none": 3,
+    "terrace": 9,
+    "hole-fill": 1,
+    "wedge-step": 2
+   },
+   "containers": [
+    {
+     "container_index": 0,
+     "has_shelf": false,
+     "is_prioritized": false,
+     "placed_total": 18,
+     "normal_hard": {
+      "count": 7,
+      "footprint_m2": 0.9946,
+      "x_centroid": 0.491,
+      "y_centroid": 0.689,
+      "back_share": 0.892,
+      "centre_share": 0.422,
+      "cell_share": {
+       "chamfer-back": 0.239,
+       "left-back": 0.0,
+       "centre-back": 0.422,
+       "right-back": 0.232,
+       "chamfer-front": 0.108,
+       "left-front": 0.0,
+       "centre-front": 0.0,
+       "right-front": 0.0
+      },
+      "height_by_y_third": [
+       null,
+       0.208,
+       0.347
+      ],
+      "slab_height_by_y_third": [
+       null,
+       0.18,
+       0.343
+      ]
+     },
+     "tall": {
+      "items": [
+       {
+        "step": 1,
+        "role": "wall-front",
+        "cell": "chamfer-back",
+        "height_m": 0.329,
+        "footprint_m2": 0.0952,
+        "class": "normal-hard"
+       },
+       {
+        "step": 7,
+        "role": "wall-front",
+        "cell": "chamfer-back",
+        "height_m": 0.373,
+        "footprint_m2": 0.142,
+        "class": "normal-hard"
+       },
+       {
+        "step": 14,
+        "role": "wall-front",
+        "cell": "chamfer-front",
+        "height_m": 0.264,
+        "footprint_m2": 0.1076,
+        "class": "normal-hard"
+       }
+      ],
+      "tall_perimeter_count": 0,
+      "tall_perimeter_back_share": null,
+      "tall_perimeter_median_step_back": null,
+      "tall_perimeter_median_step_front": null
+     },
+     "cells": {
+      "chamfer-back": {
+       "usable_m2": 0.224,
+       "coverage": 0.966,
+       "mean_height_m": 0.778,
+       "max_height_m": 1.328,
+       "hard_top_m2": 0.2164,
+       "soft_top_m2": 0.0,
+       "items": 6,
+       "classes": {
+        "normal-hard": 6
+       },
+       "roles": {
+        "wall-front": 2,
+        "wedge-step": 2,
+        "terrace": 2
+       },
+       "first_step": 1,
+       "median_step": 7.5
+      },
+      "left-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.741,
+       "mean_height_m": 0.355,
+       "max_height_m": 0.694,
+       "hard_top_m2": 0.1972,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "centre-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.877,
+       "mean_height_m": 0.559,
+       "max_height_m": 0.843,
+       "hard_top_m2": 0.2332,
+       "soft_top_m2": 0.0,
+       "items": 6,
+       "classes": {
+        "normal-hard": 6
+       },
+       "roles": {
+        "terrace": 4
+       },
+       "first_step": 2,
+       "median_step": 6.5
+      },
+      "right-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.779,
+       "mean_height_m": 0.519,
+       "max_height_m": 0.843,
+       "hard_top_m2": 0.2072,
+       "soft_top_m2": 0.0,
+       "items": 5,
+       "classes": {
+        "normal-hard": 5
+       },
+       "roles": {
+        "hole-fill": 1,
+        "terrace": 3
+       },
+       "first_step": 5,
+       "median_step": 11.0
+      },
+      "chamfer-front": {
+       "usable_m2": 0.2176,
+       "coverage": 0.265,
+       "mean_height_m": 0.07,
+       "max_height_m": 0.264,
+       "hard_top_m2": 0.0576,
+       "soft_top_m2": 0.0,
+       "items": 1,
+       "classes": {
+        "normal-hard": 1
+       },
+       "roles": {
+        "wall-front": 1
+       },
+       "first_step": 14,
+       "median_step": 14.0
+      },
+      "left-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.207,
+       "mean_height_m": 0.092,
+       "max_height_m": 0.694,
+       "hard_top_m2": 0.0536,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "centre-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.209,
+       "mean_height_m": 0.125,
+       "max_height_m": 0.694,
+       "hard_top_m2": 0.054,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "right-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.19,
+       "mean_height_m": 0.061,
+       "max_height_m": 0.38,
+       "hard_top_m2": 0.0492,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      }
+     },
+     "support_area": {
+      "free-floor": 0.9464,
+      "hard": 1.0684,
+      "soft-only": 0.0,
+      "priority-only": 0.0,
+      "soft+priority-only": 0.0
+     },
+     "height_bands": {
+      "0.00-0.15": 0.9464,
+      "0.15-0.30": 0.1264,
+      "0.30-0.50": 0.3016,
+      "0.50-0.80": 0.4236,
+      "0.80+": 0.2168
+     },
+     "buildable": {
+      "buildable_area_m2": 1.214,
+      "buildable_ratio": 0.603,
+      "soft_capped_area_m2": 0.0,
+      "pad_count": 3,
+      "pads": [
+       {
+        "height_m": 0.0,
+        "area_m2": 0.9424,
+        "rect_m2": 0.73,
+        "rect_size_m": [
+         1.46,
+         0.5
+        ]
+       },
+       {
+        "height_m": 0.694,
+        "area_m2": 0.1496,
+        "rect_m2": 0.1496,
+        "rect_size_m": [
+         0.44,
+         0.34
+        ]
+       },
+       {
+        "height_m": 0.658,
+        "area_m2": 0.122,
+        "rect_m2": 0.12,
+        "rect_size_m": [
+         0.4,
+         0.3
+        ]
+       }
+      ]
+     },
+     "shelf": {
+      "has_shelf": true,
+      "headroom_m": 0.725,
+      "headroom_volume_m3": 0.437,
+      "shelf_area_m2": 0.6028,
+      "shelf_volume_used_m3": 0,
+      "shelf_fill_ratio": 0.0,
+      "shelf_items": 0,
+      "shelf_footprint_ratio": 0.0,
+      "max_used_height_m": 0.0,
+      "headroom_height_used_ratio": 0.0,
+      "back_share_of_shelf_area": null,
+      "overflow_items": 0,
+      "overflow_volume_m3": 0
+     },
+     "access": {
+      "corridor": {
+       "area_m2": 0.3128,
+       "free_ratio": 1.0,
+       "mean_height_m": 0.0,
+       "max_height_m": 0.0
+      },
+      "front_centre": {
+       "area_m2": 0.2584,
+       "free_ratio": 0.791,
+       "mean_height_m": 0.125,
+       "max_height_m": 0.694
+      },
+      "approach": {
+       "width_m": 1.46,
+       "median_clearance_m": 1.15,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
@@ -3771,58 +3704,95 @@
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.36,
-        "reachable_free_m2": 0.6976,
-        "reachable_back_ratio": 0.072
+        "reachable_ratio": 0.445,
+        "reachable_free_m2": 0.8676,
+        "reachable_back_ratio": 0.092
        },
        "0.20": {
-        "reachable_ratio": 0.402,
-        "reachable_free_m2": 0.7056,
-        "reachable_back_ratio": 0.127
+        "reachable_ratio": 0.461,
+        "reachable_free_m2": 0.8772,
+        "reachable_back_ratio": 0.105
        },
        "0.40": {
-        "reachable_ratio": 0.586,
-        "reachable_free_m2": 0.7904,
-        "reachable_back_ratio": 0.353
+        "reachable_ratio": 0.622,
+        "reachable_free_m2": 0.9084,
+        "reachable_back_ratio": 0.326
        },
        "0.60": {
-        "reachable_ratio": 0.864,
-        "reachable_free_m2": 0.8064,
-        "reachable_back_ratio": 0.836
+        "reachable_ratio": 0.697,
+        "reachable_free_m2": 0.9132,
+        "reachable_back_ratio": 0.447
        }
       },
-      "clear_lane_width_m": 0.24,
-      "front_half_max_height_m": 0.601,
-      "back_half_mean_height_m": 0.376
+      "clear_lane_width_m": 0.26,
+      "front_half_max_height_m": 0.694,
+      "back_half_mean_height_m": 0.543
      },
      "order": {
-      "placements": 14,
-      "back_to_front_violations": 0,
-      "back_to_front_adherence": 1.0,
-      "max_backtrack_m": 0.0,
-      "violations": [],
-      "final_frontier_y": -0.673,
-      "frontier_depth_used": 0.9631
+      "placements": 18,
+      "back_to_front_violations": 6,
+      "back_to_front_adherence": 0.6667,
+      "max_backtrack_m": 0.452,
+      "violations": [
+       {
+        "step": 4,
+        "item_index": 22,
+        "surface": "hard-top",
+        "backtrack_m": 0.141
+       },
+       {
+        "step": 11,
+        "item_index": 17,
+        "surface": "hard-top",
+        "backtrack_m": 0.189
+       },
+       {
+        "step": 13,
+        "item_index": 1,
+        "surface": "hard-top",
+        "backtrack_m": 0.062
+       },
+       {
+        "step": 15,
+        "item_index": 29,
+        "surface": "hard-top",
+        "backtrack_m": 0.444
+       },
+       {
+        "step": 16,
+        "item_index": 2,
+        "surface": "hard-top",
+        "backtrack_m": 0.452
+       },
+       {
+        "step": 18,
+        "item_index": 28,
+        "surface": "hard-top",
+        "backtrack_m": 0.068
+       }
+      ],
+      "final_frontier_y": -0.201,
+      "frontier_depth_used": 0.6284
      },
      "volume": {
-      "placed_volume_m3": 0.53664,
+      "placed_volume_m3": 0.64136,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.1339,
-      "foundation_volume_m3": 0.24321,
-      "foundation_slab_height_m": 0.582,
-      "foundation_slab_volume_m3": 1.18097,
-      "foundation_slab_fill_ratio": 0.2059,
-      "structural_volume_m3": 0.29343,
-      "placed_volume_floor_m3": 0.53664,
+      "volume_fill_ratio": 0.1601,
+      "foundation_volume_m3": 0.46736,
+      "foundation_slab_height_m": 1.328,
+      "foundation_slab_volume_m3": 2.69472,
+      "foundation_slab_fill_ratio": 0.1734,
+      "structural_volume_m3": 0.174,
+      "placed_volume_floor_m3": 0.64136,
       "placed_volume_shelf_m3": 0.0,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 1,
-      "total_y_m": 0.0107,
-      "max_y_m": 0.0107,
-      "total_x_m": 0.0397
+      "items_moved": 0,
+      "total_y_m": 0.0,
+      "max_y_m": 0.0,
+      "total_x_m": 0.0
      }
     }
    ],
@@ -3832,18 +3802,17 @@
     "images/08-slope-exploitation/c0_terrain.png",
     "images/08-slope-exploitation/c0_terrain.svg"
    ],
-   "runtime_seconds": 61.3
+   "runtime_seconds": 63.6
   },
   {
    "scenario": "09-mixed-random",
    "description": "Realistic mixed stream matching the official sample config class ratios.",
    "items_in_stream": 34,
-   "items_placed": 17,
+   "items_placed": 16,
    "role_histogram": {
-    "wall-front": 2,
-    "none": 10,
-    "wedge-step": 1,
-    "bridge": 1,
+    "wall-front": 3,
+    "wedge-step": 2,
+    "none": 8,
     "terrace": 1,
     "tall-perimeter": 2
    },
@@ -3852,33 +3821,33 @@
      "container_index": 0,
      "has_shelf": true,
      "is_prioritized": false,
-     "placed_total": 17,
+     "placed_total": 16,
      "normal_hard": {
-      "count": 3,
-      "footprint_m2": 0.7109,
-      "x_centroid": 0.425,
-      "y_centroid": 0.8,
-      "back_share": 1.0,
-      "centre_share": 0.0,
+      "count": 4,
+      "footprint_m2": 0.9839,
+      "x_centroid": 0.338,
+      "y_centroid": 0.66,
+      "back_share": 0.75,
+      "centre_share": 0.277,
       "cell_share": {
-       "chamfer-back": 0.328,
-       "left-back": 0.327,
-       "centre-back": 0.0,
-       "right-back": 0.346,
-       "chamfer-front": 0.0,
+       "chamfer-back": 0.237,
+       "left-back": 0.236,
+       "centre-back": 0.277,
+       "right-back": 0.0,
+       "chamfer-front": 0.25,
        "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
-       null,
        0.38,
-       0.362
+       0.38,
+       0.32
       ],
       "slab_height_by_y_third": [
        null,
        null,
-       0.38
+       0.297
       ]
      },
      "tall": {
@@ -3900,7 +3869,15 @@
         "class": "normal-hard"
        },
        {
-        "step": 7,
+        "step": 3,
+        "role": "wall-front",
+        "cell": "chamfer-front",
+        "height_m": 0.38,
+        "footprint_m2": 0.2457,
+        "class": "normal-hard"
+       },
+       {
+        "step": 8,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.72,
@@ -3908,7 +3885,7 @@
         "class": "priority"
        },
        {
-        "step": 8,
+        "step": 9,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.519,
@@ -3919,15 +3896,15 @@
       "tall_perimeter_count": 2,
       "tall_perimeter_back_share": 0.0,
       "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 7.5
+      "tall_perimeter_median_step_front": 8.5
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.2304,
-       "coverage": 0.917,
-       "mean_height_m": 0.432,
-       "max_height_m": 0.589,
-       "hard_top_m2": 0.2112,
+       "coverage": 0.944,
+       "mean_height_m": 0.449,
+       "max_height_m": 0.628,
+       "hard_top_m2": 0.2176,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -3942,10 +3919,10 @@
       },
       "left-back": {
        "usable_m2": 0.288,
-       "coverage": 0.922,
-       "mean_height_m": 0.45,
+       "coverage": 0.818,
+       "mean_height_m": 0.306,
        "max_height_m": 0.628,
-       "hard_top_m2": 0.2656,
+       "hard_top_m2": 0.2356,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -3959,27 +3936,10 @@
       },
       "centre-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.716,
-       "mean_height_m": 0.402,
-       "max_height_m": 0.628,
-       "hard_top_m2": 0.196,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "bridge": 1
-       },
-       "first_step": 5,
-       "median_step": 5.0
-      },
-      "right-back": {
-       "usable_m2": 0.2736,
-       "coverage": 0.855,
-       "mean_height_m": 0.509,
-       "max_height_m": 0.72,
-       "hard_top_m2": 0.1892,
+       "coverage": 0.643,
+       "mean_height_m": 0.271,
+       "max_height_m": 0.508,
+       "hard_top_m2": 0.176,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -3988,15 +3948,15 @@
        "roles": {
         "terrace": 1
        },
-       "first_step": 3,
-       "median_step": 4.5
+       "first_step": 6,
+       "median_step": 6.5
       },
-      "chamfer-front": {
-       "usable_m2": 0.2304,
-       "coverage": 0.377,
-       "mean_height_m": 0.086,
-       "max_height_m": 0.229,
-       "hard_top_m2": 0.0,
+      "right-back": {
+       "usable_m2": 0.2736,
+       "coverage": 0.607,
+       "mean_height_m": 0.316,
+       "max_height_m": 0.72,
+       "hard_top_m2": 0.11,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -4004,11 +3964,42 @@
        "first_step": null,
        "median_step": null
       },
+      "chamfer-front": {
+       "usable_m2": 0.2304,
+       "coverage": 0.889,
+       "mean_height_m": 0.503,
+       "max_height_m": 0.628,
+       "hard_top_m2": 0.2048,
+       "soft_top_m2": 0.0,
+       "items": 2,
+       "classes": {
+        "normal-hard": 2
+       },
+       "roles": {
+        "wall-front": 1,
+        "wedge-step": 1
+       },
+       "first_step": 3,
+       "median_step": 4.0
+      },
       "left-front": {
        "usable_m2": 0.288,
-       "coverage": 0.807,
-       "mean_height_m": 0.177,
-       "max_height_m": 0.229,
+       "coverage": 0.518,
+       "mean_height_m": 0.146,
+       "max_height_m": 0.628,
+       "hard_top_m2": 0.05,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "centre-front": {
+       "usable_m2": 0.2736,
+       "coverage": 0.613,
+       "mean_height_m": 0.162,
+       "max_height_m": 0.519,
        "hard_top_m2": 0.0,
        "soft_top_m2": 0.0,
        "items": 1,
@@ -4019,25 +4010,10 @@
        "first_step": 10,
        "median_step": 10.0
       },
-      "centre-front": {
-       "usable_m2": 0.2736,
-       "coverage": 0.596,
-       "mean_height_m": 0.159,
-       "max_height_m": 0.519,
-       "hard_top_m2": 0.0,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "priority": 1
-       },
-       "roles": {},
-       "first_step": 9,
-       "median_step": 9.0
-      },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.607,
-       "mean_height_m": 0.364,
+       "coverage": 0.586,
+       "mean_height_m": 0.35,
        "max_height_m": 0.72,
        "hard_top_m2": 0.0,
        "soft_top_m2": 0.0,
@@ -4048,55 +4024,55 @@
        "roles": {
         "tall-perimeter": 2
        },
-       "first_step": 7,
-       "median_step": 7.5
+       "first_step": 8,
+       "median_step": 8.5
       }
      },
      "support_area": {
-      "free-floor": 0.576,
-      "hard": 0.862,
+      "free-floor": 0.654,
+      "hard": 0.994,
       "soft-only": 0.0,
-      "priority-only": 0.6932,
+      "priority-only": 0.4832,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.576,
-      "0.15-0.30": 0.4512,
-      "0.30-0.50": 0.314,
-      "0.50-0.80": 0.79,
+      "0.00-0.15": 0.654,
+      "0.15-0.30": 0.3492,
+      "0.30-0.50": 0.4216,
+      "0.50-0.80": 0.7064,
       "0.80+": 0.0
      },
      "buildable": {
-      "buildable_area_m2": 0.7232,
-      "buildable_ratio": 0.339,
-      "soft_capped_area_m2": 0.6932,
+      "buildable_area_m2": 0.6808,
+      "buildable_ratio": 0.319,
+      "soft_capped_area_m2": 0.4832,
       "pad_count": 4,
       "pads": [
        {
-        "height_m": 0.628,
-        "area_m2": 0.2592,
-        "rect_m2": 0.2592,
+        "height_m": 0.343,
+        "area_m2": 0.222,
+        "rect_m2": 0.222,
         "rect_size_m": [
-         0.54,
-         0.48
+         0.74,
+         0.3
         ]
        },
        {
-        "height_m": 0.591,
+        "height_m": 0.628,
+        "area_m2": 0.17,
+        "rect_m2": 0.17,
+        "rect_size_m": [
+         0.34,
+         0.5
+        ]
+       },
+       {
+        "height_m": 0.508,
         "area_m2": 0.1664,
         "rect_m2": 0.1664,
         "rect_size_m": [
-         0.32,
-         0.52
-        ]
-       },
-       {
-        "height_m": 0.343,
-        "area_m2": 0.1752,
-        "rect_m2": 0.144,
-        "rect_size_m": [
-         0.48,
-         0.3
+         0.52,
+         0.32
         ]
        },
        {
@@ -4115,80 +4091,92 @@
       "headroom_m": 0.73,
       "headroom_volume_m3": 1.425,
       "shelf_area_m2": 1.952,
-      "shelf_volume_used_m3": 0.5717,
-      "shelf_fill_ratio": 0.401,
-      "shelf_items": 7,
-      "shelf_footprint_ratio": 0.612,
+      "shelf_volume_used_m3": 0.5688,
+      "shelf_fill_ratio": 0.399,
+      "shelf_items": 6,
+      "shelf_footprint_ratio": 0.53,
       "max_used_height_m": 0.648,
       "headroom_height_used_ratio": 0.888,
-      "back_share_of_shelf_area": 0.876,
-      "overflow_items": 4,
-      "overflow_volume_m3": 0.2558
+      "back_share_of_shelf_area": 0.813,
+      "overflow_items": 3,
+      "overflow_volume_m3": 0.2049
      },
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.338,
-       "mean_height_m": 0.165,
+       "free_ratio": 0.478,
+       "mean_height_m": 0.133,
        "max_height_m": 0.519
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.404,
-       "mean_height_m": 0.159,
+       "free_ratio": 0.387,
+       "mean_height_m": 0.162,
        "max_height_m": 0.519
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 1.311,
+       "median_clearance_m": 1.021,
        "max_clearance_m": 1.54,
-       "width_over_0.30m": 1.48,
-       "width_over_0.50m": 1.48,
-       "width_over_0.70m": 1.48
+       "width_over_0.30m": 1.46,
+       "width_over_0.50m": 1.46,
+       "width_over_0.70m": 1.46
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.18,
-        "reachable_free_m2": 0.3532,
-        "reachable_back_ratio": 0.013
+        "reachable_ratio": 0.167,
+        "reachable_free_m2": 0.326,
+        "reachable_back_ratio": 0.015
        },
        "0.20": {
-        "reachable_ratio": 0.18,
-        "reachable_free_m2": 0.3532,
-        "reachable_back_ratio": 0.013
+        "reachable_ratio": 0.167,
+        "reachable_free_m2": 0.326,
+        "reachable_back_ratio": 0.015
        },
        "0.40": {
-        "reachable_ratio": 0.462,
-        "reachable_free_m2": 0.4028,
-        "reachable_back_ratio": 0.167
+        "reachable_ratio": 0.491,
+        "reachable_free_m2": 0.4372,
+        "reachable_back_ratio": 0.364
        },
        "0.60": {
-        "reachable_ratio": 0.73,
-        "reachable_free_m2": 0.5504,
-        "reachable_back_ratio": 0.517
+        "reachable_ratio": 0.691,
+        "reachable_free_m2": 0.5548,
+        "reachable_back_ratio": 0.581
        }
       },
-      "clear_lane_width_m": 0.24,
+      "clear_lane_width_m": 0.2,
       "front_half_max_height_m": 0.72,
-      "back_half_mean_height_m": 0.449
+      "back_half_mean_height_m": 0.33
      },
      "order": {
-      "placements": 17,
-      "back_to_front_violations": 5,
-      "back_to_front_adherence": 0.7059,
-      "max_backtrack_m": 0.527,
+      "placements": 16,
+      "back_to_front_violations": 7,
+      "back_to_front_adherence": 0.5625,
+      "max_backtrack_m": 0.8649,
       "violations": [
        {
-        "step": 3,
-        "item_index": 23,
+        "step": 6,
+        "item_index": 9,
         "surface": "floor",
-        "backtrack_m": 0.313
+        "backtrack_m": 0.8649
        },
        {
-        "step": 6,
-        "item_index": 11,
-        "surface": "hard-top",
-        "backtrack_m": 0.0805
+        "step": 8,
+        "item_index": 6,
+        "surface": "floor",
+        "backtrack_m": 0.4178
+       },
+       {
+        "step": 9,
+        "item_index": 15,
+        "surface": "floor",
+        "backtrack_m": 0.1201
+       },
+       {
+        "step": 10,
+        "item_index": 27,
+        "surface": "floor",
+        "backtrack_m": 0.0298
        },
        {
         "step": 12,
@@ -4197,39 +4185,39 @@
         "backtrack_m": 0.112
        },
        {
-        "step": 14,
-        "item_index": 1,
+        "step": 13,
+        "item_index": 18,
         "surface": "small_shelf",
-        "backtrack_m": 0.106
+        "backtrack_m": 0.201
        },
        {
-        "step": 17,
-        "item_index": 24,
+        "step": 16,
+        "item_index": 32,
         "surface": "small_shelf",
-        "backtrack_m": 0.527
+        "backtrack_m": 0.487
        }
       ],
-      "final_frontier_y": -0.637,
-      "frontier_depth_used": 0.9169
+      "final_frontier_y": -0.6609,
+      "frontier_depth_used": 0.9331
      },
      "volume": {
-      "placed_volume_m3": 1.23439,
+      "placed_volume_m3": 1.26176,
       "usable_container_volume_m3": 4.1903,
-      "volume_fill_ratio": 0.2946,
-      "foundation_volume_m3": 0.29456,
-      "foundation_slab_height_m": 0.628,
-      "foundation_slab_volume_m3": 1.34789,
-      "foundation_slab_fill_ratio": 0.2185,
-      "structural_volume_m3": 0.36817,
-      "placed_volume_floor_m3": 0.66273,
-      "placed_volume_shelf_m3": 0.57165,
+      "volume_fill_ratio": 0.3011,
+      "foundation_volume_m3": 0.1642,
+      "foundation_slab_height_m": 0.508,
+      "foundation_slab_volume_m3": 1.09034,
+      "foundation_slab_fill_ratio": 0.1506,
+      "structural_volume_m3": 0.52874,
+      "placed_volume_floor_m3": 0.69294,
+      "placed_volume_shelf_m3": 0.56882,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 1,
-      "total_y_m": 0.4766,
-      "max_y_m": 0.4766,
+      "items_moved": 4,
+      "total_y_m": 0.8169,
+      "max_y_m": 0.5008,
       "total_x_m": 0.0
      }
     }
@@ -4240,19 +4228,19 @@
     "images/09-mixed-random/c0_terrain.png",
     "images/09-mixed-random/c0_terrain.svg"
    ],
-   "runtime_seconds": 70.0
+   "runtime_seconds": 67.8
   },
   {
    "scenario": "10-awkward-holes",
    "description": "Deliberately badly tiling sizes: the hole diagnostics scenario. Interior holes here are the point, not a bug.",
    "items_in_stream": 26,
-   "items_placed": 14,
+   "items_placed": 17,
    "role_histogram": {
-    "wall-front": 3,
+    "wall-front": 2,
     "wedge-step": 1,
-    "elongated": 3,
-    "hole-fill": 1,
-    "terrace": 3,
+    "elongated": 2,
+    "hole-fill": 3,
+    "terrace": 6,
     "none": 3
    },
    "containers": [
@@ -4260,32 +4248,32 @@
      "container_index": 0,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 14,
+     "placed_total": 17,
      "normal_hard": {
-      "count": 7,
-      "footprint_m2": 1.1859,
-      "x_centroid": 0.418,
-      "y_centroid": 0.612,
-      "back_share": 0.712,
-      "centre_share": 0.0,
+      "count": 6,
+      "footprint_m2": 1.211,
+      "x_centroid": 0.493,
+      "y_centroid": 0.558,
+      "back_share": 0.495,
+      "centre_share": 0.305,
       "cell_share": {
        "chamfer-back": 0.0,
-       "left-back": 0.374,
+       "left-back": 0.165,
        "centre-back": 0.0,
-       "right-back": 0.337,
-       "chamfer-front": 0.204,
-       "left-front": 0.084,
-       "centre-front": 0.0,
+       "right-back": 0.33,
+       "chamfer-front": 0.2,
+       "left-front": 0.0,
+       "centre-front": 0.305,
        "right-front": 0.0
       },
       "height_by_y_third": [
-       0.37,
-       0.447,
+       0.21,
+       0.35,
        0.583
       ],
       "slab_height_by_y_third": [
-       null,
-       0.33,
+       0.21,
+       0.37,
        null
       ]
      },
@@ -4316,27 +4304,11 @@
         "class": "normal-hard"
        },
        {
-        "step": 7,
-        "role": "wall-front",
-        "cell": "left-back",
-        "height_m": 0.27,
-        "footprint_m2": 0.2442,
-        "class": "normal-hard"
-       },
-       {
-        "step": 9,
+        "step": 8,
         "role": "wall-front",
         "cell": "chamfer-front",
-        "height_m": 0.37,
+        "height_m": 0.33,
         "footprint_m2": 0.2418,
-        "class": "normal-hard"
-       },
-       {
-        "step": 12,
-        "role": "elongated",
-        "cell": "left-front",
-        "height_m": 0.74,
-        "footprint_m2": 0.0999,
         "class": "normal-hard"
        }
       ],
@@ -4349,7 +4321,7 @@
       "chamfer-back": {
        "usable_m2": 0.224,
        "coverage": 0.971,
-       "mean_height_m": 0.746,
+       "mean_height_m": 0.904,
        "max_height_m": 1.31,
        "hard_top_m2": 0.2176,
        "soft_top_m2": 0.0,
@@ -4366,27 +4338,27 @@
       },
       "left-back": {
        "usable_m2": 0.266,
-       "coverage": 0.893,
-       "mean_height_m": 0.357,
+       "coverage": 0.505,
+       "mean_height_m": 0.271,
        "max_height_m": 1.31,
-       "hard_top_m2": 0.2376,
+       "hard_top_m2": 0.1344,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 1,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 1
        },
        "roles": {
-        "wall-front": 2
+        "wall-front": 1
        },
        "first_step": 1,
-       "median_step": 4.0
+       "median_step": 1.0
       },
       "centre-back": {
        "usable_m2": 0.266,
-       "coverage": 0.83,
-       "mean_height_m": 0.667,
+       "coverage": 0.797,
+       "mean_height_m": 0.711,
        "max_height_m": 1.05,
-       "hard_top_m2": 0.2208,
+       "hard_top_m2": 0.212,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -4397,125 +4369,129 @@
       "right-back": {
        "usable_m2": 0.266,
        "coverage": 1.0,
-       "mean_height_m": 0.844,
-       "max_height_m": 1.05,
+       "mean_height_m": 1.277,
+       "max_height_m": 1.32,
        "hard_top_m2": 0.266,
        "soft_top_m2": 0.0,
-       "items": 5,
+       "items": 6,
        "classes": {
-        "normal-hard": 5
+        "normal-hard": 6
        },
        "roles": {
         "elongated": 2,
-        "terrace": 2
+        "terrace": 3
        },
        "first_step": 3,
-       "median_step": 6.0
+       "median_step": 6.5
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.912,
-       "mean_height_m": 0.601,
-       "max_height_m": 0.7,
-       "hard_top_m2": 0.1984,
-       "soft_top_m2": 0.0,
-       "items": 2,
+       "coverage": 0.728,
+       "mean_height_m": 0.471,
+       "max_height_m": 0.66,
+       "hard_top_m2": 0.1024,
+       "soft_top_m2": 0.056,
+       "items": 3,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 2,
+        "soft": 1
        },
        "roles": {
         "wall-front": 1,
-        "terrace": 1
+        "terrace": 1,
+        "hole-fill": 1
        },
-       "first_step": 9,
-       "median_step": 9.5
+       "first_step": 8,
+       "median_step": 10.0
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.534,
-       "mean_height_m": 0.389,
-       "max_height_m": 0.74,
-       "hard_top_m2": 0.138,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "elongated": 1
-       },
-       "first_step": 12,
-       "median_step": 12.0
-      },
-      "centre-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.793,
-       "mean_height_m": 0.273,
-       "max_height_m": 0.6,
-       "hard_top_m2": 0.0704,
-       "soft_top_m2": 0.1344,
+       "coverage": 0.709,
+       "mean_height_m": 0.52,
+       "max_height_m": 0.94,
+       "hard_top_m2": 0.1752,
+       "soft_top_m2": 0.008,
        "items": 0,
        "classes": {},
        "roles": {},
        "first_step": null,
        "median_step": null
       },
+      "centre-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.839,
+       "mean_height_m": 0.65,
+       "max_height_m": 0.94,
+       "hard_top_m2": 0.2168,
+       "soft_top_m2": 0.0,
+       "items": 3,
+       "classes": {
+        "normal-hard": 3
+       },
+       "roles": {
+        "terrace": 2
+       },
+       "first_step": 12,
+       "median_step": 13.0
+      },
       "right-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.941,
-       "mean_height_m": 0.324,
-       "max_height_m": 0.6,
-       "hard_top_m2": 0.0836,
-       "soft_top_m2": 0.1596,
+       "coverage": 0.602,
+       "mean_height_m": 0.45,
+       "max_height_m": 0.94,
+       "hard_top_m2": 0.0436,
+       "soft_top_m2": 0.112,
        "items": 1,
        "classes": {
         "soft": 1
        },
-       "roles": {},
-       "first_step": 13,
-       "median_step": 13.0
+       "roles": {
+        "hole-fill": 1
+       },
+       "first_step": 15,
+       "median_step": 15.0
       }
      },
      "support_area": {
-      "free-floor": 0.2884,
-      "hard": 1.4324,
-      "soft-only": 0.294,
+      "free-floor": 0.4708,
+      "hard": 1.368,
+      "soft-only": 0.176,
       "priority-only": 0.0,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.2884,
-      "0.15-0.30": 0.5112,
-      "0.30-0.50": 0.1144,
-      "0.50-0.80": 0.7348,
-      "0.80+": 0.366
+      "0.00-0.15": 0.4708,
+      "0.15-0.30": 0.0,
+      "0.30-0.50": 0.27,
+      "0.50-0.80": 0.4312,
+      "0.80+": 0.8428
      },
      "buildable": {
-      "buildable_area_m2": 1.4612,
-      "buildable_ratio": 0.725,
-      "soft_capped_area_m2": 0.294,
+      "buildable_area_m2": 1.3932,
+      "buildable_ratio": 0.691,
+      "soft_capped_area_m2": 0.176,
       "pad_count": 6,
       "pads": [
        {
-        "height_m": 0.6,
-        "area_m2": 0.3788,
-        "rect_m2": 0.378,
+        "height_m": 0.94,
+        "area_m2": 0.2448,
+        "rect_m2": 0.2448,
         "rect_size_m": [
-         0.7,
-         0.54
+         0.72,
+         0.34
         ]
        },
        {
-        "height_m": 1.05,
-        "area_m2": 0.2508,
-        "rect_m2": 0.2508,
+        "height_m": 1.32,
+        "area_m2": 0.2376,
+        "rect_m2": 0.2376,
         "rect_size_m": [
-         0.66,
-         0.38
+         0.36,
+         0.66
         ]
        },
        {
-        "height_m": 0.7,
+        "height_m": 0.66,
         "area_m2": 0.2108,
         "rect_m2": 0.2108,
         "rect_size_m": [
@@ -4524,21 +4500,12 @@
         ]
        },
        {
-        "height_m": 0.27,
-        "area_m2": 0.2172,
-        "rect_m2": 0.198,
+        "height_m": 0.0,
+        "area_m2": 0.4708,
+        "rect_m2": 0.17,
         "rect_size_m": [
-         0.66,
-         0.3
-        ]
-       },
-       {
-        "height_m": -0.0,
-        "area_m2": 0.2884,
-        "rect_m2": 0.1216,
-        "rect_size_m": [
-         0.38,
-         0.32
+         0.34,
+         0.5
         ]
        },
        {
@@ -4548,6 +4515,15 @@
         "rect_size_m": [
          0.36,
          0.32
+        ]
+       },
+       {
+        "height_m": 1.05,
+        "area_m2": 0.114,
+        "rect_m2": 0.114,
+        "rect_size_m": [
+         0.3,
+         0.38
         ]
        }
       ]
@@ -4564,97 +4540,109 @@
       "max_used_height_m": 0.62,
       "headroom_height_used_ratio": 0.855,
       "back_share_of_shelf_area": 1.0,
-      "overflow_items": 1,
-      "overflow_volume_m3": 0.082
+      "overflow_items": 2,
+      "overflow_volume_m3": 0.1277
      },
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.472,
-       "mean_height_m": 0.177,
-       "max_height_m": 0.74
+       "free_ratio": 0.198,
+       "mean_height_m": 0.556,
+       "max_height_m": 0.94
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.207,
-       "mean_height_m": 0.273,
-       "max_height_m": 0.6
+       "free_ratio": 0.161,
+       "mean_height_m": 0.65,
+       "max_height_m": 0.94
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 0.93,
+       "median_clearance_m": 0.61,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
-       "width_over_0.70m": 1.46
+       "width_over_0.70m": 0.4
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.137,
-        "reachable_free_m2": 0.248,
-        "reachable_back_ratio": 0.04
+        "reachable_ratio": 0.13,
+        "reachable_free_m2": 0.2324,
+        "reachable_back_ratio": 0.007
        },
        "0.20": {
-        "reachable_ratio": 0.137,
-        "reachable_free_m2": 0.248,
-        "reachable_back_ratio": 0.04
+        "reachable_ratio": 0.13,
+        "reachable_free_m2": 0.2324,
+        "reachable_back_ratio": 0.007
        },
        "0.40": {
-        "reachable_ratio": 0.313,
-        "reachable_free_m2": 0.2488,
-        "reachable_back_ratio": 0.075
+        "reachable_ratio": 0.143,
+        "reachable_free_m2": 0.2332,
+        "reachable_back_ratio": 0.02
        },
        "0.60": {
-        "reachable_ratio": 0.515,
-        "reachable_free_m2": 0.2632,
-        "reachable_back_ratio": 0.337
+        "reachable_ratio": 0.214,
+        "reachable_free_m2": 0.2332,
+        "reachable_back_ratio": 0.035
        }
       },
-      "clear_lane_width_m": 0.1,
-      "front_half_max_height_m": 0.74,
-      "back_half_mean_height_m": 0.65
+      "clear_lane_width_m": 0.02,
+      "front_half_max_height_m": 0.94,
+      "back_half_mean_height_m": 0.786
      },
      "order": {
-      "placements": 14,
-      "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8571,
-      "max_backtrack_m": 0.406,
+      "placements": 17,
+      "back_to_front_violations": 4,
+      "back_to_front_adherence": 0.7647,
+      "max_backtrack_m": 0.2708,
       "violations": [
+       {
+        "step": 9,
+        "item_index": 23,
+        "surface": "floor",
+        "backtrack_m": 0.2708
+       },
        {
         "step": 11,
         "item_index": 14,
         "surface": "hard-top",
-        "backtrack_m": 0.406
+        "backtrack_m": 0.2708
        },
        {
-        "step": 12,
-        "item_index": 13,
-        "surface": "floor",
-        "backtrack_m": 0.25
+        "step": 14,
+        "item_index": 6,
+        "surface": "hard-top",
+        "backtrack_m": 0.18
+       },
+       {
+        "step": 17,
+        "item_index": 21,
+        "surface": "hole",
+        "backtrack_m": 0.0657
        }
       ],
-      "final_frontier_y": -0.6573,
-      "frontier_depth_used": 0.952
+      "final_frontier_y": -0.623,
+      "frontier_depth_used": 0.9277
      },
      "volume": {
-      "placed_volume_m3": 1.05794,
+      "placed_volume_m3": 1.31034,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.264,
-      "foundation_volume_m3": 0.49949,
-      "foundation_slab_height_m": 1.31,
-      "foundation_slab_volume_m3": 2.65819,
-      "foundation_slab_fill_ratio": 0.1879,
-      "structural_volume_m3": 0.47865,
-      "placed_volume_floor_m3": 0.97814,
+      "volume_fill_ratio": 0.327,
+      "foundation_volume_m3": 0.90142,
+      "foundation_slab_height_m": 1.32,
+      "foundation_slab_volume_m3": 2.67848,
+      "foundation_slab_fill_ratio": 0.3365,
+      "structural_volume_m3": 0.32912,
+      "placed_volume_floor_m3": 1.23055,
       "placed_volume_shelf_m3": 0.07979,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 1,
-      "total_y_m": 0.0517,
-      "max_y_m": 0.0517,
-      "total_x_m": 0.0353
+      "items_moved": 3,
+      "total_y_m": 0.4468,
+      "max_y_m": 0.3612,
+      "total_x_m": 0.0
      }
     }
    ],
@@ -4664,53 +4652,53 @@
     "images/10-awkward-holes/c0_terrain.png",
     "images/10-awkward-holes/c0_terrain.svg"
    ],
-   "runtime_seconds": 29.1
+   "runtime_seconds": 28.8
   },
   {
    "scenario": "11-lookahead-3",
    "description": "Same mix as 09 but with look_ahead=3, to see whether the pool ordering rule changes the board shape.",
    "items_in_stream": 34,
-   "items_placed": 13,
+   "items_placed": 18,
    "role_histogram": {
     "wall-front": 2,
-    "none": 4,
-    "wedge-step": 2,
-    "terrace": 2,
+    "wedge-step": 1,
+    "none": 9,
+    "terrace": 3,
     "tall-perimeter": 2,
-    "elongated": 1
+    "hole-fill": 1
    },
    "containers": [
     {
      "container_index": 0,
      "has_shelf": true,
      "is_prioritized": false,
-     "placed_total": 13,
+     "placed_total": 18,
      "normal_hard": {
       "count": 4,
-      "footprint_m2": 0.7455,
-      "x_centroid": 0.421,
-      "y_centroid": 0.727,
-      "back_share": 0.822,
-      "centre_share": 0.0,
+      "footprint_m2": 0.9322,
+      "x_centroid": 0.354,
+      "y_centroid": 0.695,
+      "back_share": 0.739,
+      "centre_share": 0.293,
       "cell_share": {
-       "chamfer-back": 0.496,
-       "left-back": 0.0,
-       "centre-back": 0.0,
-       "right-back": 0.326,
-       "chamfer-front": 0.0,
-       "left-front": 0.178,
+       "chamfer-back": 0.264,
+       "left-back": 0.183,
+       "centre-back": 0.293,
+       "right-back": 0.0,
+       "chamfer-front": 0.261,
+       "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
        null,
-       0.539,
-       0.372
+       0.288,
+       0.339
       ],
       "slab_height_by_y_third": [
        null,
-       null,
-       0.364
+       0.211,
+       0.297
       ]
      },
      "tall": {
@@ -4724,28 +4712,20 @@
         "class": "normal-hard"
        },
        {
-        "step": 5,
+        "step": 2,
         "role": "wall-front",
-        "cell": "chamfer-back",
-        "height_m": 0.341,
-        "footprint_m2": 0.1239,
+        "cell": "chamfer-front",
+        "height_m": 0.364,
+        "footprint_m2": 0.2432,
         "class": "normal-hard"
        },
        {
-        "step": 7,
+        "step": 9,
         "role": "tall-perimeter",
         "cell": "right-front",
         "height_m": 0.72,
         "footprint_m2": 0.1209,
         "class": "priority"
-       },
-       {
-        "step": 8,
-        "role": "elongated",
-        "cell": "left-front",
-        "height_m": 0.738,
-        "footprint_m2": 0.1327,
-        "class": "normal-hard"
        },
        {
         "step": 10,
@@ -4759,76 +4739,65 @@
       "tall_perimeter_count": 2,
       "tall_perimeter_back_share": 0.0,
       "tall_perimeter_median_step_back": null,
-      "tall_perimeter_median_step_front": 8.5
+      "tall_perimeter_median_step_front": 9.5
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.2304,
-       "coverage": 0.972,
-       "mean_height_m": 0.581,
-       "max_height_m": 0.628,
-       "hard_top_m2": 0.224,
+       "coverage": 0.944,
+       "mean_height_m": 0.456,
+       "max_height_m": 0.612,
+       "hard_top_m2": 0.2176,
        "soft_top_m2": 0.0,
-       "items": 4,
+       "items": 2,
        "classes": {
-        "normal-hard": 4
+        "normal-hard": 2
        },
        "roles": {
-        "wall-front": 2,
-        "wedge-step": 2
+        "wall-front": 1,
+        "wedge-step": 1
        },
        "first_step": 1,
-       "median_step": 4.0
+       "median_step": 2.0
       },
       "left-back": {
        "usable_m2": 0.288,
-       "coverage": 0.643,
-       "mean_height_m": 0.244,
-       "max_height_m": 0.628,
-       "hard_top_m2": 0.1852,
+       "coverage": 0.811,
+       "mean_height_m": 0.327,
+       "max_height_m": 0.506,
+       "hard_top_m2": 0.2336,
        "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
+       "items": 1,
+       "classes": {
+        "normal-hard": 1
+       },
        "roles": {},
-       "first_step": null,
-       "median_step": null
+       "first_step": 6,
+       "median_step": 6.0
       },
       "centre-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.431,
-       "mean_height_m": 0.244,
-       "max_height_m": 0.661,
-       "hard_top_m2": 0.118,
+       "coverage": 0.855,
+       "mean_height_m": 0.381,
+       "max_height_m": 0.506,
+       "hard_top_m2": 0.234,
        "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
+       "items": 2,
+       "classes": {
+        "normal-hard": 2
+       },
+       "roles": {
+        "terrace": 1
+       },
+       "first_step": 4,
+       "median_step": 4.5
       },
       "right-back": {
        "usable_m2": 0.2736,
-       "coverage": 0.899,
-       "mean_height_m": 0.606,
+       "coverage": 0.462,
+       "mean_height_m": 0.265,
        "max_height_m": 0.72,
-       "hard_top_m2": 0.19,
-       "soft_top_m2": 0.0,
-       "items": 2,
-       "classes": {
-        "normal-hard": 2
-       },
-       "roles": {
-        "terrace": 1
-       },
-       "first_step": 2,
-       "median_step": 3.0
-      },
-      "chamfer-front": {
-       "usable_m2": 0.2304,
-       "coverage": 0.354,
-       "mean_height_m": 0.328,
-       "max_height_m": 1.051,
-       "hard_top_m2": 0.0816,
+       "hard_top_m2": 0.0704,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -4836,30 +4805,48 @@
        "first_step": null,
        "median_step": null
       },
-      "left-front": {
-       "usable_m2": 0.288,
-       "coverage": 0.519,
-       "mean_height_m": 0.531,
-       "max_height_m": 1.051,
-       "hard_top_m2": 0.1496,
+      "chamfer-front": {
+       "usable_m2": 0.2304,
+       "coverage": 0.587,
+       "mean_height_m": 0.277,
+       "max_height_m": 0.612,
+       "hard_top_m2": 0.1088,
        "soft_top_m2": 0.0,
-       "items": 2,
+       "items": 1,
        "classes": {
-        "normal-hard": 2
+        "normal-hard": 1
        },
        "roles": {
-        "elongated": 1,
-        "terrace": 1
+        "wall-front": 1
        },
-       "first_step": 8,
-       "median_step": 8.5
+       "first_step": 2,
+       "median_step": 2.0
+      },
+      "left-front": {
+       "usable_m2": 0.288,
+       "coverage": 0.685,
+       "mean_height_m": 0.379,
+       "max_height_m": 0.885,
+       "hard_top_m2": 0.1092,
+       "soft_top_m2": 0.0,
+       "items": 3,
+       "classes": {
+        "normal-hard": 2,
+        "priority": 1
+       },
+       "roles": {
+        "terrace": 2,
+        "hole-fill": 1
+       },
+       "first_step": 7,
+       "median_step": 8.0
       },
       "centre-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.313,
-       "mean_height_m": 0.268,
-       "max_height_m": 1.051,
-       "hard_top_m2": 0.0544,
+       "coverage": 0.428,
+       "mean_height_m": 0.282,
+       "max_height_m": 0.885,
+       "hard_top_m2": 0.066,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -4869,8 +4856,8 @@
       },
       "right-front": {
        "usable_m2": 0.2736,
-       "coverage": 0.586,
-       "mean_height_m": 0.35,
+       "coverage": 0.614,
+       "mean_height_m": 0.364,
        "max_height_m": 0.72,
        "hard_top_m2": 0.0,
        "soft_top_m2": 0.0,
@@ -4881,64 +4868,55 @@
        "roles": {
         "tall-perimeter": 2
        },
-       "first_step": 7,
-       "median_step": 8.5
+       "first_step": 9,
+       "median_step": 9.5
       }
      },
      "support_area": {
-      "free-floor": 0.8808,
-      "hard": 1.0028,
+      "free-floor": 0.702,
+      "hard": 1.0396,
       "soft-only": 0.0,
-      "priority-only": 0.2476,
+      "priority-only": 0.3896,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.8808,
-      "0.15-0.30": 0.0,
-      "0.30-0.50": 0.22,
-      "0.50-0.80": 0.7788,
-      "0.80+": 0.2516
+      "0.00-0.15": 0.702,
+      "0.15-0.30": 0.0992,
+      "0.30-0.50": 0.5948,
+      "0.50-0.80": 0.6152,
+      "0.80+": 0.12
      },
      "buildable": {
-      "buildable_area_m2": 0.7988,
-      "buildable_ratio": 0.375,
-      "soft_capped_area_m2": 0.2476,
-      "pad_count": 4,
+      "buildable_area_m2": 0.6008,
+      "buildable_ratio": 0.282,
+      "soft_capped_area_m2": 0.3896,
+      "pad_count": 3,
       "pads": [
        {
-        "height_m": 0.661,
-        "area_m2": 0.27,
-        "rect_m2": 0.27,
+        "height_m": 0.38,
+        "area_m2": 0.2432,
+        "rect_m2": 0.2432,
         "rect_size_m": [
-         0.54,
-         0.5
+         0.64,
+         0.38
         ]
        },
        {
-        "height_m": 1.051,
-        "area_m2": 0.2516,
-        "rect_m2": 0.2516,
+        "height_m": 0.506,
+        "area_m2": 0.204,
+        "rect_m2": 0.204,
         "rect_size_m": [
-         0.74,
+         0.6,
          0.34
         ]
        },
        {
-        "height_m": 0.628,
-        "area_m2": 0.1632,
-        "rect_m2": 0.1632,
+        "height_m": 0.612,
+        "area_m2": 0.1536,
+        "rect_m2": 0.1536,
         "rect_size_m": [
-         0.34,
+         0.32,
          0.48
-        ]
-       },
-       {
-        "height_m": 0.38,
-        "area_m2": 0.114,
-        "rect_m2": 0.114,
-        "rect_size_m": [
-         0.3,
-         0.38
         ]
        }
       ]
@@ -4948,103 +4926,121 @@
       "headroom_m": 0.73,
       "headroom_volume_m3": 1.425,
       "shelf_area_m2": 1.952,
-      "shelf_volume_used_m3": 0.2072,
-      "shelf_fill_ratio": 0.145,
-      "shelf_items": 3,
-      "shelf_footprint_ratio": 0.192,
-      "max_used_height_m": 0.638,
-      "headroom_height_used_ratio": 0.874,
-      "back_share_of_shelf_area": 0.742,
-      "overflow_items": 2,
-      "overflow_volume_m3": 0.1577
+      "shelf_volume_used_m3": 0.5757,
+      "shelf_fill_ratio": 0.404,
+      "shelf_items": 7,
+      "shelf_footprint_ratio": 0.645,
+      "max_used_height_m": 0.648,
+      "headroom_height_used_ratio": 0.888,
+      "back_share_of_shelf_area": 0.598,
+      "overflow_items": 3,
+      "overflow_volume_m3": 0.2049
      },
      "access": {
       "corridor": {
        "area_m2": 0.3264,
-       "free_ratio": 0.71,
-       "mean_height_m": 0.252,
-       "max_height_m": 1.051
+       "free_ratio": 0.553,
+       "mean_height_m": 0.228,
+       "max_height_m": 0.885
       },
       "front_centre": {
        "area_m2": 0.2736,
-       "free_ratio": 0.687,
-       "mean_height_m": 0.268,
-       "max_height_m": 1.051
+       "free_ratio": 0.572,
+       "mean_height_m": 0.282,
+       "max_height_m": 0.885
       },
       "approach": {
        "width_m": 1.48,
-       "median_clearance_m": 0.489,
+       "median_clearance_m": 0.82,
        "max_clearance_m": 1.54,
        "width_over_0.30m": 1.46,
-       "width_over_0.50m": 0.72,
-       "width_over_0.70m": 0.72
+       "width_over_0.50m": 1.46,
+       "width_over_0.70m": 0.96
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.271,
-        "reachable_free_m2": 0.548,
-        "reachable_back_ratio": 0.029
+        "reachable_ratio": 0.181,
+        "reachable_free_m2": 0.3564,
+        "reachable_back_ratio": 0.009
        },
        "0.20": {
-        "reachable_ratio": 0.271,
-        "reachable_free_m2": 0.548,
-        "reachable_back_ratio": 0.029
+        "reachable_ratio": 0.181,
+        "reachable_free_m2": 0.3564,
+        "reachable_back_ratio": 0.009
        },
        "0.40": {
-        "reachable_ratio": 0.281,
-        "reachable_free_m2": 0.548,
-        "reachable_back_ratio": 0.05
+        "reachable_ratio": 0.341,
+        "reachable_free_m2": 0.4132,
+        "reachable_back_ratio": 0.096
        },
        "0.60": {
-        "reachable_ratio": 0.416,
-        "reachable_free_m2": 0.6576,
-        "reachable_back_ratio": 0.133
+        "reachable_ratio": 0.512,
+        "reachable_free_m2": 0.52,
+        "reachable_back_ratio": 0.257
        }
       },
-      "clear_lane_width_m": 0.1,
-      "front_half_max_height_m": 1.051,
-      "back_half_mean_height_m": 0.41
+      "clear_lane_width_m": 0.04,
+      "front_half_max_height_m": 0.885,
+      "back_half_mean_height_m": 0.353
      },
      "order": {
-      "placements": 13,
-      "back_to_front_violations": 2,
-      "back_to_front_adherence": 0.8462,
-      "max_backtrack_m": 0.681,
+      "placements": 18,
+      "back_to_front_violations": 5,
+      "back_to_front_adherence": 0.7222,
+      "max_backtrack_m": 0.679,
       "violations": [
        {
-        "step": 2,
-        "item_index": 12,
+        "step": 4,
+        "item_index": 9,
         "surface": "floor",
-        "backtrack_m": 0.01
+        "backtrack_m": 0.5566
+       },
+       {
+        "step": 6,
+        "item_index": 11,
+        "surface": "floor",
+        "backtrack_m": 0.2086
+       },
+       {
+        "step": 9,
+        "item_index": 6,
+        "surface": "floor",
+        "backtrack_m": 0.1111
        },
        {
         "step": 13,
+        "item_index": 33,
+        "surface": "small_shelf",
+        "backtrack_m": 0.112
+       },
+       {
+        "step": 18,
         "item_index": 24,
         "surface": "small_shelf",
-        "backtrack_m": 0.681
+        "backtrack_m": 0.679
        }
       ],
-      "final_frontier_y": -0.5285,
-      "frontier_depth_used": 0.8436
+      "final_frontier_y": -0.5335,
+      "frontier_depth_used": 0.847
      },
      "volume": {
-      "placed_volume_m3": 0.95086,
+      "placed_volume_m3": 1.30381,
       "usable_container_volume_m3": 4.1903,
-      "volume_fill_ratio": 0.2269,
-      "foundation_volume_m3": 0.24927,
-      "foundation_slab_height_m": 1.051,
-      "foundation_slab_volume_m3": 2.25579,
-      "foundation_slab_fill_ratio": 0.1105,
-      "structural_volume_m3": 0.49442,
-      "placed_volume_floor_m3": 0.74369,
-      "placed_volume_shelf_m3": 0.20717,
+      "volume_fill_ratio": 0.3111,
+      "foundation_volume_m3": 0.32127,
+      "foundation_slab_height_m": 0.885,
+      "foundation_slab_volume_m3": 1.8995,
+      "foundation_slab_fill_ratio": 0.1691,
+      "structural_volume_m3": 0.40681,
+      "placed_volume_floor_m3": 0.72809,
+      "placed_volume_shelf_m3": 0.57572,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 2,
-      "total_y_m": 0.3456,
-      "max_y_m": 0.3375,
+      "items_moved": 3,
+      "total_y_m": 0.8644,
+      "max_y_m": 0.4005,
       "total_x_m": 0.0
      }
     }
@@ -5055,46 +5051,45 @@
     "images/11-lookahead-3/c0_terrain.png",
     "images/11-lookahead-3/c0_terrain.svg"
    ],
-   "runtime_seconds": 132.5
+   "runtime_seconds": 125.9
   },
   {
    "scenario": "12-large-hard-only",
    "description": "Only large plain hard cargo: the best case for the rectangular floor rule, and the flatness reference.",
    "items_in_stream": 20,
-   "items_placed": 6,
+   "items_placed": 10,
    "role_histogram": {
-    "none": 1,
-    "terrace": 1,
-    "tall-perimeter": 3,
-    "hole-fill": 1
+    "none": 2,
+    "terrace": 6,
+    "tall-perimeter": 2
    },
    "containers": [
     {
      "container_index": 0,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 6,
+     "placed_total": 10,
      "normal_hard": {
       "count": 4,
-      "footprint_m2": 0.8453,
-      "x_centroid": 0.571,
-      "y_centroid": 0.744,
-      "back_share": 0.802,
+      "footprint_m2": 1.1081,
+      "x_centroid": 0.606,
+      "y_centroid": 0.658,
+      "back_share": 0.717,
       "centre_share": 0.0,
       "cell_share": {
-       "chamfer-back": 0.183,
-       "left-back": 0.141,
+       "chamfer-back": 0.0,
+       "left-back": 0.352,
        "centre-back": 0.0,
-       "right-back": 0.478,
+       "right-back": 0.365,
        "chamfer-front": 0.0,
        "left-front": 0.0,
        "centre-front": 0.0,
-       "right-front": 0.198
+       "right-front": 0.283
       },
       "height_by_y_third": [
-       null,
-       0.503,
-       0.533
+       0.741,
+       0.516,
+       0.225
       ],
       "slab_height_by_y_third": [
        null,
@@ -5105,77 +5100,34 @@
      "tall": {
       "items": [
        {
-        "step": 3,
-        "role": "tall-perimeter",
-        "cell": "chamfer-back",
-        "height_m": 0.695,
-        "footprint_m2": 0.1543,
-        "class": "normal-hard"
-       },
-       {
-        "step": 5,
-        "role": "tall-perimeter",
-        "cell": "left-back",
-        "height_m": 0.68,
-        "footprint_m2": 0.1193,
-        "class": "normal-hard"
-       },
-       {
-        "step": 6,
+        "step": 7,
         "role": "tall-perimeter",
         "cell": "right-front",
-        "height_m": 0.503,
-        "footprint_m2": 0.1673,
+        "height_m": 0.516,
+        "footprint_m2": 0.2078,
+        "class": "normal-hard"
+       },
+       {
+        "step": 10,
+        "role": "tall-perimeter",
+        "cell": "right-front",
+        "height_m": 0.741,
+        "footprint_m2": 0.1055,
         "class": "normal-hard"
        }
       ],
-      "tall_perimeter_count": 3,
-      "tall_perimeter_back_share": 0.667,
-      "tall_perimeter_median_step_back": 4.0,
-      "tall_perimeter_median_step_front": 6.0
+      "tall_perimeter_count": 2,
+      "tall_perimeter_back_share": 0.0,
+      "tall_perimeter_median_step_back": null,
+      "tall_perimeter_median_step_front": 8.5
      },
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
-       "coverage": 0.696,
-       "mean_height_m": 0.859,
-       "max_height_m": 1.424,
-       "hard_top_m2": 0.156,
-       "soft_top_m2": 0.0,
-       "items": 2,
-       "classes": {
-        "normal-hard": 2
-       },
-       "roles": {
-        "tall-perimeter": 1,
-        "hole-fill": 1
-       },
-       "first_step": 3,
-       "median_step": 3.5
-      },
-      "left-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.43,
-       "mean_height_m": 0.292,
-       "max_height_m": 0.68,
-       "hard_top_m2": 0.1144,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "tall-perimeter": 1
-       },
-       "first_step": 5,
-       "median_step": 5.0
-      },
-      "centre-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.902,
-       "mean_height_m": 0.477,
-       "max_height_m": 0.545,
-       "hard_top_m2": 0.24,
+       "coverage": 0.562,
+       "mean_height_m": 0.399,
+       "max_height_m": 0.769,
+       "hard_top_m2": 0.126,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -5183,12 +5135,46 @@
        "first_step": null,
        "median_step": null
       },
+      "left-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.947,
+       "mean_height_m": 0.729,
+       "max_height_m": 0.769,
+       "hard_top_m2": 0.252,
+       "soft_top_m2": 0.0,
+       "items": 3,
+       "classes": {
+        "normal-hard": 3
+       },
+       "roles": {
+        "terrace": 2
+       },
+       "first_step": 4,
+       "median_step": 5.0
+      },
+      "centre-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.884,
+       "mean_height_m": 0.741,
+       "max_height_m": 1.47,
+       "hard_top_m2": 0.2352,
+       "soft_top_m2": 0.0,
+       "items": 1,
+       "classes": {
+        "normal-hard": 1
+       },
+       "roles": {
+        "terrace": 1
+       },
+       "first_step": 3,
+       "median_step": 3.0
+      },
       "right-back": {
        "usable_m2": 0.266,
-       "coverage": 0.971,
-       "mean_height_m": 0.513,
-       "max_height_m": 0.545,
-       "hard_top_m2": 0.2584,
+       "coverage": 0.943,
+       "mean_height_m": 0.762,
+       "max_height_m": 1.47,
+       "hard_top_m2": 0.2508,
        "soft_top_m2": 0.0,
        "items": 2,
        "classes": {
@@ -5202,10 +5188,10 @@
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
-       "coverage": 0.0,
-       "mean_height_m": 0.0,
-       "max_height_m": 0.0,
-       "hard_top_m2": 0.0,
+       "coverage": 0.031,
+       "mean_height_m": 0.019,
+       "max_height_m": 0.769,
+       "hard_top_m2": 0.0068,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -5215,10 +5201,10 @@
       },
       "left-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.0,
-       "mean_height_m": 0.0,
-       "max_height_m": 0.0,
-       "hard_top_m2": 0.0,
+       "coverage": 0.056,
+       "mean_height_m": 0.036,
+       "max_height_m": 0.769,
+       "hard_top_m2": 0.0144,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -5228,10 +5214,10 @@
       },
       "centre-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.149,
-       "mean_height_m": 0.075,
-       "max_height_m": 0.503,
-       "hard_top_m2": 0.0384,
+       "coverage": 0.251,
+       "mean_height_m": 0.369,
+       "max_height_m": 1.47,
+       "hard_top_m2": 0.0648,
        "soft_top_m2": 0.0,
        "items": 0,
        "classes": {},
@@ -5241,58 +5227,68 @@
       },
       "right-front": {
        "usable_m2": 0.2584,
-       "coverage": 0.176,
-       "mean_height_m": 0.089,
-       "max_height_m": 0.503,
-       "hard_top_m2": 0.0456,
+       "coverage": 0.656,
+       "mean_height_m": 0.679,
+       "max_height_m": 1.47,
+       "hard_top_m2": 0.1696,
        "soft_top_m2": 0.0,
-       "items": 1,
+       "items": 4,
        "classes": {
-        "normal-hard": 1
+        "normal-hard": 4
        },
        "roles": {
-        "tall-perimeter": 1
+        "tall-perimeter": 2,
+        "terrace": 2
        },
-       "first_step": 6,
-       "median_step": 6.0
+       "first_step": 7,
+       "median_step": 8.5
       }
      },
      "support_area": {
-      "free-floor": 1.162,
-      "hard": 0.8528,
+      "free-floor": 0.8952,
+      "hard": 1.1196,
       "soft-only": 0.0,
       "priority-only": 0.0,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 1.162,
-      "0.15-0.30": 0.0148,
+      "0.00-0.15": 0.8952,
+      "0.15-0.30": 0.0152,
       "0.30-0.50": 0.0,
-      "0.50-0.80": 0.7228,
-      "0.80+": 0.1152
+      "0.50-0.80": 0.5496,
+      "0.80+": 0.5548
      },
      "buildable": {
-      "buildable_area_m2": 1.5616,
-      "buildable_ratio": 0.775,
+      "buildable_area_m2": 1.6616,
+      "buildable_ratio": 0.825,
       "soft_capped_area_m2": 0.0,
-      "pad_count": 2,
+      "pad_count": 3,
       "pads": [
        {
-        "height_m": -0.0,
-        "area_m2": 1.162,
-        "rect_m2": 0.8176,
+        "height_m": 0.0,
+        "area_m2": 0.8952,
+        "rect_m2": 0.62,
         "rect_size_m": [
-         1.46,
+         1.24,
+         0.5
+        ]
+       },
+       {
+        "height_m": 0.823,
+        "area_m2": 0.392,
+        "rect_m2": 0.392,
+        "rect_size_m": [
+         0.7,
          0.56
         ]
        },
        {
-        "height_m": 0.545,
-        "area_m2": 0.3996,
-        "rect_m2": 0.3996,
+        "height_m": 0.769,
+        "area_m2": 0.3744,
+        "rect_m2": 0.3744,
         "rect_size_m": [
-         0.74,
-         0.54
+         0.52,
+         0.72
         ]
        }
       ]
@@ -5321,82 +5317,70 @@
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.851,
-       "mean_height_m": 0.075,
-       "max_height_m": 0.503
+       "free_ratio": 0.749,
+       "mean_height_m": 0.369,
+       "max_height_m": 1.47
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 1.53,
+       "median_clearance_m": 0.06,
        "max_clearance_m": 1.53,
-       "width_over_0.30m": 1.46,
-       "width_over_0.50m": 1.46,
-       "width_over_0.70m": 1.46
+       "width_over_0.30m": 0.72,
+       "width_over_0.50m": 0.72,
+       "width_over_0.70m": 0.72
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.582,
-        "reachable_free_m2": 1.148,
-        "reachable_back_ratio": 0.245
+        "reachable_ratio": 0.437,
+        "reachable_free_m2": 0.8544,
+        "reachable_back_ratio": 0.123
        },
        "0.20": {
-        "reachable_ratio": 0.582,
-        "reachable_free_m2": 1.148,
-        "reachable_back_ratio": 0.245
+        "reachable_ratio": 0.437,
+        "reachable_free_m2": 0.8544,
+        "reachable_back_ratio": 0.123
        },
        "0.40": {
-        "reachable_ratio": 0.583,
-        "reachable_free_m2": 1.148,
-        "reachable_back_ratio": 0.246
+        "reachable_ratio": 0.444,
+        "reachable_free_m2": 0.8544,
+        "reachable_back_ratio": 0.137
        },
        "0.60": {
-        "reachable_ratio": 0.871,
-        "reachable_free_m2": 1.162,
-        "reachable_back_ratio": 0.746
+        "reachable_ratio": 0.449,
+        "reachable_free_m2": 0.8544,
+        "reachable_back_ratio": 0.137
        }
       },
-      "clear_lane_width_m": 0.76,
-      "front_half_max_height_m": 0.503,
-      "back_half_mean_height_m": 0.522
+      "clear_lane_width_m": 0.18,
+      "front_half_max_height_m": 1.47,
+      "back_half_mean_height_m": 0.668
      },
      "order": {
-      "placements": 6,
-      "back_to_front_violations": 3,
-      "back_to_front_adherence": 0.5,
-      "max_backtrack_m": 0.043,
+      "placements": 10,
+      "back_to_front_violations": 1,
+      "back_to_front_adherence": 0.9,
+      "max_backtrack_m": 0.013,
       "violations": [
        {
-        "step": 3,
-        "item_index": 17,
-        "surface": "floor",
-        "backtrack_m": 0.032
-       },
-       {
-        "step": 4,
-        "item_index": 3,
+        "step": 6,
+        "item_index": 1,
         "surface": "hard-top",
-        "backtrack_m": 0.043
-       },
-       {
-        "step": 5,
-        "item_index": 15,
-        "surface": "floor",
-        "backtrack_m": 0.027
+        "backtrack_m": 0.013
        }
       ],
-      "final_frontier_y": -0.145,
-      "frontier_depth_used": 0.5887
+      "final_frontier_y": -0.7075,
+      "frontier_depth_used": 0.9876
      },
      "volume": {
-      "placed_volume_m3": 0.57265,
+      "placed_volume_m3": 0.97015,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.1429,
-      "foundation_volume_m3": 0.30015,
-      "foundation_slab_height_m": 1.424,
-      "foundation_slab_volume_m3": 2.88952,
-      "foundation_slab_fill_ratio": 0.1039,
-      "structural_volume_m3": 0.2725,
-      "placed_volume_floor_m3": 0.57265,
+      "volume_fill_ratio": 0.2421,
+      "foundation_volume_m3": 0.78472,
+      "foundation_slab_height_m": 1.47,
+      "foundation_slab_volume_m3": 2.98286,
+      "foundation_slab_fill_ratio": 0.2631,
+      "structural_volume_m3": 0.18543,
+      "placed_volume_floor_m3": 0.97015,
       "placed_volume_shelf_m3": 0.0,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
@@ -5415,18 +5399,18 @@
     "images/12-large-hard-only/c0_terrain.png",
     "images/12-large-hard-only/c0_terrain.svg"
    ],
-   "runtime_seconds": 16.6
+   "runtime_seconds": 17.5
   },
   {
    "scenario": "13-small-first-then-large",
    "description": "Small hard cargo first, large hard cargo after: does the follower rule stop the small boxes from carving up the bays the large ones still need?",
    "items_in_stream": 20,
-   "items_placed": 14,
+   "items_placed": 15,
    "role_histogram": {
-    "wall-front": 2,
+    "wall-front": 3,
     "wedge-step": 3,
-    "none": 4,
-    "terrace": 4,
+    "none": 3,
+    "terrace": 5,
     "hole-fill": 1
    },
    "containers": [
@@ -5434,33 +5418,33 @@
      "container_index": 0,
      "has_shelf": false,
      "is_prioritized": false,
-     "placed_total": 14,
+     "placed_total": 15,
      "normal_hard": {
       "count": 7,
-      "footprint_m2": 0.9927,
-      "x_centroid": 0.568,
-      "y_centroid": 0.702,
-      "back_share": 1.0,
-      "centre_share": 0.55,
+      "footprint_m2": 0.9949,
+      "x_centroid": 0.414,
+      "y_centroid": 0.675,
+      "back_share": 0.909,
+      "centre_share": 0.089,
       "cell_share": {
-       "chamfer-back": 0.151,
-       "left-back": 0.226,
-       "centre-back": 0.55,
-       "right-back": 0.073,
-       "chamfer-front": 0.0,
+       "chamfer-back": 0.18,
+       "left-back": 0.547,
+       "centre-back": 0.089,
+       "right-back": 0.094,
+       "chamfer-front": 0.091,
        "left-front": 0.0,
        "centre-front": 0.0,
        "right-front": 0.0
       },
       "height_by_y_third": [
        null,
-       0.299,
-       0.286
+       0.35,
+       0.238
       ],
       "slab_height_by_y_third": [
        null,
-       0.299,
-       0.277
+       0.309,
+       0.231
       ]
      },
      "tall": {
@@ -5474,11 +5458,19 @@
         "class": "normal-hard"
        },
        {
-        "step": 8,
+        "step": 3,
         "role": "wall-front",
         "cell": "chamfer-back",
-        "height_m": 0.339,
-        "footprint_m2": 0.0553,
+        "height_m": 0.38,
+        "footprint_m2": 0.0837,
+        "class": "normal-hard"
+       },
+       {
+        "step": 5,
+        "role": "wall-front",
+        "cell": "chamfer-front",
+        "height_m": 0.361,
+        "footprint_m2": 0.0901,
         "class": "normal-hard"
        }
       ],
@@ -5490,62 +5482,45 @@
      "cells": {
       "chamfer-back": {
        "usable_m2": 0.224,
-       "coverage": 0.723,
-       "mean_height_m": 0.34,
-       "max_height_m": 0.643,
-       "hard_top_m2": 0.162,
-       "soft_top_m2": 0.0,
-       "items": 5,
-       "classes": {
-        "normal-hard": 5
-       },
-       "roles": {
-        "wall-front": 2,
-        "wedge-step": 3
-       },
-       "first_step": 1,
-       "median_step": 7.0
-      },
-      "left-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.798,
-       "mean_height_m": 0.331,
-       "max_height_m": 0.513,
-       "hard_top_m2": 0.2124,
+       "coverage": 0.879,
+       "mean_height_m": 0.425,
+       "max_height_m": 0.631,
+       "hard_top_m2": 0.1968,
        "soft_top_m2": 0.0,
        "items": 4,
        "classes": {
         "normal-hard": 4
        },
        "roles": {
-        "terrace": 2
+        "wall-front": 2,
+        "wedge-step": 2
        },
-       "first_step": 3,
-       "median_step": 6.5
+       "first_step": 1,
+       "median_step": 2.5
+      },
+      "left-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.95,
+       "mean_height_m": 0.714,
+       "max_height_m": 0.919,
+       "hard_top_m2": 0.2528,
+       "soft_top_m2": 0.0,
+       "items": 5,
+       "classes": {
+        "normal-hard": 5
+       },
+       "roles": {
+        "terrace": 3
+       },
+       "first_step": 10,
+       "median_step": 13.0
       },
       "centre-back": {
        "usable_m2": 0.266,
-       "coverage": 0.91,
-       "mean_height_m": 0.423,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.242,
-       "soft_top_m2": 0.0,
-       "items": 3,
-       "classes": {
-        "normal-hard": 3
-       },
-       "roles": {
-        "terrace": 1
-       },
-       "first_step": 5,
-       "median_step": 6.0
-      },
-      "right-back": {
-       "usable_m2": 0.266,
-       "coverage": 0.826,
-       "mean_height_m": 0.427,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.2196,
+       "coverage": 0.902,
+       "mean_height_m": 0.593,
+       "max_height_m": 0.919,
+       "hard_top_m2": 0.24,
        "soft_top_m2": 0.0,
        "items": 1,
        "classes": {
@@ -5554,11 +5529,72 @@
        "roles": {
         "hole-fill": 1
        },
-       "first_step": 10,
-       "median_step": 10.0
+       "first_step": 11,
+       "median_step": 11.0
+      },
+      "right-back": {
+       "usable_m2": 0.266,
+       "coverage": 0.469,
+       "mean_height_m": 0.272,
+       "max_height_m": 0.649,
+       "hard_top_m2": 0.1248,
+       "soft_top_m2": 0.0,
+       "items": 3,
+       "classes": {
+        "normal-hard": 3
+       },
+       "roles": {
+        "terrace": 2
+       },
+       "first_step": 7,
+       "median_step": 8.0
       },
       "chamfer-front": {
        "usable_m2": 0.2176,
+       "coverage": 0.423,
+       "mean_height_m": 0.22,
+       "max_height_m": 0.607,
+       "hard_top_m2": 0.092,
+       "soft_top_m2": 0.0,
+       "items": 2,
+       "classes": {
+        "normal-hard": 2
+       },
+       "roles": {
+        "wall-front": 1,
+        "wedge-step": 1
+       },
+       "first_step": 5,
+       "median_step": 5.5
+      },
+      "left-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.324,
+       "mean_height_m": 0.28,
+       "max_height_m": 0.919,
+       "hard_top_m2": 0.0836,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "centre-front": {
+       "usable_m2": 0.2584,
+       "coverage": 0.307,
+       "mean_height_m": 0.242,
+       "max_height_m": 0.919,
+       "hard_top_m2": 0.0792,
+       "soft_top_m2": 0.0,
+       "items": 0,
+       "classes": {},
+       "roles": {},
+       "first_step": null,
+       "median_step": null
+      },
+      "right-front": {
+       "usable_m2": 0.2584,
        "coverage": 0.0,
        "mean_height_m": 0.0,
        "max_height_m": 0.0,
@@ -5569,96 +5605,53 @@
        "roles": {},
        "first_step": null,
        "median_step": null
-      },
-      "left-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.017,
-       "mean_height_m": 0.006,
-       "max_height_m": 0.327,
-       "hard_top_m2": 0.0044,
-       "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
-      "centre-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.46,
-       "mean_height_m": 0.238,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.1188,
-       "soft_top_m2": 0.0,
-       "items": 0,
-       "classes": {},
-       "roles": {},
-       "first_step": null,
-       "median_step": null
-      },
-      "right-front": {
-       "usable_m2": 0.2584,
-       "coverage": 0.647,
-       "mean_height_m": 0.421,
-       "max_height_m": 0.65,
-       "hard_top_m2": 0.1672,
-       "soft_top_m2": 0.0,
-       "items": 1,
-       "classes": {
-        "normal-hard": 1
-       },
-       "roles": {
-        "terrace": 1
-       },
-       "first_step": 14,
-       "median_step": 14.0
       }
      },
      "support_area": {
-      "free-floor": 0.8884,
-      "hard": 1.1264,
+      "free-floor": 0.9456,
+      "hard": 1.0692,
       "soft-only": 0.0,
       "priority-only": 0.0,
       "soft+priority-only": 0.0
      },
      "height_bands": {
-      "0.00-0.15": 0.8884,
-      "0.15-0.30": 0.1348,
-      "0.30-0.50": 0.27,
-      "0.50-0.80": 0.7216,
-      "0.80+": 0.0
+      "0.00-0.15": 0.9456,
+      "0.15-0.30": 0.1228,
+      "0.30-0.50": 0.1964,
+      "0.50-0.80": 0.3356,
+      "0.80+": 0.4144
      },
      "buildable": {
-      "buildable_area_m2": 1.4008,
-      "buildable_ratio": 0.695,
+      "buildable_area_m2": 1.4552,
+      "buildable_ratio": 0.722,
       "soft_capped_area_m2": 0.0,
       "pad_count": 3,
       "pads": [
        {
-        "height_m": -0.0,
-        "area_m2": 0.8884,
-        "rect_m2": 0.4896,
+        "height_m": 0.0,
+        "area_m2": 0.9384,
+        "rect_m2": 0.552,
         "rect_size_m": [
-         0.68,
-         0.72
+         1.2,
+         0.46
         ]
        },
        {
-        "height_m": 0.65,
-        "area_m2": 0.4104,
-        "rect_m2": 0.4104,
+        "height_m": 0.919,
+        "area_m2": 0.4144,
+        "rect_m2": 0.4144,
         "rect_size_m": [
-         0.54,
-         0.76
+         0.56,
+         0.74
         ]
        },
        {
-        "height_m": 0.511,
-        "area_m2": 0.102,
-        "rect_m2": 0.102,
+        "height_m": 0.649,
+        "area_m2": 0.1024,
+        "rect_m2": 0.1024,
         "rect_size_m": [
-         0.34,
-         0.3
+         0.32,
+         0.32
         ]
        }
       ]
@@ -5681,84 +5674,102 @@
      "access": {
       "corridor": {
        "area_m2": 0.3128,
-       "free_ratio": 0.902,
-       "mean_height_m": 0.064,
-       "max_height_m": 0.65
+       "free_ratio": 1.0,
+       "mean_height_m": 0.0,
+       "max_height_m": 0.0
       },
       "front_centre": {
        "area_m2": 0.2584,
-       "free_ratio": 0.54,
-       "mean_height_m": 0.238,
-       "max_height_m": 0.65
+       "free_ratio": 0.693,
+       "mean_height_m": 0.242,
+       "max_height_m": 0.919
       },
       "approach": {
        "width_m": 1.46,
-       "median_clearance_m": 1.203,
+       "median_clearance_m": 0.923,
        "max_clearance_m": 1.53,
        "width_over_0.30m": 1.46,
        "width_over_0.50m": 1.46,
-       "width_over_0.70m": 1.46
+       "width_over_0.70m": 0.9
       },
       "reach": {
        "0.00": {
-        "reachable_ratio": 0.399,
-        "reachable_free_m2": 0.7748,
-        "reachable_back_ratio": 0.084
+        "reachable_ratio": 0.459,
+        "reachable_free_m2": 0.896,
+        "reachable_back_ratio": 0.162
        },
        "0.20": {
-        "reachable_ratio": 0.399,
-        "reachable_free_m2": 0.7748,
-        "reachable_back_ratio": 0.084
+        "reachable_ratio": 0.464,
+        "reachable_free_m2": 0.896,
+        "reachable_back_ratio": 0.173
        },
        "0.40": {
-        "reachable_ratio": 0.532,
-        "reachable_free_m2": 0.8024,
-        "reachable_back_ratio": 0.299
+        "reachable_ratio": 0.514,
+        "reachable_free_m2": 0.9036,
+        "reachable_back_ratio": 0.238
        },
        "0.60": {
-        "reachable_ratio": 0.648,
-        "reachable_free_m2": 0.832,
-        "reachable_back_ratio": 0.528
+        "reachable_ratio": 0.603,
+        "reachable_free_m2": 0.9196,
+        "reachable_back_ratio": 0.375
        }
       },
-      "clear_lane_width_m": 0.68,
-      "front_half_max_height_m": 0.65,
-      "back_half_mean_height_m": 0.382
+      "clear_lane_width_m": 0.42,
+      "front_half_max_height_m": 0.919,
+      "back_half_mean_height_m": 0.504
      },
      "order": {
-      "placements": 14,
-      "back_to_front_violations": 1,
-      "back_to_front_adherence": 0.9286,
-      "max_backtrack_m": 0.013,
+      "placements": 15,
+      "back_to_front_violations": 4,
+      "back_to_front_adherence": 0.7333,
+      "max_backtrack_m": 0.698,
       "violations": [
        {
         "step": 7,
         "item_index": 2,
-        "surface": "packed_item",
-        "backtrack_m": 0.013
+        "surface": "floor",
+        "backtrack_m": 0.661
+       },
+       {
+        "step": 10,
+        "item_index": 10,
+        "surface": "floor",
+        "backtrack_m": 0.698
+       },
+       {
+        "step": 12,
+        "item_index": 7,
+        "surface": "hard-top",
+        "backtrack_m": 0.067
+       },
+       {
+        "step": 13,
+        "item_index": 19,
+        "surface": "floor",
+        "backtrack_m": 0.099
        }
       ],
-      "final_frontier_y": -0.24,
-      "frontier_depth_used": 0.656
+      "final_frontier_y": -0.336,
+      "frontier_depth_used": 0.7241
      },
      "volume": {
-      "placed_volume_m3": 0.55744,
+      "placed_volume_m3": 0.68472,
       "usable_container_volume_m3": 4.00698,
-      "volume_fill_ratio": 0.1391,
-      "foundation_volume_m3": 0.45075,
-      "foundation_slab_height_m": 0.65,
-      "foundation_slab_volume_m3": 1.31895,
-      "foundation_slab_fill_ratio": 0.3417,
-      "structural_volume_m3": 0.10669,
-      "placed_volume_floor_m3": 0.55744,
+      "volume_fill_ratio": 0.1709,
+      "foundation_volume_m3": 0.52486,
+      "foundation_slab_height_m": 0.919,
+      "foundation_slab_volume_m3": 1.86479,
+      "foundation_slab_fill_ratio": 0.2815,
+      "structural_volume_m3": 0.15986,
+      "placed_volume_floor_m3": 0.68472,
       "placed_volume_shelf_m3": 0.0,
       "official_evaluator_fill_score": null,
       "official_evaluator_fill_score_unavailable_reason": "the official Evaluator scores a whole episode, not one container"
      },
      "compaction": {
-      "items_moved": 0,
-      "total_y_m": 0.0,
-      "max_y_m": 0.0,
+      "items_moved": 2,
+      "total_y_m": 1.1155,
+      "max_y_m": 0.7425,
       "total_x_m": 0.0
      }
     }
@@ -5769,7 +5780,7 @@
     "images/13-small-first-then-large/c0_terrain.png",
     "images/13-small-first-then-large/c0_terrain.svg"
    ],
-   "runtime_seconds": 41.4
+   "runtime_seconds": 53.6
   }
  ]
 }

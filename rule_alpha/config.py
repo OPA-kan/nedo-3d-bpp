@@ -189,12 +189,44 @@ class RuleAlphaConfig:
     """How much of the depth, measured from the opening, counts as the front
     band hard should yield."""
 
-    layer2_max_layers: int = 2
+    layer2_free_depth: int = 2
+    """How deep cargo may stack with no justification at all.
+
+    Two is the floor layer and one on top of it: ordinary Layer 2, which needs
+    no argument.  Everything above this has to earn it by landing on a plateau
+    -- see ``plateau_support_min_area``."""
+
+    plateau_support_min_area: float = 0.35
+    """How large the connected hard plateau under a deeper placement must be.
+
+    This is the condition that replaces counting storeys.  A depth counter
+    cannot tell a terrace from a tower -- both are "three boxes up" -- and
+    raising the count from two to three bought twenty placements while the
+    second layer stayed at thirty-one and a tall box ended up standing free on
+    a stack of its own making.  What separates the two is the shape of what is
+    being built on, which the height map already knows: a terrace's top is a
+    wide connected plateau, a tower's is one box lid."""
+
+    plateau_support_coverage: float = 0.70
+    """...and how much of the box's underside has to sit on that plateau.
+
+    Area alone is not enough: a box perched on the corner of a large terrace,
+    mostly overhanging, is a tower with a good view."""
+
+    layer2_max_layers: int = 5
     """How many layers of cargo may be stacked, floor included.
 
-    Two means: the floor layer, and one layer on top of it.  The wedge
-    staircase is exempt -- it is not a stack, it is a ramp, and each step rests
-    on the one below by construction."""
+    Three means: the floor layer and two on top of it.  The wedge staircase is
+    exempt -- it is not a stack, it is a ramp, and each step rests on the one
+    below by construction.
+
+    Measured across thirteen scenarios, raising the cap does buy placements --
+    2: 201 at 0.228 fill, 3: 213 at 0.247, 4: 224 at 0.268 -- but read the
+    layer histogram before reading the total.  The second layer barely grows
+    (29 -> 31 -> 33) while each new cap adds a nearly full storey of its own,
+    so what the cap buys is height in a few columns rather than a wider
+    terrace.  The depth counter cannot tell a terrace from a tower; only a
+    condition on the *shape* of the support below could."""
 
     typed_front_right_slack: float = 0.25
     """How far off the best right-front placement a typed floor candidate may

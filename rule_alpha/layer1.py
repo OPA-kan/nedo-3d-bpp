@@ -229,6 +229,7 @@ class Board:
         self._triangle: list = [None for _ in self.containers]
         self._reach: list = [None for _ in self.containers]
         self._plateau: list = [None for _ in self.containers]
+        self._plateau_labels: list = [None for _ in self.containers]
         self._holes: list = [None for _ in self.containers]
         # manifest-derived: what the outstanding frontier cargo still needs.
         # The manifest is handed to optimize(), so reading it is information the
@@ -374,6 +375,7 @@ class Board:
         self._triangle[idx] = None
         self._reach = [None for _ in self.containers]
         self._plateau = [None for _ in self.containers]
+        self._plateau_labels = [None for _ in self.containers]
         self._holes = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
@@ -398,6 +400,17 @@ class Board:
                 self.grid(idx), self.models[idx], self.config
             )
             self._holes[idx] = cached
+        return cached
+
+    def plateau_labels(self, idx: int):
+        """``(labels, count)`` of the hard top surface, cached per board state."""
+        cached = self._plateau_labels[idx]
+        if cached is None:
+            cached = l2.plateau_map(
+                self.grid(idx), self.models[idx].z_floor,
+                self.config.plateau_height_tolerance,
+            )
+            self._plateau_labels[idx] = cached
         return cached
 
     def floor_reach(self, idx: int) -> tuple[float, float]:
@@ -1820,6 +1833,86 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
 
 
 # ---------------------------------------------------------------------------
+# What may be built on: the shape of the support, not how far up it is
+# ---------------------------------------------------------------------------
+def _hole_depth_ok(board: "Board", container_idx: int, box: AABB, config) -> bool:
+    """The depth rule, asked before a hole-fill candidate is even built.
+
+    Charging a refusal to the family's quota and deleting it in the veto later
+    spent the whole quota on placements that could not happen -- which is what
+    it did, and no floor hole was ever reached.
+    """
+    container = board.container(container_idx)
+    level = stack_level(box, container, l2.ROLE_HOLE_FILL, config)
+    if level <= config.layer2_free_depth:
+        return True
+    if level > config.layer2_max_layers:
+        return False
+    area, coverage = plateau_support(board, container_idx, box, config)
+    return (
+        area >= config.plateau_support_min_area
+        and coverage >= config.plateau_support_coverage
+    )
+
+
+def plateau_support(board: "Board", container_idx: int, box: AABB,
+                    config) -> tuple[float, float]:
+    """``(plateau area under this box, share of its footprint on that plateau)``.
+
+    A depth counter cannot tell a terrace from a tower: both are "three boxes
+    up".  What separates them is the *shape* of what is being built on -- a
+    terrace's top is a wide connected plateau, a tower's is one box lid -- and
+    that is a property the height map already carries.
+    """
+    grid = board.grid(container_idx)
+    labels, count = board.plateau_labels(container_idx)
+    if count == 0:
+        return 0.0, 0.0
+    rect = box_rect(box)
+    mask = grid.rect_mask(rect)
+    cells = int(mask.sum())
+    if cells == 0:
+        return 0.0, 0.0
+    bottom = float(box.minimum[2])
+    resting = mask & (np.abs(grid.height - bottom) <= config.contact_tolerance)
+    under = labels[resting]
+    under = under[under > 0]
+    if under.size == 0:
+        return 0.0, 0.0
+    label = int(np.bincount(under).argmax())
+    area = float((labels == label).sum()) * grid.cell_area
+    coverage = float((resting & (labels == label)).sum()) / float(cells)
+    return area, coverage
+
+
+def may_build_here(board: "Board", container_idx: int, candidate: "Candidate",
+                   config) -> tuple[bool, int]:
+    """May this placement stand where it is, given how deep and on what?
+
+    Below ``layer2_free_depth`` nothing has to be justified: the first storey
+    above the floor is ordinary Layer 2.  Above it the support has to be a
+    plateau -- wide enough, and enough of the box's underside actually on it.
+    A tower cannot satisfy that on its own lid, so it stops; a terrace can, so
+    it keeps growing sideways *and* upwards.  That is the same "grow hard
+    support from hard support" rule as the rest of Layer 2, used as the
+    criterion for depth instead of as a separate behaviour.
+    """
+    container = board.container(container_idx)
+    level = stack_level(candidate.box, container, candidate.role, config)
+    if level <= config.layer2_free_depth:
+        return True, level
+    if level > config.layer2_max_layers:
+        return False, level  # backstop, so nothing can run away
+    area, coverage = plateau_support(
+        board, container_idx, candidate.box, config
+    )
+    return (
+        area >= config.plateau_support_min_area
+        and coverage >= config.plateau_support_coverage
+    ), level
+
+
+# ---------------------------------------------------------------------------
 # Hole filling: aim at the gap, then pick the pose that fits it
 # ---------------------------------------------------------------------------
 def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
@@ -1869,11 +1962,8 @@ def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
                 ok, _why = validate(box, model, container, config)
                 if not ok:
                     continue
-                if (
-                    not hole.on_floor
-                    and config.layer2_max_layers > 0
-                    and stack_level(box, container, l2.ROLE_HOLE_FILL, config)
-                    > config.layer2_max_layers
+                if not hole.on_floor and config.layer2_max_layers > 0 and not (
+                    _hole_depth_ok(board, container_idx, box, config)
                 ):
                     # A notch high in the terrain is a real pocket and the cap
                     # still refuses to fill it.  Charging it to the family's
@@ -1904,7 +1994,6 @@ def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
 def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                  config) -> tuple[list[Candidate], dict]:
     model = board.model(container_idx)
-    container = board.container(container_idx)
     grid = board.grid(container_idx)
     coverage = grid.coverage()
     counts: dict[str, int] = {}
@@ -2170,9 +2259,15 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             if kept:
                 survivors = kept
 
-    # 4e. how many layers deep this would be.  The wedge staircase is exempt:
-    #     it is a ramp, not a stack, and each step rests on the one below by
-    #     construction.
+    # 4e. what may be built on.  Not "how many layers up" -- a counter cannot
+    #     tell a terrace from a tower, and raising it from two to three bought
+    #     twenty placements while the second layer stayed put at thirty-one and
+    #     a tall box ended up standing free on a stack of its own making.  The
+    #     condition is on the *shape* of the support: past the free depth, the
+    #     box has to land on a plateau wide enough to be one, with enough of
+    #     its underside actually on it.  A tower's own lid cannot satisfy that,
+    #     so it stops; a terrace can, so it keeps growing.  The wedge staircase
+    #     is exempt either way: it is a ramp, not a stack.
     if config.layer2_max_layers > 0:
         kept = []
         for candidate in survivors:
@@ -2182,13 +2277,17 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             if candidate.surface != "item":
                 kept.append(candidate)
                 continue
-            level = stack_level(
-                candidate.box, container, candidate.role, config
+            allowed, level = may_build_here(
+                board, container_idx, candidate, config
             )
-            if level <= config.layer2_max_layers:
+            if allowed:
                 kept.append(candidate)
             else:
-                drop(candidate, "too-many-layers")
+                drop(
+                    candidate,
+                    "too-many-layers" if level > config.layer2_max_layers
+                    else "no-plateau-to-build-on",
+                )
         # No fallback.  Every other veto here yields when it would leave
         # nothing, because refusing an item outright is usually worse than a
         # compromised placement.  This one is a structural limit, not a

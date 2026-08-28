@@ -1411,3 +1411,87 @@ class FrontStaysLowTest(unittest.TestCase):
         self.assertAlmostEqual(
             layer1.terrain_behind(grid, back), model.z_floor, places=6
         )
+
+
+class PlateauDepthTest(unittest.TestCase):
+    """Depth is limited by the shape of the support, not by a storey count."""
+
+    def _board(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.Board([container], DEFAULT_CONFIG)
+
+    def _place(self, board, x, y, bottom, dims, role=cls.ROLE_NONE):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = cls.classify_item(
+            0,
+            {"index": 0, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 10.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor", role=role,
+            archetype=layer1.A_MAX_FOOTPRINT, reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), role, DEFAULT_CONFIG),
+        ))
+        return box
+
+    def _candidate(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "candidate")
+        profile = cls.classify_item(
+            9,
+            {"index": 9, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 8.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+        return layer1.Candidate(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="item", surface_name="hard-top",
+            role=cls.ROLE_NONE,
+        )
+
+    def test_a_tower_cannot_grow_past_the_free_depth(self):
+        """One box on one box: its lid is not a plateau, so the third storey
+        is refused however tall the stack would be allowed to get."""
+        board = self._board()
+        z = board.model(0).z_floor
+        small = (0.40, 0.40, 0.30)
+        self._place(board, 0.0, 0.0, z, small)                 # L1
+        self._place(board, 0.0, 0.0, z + 0.30, small)           # L2
+        third = self._candidate(board, 0.0, 0.0, z + 0.60, small)
+        allowed, level = layer1.may_build_here(board, 0, third, DEFAULT_CONFIG)
+        self.assertEqual(level, 3)
+        self.assertFalse(allowed, "a box lid is not a plateau")
+
+    def test_a_terrace_can(self):
+        """The same third storey, over a wide connected top, is growth."""
+        board = self._board()
+        z = board.model(0).z_floor
+        for i in range(3):
+            for j in range(2):
+                self._place(board, -0.30 + i * 0.42, -0.25 + j * 0.42, z,
+                            (0.40, 0.40, 0.30))
+        for i in range(3):
+            for j in range(2):
+                self._place(board, -0.30 + i * 0.42, -0.25 + j * 0.42, z + 0.30,
+                            (0.40, 0.40, 0.30))
+        third = self._candidate(board, -0.30 + 0.42, -0.25 + 0.21, z + 0.60,
+                                (0.40, 0.40, 0.30))
+        area, coverage = layer1.plateau_support(board, 0, third.box, DEFAULT_CONFIG)
+        allowed, level = layer1.may_build_here(board, 0, third, DEFAULT_CONFIG)
+        self.assertEqual(level, 3)
+        self.assertGreaterEqual(area, DEFAULT_CONFIG.plateau_support_min_area)
+        self.assertGreaterEqual(coverage, DEFAULT_CONFIG.plateau_support_coverage)
+        self.assertTrue(allowed, f"area={area:.3f} coverage={coverage:.3f}")
+
+    def test_the_free_depth_needs_no_plateau_at_all(self):
+        """The first storey above the floor is ordinary Layer 2 and is never
+        asked to justify itself -- otherwise nothing could ever start."""
+        board = self._board()
+        z = board.model(0).z_floor
+        small = (0.40, 0.40, 0.30)
+        self._place(board, 0.0, 0.0, z, small)
+        second = self._candidate(board, 0.0, 0.0, z + 0.30, small)
+        allowed, level = layer1.may_build_here(board, 0, second, DEFAULT_CONFIG)
+        self.assertEqual(level, 2)
+        self.assertTrue(allowed)
