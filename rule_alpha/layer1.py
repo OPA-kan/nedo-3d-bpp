@@ -55,6 +55,7 @@ A_TERRACE = "terrace-extension"
 A_BRIDGE = "plateau-merge"
 A_WEDGE_BRIDGE = "wedge-bridge"
 A_HOLE_FILL = "hole-fill"
+A_TYPED_CAP = "typed-cap"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -75,6 +76,7 @@ ALL_ARCHETYPES = (
     A_BRIDGE,
     A_WEDGE_BRIDGE,
     A_HOLE_FILL,
+    A_TYPED_CAP,
 )
 
 
@@ -1593,6 +1595,16 @@ def _key_bridge(c):
     )
 
 
+def _key_typed_cap(c):
+    # cap the highest terrain first -- that is the space nothing else can use
+    # -- and sit flat on it rather than perched
+    return (
+        -c.features["top_z"],
+        -c.features.get("stability_margin", 0.0),
+        -c.features["y_back"],
+    )
+
+
 def _key_hole_fill(c):
     # take the most of the pocket, lying as flat as the pocket allows, and
     # among equals the one furthest back
@@ -1632,6 +1644,7 @@ ARCHETYPE_KEYS = {
     A_BRIDGE: _key_bridge,
     A_WEDGE_BRIDGE: _key_wedge_bridge,
     A_HOLE_FILL: _key_hole_fill,
+    A_TYPED_CAP: _key_typed_cap,
 }
 
 
@@ -1665,6 +1678,8 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         tags.add(A_BRIDGE)
     if candidate.role == l2.ROLE_WEDGE_BRIDGE:
         tags.add(A_WEDGE_BRIDGE)
+    if candidate.role == l2.ROLE_TYPED_CAP:
+        tags.add(A_TYPED_CAP)
     if candidate.profile.is_elongated:
         tags.add(A_ELONGATED_WALL)
     klass = candidate.profile.cargo_class
@@ -1739,16 +1754,23 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         ladder.append(A_SOFT_EDGE)
         if profile.is_elongated:
             ladder.append(A_ELONGATED_WALL)
-        ladder.extend([A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER])
+        ladder.extend([A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER, A_TYPED_CAP])
     elif klass == cls.PRIORITY:
         if model.is_prioritized:
-            ladder.extend([A_MAX_FOOTPRINT, A_BACK_CORNER, A_HOLE_FILL, A_MIN_HOLE])
+            ladder.extend([
+                A_MAX_FOOTPRINT, A_BACK_CORNER, A_HOLE_FILL, A_MIN_HOLE,
+                A_TYPED_CAP,
+            ])
         else:
-            ladder.extend([A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER])
+            ladder.extend([
+                A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER,
+                A_TYPED_CAP,
+            ])
     else:  # soft + priority
         ladder.append(A_SHELF_SAVING)
         ladder.extend([
-            A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE, A_BACK_CORNER,
+            A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE,
+            A_BACK_CORNER, A_TYPED_CAP,
         ])
     ladder.append(A_MAX_FOOTPRINT)
     seen, out = set(), []
@@ -1771,7 +1793,10 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
     different kind*, and mixing them into one list is what lets a single
     depth-sorted shortlist quietly delete a whole behaviour.
     """
-    if not config.layer2_enabled or profile.cargo_class != cls.NORMAL_HARD:
+    if not config.layer2_enabled:
+        return []
+    typed = profile.cargo_class != cls.NORMAL_HARD
+    if typed and not config.typed_cap_enabled:
         return []
 
     model = board.model(container_idx)
@@ -1783,6 +1808,25 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
         return []
 
     proposals: list[tuple[str, str, float, float, float]] = []
+
+    if typed:
+        # Soft and priority on top of hard.  Layer 2 was normal-hard only, so
+        # typed cargo could never rest on cargo at all -- which is backwards
+        # near the ceiling, where the last usable space is a lid and the class
+        # that wants a lid is the one that has to support nothing above it.
+        # Only the top of the terrain, so it caps rather than buries.
+        for rect, top in tops:
+            if top + dz > model.z_ceiling:
+                continue
+            if top < model.z_floor + config.typed_cap_min_height:
+                continue  # low down there is still floor to use
+            for x, y in l2.terrace_anchors(rect, dx, dy, gap):
+                proposals.append(
+                    (l2.FAMILY_TYPED_CAP, l2.ROLE_TYPED_CAP, x, y, top)
+                )
+        return _build_layer2(
+            board, profile, container_idx, orientation, proposals, config
+        )
 
     # A terrace sits on *one* top, so it uses that top's own height.  Grouping
     # first and building at the group's level would float the box above every
@@ -1807,6 +1851,18 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
                 (l2.FAMILY_WEDGE_BRIDGE, l2.ROLE_WEDGE_BRIDGE, x, y, level)
             )
 
+    return _build_layer2(
+        board, profile, container_idx, orientation, proposals, config
+    )
+
+
+def _build_layer2(board: "Board", profile: cls.ItemProfile, container_idx: int,
+                  orientation: cls.Orientation, proposals, config
+                  ) -> list[Candidate]:
+    """Turn (family, role, x, y, bottom) proposals into validated candidates."""
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
     candidates: list[Candidate] = []
     seen = set()
     for family, role, x, y, bottom in proposals:
@@ -2135,6 +2191,40 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             if candidate not in kept:
                 drop(candidate, "interior-hole")
         survivors = kept
+
+    # 3b. a shelf placement has to be on the shelf.  The support polygon lets
+    #     a box hang out to half its width, and on the small shelf -- 0.44 m
+    #     wide, narrower than most cargo -- it did: 15 of 52 shelf placements
+    #     overhung the edge, one by 0.486 m.  Those stay up, but they cap the
+    #     open floor beneath them at shelf height, and that floor is where tall
+    #     cargo has to go, because the main shelf already caps the back half at
+    #     0.765 m.  No fallback is needed: the same item has floor candidates
+    #     in the same pool, so refusing the overhang does not strand it.
+    if config.shelf_min_support_fraction > 0.0:
+        shelf_rects = [
+            (Rect(float(sh.minimum[0]), float(sh.maximum[0]),
+                  float(sh.minimum[1]), float(sh.maximum[1])),
+             float(sh.maximum[2]))
+            for sh in model.shelves
+        ]
+        kept = []
+        for candidate in survivors:
+            if candidate.surface != "shelf" or not shelf_rects:
+                kept.append(candidate)
+                continue
+            bottom = float(candidate.box.minimum[2])
+            rect = box_rect(candidate.box)
+            on = sum(
+                r.overlap_area(rect) for r, top in shelf_rects
+                if abs(top - bottom) <= config.contact_tolerance
+            )
+            if on >= config.shelf_min_support_fraction * rect.area - 1e-9:
+                kept.append(candidate)
+            else:
+                drop(candidate, "overhangs-the-shelf")
+        survivors = kept
+        if not survivors:
+            return [], counts
 
     # 4. tip-over risk: a tall pose needs a wall or a backing item
     kept = []
@@ -2554,7 +2644,9 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         # Layer 2 proposals are generated over their own orientation set: a
         # bridge wants the widest, flattest pose, which the floor policy would
         # not have offered.
-        if config.layer2_enabled and profile.cargo_class == cls.NORMAL_HARD:
+        if config.layer2_enabled and (
+            profile.cargo_class == cls.NORMAL_HARD or config.typed_cap_enabled
+        ):
             for orientation in cls.layer2_orientation_order(profile, config)[
                 : config.max_orientations_layer2
             ]:

@@ -56,16 +56,18 @@ FAMILY_WEDGE_BRIDGE = "wedge-bridge"
 FAMILY_SHELF = "shelf"
 FAMILY_WEDGE_STEP = "wedge-step"
 FAMILY_HOLE_FILL = "hole-fill"
+FAMILY_TYPED_CAP = "typed-cap"
 
 ALL_FAMILIES = (
     FAMILY_FLOOR, FAMILY_SHELF, FAMILY_WEDGE_STEP, FAMILY_TERRACE,
-    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL,
+    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP,
 )
 
 ROLE_TERRACE = "terrace"
 ROLE_BRIDGE = "bridge"
 ROLE_WEDGE_BRIDGE = "wedge-bridge"
 ROLE_HOLE_FILL = "hole-fill"
+ROLE_TYPED_CAP = "typed-cap"
 
 
 # ---------------------------------------------------------------------------
@@ -440,8 +442,8 @@ def hard_plateau_stats(grid, z_floor: float, tolerance: float) -> dict:
 __all__ = [
     "ALL_FAMILIES", "FAMILY_BRIDGE", "FAMILY_FLOOR", "FAMILY_HOLE_FILL",
     "FAMILY_SHELF", "FAMILY_WEDGE_STEP",
-    "FAMILY_TERRACE", "FAMILY_WEDGE_BRIDGE", "Hole", "ROLE_BRIDGE",
-    "ROLE_HOLE_FILL", "ROLE_TERRACE",
+    "FAMILY_TERRACE", "FAMILY_TYPED_CAP", "FAMILY_WEDGE_BRIDGE", "Hole",
+    "ROLE_BRIDGE", "ROLE_HOLE_FILL", "ROLE_TERRACE", "ROLE_TYPED_CAP",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
     "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
     "largest_plateau_area", "level_groups", "plateau_map", "surface_holes",

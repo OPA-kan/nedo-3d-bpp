@@ -81,6 +81,16 @@ class RuleAlphaConfig:
     standing boxes on end in the middle of the foundation.  Elongated items and
     wall-front / slope roles are exempt: for them height is the point."""
 
+    shelf_min_support_fraction: float = 0.90
+    """How much of a shelf placement's footprint must actually be on a shelf.
+
+    The support polygon alone permits an overhang of half the box's width, and
+    on the small shelf -- 0.44 m wide, narrower than most of the cargo -- that
+    is what happened: 15 of 52 shelf placements hung over the edge, one by
+    0.486 m.  They stay up, but they cap the open floor below at shelf height,
+    and that floor is where tall cargo has to go, because the main shelf
+    already caps the back half of the container at 0.765 m of headroom."""
+
     max_shelf_tipping_ratio: float = 2.2
     """Shelves are shallow and get bumped: cap how tall a shelf item may stand."""
 
@@ -200,6 +210,28 @@ class RuleAlphaConfig:
     hard_front_band: float = 0.35
     """How much of the depth, measured from the opening, counts as the front
     band hard should yield."""
+
+    typed_cap_enabled: bool = False
+    """Let soft and priority rest on hard cargo, capping the terrain.
+
+    Layer 2 was normal-hard only, so typed cargo could not rest on cargo at
+    all, which is backwards at the top of a container: the last usable space is
+    a lid, and soft is exactly the class that can take one, because it has to
+    support nothing above it.
+
+    Measured, it loses: 228 -> 226 placed, 0.275 -> 0.273 fill, and it fires
+    three times in thirteen scenarios.  The reason is that the premise is not
+    met yet -- a hard top above ``typed_cap_min_height`` is rare on boards whose
+    second layer holds thirty-one items, so "the space near the ceiling" mostly
+    does not exist to be capped.  Off by default, kept because the argument
+    holds and the situation it needs is one the terraces are still working
+    towards."""
+
+    typed_cap_min_height: float = 0.30
+    """How high a hard top has to be before typed cargo is offered it.
+
+    Low down there is still floor and shelf to use, and putting soft there
+    buries hard support under something nothing can build on."""
 
     layer2_free_depth: int = 2
     """How deep cargo may stack with no justification at all.
