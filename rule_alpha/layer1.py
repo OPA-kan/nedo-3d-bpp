@@ -1849,10 +1849,25 @@ def _hole_depth_ok(board: "Board", container_idx: int, box: AABB, config) -> boo
     if level > config.layer2_max_layers:
         return False
     area, coverage = plateau_support(board, container_idx, box, config)
-    return (
-        area >= config.plateau_support_min_area
-        and coverage >= config.plateau_support_coverage
-    )
+    return plateau_is_enough(area, coverage, box, config)
+
+
+def plateau_is_enough(area: float, coverage: float, box: AABB, config) -> bool:
+    """Is this a terrace to build on, or one box's lid?
+
+    The absolute floor answers "wide enough to be a plateau at all".  The
+    multiple, when set, answers the question that actually matters and that an
+    area cannot answer on its own -- is there more than one box under you --
+    because a single lid is a plateau of exactly that box's footprint, and the
+    footprints in a real manifest span a factor of six.
+    """
+    required = config.plateau_support_min_area
+    if config.plateau_support_footprint_multiple > 0.0:
+        footprint = float(box.size[0]) * float(box.size[1])
+        required = max(
+            required, config.plateau_support_footprint_multiple * footprint
+        )
+    return area >= required and coverage >= config.plateau_support_coverage
 
 
 def plateau_support(board: "Board", container_idx: int, box: AABB,
@@ -1906,10 +1921,7 @@ def may_build_here(board: "Board", container_idx: int, candidate: "Candidate",
     area, coverage = plateau_support(
         board, container_idx, candidate.box, config
     )
-    return (
-        area >= config.plateau_support_min_area
-        and coverage >= config.plateau_support_coverage
-    ), level
+    return plateau_is_enough(area, coverage, candidate.box, config), level
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ sweep lives in ``rule_alpha.runner``, not here.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import pathlib
 import sys
@@ -1483,6 +1484,47 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertGreaterEqual(area, DEFAULT_CONFIG.plateau_support_min_area)
         self.assertGreaterEqual(coverage, DEFAULT_CONFIG.plateau_support_coverage)
         self.assertTrue(allowed, f"area={area:.3f} coverage={coverage:.3f}")
+
+    def test_one_big_lid_can_satisfy_an_absolute_area_and_should_not(self):
+        """Why the threshold is not just an area.
+
+        A single box's lid *is* a plateau of that box's own footprint, so an
+        absolute threshold quietly means "how many boxes have to be under
+        you", and the answer depends on how big they happen to be.  The
+        multiple asks it directly."""
+        big = AABB((0.0, 0.0, 0.5), (0.60, 0.55, 0.30), "box")
+        lid_area = 0.60 * 0.55                      # 0.330: one box, on its own
+
+        absolute_only = dataclasses.replace(
+            DEFAULT_CONFIG, plateau_support_min_area=0.25,
+            plateau_support_footprint_multiple=0.0,
+        )
+        self.assertTrue(
+            layer1.plateau_is_enough(lid_area, 1.0, big, absolute_only),
+            "0.25 m^2 is below this box's own lid, so a tower passes",
+        )
+
+        with_multiple = dataclasses.replace(
+            absolute_only, plateau_support_footprint_multiple=1.5
+        )
+        self.assertFalse(
+            layer1.plateau_is_enough(lid_area, 1.0, big, with_multiple)
+        )
+        # two of them side by side is a terrace, and passes
+        self.assertTrue(
+            layer1.plateau_is_enough(2 * lid_area, 1.0, big, with_multiple)
+        )
+
+    def test_coverage_is_checked_as_well_as_area(self):
+        """A box perched on the corner of a large terrace is a tower with a
+        view, so area alone must not be enough."""
+        box = AABB((0.0, 0.0, 0.5), (0.40, 0.40, 0.30), "box")
+        self.assertFalse(
+            layer1.plateau_is_enough(1.0, 0.30, box, DEFAULT_CONFIG)
+        )
+        self.assertTrue(
+            layer1.plateau_is_enough(1.0, 0.95, box, DEFAULT_CONFIG)
+        )
 
     def test_the_free_depth_needs_no_plateau_at_all(self):
         """The first storey above the floor is ordinary Layer 2 and is never

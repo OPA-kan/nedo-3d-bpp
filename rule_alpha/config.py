@@ -196,8 +196,10 @@ class RuleAlphaConfig:
     no argument.  Everything above this has to earn it by landing on a plateau
     -- see ``plateau_support_min_area``."""
 
-    plateau_support_min_area: float = 0.35
-    """How large the connected hard plateau under a deeper placement must be.
+    plateau_support_min_area: float = 0.25
+    """How large, in m^2, the connected hard plateau under a deeper placement
+    must be: same height to within ``plateau_height_tolerance``, hard, and
+    4-connected on the height map.
 
     This is the condition that replaces counting storeys.  A depth counter
     cannot tell a terrace from a tower -- both are "three boxes up" -- and
@@ -205,7 +207,25 @@ class RuleAlphaConfig:
     second layer stayed at thirty-one and a tall box ended up standing free on
     a stack of its own making.  What separates the two is the shape of what is
     being built on, which the height map already knows: a terrace's top is a
-    wide connected plateau, a tower's is one box lid."""
+    wide connected plateau, a tower's is one box lid.
+
+    Read this number against the cargo, not against the container.  A single
+    box's lid is already a plateau of that box's own footprint, and the
+    normal-hard footprints in these scenarios run 0.073 - 0.464 m^2 with a
+    median of 0.260, so an absolute threshold is really a statement about how
+    many boxes have to be under you: at 0.35 only 19% of hard boxes qualify
+    alone, at 0.25 it is 54%, at 0.20 it is 75%.  Which is why
+    ``plateau_support_footprint_multiple`` exists -- it asks the question in
+    the scale-free way."""
+
+    plateau_support_footprint_multiple: float = 0.0
+    """Require the plateau to be this many times the box's *own* footprint,
+    on top of the absolute floor above.  Zero turns it off.
+
+    An absolute area cannot say "more than one box under you" without knowing
+    how big the boxes are, and it silently means different things for a
+    0.07 m^2 box and a 0.46 m^2 one.  A multiple above 1.0 says it directly and
+    at any scale."""
 
     plateau_support_coverage: float = 0.70
     """...and how much of the box's underside has to sit on that plateau.
