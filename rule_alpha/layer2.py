@@ -509,10 +509,29 @@ def hole_anchors(hole: Hole, dx: float, dy: float,
     ]
 
 
-def hole_fits(hole: Hole, dx: float, dy: float, gap: float) -> bool:
+def fits_with_clearance(width: float, depth: float, dx: float, dy: float,
+                        gap: float) -> bool:
+    """Does a ``dx`` x ``dy`` box fit in a ``width`` x ``depth`` opening?
+
+    Twice the gap, not once.  The settled clearance is what the validator wants
+    between the box and *each* neighbour it is beside, so a patch of free
+    ground bounded by cargo needs the box plus a gap on both sides.  Asking for
+    one gap total says a pose fits when it cannot be placed, and the
+    flattest-tier rule then locks onto that pose and never tries the one that
+    would have gone in -- which is exactly how task 000 stopped with a 0.68 m
+    opening, a 0.702 m pose held to be fitting, and a 0.502 m pose never
+    offered.
+    """
     return (
-        dx + gap <= hole.rect.x_max - hole.rect.x_min + 1e-9
-        and dy + gap <= hole.rect.y_max - hole.rect.y_min + 1e-9
+        dx + 2.0 * gap <= width + 1e-9
+        and dy + 2.0 * gap <= depth + 1e-9
+    )
+
+
+def hole_fits(hole: Hole, dx: float, dy: float, gap: float) -> bool:
+    return fits_with_clearance(
+        hole.rect.x_max - hole.rect.x_min,
+        hole.rect.y_max - hole.rect.y_min, dx, dy, gap,
     )
 
 
@@ -590,7 +609,8 @@ __all__ = [
     "ROLE_TYPED_CAP",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
     "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
-    "free_rectangles", "front_steps", "largest_plateau_area",
+    "fits_with_clearance", "free_rectangles", "front_steps",
+    "largest_plateau_area",
     "level_groups",
     "plateau_map", "surface_holes",
     "terrace_anchors", "wedge_bridge_anchors",

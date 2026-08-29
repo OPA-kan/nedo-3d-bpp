@@ -19,6 +19,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 from rule_alpha.geometry import make_container_dict  # noqa: E402
+from rule_alpha.layer1 import usable_shelf_rect  # noqa: E402
 from rule_alpha.physics import run_physics_episode  # noqa: E402
 from rule_alpha.scenarios import Scenario  # noqa: E402
 
@@ -53,9 +54,64 @@ def scenario_from_task(task_id: str, payload: dict) -> Scenario:
     )
 
 
+def diagnose_stop(scenario, config) -> dict:
+    """Why did the run stop?  The first item that got no placement, and what
+    the board looked like when it did.
+
+    With the official ``max_space: 1`` a single unplaceable item ends the
+    episode, so this is not a footnote -- it is the whole difference between
+    the score and the score it could have had.
+    """
+    from rule_alpha import layer1, layer2 as l2
+
+    grabbed: dict = {}
+    original = layer1.choose_for_item
+
+    def traced(board, profile, cfg, max_orientations=3):
+        decision = original(board, profile, cfg, max_orientations)
+        if decision is None and "profile" not in grabbed:
+            grabbed["profile"] = profile
+            grabbed["board"] = board
+        return decision
+
+    layer1.choose_for_item = traced
+    try:
+        result = run_physics_episode(scenario, config, verbose=False)
+    finally:
+        layer1.choose_for_item = original
+
+    out: dict = {"result": result}
+    if "profile" not in grabbed:
+        out["stop"] = "stream exhausted"
+        return out
+    profile, board = grabbed["profile"], grabbed["board"]
+    grid = board.grid(0)
+    free = grid.free_mask()
+    out["stop"] = "no placement for an item"
+    out["item"] = {
+        "index": profile.index,
+        "size": [round(float(profile.item[k]), 3)
+                 for k in ("length", "width", "height")],
+        "class": profile.cargo_class,
+    }
+    out["board"] = {
+        "coverage": round(grid.coverage(), 3),
+        "free_floor_m2": round(float(free.sum()) * grid.cell_area, 3),
+        "back_height": round(board.back_height(0), 3),
+        "front_released": board.front_is_released(0),
+        "free_rectangles": [
+            [round(r.x_max - r.x_min, 3), round(r.y_max - r.y_min, 3),
+             round(z, 3)]
+            for r, z in l2.free_rectangles(grid, board.model(0), config)[:4]
+        ],
+    }
+    return out
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", default="000")
+    parser.add_argument("--task", default="all",
+                        help='task id, or "all" for every task in the config')
     parser.add_argument("--config", type=pathlib.Path, default=CONFIG)
     parser.add_argument("--out", type=pathlib.Path,
                         default=pathlib.Path("reports/rule_alpha/official"))
@@ -63,13 +119,24 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     payload = json.loads(args.config.read_text())
-    if args.task not in payload:
-        print(f"task {args.task} not in {args.config}: have {list(payload)}")
+    tasks = list(payload) if args.task == "all" else [args.task]
+    missing = [t for t in tasks if t not in payload]
+    if missing:
+        print(f"task(s) {missing} not in {args.config}: have {list(payload)}")
         return 2
-    scenario = scenario_from_task(args.task, payload[args.task])
-    print(scenario.description, flush=True)
+    status = 0
+    for task in tasks:
+        status |= run_one(task, payload[task], args)
+    return status
 
-    result = run_physics_episode(scenario, DEFAULT_CONFIG, verbose=False)
+
+def run_one(task: str, payload: dict, args) -> int:
+    scenario = scenario_from_task(task, payload)
+    print(f"\n{scenario.description}", flush=True)
+
+    diagnosis = diagnose_stop(scenario, DEFAULT_CONFIG)
+    result = diagnosis["result"]
+    args.task = task
     steps = [s for s in result["steps"] if s.get("event") == "step"]
     safe = [s for s in steps if s.get("settle_ok")]
     print(f"\nattempted {len(steps)}, accepted {len(safe)}, "
@@ -79,8 +146,44 @@ def main(argv=None) -> int:
                       ("transport ok", "transport_ok"),
                       ("settled ok", "settle_ok")):
         print(f"  {name:<14}{sum(1 for s in steps if s.get(key))}/{len(steps)}")
-    print(f"\nofficial evaluation: "
-          f"{json.dumps(result['evaluation'], ensure_ascii=False)}")
+    print(f"  fill_score {result['evaluation']['fill_score']:.3f}, "
+          f"num_placed_items {result['evaluation']['num_placed_items']:.3f}")
+    print(f"\nwhy it stopped: {diagnosis['stop']}")
+    if "item" in diagnosis:
+        item, board = diagnosis["item"], diagnosis["board"]
+        print(f"  item {item['index']} {item['size']} ({item['class']})")
+        print(f"  board: coverage {board['coverage']}, "
+              f"{board['free_floor_m2']} m2 bare floor, "
+              f"back height {board['back_height']}, "
+              f"front released {board['front_released']}")
+        print(f"  largest empty rectangles (w, d, z): "
+              f"{board['free_rectangles']}")
+
+    for idx, model in enumerate(result["models"]):
+        on_shelf = [p for p in result["placements"][idx] if p.surface == "shelf"]
+        if not on_shelf:
+            continue
+        print(f"\nshelf placements, container {idx} "
+              f"(offset from the shelf they rest on, m):")
+        print(f"    {'shelf':>12}{'d_back':>8}{'d_left':>8}{'d_right':>8}"
+              f"{'off-shelf':>10}")
+        for place in on_shelf:
+            best, best_overlap = None, 0.0
+            for shelf in model.shelves:
+                if abs(float(shelf.maximum[2])
+                       - float(place.box.minimum[2])) > 0.02:
+                    continue
+                rect = usable_shelf_rect(shelf, model, DEFAULT_CONFIG)
+                overlap = rect.overlap_area(place.rect)
+                if overlap > best_overlap:
+                    best, best_overlap = rect, overlap
+            if best is None:
+                continue
+            print(f"    {model.shelves[0].name if False else '':>12}"
+                  f"{best.y_max - place.rect.y_max:>8.3f}"
+                  f"{place.rect.x_min - best.x_min:>8.3f}"
+                  f"{best.x_max - place.rect.x_max:>8.3f}"
+                  f"{1.0 - best_overlap / place.rect.area:>10.2f}")
 
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / f"task{args.task}.json").write_text(

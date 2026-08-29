@@ -2199,8 +2199,7 @@ def generate_front_wedge_candidates(board: "Board", profile: cls.ItemProfile,
         depth = rect.y_max - rect.y_min
         fitting = [
             o for o in profile.orientations
-            if o.dx + gap <= width + 1e-9
-            and o.dy + gap <= depth + 1e-9
+            if l2.fits_with_clearance(width, depth, o.dx, o.dy, gap)
             and o.dz <= head + 1e-9
         ]
         if not fitting:
@@ -2210,9 +2209,10 @@ def generate_front_wedge_candidates(board: "Board", profile: cls.ItemProfile,
         fitting.sort(key=lambda o: (-o.dz, -o.footprint))
         for orientation in fitting[: config.front_wedge_poses]:
             dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
-            inset = gap / 2.0
-            left, right = rect.x_min + dx / 2.0 + inset, rect.x_max - dx / 2.0 - inset
-            front, back = rect.y_min + dy / 2.0 + inset, rect.y_max - dy / 2.0 - inset
+            # a full gap on each side: the clearance the validator wants is
+            # from each neighbour, and the patch's edges are where they are
+            left, right = rect.x_min + dx / 2.0 + gap, rect.x_max - dx / 2.0 - gap
+            front, back = rect.y_min + dy / 2.0 + gap, rect.y_max - dy / 2.0 - gap
             if right < left or back < front:
                 continue
             for x, y in (
@@ -2286,8 +2286,7 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
         depth = rect.y_max - rect.y_min
         fitting = [
             o for o in profile.orientations
-            if o.dx + gap <= width + 1e-9
-            and o.dy + gap <= depth + 1e-9
+            if l2.fits_with_clearance(width, depth, o.dx, o.dy, gap)
             and level_z + o.dz <= model.z_ceiling
         ]
         if not fitting:
@@ -2300,9 +2299,10 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
         )
         for orientation in tier:
             dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
-            inset = gap / 2.0
-            left, right = rect.x_min + dx / 2.0 + inset, rect.x_max - dx / 2.0 - inset
-            front, back = rect.y_min + dy / 2.0 + inset, rect.y_max - dy / 2.0 - inset
+            # a full gap on each side: the clearance the validator wants is
+            # from each neighbour, and the patch's edges are where they are
+            left, right = rect.x_min + dx / 2.0 + gap, rect.x_max - dx / 2.0 - gap
+            front, back = rect.y_min + dy / 2.0 + gap, rect.y_max - dy / 2.0 - gap
             if right < left or back < front:
                 continue
             for x, y in (

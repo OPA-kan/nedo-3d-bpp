@@ -137,6 +137,18 @@ def strip_rect(model: ContainerModel) -> Rect:
 
 
 def in_strip(box, model: ContainerModel, config) -> bool:
+    """Is this box part of the chamfer structure?
+
+    Both tests matter.  Asking only about ``x`` made the strip a column running
+    to the roof, so cargo on the small shelf at 0.845 and every Layer 2 terrace
+    above it counted as staircase -- setting the staircase's reach and top from
+    boxes with nothing to do with the bevel, and putting them under a rule that
+    refuses anything not reaching further into a chamfer that ended a metre
+    below them.  The wedge is the chamfer's structure, and the chamfer ends at
+    ``wedge_ceiling``.
+    """
+    if float(box.minimum[2]) >= wedge_ceiling(model, config):
+        return False
     return box_rect(box).x_min <= model.x_floor_min + config.wall_front_band
 
 
