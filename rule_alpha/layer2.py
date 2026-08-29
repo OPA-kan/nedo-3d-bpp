@@ -57,10 +57,11 @@ FAMILY_SHELF = "shelf"
 FAMILY_WEDGE_STEP = "wedge-step"
 FAMILY_HOLE_FILL = "hole-fill"
 FAMILY_TYPED_CAP = "typed-cap"
+FAMILY_LAST_RESORT = "last-resort"
 
 ALL_FAMILIES = (
     FAMILY_FLOOR, FAMILY_SHELF, FAMILY_WEDGE_STEP, FAMILY_TERRACE,
-    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP,
+    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP, FAMILY_LAST_RESORT,
 )
 
 ROLE_TERRACE = "terrace"
@@ -68,6 +69,7 @@ ROLE_BRIDGE = "bridge"
 ROLE_WEDGE_BRIDGE = "wedge-bridge"
 ROLE_HOLE_FILL = "hole-fill"
 ROLE_TYPED_CAP = "typed-cap"
+ROLE_LAST_RESORT = "last-resort"
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +348,68 @@ def surface_holes(grid, model: ContainerModel, config) -> list[Hole]:
     return holes[: config.hole_fill_max_holes]
 
 
+def free_rectangles(grid, model: ContainerModel, config) -> list[tuple[Rect, float]]:
+    """The largest empty rectangles on each resting level, biggest first.
+
+    ``surface_holes`` deliberately refuses anything larger than
+    ``hole_fill_max_rect_share`` of the floor, because a pocket is by
+    definition small and the ordinary anchors are good at open ground.  This
+    asks the opposite question -- where is there simply *room* -- and it exists
+    for the case where the ordinary anchors turned out not to be good at it
+    after all: they are derived from the edges of what is already packed, so on
+    a fragmented board none of them need land where a box actually fits.
+    """
+    from .diagnostics import (
+        SUPPORT_HARD, connected_components, largest_rectangle_in_mask,
+    )
+
+    tolerance = config.plateau_height_tolerance
+    z_floor = model.z_floor
+    levels = np.round((grid.height - z_floor) / max(tolerance, 1e-6))
+
+    layers: list[tuple[np.ndarray, float]] = []
+    free = grid.usable & ~grid.occupied
+    if free.any():
+        layers.append((free, z_floor))
+    hard = grid.usable & grid.occupied & (grid.support == SUPPORT_HARD)
+    if hard.any():
+        for level in np.unique(levels[hard]):
+            layers.append(
+                (hard & (levels == level), z_floor + float(level) * tolerance)
+            )
+
+    out: list[tuple[Rect, float]] = []
+    for mask, level_z in layers:
+        labels, count = connected_components(mask)
+        for index in range(1, count + 1):
+            cells = labels == index
+            idx_x, idx_y = np.nonzero(cells)
+            if idx_x.size == 0:
+                continue
+            x0, y0 = int(idx_x.min()), int(idx_y.min())
+            work = cells[x0: int(idx_x.max()) + 1, y0: int(idx_y.max()) + 1].copy()
+            for _peel in range(config.last_resort_rects_per_region):
+                area_cells, (r0, c0, r1, c1) = largest_rectangle_in_mask(work)
+                if area_cells <= 0:
+                    break
+                work[r0:r1 + 1, c0:c1 + 1] = False
+                if float(area_cells) * grid.cell_area < config.hole_fill_min_area:
+                    break
+                world = _rect_world(grid, x0, y0, r0, c0, r1, c1)
+                # cell edges overshoot the usable floor by up to half a cell,
+                # and a box seated flush against that edge settles outside the
+                # container -- which is what the first version of this hit
+                floor = model.floor_rect
+                clipped = Rect(
+                    max(world.x_min, floor.x_min), min(world.x_max, floor.x_max),
+                    max(world.y_min, floor.y_min), min(world.y_max, floor.y_max),
+                )
+                if clipped.area > 0.0:
+                    out.append((clipped, level_z))
+    out.sort(key=lambda pair: -pair[0].area)
+    return out[: config.last_resort_max_rects]
+
+
 def hole_anchors(hole: Hole, dx: float, dy: float,
                  gap: float) -> list[tuple[float, float]]:
     """Centres that seat the box in a corner of the pocket, then its middle.
@@ -442,10 +506,13 @@ def hard_plateau_stats(grid, z_floor: float, tolerance: float) -> dict:
 __all__ = [
     "ALL_FAMILIES", "FAMILY_BRIDGE", "FAMILY_FLOOR", "FAMILY_HOLE_FILL",
     "FAMILY_SHELF", "FAMILY_WEDGE_STEP",
-    "FAMILY_TERRACE", "FAMILY_TYPED_CAP", "FAMILY_WEDGE_BRIDGE", "Hole",
-    "ROLE_BRIDGE", "ROLE_HOLE_FILL", "ROLE_TERRACE", "ROLE_TYPED_CAP",
+    "FAMILY_LAST_RESORT", "FAMILY_TERRACE", "FAMILY_TYPED_CAP",
+    "FAMILY_WEDGE_BRIDGE", "Hole",
+    "ROLE_BRIDGE", "ROLE_HOLE_FILL", "ROLE_LAST_RESORT", "ROLE_TERRACE",
+    "ROLE_TYPED_CAP",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
     "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
-    "largest_plateau_area", "level_groups", "plateau_map", "surface_holes",
+    "free_rectangles", "largest_plateau_area", "level_groups",
+    "plateau_map", "surface_holes",
     "terrace_anchors", "wedge_bridge_anchors",
 ]

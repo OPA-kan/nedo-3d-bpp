@@ -56,6 +56,7 @@ A_BRIDGE = "plateau-merge"
 A_WEDGE_BRIDGE = "wedge-bridge"
 A_HOLE_FILL = "hole-fill"
 A_TYPED_CAP = "typed-cap"
+A_LAST_RESORT = "last-resort"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -77,6 +78,7 @@ ALL_ARCHETYPES = (
     A_WEDGE_BRIDGE,
     A_HOLE_FILL,
     A_TYPED_CAP,
+    A_LAST_RESORT,
 )
 
 
@@ -1645,6 +1647,16 @@ def _key_bridge(c):
     )
 
 
+def _key_last_resort(c):
+    # lie as flat as the space allows, keep to the back, and take the pose that
+    # spends the least height on the way
+    return (
+        c.orientation.dz,
+        -c.features["footprint"],
+        -c.features["y_back"],
+    )
+
+
 def _key_typed_cap(c):
     # cap the highest terrain first -- that is the space nothing else can use
     # -- and sit flat on it rather than perched
@@ -1695,6 +1707,7 @@ ARCHETYPE_KEYS = {
     A_WEDGE_BRIDGE: _key_wedge_bridge,
     A_HOLE_FILL: _key_hole_fill,
     A_TYPED_CAP: _key_typed_cap,
+    A_LAST_RESORT: _key_last_resort,
 }
 
 
@@ -1730,6 +1743,10 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         tags.add(A_WEDGE_BRIDGE)
     if candidate.role == l2.ROLE_TYPED_CAP:
         tags.add(A_TYPED_CAP)
+    if candidate.role == l2.ROLE_LAST_RESORT:
+        # its own rung, at the very bottom of every ladder: it is only ever
+        # generated when nothing else was, so it competes with nothing
+        tags.add(A_LAST_RESORT)
     if candidate.profile.is_elongated:
         tags.add(A_ELONGATED_WALL)
     klass = candidate.profile.cargo_class
@@ -1823,6 +1840,7 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             A_BACK_CORNER, A_TYPED_CAP,
         ])
     ladder.append(A_MAX_FOOTPRINT)
+    ladder.append(A_LAST_RESORT)
     seen, out = set(), []
     for name in ladder:
         if name not in seen:
@@ -2107,6 +2125,97 @@ def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
 
 
 # ---------------------------------------------------------------------------
+# Last resort: somewhere it genuinely fits
+# ---------------------------------------------------------------------------
+def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
+                                    container_idx: int, config
+                                    ) -> list[Candidate]:
+    """Seat the box in the largest empty rectangle, whatever pose that takes.
+
+    Run only when every ordinary generator came back empty.  That case is not
+    "the container is full": on task 000 the run stopped with 0.968 m^2 of bare
+    floor and a clear 1.16 x 0.56 rectangle at the front, in which two of the
+    item's six poses fitted.  Nothing proposed them.  Every anchor elsewhere is
+    derived from the edge of something already packed or from a zone line, so
+    on a fragmented board the anchors need not land anywhere the box fits, and
+    the hole finder refuses rectangles this large by design.
+
+    Flattest tier first, as everywhere else, so an upright pose is used only
+    where nothing lying down goes in -- which, being the last resort, is
+    exactly when standing it up beats not shipping it.
+    """
+    if not config.last_resort_enabled:
+        return []
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    grid = board.grid(container_idx)
+    gap = config.settled_clearance
+    candidates: list[Candidate] = []
+    seen = set()
+    for rect, level_z in l2.free_rectangles(grid, model, config):
+        width = rect.x_max - rect.x_min
+        depth = rect.y_max - rect.y_min
+        fitting = [
+            o for o in profile.orientations
+            if o.dx + gap <= width + 1e-9
+            and o.dy + gap <= depth + 1e-9
+            and level_z + o.dz <= model.z_ceiling
+        ]
+        if not fitting:
+            continue
+        flattest = min(o.dz for o in fitting)
+        tier = sorted(
+            (o for o in fitting
+             if o.dz <= flattest + config.hole_fill_tier_tolerance),
+            key=lambda o: -o.footprint,
+        )
+        for orientation in tier:
+            dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+            inset = gap / 2.0
+            left, right = rect.x_min + dx / 2.0 + inset, rect.x_max - dx / 2.0 - inset
+            front, back = rect.y_min + dy / 2.0 + inset, rect.y_max - dy / 2.0 - inset
+            if right < left or back < front:
+                continue
+            for x, y in (
+                (right, back), (left, back), (right, front), (left, front),
+                (0.5 * (left + right), back),
+                (0.5 * (left + right), 0.5 * (front + back)),
+            ):
+                key = (round(x, 4), round(y, 4), round(level_z, 4),
+                       orientation.index)
+                if key in seen:
+                    continue
+                seen.add(key)
+                box = AABB(
+                    (float(x), float(y), float(level_z) + dz / 2.0),
+                    (dx, dy, dz), "candidate",
+                )
+                ok, _why = validate(box, model, container, config)
+                if not ok:
+                    continue
+                on_floor = abs(level_z - model.z_floor) <= config.contact_tolerance
+                if not on_floor and config.layer2_max_layers > 0:
+                    level = stack_level(
+                        box, container, l2.ROLE_LAST_RESORT, config
+                    )
+                    if level > config.layer2_max_layers:
+                        continue
+                candidates.append(
+                    Candidate(
+                        box=box, profile=profile, orientation=orientation,
+                        container_idx=container_idx,
+                        surface="floor" if on_floor else "item",
+                        surface_name="free-rectangle",
+                        role=l2.ROLE_LAST_RESORT,
+                        family=l2.FAMILY_LAST_RESORT,
+                    )
+                )
+                if len(candidates) >= config.max_candidates_per_orientation:
+                    return candidates
+    return candidates
+
+
+# ---------------------------------------------------------------------------
 # Vetoes
 # ---------------------------------------------------------------------------
 def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
@@ -2195,8 +2304,14 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 candidate.features["priority_zone_fit"],
             )
             > config.zone_guard_fraction
-            and candidate.role != cls.ROLE_WALL_FRONT
+            and candidate.role not in (cls.ROLE_WALL_FRONT, l2.ROLE_LAST_RESORT)
         ):
+            # The last resort is exempt, and only it.  Holding the typed strips
+            # against ordinary hard cargo is right while hard has anywhere else
+            # to go -- that is the whole point of the reservation -- but a
+            # last-resort candidate exists only because nothing else did, and
+            # with the official `max_space: 1` refusing it does not cost the
+            # strip, it ends the episode.
             drop(candidate, "reserved-zone")
         else:
             kept.append(candidate)
@@ -2718,6 +2833,15 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         pool.extend(
             generate_hole_candidates(board, profile, container_idx, config)
         )
+        if not pool:
+            # Nothing ordinary fits.  Before giving the item up -- which, with
+            # the official `max_space: 1`, ends the whole episode -- look for
+            # somewhere it simply fits.
+            pool.extend(
+                generate_last_resort_candidates(
+                    board, profile, container_idx, config
+                )
+            )
         if not pool:
             continue
 

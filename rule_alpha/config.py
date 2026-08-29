@@ -396,6 +396,24 @@ class RuleAlphaConfig:
     hole_fill_min_headroom: float = 0.10
     """A pocket with less than this much space above it can hold nothing."""
 
+    last_resort_enabled: bool = True
+    """When every ordinary generator comes back empty, look for somewhere the
+    box simply fits before giving it up.
+
+    Not a nicety.  The official stream shows one item at a time
+    (``max_space: 1``), so an item with no candidate does not get skipped --
+    it ends the episode.  Task 000 stopped at 15 of 41 with 0.968 m^2 of bare
+    floor and a clear 1.16 x 0.56 rectangle at the front that two of the item's
+    six poses fitted.  Nothing proposed them, because every anchor is derived
+    from the edge of something already packed and the hole finder refuses
+    rectangles that large by design."""
+
+    last_resort_max_rects: int = 8
+    """Empty rectangles offered to the last resort, largest first."""
+
+    last_resort_rects_per_region: int = 4
+    """How many rectangles to peel off one empty region before moving on."""
+
     hole_fill_rects_per_region: int = 5
     """How many rectangles to peel off one free region before moving on.
 

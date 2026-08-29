@@ -1597,3 +1597,81 @@ class UnionAreaTest(unittest.TestCase):
             "the sum overstates support past 100% -- this was the bug",
         )
         self.assertLess(union_area(clipped) / box.area, 1.0)
+
+
+class LastResortTest(unittest.TestCase):
+    """When nothing ordinary fits, find somewhere it does.
+
+    The official stream shows one item at a time, so an item with no candidate
+    does not get skipped -- it ends the episode.  This is the generator of last
+    resort, and the rules it is exempt from are exempt precisely because the
+    alternative is shipping nothing.
+    """
+
+    def test_free_rectangles_stay_inside_the_usable_floor(self):
+        """Cell edges overshoot the floor by up to half a cell, and a box
+        seated flush against that edge settles outside the container."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.04)
+        rects = l2.free_rectangles(grid, model, DEFAULT_CONFIG)
+        self.assertTrue(rects)
+        floor = model.floor_rect
+        for rect, _z in rects:
+            self.assertGreaterEqual(rect.x_min, floor.x_min - 1e-9)
+            self.assertLessEqual(rect.x_max, floor.x_max + 1e-9)
+            self.assertGreaterEqual(rect.y_min, floor.y_min - 1e-9)
+            self.assertLessEqual(rect.y_max, floor.y_max + 1e-9)
+
+    def test_it_offers_rectangles_the_hole_finder_refuses_by_design(self):
+        """The hole finder caps a pocket at ``hole_fill_max_rect_share`` of the
+        floor, so it can never take an item whose footprint exceeds that.  On
+        task 000 that was exactly the case: a 0.420 m^2 item against a 0.414 m^2
+        cap."""
+        _container, model = _model()
+        grid = FloorGrid(model, 0.04)
+        cap = DEFAULT_CONFIG.hole_fill_max_rect_share * grid.usable_area
+        self.assertEqual(l2.surface_holes(grid, model, DEFAULT_CONFIG), [])
+        biggest = max(r.area for r, _z in l2.free_rectangles(grid, model, DEFAULT_CONFIG))
+        self.assertGreater(biggest, cap)
+
+    def test_the_reserved_strips_yield_to_it_and_to_nothing_else(self):
+        """Holding the typed strips against ordinary hard cargo is the point of
+        the reservation; holding them against the last resort ends the run."""
+        container = make_container_dict(index=0, **ULD)
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        model = board.model(0)
+        model.set_zone_scales(1.0, 1.0)
+        zone = model.priority_zone
+        box = AABB(
+            (0.5 * (zone.x_min + zone.x_max), 0.5 * (zone.y_min + zone.y_max),
+             model.z_floor + 0.15),
+            (min(0.40, zone.x_max - zone.x_min - 0.02), 0.40, 0.30), "c",
+        )
+        profile = cls.classify_item(
+            0,
+            {"index": 0, "length": 0.40, "width": 0.40, "height": 0.30,
+             "mass": 10.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+        def candidate(role):
+            c = layer1.Candidate(
+                box=box, profile=profile, orientation=profile.orientations[0],
+                container_idx=0, surface="floor", surface_name="floor",
+                role=role,
+            )
+            layer1.compute_features(c, board, DEFAULT_CONFIG, with_grid=True)
+            c.archetypes = layer1.eligible_archetypes(c, DEFAULT_CONFIG)
+            return c
+
+        plain = candidate(cls.ROLE_NONE)
+        _kept, counts = layer1.apply_vetoes([plain], board, 0, DEFAULT_CONFIG)
+        self.assertEqual(
+            counts.get("reserved-zone", 0), 1,
+            "ordinary hard cargo must still be kept out of the typed strip",
+        )
+
+        rescue = candidate(l2.ROLE_LAST_RESORT)
+        kept, counts = layer1.apply_vetoes([rescue], board, 0, DEFAULT_CONFIG)
+        self.assertEqual(counts.get("reserved-zone", 0), 0)
+        self.assertEqual(len(kept), 1, f"vetoed by {counts}")
