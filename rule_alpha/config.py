@@ -491,6 +491,34 @@ class RuleAlphaConfig:
     Poses are offered a pocket in tiers of equal height, flattest tier first, so
     a box is stood on end only where nothing lying down would go in."""
 
+    bridge_keeps_floor: bool = True
+    """A bridge may not seal floor that is still worth having.
+
+    On task 000 the fifth placement bridged the 0.371 m gap between the first
+    and the third, 0.28 m above bare floor, and from then on that floor could
+    not be reached.  Merging two supports is worth doing over ground that is
+    already spent; over ground a later box could still use, a bridge is a
+    lid."""
+
+    bridge_max_sealed_floor: float = 0.06
+    """How much bare floor a bridge may pass over, in m^2.  Enough for the
+    clearance gaps between neighbours, not enough for a box."""
+
+    compact_raised: bool = True
+    """Compact placements that rest on cargo, not only floor ones.
+
+    A terrace on task 000 stopped 0.104 m short of the chamfer strip because
+    no anchor sat there and nothing pushed it in.  A step that reaches the
+    strip recovers wedge area; the slack is worth nothing to anyone."""
+
+    compact_sideways_always: bool = True
+    """Slide sideways for every role, not only the wall and perimeter ones.
+
+    The restriction existed so that ordinary foundation would not be pressed
+    against a wall and hollow out the centre.  Compaction is bounded by the
+    stranding test either way, and the roles it excluded are exactly the ones
+    that stop short of the chamfer."""
+
     layer2_bridge_level_tolerance: float = 0.06
     """How far apart two hard tops may be and still be offered as a pair to
     bridge across.

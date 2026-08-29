@@ -2019,6 +2019,14 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
                 A_MAX_FOOTPRINT, A_BACK_CORNER, A_MIN_HOLE,
                 A_LARGEST_RESIDUAL, A_TALL_PERIMETER,
             ])
+        if config.shelf_takes_hard and model.shelves:
+            # Opening the shelf to hard cargo left it with no rung of its own:
+            # a shelf candidate carries only A_SHELF_SAVING, and that was in
+            # the soft ladders alone, so no rung matched, the choice fell
+            # through to "fallback" -- survivors[0], whatever the shortlist
+            # happened to sort first -- and task 000 stood a box upright on the
+            # shelf.  Last, because the floor is still the better home.
+            ladder.append(A_SHELF_SAVING)
     elif klass == cls.SOFT:
         ladder.append(A_SHELF_SAVING)
         ladder.append(A_SOFT_EDGE)
@@ -2800,6 +2808,29 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                     drop(candidate, "hard-yields-the-front")
             survivors = kept
 
+    # 4h. a bridge may not seal floor that is still worth having.
+    #     On task 000 the fifth placement bridged the 0.371 m gap between the
+    #     first and third, at 0.28 m above a floor that was still bare -- and
+    #     from then on that floor could not be reached at all.  A merge is
+    #     worth making over ground that is already spent or unreachable; over
+    #     ground a later box could still use, it is a lid.
+    if config.bridge_keeps_floor:
+        kept = []
+        for candidate in survivors:
+            if candidate.role != l2.ROLE_BRIDGE:
+                kept.append(candidate)
+                continue
+            mask = grid.rect_mask(box_rect(candidate.box))
+            free_under = float(
+                (mask & grid.usable & ~grid.occupied).sum()
+            ) * grid.cell_area
+            if free_under > config.bridge_max_sealed_floor:
+                drop(candidate, "bridge-would-seal-floor")
+            else:
+                kept.append(candidate)
+        if kept:
+            survivors = kept
+
     # 4f. nothing may cap the staircase without climbing it.  A terrace is
     #     proposed flush with an existing hard top, and nothing in that
     #     proposal knows the chamfer is over to its left -- so on the shipped
@@ -2953,9 +2984,24 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
     grid = board.grid(container_idx)
     _reach_before, stranded_before = board.floor_reach(container_idx)
 
+    # a tall pose is only legal because something is behind it, and `validate`
+    # does not know that -- the tipping rule is a veto, not part of validation.
+    # Sliding such a box away from its backing is exactly what compaction would
+    # otherwise do, and did: a box at R=2.19 ended up standing free.
+    ratio = float(box.size[2]) / max(1e-9, min(float(box.size[0]),
+                                               float(box.size[1])))
+    # Unconditional: a tall pose must be backed *after* the move.  Requiring
+    # only that it keep backing it already had lets a box that slipped through
+    # the tipping veto's fallback be slid further out; requiring it outright
+    # simply forbids the slide in that case, which is no worse than not
+    # compacting.
+    needs_backing = ratio >= config.max_freestanding_ratio
+
     def acceptable(candidate: AABB) -> bool:
         ok, _why = validate(candidate, model, container, config)
         if not ok:
+            return False
+        if needs_backing and not _has_backing(candidate, model, container, config):
             return False
         _reach, stranded = floor_reach(
             grid, model.z_floor, grid.rect_mask(box_rect(candidate))
@@ -2982,7 +3028,9 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
 
     rect = model.floor_rect
     moved = slide(box, 1, rect.y_max - float(box.size[1]) / 2.0)
-    if role in (cls.ROLE_WALL_FRONT, cls.ROLE_TALL_PERIMETER, cls.ROLE_ELONGATED):
+    if config.compact_sideways_always or role in (
+        cls.ROLE_WALL_FRONT, cls.ROLE_TALL_PERIMETER, cls.ROLE_ELONGATED
+    ):
         half = float(moved.size[0]) / 2.0
         centre_x = float(moved.center[0])
         target = (
@@ -3285,7 +3333,14 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             chosen_archetype = "fallback"
 
         box = chosen.box
-        if chosen.surface == "floor" and config.compaction_iterations > 0:
+        if config.compaction_iterations > 0 and chosen.surface in (
+            ("floor", "item") if config.compact_raised else ("floor",)
+        ):
+            # Raised placements were never compacted at all, so a terrace could
+            # stop 0.10 m short of the chamfer strip -- and a step that reaches
+            # the strip is a step that recovers wedge area.  The same slack
+            # costs nothing anywhere else either: it is gap between the box and
+            # whatever it should be touching.
             box = compact_backwards(box, board, container_idx, chosen.role, config)
 
         placement = Placement(
