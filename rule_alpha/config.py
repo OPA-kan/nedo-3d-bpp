@@ -323,6 +323,37 @@ class RuleAlphaConfig:
     0.07 m^2 box and a 0.46 m^2 one.  A multiple above 1.0 says it directly and
     at any scale."""
 
+    support_coverage_at_any_depth: bool = False
+    """Refuse to perch a box on a support much narrower than itself, at any
+    depth.
+
+    Depth is not the whole question.  Task 000 balanced a 0.55 m wide terrace
+    on a 0.24 m wide upright column, overhanging both sides, at depth 2 where
+    nothing is asked -- what is wrong there is the width of what it stands on,
+    not the height.  The rule works: it forbids exactly that placement.  It
+    also costs, and the cost lands on the task that matters:
+
+        threshold   task 000            task 001
+        off         19 / 21.677         20 / 20.452
+        0.50        17 / 20.544         21 / 18.153
+        0.70        17 / 20.544         21 / 21.765
+
+    As a hard refusal it was worse still (task 001 fell to 17 / 15.544 at 0.70,
+    with the front ending up taller than the back).  As the preference it is
+    now, it pays on task 001 and does not on task 000, so it ships off while
+    task 000 is the priority -- with the mechanism and the numbers kept, since
+    the placement it objects to is genuinely bad."""
+
+    perch_min_coverage: float = 0.50
+    """How much of a box's underside must be on its support, at any depth.
+
+    Separate from ``plateau_support_coverage``, which guards the deeper
+    storeys, because this one runs everywhere and 0.70 there proved far too
+    strict: it cost task 000 two placements and task 001 three, and on task 001
+    it made the front *taller* than the back rather than flatter.  The case it
+    has to forbid is concrete -- a 0.55 m box on a 0.24 m column is 0.44
+    covered -- so the threshold only has to sit above that."""
+
     plateau_support_coverage: float = 0.70
     """...and how much of the box's underside has to sit on that plateau.
 

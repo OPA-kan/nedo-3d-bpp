@@ -470,8 +470,29 @@ class Board:
         shelf and without one.
         """
         model = self.models[idx]
-        ceiling = model.shelf_bottom_z if model.shelves else model.z_ceiling
-        return max(1e-6, ceiling - model.z_floor)
+        grid = self.grid(idx)
+        band = grid.rect_mask(model.back_band) & grid.usable
+        if not band.any():
+            return max(1e-6, model.z_ceiling - model.z_floor)
+        # Per cell, because a shelf need not cover the band.  Reading
+        # "there is a shelf, so the ceiling is its underside" put task 000's
+        # back band at 0.765 m when only the 0.44 m chamfer shelf overhangs a
+        # 1.47 m wide floor -- which dropped the release threshold to 0.344 and
+        # opened the front while the back was still at 0.48.
+        ceilings = np.full(grid.height.shape, model.z_ceiling, dtype=np.float64)
+        for shelf in model.shelves:
+            under = grid.rect_mask(
+                Rect(float(shelf.minimum[0]), float(shelf.maximum[0]),
+                     float(shelf.minimum[1]), float(shelf.maximum[1]))
+            )
+            ceilings[under] = np.minimum(
+                ceilings[under], float(shelf.minimum[2])
+            )
+        available = ceilings[band] - model.z_floor
+        return max(
+            1e-6,
+            float(np.quantile(available, 1.0 - self.config.front_release_back_share)),
+        )
 
     def front_is_released(self, idx: int) -> bool:
         """Has the back been built high enough to spend the front?
@@ -2806,6 +2827,30 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             for candidate in survivors:
                 if candidate not in kept:
                     drop(candidate, "hard-yields-the-front")
+            survivors = kept
+
+    # 4i. do not perch a box on something much narrower than itself.
+    #     Task 000 balanced a 0.55 m terrace on a 0.24 m upright column,
+    #     overhanging both sides, at depth 2 -- where the depth rule asks
+    #     nothing, because what is wrong there is not the height but the width
+    #     of what it stands on.  A preference, not a refusal: as a refusal it
+    #     cost both tasks placements at every threshold tried, 0.40 through
+    #     0.70, and on task 001 at 0.70 it made the front taller than the back.
+    #     With a fallback it can only choose better when there is better.
+    if config.support_coverage_at_any_depth:
+        kept = []
+        for candidate in survivors:
+            if candidate.surface != "item":
+                kept.append(candidate)
+                continue
+            _area, coverage = plateau_support(
+                board, container_idx, candidate.box, config
+            )
+            if coverage >= config.perch_min_coverage:
+                kept.append(candidate)
+            else:
+                drop(candidate, "perched-on-something-narrow")
+        if kept:
             survivors = kept
 
     # 4h. a bridge may not seal floor that is still worth having.
