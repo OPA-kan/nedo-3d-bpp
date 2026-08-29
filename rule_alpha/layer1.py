@@ -25,6 +25,7 @@ from . import stability
 from . import triangle as tri
 from ._reuse import (
     AABB,
+    packed_dimensions,
     packed_aabbs_local,
     shelf_aabbs,
     simulator_action_center,
@@ -709,7 +710,8 @@ mechanism the moment the chain got two steps long.
 """
 
 
-def stack_level(box: AABB, container: dict, role: str, config) -> int:
+def stack_level(box: AABB, container: dict, role: str, config,
+                model: "ContainerModel | None" = None) -> int:
     """Layer depth from the actual support relation.
 
         L(i) = 1                              resting on the floor or a shelf
@@ -725,7 +727,75 @@ def stack_level(box: AABB, container: dict, role: str, config) -> int:
     supports = stability.supporting_items(box, container, config.contact_tolerance)
     if not supports:
         return 1  # floor or shelf
-    return 1 + max(int(p.get("layer", 1)) for p in supports)
+    depths = packed_layers(container, config, model)
+    return 1 + max(depths.get(id(p), 1) for p in supports)
+
+
+def packed_layers(container: dict, config,
+                  model: "ContainerModel | None" = None) -> dict:
+    """Depth of every packed item, worked out from the support relation.
+
+    The depth used to be read from a ``layer`` key the planner wrote as it
+    placed things.  Driving the real environment there is no such key: the
+    board is rebuilt from each observation, whose packed items carry position
+    and size and nothing else.  Every support therefore answered "layer 1", so
+    a box on a box on a box reported depth 2 for ever, the free depth passed it
+    unconditionally, and the plateau condition that exists to tell a terrace
+    from a tower never ran at all.  Task 000 built a six-storey column of
+    0.24 m boxes with every one of them labelled depth 1.
+
+    So derive it instead.  An item with nothing under it is depth 1; anything
+    else is one more than the deepest thing holding it up.  Resolved lowest
+    first, which is enough to make one pass sufficient because a support is
+    always strictly below what it supports.
+    """
+    items = container.get("packed_items", [])
+    # memoised on the container: this is O(n^2) in the packed count and the
+    # vetoes ask for it once per candidate.  The packed count is enough of a
+    # key because a container only ever grows.
+    cached = container.get("_rule_alpha_layers")
+    if cached is not None and cached[0] == len(items):
+        return cached[1]
+
+    packed = [
+        item for item in items
+        if not bool(item.get("is_soft", False))
+        and not bool(item.get("is_prioritized", False))
+    ]
+    boxes = []
+    for item in packed:
+        try:
+            dims = packed_dimensions(item)
+            pos = stability.world_to_local_position(item, container)
+        except (KeyError, TypeError, ValueError):
+            continue
+        boxes.append((
+            item,
+            AABB((float(pos[0]), float(pos[1]), float(pos[2])),
+                 tuple(float(v) for v in dims), "packed"),
+        ))
+    boxes.sort(key=lambda pair: float(pair[1].minimum[2]))
+
+    depths: dict[int, int] = {}
+    for item, box in boxes:
+        stored = item.get("layer")
+        if stored is not None and int(stored) == WEDGE_BASE_LAYER:
+            depths[id(item)] = WEDGE_BASE_LAYER
+            continue
+        if model is not None and tri.in_strip(box, model, config):
+            # the chamfer staircase is a ramp, not a stack, and in the physics
+            # path there is no stored role to say so -- but ``in_strip`` is a
+            # geometric test and is available either way
+            depths[id(item)] = WEDGE_BASE_LAYER
+            continue
+        supports = stability.supporting_items(box, container, config.contact_tolerance)
+        below = [
+            depths[id(s)] for s in supports
+            if id(s) in depths and s is not item
+        ]
+        depths[id(item)] = 1 + max(below) if below else 1
+    container["_rule_alpha_layers"] = (len(items), depths)
+    return depths
 
 
 def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
@@ -2024,7 +2094,9 @@ def _hole_depth_ok(board: "Board", container_idx: int, box: AABB, config) -> boo
     it did, and no floor hole was ever reached.
     """
     container = board.container(container_idx)
-    level = stack_level(box, container, l2.ROLE_HOLE_FILL, config)
+    level = stack_level(
+        box, container, l2.ROLE_HOLE_FILL, config, board.model(container_idx)
+    )
     if level <= config.layer2_free_depth:
         return True
     if level > config.layer2_max_layers:
@@ -2094,7 +2166,10 @@ def may_build_here(board: "Board", container_idx: int, candidate: "Candidate",
     criterion for depth instead of as a separate behaviour.
     """
     container = board.container(container_idx)
-    level = stack_level(candidate.box, container, candidate.role, config)
+    level = stack_level(
+        candidate.box, container, candidate.role, config,
+        board.model(container_idx),
+    )
     if level <= config.layer2_free_depth:
         return True, level
     if level > config.layer2_max_layers:
@@ -2253,7 +2328,7 @@ def generate_front_wedge_candidates(board: "Board", profile: cls.ItemProfile,
                 on_floor = abs(level_z - model.z_floor) <= config.contact_tolerance
                 if not on_floor and config.layer2_max_layers > 0:
                     allowed = stack_level(
-                        box, container, l2.ROLE_FRONT_WEDGE, config
+                        box, container, l2.ROLE_FRONT_WEDGE, config, model
                     ) <= config.layer2_max_layers
                     if not allowed:
                         continue
@@ -2344,7 +2419,7 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
                 on_floor = abs(level_z - model.z_floor) <= config.contact_tolerance
                 if not on_floor and config.layer2_max_layers > 0:
                     level = stack_level(
-                        box, container, l2.ROLE_LAST_RESORT, config
+                        box, container, l2.ROLE_LAST_RESORT, config, model
                     )
                     if level > config.layer2_max_layers:
                         continue
@@ -2413,6 +2488,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
         for candidate in survivors:
             if (
                 candidate.surface == "floor"
+                and candidate.role != l2.ROLE_LAST_RESORT
                 and candidate.features["corridor_overlap"] > 1e-4
             ):
                 drop(candidate, "corridor")
@@ -2700,6 +2776,17 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             allowed, level = may_build_here(
                 board, container_idx, candidate, config
             )
+            if candidate.role == l2.ROLE_LAST_RESORT:
+                # The plateau condition is a preference about *shape*: build on
+                # a terrace, not on a lid.  It is the right preference and it
+                # has no fallback on purpose.  But a last-resort candidate is
+                # generated only when nothing else was possible at all, and
+                # with `max_space: 1` refusing it ends the episode -- so for it
+                # the structural backstop is the whole rule.  Task 000 stopped
+                # at seven items with 1.41 m^2 of bare floor because the
+                # corridor veto held the one big opening and this rule deleted
+                # everything else.
+                allowed = level <= config.layer2_max_layers
             if allowed:
                 kept.append(candidate)
             else:
@@ -3146,7 +3233,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             container_is_prioritized=model.is_prioritized,
             container_has_shelf=model.has_shelf,
             layer=stack_level(
-                box, board.container(container_idx), chosen.role, config
+                box, board.container(container_idx), chosen.role, config, model
             ),
         )
         decision = Decision(
