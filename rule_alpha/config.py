@@ -75,6 +75,30 @@ class RuleAlphaConfig:
     """An orientation with R above this may only be used against a wall or a
     backing item."""
 
+    ground_before_growth: bool = False
+    """Finish the floor before growing upward.
+
+    The Layer 2 rungs sit above every floor archetype, so from the moment a
+    terrace is possible the item goes up rather than completing the ground
+    layer -- and the official boards show five to seven items on a 2.03 m^2
+    floor.  Switchable so the two orders can be compared rather than argued
+    about."""
+
+    row_tiling: bool = True
+    """Price the floor a placement strands in its own row.
+
+    A row is a fixed width and what tiles it is a sequence of poses.  The floor
+    is 1.472 m across: two 0.55 m boxes leave 0.346 m, too narrow for anything
+    in the manifest, while 0.55 + 0.40 + 0.40 leaves 0.070.  Those poses have
+    identical footprints, so every footprint-ranked key scored them equal and
+    the tie fell to depth -- to a term that cannot see which row tiles."""
+
+    row_min_useful_width: float = 0.35
+    """Fallback for the narrowest run of free floor still worth having.
+
+    Replaced by the real figure -- the narrowest orientation among the hard
+    cargo still to come -- as soon as the manifest is read."""
+
     min_floor_footprint_fraction: float = 0.60
     """A plain floor placement must use a pose worth at least this share of the
     item's best footprint.  This is what stops "whatever still fits" from

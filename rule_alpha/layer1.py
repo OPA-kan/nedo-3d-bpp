@@ -15,6 +15,8 @@ Design notes
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -245,6 +247,7 @@ class Board:
         self.foundation_pending: dict[int, tuple[float, float]] = {}
         self.large_threshold: float = float("inf")
         self.small_threshold: float = 0.0
+        self.min_useful_width: float = config.row_min_useful_width
 
     # -- accessors -------------------------------------------------------
     def model(self, idx: int) -> ContainerModel:
@@ -524,6 +527,12 @@ class Board:
             self.large_threshold = float("inf")
             self.small_threshold = 0.0
             return {"large_threshold": None, "small_threshold": None, "pending": 0}
+
+        widths = [
+            min(o.dx for o in p.orientations)
+            for p in hard if p.orientations
+        ]
+        self.min_useful_width = min(widths) if widths else config.row_min_useful_width
 
         footprints = sorted(p.max_footprint for p in hard)
         self.large_threshold = float(
@@ -1344,6 +1353,43 @@ def _has_backing(box: AABB, model: ContainerModel, container: dict, config) -> b
     return False
 
 
+def row_waste(grid, rect: Rect, extra_mask, min_width: float) -> float:
+    """Free floor this placement would strand in its own row, in m^2.
+
+    A row of the container is a fixed width, and what tiles it is a *sequence*
+    of poses, not a single best one.  The floor is 1.472 m across: two 0.55 m
+    boxes use 1.126 and leave 0.346, which is too narrow for anything in the
+    manifest; 0.55 + 0.40 + 0.40 uses 1.402 and leaves 0.070.  Both of those
+    poses have exactly the same footprint, so every key that ranks by footprint
+    scores them equal and the tie is settled by depth -- by something that
+    cannot see the difference between a row that tiles and a row that does not.
+
+    So measure it: after this box goes down, how much of the free floor beside
+    it lies in runs narrower than the narrowest thing still to come.  That area
+    is not free space, it is waste, and it should be priced as waste.
+    """
+    band = grid.rect_mask(rect)
+    free = grid.usable & ~grid.occupied & ~extra_mask
+    rows = np.nonzero(band.any(axis=0))[0]
+    if rows.size == 0:
+        return 0.0
+    need = max(1, int(math.ceil(min_width / grid.cell)))
+    waste_cells = 0
+    for iy in rows:
+        column = free[:, iy]
+        run = 0
+        for value in column:
+            if value:
+                run += 1
+                continue
+            if 0 < run < need:
+                waste_cells += run
+            run = 0
+        if 0 < run < need:
+            waste_cells += run
+    return float(waste_cells) * grid.cell_area
+
+
 def terrain_behind(grid, rect: Rect) -> float:
     """Highest terrain standing between ``rect`` and the back wall.
 
@@ -1528,6 +1574,7 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("hard_plateau_largest", 0.0)
         features.setdefault("stability_margin", 0.0)
         features.setdefault("terrain_behind", float(model.z_floor))
+        features.setdefault("row_waste", 0.0)
         return
 
     grid = board.grid(candidate.container_idx)
@@ -1549,6 +1596,10 @@ def compute_features(candidate: Candidate, board: Board, config,
         features["neighbour_height_step"] = 0.0
 
     features["terrain_behind"] = terrain_behind(grid, rect)
+    features["row_waste"] = (
+        row_waste(grid, rect, mask, board.min_useful_width)
+        if config.row_tiling and candidate.surface == "floor" else 0.0
+    )
 
     # what this placement costs the way in.  ``reachable_before`` is a property
     # of the board, so it is cached per step rather than recomputed per
@@ -1608,9 +1659,21 @@ def _count_components(mask: np.ndarray) -> int:
 # ---------------------------------------------------------------------------
 # Archetype comparators
 # ---------------------------------------------------------------------------
+def _waste_bucket(c, step: float = 0.02):
+    """Row waste, bucketed so it separates real differences and nothing else.
+
+    Two poses of the same box have the same footprint, so this is the term that
+    decides between the row that tiles and the row that leaves a dead strip.
+    Bucketed because a centimetre of difference is noise and should not
+    outrank depth.
+    """
+    return round(c.features.get("row_waste", 0.0) / step)
+
+
 def _key_max_footprint(c):
     return (
         -c.features["footprint"],
+        _waste_bucket(c),
         -c.features["y_back"],
         c.features.get("stranded_added", 0.0),
         -c.features["frontier_contact"],
@@ -1621,6 +1684,7 @@ def _key_max_footprint(c):
 def _key_back_corner(c):
     return (
         -c.features["y_back"],
+        _waste_bucket(c),
         c.features.get("stranded_added", 0.0),
         -c.features["frontier_contact"],
         -c.features["footprint"],
@@ -1628,6 +1692,11 @@ def _key_back_corner(c):
 
 
 def _key_min_hole(c):
+    # The row waste was tried here, where the choice is actually made, and it
+    # made things worse: task 000 went 15 placements to 14, fill 17.714 to
+    # 12.054, and the dead strips it was meant to remove grew from 0.146 to
+    # 0.253 m^2.  Added to the interior-hole area it does not refine that
+    # ranking, it replaces it.
     return (
         c.features["new_interior_hole_area"],
         c.features["free_component_count"],
@@ -1898,12 +1967,19 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         # highest-footprint candidate somewhere else always wins, which is why
         # the gaps were still there.
         ladder.append(A_HOLE_FILL)
+    growth: list[str] = []
     if config.layer2_enabled and klass == cls.NORMAL_HARD:
-        # growth before ground: a bridge or a terrace turns two supports into
-        # one bigger one, which is worth more than another footprint on a floor
-        # that Layer 1 has already spent.  They are still only reachable when a
-        # candidate exists, so this costs nothing on an empty board.
-        ladder.extend([A_BRIDGE, A_WEDGE_BRIDGE, A_TERRACE])
+        # Growth before ground was the original call: a bridge or a terrace
+        # turns two supports into one bigger one, which is worth more than
+        # another footprint on a floor Layer 1 has already spent.  The
+        # alternative is that it outranks every floor archetype from the moment
+        # a terrace is possible, and the floor layer is abandoned half-tiled --
+        # which is what the official boards look like, five to seven items on
+        # a 2.03 m^2 floor.
+        growth = [A_BRIDGE, A_WEDGE_BRIDGE, A_TERRACE]
+        if not config.ground_before_growth:
+            ladder.extend(growth)
+            growth = []
     if config.front_wedge_enabled and klass == cls.NORMAL_HARD:
         # the descent to the door is the same kind of move as a terrace -- grow
         # structure from structure -- so it belongs beside them and not at the
@@ -1966,6 +2042,7 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE,
             A_BACK_CORNER, A_TYPED_CAP,
         ])
+    ladder.extend(growth)
     ladder.append(A_MAX_FOOTPRINT)
     ladder.append(A_LAST_RESORT)
     seen, out = set(), []
