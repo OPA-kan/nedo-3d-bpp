@@ -843,6 +843,28 @@ class RuleAlphaConfig:
     keeps the leftover space in one piece at an edge, instead of a strip up the
     middle of the container."""
 
+    count_all_shelves_as_relief: bool = True
+    """Every shelf relieves the soft strip, not only the main one.
+
+    Task 000 declares no main shelf and still carries the 0.60 m^2 chamfer
+    shelf, which cargo does use -- so the soft strip was sized as though soft
+    had nowhere to go but the floor."""
+
+    zones_shrink_with_demand: bool = False
+    """Re-size the reserved strips each step from the typed cargo still to
+    come, rather than once from the whole manifest.
+
+    Sized once and reapplied unchanged, the strips held the front-right
+    quadrant of task 000 -- 0.61 m^2 -- against hard cargo for the whole
+    episode, including long after every soft item had been housed.  What a
+    reservation is for is the cargo that has not arrived yet.
+
+    Measured, it does not pay.  Alone it changes nothing on either task, and
+    combined with the shelf-relief fix it costs task 001 1.8 points of fill --
+    the two together shrink the strip so far that typed cargo loses the floor
+    it does need.  Off by default; the argument still stands and the mechanism
+    is here for a manifest where the strips genuinely outlive their demand."""
+
     zone_reference_share: float = 0.25
     """Share of the declared stream (by footprint) at which a reserved edge
     strip reaches full width.  Below that it shrinks proportionally; a class

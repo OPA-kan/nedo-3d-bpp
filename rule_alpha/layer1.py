@@ -350,11 +350,18 @@ class Board:
                 soft_scale = 0.0
                 priority_scale = min(1.0, (sp_area / total) / reference)
             else:
-                shelf_relief = 0.0
-                if model.main_shelf is not None:
-                    shelf_relief = float(
-                        model.main_shelf.size[0] * model.main_shelf.size[1]
-                    )
+                # Every shelf is relief, not just the main one.  Task 000
+                # declares no main shelf and still has the 0.60 m^2 chamfer
+                # shelf, and cargo does go on it -- so the strip was sized as
+                # if soft had nowhere but the floor to go.
+                shelf_relief = union_area([
+                    Rect(float(sh.minimum[0]), float(sh.maximum[0]),
+                         float(sh.minimum[1]), float(sh.maximum[1]))
+                    for sh in model.shelves
+                ]) if config.count_all_shelves_as_relief else (
+                    float(model.main_shelf.size[0] * model.main_shelf.size[1])
+                    if model.main_shelf is not None else 0.0
+                )
                 soft_floor_area = max(0.0, soft_area - shelf_relief)
                 soft_scale = min(1.0, (soft_floor_area / total) / reference)
                 routed = 0.0 if has_priority_uld else (priority_area + sp_area)

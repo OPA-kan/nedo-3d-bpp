@@ -29,6 +29,33 @@ class RuleAlphaAgent:
         self.triangle_profiles: list | None = None
         self.declined: list[int] = []
 
+    def _resize_zones_for_what_is_left(self) -> None:
+        """Re-sizes the reserved strips from the cargo still to come.
+
+        The strips were sized once, from the whole manifest, and reapplied
+        unchanged every step.  So on task 000 the front-right quadrant -- 0.61
+        m^2 of soft and priority zone -- stayed closed to hard cargo for the
+        entire episode, including after every soft item had already been
+        housed.  What the reservation is for is the typed cargo that has *not*
+        been placed yet, and that is a number the agent has.
+        """
+        if self.board is None or not self.config.zones_shrink_with_demand:
+            return
+        if not self.profiles:
+            return
+        placed = set()
+        for container in self.board.containers:
+            for packed in container.get("packed_items", []):
+                placed.add(int(packed.get("index", -1)))
+        outstanding = [
+            profile for index, profile in self.profiles.items()
+            if index not in placed
+        ]
+        if outstanding:
+            self.zone_scales = self.board.set_zone_demand(
+                outstanding, self.config
+            )
+
     def _reapply_zone_scales(self) -> None:
         """The board is rebuilt from the observation each step; the manifest-
         derived strip widths have to survive that."""
@@ -80,6 +107,7 @@ class RuleAlphaAgent:
         # truth the simulator reports, not what rule-alpha hoped for
         self.board = layer1.Board(containers, self.config)
         self._reapply_zone_scales()
+        self._resize_zones_for_what_is_left()
 
         profiles = []
         for pool_index, item in enumerate(pool):
