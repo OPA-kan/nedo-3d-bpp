@@ -1565,6 +1565,106 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class TerraceKeyTest(unittest.TestCase):
+    """The terrace key has to be able to read the terms it ranks by.
+
+    ``level_residual`` spent five runs returning 0.0 for every terrace
+    candidate.  The function was right; it was called from below an early
+    ``return`` that fires for every surface except ``floor``, and a terrace is
+    surface ``item``, so the line was unreachable and the key ranked by its
+    ``setdefault``.  So test the wiring through ``compute_features``, not the
+    function on its own -- the function on its own was never the bug."""
+
+    def _board(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.Board([container], DEFAULT_CONFIG)
+
+    def _place(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = cls.classify_item(
+            0,
+            {"index": 0, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 10.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE,
+                                     DEFAULT_CONFIG),
+        ))
+
+    def _terrace_candidate(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "candidate")
+        profile = cls.classify_item(
+            9,
+            {"index": 9, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 8.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+        return layer1.Candidate(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="item", surface_name="hard-top",
+            role=l2.ROLE_TERRACE,
+        )
+
+    # the term ships off (it costs task 001 two items); these tests are about
+    # whether the key can *read* it, which is what was broken
+    ON = dataclasses.replace(DEFAULT_CONFIG, terrace_keeps_level=True)
+
+    def _wide_plateau(self):
+        """A 1.26 x 0.84 lid of nine boxes, with room for a terrace and more."""
+        board = self._board()
+        z = board.model(0).z_floor
+        for i in range(3):
+            for j in range(3):
+                self._place(board, -0.30 + i * 0.42, -0.42 + j * 0.42, z,
+                            (0.40, 0.40, 0.30))
+        return board, z + 0.30
+
+    def test_a_terrace_can_see_the_room_it_leaves_beside_itself(self):
+        board, top = self._wide_plateau()
+        candidate = self._terrace_candidate(board, -0.30, -0.42, top,
+                                            (0.40, 0.40, 0.25))
+        layer1.compute_features(candidate, board, self.ON, with_grid=True)
+        self.assertGreater(
+            candidate.features["level_residual"], 0.0,
+            "a terrace on a corner of a 1.26 x 0.84 lid leaves the rest of that "
+            "lid free, and the key has to be able to see it",
+        )
+
+    def test_the_residual_is_bigger_for_the_corner_than_for_the_middle(self):
+        """What the term is for: same footprint, same gain, different leftovers.
+
+        A box in the middle of the lid cuts the free area into four strips; the
+        same box in a corner leaves an L whose largest rectangle is much wider.
+        Every key that ranks by footprint or by plateau area scores these two
+        equal, which is exactly the tie this term exists to break."""
+        board, top = self._wide_plateau()
+        dims = (0.40, 0.40, 0.25)
+        corner = self._terrace_candidate(board, -0.30, -0.42, top, dims)
+        middle = self._terrace_candidate(board, 0.12, 0.0, top, dims)
+        for candidate in (corner, middle):
+            layer1.compute_features(candidate, board, self.ON, with_grid=True)
+        self.assertGreater(
+            corner.features["level_residual"], middle.features["level_residual"],
+            f"corner={corner.features['level_residual']:.4f} "
+            f"middle={middle.features['level_residual']:.4f}",
+        )
+
+    def test_turning_the_term_off_silences_it_rather_than_leaving_it_stale(self):
+        """The off arm of the A/B has to really be off, or the measurement is
+        comparing two versions of the same thing."""
+        board, top = self._wide_plateau()
+        candidate = self._terrace_candidate(board, -0.30, -0.42, top,
+                                            (0.40, 0.40, 0.25))
+        config = dataclasses.replace(DEFAULT_CONFIG, terrace_keeps_level=False)
+        layer1.compute_features(candidate, board, config, with_grid=True)
+        self.assertEqual(candidate.features["level_residual"], 0.0)
+
+
 class UnionAreaTest(unittest.TestCase):
     """Overlapping support surfaces must not be counted twice.
 

@@ -98,6 +98,47 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    terrace_keeps_level: bool = False
+    """Break terrace ties by the room the box leaves at its own level.
+
+    ``terrace-extension`` chooses nine of the nineteen placements on task 000 --
+    it is the rung that actually decides -- and its key asked only for plateau
+    area.  Nothing in it noticed whether the level the box lands on is still a
+    shape anything can use afterwards, which is the same defect the floor
+    row-tiling term was written for, on a rung that is never reached.
+
+    Off, because measured it does not pay.  The term is live (the boards differ,
+    which is more than the previous five changes managed) and it discriminates
+    as designed -- on task 000's item 4 the surviving poses leave 0.064, 0.090,
+    0.064, 0.032 and 0.0 m^2 -- but ranking by it costs more than it returns::
+
+        bucket   task 000            task 001
+        off      19 / 21.677         21 / 20.461
+        0.005    19 / 21.677 (same)  21 / 20.461, different board
+        0.010    19 / 21.677 (same)  21 / 20.461, different board
+        0.020    19 / 21.677, moved  19 / 17.350
+        0.050    19 / 21.677, moved  20 / 18.655
+        0.100    19 / 21.677, moved  18 / 17.350
+
+    So "leave the widest rectangle beside you" is not what a terrace should be
+    choosing on these manifests: task 000 is indifferent to it and task 001
+    loses two items to it.  Kept, off, with its tests, because the finding is
+    worth more than the code -- and because the reason it read as a no-op for
+    five runs was a wiring bug, not this result.
+
+    Off, ``level_residual`` is left at 0.0 for every candidate and the key
+    reduces to the plateau ordering, which is what makes the A/B a fair one."""
+
+    plateau_gain_bucket: float = 0.02
+    """How close two plateaus have to be to count as equally good, in m^2.
+
+    Compared exactly, the plateau settles almost every terrace by itself and no
+    later term is ever consulted -- which is how the key came to have no
+    opinion about the space it leaves behind.  Measured on task 000, a terrace
+    decision offers between 2 and 7 surviving poses whose plateaus differ by as
+    little as 0.0032 m^2, so the step has to be coarse enough for those to fall
+    through."""
+
     row_tiling: bool = True
     """Price the floor a placement strands in its own row.
 

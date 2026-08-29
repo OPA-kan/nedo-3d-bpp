@@ -1418,6 +1418,33 @@ def row_waste(grid, rect: Rect, extra_mask, min_width: float) -> float:
     return float(waste_cells) * grid.cell_area
 
 
+def level_residual(grid, box: AABB, config) -> float:
+    """Largest free rectangle left on this box's own resting level, in m^2.
+
+    ``terrace-extension`` decides nine of the nineteen placements on task 000
+    and its key asks only how much plateau the box gains -- never whether what
+    it leaves beside itself is still a shape anything can use.  That is the
+    same defect the floor row-tiling term was written for, on the rung that
+    actually decides instead of one that is never reached.
+    """
+    from .diagnostics import SUPPORT_HARD, largest_rectangle_in_mask
+
+    bottom = float(box.minimum[2])
+    level = (
+        grid.usable
+        & grid.occupied
+        & (grid.support == SUPPORT_HARD)
+        & (np.abs(grid.height - bottom) <= config.plateau_height_tolerance)
+        & ~grid.rect_mask(box_rect(box))
+    )
+    if not level.any():
+        return 0.0
+    idx_x, idx_y = np.nonzero(level)
+    sub = level[idx_x.min(): idx_x.max() + 1, idx_y.min(): idx_y.max() + 1]
+    cells, _box = largest_rectangle_in_mask(sub)
+    return float(cells) * grid.cell_area
+
+
 def terrain_behind(grid, rect: Rect) -> float:
     """Highest terrain standing between ``rect`` and the back wall.
 
@@ -1568,6 +1595,10 @@ def compute_features(candidate: Candidate, board: Board, config,
         after = _plateau_after(grid, model, rect, float(box.maximum[2]), config)
         features["plateau_gain"] = max(0.0, after["largest"] - before["largest"])
         features["hard_plateau_largest"] = after["largest"]
+        features["level_residual"] = (
+            level_residual(grid, candidate.box, config)
+            if config.terrace_keeps_level else 0.0
+        )
         features["hard_plateau_total_gain"] = after["total"] - before["total"]
         state = stability.evaluate(box, container, config)
         features["stability_margin"] = state.margin
@@ -1603,6 +1634,7 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("stability_margin", 0.0)
         features.setdefault("terrain_behind", float(model.z_floor))
         features.setdefault("row_waste", 0.0)
+        features.setdefault("level_residual", 0.0)
         return
 
     grid = board.grid(candidate.container_idx)
@@ -1832,24 +1864,41 @@ def _key_wall_front(c):
     )
 
 
-def _key_terrace(c):
-    # widen the plateau, and prefer the growth that keeps the back high
+def _key_terrace(c, level_bucket: float = 0.0):
+    # widen the plateau, and among the placements that widen it about equally
+    # prefer the one that leaves the biggest usable rectangle beside itself
     return (
-        -c.features.get("plateau_gain", 0.0),
-        -c.features.get("hard_plateau_largest", 0.0),
+        -_bucket(c.features.get("hard_plateau_largest", 0.0), level_bucket),
+        -c.features.get("level_residual", 0.0),
         c.features.get("sealed_added", 0.0),
         -c.features["y_back"],
     )
 
 
-def _key_bridge(c):
-    # a merge is worth exactly the plateau it creates that did not exist
+def _key_bridge(c, level_bucket: float = 0.0):
+    # a merge is worth the plateau it leaves standing, then the room beside it
     return (
-        -c.features.get("plateau_gain", 0.0),
+        -_bucket(c.features.get("hard_plateau_largest", 0.0), level_bucket),
+        -c.features.get("level_residual", 0.0),
         -c.features.get("stability_margin", 0.0),
         c.features.get("sealed_added", 0.0),
         -c.features["y_back"],
     )
+
+
+def _bucket(value: float, step: float) -> float:
+    """Round a plateau area so that near-ties fall through to the next term.
+
+    The lead term used to be ``plateau_gain = max(0, after - before)``.  Within
+    one decision ``before`` is a constant, so that is a clamped copy of
+    ``hard_plateau_largest`` -- and on task 000 every terrace candidate *shrinks*
+    the largest plateau, so the clamp flattened all of them to zero and the
+    bucket had nothing to round.  Ranking the unclamped quantity keeps the same
+    ordering where the gain is positive and recovers the ordering where it is
+    not."""
+    if step <= 0.0:
+        return value
+    return round(value / step) * step
 
 
 def _key_front_wedge(c):
@@ -3414,6 +3463,12 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             if name == A_SHELF_SAVING and config.shelf_residual_key:
                 bucket = config.shelf_depth_bucket
                 key_fn = lambda c: _key_shelf_saving(c, bucket)  # noqa: E731
+            if name in (A_TERRACE, A_BRIDGE) and config.terrace_keeps_level:
+                bucket = config.plateau_gain_bucket
+                key_fn = (
+                    (lambda c: _key_terrace(c, bucket)) if name == A_TERRACE
+                    else (lambda c: _key_bridge(c, bucket))
+                )
             if name == A_TALL_PERIMETER:
                 depth_first = config.perimeter_prefers_depth
                 key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
