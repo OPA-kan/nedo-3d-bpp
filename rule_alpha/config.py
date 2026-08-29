@@ -627,9 +627,21 @@ class RuleAlphaConfig:
     so the static criterion is optimistic here in a way it is not on the
     floor."""
 
-    wedge_step_max_footprint_fraction: float = 0.10
+    wedge_step_max_footprint_fraction: float = 0.13
     """Only small cargo climbs the staircase.  A big box spent here is a big
-    box missing from the foundation."""
+    box missing from the foundation.
+
+    Both this and ``wedge_step_max_height`` have to be satisfied by the *same*
+    orientation, and on the official manifests neither was: the flat pose of a
+    0.55 x 0.40 box is 0.22 m^2 against a 0.203 m^2 budget, and the poses small
+    enough are the upright ones, which are too tall.  So `n_step_capable` was
+    zero and the wedge closed before the first placement, on both tasks.  At
+    0.13 the flat pose qualifies.  Measured: task 000 keeps its score and gains
+    a two-step staircase recovering 0.0282 of 0.0785 m^2; task 001 gains a
+    placement.  0.16 admits more steps and wins three placements on task 001,
+    but costs task 000 1.5 points of fill, which is the wrong trade while
+    task 000 is the priority.
+    """
 
     wedge_step_max_height: float = 0.35
     """Each step stays low.  The point of a staircase is that no single item
