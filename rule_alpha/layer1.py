@@ -232,6 +232,7 @@ class Board:
         self._reach: list = [None for _ in self.containers]
         self._plateau: list = [None for _ in self.containers]
         self._plateau_labels: list = [None for _ in self.containers]
+        self._back_height: list = [None for _ in self.containers]
         self._holes: list = [None for _ in self.containers]
         # manifest-derived: what the outstanding frontier cargo still needs.
         # The manifest is handed to optimize(), so reading it is information the
@@ -250,11 +251,24 @@ class Board:
     def grid(self, idx: int) -> FloorGrid:
         grid = self._grids[idx]
         if grid is None:
-            from .diagnostics import build_floor_grid
+            from .diagnostics import build_floor_grid, grid_from_packed
 
-            grid = build_floor_grid(
-                self.models[idx], self.placements[idx], self.config.candidate_grid_cell
-            )
+            if self.placements[idx] or not self.containers[idx].get("packed_items"):
+                grid = build_floor_grid(
+                    self.models[idx], self.placements[idx],
+                    self.config.candidate_grid_cell,
+                )
+            else:
+                # Driving the real environment the board is rebuilt from each
+                # observation, which carries packed_items and no placements.
+                # Building the height map from placements then gave an empty
+                # grid every turn, and everything that reads it -- coverage,
+                # reachability, holes, plateaus, the wedge state -- answered as
+                # if the container were empty.
+                grid = grid_from_packed(
+                    self.models[idx], self.containers[idx],
+                    self.config.candidate_grid_cell,
+                )
             self._grids[idx] = grid
         return grid
 
@@ -378,6 +392,7 @@ class Board:
         self._reach = [None for _ in self.containers]
         self._plateau = [None for _ in self.containers]
         self._plateau_labels = [None for _ in self.containers]
+        self._back_height = [None for _ in self.containers]
         self._holes = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
@@ -414,6 +429,41 @@ class Board:
             )
             self._plateau_labels[idx] = cached
         return cached
+
+    def back_height(self, idx: int) -> float:
+        """How high the back band stands, as a share-robust quantile.
+
+        A single tall box at the back is not "the back has been built up", so
+        this asks how high ``front_release_back_share`` of the band has got
+        rather than how high its tallest point is.
+        """
+        cached = self._back_height[idx]
+        if cached is None:
+            grid = self.grid(idx)
+            model = self.models[idx]
+            band = grid.rect_mask(model.back_band) & grid.usable
+            if not band.any():
+                cached = 0.0
+            else:
+                heights = grid.height[band] - model.z_floor
+                cached = float(
+                    np.quantile(heights, 1.0 - self.config.front_release_back_share)
+                )
+            self._back_height[idx] = cached
+        return cached
+
+    def front_is_released(self, idx: int) -> bool:
+        """Has the back been built high enough to spend the front?
+
+        The front is the way in and the landing pad for typed overflow, so
+        Layer 1 keeps it low while the back is still the cheaper place to
+        build.  Once the back stands this high, keeping the front flat costs
+        more than it saves: there is nowhere else left that does not require
+        reaching over something.
+        """
+        if self.config.front_release_back_height <= 0.0:
+            return False
+        return self.back_height(idx) >= self.config.front_release_back_height
 
     def floor_reach(self, idx: int) -> tuple[float, float]:
         """``(reachable, sealed)`` bare floor area, cached per board state."""
@@ -2294,7 +2344,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     #     the front for as long as it stays under the terrain behind it in its
     #     own columns.  On an empty column that terrain is the floor, which is
     #     how back-first survives the change without a second rule.
-    if config.front_stays_low:
+    if config.front_stays_low and not board.front_is_released(container_idx):
         front_limit = model.floor_rect.y_min + config.hard_front_band
         kept = []
         for candidate in survivors:

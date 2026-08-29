@@ -184,6 +184,42 @@ def build_floor_grid(model: ContainerModel, placements, cell: float) -> FloorGri
     return grid
 
 
+def grid_from_packed(model: ContainerModel, container: dict,
+                     cell: float) -> FloorGrid:
+    """Rasterise what the *simulator* says is in the container.
+
+    The planner's own ``Placement`` records only exist while it is running an
+    episode itself.  Driving the real environment, the agent rebuilds its board
+    from each observation -- which carries ``packed_items`` but no placements --
+    so a grid built from placements came out empty on every turn, and with it
+    everything derived from the height map: coverage (so the corridor veto
+    never released), reachability, the hole finder, the plateau labels the
+    depth rule needs, and the wedge's own state.  Reading the observation
+    instead is the difference between the planner seeing the container it is
+    packing and seeing an empty one.
+
+    Shelf items are excluded, as they are from the placement path: they carry
+    no floor support and must not be mistaken for it.
+    """
+    from ._reuse import packed_aabbs_local
+
+    grid = FloorGrid(model, cell)
+    shelf_tops = [float(sh.maximum[2]) for sh in model.shelves]
+    for box, is_soft, is_prioritized in packed_aabbs_local(container):
+        bottom = float(box.minimum[2])
+        if any(abs(bottom - top) <= 0.02 for top in shelf_tops):
+            continue  # resting on a shelf, not on the floor stack
+        grid.stamp(
+            Rect(float(box.minimum[0]), float(box.maximum[0]),
+                 float(box.minimum[1]), float(box.maximum[1])),
+            float(box.maximum[2]),
+            support_code(is_soft, is_prioritized),
+            False,
+            -1,
+        )
+    return grid
+
+
 # ---------------------------------------------------------------------------
 # Plateau extraction
 # ---------------------------------------------------------------------------

@@ -194,6 +194,22 @@ class RuleAlphaConfig:
     support.  On a column with nothing behind it the terrain is the floor, so
     the same rule still says "not first" -- back-first needs no second rule."""
 
+    front_release_back_height: float = 0.60
+    """Once the back band stands this high, the front is released outright.
+
+    ``front_stays_low`` is a per-column rule and it is the right one while the
+    back is still the cheaper place to build.  It is the wrong one once the
+    back is full: then every remaining place requires reaching over something,
+    and holding the front flat buys a sight line to ground that is already
+    spent.  Zero disables the release, leaving the per-column rule in force for
+    the whole episode."""
+
+    front_release_back_share: float = 0.50
+    """...measured as the height that this share of the back band has reached.
+
+    A single tall box at the back is not a built-up back, so the test is a
+    quantile rather than a maximum.  0.50 is the median height of the band."""
+
     front_height_slack: float = 0.05
     """How far above the terrain behind it a front box may still reach.
 
