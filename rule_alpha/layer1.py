@@ -456,6 +456,19 @@ class Board:
             self._back_height[idx] = cached
         return cached
 
+    def back_headroom(self, idx: int) -> float:
+        """How tall the back band is allowed to get in the first place.
+
+        Where there is a shelf it caps the back at its underside, and the back
+        band is entirely under it, so the height available there is 0.76 m
+        against the container's 1.53.  A release threshold stated as an
+        absolute height therefore means something completely different with a
+        shelf and without one.
+        """
+        model = self.models[idx]
+        ceiling = model.shelf_bottom_z if model.shelves else model.z_ceiling
+        return max(1e-6, ceiling - model.z_floor)
+
     def front_is_released(self, idx: int) -> bool:
         """Has the back been built high enough to spend the front?
 
@@ -464,10 +477,16 @@ class Board:
         build.  Once the back stands this high, keeping the front flat costs
         more than it saves: there is nowhere else left that does not require
         reaching over something.
+
+        Measured as a share of the headroom the back band actually has, not as
+        an absolute height.  The absolute form was calibrated while the height
+        map was wrongly counting shelf-borne cargo as floor terrain, which read
+        the back as 1.43 m in a container whose back band cannot exceed 0.76.
         """
-        if self.config.front_release_back_height <= 0.0:
+        share = self.config.front_release_back_share_of_headroom
+        if share <= 0.0:
             return False
-        return self.back_height(idx) >= self.config.front_release_back_height
+        return self.back_height(idx) >= share * self.back_headroom(idx)
 
     def floor_reach(self, idx: int) -> tuple[float, float]:
         """``(reachable, sealed)`` bare floor area, cached per board state."""

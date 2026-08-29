@@ -174,6 +174,10 @@ def build_floor_grid(model: ContainerModel, placements, cell: float) -> FloorGri
     for placement in placements:
         if placement.surface == "shelf":
             continue
+        if model.shelves and float(placement.box.minimum[2]) >= (
+            model.shelf_bottom_z - 0.02
+        ):
+            continue  # stacked on shelf cargo: carried by the shelf, not the floor
         grid.stamp(
             placement.rect,
             placement.top_z,
@@ -204,11 +208,18 @@ def grid_from_packed(model: ContainerModel, container: dict,
     from ._reuse import packed_aabbs_local
 
     grid = FloorGrid(model, cell)
-    shelf_tops = [float(sh.maximum[2]) for sh in model.shelves]
     for box, is_soft, is_prioritized in packed_aabbs_local(container):
         bottom = float(box.minimum[2])
-        if any(abs(bottom - top) <= 0.02 for top in shelf_tops):
-            continue  # resting on a shelf, not on the floor stack
+        if model.shelves and bottom >= model.shelf_bottom_z - 0.02:
+            # Anything at or above the shelf plane is carried by the shelf, not
+            # by the floor stack, and stamping it onto the floor's height map
+            # makes the planner believe the space *under* the shelf is full.
+            # Testing only for a box resting directly on a shelf missed
+            # everything stacked on top of those, which is how a container with
+            # 0.76 m of headroom under its shelf came to report 1.4 m of
+            # terrain there -- and why the planner never went back for the
+            # empty ground it could not see.
+            continue
         grid.stamp(
             Rect(float(box.minimum[0]), float(box.maximum[0]),
                  float(box.minimum[1]), float(box.maximum[1])),

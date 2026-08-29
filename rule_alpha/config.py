@@ -194,8 +194,20 @@ class RuleAlphaConfig:
     support.  On a column with nothing behind it the terrain is the floor, so
     the same rule still says "not first" -- back-first needs no second rule."""
 
+    front_release_back_share_of_headroom: float = 0.45
+    """Release the front once the back band has used this share of the height
+    available to it.
+
+    Stated as a share, not a height, because the height available to the back
+    band depends on whether there is a shelf over it: 0.76 m with one against
+    the container's 1.53 without.  The absolute form this replaces was
+    calibrated while the height map counted shelf-borne cargo as floor terrain
+    and so read the back as 1.43 m in a container whose back band cannot
+    exceed 0.76.  Zero disables the release, leaving the per-column rule in
+    force for the whole episode."""
+
     front_release_back_height: float = 0.60
-    """Once the back band stands this high, the front is released outright.
+    """Unused; kept for the record of what the share above replaces.
 
     ``front_stays_low`` is a per-column rule and it is the right one while the
     back is still the cheaper place to build.  It is the wrong one once the
