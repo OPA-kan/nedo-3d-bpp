@@ -57,6 +57,7 @@ A_WEDGE_BRIDGE = "wedge-bridge"
 A_HOLE_FILL = "hole-fill"
 A_TYPED_CAP = "typed-cap"
 A_LAST_RESORT = "last-resort"
+A_FRONT_WEDGE = "front-wedge"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -79,6 +80,7 @@ ALL_ARCHETYPES = (
     A_HOLE_FILL,
     A_TYPED_CAP,
     A_LAST_RESORT,
+    A_FRONT_WEDGE,
 )
 
 
@@ -745,18 +747,35 @@ def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
     return cells * cell * cell, count
 
 
+def usable_shelf_rect(shelf: AABB, model: ContainerModel, config) -> Rect:
+    """The part of a shelf a box may actually occupy.
+
+    The floor has had this all along -- ``floor_rect`` is inset from the walls
+    by the inclusion clearance -- and the shelf did not.  A shelf AABB runs to
+    the wall and the main shelf runs 20 mm *past* it, so every anchor derived
+    from its edges asked for a pose flush with the wall, which
+    ``check_inclusion`` refuses at a 16 mm margin.  The wall-side anchors were
+    therefore always dead, and cargo landed at whatever anchor came next --
+    which is the gap between the wall and the shelf items.
+    """
+    clearance = config.inclusion_clearance
+    return Rect(
+        max(float(shelf.minimum[0]), model.x_wall_min + clearance),
+        min(float(shelf.maximum[0]), model.x_wall_max - clearance),
+        max(float(shelf.minimum[1]), model.y_opening + clearance),
+        min(float(shelf.maximum[1]), model.y_back - clearance),
+    )
+
+
 def _shelf_anchors(shelf: AABB, container: dict, dx: float, dy: float,
-                   gap: float, config) -> tuple[list, list]:
+                   gap: float, config, model: ContainerModel) -> tuple[list, list]:
     """Anchors measured from the shelf itself, and from what is already on it.
 
     Back corner first, then flush against every edge of every item already up
     there, so the shelf packs from the back and from the sides instead of one
     item landing in the middle of it.
     """
-    rect = Rect(
-        float(shelf.minimum[0]), float(shelf.maximum[0]),
-        float(shelf.minimum[1]), float(shelf.maximum[1]),
-    )
+    rect = usable_shelf_rect(shelf, model, config)
     top = float(shelf.maximum[2])
     xs = [rect.x_min + dx / 2.0, rect.x_max - dx / 2.0]
     ys = [rect.y_max - dy / 2.0, rect.y_min + dy / 2.0]
@@ -877,7 +896,7 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
             # up there -- which is precisely why shelf cargo sat at the front
             # and used a fifth of the area.
             shelf_xs, shelf_ys = _shelf_anchors(
-                surface, container, dx, dy, gap, config
+                surface, container, dx, dy, gap, config, model
             )
             # union, shelf-derived first: the shared floor anchors still find
             # perfectly good positions, they just never included the shelf's
@@ -1647,6 +1666,16 @@ def _key_bridge(c):
     )
 
 
+def _key_front_wedge(c):
+    # use the headroom the step behind it leaves, keep the tread wide, and
+    # start from the back of the band so the descent runs door-ward
+    return (
+        -c.features["top_z"],
+        -c.features["footprint"],
+        -c.features["y_back"],
+    )
+
+
 def _key_last_resort(c):
     # lie as flat as the space allows, keep to the back, and take the pose that
     # spends the least height on the way
@@ -1708,6 +1737,7 @@ ARCHETYPE_KEYS = {
     A_HOLE_FILL: _key_hole_fill,
     A_TYPED_CAP: _key_typed_cap,
     A_LAST_RESORT: _key_last_resort,
+    A_FRONT_WEDGE: _key_front_wedge,
 }
 
 
@@ -1743,6 +1773,8 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         tags.add(A_WEDGE_BRIDGE)
     if candidate.role == l2.ROLE_TYPED_CAP:
         tags.add(A_TYPED_CAP)
+    if candidate.role == l2.ROLE_FRONT_WEDGE:
+        tags.add(A_FRONT_WEDGE)
     if candidate.role == l2.ROLE_LAST_RESORT:
         # its own rung, at the very bottom of every ladder: it is only ever
         # generated when nothing else was, so it competes with nothing
@@ -1783,6 +1815,12 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         # that Layer 1 has already spent.  They are still only reachable when a
         # candidate exists, so this costs nothing on an empty board.
         ladder.extend([A_BRIDGE, A_WEDGE_BRIDGE, A_TERRACE])
+    if config.front_wedge_enabled and klass == cls.NORMAL_HARD:
+        # the descent to the door is the same kind of move as a terrace -- grow
+        # structure from structure -- so it belongs beside them and not at the
+        # bottom, where every candidate's max-footprint tag outranks it and it
+        # is never chosen at all.
+        ladder.append(A_FRONT_WEDGE)
     if klass == cls.NORMAL_HARD:
         if wall_ratio < config.wall_front_target_ratio:
             ladder.append(A_WALL_FRONT)
@@ -2119,6 +2157,97 @@ def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
                 candidate.features["hole_area"] = hole.area
                 candidate.features["hole_rect_area"] = hole.rect.area
                 candidates.append(candidate)
+                if len(candidates) >= config.max_candidates_per_orientation:
+                    return candidates
+    return candidates
+
+
+# ---------------------------------------------------------------------------
+# The front staircase: descend to the opening instead of walling it
+# ---------------------------------------------------------------------------
+def generate_front_wedge_candidates(board: "Board", profile: cls.ItemProfile,
+                                    container_idx: int, config
+                                    ) -> list[Candidate]:
+    """Step down towards the opening once the back has been built up.
+
+    ``front_stays_low`` says what the front may not do.  This says what it
+    should: put a box on the ground in front of the frontier whose own top
+    stays under the terrain behind it, so the surface descends to the door in
+    steps instead of ending in a wall.  Every such box is reachable over the
+    one behind it, and so is everything already placed, which is the property
+    the whole front band exists to protect.
+
+    Gated on the same condition as the front release, because while the back is
+    still the cheaper place to build there is nothing to descend *from*.
+    """
+    if not config.front_wedge_enabled:
+        return []
+    if not board.front_is_released(container_idx):
+        return []
+
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    grid = board.grid(container_idx)
+    gap = config.settled_clearance
+    candidates: list[Candidate] = []
+    seen = set()
+    for rect, level_z, behind in l2.front_steps(grid, model, config):
+        head = behind - level_z - config.front_wedge_min_drop
+        if head <= 0.0:
+            continue
+        width = rect.x_max - rect.x_min
+        depth = rect.y_max - rect.y_min
+        fitting = [
+            o for o in profile.orientations
+            if o.dx + gap <= width + 1e-9
+            and o.dy + gap <= depth + 1e-9
+            and o.dz <= head + 1e-9
+        ]
+        if not fitting:
+            continue
+        # the tallest pose that still stays under the step behind it: a step
+        # should use the headroom it has, not sit as low as it can
+        fitting.sort(key=lambda o: (-o.dz, -o.footprint))
+        for orientation in fitting[: config.front_wedge_poses]:
+            dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+            inset = gap / 2.0
+            left, right = rect.x_min + dx / 2.0 + inset, rect.x_max - dx / 2.0 - inset
+            front, back = rect.y_min + dy / 2.0 + inset, rect.y_max - dy / 2.0 - inset
+            if right < left or back < front:
+                continue
+            for x, y in (
+                (0.5 * (left + right), back), (right, back), (left, back),
+                (0.5 * (left + right), 0.5 * (front + back)),
+            ):
+                key = (round(x, 4), round(y, 4), round(level_z, 4),
+                       orientation.index)
+                if key in seen:
+                    continue
+                seen.add(key)
+                box = AABB(
+                    (float(x), float(y), float(level_z) + dz / 2.0),
+                    (dx, dy, dz), "candidate",
+                )
+                ok, _why = validate(box, model, container, config)
+                if not ok:
+                    continue
+                on_floor = abs(level_z - model.z_floor) <= config.contact_tolerance
+                if not on_floor and config.layer2_max_layers > 0:
+                    allowed = stack_level(
+                        box, container, l2.ROLE_FRONT_WEDGE, config
+                    ) <= config.layer2_max_layers
+                    if not allowed:
+                        continue
+                candidates.append(
+                    Candidate(
+                        box=box, profile=profile, orientation=orientation,
+                        container_idx=container_idx,
+                        surface="floor" if on_floor else "item",
+                        surface_name="front-step",
+                        role=l2.ROLE_FRONT_WEDGE,
+                        family=l2.FAMILY_FRONT_WEDGE,
+                    )
+                )
                 if len(candidates) >= config.max_candidates_per_orientation:
                     return candidates
     return candidates
@@ -2833,10 +2962,10 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         pool.extend(
             generate_hole_candidates(board, profile, container_idx, config)
         )
+        pool.extend(
+            generate_front_wedge_candidates(board, profile, container_idx, config)
+        )
         if not pool:
-            # Nothing ordinary fits.  Before giving the item up -- which, with
-            # the official `max_space: 1`, ends the whole episode -- look for
-            # somewhere it simply fits.
             pool.extend(
                 generate_last_resort_candidates(
                     board, profile, container_idx, config
@@ -2910,6 +3039,26 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             candidate.archetypes = eligible_archetypes(candidate, config)
 
         survivors, veto_counts = apply_vetoes(shortlist, board, container_idx, config)
+        if not survivors:
+            # Nothing ordinary survived.  Before giving the item up -- which,
+            # with the official `max_space: 1`, ends the whole episode -- look
+            # for somewhere it simply fits.  This has to be keyed on survivors
+            # rather than on an empty pool: a family that proposes candidates
+            # and then loses all of them to a veto would otherwise suppress the
+            # rescue, which is exactly what the front staircase did on its
+            # first outing -- 17 placements back to 15, with the last-resort
+            # placement gone and no front-wedge placement to show for it.
+            rescue = generate_last_resort_candidates(
+                board, profile, container_idx, config
+            )
+            for candidate in rescue:
+                compute_features(candidate, board, config, with_grid=True)
+                candidate.archetypes = eligible_archetypes(candidate, config)
+            survivors, rescue_counts = apply_vetoes(
+                rescue, board, container_idx, config
+            )
+            for name, count in rescue_counts.items():
+                veto_counts[name] = veto_counts.get(name, 0) + count
         if not survivors:
             continue
 

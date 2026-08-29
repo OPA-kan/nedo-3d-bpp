@@ -396,6 +396,32 @@ class RuleAlphaConfig:
     hole_fill_min_headroom: float = 0.10
     """A pocket with less than this much space above it can hold nothing."""
 
+    front_wedge_enabled: bool = True
+    """Build a staircase down to the opening once the back is up.
+
+    ``front_stays_low`` says what the front may not do; this says what it
+    should.  A box on the ground in front of the frontier whose own top stays
+    under the terrain behind it continues a descent instead of starting a wall,
+    and everything behind it stays reachable over it.  It is the chamfer
+    staircase turned around: there the container's shape forces a climb away
+    from the wall, here the access forces a descent towards the door."""
+
+    front_wedge_band: float = 0.55
+    """How far in from the opening the descent is built."""
+
+    front_wedge_min_drop: float = 0.08
+    """How much lower than the terrain behind it a step has to stay.
+
+    Below this it is not a step down, it is the same level continued -- which
+    ordinary terracing already handles."""
+
+    front_wedge_max_steps: int = 6
+    """Places offered per decision, highest ground first."""
+
+    front_wedge_poses: int = 2
+    """Poses tried per step, tallest that still fits under the step behind
+    first: a tread should spend the headroom it has, not sit as low as it can."""
+
     last_resort_enabled: bool = True
     """When every ordinary generator comes back empty, look for somewhere the
     box simply fits before giving it up.

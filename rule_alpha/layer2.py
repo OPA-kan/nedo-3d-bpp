@@ -58,10 +58,11 @@ FAMILY_WEDGE_STEP = "wedge-step"
 FAMILY_HOLE_FILL = "hole-fill"
 FAMILY_TYPED_CAP = "typed-cap"
 FAMILY_LAST_RESORT = "last-resort"
+FAMILY_FRONT_WEDGE = "front-wedge"
 
 ALL_FAMILIES = (
     FAMILY_FLOOR, FAMILY_SHELF, FAMILY_WEDGE_STEP, FAMILY_TERRACE,
-    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP, FAMILY_LAST_RESORT,
+    FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP, FAMILY_LAST_RESORT, FAMILY_FRONT_WEDGE,
 )
 
 ROLE_TERRACE = "terrace"
@@ -70,6 +71,7 @@ ROLE_WEDGE_BRIDGE = "wedge-bridge"
 ROLE_HOLE_FILL = "hole-fill"
 ROLE_TYPED_CAP = "typed-cap"
 ROLE_LAST_RESORT = "last-resort"
+ROLE_FRONT_WEDGE = "front-wedge"
 
 
 # ---------------------------------------------------------------------------
@@ -348,6 +350,80 @@ def surface_holes(grid, model: ContainerModel, config) -> list[Hole]:
     return holes[: config.hole_fill_max_holes]
 
 
+def front_steps(grid, model: ContainerModel, config) -> list[tuple[Rect, float, float]]:
+    """Places to put the next step of a staircase running down to the opening.
+
+    Each entry is ``(footprint of free ground, its resting height, the height
+    of the terrain immediately behind it)``.  A step is worth taking where
+    there is ground to stand on and something taller behind it, because then a
+    box whose top stays under that neighbour continues a descent rather than
+    starting a wall.
+
+    This is the chamfer staircase turned around.  There the container's shape
+    forces a climb away from the wall; here the *access* does: everything in
+    front of the frontier has to stay under it or the sweep cannot reach past
+    it.  Building a descent deliberately is how that constraint becomes usable
+    volume instead of a rule that only ever refuses things.
+    """
+    from .diagnostics import (
+        SUPPORT_HARD, connected_components, largest_rectangle_in_mask,
+    )
+
+    tolerance = config.plateau_height_tolerance
+    z_floor = model.z_floor
+    levels = np.round((grid.height - z_floor) / max(tolerance, 1e-6))
+    front_limit = model.floor_rect.y_min + config.front_wedge_band
+
+    layers: list[tuple[np.ndarray, float]] = []
+    free = grid.usable & ~grid.occupied
+    if free.any():
+        layers.append((free, z_floor))
+    hard = grid.usable & grid.occupied & (grid.support == SUPPORT_HARD)
+    if hard.any():
+        for level in np.unique(levels[hard]):
+            layers.append(
+                (hard & (levels == level), z_floor + float(level) * tolerance)
+            )
+
+    running = np.maximum.accumulate(grid.height[:, ::-1], axis=1)[:, ::-1]
+    out: list[tuple[Rect, float, float]] = []
+    for mask, level_z in layers:
+        band = mask & (grid.yy <= front_limit)
+        if not band.any():
+            continue
+        labels, count = connected_components(band)
+        for index in range(1, count + 1):
+            cells = labels == index
+            idx_x, idx_y = np.nonzero(cells)
+            if idx_x.size == 0:
+                continue
+            x0, y0 = int(idx_x.min()), int(idx_y.min())
+            work = cells[x0: int(idx_x.max()) + 1, y0: int(idx_y.max()) + 1].copy()
+            for _peel in range(config.last_resort_rects_per_region):
+                area_cells, (r0, c0, r1, c1) = largest_rectangle_in_mask(work)
+                if area_cells <= 0:
+                    break
+                work[r0:r1 + 1, c0:c1 + 1] = False
+                if float(area_cells) * grid.cell_area < config.hole_fill_min_area:
+                    break
+                patch = _rect_cells(grid, x0, y0, r0, c0, r1, c1)
+                behind = float(running[patch].max())
+                if behind <= level_z + config.front_wedge_min_drop:
+                    continue  # nothing taller behind it: this is not a step down
+                world = _rect_world(grid, x0, y0, r0, c0, r1, c1)
+                floor = model.floor_rect
+                clipped = Rect(
+                    max(world.x_min, floor.x_min), min(world.x_max, floor.x_max),
+                    max(world.y_min, floor.y_min), min(world.y_max, floor.y_max),
+                )
+                if clipped.area > 0.0:
+                    out.append((clipped, level_z, behind))
+    # the highest ground with the most headroom under the terrain behind it is
+    # the step that continues the descent rather than starting a new one
+    out.sort(key=lambda row: (-row[1], -row[0].area))
+    return out[: config.front_wedge_max_steps]
+
+
 def free_rectangles(grid, model: ContainerModel, config) -> list[tuple[Rect, float]]:
     """The largest empty rectangles on each resting level, biggest first.
 
@@ -506,13 +582,16 @@ def hard_plateau_stats(grid, z_floor: float, tolerance: float) -> dict:
 __all__ = [
     "ALL_FAMILIES", "FAMILY_BRIDGE", "FAMILY_FLOOR", "FAMILY_HOLE_FILL",
     "FAMILY_SHELF", "FAMILY_WEDGE_STEP",
-    "FAMILY_LAST_RESORT", "FAMILY_TERRACE", "FAMILY_TYPED_CAP",
+    "FAMILY_FRONT_WEDGE", "FAMILY_LAST_RESORT", "FAMILY_TERRACE",
+    "FAMILY_TYPED_CAP",
     "FAMILY_WEDGE_BRIDGE", "Hole",
-    "ROLE_BRIDGE", "ROLE_HOLE_FILL", "ROLE_LAST_RESORT", "ROLE_TERRACE",
+    "ROLE_BRIDGE", "ROLE_FRONT_WEDGE", "ROLE_HOLE_FILL",
+    "ROLE_LAST_RESORT", "ROLE_TERRACE",
     "ROLE_TYPED_CAP",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
     "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
-    "free_rectangles", "largest_plateau_area", "level_groups",
+    "free_rectangles", "front_steps", "largest_plateau_area",
+    "level_groups",
     "plateau_map", "surface_holes",
     "terrace_anchors", "wedge_bridge_anchors",
 ]
