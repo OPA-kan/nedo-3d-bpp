@@ -3146,6 +3146,34 @@ def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) ->
     return out
 
 
+def _certainly_vetoed(candidate: Candidate, board: Board, container_idx: int,
+                      coverage: float, config) -> bool:
+    """Would this candidate be refused for a reason already known?
+
+    Only the two cheap floor vetoes, and only in the form they take *before*
+    the fallbacks: a corridor placement while the corridor is held, and a floor
+    pose worth less than its share of the item's best footprint.  Everything
+    else needs the grid, or yields when it would leave nothing, and must stay
+    downstream where the fallback can fire.
+    """
+    if candidate.surface != "floor":
+        return False
+    if (
+        candidate.role == cls.ROLE_NONE
+        and not (candidate.profile.is_elongated and not candidate.profile.is_soft)
+        and candidate.features["footprint"]
+        < config.min_floor_footprint_fraction * candidate.profile.max_footprint - 1e-9
+    ):
+        return True
+    if (
+        coverage < config.corridor_release_fill
+        and candidate.role != l2.ROLE_LAST_RESORT
+        and candidate.features["corridor_overlap"] > 1e-4
+    ):
+        return True
+    return False
+
+
 def _shortlist_key(candidate: Candidate, typed_right_front: bool = True):
     """What "the best few" means, per family.
 
@@ -3261,6 +3289,24 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         # no-ops: it decided the answer before they ran.  Every family keeps its
         # own quota and they are unioned afterwards, so a bridge never has to
         # out-depth a floor candidate merely to be looked at.
+        # Drop what is certainly dead *before* truncating, not after.  The
+        # shortlist keeps the deepest few, and once the back is full the
+        # deepest remaining floor positions are exactly the ones the corridor
+        # and low-footprint vetoes refuse -- so on task 000 from the eighth
+        # decision on, 321 floor candidates were generated, 40 were
+        # shortlisted, and none survived, while 1.31 m^2 of floor stood empty.
+        # Both tests read only cheap features, so they can run here, where they
+        # decide which candidates get looked at rather than which of the
+        # already-chosen few are thrown away.
+        if config.prefilter_dead_candidates:
+            coverage_now = board.grid(container_idx).coverage()
+            alive = [
+                c for c in pool
+                if not _certainly_vetoed(c, board, container_idx, coverage_now, config)
+            ]
+            if alive:
+                pool = alive
+
         buckets: dict[tuple[str, int], list[Candidate]] = {}
         for candidate in pool:
             buckets.setdefault(

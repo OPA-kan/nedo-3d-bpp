@@ -84,6 +84,20 @@ class RuleAlphaConfig:
     floor.  Switchable so the two orders can be compared rather than argued
     about."""
 
+    prefilter_dead_candidates: bool = True
+    """Drop candidates a cheap veto will certainly refuse before the shortlist
+    truncates, not after.
+
+    The shortlist keeps the deepest few floor candidates.  Once the back is
+    full the deepest remaining positions are exactly the ones the corridor and
+    low-footprint vetoes refuse, so the shortlist hands the vetoes a pool that
+    is entirely dead: on task 000 from the eighth decision onward, 321 floor
+    candidates generated, 40 shortlisted, none surviving -- with 1.31 m^2 of
+    floor still empty.  This is the sixth time in this branch that a rule
+    downstream of the truncation could not undo it; the answer is always to
+    move the decision upstream, and both of these tests read only cheap
+    features, so they can move."""
+
     row_tiling: bool = True
     """Price the floor a placement strands in its own row.
 
