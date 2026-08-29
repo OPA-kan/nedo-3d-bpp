@@ -148,6 +148,47 @@ class Rect:
         return (self.x_min, self.x_max, self.y_min, self.y_max)
 
 
+def union_area(rects) -> float:
+    """Area covered by at least one of ``rects``, counting no overlap twice.
+
+    Summing ``overlap_area`` over several surfaces double-counts wherever they
+    meet, and they do meet: the two shelves of a normal ULD share a 0.2838 m^2
+    band, 15% of their combined area.  Anything asking "how much of this box is
+    supported" has to ask for the union, or a box straddling the band can score
+    over 100% supported while hanging off the edge.
+
+    Coordinate compression over the x edges: for each vertical slab, sweep the
+    y intervals of the rects covering it and add the merged length.  Exact, and
+    the inputs here are a handful of rectangles.
+    """
+    boxes = [r for r in rects if r.area > 0.0]
+    if not boxes:
+        return 0.0
+    xs = sorted({r.x_min for r in boxes} | {r.x_max for r in boxes})
+    total = 0.0
+    for left, right in zip(xs, xs[1:]):
+        width = right - left
+        if width <= 0.0:
+            continue
+        spans = sorted(
+            (r.y_min, r.y_max) for r in boxes
+            if r.x_min <= left and r.x_max >= right
+        )
+        covered = 0.0
+        current_lo = current_hi = None
+        for lo, hi in spans:
+            if current_hi is None or lo > current_hi:
+                if current_hi is not None:
+                    covered += current_hi - current_lo
+                current_lo, current_hi = lo, hi
+            else:
+                current_hi = max(current_hi, hi)
+        if current_hi is not None:
+            covered += current_hi - current_lo
+        total += width * covered
+    return total
+
+
 class ContainerModel:
     """Derived geometry and zone layout for a single container."""
 

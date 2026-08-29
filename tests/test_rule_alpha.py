@@ -38,6 +38,7 @@ from rule_alpha.geometry import (  # noqa: E402
     Rect,
     cut_corner_planes,
     make_container_dict,
+    union_area,
 )
 
 ULD = dict(length=2.0, width=1.45, height=1.61, thickness=0.04, cut_x=0.44, cut_y=0.40)
@@ -1537,3 +1538,62 @@ class PlateauDepthTest(unittest.TestCase):
         allowed, level = layer1.may_build_here(board, 0, second, DEFAULT_CONFIG)
         self.assertEqual(level, 2)
         self.assertTrue(allowed)
+
+
+class UnionAreaTest(unittest.TestCase):
+    """Overlapping support surfaces must not be counted twice.
+
+    The two shelves of a normal ULD share a 0.2838 m^2 band, 15% of their
+    combined area, so summing per-surface overlaps let a box straddling that
+    band score over 100% supported while hanging off the front edge.
+    """
+
+    def test_overlapping_rectangles_are_counted_once(self):
+        self.assertAlmostEqual(
+            union_area([Rect(0, 2, 0, 1), Rect(1, 3, 0, 1)]), 3.0
+        )
+
+    def test_disjoint_nested_single_and_empty(self):
+        self.assertAlmostEqual(
+            union_area([Rect(0, 1, 0, 1), Rect(2, 3, 0, 1)]), 2.0
+        )
+        self.assertAlmostEqual(
+            union_area([Rect(0, 4, 0, 4), Rect(1, 2, 1, 2)]), 16.0
+        )
+        self.assertAlmostEqual(union_area([Rect(0, 2, 0, 1)]), 2.0)
+        self.assertAlmostEqual(union_area([]), 0.0)
+
+    def test_the_real_shelves(self):
+        _container, model = _model(require_shelf=True)
+        rects = [
+            Rect(float(sh.minimum[0]), float(sh.maximum[0]),
+                 float(sh.minimum[1]), float(sh.maximum[1]))
+            for sh in model.shelves
+        ]
+        total = sum(r.area for r in rects)
+        union = union_area(rects)
+        self.assertGreater(total - union, 0.28, "the shelves really do overlap")
+        self.assertAlmostEqual(union, 1.5832, places=3)
+
+    def test_a_box_straddling_the_band_cannot_score_over_one(self):
+        """The failure the sum allowed: a box half on the shared band and half
+        over thin air read as fully supported."""
+        _container, model = _model(require_shelf=True)
+        rects = [
+            Rect(float(sh.minimum[0]), float(sh.maximum[0]),
+                 float(sh.minimum[1]), float(sh.maximum[1]))
+            for sh in model.shelves
+        ]
+        # straddles y = 0.040: back half in the doubled band, front half out
+        # past the small shelf's right edge, over open floor
+        box = Rect(-0.70, -0.30, -0.10, 0.30)
+        clipped = [
+            Rect(max(r.x_min, box.x_min), min(r.x_max, box.x_max),
+                 max(r.y_min, box.y_min), min(r.y_max, box.y_max))
+            for r in rects
+        ]
+        self.assertGreater(
+            sum(r.area for r in clipped) / box.area, 1.0,
+            "the sum overstates support past 100% -- this was the bug",
+        )
+        self.assertLess(union_area(clipped) / box.area, 1.0)

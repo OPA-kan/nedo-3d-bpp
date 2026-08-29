@@ -33,7 +33,7 @@ from ._reuse import (
     penetrates_with_lateral_clearance,
 )
 from .diagnostics import FloorGrid, support_code
-from .geometry import ContainerModel, Rect, box_rect
+from .geometry import ContainerModel, Rect, box_rect, union_area
 
 
 # --- candidate archetypes ----------------------------------------------------
@@ -2214,10 +2214,15 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 continue
             bottom = float(candidate.box.minimum[2])
             rect = box_rect(candidate.box)
-            on = sum(
-                r.overlap_area(rect) for r, top in shelf_rects
+            # union, not sum: the two shelves overlap in a 0.2838 m^2 band and
+            # summing counted that band twice, so a box straddling it could
+            # score over 100% supported while hanging off the front edge
+            on = union_area([
+                Rect(max(r.x_min, rect.x_min), min(r.x_max, rect.x_max),
+                     max(r.y_min, rect.y_min), min(r.y_max, rect.y_max))
+                for r, top in shelf_rects
                 if abs(top - bottom) <= config.contact_tolerance
-            )
+            ])
             if on >= config.shelf_min_support_fraction * rect.area - 1e-9:
                 kept.append(candidate)
             else:
