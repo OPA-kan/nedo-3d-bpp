@@ -38,6 +38,8 @@ Cup trunk's does not, and the shim supplies it without altering the
 shipped agent. Taking the branch's `_reuse.py` would silently drop
 that release. Cup 008 onward races the newer actor.
 
+| 008 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 587,593,599,601 · 001: 487,491 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
+
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
 509, 521, 523, 541, 547, 557, 563, 569, 571, 577 · 001: 401, 409, 419,
