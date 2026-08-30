@@ -137,6 +137,82 @@ does not fix rule-alpha's missing Layer 2). And strict-pair *count* is
 not strict-pair *quality*: whether the larger corpus distils better is a
 separate measurement, not shown here.
 
+## Lifting the fork budget
+
+The union moved the bottleneck from the candidate set to the fork
+budget, so a fourth arm re-ran the same cell with
+`--mine-fork-budget 40` (union on, exact off), enough to fork every
+disagreement.
+
+| | A: baseline | C: union, budget 12 | D: union, budget 40 |
+|---|---|---|---|
+| steps / placed / fill | 31 / 31 / 25.459 | 31 / 31 / 25.459 | 31 / 31 / 25.459 |
+| candidate support hits | 0 / 31 | 31 / 31 | 31 / 31 |
+| disagreements | 3 | 25 | 25 |
+| forked / skipped | 3 / 0 | 12 / 13 | **25 / 0** |
+| strict pairs | 3 | 10 | **23** |
+| actor - champion (strict) | 0 - 3 | 6 - 4 | **16 - 7** |
+| no verdict among forked | 0 | 2 | 2 |
+| fork step-equivalents | 132 | 184 | 756 |
+
+**3 -> 23 strict pairs on the identical episode**, with identical
+physics and identical actor play. The extrapolation from the budget-12
+arm was ~21; the actual figure is 23, so the 13 disagreements the budget
+had been dropping were *not* systematically the less decisive ones --
+the strict rate over all 25 forks is 23/25 = 92%, above the 10/12 = 83%
+measured on the first twelve.
+
+The head-to-head against the champion is 16-7 to rule-alpha, against
+0-3 in the baseline. Same actor, same 31 moves; what changed is only
+that the champion now has rule-alpha-shaped candidates available to
+prefer, so the comparison is no longer a one-sided draw between moves
+from a single generator.
+
+Cost is real: 756 fork step-equivalents against the baseline's 132.
+Per physical step the yield still improves on the baseline (30.4 pairs
+per 1000 step-equivalents against 22.7), though budget 12 was the most
+step-efficient of the three at 54.3 -- the marginal disagreement is
+cheaper to skip than to settle, if step-equivalents rather than pairs
+are the scarce resource.
+
+## Same-item top-k
+
+A per-item family is bounded by the pool width, so the alternates
+`choose_for_item` discards are the only source of *same-item*
+diversity. `layer1.choose_for_item` gained a purely observational
+`ranked_observer` (a trunk-only addition, see the ledger) that hands
+out the winning archetype's sorted survivor list, whose head is the
+candidate it returns. `--rule-alpha-per-item-top-k` keeps ranks 2..k.
+
+| | look_ahead 1 | look_ahead 10 |
+|---|---|---|
+| boards | 29 | 31 |
+| mean pool width | 1.00 | 10.00 |
+| family at k=1 | 1.00 | 9.94 |
+| family at k=3 | **2.59** | **24.97** |
+| same-item alternates / state | 1.59 | 15.03 |
+| head is the actor's move | 29/29 both k | 31/31 both k |
+| seconds / state at k=1 | 1.39 | 14.49 |
+| seconds / state at k=3 | **1.43** | **14.81** |
+| added cost | **+2.9%** | **+2.2%** |
+
+The marginal cost of one alternate is 0.025 s and 0.021 s in the two
+regimes -- two independent measurements agreeing, which is what the
+profile predicts if generating and validating the candidate boxes is
+already sunk by the time the ladder picks a winner.
+
+Two things this does not say. The family reaches 2.59 rather than 3.00
+because a tight board leaves the winning archetype fewer than three
+survivors; the alternates are real candidates and run out. And **only
+the proposal is nearly free.** Every root candidate gets its own
+terminal rollout, so search cost scales with the candidate count: at
+k=3 uncapped the union would be ~27.7 candidates per state against
+12.65 at k=1. `--rule-alpha-union-limit` therefore remains the real
+cap, and `--rule-alpha-per-item-top-k` re-composes that budget --
+trading breadth across items for depth on one item -- rather than
+enlarging it. Which of the two kinds of diversity produces strict pairs
+is not measured here.
+
 ## Cost
 
 The proposer is linear in the limit at roughly 1.5 s per proposal

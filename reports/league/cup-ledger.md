@@ -75,7 +75,17 @@ injection is now a provable no-op and teacher and inference share one
 action space. Strict pairs on that cell went 3 -> 10 and the head-to-head
 against the champion flipped 0-3 to 6-4, though the fork budget became
 binding (12 of 25 disagreements forked) so the yield figure understates
-it. Full measurement, cost profile and caveats:
+it. Lifting the fork budget to 40 then forked all 25 disagreements and took
+strict pairs to **23** (3 in the baseline) at a 92% strict rate, with the
+head-to-head against the champion at 16-7 to rule-alpha versus 0-3
+before -- same episode, same physics, same actor play throughout.
+`adba8f9` additionally recovers each item's discarded 2nd..kth Layer 1
+candidates via a trunk-only `ranked_observer` hook in
+`layer1.choose_for_item` (**re-apply it on the next rule_alpha vendor**;
+`RuleAlphaProposer` raises rather than silently narrowing if it is
+gone), which widens the family 2.5x for ~2% more proposer time and is
+the only source of same-item diversity -- the thing that matters on a
+one-item pool. Full measurement, cost profile and caveats:
 `reports/candidate-support/rule-alpha-union-20260830.md`.
 
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
