@@ -62,6 +62,22 @@ Cup trunk's does not, and the shim supplies it without altering the
 shipped agent. Taking the branch's `_reuse.py` would silently drop
 that release. Cup 008 onward races the newer actor.
 
+Candidate-support mismatch (2026-08-30, after Cup 008). Cup 009 was
+deliberately deferred to fix the candidate set first. `ad2a68a` unions a
+rule-alpha proposal family into the inference-side candidate provider
+(`scripts/rule_alpha_proposals.py`, off by default behind
+`--union-rule-alpha`). On dual-empty-permute-000-607 seed 42 the generic
+provider contained rule-alpha's executed move on 0 of 31 boards and the
+family on 31 of 31, with the two sets **never overlapping**; running the
+same episode with the union and with `add_exact_agent_candidate` turned
+OFF gave bit-identical results to leaving it on, so the mining-time
+injection is now a provable no-op and teacher and inference share one
+action space. Strict pairs on that cell went 3 -> 10 and the head-to-head
+against the champion flipped 0-3 to 6-4, though the fork budget became
+binding (12 of 25 disagreements forked) so the yield figure understates
+it. Full measurement, cost profile and caveats:
+`reports/candidate-support/rule-alpha-union-20260830.md`.
+
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
 "003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s
 `next_cup_id()` matches `^\|\s*(\d{3})\s*\|` — a bare 3-digit id with
