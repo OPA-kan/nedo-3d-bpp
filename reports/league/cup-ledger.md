@@ -21,7 +21,7 @@ artifact is read.
 
 | 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | 33294741331 | 78 | 0.82-0.96 | first cup with rule-alpha@7908b09 (debut: 0/6 genuine termination, `rule_alpha_declined` x5 + 1 selected_action_failure, 105/105 candidate-support misses); ジ・アーモンド 0/6 genuine termination for a fifth straight cup; maximum terminal fill 41.857 (ジ・アーモンド, 26 placed, non-genuine selected_action_failure); pairs **corrected 79 -> 78** (rule-alpha 17 -> 16) — one fork was a one-horse race, not strict dominance; root cause fixed in `run_terminal_rollout_policy.pair_fork_winner` — see `reports/league/diversity-cup-006.md` |
 
-| 007 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 563,569,571,577 · 001: 467,479 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
+| 007 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 563,569,571,577 · 001: 467,479 | 33297401046 | 83 | 0.78-0.95 | still rule-alpha@7908b09 (dispatched from `3b95cfc`, before the `f54abbc` vendor — Cup 008 is the first on `803fd6f`); largest harvest yet; **rule-alpha the most efficient miner in the field** (18 strict from 22 forks = 82%, 78261 pairs/M step-equiv, and 12 actor wins to 6 champion — the only winning record vs the champion); ジ・アーモンド collapsed to 3/14 strict (21%) and 0/6 genuine termination for a sixth straight cup; maximum terminal fill 36.069 (ジ・アーモンド, 23 placed, non-genuine selected_action_failure); **first cup collected under the one-horse-race fix — zero one-sided verdicts, analyzer/builder/jsonl all agree at 83** — see `reports/league/diversity-cup-007.md` |
 
 rule-alpha vendor note (2026-08-30): rule-alpha is developed on
 `claude/rule-alpha-layer-1-ch78oi`, an **orphan branch that shares no
@@ -40,9 +40,21 @@ that release. Cup 008 onward races the newer actor.
 
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
-509, 521, 523, 541, 547, 557 · 001: 401, 409, 419, 421, 431, 433, 439,
-443, 449, 457, 461, 463 (a prime may be reused on the OTHER source
-only if the ledger shows it was never run on that source).
+509, 521, 523, 541, 547, 557, 563, 569, 571, 577 · 001: 401, 409, 419,
+421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479 (a prime may be
+reused on the OTHER source only if the ledger shows it was never run
+on that source).
+
+**Pool warning (verified 2026-08-30, after Cup 007):** the 401-599
+pool holds 31 primes. Source 000 has **only 3 left** (587, 593, 599);
+source 001 has 17 (487 upward). Cups 001-007 all drew 4 cells from
+000 and 2 from 001, so **source 000 cannot supply another cup at that
+ratio** — Cup 008 onward must shift its weight to 001, which supports
+roughly four more cups on its own. When 001 runs dry too, extending
+`STREAM_VARIANTS` in `scripts/build_scenario_matrix.py` is a code
+change and needs coordinating first (see the runbook's hard
+boundaries) — do not silently reuse a prime on a source that has
+already run it.
 
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
 "003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s
