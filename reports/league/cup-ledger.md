@@ -19,12 +19,13 @@ artifact is read.
 
 | 005 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 499,503,509,521 · 001: 449,457 | 33291140628 | 75 | 0.83-0.96 | five-horse field incl ジ・アーモンド; 144 disagreements, 143 forks, 75 strict pairs; maximum terminal fill 38.8154 (ジ・アーモンド, 25 placed, non-genuine selected-action failure) — see `reports/league/diversity-cup-005.md` |
 
-| 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
+| 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | 33294741331 | 79 | 0.82-0.96 | first cup with rule-alpha (debut: 0/6 genuine termination, `rule_alpha_declined` x5 + 1 selected_action_failure, 105/105 candidate-support misses); ジ・アーモンド 0/6 genuine termination for a fifth straight cup; maximum terminal fill 41.857 (ジ・アーモンド, 26 placed, non-genuine selected_action_failure) — see `reports/league/diversity-cup-006.md` |
 
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
-431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491 · 001: 401,
-409, 419, 421, 431, 433, 439, 443 (a prime may be reused on the OTHER
-source only if the ledger shows it was never run on that source).
+431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
+509, 521, 523, 541, 547, 557 · 001: 401, 409, 419, 421, 431, 433, 439,
+443, 449, 457, 461, 463 (a prime may be reused on the OTHER source
+only if the ledger shows it was never run on that source).
 
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
 "003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s
