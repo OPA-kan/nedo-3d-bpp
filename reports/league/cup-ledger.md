@@ -21,6 +21,8 @@ artifact is read.
 
 | 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | 33294741331 | 78 | 0.82-0.96 | first cup with rule-alpha@7908b09 (debut: 0/6 genuine termination, `rule_alpha_declined` x5 + 1 selected_action_failure, 105/105 candidate-support misses); ジ・アーモンド 0/6 genuine termination for a fifth straight cup; maximum terminal fill 41.857 (ジ・アーモンド, 26 placed, non-genuine selected_action_failure); pairs **corrected 79 -> 78** (rule-alpha 17 -> 16) — one fork was a one-horse race, not strict dominance; root cause fixed in `run_terminal_rollout_policy.pair_fork_winner` — see `reports/league/diversity-cup-006.md` |
 
+| 007 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 563,569,571,577 · 001: 467,479 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
+
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
 509, 521, 523, 541, 547, 557 · 001: 401, 409, 419, 421, 431, 433, 439,
