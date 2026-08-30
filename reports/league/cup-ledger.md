@@ -28,6 +28,8 @@ artifact is read.
 
 | 008 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 587,593,599,601 · 001: 487,491 | 33299902464 | 71 | 0.79-0.96 | first cup on the extended 401-799 pool and **first on rule-alpha@803fd6f**; rule-alpha took the cup's maximum terminal fill for the first time (39.917, 23 placed, single-empty-noshelf-000-599, beating ジ・アーモンド's 32.575 in the same cell — not an all-time record, Cup 006's 41.857 stands) and holds the best strict rate by far (8/11 = 73%, 7-1 vs the champion); ジ・アーモンド 0/6 genuine termination for a seventh straight cup; **exposed the candidate-support mismatch — rule-alpha 89/89 = 100% of its executed actions absent from the candidate provider's set, ジ・アーモンド 78%, the three rule studs 0%** — so Cup 009 is deliberately deferred while the candidate set is fixed — see `reports/league/diversity-cup-008.md` |
 
+| 009 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 607,613,617,619 · 001: 499,503 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha (actor commit recorded in the per-cup report) |
+
 Pool allocation note: primes used so far (regenerated from the table
 above) — 000 (32): 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601 · 001 (16): 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491 (a prime may be reused on the OTHER source only if the ledger shows
 it was never run on that source).
