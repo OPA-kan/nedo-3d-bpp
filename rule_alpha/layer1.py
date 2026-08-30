@@ -3282,9 +3282,21 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
 
     rect = model.floor_rect
     moved = slide(box, 1, rect.y_max - float(box.size[1]) / 2.0)
-    if config.compact_sideways_always or role in (
+    # A wedge step is placed left of `floor_rect` on purpose: overhanging the
+    # chamfer is the entire behaviour.  Sideways compaction targets
+    # `floor_rect.x_min`, which by construction is the floor limit and excludes
+    # the pocket, so it slid the overhang straight back out.  Measured on task
+    # 001: the key picks x[-0.792, -0.142], which recovers 0.0294 m2 of the
+    # chamfer, and compaction returns it to x[-0.536, +0.114], which recovers
+    # nothing -- the same box, the same height, 0.256 m to the right.  The
+    # staircase came out at 0% of the chamfer on task 001 and 22% on task 000.
+    slides_sideways = role not in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL,
+                                   l2.ROLE_FRONT_WEDGE)
+    if not config.wedge_keeps_its_overhang:
+        slides_sideways = True
+    if slides_sideways and (config.compact_sideways_always or role in (
         cls.ROLE_WALL_FRONT, cls.ROLE_TALL_PERIMETER, cls.ROLE_ELONGATED
-    ):
+    )):
         half = float(moved.size[0]) / 2.0
         centre_x = float(moved.center[0])
         target = (

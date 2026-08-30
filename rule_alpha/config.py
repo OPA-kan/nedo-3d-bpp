@@ -107,6 +107,40 @@ class RuleAlphaConfig:
     anchor the clamp rescues is within 2 mm and the bound is a guard rather than
     a tuning knob."""
 
+    wedge_keeps_its_overhang: bool = False
+    """Do not slide a staircase step back out of the chamfer.
+
+    Sideways compaction aims at `floor_rect.x_min`, which is the floor limit and
+    so excludes the chamfer pocket by construction -- and with
+    `compact_sideways_always` it applies to every role, the wedge steps
+    included.  Overhanging the chamfer is the whole of what a wedge step does,
+    so compaction was undoing the placement the key had just chosen.
+
+    Measured on task 001: the wedge-step key picks x[-0.792, -0.142], which
+    recovers 0.0294 m2 of the 0.0743 m2 chamfer cross-section, and compaction
+    returns it to x[-0.536, +0.114], which recovers nothing.  Same box, same
+    height, 0.256 m to the right.  The finished staircases recover 0% of the
+    chamfer on task 001 and 22% on task 000.
+
+    Off, and the reason is arithmetic rather than a close call.  The repair
+    works -- task 001's staircase goes from 0% to 79.2% of the chamfer -- but
+    the whole chamfer is only worth so much::
+
+        task 000  0.0785 m2 x 1.410 m = 0.1106 m3 = 2.84 fill at 100% recovery
+        task 001  0.0743 m2 x 1.470 m = 0.1092 m3 = 2.80 fill at 100% recovery
+
+    against 1.87 fill for a single 0.65 x 0.45 x 0.25 item.  So the entire wedge
+    programme is worth less than two ordinary boxes, and building it costs six::
+
+        arm              task 000                 task 001
+        off              24 / 28.157  (21.9%)     27 / 29.793  (0.0%)
+        keeps overhang   24 / 28.157  (21.9%)     21 / 21.967  (79.2%)
+
+    The steps are made of cargo that would otherwise be foundation, and cargo in
+    the pocket supports far less than cargo on the floor.  Kept switchable with
+    the numbers, because the mechanism is now correct and a manifest of genuinely
+    small hard cargo could change the sum -- but on these two it cannot."""
+
     back_reachability_guard: bool = True
     """Refuse a placement that would rise above the terrain behind it.
 

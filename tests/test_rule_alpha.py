@@ -1574,6 +1574,36 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class WedgeOverhangTest(unittest.TestCase):
+    """Compaction aimed the staircase back out of the chamfer.
+
+    Sideways compaction targets `floor_rect.x_min`, which is the floor limit and
+    excludes the chamfer pocket by construction, and `compact_sideways_always`
+    applies it to every role.  So the wedge-step key would pick x[-0.792, -0.142]
+    -- 0.0294 m2 of the 0.0743 m2 chamfer on task 001 -- and compaction would
+    return it to x[-0.536, +0.114], which recovers nothing."""
+
+    def test_the_wedge_roles_are_named_in_the_compaction_exemption(self):
+        source = pathlib.Path(layer1.__file__).read_text()
+        block = source.partition("slides_sideways = role not in")[2].partition(")")[0]
+        for role in ("ROLE_WEDGE_STEP", "ROLE_SLOPE_INFILL", "ROLE_FRONT_WEDGE"):
+            self.assertIn(role, block)
+
+    def test_the_exemption_is_off_because_the_chamfer_is_small(self):
+        """The whole chamfer is 0.11 m3, about 2.8 fill points at perfect
+        recovery, against 1.87 for one ordinary box -- and letting the staircase
+        form costs six of them on task 001."""
+        self.assertFalse(DEFAULT_CONFIG.wedge_keeps_its_overhang)
+
+    def test_the_floor_rect_really_does_exclude_the_pocket(self):
+        """Which is why aiming compaction at it undoes an overhang: the pocket
+        lies left of `floor_rect`, between the wall and the floor limit."""
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        self.assertLess(model.x_wall_min, model.x_floor_min)
+        self.assertGreaterEqual(model.floor_rect.x_min, model.x_floor_min)
+
+
 class BackReachabilityTest(unittest.TestCase):
     """A box taller than what is behind it seals that column.
 
