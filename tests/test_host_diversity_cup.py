@@ -24,7 +24,7 @@ STATE = {
     ],
 }
 
-LEDGER = """# Diversity Cup ledger
+LEDGER = """# Research Cup ledger
 
 | cup | date | vs model (learning run) | champion | streams (000/001 primes) | run | strict pairs | novel board rate | notes |
 |---|---|---|---|---|---|---|---|---|

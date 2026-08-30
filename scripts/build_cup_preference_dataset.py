@@ -1,4 +1,4 @@
-"""Convert preregistered Diversity Cup forks into preference examples.
+"""Convert preregistered Research Cup forks into preference examples.
 
 The Cup aggregate intentionally publishes only a compact pair index.  The
 cell artifacts retain the actual pre-action snapshot and the physically

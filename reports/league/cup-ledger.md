@@ -1,7 +1,10 @@
-# Diversity Cup ledger
+# Research Cup ledger
+
+Rows 001-008 were hosted under the event's former name, the Diversity
+Cup; the rename at Cup 009 changed no rule, no numbering and no pool.
 
 Rolling preregistration for cup events (design:
-`reports/self-play-packing/diversity-cup-design.md`, hosting procedure:
+`reports/self-play-packing/research-cup-design.md`, hosting procedure:
 `reports/league/cup-hosting-runbook.md`). **Append the row BEFORE
 dispatching** — the row is the preregistration. Streams must be fresh,
 never-reused primes from the 401-799 pool; never eval variants, never
@@ -111,7 +114,7 @@ dominance rule, which included `surface_total_variation_delta` — Cup
 002's episodes ran two hours before the exclusion fix landed, despite
 what an earlier version of this ledger said. **Cup 003 is the first
 cup scored entirely under the 4-head rule** (design:
-`reports/self-play-packing/diversity-cup-design.md`, "Cup 002+
+`reports/self-play-packing/research-cup-design.md`, "Cup 002+
 amendment: surface_total_variation drops out of the fork dominance
 rule"; fix commit `1087667`). Cup 001/002 numbers are not directly
 comparable to Cup 003+; the strict-pairs jump (17 -> 56 pairs, same

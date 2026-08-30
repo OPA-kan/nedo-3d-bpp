@@ -1,7 +1,7 @@
 # Diversity Cup 001 — 種馬成績表
 
 Date: 2026-08-26. Run 32920552027 (12.5 min wall). Preregistration:
-`reports/self-play-packing/diversity-cup-design.md` + ledger row 001.
+`reports/self-play-packing/research-cup-design.md` + ledger row 001.
 Field: champion プリフヒバリ (pi2-pref-w6, plain) vs three mining studs
 against the champion's own ensemble (learning run 32890092906). Six
 virgin cells, primes 401-433, fork budget 12/episode.

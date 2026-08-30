@@ -1,9 +1,9 @@
-name: Diversity Cup
+name: Research Cup
 run-name: >-
-  Diversity Cup ${{ inputs.cup_id || '001' }} · teacher mining vs ${{ inputs.model_run_id }}
+  Research Cup ${{ inputs.cup_id || '001' }} · teacher mining vs ${{ inputs.model_run_id }}
 
 # Teacher-mining event, preregistered in
-# reports/self-play-packing/diversity-cup-design.md. Dispatch-only and
+# reports/self-play-packing/research-cup-design.md. Dispatch-only and
 # fully outside season 1: cup streams (primes 401+) are disjoint from
 # the frozen eval variants and every preregistered wave, and nothing
 # here writes to the season ledger, registry, or matrices. Each cell is
@@ -12,6 +12,11 @@ run-name: >-
 # diversity actor mines
 # counterfactual dominance pairs against the champion ensemble at each
 # action disagreement.
+#
+# Cup 009+ (Cup 009+ amendment in the design record): rule-alpha alone
+# runs with its Layer 1 proposal family unioned into the candidate set
+# and its own fork budget. The other five horses are untouched, so every
+# cross-cup comparison except rule-alpha's stays exact.
 
 on:
   workflow_dispatch:
@@ -29,6 +34,19 @@ on:
         description: Counterfactual forks per stud episode
         required: false
         default: "12"
+      rule_alpha_fork_budget:
+        description: >-
+          Counterfactual forks for the rule-alpha episode only. Held
+          separate from mine_fork_budget so the other five horses stay
+          bit-comparable with Cups 001-008; see the Cup 009+ amendment.
+        required: false
+        default: "40"
+      rule_alpha_union_limit:
+        description: >-
+          rule-alpha proposal-family candidates unioned into the
+          inference-side candidate set per state (0 disables the union)
+        required: false
+        default: "4"
       cup_id:
         description: Cup number for the ledger (e.g. "002")
         required: false
@@ -141,7 +159,9 @@ jobs:
             --max-steps 40 \
             --policy rule-alpha \
             --mine-against-model reports/cup/model \
-            --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
+            --mine-fork-budget "${{ inputs.rule_alpha_fork_budget || '40' }}" \
+            --union-rule-alpha \
+            --rule-alpha-union-limit "${{ inputs.rule_alpha_union_limit || '4' }}" \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/rule-alpha/rollout
           for stud in rule-grid rule-lowcog rule-edge; do
             python scripts/run_terminal_rollout_policy.py \
@@ -187,5 +207,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: diversity-cup-result-${{ github.run_id }}
+          name: research-cup-result-${{ github.run_id }}
           path: reports/cup/out/

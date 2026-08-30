@@ -1,4 +1,8 @@
-# Design record: Diversity Cup 001 (ダイバーシティカップ)
+# Design record: Research Cup 001 (リサーチカップ)
+
+Named the Diversity Cup for Cups 001-008; renamed at Cup 009 (see the
+Cup 009+ amendment below). The event, the numbering, the prime pool
+and every frozen rule are continuous across the rename.
 
 Date: 2026-08-26. Direction set by the project owner; this file
 preregisters the event before it runs. Companion to
@@ -228,3 +232,80 @@ Unchanged: the six-cell course size, the 12 forks/episode budget, the
 one-cup-at-a-time rule, single-use-per-source primes, and the novelty
 stopping rule. Nothing about scoring, dominance or promotion is
 touched.
+
+## Cup 009+ amendment: Research Cup rename, and rule-alpha's candidate union
+
+Date: 2026-08-30. Three changes, all confined to Cup 009 onward.
+
+### 1. The event is renamed Diversity Cup -> Research Cup
+
+Numbering continues (Cup 009 is the ninth cup, not a new series), and so
+do the ledger, the single-use prime pool, the champion lineage and every
+frozen rule. A numbering reset was rejected outright: the prime pool's
+single-use-per-source guarantee is tracked by cup id in
+`reports/league/cup-ledger.md`, and restarting the count would put that
+guarantee at risk for a cosmetic gain.
+
+**What is deliberately NOT renamed**, and why. Workflow filenames
+(`diversity-cup.yml`, `host-diversity-cup.yml`), script filenames
+(`host_diversity_cup.py`, `analyze_diversity_cup.py`), the cross-workflow
+`cup-cell-*` artifact contract, and the report filenames for Cups
+001-008. A `workflow_dispatch` targets a workflow by filename and GitHub
+keys run history to that path, so renaming those files would orphan the
+run history of Cups 001-008 -- the run ids the ledger records as
+evidence -- and break `cup-preference-distillation.yml`'s consumer
+contract, for no research benefit. Human-facing names (workflow display
+names, run titles, document titles, step summaries) are renamed, as is
+the aggregate artifact going forward: Cup 009+ uploads
+`research-cup-result-<run>` where Cups 001-008 uploaded
+`diversity-cup-result-<run>`.
+
+### 2. rule-alpha races with its Layer 1 proposal family unioned in
+
+Cup 008 measured rule-alpha's executed action absent from the candidate
+provider's set on 89 of 89 boards, and the current agent's on 78%
+(`reports/league/diversity-cup-008.md`). Mining papered over this by
+unioning the exact actor command into the fork's roots, so a preference
+label was written for a move that at inference was not in the choice set
+at all -- a defect upstream of any ranker.
+
+From Cup 009 the rule-alpha episode runs `--union-rule-alpha
+--rule-alpha-union-limit 4`, adding rule-alpha's own Layer 1 placement
+for each visible pool item to the candidate set. Measured on
+dual-empty-permute-000-607 seed 42
+(`reports/candidate-support/rule-alpha-union-20260830.md`): support hits
+0/31 -> 31/31, and running the same episode with
+`add_exact_agent_candidate` turned OFF gave a bit-identical result, so
+the mining-time injection is now a provable no-op.
+
+**The exact-agent candidate is nevertheless kept on.** Having proved it
+is a no-op when the union works, leaving it in costs nothing and insures
+the cup against an unmeasured board where the union might miss; the
+per-step `candidate_support_hit` field still records whether the
+provider supplied the action, so the measurement is not weakened.
+
+### 3. rule-alpha alone gets its own fork budget
+
+`mine_fork_budget` stays 12 for the other five horses -- the runbook
+fixes it and this amendment does not move it. rule-alpha gets a separate
+`rule_alpha_fork_budget`, default 40, because the union moved its
+bottleneck: on the measured cell it raised disagreements from 3 to 25,
+of which budget 12 could fork only 12. At 40 all 25 fork and strict
+pairs go 3 -> 23 at a 92% strict rate, against 10 at budget 12.
+
+**Only rule-alpha changes.** The champion, the current agent and the
+three rule studs run byte-identical commands to Cup 008, so every
+cross-cup comparison except rule-alpha's stays exact and the corpus
+shift is attributable to one horse.
+
+### What this does not claim
+
+The union is a baseline that makes teacher actions executable. Both
+sides of a rule-alpha fork are still drawn from rule-alpha's own
+generator -- the alternatives now come from its discard pile rather than
+from nowhere -- so a richer preference signal is expected, but no action
+outside rule-alpha's generator has been produced. Cost is real and
+recorded: 756 fork step-equivalents against the baseline's 132, well
+inside the 180-minute cell timeout (Cup 008's longest cell ran 26
+minutes). Course isolation, four-head dominance, the genuine-terminal
+teacher contract and the no-auto-training boundary are unchanged.

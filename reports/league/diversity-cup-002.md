@@ -2,7 +2,7 @@
 
 Date: 2026-08-26. Episodes run 32925104549 (episodes succeeded; the
 `standings` job in that run crashed — see "Standings recovery" below).
-Preregistration: `reports/self-play-packing/diversity-cup-design.md`
+Preregistration: `reports/self-play-packing/research-cup-design.md`
 (Cup 002+ amendment: exact current-agent anchor) + ledger row 002.
 Field: champion プリフヒバリ (pi2-pref-w6, plain), ジ・アーモンド
 (ジ系列, the shipped `agent/agent.py::Agent.policy` run as

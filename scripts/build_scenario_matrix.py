@@ -110,7 +110,7 @@ STREAM_VARIANTS = (
     "permute-001-331", "permute-001-337", "permute-001-347",
     "permute-001-349", "permute-001-353", "permute-001-359",
     "permute-001-367", "permute-001-373", "permute-001-379",
-    # Diversity Cup side-corpus stream pool: primes 401-799 are disjoint
+    # Research Cup side-corpus stream pool: primes 401-799 are disjoint
     # from both the frozen eval variants (all <= 197) and every season-1
     # wave prime (all <= 379). Cups draw fresh, never-reused streams from
     # this pool (allocation tracked in reports/league/cup-ledger.md) so

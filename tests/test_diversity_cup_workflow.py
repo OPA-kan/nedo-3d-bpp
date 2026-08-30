@@ -36,6 +36,40 @@ class DiversityCupWorkflowTests(unittest.TestCase):
         self.assertNotIn("reports/league/season", self.text)
         self.assertNotIn("registry.json", self.text)
 
+    def rule_alpha_command(self):
+        """The rule-alpha invocation, up to the next policy or loop."""
+        head, _sep, tail = self.text.partition("--policy rule-alpha")
+        self.assertTrue(_sep, "no rule-alpha episode in the workflow")
+        return tail.split("--output-dir")[0]
+
+    def test_cup_009_gives_rule_alpha_the_union_and_its_own_fork_budget(self):
+        """Cup 009+ amendment: the union and the budget are rule-alpha's
+        alone, so the other five horses stay comparable to Cup 008."""
+        command = self.rule_alpha_command()
+        self.assertIn("--union-rule-alpha", command)
+        self.assertIn("--rule-alpha-union-limit", command)
+        self.assertIn("inputs.rule_alpha_fork_budget", command)
+        self.assertNotIn("inputs.mine_fork_budget", command)
+
+    def test_no_other_horse_gets_the_rule_alpha_union(self):
+        # exactly one episode carries the union flag
+        self.assertEqual(self.text.count("--union-rule-alpha"), 1)
+        for policy in ("learned", "current-agent"):
+            block = self.text.partition(f"--policy {policy}")[2].split(
+                "--output-dir"
+            )[0]
+            self.assertNotIn("--union-rule-alpha", block)
+
+    def test_the_shared_stud_fork_budget_is_untouched(self):
+        # the three compact studs still run the runbook's fixed 12
+        self.assertIn('default: "12"', self.text)
+        self.assertIn("inputs.mine_fork_budget", self.text)
+
+    def test_the_exact_agent_safety_net_stays_on(self):
+        """Proved a no-op when the union works; kept as cheap insurance,
+        and candidate_support_hit still records what the provider gave."""
+        self.assertNotIn("--no-exact-agent-candidate", self.text)
+
     def test_six_cells_run_champion_two_exact_agents_and_three_mining_studs(self):
         # the course is a dispatch input; the baked default is Cup 001
         self.assertIn("fromJSON(inputs.cells ||", self.text)

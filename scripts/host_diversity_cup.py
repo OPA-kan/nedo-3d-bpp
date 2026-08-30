@@ -1,4 +1,4 @@
-"""Prepare one preregistered Diversity Cup dispatch from repository state.
+"""Prepare one preregistered Research Cup dispatch from repository state.
 
 This is the machine-readable half of ``cup-hosting-runbook.md``.  It resolves
 the current promoted champion, allocates six unused source-specific streams,
@@ -105,7 +105,7 @@ def allocate_course(ledger_text: str) -> list[dict[str, str]]:
     for source, count in required.items():
         if len(remaining[source]) < count:
             raise ValueError(
-                f"Diversity Cup stream pool exhausted for source {source}: "
+                f"Research Cup stream pool exhausted for source {source}: "
                 f"need {count}, have {len(remaining[source])}"
             )
     offsets = {"000": 0, "001": 0}

@@ -1,4 +1,4 @@
-"""Score a Diversity Cup: research standings first, race standings second.
+"""Score a Research Cup: research standings first, race standings second.
 
 Reads the cup episode tree (``<root>/cup-cell-<cell>/<horse>/rollout/``),
 computes per-stud teacher-mining metrics (novel board fingerprints
@@ -8,7 +8,7 @@ all pairwise W-L-D-incomparable tables from the shared terminal
 relation, and extracts the mined preference pairs as the side corpus.
 
 The cup is preregistered in
-``reports/self-play-packing/diversity-cup-design.md``: cells never touch
+``reports/self-play-packing/research-cup-design.md``: cells never touch
 the season matrices, and mined pairs feed training only through a
 separately preregistered step.
 """
@@ -193,7 +193,7 @@ def pairwise_tables(
                 if first not in horses or second not in horses:
                     continue
                 # current-agent always executes its own action, including
-                # a physically rejected one (diversity-cup-design.md), so
+                # a physically rejected one (research-cup-design.md), so
                 # its episode can legitimately end in a non-genuine
                 # termination with no shake test and thus no
                 # post_shake_* heads. league.episode_outcome() is
@@ -319,7 +319,7 @@ def analyze(root: pathlib.Path) -> dict[str, Any]:
     corpus = side_corpus(cup)
     return {
         "contract": "diversity_cup_report_v1",
-        "design": "reports/self-play-packing/diversity-cup-design.md",
+        "design": "reports/self-play-packing/research-cup-design.md",
         "cells": sorted(cup),
         "horses": {
             cell: sorted(horses) for cell, horses in sorted(cup.items())

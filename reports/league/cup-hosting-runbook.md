@@ -1,13 +1,19 @@
-# Diversity Cup hosting runbook (for the Codex session)
+# Research Cup hosting runbook (for the Codex session)
+
+Called the Diversity Cup through Cup 008; renamed at Cup 009 (design
+record, "Cup 009+ amendment"). Numbering, ledger, prime pool and every
+frozen rule carry across the rename unchanged. Workflow and script
+**filenames** deliberately keep the old name so Cups 001-008 keep their
+Actions run history -- the run ids this ledger cites as evidence.
 
 The cup is a teacher-mining event, fully outside season 1. Hosting one
 is a **dispatch plus a ledger row — never a code change**. Design and
-frozen rules: `reports/self-play-packing/diversity-cup-design.md`.
+frozen rules: `reports/self-play-packing/research-cup-design.md`.
 Scoring: `scripts/analyze_diversity_cup.py` (runs inside the workflow).
 
 ## One-click hosting (preferred for a human operator)
 
-Open GitHub Actions → **Host Diversity Cup (one click)** → **Run
+Open GitHub Actions → **Host Research Cup (one click)** → **Run
 workflow**. Both inputs may stay blank: the workflow resolves the current
 champion's learning run from season state, draws the next unused six
 source-specific streams, appends and pushes the ledger preregistration,
@@ -15,8 +21,8 @@ then dispatches the Cup. Optional inputs only override the model run or
 assert the expected next Cup number. The job refuses to proceed while
 another Cup is queued/running.
 
-This workflow is only a host. The physics event remains
-`diversity-cup.yml`, and all manual rules below remain the recovery/audit
+This workflow is only a host. The physics event remains the workflow
+file `diversity-cup.yml` (displayed as **Research Cup**), and all manual rules below remain the recovery/audit
 contract. Cup 006+ runs the six-horse field including the exact stateful
 current agent and exact stateful rule-alpha actor. The aggregate report
 includes maximum terminal fill and exact-actor candidate-support misses.
@@ -46,14 +52,20 @@ and the recovery path if its dispatch step fails after preregistration.
    - `cup_id`: next number ("002", "003", ...)
    - `mine_fork_budget`: `12` (do not tune this per cup; changing it
      is a design change and needs a design-record amendment)
+   - `rule_alpha_fork_budget`: `40` and `rule_alpha_union_limit`: `4`
+     — rule-alpha only, fixed by the Cup 009+ amendment. Same rule:
+     do not tune per cup. They are separate from `mine_fork_budget`
+     precisely so the other five horses stay comparable to Cup 008.
    - `cells`: JSON array of the six
      `{"cell":...,"scenario":...,"stream":...}` rows from step 2.
      Empty re-runs the Cup 001 course — never do that; courses are
      single-use.
-5. **After the run**: download `diversity-cup-result-<run>` →
+5. **After the run**: download `research-cup-result-<run>` →
+   (Cups 001-008 uploaded it as `diversity-cup-result-<run>`)
    `cup-report.json` + `side-corpus-pairs.jsonl`. Fill the ledger
    row's run id, `side_corpus_pairs`, and total novel-board rate.
-   Optionally write `reports/league/diversity-cup-<id>.md` with the
+   Optionally write `reports/league/research-cup-<id>.md` with the
+   (Cups 001-008 are `diversity-cup-<id>.md`)
    stud standings (research metrics first, race tables second). Keep
    the pairs jsonl attached to the run artifact — do not commit the
    raw pairs into the repo.
@@ -74,7 +86,7 @@ and the recovery path if its dispatch step fails after preregistration.
 - Course primes are single-use per source. When the pool runs dry,
   extend `STREAM_VARIANTS` in `scripts/build_scenario_matrix.py` (that
   IS a code change — coordinate first).
-- One cup at a time; check Actions for a running Diversity Cup before
+- One cup at a time; check Actions for a running Research Cup before
   dispatching.
 
 ## How much data until it matters (planning guidance)
