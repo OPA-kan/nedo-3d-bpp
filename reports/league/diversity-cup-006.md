@@ -129,6 +129,29 @@ back incomparable, including all 6 グリッドオー-vs-テイジュウシン a
 all 6 テイジュウシン-vs-カベヅタイ cells. As always, race wins decide
 nothing — no promotion or gating logic reads this table.
 
+## Shun Long distillation of this cup's memory
+
+Run 33297218065 (on `ce6cb2b`, after the one-horse-race fix; the first
+attempt 33296515759 aborted on the defect this cup exposed). 78 pairs,
+6 course-cell groups, `passes=1`, base model 32890092906. Status stays
+`capability_only_not_league_evidence` — no match, no promotion, and
+the registry is untouched, so the next cup keeps the current champion.
+
+| | before | after |
+|---|---|---|
+| leave-one-course-cell-out AUC | 0.590 | **0.566** |
+| leave-one-course-cell-out log loss | 1.716 | **0.960** |
+| same-corpus AUC | 0.590 | 0.644 |
+
+Same shape as Cup 003's distillation but noticeably less overfit: the
+held-out ranking still degrades (0.590 -> 0.566) while the in-corpus
+fit improves, so the memory is still not earning out-of-distribution
+ranking power. What is new is calibration — held-out log loss nearly
+halves (1.716 -> 0.960), where Cup 003's held-out AUC had collapsed
+below chance (0.624 -> 0.478) on 56 pairs. On 78 pairs the same
+procedure is directionally better on both counts. Treat this as
+"bigger corpus hurts less", not as evidence the memory helps.
+
 ## rule-alpha version boundary (read before reusing these numbers)
 
 This cup ran **rule-alpha@7908b09**, the state vendored into this
