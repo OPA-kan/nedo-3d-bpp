@@ -199,5 +199,99 @@ class ProposalFamilyContainsTheActorsMoveTests(unittest.TestCase):
         self.assertEqual(family[0], canonical_action(action))
 
 
+@unittest.skipUnless(AVAILABLE, SKIP_REASON)
+class SameItemTopKTests(unittest.TestCase):
+    """The 2nd..kth candidates choose_for_item sorts and throws away.
+
+    They are the only source of *same-item* diversity, so they are what
+    widens the choice set on a one-item pool where a per-item family is
+    necessarily just the actor's own move.
+    """
+
+    maxDiff = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.config = json.loads(CONFIG.read_text(encoding="utf-8"))["000"]
+
+    def board(self, config=None):
+        from scripts.build_replay_dataset import policy_observation
+        from scripts.run_single_agent_packing import _fresh_env
+
+        env = _fresh_env(config or copy.deepcopy(self.config))
+        self.addCleanup(env.close)
+        env.reset_settings()
+        init = env.get_init_states()
+        env.reset_item_stream()
+        observation, _info = env.reset(seed=42)
+        return env, init, policy_observation(env, observation)
+
+    def test_top_k_keeps_the_actors_move_at_the_head(self) -> None:
+        from rule_alpha.agent import RuleAlphaAgent
+        from scripts.counterfactual_graph import canonical_action
+        from scripts.rule_alpha_proposals import RuleAlphaProposer
+
+        _env, init, observed = self.board()
+        actor = RuleAlphaAgent()
+        actor.get_init_states(init)
+        expected = canonical_action(actor.policy(observed))
+        for k in (1, 2, 3, 5):
+            proposer = RuleAlphaProposer(max_proposals=64, per_item_top_k=k)
+            proposer.get_init_states(init)
+            family = proposer.propose(observed)
+            with self.subTest(per_item_top_k=k):
+                self.assertEqual(family[0], expected)
+
+    def test_top_k_widens_a_one_item_pool(self) -> None:
+        """The bound recorded above is exactly what top-k lifts."""
+        from scripts.rule_alpha_proposals import RuleAlphaProposer
+
+        _env, init, observed = self.board()
+        self.assertEqual(len(observed.get("pool_list") or []), 1)
+        widths = {}
+        for k in (1, 3):
+            proposer = RuleAlphaProposer(max_proposals=64, per_item_top_k=k)
+            proposer.get_init_states(init)
+            widths[k] = len(proposer.propose(observed))
+        self.assertEqual(widths[1], 1)
+        self.assertGreater(widths[3], widths[1])
+
+    def test_alternates_are_distinct_commands(self) -> None:
+        from scripts.rule_alpha_proposals import RuleAlphaProposer, _action_key
+
+        _env, init, observed = self.board()
+        proposer = RuleAlphaProposer(max_proposals=64, per_item_top_k=4)
+        proposer.get_init_states(init)
+        family = proposer.propose(observed)
+        keys = [_action_key(action) for action in family]
+        self.assertEqual(len(keys), len(set(keys)))
+
+    def test_max_proposals_still_caps_the_family(self) -> None:
+        from scripts.rule_alpha_proposals import RuleAlphaProposer
+
+        _env, init, observed = self.board()
+        proposer = RuleAlphaProposer(max_proposals=2, per_item_top_k=8)
+        proposer.get_init_states(init)
+        self.assertLessEqual(len(proposer.propose(observed)), 2)
+
+    def test_a_missing_hook_fails_loudly_instead_of_narrowing(self) -> None:
+        """A re-vendor that drops ranked_observer must not degrade to k=1."""
+        import unittest.mock
+
+        from rule_alpha import layer1
+        from scripts.rule_alpha_proposals import RuleAlphaProposer
+
+        def without_hook(board, profile, config, max_orientations=3):
+            raise AssertionError("not called")
+
+        with unittest.mock.patch.object(
+            layer1, "choose_for_item", without_hook
+        ):
+            RuleAlphaProposer(per_item_top_k=1)  # top-1 needs no hook
+            with self.assertRaises(RuntimeError) as caught:
+                RuleAlphaProposer(per_item_top_k=2)
+        self.assertIn("ranked_observer", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -438,6 +438,7 @@ def run_episode(
     candidate_stride: int = 1,
     union_rule_alpha: bool = False,
     rule_alpha_union_limit: int = 4,
+    rule_alpha_per_item_top_k: int = 1,
     exact_agent_candidate: bool = True,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
@@ -497,7 +498,8 @@ def run_episode(
         )
 
         rule_alpha_proposer = RuleAlphaProposer(
-            max_proposals=int(rule_alpha_union_limit)
+            max_proposals=int(rule_alpha_union_limit),
+            per_item_top_k=int(rule_alpha_per_item_top_k),
         )
         provider = union_provider(
             provider, rule_alpha_proposer,
@@ -923,6 +925,9 @@ def run_episode(
             "candidate_union": {
                 "rule_alpha_union": bool(union_rule_alpha),
                 "rule_alpha_union_limit": int(rule_alpha_union_limit),
+                "rule_alpha_per_item_top_k": int(
+                    rule_alpha_per_item_top_k
+                ),
                 "exact_agent_candidate": bool(exact_agent_candidate),
                 "states": int(union_stats.get("union_states", 0)),
                 "base_candidates": int(union_stats.get("base_candidates", 0)),
@@ -936,6 +941,10 @@ def run_episode(
                 ),
                 "proposer_calls": (
                     int(rule_alpha_proposer.calls)
+                    if rule_alpha_proposer is not None else None
+                ),
+                "same_item_alternates": (
+                    int(rule_alpha_proposer.same_item_alternates)
                     if rule_alpha_proposer is not None else None
                 ),
             },
@@ -1090,6 +1099,17 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--rule-alpha-per-item-top-k", type=int, default=1,
+        help=(
+            "also keep each item's 2nd..kth Layer 1 candidates, the"
+            " ones choose_for_item sorts and discards. Nearly free --"
+            " generating and validating the candidate boxes is already"
+            " paid by the time the archetype ladder picks a winner --"
+            " and the only source of SAME-item diversity, so it is what"
+            " widens the choice set on a one-item pool"
+        ),
+    )
+    parser.add_argument(
         "--no-exact-agent-candidate", action="store_true",
         help=(
             "exact actor policies only: do NOT union the actor's command"
@@ -1142,6 +1162,7 @@ def main() -> int:
         candidate_stride=args.candidate_stride,
         union_rule_alpha=args.union_rule_alpha,
         rule_alpha_union_limit=args.rule_alpha_union_limit,
+        rule_alpha_per_item_top_k=args.rule_alpha_per_item_top_k,
         exact_agent_candidate=not args.no_exact_agent_candidate,
     )
     policy_model = None
@@ -1207,6 +1228,9 @@ def main() -> int:
             "top_k": args.top_k,
             "rule_alpha_union": bool(args.union_rule_alpha),
             "rule_alpha_union_limit": int(args.rule_alpha_union_limit),
+            "rule_alpha_per_item_top_k": int(
+                args.rule_alpha_per_item_top_k
+            ),
             "exact_agent_candidate": not bool(args.no_exact_agent_candidate),
         },
         "rollout_contract": {

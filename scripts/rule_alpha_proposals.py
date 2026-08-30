@@ -33,6 +33,7 @@ separate question it unblocks.
 
 from __future__ import annotations
 
+import inspect
 import pathlib
 import sys
 import time
@@ -69,16 +70,69 @@ _CLASS_RANK = {
 }
 
 
-class RuleAlphaProposer:
-    """``C_rule-alpha(s)``: one Layer 1 placement per visible pool item."""
+def _supports_ranked_observer() -> bool:
+    return "ranked_observer" in inspect.signature(
+        layer1.choose_for_item
+    ).parameters
 
-    def __init__(self, config=None, *, max_proposals: int = 8):
+
+def _placement_action(
+    candidate, board, config, *, pool_index: int,
+) -> dict[str, Any]:
+    """A candidate's command, compacted exactly as ``choose_for_item`` does."""
+    box = candidate.box
+    if config.compaction_iterations > 0 and candidate.surface in (
+        ("floor", "item") if config.compact_raised else ("floor",)
+    ):
+        box = layer1.compact_backwards(
+            box, board, candidate.container_idx, candidate.role, config
+        )
+    centre = layer1.action_center(
+        box, board.model(candidate.container_idx),
+        board.container(candidate.container_idx), config,
+    )
+    return canonical_action({
+        "item_idx": int(pool_index),
+        "container_idx": int(candidate.container_idx),
+        "place_pos": np.asarray(centre, dtype=np.float32),
+        "orientation": int(candidate.orientation.index),
+    })
+
+
+class RuleAlphaProposer:
+    """``C_rule-alpha(s)``: Layer 1 placements for the visible pool.
+
+    ``per_item_top_k`` above 1 also keeps the 2nd..kth candidates of the
+    archetype that won for each item -- the ones ``choose_for_item``
+    sorts and then throws away.  They are close to free: the expensive
+    work is generating and physically validating ~4,100 candidate boxes
+    per item, which has already been paid by the time the ladder picks a
+    winner.  They are also the only source of *same-item* diversity, so
+    they are what widens the choice set on a one-item pool, where a
+    per-item family is necessarily just the actor's own move.
+    """
+
+    def __init__(self, config=None, *, max_proposals: int = 8,
+                 per_item_top_k: int = 1):
         if int(max_proposals) < 1:
             raise ValueError("max_proposals must be positive")
+        if int(per_item_top_k) < 1:
+            raise ValueError("per_item_top_k must be positive")
+        if int(per_item_top_k) > 1 and not _supports_ranked_observer():
+            raise RuntimeError(
+                "layer1.choose_for_item has no ranked_observer parameter, so"
+                " same-item alternates cannot be recovered. It is a"
+                " trunk-only addition (see reports/league/cup-ledger.md) and"
+                " was most likely dropped by a re-vendor of rule_alpha/;"
+                " re-apply it rather than falling back to top-1, which would"
+                " silently narrow the proposal family."
+            )
         self.solver = RuleAlphaAgent(config=config)
         self.max_proposals = int(max_proposals)
+        self.per_item_top_k = int(per_item_top_k)
         self.seconds = 0.0
         self.calls = 0
+        self.same_item_alternates = 0
 
     # -- episode setup, mirroring the official three -------------------
     def get_init_states(self, init_states: dict) -> bool:
@@ -108,10 +162,19 @@ class RuleAlphaProposer:
 
         actions: list[dict[str, Any]] = []
         seen: set[tuple] = set()
+        alternates = 0
         for pool_index, item in _ordered_pool(observation, config):
             if len(actions) >= self.max_proposals:
                 break
-            decision = layer1.choose_for_item(solver.board, item, config)
+            ranked: list = []
+            observer = None
+            if self.per_item_top_k > 1:
+                def observer(_archetype, candidates, _sink=ranked):
+                    _sink.extend(candidates)
+            decision = layer1.choose_for_item(
+                solver.board, item, config,
+                **({"ranked_observer": observer} if observer else {}),
+            )
             if decision is None:
                 continue
             placement = decision.placement
@@ -120,19 +183,36 @@ class RuleAlphaProposer:
                 placement.box, model,
                 solver.board.container(placement.container_idx), config,
             )
-            action = canonical_action({
+            chosen = canonical_action({
                 "item_idx": pool_index,
                 "container_idx": int(placement.container_idx),
                 "place_pos": np.asarray(centre, dtype=np.float32),
                 "orientation": int(placement.orientation.index),
             })
-            key = _action_key(action)
-            if key in seen:
-                continue
-            seen.add(key)
-            actions.append(action)
+            # The winner first, then this item's discarded 2nd..kth. The
+            # order matters: propose()[0] must stay the action the actor
+            # would execute, whatever else the family carries.
+            for rank, action in enumerate(
+                [chosen] + [
+                    _placement_action(
+                        candidate, solver.board, config,
+                        pool_index=pool_index,
+                    )
+                    for candidate in ranked[1:self.per_item_top_k]
+                ]
+            ):
+                if len(actions) >= self.max_proposals:
+                    break
+                key = _action_key(action)
+                if key in seen:
+                    continue
+                seen.add(key)
+                actions.append(action)
+                if rank:
+                    alternates += 1
         self.seconds += time.perf_counter() - started
         self.calls += 1
+        self.same_item_alternates += alternates
         return actions
 
 

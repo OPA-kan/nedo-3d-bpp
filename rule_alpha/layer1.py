@@ -3340,7 +3340,25 @@ def _shortlist_key(candidate: Candidate, typed_right_front: bool = True):
 
 
 def choose_for_item(board: Board, profile: cls.ItemProfile, config,
-                    max_orientations: int = 3) -> Decision | None:
+                    max_orientations: int = 3,
+                    ranked_observer=None) -> Decision | None:
+    """Choose one placement for ``profile``.
+
+    ``ranked_observer``, when given, is called as
+    ``ranked_observer(archetype, ranked_candidates)`` with the winning
+    archetype's own survivor list, already sorted, whose head is the
+    candidate this function goes on to return.  It exists so a caller
+    can recover the 2nd and 3rd choices this function discards without
+    re-deriving -- or forking -- the selection above.  Purely
+    observational: passing it changes nothing about what is returned.
+
+    TRUNK-ONLY ADDITION.  ``rule_alpha/`` is vendored file-by-file from
+    an orphan branch (see reports/league/cup-ledger.md); this parameter
+    does not exist there and must be re-applied on the next vendor.
+    ``scripts/rule_alpha_proposals.py`` refuses to run with a per-item
+    top-k above 1 when it is missing, so losing it fails loudly rather
+    than silently narrowing the proposal family.
+    """
     best: Decision | None = None
     for container_idx in routing_order(profile, board, config):
         model = board.model(container_idx)
@@ -3554,6 +3572,8 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             )
             chosen = pool_for_archetype[0]
             chosen_archetype = name
+            if ranked_observer is not None:
+                ranked_observer(name, list(pool_for_archetype))
             break
         if chosen is None:
             chosen = survivors[0]
