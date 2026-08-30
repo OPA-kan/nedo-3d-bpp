@@ -248,6 +248,18 @@ class Board:
         self.large_threshold: float = float("inf")
         self.small_threshold: float = 0.0
         self.min_useful_width: float = config.row_min_useful_width
+        # the flattest pose in the hard manifest, in metres.  The official
+        # scorer counts an item only if every corner clears every plane by
+        # `inclusion_margin` (-0.005), and the container floor is one of those
+        # planes -- so an item settled on the floor, whose lowest corner sits
+        # exactly on it, contributes nothing to the fill score.  Measured on
+        # both official tasks and under both agents, the items dropped by
+        # `evaluate()` are exactly the items touching the floor: 6 of 6 and
+        # 7 of 7 for rule-alpha, 3 of 3 and 4 of 4 for the incumbent, worth
+        # 28-36% of everything placed.  The forfeit for a square metre of floor
+        # is therefore the *height* of whatever paves it, and this is the
+        # cheapest height the manifest can pave with.
+        self.paving_height: float = 0.0
 
     # -- accessors -------------------------------------------------------
     def model(self, idx: int) -> ContainerModel:
@@ -264,7 +276,7 @@ class Board:
             if self.placements[idx] or not self.containers[idx].get("packed_items"):
                 grid = build_floor_grid(
                     self.models[idx], self.placements[idx],
-                    self.config.candidate_grid_cell,
+                    self.config.candidate_grid_cell, self.config,
                 )
             else:
                 # Driving the real environment the board is rebuilt from each
@@ -275,7 +287,7 @@ class Board:
                 # if the container were empty.
                 grid = grid_from_packed(
                     self.models[idx], self.containers[idx],
-                    self.config.candidate_grid_cell,
+                    self.config.candidate_grid_cell, self.config,
                 )
             self._grids[idx] = grid
         return grid
@@ -561,6 +573,8 @@ class Board:
             for p in hard if p.orientations
         ]
         self.min_useful_width = min(widths) if widths else config.row_min_useful_width
+        flats = [min(o.dz for o in p.orientations) for p in hard if p.orientations]
+        self.paving_height = min(flats) if flats else 0.0
 
         footprints = sorted(p.max_footprint for p in hard)
         self.large_threshold = float(
@@ -2531,6 +2545,22 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
     """
     if not config.last_resort_enabled:
         return []
+    # Two passes, not one.  Flattest-first has to be decided over the whole
+    # board, not per rectangle: taking the widest pose that fits *this*
+    # rectangle, when a flat pose fits the next one, is how widening the search
+    # gained two items on task 000 and lost three on task 001.  So sweep every
+    # rectangle with the flat tier first, and escalate to the standing poses
+    # only if that found nowhere at all.
+    flat = _last_resort_pass(board, profile, container_idx, config, False)
+    if not config.last_resort_all_poses:
+        return flat
+    standing = _last_resort_pass(board, profile, container_idx, config, True)
+    return flat + standing
+
+
+def _last_resort_pass(board: "Board", profile: cls.ItemProfile,
+                      container_idx: int, config, escalate: bool
+                      ) -> list[Candidate]:
     model = board.model(container_idx)
     container = board.container(container_idx)
     grid = board.grid(container_idx)
@@ -2548,10 +2578,14 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
         if not fitting:
             continue
         flattest = min(o.dz for o in fitting)
+        flat = [o for o in fitting
+                if o.dz <= flattest + config.hole_fill_tier_tolerance]
+        # The escalating pass tries the poses the flat tier left out -- the
+        # four fitting poses that were cut to one at the step that ended task
+        # 000, and never tried when that one failed validation.
         tier = sorted(
-            (o for o in fitting
-             if o.dz <= flattest + config.hole_fill_tier_tolerance),
-            key=lambda o: -o.footprint,
+            [o for o in fitting if o not in flat] if escalate else flat,
+            key=lambda o: (o.dz, -o.footprint),
         )
         for orientation in tier:
             dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
@@ -2759,6 +2793,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             for sh in model.shelves
         ]
         kept = []
+        shelf_near: list[tuple[float, Candidate]] = []
         for candidate in survivors:
             if candidate.surface != "shelf" or not shelf_rects:
                 kept.append(candidate)
@@ -2778,7 +2813,16 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 kept.append(candidate)
             else:
                 drop(candidate, "overhangs-the-shelf")
+                shelf_near.append((on / max(rect.area, 1e-9), candidate))
         survivors = kept
+        if not survivors and config.shelf_veto_has_fallback and shelf_near:
+            # the second of the two vetoes that could empty the list outright.
+            # On task 001 twelve of the seventeen candidates at the closing
+            # step died here, so like the plateau rule it was not a guard on a
+            # bad placement, it was the end of the episode.
+            shelf_near.sort(key=lambda pair: -pair[0])
+            if shelf_near[0][0] >= config.shelf_fallback_min_fraction:
+                survivors = [shelf_near[0][1]]
         if not survivors:
             return [], counts
 
@@ -2975,6 +3019,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     #     is exempt either way: it is a ramp, not a stack.
     if config.layer2_max_layers > 0:
         kept = []
+        near_misses: list[tuple[float, Candidate]] = []
         for candidate in survivors:
             if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
                 kept.append(candidate)  # the ramp grows as far as it can
@@ -3004,17 +3049,24 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                     "too-many-layers" if level > config.layer2_max_layers
                     else "no-plateau-to-build-on",
                 )
-        # No fallback.  Every other veto here yields when it would leave
-        # nothing, because refusing an item outright is usually worse than a
-        # compromised placement.  This one is a structural limit, not a
-        # preference: a third layer is a third layer however badly the board
-        # wants one, and letting it through when nothing else fits is exactly
-        # how the cap silently stopped applying.
+                if level <= config.layer2_max_layers:
+                    area, coverage = plateau_support(
+                        board, container_idx, candidate.box, config
+                    )
+                    near_misses.append((area * coverage, candidate))
+        # This began as the one veto with no fallback: a third layer is a third
+        # layer however badly the board wants one.  That reasoning holds for the
+        # layer *cap*, which still has none -- but not for the plateau *shape*,
+        # and the difference matters because of `max_space: 1`.  Measured on the
+        # step that ends task 000, ten candidates reached this rule and all ten
+        # died here, so this single test ended the episode with the board far
+        # from full.  Below the cap the shape condition now yields to the
+        # closest near miss rather than to nothing.
         survivors = kept
+        if not survivors and config.plateau_veto_has_fallback and near_misses:
+            near_misses.sort(key=lambda pair: -pair[0])
+            survivors = [near_misses[0][1]]
         if not survivors:
-            # the only structural veto with no fallback, so it is also the only
-            # one that can empty the list; everything after here assumes it is
-            # looking at at least one candidate
             return [], counts
 
     # 5. a follower may not break the last bay the frontier cargo still needs.
@@ -3026,6 +3078,28 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             for candidate in survivors:
                 if candidate not in kept:
                     drop(candidate, "breaks-frontier-bay")
+            survivors = kept
+
+    # 5b. do not pay for the floor with a tall box.  The floor plane costs an
+    #     item its whole volume in the score, and the bill for a square metre
+    #     of floor is the height of the box that covers it, so paving with a
+    #     0.27 m box where a 0.24 m box would do throws away the difference for
+    #     nothing.  A preference, not a limit: when there is nowhere else for
+    #     the item to go, a forfeited box still beats an unplaced one, and with
+    #     `max_space: 1` an unplaced one ends the episode.
+    if config.floor_prefers_flat and board.paving_height > 0.0:
+        budget = board.paving_height + config.floor_paving_tolerance
+        kept = [
+            c for c in survivors
+            if c.surface != "floor"
+            or c.role in (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP,
+                          cls.ROLE_SLOPE_INFILL)
+            or float(c.box.size[2]) <= budget + 1e-9
+        ]
+        if kept and len(kept) < len(survivors):
+            for candidate in survivors:
+                if candidate not in kept:
+                    drop(candidate, "tall-box-paving-the-floor")
             survivors = kept
 
     # 6. back-first, as a principle rather than a tie-break.  While a *good*
@@ -3593,11 +3667,21 @@ def constructive_order(profiles: list[cls.ItemProfile], config,
             return 4
         return 5
 
-    def key(profile: cls.ItemProfile):
-        bucket = group(profile)
+    def key(profile: cls.ItemProfile, bucket: int):
         if bucket == 0:
             # tallest wall material first
             return (bucket, -round(profile.max_height, 6), profile.index)
+        if bucket in (1, 2) and config.floor_paving_order:
+            # flattest first: whatever lands on the floor forfeits its volume,
+            # so the cheapest paving material should arrive while the floor is
+            # the only place to put anything.
+            return (
+                bucket,
+                round(min(o.dz for o in profile.orientations), 6)
+                if profile.orientations else 0.0,
+                -round(profile.max_footprint, 6),
+                profile.index,
+            )
         return (
             bucket,
             -round(profile.max_footprint, 6),
@@ -3605,4 +3689,28 @@ def constructive_order(profiles: list[cls.ItemProfile], config,
             profile.index,
         )
 
-    return [p.index for p in sorted(profiles, key=key)]
+    # The wall-front group is a *reservation*, so it has to be the size of what
+    # it reserves for.  It was not: the test is a footprint budget
+    # (`wall_front_max_footprint_fraction` of the usable floor, 0.2638 m^2 on
+    # task 000), and on that manifest twelve of the twenty-five normal-hard
+    # items -- the whole 0.55 x 0.40 class, footprint 0.220 -- pass it.  All
+    # twelve then led the stream, ahead of the four 0.75 x 0.56 boxes (0.420)
+    # that are the actual foundation.  A staircase needs a number of steps, not
+    # a cargo class, and the same reasoning already fixed the reservation gate
+    # itself: "a staircase needs a *number* of steps, not a proportion".
+    buckets = [(group(p), p) for p in profiles]
+    if config.wall_front_order_quota >= 0:
+        wall = sorted(
+            (p for b, p in buckets if b == 0),
+            key=lambda p: (-round(p.max_height, 6), p.index),
+        )
+        keep = {id(p) for p in wall[: config.wall_front_order_quota]}
+        buckets = [
+            (b if b == 0 and id(p) in keep
+             else (2 if p.is_elongated else 1) if b == 0 else b, p)
+            for b, p in buckets
+        ]
+
+    return [p.index for _b, p in sorted(
+        buckets, key=lambda pair: key(pair[1], pair[0])
+    )]

@@ -154,11 +154,13 @@ procedure is directionally better on both counts. Treat this as
 
 ## rule-alpha version boundary (read before reusing these numbers)
 
-This cup ran **rule-alpha@7908b09**, the state vendored into this
-repository by `f8464ff` and still the only `rule_alpha/` commit here.
-Four further defect fixes were made to rule-alpha after this cup was
-collected and are **not** in this repository yet (they live in the
-parallel rule-alpha working clone):
+This cup ran **rule-alpha@7908b09**, the state vendored into the Cup
+trunk by `f8464ff`. Later defect fixes were made after this cup was
+collected; they live on the branch
+**`claude/rule-alpha-layer-1-ch78oi`** (an orphan line that shares no
+history with this branch — empty merge-base, and it carries no
+`reports/league` or `scripts/`, so it is vendored file-by-file, never
+merged). At the time of this cup they were not yet vendored here:
 
 - `7908b09` terrace: `level_residual` unreachable below an early
   return, `plateau_gain` always 0 under its clamp — two of the key's
@@ -177,9 +179,17 @@ misses, 16 strict pairs) characterise **7908b09 only**, and three of
 the four known episode-ending defects were still live in it — the
 `rule_alpha_declined` terminations in particular are the expected
 signature of the `2567bcb` veto defect. Do not read them as the
-current actor's ceiling. The next cup will run whatever `rule_alpha/`
-is on this branch at dispatch time; vendoring the three outstanding
-fixes here first is what would make the comparison meaningful.
+current actor's ceiling.
+
+Those fixes have since been vendored into this branch, so **Cup 008
+onward races the newer actor**; Cup 007 was already dispatched from
+`3b95cfc` and still ran 7908b09. Measured on the cup's own case 000 /
+seed 42, before and after the vendor: 16 placed / fill 24.316 ->
+**21 placed / fill 33.420**. What did *not* change is the ending —
+both versions still finish `rule_alpha_declined` with
+`genuine_termination` false, so rule-alpha stays unmeasured in race
+tables. Its cup value remains mining (16 strict pairs from 17 forks
+here), which does not depend on its own episode terminating.
 
 ## Notes
 

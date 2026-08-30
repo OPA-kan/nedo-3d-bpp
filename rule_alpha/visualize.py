@@ -417,7 +417,7 @@ def draw_fill_progression(ax, model: ContainerModel, placements):
 def draw_diagnostic(ax, model: ContainerModel, placements, config):
     """Top-view overlay: plateaus, holes, zones, structural mask, corridor."""
     ax.set_title("top-view diagnostics", fontsize=10)
-    grid = build_floor_grid(model, placements, config.grid_cell)
+    grid = build_floor_grid(model, placements, config.grid_cell, config)
     plateaus = plateau_report(grid, config)
     holes = hole_report(grid, config)
     plateau_labels = plateaus.pop("_labels")
@@ -526,7 +526,7 @@ def render_container(model: ContainerModel, placements, config, title: str,
 
     from .diagnostics import build_floor_grid, corridor_report, wall_front_report
 
-    grid = build_floor_grid(model, placements, config.grid_cell)
+    grid = build_floor_grid(model, placements, config.grid_cell, config)
     corridor = corridor_report(grid, model)
     wall = wall_front_report(model, placements, config)
     largest_hole = holes["largest_interior_hole"]

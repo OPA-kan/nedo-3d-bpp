@@ -257,7 +257,7 @@ class Terrain:
 
 
 def build_terrain(model: ContainerModel, placements, config) -> Terrain:
-    grid = build_floor_grid(model, placements, config.grid_cell)
+    grid = build_floor_grid(model, placements, config.grid_cell, config)
     return Terrain(grid=grid, cells=cell_rects(model, config))
 
 

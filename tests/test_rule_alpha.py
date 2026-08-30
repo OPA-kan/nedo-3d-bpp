@@ -9,6 +9,7 @@ sweep lives in ``rule_alpha.runner``, not here.
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import pathlib
 import sys
@@ -27,6 +28,7 @@ from rule_alpha import layer2 as l2  # noqa: E402
 from rule_alpha import stability  # noqa: E402
 from rule_alpha._reuse import AABB  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
+from rule_alpha import diagnostics as diag  # noqa: E402
 from rule_alpha.diagnostics import (  # noqa: E402
     FloorGrid,
     lane_bottleneck,
@@ -783,12 +785,19 @@ class EpisodeTest(unittest.TestCase):
 
     def test_only_declared_roles_build_on_item_tops(self):
         """Floor, shelf, or one of the roles that is *about* standing on
-        cargo: the wedge staircase, and Layer 2's growth families."""
+        cargo: the wedge staircase, Layer 2's growth families, and the two
+        that seat a box wherever there is room -- hole fill and the last
+        resort, both of which work per level and so reach item tops by design.
+
+        Those last two were missing from this list until the floor map stopped
+        going blind above the shelf plane.  While a height test erased every
+        box stacked past 0.785 m, no hole was ever found up there for hole fill
+        to reach, so the omission never showed."""
         from rule_alpha import layer2 as l2
 
         allowed = (
             cls.ROLE_WEDGE_STEP, l2.ROLE_TERRACE, l2.ROLE_BRIDGE,
-            l2.ROLE_WEDGE_BRIDGE,
+            l2.ROLE_WEDGE_BRIDGE, l2.ROLE_HOLE_FILL, l2.ROLE_LAST_RESORT,
         )
         for placement in self.result.sequence:
             if placement.surface == "item":
@@ -1563,6 +1572,225 @@ class PlateauDepthTest(unittest.TestCase):
         allowed, level = layer1.may_build_here(board, 0, second, DEFAULT_CONFIG)
         self.assertEqual(level, 2)
         self.assertTrue(allowed)
+
+
+class ShelfColumnTest(unittest.TestCase):
+    """The floor map excludes what a shelf carries, not what is merely as tall.
+
+    The test was height alone, and task 000's only shelf is the small one --
+    0.44 m of a 1.92 m length, at the chamfer end -- so a floor-stacked box at
+    the opposite end was erased from the height map for being above 0.785 m.
+    Everything derived from that map went blind up there: `free_rectangles`
+    offered a 0.464 x 0.674 rectangle at z 0.82 that was solid cargo, the last
+    resort put six anchors inside it, all six came back `overlaps-packed-item`,
+    and the episode ended with an empty candidate pool."""
+
+    def _model(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.ContainerModel(container, DEFAULT_CONFIG)
+
+    def test_a_tall_stack_away_from_the_shelf_stays_on_the_map(self):
+        model = self._model()
+        self.assertTrue(model.shelves, "the fixture needs a shelf to be a test")
+        shelf = model.shelves[0]
+        far_x = float(shelf.maximum[0]) + 0.60
+        rect = Rect(far_x, far_x + 0.40, -0.20, 0.20)
+        self.assertFalse(
+            diag.carried_by_shelf(
+                model, rect, float(shelf.maximum[2]) + 0.30, DEFAULT_CONFIG
+            ),
+            "a box stacked high on the floor is not the shelf's business",
+        )
+
+    def test_a_box_over_the_shelf_is_still_excluded(self):
+        """The original defect stays fixed: cargo the shelf carries, and
+        whatever is stacked on it, must not be stamped as floor terrain."""
+        model = self._model()
+        shelf = model.shelves[0]
+        rect = Rect(float(shelf.minimum[0]) + 0.02, float(shelf.minimum[0]) + 0.32,
+                    -0.15, 0.15)
+        for lift in (0.0, 0.30):
+            self.assertTrue(
+                diag.carried_by_shelf(
+                    model, rect, float(shelf.maximum[2]) + lift, DEFAULT_CONFIG
+                ),
+                f"a box {lift:.2f} m above the shelf is carried by it",
+            )
+
+    def test_a_box_below_the_shelf_is_floor_terrain(self):
+        model = self._model()
+        shelf = model.shelves[0]
+        rect = Rect(float(shelf.minimum[0]) + 0.02, float(shelf.minimum[0]) + 0.32,
+                    -0.15, 0.15)
+        self.assertFalse(
+            diag.carried_by_shelf(
+                model, rect, float(shelf.minimum[2]) - 0.30, DEFAULT_CONFIG
+            ),
+            "the space under a shelf is floor, and the planner has to see it",
+        )
+
+
+class FloorTaxTest(unittest.TestCase):
+    """An item settled on the container floor scores nothing.
+
+    `inclusion_margin` in the official config is -0.005, and `evaluator.py`
+    counts an item only when every corner clears every plane by that much.  The
+    container floor is one of those planes, so a box resting on it -- lowest
+    corner exactly on the plane -- is excluded from the fill score entirely.
+
+    Verified per item against `evaluate()` on both official tasks and under both
+    agents: the items dropped are exactly the items touching the floor (6 of 6
+    and 7 of 7 for rule-alpha, 3 of 3 and 4 of 4 for the incumbent), worth 28-36%
+    of everything placed.  This test pins the arithmetic so that a change to the
+    official margin is noticed rather than silently absorbed."""
+
+    def _official_margin(self):
+        payload = json.loads(
+            (REPO_ROOT / "simulator" / "configs" / "sample_config.json").read_text()
+        )
+        margins = {payload[t]["validator"]["inclusion_margin"] for t in payload}
+        self.assertEqual(len(margins), 1, "both tasks should share a margin")
+        return margins.pop()
+
+    def test_the_margin_demands_clearance_rather_than_merely_containment(self):
+        margin = self._official_margin()
+        self.assertLess(
+            margin, 0.0,
+            "a negative margin is what makes touching a plane a failure",
+        )
+
+    def test_a_box_resting_on_the_floor_fails_the_official_test(self):
+        """The floor plane's normal points down and sits at the floor height, so
+        the signed distance of the lowest corner is zero.  `evaluate()` rejects
+        anything above the margin."""
+        margin = self._official_margin()
+        floor_z, box_bottom = 0.04, 0.04
+        signed_distance = -(box_bottom - floor_z)
+        self.assertGreater(
+            signed_distance, margin,
+            "a box on the floor is rejected, which is the whole finding",
+        )
+        lifted = -((floor_z + abs(margin) + 1e-4) - floor_z)
+        self.assertLessEqual(
+            lifted, margin,
+            "clearing the plane by the margin is what it would take to count",
+        )
+
+    def test_the_two_levers_that_did_not_pay_stay_off(self):
+        """Both were measured and both cost more than the tax they avoid, so
+        the defaults have to say so."""
+        self.assertFalse(DEFAULT_CONFIG.floor_prefers_flat)
+        self.assertFalse(DEFAULT_CONFIG.floor_paving_order)
+
+
+class StreamOrderTest(unittest.TestCase):
+    """The stream is foundation order: the biggest footprint goes down first.
+
+    It was not.  The wall-front group is a reservation for the staircase but its
+    test is a footprint budget, so on task 000 it swallowed twelve of the
+    twenty-five normal-hard items and led the stream with all of them, ahead of
+    the four largest boxes.  Removing the reservation from the *order* -- the
+    wedge rules still build the staircase from the board -- is worth +3 items
+    and +6.0 fill on task 000."""
+
+    def _profiles(self, dims_and_classes):
+        out = []
+        for i, (dims, soft, prio) in enumerate(dims_and_classes):
+            out.append(cls.classify_item(
+                i,
+                {"index": i, "length": dims[0], "width": dims[1],
+                 "height": dims[2], "mass": 10.0,
+                 "is_soft": soft, "is_prioritized": prio},
+                DEFAULT_CONFIG,
+            ))
+        return out
+
+    def test_the_biggest_hard_footprint_leads_the_stream(self):
+        """The task 000 shape: a class small enough to look like wall material,
+        and a bigger class that is the actual foundation."""
+        profiles = self._profiles([
+            ((0.55, 0.40, 0.24), False, False),   # 0.220, passes the wall budget
+            ((0.55, 0.40, 0.24), False, False),
+            ((0.75, 0.56, 0.27), False, False),   # 0.420, the foundation
+            ((0.65, 0.45, 0.25), False, False),   # 0.293
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        order = layer1.constructive_order(profiles, DEFAULT_CONFIG, model)
+        self.assertEqual(
+            order[0], 2,
+            "the 0.75 x 0.56 box has the biggest footprint and belongs first",
+        )
+        self.assertEqual(order[1], 3)
+
+    def test_soft_and_priority_still_come_after_the_hard_cargo(self):
+        """Removing the wall-front group must not disturb the class order:
+        hard builds the structure, soft and priority go up onto it."""
+        profiles = self._profiles([
+            ((0.60, 0.30, 0.25), True, False),
+            ((0.65, 0.45, 0.25), False, True),
+            ((0.55, 0.40, 0.24), False, False),
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        order = layer1.constructive_order(profiles, DEFAULT_CONFIG, model)
+        self.assertEqual(order[0], 2, "normal-hard leads")
+        self.assertEqual(order[-1], 0, "soft is last")
+
+    def test_the_quota_can_be_restored_for_an_a_b(self):
+        """A negative quota puts the group back, so the measurement that
+        retired it stays reproducible."""
+        profiles = self._profiles([
+            ((0.55, 0.40, 0.24), False, False),
+            ((0.75, 0.56, 0.27), False, False),
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        config = dataclasses.replace(DEFAULT_CONFIG, wall_front_order_quota=-1)
+        self.assertEqual(
+            layer1.constructive_order(profiles, config, model)[0], 0,
+            "with the group restored the small wall-material box leads again",
+        )
+
+
+class VetoFallbackTest(unittest.TestCase):
+    """With `max_space: 1`, a veto that can empty the list ends the episode.
+
+    Two of the ladder's vetoes had no fallback, and measured on the closing step
+    they are exactly what stops both official tasks: ten of ten candidates died
+    on `no-plateau-to-build-on` on task 000, and twelve of seventeen on
+    `overhangs-the-shelf` (plus five on the plateau rule) on task 001.  Giving
+    each of them a yield is worth +1 item / +1.8 fill and +2 items / +5.9 fill.
+    These tests hold the two properties that make the yield safe."""
+
+    def test_the_layer_cap_still_has_no_fallback(self):
+        """Only the plateau *shape* yields.  A third layer is a third layer,
+        and the cap is what keeps a tower from growing on its own lid."""
+        source = pathlib.Path(
+            layer1.__file__
+        ).read_text()
+        marker = 'if level <= config.layer2_max_layers:'
+        self.assertIn(
+            marker, source,
+            "the plateau fallback must collect near misses only below the cap",
+        )
+
+    def test_the_shelf_fallback_will_not_hang_a_box_off_the_edge(self):
+        """The yield has its own floor, well under the veto but over nothing."""
+        self.assertGreater(DEFAULT_CONFIG.shelf_fallback_min_fraction, 0.0)
+        self.assertLess(
+            DEFAULT_CONFIG.shelf_fallback_min_fraction,
+            DEFAULT_CONFIG.shelf_min_support_fraction,
+        )
+
+    def test_a_fallback_yields_one_candidate_not_the_whole_refused_set(self):
+        """The yield is a last resort, not a repeal: it hands back the single
+        closest near miss, so everything downstream still sees a shortlist that
+        the rule approved of as far as it could."""
+        source = pathlib.Path(layer1.__file__).read_text()
+        for snippet in ("survivors = [near_misses[0][1]]",
+                        "survivors = [shelf_near[0][1]]"):
+            self.assertIn(snippet, source)
 
 
 class TerraceKeyTest(unittest.TestCase):

@@ -23,6 +23,21 @@ artifact is read.
 
 | 007 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 563,569,571,577 · 001: 467,479 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
 
+rule-alpha vendor note (2026-08-30): rule-alpha is developed on
+`claude/rule-alpha-layer-1-ch78oi`, an **orphan branch that shares no
+history with this one** (empty merge-base; it carries no
+`reports/league` and no `scripts/`). It is therefore vendored
+file-by-file, never merged — merging it would delete the league. Cups
+006 and 007 raced `rule-alpha@7908b09` (vendored by `f8464ff`). After
+Cup 007 was dispatched, `803fd6f` was vendored: the five modules
+`config/diagnostics/layer1/terrain/visualize` plus
+`tests/test_rule_alpha.py` are taken from the branch, while
+`rule_alpha/_reuse.py` deliberately keeps the **trunk's** shim — the
+branch's production helper already carries the 2 cm floor release, the
+Cup trunk's does not, and the shim supplies it without altering the
+shipped agent. Taking the branch's `_reuse.py` would silently drop
+that release. Cup 008 onward races the newer actor.
+
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
 509, 521, 523, 541, 547, 557 · 001: 401, 409, 419, 421, 431, 433, 439,
