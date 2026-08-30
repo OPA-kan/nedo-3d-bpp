@@ -82,20 +82,12 @@ class EpisodeResult:
         return "\n".join(lines) + "\n"
 
 
-def _pool_order(profiles: list[cls.ItemProfile]) -> list[cls.ItemProfile]:
-    """Which visible item to try first.  Same rule as the offline order."""
-    return sorted(
-        profiles,
-        key=lambda p: (
-            {cls.NORMAL_HARD: 0, cls.PRIORITY: 2, cls.SOFT_PRIORITY: 3, cls.SOFT: 4}[
-                p.cargo_class
-            ]
-            + (1 if p.cargo_class == cls.NORMAL_HARD and p.is_elongated else 0),
-            -round(p.max_footprint, 6),
-            -round(p.mass, 6),
-            p.index,
-        ),
-    )
+def _pool_order(profiles: list[cls.ItemProfile], config) -> list[cls.ItemProfile]:
+    """Which visible item to try first -- the agent's own rule, not a copy."""
+    return [
+        profile
+        for _position, profile in layer1.pool_order(list(enumerate(profiles)), config)
+    ]
 
 
 def _compact_board(board: layer1.Board, config) -> dict:
@@ -186,7 +178,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
     while pool and step < max_steps:
         decision = None
         chosen_profile = None
-        for profile in _pool_order(pool):
+        for profile in _pool_order(pool, config):
             decision = layer1.choose_for_item(board, profile, config)
             if decision is not None:
                 chosen_profile = profile
@@ -199,7 +191,7 @@ def run_episode(scenario, config, snapshot_steps: int = 4,
                         {**profile.summary(), "why": "no valid Layer 1 candidate"}
                     )
                 break
-            dropped = _pool_order(pool)[0]
+            dropped = _pool_order(pool, config)[0]
             result.unplaced.append(
                 {**dropped.summary(), "why": "no valid Layer 1 candidate"}
             )

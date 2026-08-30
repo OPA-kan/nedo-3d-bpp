@@ -1574,6 +1574,46 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class ReplayFidelityTest(unittest.TestCase):
+    """The replay has to be able to stand in for the agent, and does not.
+
+    Measured over ten configurations on both official tasks, `run_episode`
+    reproduces 5% of the placements the live agent actually makes.  It gets the
+    items nearly right -- the same items in nearly the same order -- and the
+    positions wrong from the second step on, because it never settles anything
+    and the live board does.  These tests pin the two properties that make the
+    replay a replay rather than a second implementation."""
+
+    def test_both_paths_order_the_pool_by_one_rule(self):
+        """The rule existed twice and the copies disagreed on three points."""
+        source = pathlib.Path(layer1.__file__).read_text()
+        self.assertIn("def pool_order(pairs, config):", source)
+        agent_source = pathlib.Path(
+            layer1.__file__
+        ).with_name("agent.py").read_text()
+        episode_source = pathlib.Path(
+            layer1.__file__
+        ).with_name("episode.py").read_text()
+        for text, where in ((agent_source, "agent"), (episode_source, "episode")):
+            self.assertIn(
+                "pool_order(", text,
+                f"the {where} path must call the shared rule, not its own copy",
+            )
+
+    def test_the_shared_rule_defaults_to_what_the_live_agent_did(self):
+        """Unifying them had to leave the shipped board untouched, so the two
+        points where the replay differed are switches that default to the
+        agent's answer."""
+        self.assertFalse(DEFAULT_CONFIG.pool_order_demotes_elongated)
+        self.assertFalse(DEFAULT_CONFIG.pool_order_breaks_on_mass)
+
+    def test_the_anchor_clamp_is_bounded_by_settle_scale(self):
+        """A Layer 2 anchor lost to a settled millimetre is worth rescuing; one
+        that is centimetres out is not the same thing."""
+        self.assertGreater(DEFAULT_CONFIG.layer2_anchor_clamp, 0.0)
+        self.assertLessEqual(DEFAULT_CONFIG.layer2_anchor_clamp, 0.03)
+
+
 class ShelfColumnTest(unittest.TestCase):
     """The floor map excludes what a shelf carries, not what is merely as tall.
 

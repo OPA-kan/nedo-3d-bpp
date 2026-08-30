@@ -98,6 +98,61 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    layer2_anchor_clamp: float = 0.005
+    """How far out of bounds a Layer 2 anchor may be and still be pulled back.
+
+    Settle-scale: the whole displacement budget measured over both official
+    tasks is 0.1 mm median and 2.9 mm at worst.  Swept, and it makes no
+    difference -- 2 mm, 5 mm, 10 mm and 30 mm all give the same board, so every
+    anchor the clamp rescues is within 2 mm and the bound is a guard rather than
+    a tuning knob."""
+
+    layer2_clamps_anchors: bool = False
+    """Pull a Layer 2 anchor back inside the container instead of losing it.
+
+    Anchors are generated flush with the edge of the box they stand on, and a
+    box that settled a fraction of a millimetre outward carries every anchor on
+    it out of bounds.  At step 2 of task 000 item 3 rests 0.45 mm further +x
+    than commanded, its top's +x edge lands at 0.9445 against a usable limit of
+    0.9440, and all nine Layer 2 proposals fail `outside-container` -- the rung
+    that decides most placements generates nothing at all.  The replay never
+    sees it, because the replay never settles anything.
+
+    This is a defect, and the clamp is the right repair, but repairing it splits
+    the two tasks::
+
+        arm       task 000        task 001
+        off       23 / 29.484     23 / 25.880
+        clamped   23 / 25.521     25 / 27.184
+
+    Layer 2 coming back on task 000 pushes the planner off the floor and shelf
+    rungs that were, by luck, doing better there -- so the 29.484 was partly
+    earned by the bug.  Two items gained against four points of fill lost, on a
+    sample of two, is not enough to ship a change that lowers the headline
+    score, so it is off with the measurement recorded.  Worth revisiting the
+    moment there is a third task."""
+
+    grid_always_from_packed: bool = False
+    """Build the height map from packed items even when placements exist.
+
+    The replay and the live agent were building it two different ways from the
+    same board state -- `build_floor_grid` off the planner's own placement
+    records, `grid_from_packed` off the observation -- which is a candidate for
+    why the replay stops diverging from physics only when the pool is a single
+    item.  A switch so the question can be measured rather than argued."""
+
+    pool_order_demotes_elongated: bool = False
+    """Try elongated hard cargo after the rest of the hard cargo.
+
+    One of the three points on which the replay's pool order disagreed with the
+    agent's.  Defaults to the agent's answer (no demotion) so that unifying them
+    leaves the shipped board untouched and only the replay changes."""
+
+    pool_order_breaks_on_mass: bool = False
+    """Break pool-order ties on mass before falling back to pool position.
+
+    The second of the three.  Same default and same reason."""
+
     shelf_skip_needs_column: bool = True
     """Exclude an item from the floor map only if it stands over a shelf.
 

@@ -114,19 +114,7 @@ class RuleAlphaAgent:
             profile = cls.classify_item(int(item["index"]), item, self.config)
             profiles.append((pool_index, profile))
 
-        ordered = sorted(
-            profiles,
-            key=lambda pair: (
-                {
-                    cls.NORMAL_HARD: 0,
-                    cls.PRIORITY: 2,
-                    cls.SOFT_PRIORITY: 3,
-                    cls.SOFT: 4,
-                }[pair[1].cargo_class],
-                -round(pair[1].max_footprint, 6),
-                pair[0],
-            ),
-        )
+        ordered = layer1.pool_order(profiles, self.config)
 
         for pool_index, profile in ordered:
             decision = layer1.choose_for_item(self.board, profile, self.config)

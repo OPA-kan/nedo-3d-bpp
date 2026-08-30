@@ -273,7 +273,13 @@ class Board:
         if grid is None:
             from .diagnostics import build_floor_grid, grid_from_packed
 
-            if self.placements[idx] or not self.containers[idx].get("packed_items"):
+            from_packed = (
+                self.config.grid_always_from_packed
+                and self.containers[idx].get("packed_items")
+            )
+            if not from_packed and (
+                self.placements[idx] or not self.containers[idx].get("packed_items")
+            ):
                 grid = build_floor_grid(
                     self.models[idx], self.placements[idx],
                     self.config.candidate_grid_cell, self.config,
@@ -2241,6 +2247,33 @@ def _build_layer2(board: "Board", profile: cls.ItemProfile, container_idx: int,
         if key in seen:
             continue
         seen.add(key)
+        if config.layer2_clamps_anchors:
+            # A terrace anchor is generated flush with the edge of the box it
+            # stands on, so a box that settled a fraction of a millimetre
+            # outward takes every anchor on it out of the container with it.
+            # Measured at step 2 of task 000: item 3 rests 0.45 mm further +x
+            # than it was commanded, its top's +x edge is 0.9445 against a
+            # usable limit of 0.9440, and all nine Layer 2 proposals come back
+            # `outside-container` -- so the rung that decides most placements
+            # generates nothing.  Clamping costs at most that fraction of a
+            # millimetre of reach and keeps the anchor.
+            usable = model.floor_rect
+            half_x, half_y = dx / 2.0, dy / 2.0
+            lo_x, hi_x = usable.x_min + half_x, usable.x_max - half_x
+            lo_y, hi_y = usable.y_min + half_y, usable.y_max - half_y
+            slack = config.layer2_anchor_clamp
+            # only rescue a settle-scale overshoot.  Pulling an anchor that is
+            # centimetres out back to the wall does not recover a placement, it
+            # invents one, and inventing them costs task 000 four points of fill
+            # for the two items it wins on task 001.
+            if lo_x <= hi_x and -slack <= x - hi_x <= slack:
+                x = hi_x
+            elif lo_x <= hi_x and -slack <= x - lo_x <= slack:
+                x = lo_x
+            if lo_y <= hi_y and -slack <= y - hi_y <= slack:
+                y = hi_y
+            elif lo_y <= hi_y and -slack <= y - lo_y <= slack:
+                y = lo_y
         box = AABB(
             (float(x), float(y), float(bottom) + dz / 2.0), (dx, dy, dz), "candidate"
         )
@@ -3642,6 +3675,42 @@ def _reason_for(candidate: Candidate, archetype: str, board: Board, config) -> s
 # ---------------------------------------------------------------------------
 # Offline ordering (the `optimize` hook)
 # ---------------------------------------------------------------------------
+def pool_order(pairs, config):
+    """Which visible item to try first, for both the live agent and the replay.
+
+    This existed twice, once in each, and the two disagreed on three points: the
+    replay demoted elongated hard cargo by a bucket, broke ties on mass, and
+    then on manifest index, where the agent did none of those and broke ties on
+    the item's position in the visible pool.  With `look_ahead` of 1 that is
+    invisible -- one item, no ordering -- which is why task 000 replayed almost
+    exactly (22 of 23 placements identical) while task 001, with a pool of ten,
+    could take the same placements in a different order and end three items
+    short.  A replay that does not reproduce the agent's own policy cannot
+    stand in for it, so there is now one rule and both call it.
+
+    ``pairs`` is ``(position, profile)``, the position being the item's slot in
+    the visible pool.
+    """
+    bucket = {cls.NORMAL_HARD: 0, cls.PRIORITY: 2,
+              cls.SOFT_PRIORITY: 3, cls.SOFT: 4}
+
+    def key(pair):
+        position, profile = pair
+        rank = bucket[profile.cargo_class]
+        if config.pool_order_demotes_elongated and profile.is_elongated and (
+            profile.cargo_class == cls.NORMAL_HARD
+        ):
+            rank += 1
+        return (
+            rank,
+            -round(profile.max_footprint, 6),
+            -round(profile.mass, 6) if config.pool_order_breaks_on_mass else 0.0,
+            position,
+        )
+
+    return sorted(pairs, key=key)
+
+
 def constructive_order(profiles: list[cls.ItemProfile], config,
                        model: ContainerModel | None = None) -> list[int]:
     """Rule-based stream order for Layer 1.
