@@ -19,14 +19,36 @@ Third cup run entirely under the 4-head dominance rule.
 |---|---|---|---|---|---|
 | テイジュウシン (rule-lowcog) | 0.82 | 36 | 36 | **23** | **58974** |
 | カベヅタイ (rule-edge) | 0.87 | 37 | 37 | 17 | 42289 |
-| rule-alpha | 0.94 | 17 | 17 | 17 | 41872 |
+| rule-alpha | 0.94 | 17 | 17 | 16 | 39409 |
 | グリッドオー (rule-grid) | 0.83 | 32 | 32 | 15 | 43103 |
 | ジ・アーモンド | 0.96 | 17 | 17 | 7 | 38889 |
 
-- **Side corpus: 79 preference pairs banked this cup** — the largest
+- **Side corpus: 78 preference pairs banked this cup** — the largest
   cup yet (vs 53/56/75 in Cups 003-005). `side-corpus-pairs.jsonl` in
   the run artifact, not committed, not fed to training (same boundary
   as every prior cup).
+- **Corrected from 79 to 78** (rule-alpha 17 -> 16) after the
+  distillation run failed on this Cup's artifact. One rule-alpha fork
+  in the dual-preloaded-dedicated-000-523 cell was recorded as a
+  strict pair but was not one: the actor's own action turned out
+  physically unsafe inside the fork, so it left
+  `build_resurrection_audit`'s comparison set entirely (that set is
+  built from *safe* root candidates, so an unsafe side is dropped
+  rather than censored). The champion was then alone on a
+  one-candidate terminal frontier with `terminal_truth_complete` still
+  True, and the miner read a "winner" off a one-horse race. Fixed at
+  the source in `run_terminal_rollout_policy.pair_fork_winner`, which
+  now requires both pair ids to be terminal-eligible; the analyzer and
+  the dataset builder apply the same rule so legacy artifacts report
+  and import consistently. Prior cups: **003 and 005 are proven clean**
+  (their distillations succeeded under the old builder, which aborted
+  on exactly this condition), **004 rechecked directly against its
+  artifact** (0 one-sided of 53 verdicts); 001-002 were never distilled
+  and are not rechecked here, so their recorded pair counts should be
+  treated as upper bounds. The same defect also let the online adapter
+  (シュンヒバリ) switch its executed action to, and take a preference
+  update from, such a one-horse race; that path is fixed by the same
+  helper.
 - **rule-alpha's debut: 0/6 genuine termination**, matching
   ジ・アーモンド's now-familiar pattern. Its terminations were
   `rule_alpha_declined` (5/6) and one `selected_action_failure` — a
@@ -106,6 +128,35 @@ over the champion), plus 4 equal; every other measured pairing came
 back incomparable, including all 6 グリッドオー-vs-テイジュウシン and
 all 6 テイジュウシン-vs-カベヅタイ cells. As always, race wins decide
 nothing — no promotion or gating logic reads this table.
+
+## rule-alpha version boundary (read before reusing these numbers)
+
+This cup ran **rule-alpha@7908b09**, the state vendored into this
+repository by `f8464ff` and still the only `rule_alpha/` commit here.
+Four further defect fixes were made to rule-alpha after this cup was
+collected and are **not** in this repository yet (they live in the
+parallel rule-alpha working clone):
+
+- `7908b09` terrace: `level_residual` unreachable below an early
+  return, `plateau_gain` always 0 under its clamp — two of the key's
+  three terms were never read. (This one **is** in the cup.)
+- `2567bcb` two vetoes without a fallback were emptying the survivor
+  list and ending episodes outright (at the stop, 10/10 and 17/17
+  candidates died there).
+- `c974c28` the wedge's material reservation was reordering the whole
+  stream, pulling the four largest boxes past position 13.
+- `803fd6f` the floor height map was blind across the whole container
+  above 0.785 m, so free-rectangle search invented room inside solids.
+
+So rule-alpha's debut figures here (0/6 genuine termination,
+`rule_alpha_declined` in 5 of 6 cells, 105/105 candidate-support
+misses, 16 strict pairs) characterise **7908b09 only**, and three of
+the four known episode-ending defects were still live in it — the
+`rule_alpha_declined` terminations in particular are the expected
+signature of the `2567bcb` veto defect. Do not read them as the
+current actor's ceiling. The next cup will run whatever `rule_alpha/`
+is on this branch at dispatch time; vendoring the three outstanding
+fixes here first is what would make the comparison meaningful.
 
 ## Notes
 

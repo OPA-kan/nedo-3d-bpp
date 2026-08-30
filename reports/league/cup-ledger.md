@@ -19,7 +19,7 @@ artifact is read.
 
 | 005 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 499,503,509,521 · 001: 449,457 | 33291140628 | 75 | 0.83-0.96 | five-horse field incl ジ・アーモンド; 144 disagreements, 143 forks, 75 strict pairs; maximum terminal fill 38.8154 (ジ・アーモンド, 25 placed, non-genuine selected-action failure) — see `reports/league/diversity-cup-005.md` |
 
-| 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | 33294741331 | 79 | 0.82-0.96 | first cup with rule-alpha (debut: 0/6 genuine termination, `rule_alpha_declined` x5 + 1 selected_action_failure, 105/105 candidate-support misses); ジ・アーモンド 0/6 genuine termination for a fifth straight cup; maximum terminal fill 41.857 (ジ・アーモンド, 26 placed, non-genuine selected_action_failure) — see `reports/league/diversity-cup-006.md` |
+| 006 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 523,541,547,557 · 001: 461,463 | 33294741331 | 78 | 0.82-0.96 | first cup with rule-alpha@7908b09 (debut: 0/6 genuine termination, `rule_alpha_declined` x5 + 1 selected_action_failure, 105/105 candidate-support misses); ジ・アーモンド 0/6 genuine termination for a fifth straight cup; maximum terminal fill 41.857 (ジ・アーモンド, 26 placed, non-genuine selected_action_failure); pairs **corrected 79 -> 78** (rule-alpha 17 -> 16) — one fork was a one-horse race, not strict dominance; root cause fixed in `run_terminal_rollout_policy.pair_fork_winner` — see `reports/league/diversity-cup-006.md` |
 
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,

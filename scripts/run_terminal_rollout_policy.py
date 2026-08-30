@@ -114,6 +114,38 @@ def _rank_key(candidate: Any) -> tuple[int, str]:
     )
 
 
+def pair_fork_winner(
+    fork: dict[str, Any], pair_ids: set[str],
+) -> str | None:
+    """Strict winner of a two-candidate fork, or None if there is no verdict.
+
+    A pair verdict requires BOTH sides to have reached a genuine terminal.
+    ``build_resurrection_audit`` builds its comparison set from root
+    candidates that were physically *safe*, so a side whose action turns
+    out unsafe inside the fork leaves the set entirely rather than being
+    censored: the survivor is then alone on a one-candidate terminal
+    frontier with ``terminal_truth_complete`` still True.  Reading a winner
+    off that would score a one-horse race as strict dominance, so the
+    eligibility of both ids is checked explicitly here.
+    """
+    if not bool(fork.get("terminal_truth_complete")):
+        return None
+    eligible = {
+        str(value)
+        for value in fork.get("terminal_eligible_candidates") or []
+    }
+    if not pair_ids <= eligible:
+        return None
+    frontier = {
+        str(value)
+        for value in fork.get("terminal_pareto_candidates") or []
+    }
+    if len(frontier) != 1:
+        return None
+    winner = next(iter(frontier))
+    return winner if winner in pair_ids else None
+
+
 def exact_agent_action(solver: Any, observation: dict[str, Any]):
     """Return an exact actor command, preserving an honest decline."""
     action = solver.policy(observation)
@@ -584,11 +616,9 @@ def run_episode(
                             str(value) for value in
                             fork.get("terminal_pareto_candidates") or []
                         }
-                        winner = None
-                        if complete and len(frontier) == 1:
-                            winner = next(iter(frontier))
+                        winner = pair_fork_winner(fork, pair_ids)
                         update = None
-                        if winner in pair_ids:
+                        if winner is not None:
                             update = learned_policy.update_from_fork(
                                 snapshot,
                                 search.get("root_candidates") or [],
@@ -699,10 +729,8 @@ def run_episode(
                             str(value) for value in
                             fork.get("terminal_pareto_candidates") or []
                         }
-                        winner = None
-                        if complete and len(frontier) == 1:
-                            winner = next(iter(frontier))
-                        if winner in pair_ids:
+                        winner = pair_fork_winner(fork, pair_ids)
+                        if winner is not None:
                             mining_pairs += 1
                         mining_event = {
                             "actor_policy": policy,

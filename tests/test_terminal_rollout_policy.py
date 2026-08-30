@@ -8,6 +8,7 @@ from scripts.run_terminal_rollout_policy import (
     add_current_agent_candidate,
     choose_root_candidate,
     exact_agent_action,
+    pair_fork_winner,
     run_episode,
 )
 
@@ -545,6 +546,56 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
             episode["records"][0]["selection"]["reason"],
             "current_agent_policy",
         )
+
+
+class PairForkWinnerTests(unittest.TestCase):
+    """A pair verdict needs BOTH sides to have reached a genuine terminal."""
+
+    PAIR = {"actor", "champ"}
+
+    def fork(self, **overrides):
+        base = {
+            "terminal_truth_complete": True,
+            "terminal_eligible_candidates": ["actor", "champ"],
+            "terminal_pareto_candidates": ["actor"],
+        }
+        base.update(overrides)
+        return base
+
+    def test_strict_winner_is_read_when_both_sides_are_eligible(self):
+        self.assertEqual(pair_fork_winner(self.fork(), self.PAIR), "actor")
+
+    def test_one_horse_race_is_not_a_verdict(self):
+        """The Cup 006 rule-alpha defect, at its source.
+
+        build_resurrection_audit builds its comparison set from
+        physically SAFE root candidates, so a side whose action turns out
+        unsafe inside the fork leaves the set instead of being censored:
+        the survivor stands alone on a one-candidate frontier and
+        terminal_truth_complete stays True. Reading a winner off that
+        scored a one-horse race as strict dominance.
+        """
+        self.assertIsNone(pair_fork_winner(self.fork(
+            terminal_eligible_candidates=["champ"],
+            terminal_pareto_candidates=["champ"],
+        ), self.PAIR))
+
+    def test_censored_truth_is_not_a_verdict(self):
+        self.assertIsNone(pair_fork_winner(
+            self.fork(terminal_truth_complete=False), self.PAIR
+        ))
+
+    def test_a_tied_frontier_is_not_a_verdict(self):
+        self.assertIsNone(pair_fork_winner(
+            self.fork(terminal_pareto_candidates=["actor", "champ"]),
+            self.PAIR,
+        ))
+
+    def test_a_winner_outside_the_pair_is_rejected(self):
+        self.assertIsNone(pair_fork_winner(self.fork(
+            terminal_eligible_candidates=["actor", "champ", "other"],
+            terminal_pareto_candidates=["other"],
+        ), self.PAIR))
 
 
 if __name__ == "__main__":

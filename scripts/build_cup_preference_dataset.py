@@ -56,6 +56,7 @@ def _relative_snapshot(
 def row_from_record(
     record: dict[str, Any], *, cup_root: pathlib.Path,
     manifest_path: pathlib.Path, cell: str, stud: str,
+    stats: dict[str, int] | None = None,
 ) -> dict[str, Any] | None:
     mining = record.get("mining") or {}
     winner = mining.get("winner_candidate_id")
@@ -79,9 +80,18 @@ def row_from_record(
         for candidate_id in ids
     }
     if any(value is None for value in oriented.values()):
-        raise ValueError(
-            f"{cell}/{stud}/{record.get('root_id')}: incomplete 4-head truth"
-        )
+        # Not a pair, so not an error.  Miners before the
+        # ``pair_fork_winner`` fix could record a winner for a fork whose
+        # loser dropped out of the terminal audit entirely (its action
+        # turned out physically unsafe), leaving the survivor alone on a
+        # one-candidate frontier with terminal_truth_complete still True.
+        # A one-horse race is not strict dominance; skip it rather than
+        # import it or abort the whole Cup on a legacy artifact.
+        if stats is not None:
+            stats["one_sided_verdicts_skipped"] = (
+                stats.get("one_sided_verdicts_skipped", 0) + 1
+            )
+        return None
     actor_wins = _dominates(oriented[ids[1]], oriented[ids[0]])
     champion_wins = _dominates(oriented[ids[0]], oriented[ids[1]])
     expected_winner = ids[1] if actor_wins else ids[0] if champion_wins else None
@@ -145,6 +155,7 @@ def row_from_record(
 
 def build_dataset(cup_root: pathlib.Path) -> dict[str, Any]:
     rows = []
+    stats: dict[str, int] = {}
     manifests = sorted(cup_root.rglob("manifest.json"))
     for manifest_path in manifests:
         # The compact aggregate has no episodes and is ignored here.
@@ -161,7 +172,7 @@ def build_dataset(cup_root: pathlib.Path) -> dict[str, Any]:
         for record in episodes[0].get("records") or []:
             row = row_from_record(
                 record, cup_root=cup_root, manifest_path=manifest_path,
-                cell=cell, stud=stud,
+                cell=cell, stud=stud, stats=stats,
             )
             if row is not None:
                 rows.append(row)
@@ -182,6 +193,9 @@ def build_dataset(cup_root: pathlib.Path) -> dict[str, Any]:
         "groups": groups,
         "actor_wins": sum(row["terminal_intervention"] for row in rows),
         "champion_wins": sum(not row["terminal_intervention"] for row in rows),
+        "one_sided_verdicts_skipped": stats.get(
+            "one_sided_verdicts_skipped", 0
+        ),
         "rows": rows,
     }
 
@@ -208,7 +222,10 @@ def main() -> int:
     )
     print(json.dumps({
         key: dataset[key]
-        for key in ("root_count", "group_count", "actor_wins", "champion_wins")
+        for key in (
+            "root_count", "group_count", "actor_wins", "champion_wins",
+            "one_sided_verdicts_skipped",
+        )
     }, ensure_ascii=False, indent=2))
     return 0
 

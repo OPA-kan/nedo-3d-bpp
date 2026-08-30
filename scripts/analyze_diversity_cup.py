@@ -76,6 +76,32 @@ def _mining_events(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _both_sides_reached_terminal(event: dict[str, Any]) -> bool:
+    """Whether a fork's actor AND champion both have genuine terminal truth.
+
+    Miners before the ``pair_fork_winner`` fix could record a winner for a
+    fork whose loser left the terminal audit entirely (its action turned
+    out physically unsafe), leaving the survivor alone on a one-candidate
+    frontier.  Counting that as a strict pair would overstate the harvest
+    and disagree with what ``build_cup_preference_dataset`` can import, so
+    the pair rows are checked directly here.
+    """
+    ids = {
+        str(event.get("champion_candidate_id")),
+        str(
+            event.get("actor_candidate_id")
+            or event.get("rule_candidate_id")
+        ),
+    }
+    reached = {
+        str(row.get("root_candidate_id"))
+        for row in event.get("pair_rows") or []
+        if row.get("terminal_genuine") is True
+        and row.get("terminal_vector") is not None
+    }
+    return ids <= reached
+
+
 def stud_metrics(
     cell: str, horse: str, manifest: dict[str, Any],
     champion_manifest: dict[str, Any] | None,
@@ -90,6 +116,7 @@ def stud_metrics(
     strict = [
         event for event in forked
         if event.get("winner_candidate_id") is not None
+        and _both_sides_reached_terminal(event)
     ]
     actor_wins = 0
     champion_wins = 0
@@ -113,7 +140,11 @@ def stud_metrics(
     fork_equiv = int(
         episode.get("mining_fork_physical_step_equivalents") or 0
     )
-    strict_pairs = int(episode.get("mining_strict_pairs") or 0)
+    # Recomputed from the fork events rather than read off the episode's
+    # own mining_strict_pairs counter: a legacy artifact's counter can
+    # include one-sided verdicts that `strict` now excludes, and the Cup's
+    # headline pair count must match what the distiller can import.
+    strict_pairs = len(strict)
     return {
         "cell": cell,
         "horse": horse,
@@ -198,6 +229,10 @@ def side_corpus(
             for event in _mining_events(manifest):
                 winner = event.get("winner_candidate_id")
                 if winner is None or "pair_rows" not in event:
+                    continue
+                if not _both_sides_reached_terminal(event):
+                    # One-horse race, not a strict pair -- see
+                    # _both_sides_reached_terminal.
                     continue
                 pairs.append({
                     "cell": cell,
