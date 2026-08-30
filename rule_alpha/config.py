@@ -98,6 +98,62 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    floor_prefers_flat: bool = False
+    """Refuse a floor placement by a box taller than the manifest can pave with.
+
+    The official scorer requires every corner to clear every plane by
+    `inclusion_margin` (-0.005), and the container floor is one of those planes,
+    so an item settled on the floor -- lowest corner exactly on it -- counts
+    zero towards the fill score.  Verified per item against `evaluate()` on both
+    tasks and under both agents: the dropped items are exactly the ones touching
+    the floor (6/6 and 7/7 for rule-alpha, 3/3 and 4/4 for the incumbent), worth
+    28-36% of everything placed.  So a square metre of floor costs the height of
+    whatever paves it, and paving with a tall box wastes the difference.
+
+    A preference with a fallback: with `max_space: 1`, a forfeited box still
+    beats the unplaced one that would end the episode.
+
+    Off, because measured it does not pay -- and the fallback is why.  On task
+    000 the veto is a *no-op at every tolerance including zero*: at each floor
+    decision there is no other surface to send the box to, so the fallback fires
+    and the tall box paves anyway.  On task 001 it fires and costs items::
+
+        tolerance  task 000        task 001
+        off        23 / 29.484     23 / 25.880
+        0.000      23 / 29.484     19 / 25.270
+        0.005      23 / 29.484     19 / 25.270
+        0.020      23 / 29.484     18 / 22.662
+        0.040      23 / 29.484     20 / 22.469
+
+    The tax is real; avoiding it is not worth what it costs.  Cutting the
+    forfeit does cut the counted volume by more: on task 000 the paving order
+    takes the forfeit from 0.458 to 0.357 m^3 and the counted volume from 1.181
+    to 0.788.  The flat boxes are also the best stacking and gap-filling
+    material, and the big ones are what build a plateau wide enough to stack on
+    at all, so spending the flat ones on the floor costs the structure more than
+    the tax it saves."""
+
+    floor_paving_tolerance: float = 0.02
+    """How much taller than the cheapest paving a floor box may still be, in m.
+
+    task 000's hard classes lie 0.24, 0.25 and 0.27 m flat, so this decides
+    whether the rule separates all three or only the extremes."""
+
+    floor_paving_order: bool = False
+    """Order the hard cargo flattest-first rather than largest-footprint-first.
+
+    The companion to `floor_prefers_flat`: the veto can only send a tall box
+    upstairs if something has already built the stairs, so the cheap paving has
+    to arrive while the floor is still the only surface there is.
+
+    Off, measured::
+
+        arm            task 000        task 001
+        neither        23 / 29.484     23 / 25.880
+        veto only      23 / 29.484     18 / 22.662
+        order only     19 / 19.666     22 / 23.572
+        both           19 / 18.349     22 / 22.075"""
+
     wall_front_order_quota: int = 0
     """How many items the wall-front group may claim at the head of the stream.
 

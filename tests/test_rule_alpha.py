@@ -9,6 +9,7 @@ sweep lives in ``rule_alpha.runner``, not here.
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import pathlib
 import sys
@@ -1563,6 +1564,59 @@ class PlateauDepthTest(unittest.TestCase):
         allowed, level = layer1.may_build_here(board, 0, second, DEFAULT_CONFIG)
         self.assertEqual(level, 2)
         self.assertTrue(allowed)
+
+
+class FloorTaxTest(unittest.TestCase):
+    """An item settled on the container floor scores nothing.
+
+    `inclusion_margin` in the official config is -0.005, and `evaluator.py`
+    counts an item only when every corner clears every plane by that much.  The
+    container floor is one of those planes, so a box resting on it -- lowest
+    corner exactly on the plane -- is excluded from the fill score entirely.
+
+    Verified per item against `evaluate()` on both official tasks and under both
+    agents: the items dropped are exactly the items touching the floor (6 of 6
+    and 7 of 7 for rule-alpha, 3 of 3 and 4 of 4 for the incumbent), worth 28-36%
+    of everything placed.  This test pins the arithmetic so that a change to the
+    official margin is noticed rather than silently absorbed."""
+
+    def _official_margin(self):
+        payload = json.loads(
+            (REPO_ROOT / "simulator" / "configs" / "sample_config.json").read_text()
+        )
+        margins = {payload[t]["validator"]["inclusion_margin"] for t in payload}
+        self.assertEqual(len(margins), 1, "both tasks should share a margin")
+        return margins.pop()
+
+    def test_the_margin_demands_clearance_rather_than_merely_containment(self):
+        margin = self._official_margin()
+        self.assertLess(
+            margin, 0.0,
+            "a negative margin is what makes touching a plane a failure",
+        )
+
+    def test_a_box_resting_on_the_floor_fails_the_official_test(self):
+        """The floor plane's normal points down and sits at the floor height, so
+        the signed distance of the lowest corner is zero.  `evaluate()` rejects
+        anything above the margin."""
+        margin = self._official_margin()
+        floor_z, box_bottom = 0.04, 0.04
+        signed_distance = -(box_bottom - floor_z)
+        self.assertGreater(
+            signed_distance, margin,
+            "a box on the floor is rejected, which is the whole finding",
+        )
+        lifted = -((floor_z + abs(margin) + 1e-4) - floor_z)
+        self.assertLessEqual(
+            lifted, margin,
+            "clearing the plane by the margin is what it would take to count",
+        )
+
+    def test_the_two_levers_that_did_not_pay_stay_off(self):
+        """Both were measured and both cost more than the tax they avoid, so
+        the defaults have to say so."""
+        self.assertFalse(DEFAULT_CONFIG.floor_prefers_flat)
+        self.assertFalse(DEFAULT_CONFIG.floor_paving_order)
 
 
 class StreamOrderTest(unittest.TestCase):
