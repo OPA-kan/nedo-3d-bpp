@@ -141,6 +141,56 @@ class RuleAlphaConfig:
     the numbers, because the mechanism is now correct and a manifest of genuinely
     small hard cargo could change the sum -- but on these two it cannot."""
 
+    seal_ranks_terraces: bool = False
+    """Rank terraces by what they seal before what they leave beside them.
+
+    The cheaper half of `seal_check_all_surfaces`: compute the sealed area for
+    non-floor placements and let the terrace key prefer the placement that does
+    not close the approach, instead of refusing anything outright."""
+
+    seal_check_all_surfaces: bool = False
+    """Ask a terrace, a bridge and a shelf place what they seal, not only a
+    floor place.
+
+    `sealed_added` measures the ground a later item can no longer be delivered
+    to, probing at the heights `reach_probe_heights` names.  It was computed
+    below the return that fires for every surface except the floor, so on a
+    terrace it was always 0.0, and the veto that reads it skipped non-floor
+    candidates outright -- on the stated ground that "a shelf or step placement
+    takes nothing away from the floor approach".  It does: delivery is a
+    straight y-sweep at the target's own x, so a terrace at z 0.74-1.19 seals
+    everything behind it between those heights exactly as a wall on the ground
+    would.
+
+    This is the fourth rule in this branch found downstream of a gate that had
+    already excluded its own case.  Measured on task 000: a 0.744 x 0.434 m
+    platform at z 0.850 at the back goes unused because a terrace two rows in
+    front of it closes the approach, and `back_reachability_guard` cannot catch
+    it -- that rule compares against the *highest* terrain behind, and there is
+    a 1.44 m tower further back, so a 1.19 m box in front of a 0.85 m pocket
+    reads as staying low.
+
+    Off, because enforcing it costs far more than the platform is worth.  The
+    shipped threshold of 0.30 m^2 never fires at all, and every threshold that
+    does fire loses::
+
+        threshold  task 000        task 001        items   fill sum
+        off        24 / 28.157     27 / 29.793      51      57.949
+        0.25       24 / 28.157     27 / 29.793      51      57.949   (no-op)
+        0.12       24 / 28.157     22 / 23.774      46      51.930
+        0.06       17 / 21.568     22 / 25.580      39      47.148
+        0.02       16 / 19.743     20 / 19.861      36      39.604
+
+    `seal_ranks_terraces`, the cheaper half -- compute the sealed area and let
+    the terrace key prefer the placement that does not close the approach,
+    refusing nothing -- is a no-op on both tasks.
+
+    The rule is too blunt as written: it fires on every placement that seals
+    anything, and most of those seals are worth making.  What it should ask is
+    whether the sealed ground is large enough, and the stream still long enough,
+    for the loss to matter.  The wiring is fixed and the switch is here for when
+    that sharper question is written."""
+
     back_reachability_guard: bool = True
     """Refuse a placement that would rise above the terrain behind it.
 

@@ -1574,6 +1574,40 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class SealCheckScopeTest(unittest.TestCase):
+    """A terrace seals the approach exactly as a wall on the ground does.
+
+    `sealed_added` -- the ground a later item can no longer be delivered to --
+    was floor-only twice over: computed below the return that fires for every
+    surface except the floor, and read by a veto that skipped non-floor
+    candidates outright, on the stated ground that "a shelf or step placement
+    takes nothing away from the floor approach".  Delivery is a straight y-sweep
+    at the target's own x, so it does.
+
+    That is the fourth rule in this branch found downstream of a gate that had
+    already excluded its own case, which is why these tests are about placement
+    in the file rather than about a number."""
+
+    def test_the_sealed_area_is_computed_before_the_floor_only_return(self):
+        source = pathlib.Path(layer1.__file__).read_text()
+        head, sep, tail = source.partition(
+            'if not with_grid or candidate.surface != "floor":'
+        )
+        self.assertTrue(sep, "the early return should still be there")
+        self.assertIn('features["sealed_added"] = max(0.0, worst_seal)', head)
+
+    def test_the_veto_can_reach_a_non_floor_candidate(self):
+        source = pathlib.Path(layer1.__file__).read_text()
+        block = source.partition('drop(candidate, "seals-usable-ground-behind")')[0]
+        self.assertIn("seal_check_all_surfaces", block[-2000:])
+
+    def test_it_is_off_because_enforcing_it_loses(self):
+        """Every threshold that fires costs more than the platform it saves;
+        the shipped 0.30 never fires at all."""
+        self.assertFalse(DEFAULT_CONFIG.seal_check_all_surfaces)
+        self.assertFalse(DEFAULT_CONFIG.seal_ranks_terraces)
+
+
 class WedgeOverhangTest(unittest.TestCase):
     """Compaction aimed the staircase back out of the chamfer.
 

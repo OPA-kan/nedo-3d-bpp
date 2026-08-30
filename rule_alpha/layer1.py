@@ -1644,9 +1644,35 @@ def compute_features(candidate: Candidate, board: Board, config,
         # rather than below, because below is past the return that fires for
         # every surface except the floor -- which is exactly how the terrace
         # key came to rank by a feature it could never read.
-        features["terrain_behind"] = terrain_behind(
-            board.grid(candidate.container_idx), rect
-        )
+        grid_now = board.grid(candidate.container_idx)
+        features["terrain_behind"] = terrain_behind(grid_now, rect)
+
+        # ``sealed_added`` -- how much ground a later item can no longer be
+        # delivered to -- had the same defect and a second one on top of it: the
+        # veto that reads it also skips anything that is not on the floor, on
+        # the stated ground that "a shelf or step placement takes nothing away
+        # from the floor approach".  It does.  Delivery is a straight y-sweep at
+        # the target's own x, so a terrace at z 0.74-1.19 seals everything
+        # behind it between those heights exactly as a wall on the ground would.
+        # Measured on task 000: a 0.744 x 0.434 m platform at z 0.850 at the
+        # back is left unreachable by a terrace two rows in front of it, and the
+        # rule that exists to prevent that could not see the placement.
+        if (config.seal_check_all_surfaces or config.seal_ranks_terraces) \
+                and candidate.surface != "floor":
+            mask_now = grid_now.rect_mask(rect)
+            top_rel_now = float(box.maximum[2]) - model.z_floor
+            worst_seal = 0.0
+            for probe in config.reach_probe_heights:
+                if probe >= top_rel_now - 1e-9:
+                    continue
+                _rb, sealed_before = board.reach_at_height(
+                    candidate.container_idx, probe
+                )
+                _ra, sealed_after = reach_at(
+                    grid_now, model.z_floor, probe, mask_now, top_rel_now
+                )
+                worst_seal = max(worst_seal, sealed_after - sealed_before)
+            features["sealed_added"] = max(0.0, worst_seal)
 
     if not with_grid or candidate.surface != "floor":
         features.setdefault("new_interior_hole_area", 0.0)
@@ -1894,13 +1920,20 @@ def _key_wall_front(c):
     )
 
 
-def _key_terrace(c, level_bucket: float = 0.0):
+def _key_terrace(c, level_bucket: float = 0.0, seal_first: bool = False):
     # widen the plateau, and among the placements that widen it about equally
     # prefer the one that leaves the biggest usable rectangle beside itself
+    plateau = -_bucket(c.features.get("hard_plateau_largest", 0.0), level_bucket)
+    sealed = c.features.get("sealed_added", 0.0)
+    if seal_first:
+        # among terraces that widen the plateau about equally, prefer the one
+        # that does not close the approach to what is behind it
+        return (plateau, sealed, -c.features.get("level_residual", 0.0),
+                -c.features["y_back"])
     return (
-        -_bucket(c.features.get("hard_plateau_largest", 0.0), level_bucket),
+        plateau,
         -c.features.get("level_residual", 0.0),
-        c.features.get("sealed_added", 0.0),
+        sealed,
         -c.features["y_back"],
     )
 
@@ -2739,7 +2772,18 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     kept = []
     for candidate in survivors:
         if candidate.surface != "floor":
-            kept.append(candidate)
+            # A placement off the floor still costs the way in -- see the note
+            # on `sealed_added` in `compute_features`.  Only the sealing half
+            # applies: `stranded_added` is about floor area a box cuts off from
+            # the boundary, which is a floor question.
+            if (
+                config.seal_check_all_surfaces
+                and candidate.features.get("sealed_added", 0.0)
+                > config.sealed_veto_area
+            ):
+                drop(candidate, "seals-usable-ground-behind")
+            else:
+                kept.append(candidate)
             continue
         if candidate.features.get("stranded_added", 0.0) > config.stranded_veto_area:
             drop(candidate, "strands-reachable-floor")
@@ -3628,10 +3672,14 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             if name == A_SHELF_SAVING and config.shelf_residual_key:
                 bucket = config.shelf_depth_bucket
                 key_fn = lambda c: _key_shelf_saving(c, bucket)  # noqa: E731
-            if name in (A_TERRACE, A_BRIDGE) and config.terrace_keeps_level:
-                bucket = config.plateau_gain_bucket
+            if name in (A_TERRACE, A_BRIDGE) and (
+                config.terrace_keeps_level or config.seal_ranks_terraces
+            ):
+                bucket = config.plateau_gain_bucket if config.terrace_keeps_level else 0.0
+                seal_first = config.seal_ranks_terraces
                 key_fn = (
-                    (lambda c: _key_terrace(c, bucket)) if name == A_TERRACE
+                    (lambda c: _key_terrace(c, bucket, seal_first))
+                    if name == A_TERRACE
                     else (lambda c: _key_bridge(c, bucket))
                 )
             if name == A_TALL_PERIMETER:
