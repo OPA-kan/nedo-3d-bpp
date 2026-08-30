@@ -1574,6 +1574,48 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class BackReachabilityTest(unittest.TestCase):
+    """A box taller than what is behind it seals that column.
+
+    Delivery is a straight y-sweep at the target's own x, so height in front of
+    empty back space is not merely wasteful, it is a wall.  On task 000's
+    finished board the largest free rectangle above the shelf is 0.744 x 0.434 m
+    at z 0.850 at the back, two of the refused item's poses fit it, and every
+    approach dies `transport-hits-packed-item` against a 1.43 m tower in the
+    same x column."""
+
+    def test_the_guard_reads_a_feature_it_can_actually_see(self):
+        """`terrain_behind` used to be computed below the return that fires for
+        every surface except the floor, so on a terrace it was the default.
+        That is the same defect the terrace key had, and the guard is useless
+        with it -- every non-floor candidate would look like it towers over bare
+        ground."""
+        source = pathlib.Path(layer1.__file__).read_text()
+        head, _, tail = source.partition(
+            'if not with_grid or candidate.surface != "floor":'
+        )
+        self.assertIn(
+            'features["terrain_behind"] = terrain_behind(', head,
+            "terrain_behind must be computed before the floor-only return",
+        )
+        self.assertNotIn('features["terrain_behind"] = terrain_behind(', tail)
+
+    def test_structural_roles_are_exempt(self):
+        """The wedge staircase and the wall front rise by design: their height
+        is set by the chamfer or by the step underneath, not by the frontier,
+        which is why back-first exempts them too."""
+        source = pathlib.Path(layer1.__file__).read_text()
+        guard = source.partition("if config.back_reachability_guard:")[2]
+        for role in ("ROLE_WALL_FRONT", "ROLE_WEDGE_STEP", "ROLE_SLOPE_INFILL"):
+            self.assertIn(role, guard.partition("# 5.")[0])
+
+    def test_the_band_covers_the_front_half(self):
+        """0.70 m of a container about 1.38 m deep.  Measured: 0.35 changes
+        nothing and 0.70 is worth two items; 0.90 agrees with 0.70."""
+        self.assertTrue(DEFAULT_CONFIG.back_reachability_guard)
+        self.assertGreaterEqual(DEFAULT_CONFIG.back_guard_band, 0.60)
+
+
 class ReplayFidelityTest(unittest.TestCase):
     """The replay has to be able to stand in for the agent, and does not.
 

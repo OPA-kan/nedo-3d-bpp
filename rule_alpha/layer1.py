@@ -1637,6 +1637,17 @@ def compute_features(candidate: Candidate, board: Board, config,
             features["shelf_residual_rect"] = residual
             features["shelf_fragments"] = fragments
 
+    if with_grid:
+        # every surface, not only the floor: the guard that reads this asks
+        # whether a placement seals the column behind it, and a box on a
+        # terrace seals just as much as one on the ground.  Computed here
+        # rather than below, because below is past the return that fires for
+        # every surface except the floor -- which is exactly how the terrace
+        # key came to rank by a feature it could never read.
+        features["terrain_behind"] = terrain_behind(
+            board.grid(candidate.container_idx), rect
+        )
+
     if not with_grid or candidate.surface != "floor":
         features.setdefault("new_interior_hole_area", 0.0)
         features.setdefault("open_free_area", 0.0)
@@ -1675,7 +1686,6 @@ def compute_features(candidate: Candidate, board: Board, config,
     else:
         features["neighbour_height_step"] = 0.0
 
-    features["terrain_behind"] = terrain_behind(grid, rect)
     features["row_waste"] = (
         row_waste(grid, rect, mask, board.min_useful_width)
         if config.row_tiling and candidate.surface == "floor" else 0.0
@@ -3101,6 +3111,42 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             survivors = [near_misses[0][1]]
         if not survivors:
             return [], counts
+
+    # 4j. do not wall off the back at height.  The one rule that reads
+    #     `terrain_behind` is 4g, and it is narrowed three ways: floor surfaces
+    #     only, normal-hard only, within `hard_front_band` of the opening only,
+    #     and only while the front is not yet released.  The front is released
+    #     on both official boards by the time it would matter, so nothing at all
+    #     stops a stack rising in front of empty back space.  Measured on task
+    #     000's final board: the largest free rectangle above the shelf is
+    #     0.744 x 0.434 at z 0.850 at the back, two poses fit it, and every
+    #     approach dies `transport-hits-packed-item` -- against a tower at
+    #     y[-0.171, +0.229] built to 1.43 m in the same x column while the back
+    #     of that column stops at 0.850.  Delivery is a straight y-sweep at the
+    #     target's own x, so a box that rises above what is behind it seals
+    #     everything behind it at that height.
+    #
+    #     A preference with a fallback, and structural roles are exempt for the
+    #     same reason they are exempt from back-first: their height is dictated
+    #     by the chamfer or by the step underneath them, not by the frontier.
+    if config.back_reachability_guard:
+        limit_y = model.floor_rect.y_min + config.back_guard_band
+        exempt_roles = (cls.ROLE_WALL_FRONT, cls.ROLE_WEDGE_STEP,
+                        cls.ROLE_SLOPE_INFILL, l2.ROLE_FRONT_WEDGE)
+        kept = []
+        for candidate in survivors:
+            behind = candidate.features.get("terrain_behind", model.z_floor)
+            if (
+                candidate.role in exempt_roles
+                or float(candidate.box.center[1]) >= limit_y
+                or float(candidate.box.maximum[2])
+                <= behind + config.back_guard_slack + 1e-9
+            ):
+                kept.append(candidate)
+            else:
+                drop(candidate, "would-wall-off-the-back")
+        if kept and len(kept) < len(survivors):
+            survivors = kept
 
     # 5. a follower may not break the last bay the frontier cargo still needs.
     #    The manifest is given to optimize(), so the outstanding large

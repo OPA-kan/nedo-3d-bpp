@@ -107,6 +107,51 @@ class RuleAlphaConfig:
     anchor the clamp rescues is within 2 mm and the bound is a guard rather than
     a tuning knob."""
 
+    back_reachability_guard: bool = True
+    """Refuse a placement that would rise above the terrain behind it.
+
+    Delivery is a straight y-sweep at the target's own x, so a box taller than
+    what stands behind it seals that column at every height between them.  The
+    only rule that asked this was scoped to floor surfaces, normal-hard cargo, a
+    0.35 m band at the opening, and only while the front was unreleased -- which
+    is none of the cases that matter by the time the board is half built.
+
+    Measured on task 000's finished board: the largest free rectangle above the
+    shelf is 0.744 x 0.434 m at z 0.850, at the back, and two of the refused
+    item's poses fit it.  Every approach dies `transport-hits-packed-item`,
+    against a tower at y[-0.171, +0.229] built to 1.43 m in the same x column
+    while the back of that column stops at 0.850.
+
+    Swept over the band and the slack::
+
+        band   task 000        task 001        items   fill sum
+        off    24 / 28.157     25 / 27.184      49      55.341
+        0.35   24 / 28.157     25 / 27.184      49      55.341
+        0.55   24 / 28.157     24 / 25.880      48      54.037
+        0.70   24 / 28.157     27 / 29.793      51      57.949
+        0.90   24 / 28.157     27 / 29.793      51      57.949
+
+        slack  (at band 0.70)                   items   fill sum
+        0.00                                     51      57.949
+        0.05                                     51      57.949
+        0.10                                     51      57.949
+        0.20                                     50      56.645
+
+    Two items and 2.6 fill, and nothing lost anywhere: task 000 does not change
+    at all, so the guard pays entirely on task 001.  0.70 and 0.90 agree, so the
+    front half is the whole of it; the slack sits on a plateau three values
+    wide."""
+
+    back_guard_band: float = 0.70
+    """How far in from the opening the guard applies, in metres.
+
+    The container is about 1.38 m deep, so 0.70 is the front half.  At 0.35 it
+    is the same band 4g uses; larger values push it toward strict back-to-front
+    building."""
+
+    back_guard_slack: float = 0.05
+    """How far above the terrain behind it a placement may still rise, in m."""
+
     layer2_clamps_anchors: bool = True
     """Pull a Layer 2 anchor back inside the container instead of losing it.
 
