@@ -84,6 +84,41 @@ Among the four measured horses: 33/36 incomparable (92%, the highest
 yet), 1 equal, 2 decisive. The dominance rule is now almost silent on
 this field. Both non-genuine horses are unmeasured 6/6 as usual.
 
+## Shun Long distillation of this cup's memory
+
+Run 33302670965, first attempt, clean. 71 pairs, 6 groups, `passes=1`,
+0 one-sided verdicts, label balance 28 actor / 43 champion. Status
+stays `capability_only_not_league_evidence`; registry untouched.
+
+| | before | after |
+|---|---|---|
+| leave-one-course-cell-out AUC | 0.419 | **0.630** |
+| leave-one-course-cell-out log loss | 1.879 | **0.922** |
+| same-corpus AUC | 0.419 | 0.723 |
+
+**The largest held-out gain of any cup, and the first after-value
+clearly above chance.** Across the four distilled cups:
+
+| cup | pairs | held-out AUC | delta |
+|---|---|---|---|
+| 003 | 56 | 0.624 -> 0.478 | -0.146 |
+| 006 | 78 | 0.590 -> 0.566 | -0.024 |
+| 007 | 83 | 0.484 -> 0.504 | +0.020 |
+| **008** | **71** | **0.419 -> 0.630** | **+0.211** |
+
+Corpus size does not explain it -- 71 is *fewer* pairs than Cup 007's
+83. The variable that changed is the corpus's composition: Cup 008 is
+the first on rule-alpha@803fd6f, whose 8 pairs came at a 73% strict
+rate with a 7-1 record against the champion.
+
+Two cautions before this is read as a trend. The before-AUC is itself
+the lowest of the four (0.419), so the champion started with the most
+headroom on this corpus; before/after deltas across cups compare
+different corpora and are not strictly commensurable. And it is one
+cup. What is fair to say is that the best absolute held-out value so
+far (0.630) came from the corpus with the strongest miner in it, not
+from the largest corpus.
+
 ## The finding this cup exposed: candidate-support mismatch
 
 The number worth keeping from Cup 008 is not a standing. It is
