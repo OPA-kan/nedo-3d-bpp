@@ -128,6 +128,22 @@ include current-agent support misses and maximum terminal fill with horse,
 cell and placed count. This changes the actor field, not the fork budget,
 course isolation, dominance rule or no-auto-training boundary.
 
+## Cup 006+ amendment: exact rule-alpha actor
+
+Date: 2026-08-30. Starting with Cup 006, the field adds `rule-alpha`
+from source commit `7908b09`. It uses the same exact-action contract as
+`current-agent`: one stateful policy instance per episode, no private
+stream reorder, and its command is unioned into the bounded root support
+before PyBullet validation and paired terminal mining. The standalone
+rule-alpha official-task runner is not used, so its reconstructed stream
+settings cannot affect the Cup course.
+
+Cup 006+ therefore has six horses: the frozen learned champion, the two
+exact stateful actors `current-agent` and `rule-alpha`, and the three
+compact rule studs. This amendment changes only actor coverage. Course
+isolation, fixed fork budget, four-head dominance, genuine-terminal
+teacher contract and the no-auto-training boundary remain unchanged.
+
 ## Cup 002+ amendment: surface_total_variation drops out of the fork dominance rule
 
 Date: 2026-08-26 (second amendment, made after Cup 002 was preregistered

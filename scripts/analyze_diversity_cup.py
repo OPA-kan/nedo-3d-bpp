@@ -28,7 +28,9 @@ if str(ROOT) not in sys.path:
 from scripts.league import episode_outcome, paired_relation  # noqa: E402
 
 CHAMPION = "learned"
-MINERS = ("current-agent", "rule-grid", "rule-lowcog", "rule-edge")
+MINERS = (
+    "current-agent", "rule-alpha", "rule-grid", "rule-lowcog", "rule-edge",
+)
 HORSES = (CHAMPION,) + MINERS
 EVENT_HEADS = (
     "soft_violation_gain", "priority_covered_gain",
@@ -128,7 +130,8 @@ def stud_metrics(
         "actor_wins": actor_wins,
         "champion_wins": champion_wins,
         "candidate_support_misses": int(
-            episode.get("current_agent_support_misses") or 0
+            episode.get("current_agent_support_misses")
+            or episode.get("rule_alpha_support_misses") or 0
         ),
         "fork_physical_step_equivalents": fork_equiv,
         "pairs_per_million_step_equivalents": (

@@ -67,9 +67,9 @@ def mining_event(winner, soft=0.0):
     }
 
 
-def current_agent_mining_event(winner):
+def exact_agent_mining_event(winner, policy="current-agent"):
     event = mining_event(winner)
-    event["actor_policy"] = "current-agent"
+    event["actor_policy"] = policy
     event["actor_candidate_id"] = event.pop("rule_candidate_id")
     return event
 
@@ -81,9 +81,15 @@ class DiversityCupAnalysisTests(unittest.TestCase):
             ("learned", manifest("learned", ["f1", "f2", "f3"])),
             ("current-agent", manifest(
                 "current-agent", ["a1", "a2", "a3"],
-                mining={1: current_agent_mining_event("a")},
+                mining={1: exact_agent_mining_event("a", "rule-alpha")},
                 final={**FINAL, "fill_score_proxy": 14.25,
                        "placed_count": 12},
+            )),
+            ("rule-alpha", manifest(
+                "rule-alpha", ["r1", "r2", "r3"],
+                mining={1: exact_agent_mining_event("a")},
+                final={**FINAL, "fill_score_proxy": 15.0,
+                       "placed_count": 13},
             )),
             ("rule-grid", manifest(
                 "rule-grid", ["f1", "g2", "g3"],
@@ -137,12 +143,12 @@ class DiversityCupAnalysisTests(unittest.TestCase):
         table = report["race_tables"]["learned_vs_rule-grid"]
         self.assertEqual(table["counts"]["equal"], 1)
         # side corpus keeps only strict-winner forks
-        self.assertEqual(report["side_corpus_pairs"], 2)
+        self.assertEqual(report["side_corpus_pairs"], 3)
         self.assertEqual(totals["current-agent"]["strict_pairs"], 1)
         self.assertEqual(
-            report["max_terminal_fill"]["horse"], "current-agent"
+            report["max_terminal_fill"]["horse"], "rule-alpha"
         )
-        self.assertEqual(report["max_terminal_fill"]["fill_score_proxy"], 14.25)
+        self.assertEqual(report["max_terminal_fill"]["fill_score_proxy"], 15.0)
         self.assertEqual(
             report["max_terminal_fill_by_horse"]["learned"][
                 "fill_score_proxy"

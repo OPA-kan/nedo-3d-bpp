@@ -157,7 +157,8 @@ def preregister(
     row = (
         f"| {selected_id} | {date} | {run_id} | {champion} "
         f"{display_name or champion} | {streams} | pending | pending | "
-        "pending | preregistered five-horse field incl current-agent |\n"
+        "pending | preregistered six-horse field incl current-agent and "
+        "rule-alpha@7908b09 |\n"
     )
     marker = "\nPool allocation note:"
     if marker not in text:

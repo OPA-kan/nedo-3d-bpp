@@ -4,8 +4,10 @@ import unittest
 from unittest import mock
 
 from scripts.run_terminal_rollout_policy import (
+    add_exact_agent_candidate,
     add_current_agent_candidate,
     choose_root_candidate,
+    exact_agent_action,
     run_episode,
 )
 
@@ -86,6 +88,42 @@ class TerminalRolloutPolicyTests(unittest.TestCase):
         self.assertTrue(repeated_hit)
         self.assertEqual(repeated_id, candidate_id)
         self.assertEqual(len(repeated), len(expanded))
+
+    def test_exact_agent_decline_is_preserved_instead_of_canonicalized(self):
+        solver = mock.Mock()
+        solver.policy.return_value = None
+
+        self.assertIsNone(exact_agent_action(solver, {"state": 1}))
+        solver.policy.assert_called_once_with({"state": 1})
+
+    def test_rule_alpha_action_is_union_added_with_distinct_provenance(self):
+        observation = {"pool_list": [{"index": 70}]}
+        exact = {
+            "item_idx": 0, "container_idx": 0,
+            "place_pos": [0.5, 0.25, 0.75], "orientation": 1,
+        }
+        expanded, candidate_id, hit = add_exact_agent_candidate(
+            self.candidates, exact, observation, policy="rule-alpha",
+        )
+        self.assertFalse(hit)
+        self.assertEqual(expanded[-1].candidate_id, candidate_id)
+        self.assertEqual(
+            expanded[-1].selection["provider"],
+            "exact_rule_alpha_policy",
+        )
+
+        chosen, audit = choose_root_candidate(
+            expanded,
+            {
+                "root_candidates": [
+                    {"root_candidate_id": "a", "safe": True},
+                    {"root_candidate_id": candidate_id, "safe": True},
+                ]
+            },
+            policy="rule-alpha", forced_candidate_id=candidate_id,
+        )
+        self.assertEqual(chosen.candidate_id, candidate_id)
+        self.assertEqual(audit["reason"], "rule_alpha_policy")
 
     def test_rollout_switches_only_when_incumbent_is_dominated(self):
         chosen, audit = choose_root_candidate(

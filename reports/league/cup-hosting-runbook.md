@@ -17,9 +17,9 @@ another Cup is queued/running.
 
 This workflow is only a host. The physics event remains
 `diversity-cup.yml`, and all manual rules below remain the recovery/audit
-contract. Cup 002+ runs the five-horse field including the exact stateful
-current agent. The aggregate report includes maximum terminal fill and
-current-agent candidate-support misses.
+contract. Cup 006+ runs the six-horse field including the exact stateful
+current agent and exact stateful rule-alpha actor. The aggregate report
+includes maximum terminal fill and exact-actor candidate-support misses.
 
 ## Per-cup procedure
 

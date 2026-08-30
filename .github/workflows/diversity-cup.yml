@@ -8,7 +8,8 @@ run-name: >-
 # the frozen eval variants and every preregistered wave, and nothing
 # here writes to the season ledger, registry, or matrices. Each cell is
 # run by the frozen champion (novelty baseline), the exact stateful current
-# hand-coded agent and the three rule studs.  Every diversity actor mines
+# hand-coded agent, rule-alpha and the three compact rule studs.  Every
+# diversity actor mines
 # counterfactual dominance pairs against the champion ensemble at each
 # action disagreement.
 
@@ -99,7 +100,7 @@ jobs:
           python scripts/build_scenario_matrix.py
           --stream-variant "${{ matrix.stream }}"
           --output-dir reports/cup/configs/${{ matrix.cell }}
-      - name: Run the field (champion + current agent + three mining studs)
+      - name: Run the field (champion + current agent + rule-alpha + three studs)
         shell: bash
         run: |
           set -euo pipefail
@@ -129,6 +130,19 @@ jobs:
             --mine-against-model reports/cup/model \
             --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/current-agent/rollout
+          python scripts/run_terminal_rollout_policy.py \
+            --config "$config" \
+            --case m-${{ matrix.scenario }} \
+            --environment-seed 42 \
+            --attempt-budget 128 \
+            --top-k 3 \
+            --rollout-top-k 3 \
+            --rollout-max-steps 40 \
+            --max-steps 40 \
+            --policy rule-alpha \
+            --mine-against-model reports/cup/model \
+            --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
+            --output-dir reports/cup/episodes/${{ matrix.cell }}/rule-alpha/rollout
           for stud in rule-grid rule-lowcog rule-edge; do
             python scripts/run_terminal_rollout_policy.py \
               --config "$config" \

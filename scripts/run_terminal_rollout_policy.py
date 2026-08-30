@@ -61,10 +61,13 @@ from scripts.single_agent_packing import GENUINE_TERMINATIONS  # noqa: E402
 
 RULE_POLICIES = {"rule-grid", "rule-lowcog", "rule-edge"}
 CURRENT_AGENT_POLICY = "current-agent"
-MINING_POLICIES = RULE_POLICIES | {CURRENT_AGENT_POLICY}
+RULE_ALPHA_POLICY = "rule-alpha"
+EXACT_AGENT_POLICIES = {CURRENT_AGENT_POLICY, RULE_ALPHA_POLICY}
+MINING_POLICIES = RULE_POLICIES | EXACT_AGENT_POLICIES
 LEARNED_POLICIES = {"learned", "online"}
 POLICIES = (
-    {"legacy", "terminal-rollout", CURRENT_AGENT_POLICY}
+    {"legacy", "terminal-rollout"}
+    | EXACT_AGENT_POLICIES
     | LEARNED_POLICIES | RULE_POLICIES
 )
 BEHAVIOR_CONTRACT = "single_agent_terminal_rollout_policy_v3_wall_clock"
@@ -111,18 +114,26 @@ def _rank_key(candidate: Any) -> tuple[int, str]:
     )
 
 
-def add_current_agent_candidate(
-    candidates: list[Any], action: dict[str, Any],
-    observation: dict[str, Any],
-) -> tuple[list[Any], str, bool]:
-    """Union the exact shipped ``Agent.policy`` action into Cup support.
+def exact_agent_action(solver: Any, observation: dict[str, Any]):
+    """Return an exact actor command, preserving an honest decline."""
+    action = solver.policy(observation)
+    return None if action is None else canonical_action(action)
 
-    The current agent owns its own generator, rescue and guard stack.  Its
+
+def add_exact_agent_candidate(
+    candidates: list[Any], action: dict[str, Any],
+    observation: dict[str, Any], *, policy: str,
+) -> tuple[list[Any], str, bool]:
+    """Union an exact stateful agent action into Cup candidate support.
+
+    The actor owns its own generator, rescue and guard stack.  Its
     action may therefore be absent from the item-stratified Cup provider.
     Reuse an exact command match when present; otherwise add one auditable
     root candidate so PyBullet, the champion scorer and the paired terminal
     fork all see the same action.
     """
+    if policy not in EXACT_AGENT_POLICIES:
+        raise ValueError(f"unsupported exact agent policy: {policy}")
     command = canonical_action(action)
     for candidate in candidates:
         if canonical_action(_candidate_action(candidate)) == command:
@@ -137,22 +148,32 @@ def add_current_agent_candidate(
     )
     candidate_id = stable_id("candidate", {
         "action": command,
-        "kind": "current_agent_policy",
+        "kind": f"{policy.replace('-', '_')}_policy",
         "stable_item_index": stable_item_index,
     })
     current = BranchCandidate(
         candidate_id=candidate_id,
         command_action=command,
         selection={
-            "provider": "exact_current_agent_policy",
+            "provider": f"exact_{policy.replace('-', '_')}_policy",
             "rank": -1,
             "pool_index": pool_index,
             "stable_item_index": stable_item_index,
-            "candidate_kind": "current_agent_policy",
+            "candidate_kind": f"{policy.replace('-', '_')}_policy",
             "candidate_support_hit": False,
         },
     )
     return list(candidates) + [current], candidate_id, False
+
+
+def add_current_agent_candidate(
+    candidates: list[Any], action: dict[str, Any],
+    observation: dict[str, Any],
+) -> tuple[list[Any], str, bool]:
+    """Backward-compatible wrapper for the shipped current agent."""
+    return add_exact_agent_candidate(
+        candidates, action, observation, policy=CURRENT_AGENT_POLICY,
+    )
 
 
 def choose_root_candidate(
@@ -177,9 +198,9 @@ def choose_root_candidate(
         ),
         key=_rank_key,
     )
-    if policy == CURRENT_AGENT_POLICY:
+    if policy in EXACT_AGENT_POLICIES:
         if forced_candidate_id is None:
-            raise ValueError("current-agent policy requires its exact candidate id")
+            raise ValueError(f"{policy} policy requires its exact candidate id")
         exact = next(
             (
                 candidate for candidate in candidates
@@ -189,7 +210,7 @@ def choose_root_candidate(
             None,
         )
         if exact is None:
-            raise ValueError("current-agent exact candidate is absent from union")
+            raise ValueError(f"{policy} exact candidate is absent from union")
         incumbent_id = (
             str(_candidate_record(ranked[0])["candidate_id"])
             if ranked else None
@@ -197,7 +218,7 @@ def choose_root_candidate(
         exact_id = str(forced_candidate_id)
         return exact, {
             "policy": policy,
-            "reason": "current_agent_policy",
+            "reason": f"{policy.replace('-', '_')}_policy",
             "switched": exact_id != incumbent_id,
             "incumbent_candidate_id": incumbent_id,
             "selected_candidate_id": exact_id,
@@ -403,10 +424,15 @@ def run_episode(
     env = _fresh_env(task_config)
     try:
         env.reset_settings()
-        current_solver = None
+        exact_solver = None
         if policy == CURRENT_AGENT_POLICY:
-            current_solver = agent_module.Agent("")
-            current_solver.get_init_states(env.get_init_states())
+            exact_solver = agent_module.Agent("")
+        elif policy == RULE_ALPHA_POLICY:
+            from rule_alpha.agent import RuleAlphaAgent
+
+            exact_solver = RuleAlphaAgent()
+        if exact_solver is not None:
+            exact_solver.get_init_states(env.get_init_states())
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
         executed: list[Any] = []
@@ -444,12 +470,13 @@ def run_episode(
             current_candidate_id = None
             current_support_hit = None
             current_action = None
-            if current_solver is not None:
+            if exact_solver is not None:
                 phase_started = time.perf_counter()
-                current_action = canonical_action(
-                    current_solver.policy(observed)
-                )
+                current_action = exact_agent_action(exact_solver, observed)
                 actor_policy_seconds = time.perf_counter() - phase_started
+                if current_action is None:
+                    termination = f"{policy.replace('-', '_')}_declined"
+                    break
             phase_started = time.perf_counter()
             candidates = list(provider(env, observation, int(top_k)))
             if current_action is not None:
@@ -457,8 +484,8 @@ def run_episode(
                     candidates,
                     current_candidate_id,
                     current_support_hit,
-                ) = add_current_agent_candidate(
-                    candidates, current_action, observed,
+                ) = add_exact_agent_candidate(
+                    candidates, current_action, observed, policy=policy,
                 )
             provider_seconds = time.perf_counter() - phase_started
             if not candidates:
@@ -817,6 +844,15 @@ def run_episode(
                 )
                 if policy == CURRENT_AGENT_POLICY else None
             ),
+            "rule_alpha_support_misses": (
+                sum(
+                    not bool(record["selection"].get(
+                        "candidate_support_hit", True
+                    ))
+                    for record in records
+                )
+                if policy == RULE_ALPHA_POLICY else None
+            ),
             "terminal_dominance_switches": sum(
                 bool(record["selection"]["switched"])
                 for record in records
@@ -965,6 +1001,11 @@ def main() -> int:
             "current-agent": (
                 "exact_stateful_agent_policy; action unioned into physical"
                 " candidate support before champion comparison"
+            ),
+            "rule-alpha": (
+                "exact_stateful_rule_alpha_policy; fixed stream; action"
+                " unioned into physical candidate support before champion"
+                " comparison"
             ),
             "legacy": "legacy_safe_rank0",
             "rule-grid": "rule_heuristic_argmin_over_safe_candidates",
