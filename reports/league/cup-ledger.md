@@ -23,29 +23,11 @@ artifact is read.
 
 | 007 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 563,569,571,577 · 001: 467,479 | 33297401046 | 83 | 0.78-0.95 | still rule-alpha@7908b09 (dispatched from `3b95cfc`, before the `f54abbc` vendor — Cup 008 is the first on `803fd6f`); largest harvest yet; **rule-alpha the most efficient miner in the field** (18 strict from 22 forks = 82%, 78261 pairs/M step-equiv, and 12 actor wins to 6 champion — the only winning record vs the champion); ジ・アーモンド collapsed to 3/14 strict (21%) and 0/6 genuine termination for a sixth straight cup; maximum terminal fill 36.069 (ジ・アーモンド, 23 placed, non-genuine selected_action_failure); **first cup collected under the one-horse-race fix — zero one-sided verdicts, analyzer/builder/jsonl all agree at 83** — see `reports/league/diversity-cup-007.md` |
 
-rule-alpha vendor note (2026-08-30): rule-alpha is developed on
-`claude/rule-alpha-layer-1-ch78oi`, an **orphan branch that shares no
-history with this one** (empty merge-base; it carries no
-`reports/league` and no `scripts/`). It is therefore vendored
-file-by-file, never merged — merging it would delete the league. Cups
-006 and 007 raced `rule-alpha@7908b09` (vendored by `f8464ff`). After
-Cup 007 was dispatched, `803fd6f` was vendored: the five modules
-`config/diagnostics/layer1/terrain/visualize` plus
-`tests/test_rule_alpha.py` are taken from the branch, while
-`rule_alpha/_reuse.py` deliberately keeps the **trunk's** shim — the
-branch's production helper already carries the 2 cm floor release, the
-Cup trunk's does not, and the shim supplies it without altering the
-shipped agent. Taking the branch's `_reuse.py` would silently drop
-that release. Cup 008 onward races the newer actor.
-
 | 008 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 587,593,599,601 · 001: 487,491 | pending | pending | pending | preregistered six-horse field incl current-agent and rule-alpha@7908b09 |
 
-Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
-431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503,
-509, 521, 523, 541, 547, 557, 563, 569, 571, 577 · 001: 401, 409, 419,
-421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479 (a prime may be
-reused on the OTHER source only if the ledger shows it was never run
-on that source).
+Pool allocation note: primes used so far (regenerated from the table
+above) — 000 (32): 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601 · 001 (16): 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491 (a prime may be reused on the OTHER source only if the ledger shows
+it was never run on that source).
 
 **Pool extension 401-599 → 401-799 (2026-08-30, after Cup 007).**
 After Cup 007 the original pool held 31 primes per source and source
@@ -64,6 +46,21 @@ pool block in `build_scenario_matrix.STREAM_VARIANTS`, and
 `401 <= p <= 599` inline). A prime added to the first but outside the
 second is silently never drawn. The single-use-per-source rule is
 unchanged — never reuse a prime on a source that has already run it.
+
+rule-alpha vendor note (2026-08-30): rule-alpha is developed on
+`claude/rule-alpha-layer-1-ch78oi`, an **orphan branch that shares no
+history with this one** (empty merge-base; it carries no
+`reports/league` and no `scripts/`). It is therefore vendored
+file-by-file, never merged — merging it would delete the league. Cups
+006 and 007 raced `rule-alpha@7908b09` (vendored by `f8464ff`). After
+Cup 007 was dispatched, `803fd6f` was vendored: the five modules
+`config/diagnostics/layer1/terrain/visualize` plus
+`tests/test_rule_alpha.py` are taken from the branch, while
+`rule_alpha/_reuse.py` deliberately keeps the **trunk's** shim — the
+branch's production helper already carries the 2 cm floor release, the
+Cup trunk's does not, and the shim supplies it without altering the
+shipped agent. Taking the branch's `_reuse.py` would silently drop
+that release. Cup 008 onward races the newer actor.
 
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
 "003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s
