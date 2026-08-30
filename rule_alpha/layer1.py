@@ -3611,8 +3611,7 @@ def constructive_order(profiles: list[cls.ItemProfile], config,
             return 4
         return 5
 
-    def key(profile: cls.ItemProfile):
-        bucket = group(profile)
+    def key(profile: cls.ItemProfile, bucket: int):
         if bucket == 0:
             # tallest wall material first
             return (bucket, -round(profile.max_height, 6), profile.index)
@@ -3623,4 +3622,28 @@ def constructive_order(profiles: list[cls.ItemProfile], config,
             profile.index,
         )
 
-    return [p.index for p in sorted(profiles, key=key)]
+    # The wall-front group is a *reservation*, so it has to be the size of what
+    # it reserves for.  It was not: the test is a footprint budget
+    # (`wall_front_max_footprint_fraction` of the usable floor, 0.2638 m^2 on
+    # task 000), and on that manifest twelve of the twenty-five normal-hard
+    # items -- the whole 0.55 x 0.40 class, footprint 0.220 -- pass it.  All
+    # twelve then led the stream, ahead of the four 0.75 x 0.56 boxes (0.420)
+    # that are the actual foundation.  A staircase needs a number of steps, not
+    # a cargo class, and the same reasoning already fixed the reservation gate
+    # itself: "a staircase needs a *number* of steps, not a proportion".
+    buckets = [(group(p), p) for p in profiles]
+    if config.wall_front_order_quota >= 0:
+        wall = sorted(
+            (p for b, p in buckets if b == 0),
+            key=lambda p: (-round(p.max_height, 6), p.index),
+        )
+        keep = {id(p) for p in wall[: config.wall_front_order_quota]}
+        buckets = [
+            (b if b == 0 and id(p) in keep
+             else (2 if p.is_elongated else 1) if b == 0 else b, p)
+            for b, p in buckets
+        ]
+
+    return [p.index for _b, p in sorted(
+        buckets, key=lambda pair: key(pair[1], pair[0])
+    )]

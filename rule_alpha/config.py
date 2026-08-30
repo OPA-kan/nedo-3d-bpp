@@ -98,6 +98,37 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    wall_front_order_quota: int = 0
+    """How many items the wall-front group may claim at the head of the stream.
+
+    The group is a reservation for the staircase, but its test is a footprint
+    budget, so on task 000 it captured twelve of the twenty-five normal-hard
+    items -- every 0.55 x 0.40 box, footprint 0.220 against a 0.2638 m^2 budget
+    -- and put all twelve ahead of the four 0.75 x 0.56 boxes (footprint 0.420)
+    that are the foundation the design wants down first.
+
+    Swept, and the answer is that it should claim none::
+
+        quota  task 000        task 001
+        off    20 / 23.502     23 / 26.373
+        0      23 / 29.484     23 / 25.880
+        2      16 / 21.070     20 / 20.161
+        3      14 / 20.758     19 / 18.857
+        4      13 / 16.600     19 / 20.161
+        6      16 / 20.563     14 / 13.940
+        8      12 / 10.931     21 / 22.769   (and one invalid placement)
+
+    Every intermediate size is worse than both ends, which is the shape of a
+    reservation that is not paying for itself at any size rather than one that
+    is merely mistuned.  The reading: which items make good steps is a
+    *placement* question, and the placement rules already answer it from the
+    board.  Front-loading them in the stream only guarantees that the
+    foundation cargo arrives after the floor is already fragmented.  So the
+    stream is plain foundation order -- largest footprint first -- and the
+    staircase is built by the wedge rules out of whatever is in hand.
+
+    Negative disables the quota and restores the old grouping."""
+
     plateau_veto_has_fallback: bool = True
     """Let the plateau *shape* test yield when it would refuse the item entirely.
 

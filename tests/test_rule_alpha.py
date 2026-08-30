@@ -1565,6 +1565,76 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class StreamOrderTest(unittest.TestCase):
+    """The stream is foundation order: the biggest footprint goes down first.
+
+    It was not.  The wall-front group is a reservation for the staircase but its
+    test is a footprint budget, so on task 000 it swallowed twelve of the
+    twenty-five normal-hard items and led the stream with all of them, ahead of
+    the four largest boxes.  Removing the reservation from the *order* -- the
+    wedge rules still build the staircase from the board -- is worth +3 items
+    and +6.0 fill on task 000."""
+
+    def _profiles(self, dims_and_classes):
+        out = []
+        for i, (dims, soft, prio) in enumerate(dims_and_classes):
+            out.append(cls.classify_item(
+                i,
+                {"index": i, "length": dims[0], "width": dims[1],
+                 "height": dims[2], "mass": 10.0,
+                 "is_soft": soft, "is_prioritized": prio},
+                DEFAULT_CONFIG,
+            ))
+        return out
+
+    def test_the_biggest_hard_footprint_leads_the_stream(self):
+        """The task 000 shape: a class small enough to look like wall material,
+        and a bigger class that is the actual foundation."""
+        profiles = self._profiles([
+            ((0.55, 0.40, 0.24), False, False),   # 0.220, passes the wall budget
+            ((0.55, 0.40, 0.24), False, False),
+            ((0.75, 0.56, 0.27), False, False),   # 0.420, the foundation
+            ((0.65, 0.45, 0.25), False, False),   # 0.293
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        order = layer1.constructive_order(profiles, DEFAULT_CONFIG, model)
+        self.assertEqual(
+            order[0], 2,
+            "the 0.75 x 0.56 box has the biggest footprint and belongs first",
+        )
+        self.assertEqual(order[1], 3)
+
+    def test_soft_and_priority_still_come_after_the_hard_cargo(self):
+        """Removing the wall-front group must not disturb the class order:
+        hard builds the structure, soft and priority go up onto it."""
+        profiles = self._profiles([
+            ((0.60, 0.30, 0.25), True, False),
+            ((0.65, 0.45, 0.25), False, True),
+            ((0.55, 0.40, 0.24), False, False),
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        order = layer1.constructive_order(profiles, DEFAULT_CONFIG, model)
+        self.assertEqual(order[0], 2, "normal-hard leads")
+        self.assertEqual(order[-1], 0, "soft is last")
+
+    def test_the_quota_can_be_restored_for_an_a_b(self):
+        """A negative quota puts the group back, so the measurement that
+        retired it stays reproducible."""
+        profiles = self._profiles([
+            ((0.55, 0.40, 0.24), False, False),
+            ((0.75, 0.56, 0.27), False, False),
+        ])
+        container = make_container_dict(index=0, **ULD)
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        config = dataclasses.replace(DEFAULT_CONFIG, wall_front_order_quota=-1)
+        self.assertEqual(
+            layer1.constructive_order(profiles, config, model)[0], 0,
+            "with the group restored the small wall-material box leads again",
+        )
+
+
 class VetoFallbackTest(unittest.TestCase):
     """With `max_space: 1`, a veto that can empty the list ends the episode.
 
