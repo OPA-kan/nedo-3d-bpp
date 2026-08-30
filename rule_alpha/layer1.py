@@ -260,6 +260,14 @@ class Board:
         # is therefore the *height* of whatever paves it, and this is the
         # cheapest height the manifest can pave with.
         self.paving_height: float = 0.0
+        # how many items the manifest holds, and the smallest footprint among
+        # the hard cargo.  Both come from `optimize()`, which is handed the
+        # manifest, so this is information the policy legitimately has.  The
+        # seal check needs them to ask its two questions: is the ground a
+        # placement closes off big enough to hold anything, and is there still
+        # anything left to put there.
+        self.manifest_size: int = 0
+        self.min_hard_footprint: float = 0.0
 
     # -- accessors -------------------------------------------------------
     def model(self, idx: int) -> ContainerModel:
@@ -581,6 +589,9 @@ class Board:
         self.min_useful_width = min(widths) if widths else config.row_min_useful_width
         flats = [min(o.dz for o in p.orientations) for p in hard if p.orientations]
         self.paving_height = min(flats) if flats else 0.0
+        self.manifest_size = len(profiles)
+        prints = [p.max_footprint for p in hard if p.orientations]
+        self.min_hard_footprint = min(prints) if prints else 0.0
 
         footprints = sorted(p.max_footprint for p in hard)
         self.large_threshold = float(
@@ -2713,6 +2724,41 @@ def _last_resort_pass(board: "Board", profile: cls.ItemProfile,
 # ---------------------------------------------------------------------------
 # Vetoes
 # ---------------------------------------------------------------------------
+def _seal_is_worth_refusing(candidate: Candidate, board: Board,
+                            container_idx: int, config) -> bool:
+    """Is the ground this placement closes off worth the item it would cost?
+
+    A flat threshold on the sealed area was measured and it loses at every value
+    that fires: it refuses every placement that seals anything, and most of
+    those seals are worth making, because the board gains more by building up
+    than it loses by closing one platform.  The two things it never asked are
+    whether the ground is big enough to hold anything and whether there is
+    anything left to put there.
+
+    Both are cheap.  The manifest is handed to ``optimize()``, so the smallest
+    hard footprint and the number of items are known; what is left is the
+    manifest minus what is packed.  A seal is worth refusing only when the
+    ground it closes could take ``seal_boxes_worth`` boxes *and* that many
+    boxes are still to come.
+    """
+    sealed = candidate.features.get("sealed_added", 0.0)
+    if sealed <= 0.0:
+        return False
+    if not config.seal_counts_what_is_left:
+        return sealed > config.sealed_veto_area
+    footprint = board.min_hard_footprint
+    if footprint <= 0.0 or board.manifest_size <= 0:
+        return sealed > config.sealed_veto_area
+    boxes_sealed = sealed / footprint
+    remaining = board.manifest_size - len(
+        board.container(container_idx).get("packed_items", [])
+    )
+    return (
+        boxes_sealed >= config.seal_boxes_worth
+        and remaining >= config.seal_boxes_worth
+    )
+
+
 def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                  config) -> tuple[list[Candidate], dict]:
     model = board.model(container_idx)
@@ -2776,10 +2822,8 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             # on `sealed_added` in `compute_features`.  Only the sealing half
             # applies: `stranded_added` is about floor area a box cuts off from
             # the boundary, which is a floor question.
-            if (
-                config.seal_check_all_surfaces
-                and candidate.features.get("sealed_added", 0.0)
-                > config.sealed_veto_area
+            if config.seal_check_all_surfaces and _seal_is_worth_refusing(
+                candidate, board, container_idx, config
             ):
                 drop(candidate, "seals-usable-ground-behind")
             else:

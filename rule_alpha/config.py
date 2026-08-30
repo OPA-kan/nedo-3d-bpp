@@ -141,6 +141,42 @@ class RuleAlphaConfig:
     the numbers, because the mechanism is now correct and a manifest of genuinely
     small hard cargo could change the sum -- but on these two it cannot."""
 
+    seal_counts_what_is_left: bool = True
+    """Refuse a seal only when the ground is worth it and the stream is not done.
+
+    The flat threshold refuses every placement that seals anything, and loses at
+    every value that fires -- most seals are worth making, because the board
+    gains more by building up than it loses by closing one platform.  This asks
+    the two questions it never did: could the sealed ground hold
+    `seal_boxes_worth` boxes, and are that many boxes still to come.
+
+    Both questions needed `reach_probe_heights` fixed first.  Priced only up to
+    0.40 m, the largest seal any candidate could score on task 000 was 0.2304
+    m^2 -- under one box's footprint -- against a real loss of 0.323, because
+    the platform being sealed is 0.81 m above the floor and no probe looked
+    there.  With probes that reach the cargo the numbers are 0.408 and 0.627,
+    and 14% and 40% of non-floor candidates seal more than a box's worth.
+
+    The test is right now and it still does not pay::
+
+        arm                 task 000        task 001        items   fill sum
+        shipped             24 / 28.157     27 / 29.793      51      57.949
+        tall probes only    24 / 28.157     27 / 29.793      51      57.949
+        probes + worth 1    25 / 25.326     27 / 29.793      52      55.119
+        probes + worth 2    24 / 28.157     27 / 29.793      51      57.949
+        probes + worth 3    24 / 28.157     27 / 29.793      51      57.949
+
+    One item for 2.8 fill at a threshold of one box, and nothing at all above
+    that.  So `seal_check_all_surfaces` stays off.  What the sweep does say is
+    that the answer is not a threshold: the seals worth refusing and the seals
+    worth making are the same size."""
+
+    seal_boxes_worth: int = 2
+    """How many boxes the sealed ground must be able to hold to be worth saving.
+
+    Measured in units of the smallest hard footprint in the manifest, 0.220 m^2
+    on both official tasks."""
+
     seal_ranks_terraces: bool = False
     """Rank terraces by what they seal before what they leave beside them.
 
@@ -990,12 +1026,18 @@ class RuleAlphaConfig:
     because blocking it is expensive *in reachability*, and released late for
     the same reason, without a threshold having to name the moment."""
 
-    reach_probe_heights: tuple = (0.0, 0.20, 0.40)
+    reach_probe_heights: tuple = (0.0, 0.20, 0.40, 0.60, 0.80, 1.00)
     """Working heights at which the approach is priced.  Asking only at a
     candidate's own top is vacuous -- a box travelling at 0.40 clears a wall
     whose top is 0.40, so a wall never seals anything at its own height.  What
     a wall actually costs is delivery to the *lower* ground behind it, so the
-    question has to be asked at the heights a later item might arrive at."""
+    question has to be asked at the heights a later item might arrive at.
+
+    It used to stop at 0.40, which is a third of the way up a container whose
+    cargo reaches 1.44 m.  Everything above that was unpriced: the platform at
+    z 0.850 that task 000 leaves unreachable is 0.81 m above the floor, so no
+    probe ever looked at the height where it is sealed, and the largest seal any
+    candidate could score was 0.2304 m^2 against a real loss of 0.323."""
 
     sealed_veto_area: float = 0.30
     """The same question as ``stranded_veto_area`` asked across

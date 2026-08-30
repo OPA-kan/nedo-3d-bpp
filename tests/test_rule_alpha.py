@@ -1607,6 +1607,19 @@ class SealCheckScopeTest(unittest.TestCase):
         self.assertFalse(DEFAULT_CONFIG.seal_check_all_surfaces)
         self.assertFalse(DEFAULT_CONFIG.seal_ranks_terraces)
 
+    def test_the_probes_reach_the_height_the_cargo_reaches(self):
+        """Priced only to 0.40 m, the check was blind over two thirds of a
+        container whose cargo reaches 1.44 m -- the platform it was meant to
+        protect sits at 0.81 m above the floor, and the largest seal any
+        candidate could score was 0.2304 m2 against a real loss of 0.323."""
+        probes = DEFAULT_CONFIG.reach_probe_heights
+        self.assertGreaterEqual(
+            max(probes), 0.80,
+            "a probe has to reach the height the platforms are at",
+        )
+        self.assertEqual(sorted(probes), list(probes), "probes stay ordered")
+        self.assertEqual(probes[0], 0.0, "the floor is still priced")
+
 
 class WedgeOverhangTest(unittest.TestCase):
     """Compaction aimed the staircase back out of the chamfer.
