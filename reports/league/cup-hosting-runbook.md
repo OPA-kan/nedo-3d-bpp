@@ -35,7 +35,7 @@ and the recovery path if its dispatch step fails after preregistration.
 2. **Draw a fresh course.** Six cells, one per scenario family
    (dual-preloaded-dedicated, dual-empty, single-empty-noshelf,
    dual-shelf-mixed, single-empty-shelf, single-preloaded), each on a
-   prime from the 401-599 pool that the ledger shows as unused for that
+   prime from the 401-799 pool that the ledger shows as unused for that
    source (000 or 001). Alternate sources roughly as cup 001 did.
    Cell naming: `<scenario>-permute-<source>-<prime>`.
 3. **Append the ledger row FIRST** (`reports/league/cup-ledger.md`) —

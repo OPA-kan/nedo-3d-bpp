@@ -4,7 +4,7 @@ Rolling preregistration for cup events (design:
 `reports/self-play-packing/diversity-cup-design.md`, hosting procedure:
 `reports/league/cup-hosting-runbook.md`). **Append the row BEFORE
 dispatching** — the row is the preregistration. Streams must be fresh,
-never-reused primes from the 401-599 pool; never eval variants, never
+never-reused primes from the 401-799 pool; never eval variants, never
 season-wave primes. Fill the result columns after the standings
 artifact is read.
 
@@ -45,16 +45,23 @@ Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 reused on the OTHER source only if the ledger shows it was never run
 on that source).
 
-**Pool warning (verified 2026-08-30, after Cup 007):** the 401-599
-pool holds 31 primes. Source 000 has **only 3 left** (587, 593, 599);
-source 001 has 17 (487 upward). Cups 001-007 all drew 4 cells from
-000 and 2 from 001, so **source 000 cannot supply another cup at that
-ratio** — Cup 008 onward must shift its weight to 001, which supports
-roughly four more cups on its own. When 001 runs dry too, extending
-`STREAM_VARIANTS` in `scripts/build_scenario_matrix.py` is a code
-change and needs coordinating first (see the runbook's hard
-boundaries) — do not silently reuse a prime on a source that has
-already run it.
+**Pool extension 401-599 → 401-799 (2026-08-30, after Cup 007).**
+After Cup 007 the original pool held 31 primes per source and source
+000 was down to three (587, 593, 599) against a four-cell requirement,
+so `host_diversity_cup.allocate_course` raised "stream pool exhausted
+for source 000: need 4, have 3" and Cup 008 could not be hosted at
+all. Coordinated and resolved by extending the pool with primes
+601-799 (30 more per source, 61 each now), which remain disjoint from
+the frozen eval variants (all ≤ 197) and every season-1 wave prime
+(all ≤ 379) — verified by scanning every prime referenced anywhere in
+the repository, whose maximum was 599.
+
+**The window lives in two places and they must move together:** the
+pool block in `build_scenario_matrix.STREAM_VARIANTS`, and
+`host_diversity_cup.CUP_PRIME_RANGE` (which previously hard-coded
+`401 <= p <= 599` inline). A prime added to the first but outside the
+second is silently never drawn. The single-use-per-source rule is
+unchanged — never reuse a prime on a source that has already run it.
 
 Hosting bug (2026-08-26): the row above for Cup 003 briefly read
 "003 アーモンドビレッジ" in the `cup` column. `scripts/host_diversity_cup.py`'s

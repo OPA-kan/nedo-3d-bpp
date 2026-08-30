@@ -98,7 +98,7 @@ say so explicitly.
   Codex session hosts them; procedure in
   `reports/league/cup-hosting-runbook.md`) under a rolling
   preregistration — each cup's course must be fresh never-reused
-  primes from the 401-599 pool, appended to
+  primes from the 401-799 pool, appended to
   `reports/league/cup-ledger.md` BEFORE dispatch, with the same
   protocol and fork budget. Novelty saturation (total novel-board
   rate < ~0.30 two cups running) pauses hosting until the next
@@ -186,3 +186,45 @@ comparable to Cup 002 onward. Full unit suite green after the change
 (`python -m unittest discover -s tests`, 1554 tests, the one failure
 being the pre-existing Python-3.12 gate in
 `audit_deadline_rollout.py`, unrelated to this change).
+
+## Cup 008+ amendment: side-corpus pool extended to 401-799
+
+The side-corpus stream pool originally ran 401-599: 31 primes per
+source, disjoint from the frozen eval variants and every season-1 wave
+prime. `host_diversity_cup.COURSE_PATTERN` draws a fixed six-cell
+course as four cells from source 000 and two from 001, so source 000
+depletes at twice the rate of 001. After Cup 007 that caught up:
+source 000 held three primes (587, 593, 599) against a four-cell
+requirement, `allocate_course` raised
+
+    Diversity Cup stream pool exhausted for source 000: need 4, have 3
+
+and Cup 008 could not be hosted. This is the case the runbook's hard
+boundaries anticipate ("when the pool runs dry, extend
+`STREAM_VARIANTS` — that IS a code change, coordinate first").
+
+**Coordinated decision: extend the pool rather than rebalance the
+course.** Primes 601-799 are appended for both sources (30 more each,
+61 per source total). Rebalancing `COURSE_PATTERN` to 3+3 was the
+considered alternative and was rejected because it would permanently
+change which scenario family runs on which source, breaking
+comparability with Cups 001-007 for the sake of one cup's worth of
+headroom. Extending the pool leaves the course composition — and so
+every cross-cup comparison — exactly as preregistered.
+
+Disjointness is preserved and was verified rather than assumed: every
+prime referenced anywhere in the repository was scanned, and the
+maximum was 599; `eval_variants_forbidden` in
+`reports/league/season/waves.json` tops out at 197 and the season-1
+wave primes at 379. Nothing in 601-799 collides.
+
+The window is encoded in **two** places, and a prime present in only
+one is silently never drawn: the pool block in
+`build_scenario_matrix.STREAM_VARIANTS`, and the draw window in
+`host_diversity_cup`, which previously inlined `401 <= p <= 599` and
+is now the named constant `CUP_PRIME_RANGE`. Both moved together here.
+
+Unchanged: the six-cell course size, the 12 forks/episode budget, the
+one-cup-at-a-time rule, single-use-per-source primes, and the novelty
+stopping rule. Nothing about scoring, dominance or promotion is
+touched.

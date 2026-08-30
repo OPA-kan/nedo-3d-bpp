@@ -29,6 +29,13 @@ COURSE_PATTERN = (
     ("single-empty-shelf", "001"),
     ("single-preloaded", "000"),
 )
+# Inclusive prime window the Cup draws its side-corpus streams from.
+# Extended 401-599 -> 401-799 on 2026-08-30, after Cup 007 left source
+# 000 with three primes against a four-cell requirement. Widening this
+# alone does nothing: the primes must also exist in
+# build_scenario_matrix.STREAM_VARIANTS, and those are disjoint from the
+# frozen eval variants (all <= 197) and season-1 wave primes (all <= 379).
+CUP_PRIME_RANGE = (401, 799)
 LEDGER_ROW = re.compile(r"^\|\s*(\d{3})\s*\|", re.MULTILINE)
 SOURCE_PRIMES = re.compile(
     r"000:\s*([0-9,]+)\s*·\s*001:\s*([0-9,]+)"
@@ -65,7 +72,10 @@ def _available_primes() -> dict[str, list[int]]:
     result = {"000": [], "001": []}
     for variant in STREAM_VARIANTS:
         match = re.fullmatch(r"permute-(000|001)-(\d+)", variant)
-        if match and 401 <= int(match.group(2)) <= 599:
+        # Cup side-corpus pool window. Must stay in step with the pool
+        # block in build_scenario_matrix.STREAM_VARIANTS -- a prime added
+        # there but outside this window is silently never drawn.
+        if match and CUP_PRIME_RANGE[0] <= int(match.group(2)) <= CUP_PRIME_RANGE[1]:
             result[match.group(1)].append(int(match.group(2)))
     return {source: sorted(set(values)) for source, values in result.items()}
 

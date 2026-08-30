@@ -110,11 +110,17 @@ STREAM_VARIANTS = (
     "permute-001-331", "permute-001-337", "permute-001-347",
     "permute-001-349", "permute-001-353", "permute-001-359",
     "permute-001-367", "permute-001-373", "permute-001-379",
-    # Diversity Cup side-corpus stream pool: primes 401-599 are disjoint
-    # from both the frozen eval variants and every season-1 wave prime.
-    # Cups draw fresh, never-reused streams from this pool (allocation
-    # tracked in reports/league/cup-ledger.md) so hosting a cup needs a
-    # dispatch, not a code change.
+    # Diversity Cup side-corpus stream pool: primes 401-799 are disjoint
+    # from both the frozen eval variants (all <= 197) and every season-1
+    # wave prime (all <= 379). Cups draw fresh, never-reused streams from
+    # this pool (allocation tracked in reports/league/cup-ledger.md) so
+    # hosting a cup needs a dispatch, not a code change.
+    #
+    # 601-799 was appended after Cup 007, when source 000 was down to its
+    # last three primes and host_diversity_cup.allocate_course could no
+    # longer fill a course (it needs four cells from 000). The window is
+    # also encoded in host_diversity_cup._available_primes -- both must
+    # move together or the host silently ignores the new primes.
     "permute-000-401", "permute-000-409", "permute-000-419",
     "permute-000-421", "permute-000-431", "permute-000-433",
     "permute-000-439", "permute-000-443", "permute-000-449",
@@ -137,6 +143,27 @@ STREAM_VARIANTS = (
     "permute-001-563", "permute-001-569", "permute-001-571",
     "permute-001-577", "permute-001-587", "permute-001-593",
     "permute-001-599",
+    # pool extension, appended 2026-08-30 after Cup 007 (primes 601-799)
+    "permute-000-601", "permute-000-607", "permute-000-613",
+    "permute-000-617", "permute-000-619", "permute-000-631",
+    "permute-000-641", "permute-000-643", "permute-000-647",
+    "permute-000-653", "permute-000-659", "permute-000-661",
+    "permute-000-673", "permute-000-677", "permute-000-683",
+    "permute-000-691", "permute-000-701", "permute-000-709",
+    "permute-000-719", "permute-000-727", "permute-000-733",
+    "permute-000-739", "permute-000-743", "permute-000-751",
+    "permute-000-757", "permute-000-761", "permute-000-769",
+    "permute-000-773", "permute-000-787", "permute-000-797",
+    "permute-001-601", "permute-001-607", "permute-001-613",
+    "permute-001-617", "permute-001-619", "permute-001-631",
+    "permute-001-641", "permute-001-643", "permute-001-647",
+    "permute-001-653", "permute-001-659", "permute-001-661",
+    "permute-001-673", "permute-001-677", "permute-001-683",
+    "permute-001-691", "permute-001-701", "permute-001-709",
+    "permute-001-719", "permute-001-727", "permute-001-733",
+    "permute-001-739", "permute-001-743", "permute-001-751",
+    "permute-001-757", "permute-001-761", "permute-001-769",
+    "permute-001-773", "permute-001-787", "permute-001-797",
 )
 
 
