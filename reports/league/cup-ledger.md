@@ -17,6 +17,8 @@ artifact is read.
 
 | 004 | 2026-08-26 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 467,479,487,491 · 001: 439,443 | 32947834246 | 53 | 0.81-0.95 | run's own GitHub Actions title misreads "Diversity Cup 003" (cosmetic leftover of the `d681aaa` ledger bug; course is genuinely fresh, this row is correctly 004); ジ・アーモンド mined 6/15 strict pairs (down from 11/19 in Cup 003) and again reached genuine termination in 0/6 cells — see `reports/league/diversity-cup-004.md` |
 
+| 005 | 2026-08-30 | 32890092906 | pi2-pref-w6 プリフヒバリ | 000: 499,503,509,521 · 001: 449,457 | pending | pending | pending | preregistered five-horse field incl current-agent |
+
 Pool allocation note: primes used so far — 000: 401, 409, 419, 421,
 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491 · 001: 401,
 409, 419, 421, 431, 433, 439, 443 (a prime may be reused on the OTHER
