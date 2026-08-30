@@ -794,6 +794,7 @@ def vector_search_root(
     item_symmetry_terminal_cache: bool = False,
     leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
     shared_prefix_env: bool = False,
+    candidate_stride: int = 1,
 ) -> dict[str, Any]:
     search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -833,9 +834,20 @@ def vector_search_root(
                 board_fingerprint(snapshot),
                 item_symmetry_board_fingerprint(snapshot),
             )
+    # candidate_stride widens the anchor scan rather than the attempt
+    # budget. reports/rollout-saturation/local-20260801 measured both on
+    # 48 snapshots: at the shipped stride 1 the rollout discriminates
+    # between candidates only 20.8% of the time -- it is blind for most
+    # of the episode, so nearly every fork ties and no strict pair is
+    # emitted. stride 8 takes that to 91.7% for ~3x wall clock, while
+    # budget-512 reaches a similar rate at 8x the cost and finds FEWER
+    # future placements (14 vs 36). This provider feeds both the search
+    # and the rollout continuation, so the stride sets how much the
+    # teacher can actually see.
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
+        candidate_stride=candidate_stride,
     )
     # Every try_action_path() call below replays the same prefix_actions
     # before its own actions -- across the many sibling calls one search

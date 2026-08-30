@@ -416,6 +416,7 @@ def run_episode(
     online_trust_radius: float = 1.0,
     mine_model_dir: pathlib.Path | None = None,
     mine_fork_budget: int = 12,
+    candidate_stride: int = 1,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
@@ -451,6 +452,7 @@ def run_episode(
     provider = build_candidate_provider(
         agent_module, attempt_budget=attempt_budget,
         scan_all_visible_items=True,
+        candidate_stride=candidate_stride,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     env = _fresh_env(task_config)
@@ -609,6 +611,7 @@ def run_episode(
                             allocation="frontier",
                             item_symmetry_cache_shadow=True,
                             item_symmetry_terminal_cache=True,
+                            candidate_stride=candidate_stride,
                         )
                         online_forks_used += 1
                         complete = bool(fork.get("terminal_truth_complete"))
@@ -719,6 +722,7 @@ def run_episode(
                             allocation="frontier",
                             item_symmetry_cache_shadow=True,
                             item_symmetry_terminal_cache=True,
+                            candidate_stride=candidate_stride,
                         )
                         mining_forks_used += 1
                         mining_fork_step_equivalents += int(
@@ -947,6 +951,18 @@ def main() -> int:
     parser.add_argument("--case", required=True)
     parser.add_argument("--environment-seed", type=int, default=42)
     parser.add_argument("--attempt-budget", type=int, default=128)
+    parser.add_argument(
+        "--candidate-stride", type=int, default=1,
+        help=(
+            "Widen the anchor scan instead of the attempt budget. "
+            "reports/rollout-saturation/local-20260801 measured the "
+            "shipped stride 1 discriminating between candidates only "
+            "20.8%% of the time; stride 8 reaches 91.7%% for ~3x wall "
+            "clock, while a 512 attempt budget costs 8x and finds "
+            "FEWER future placements. Feeds the actor's candidates, "
+            "the fork search and the rollout continuation alike"
+        ),
+    )
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--rollout-top-k", type=int, default=3)
     parser.add_argument("--rollout-max-steps", type=int, default=40)
@@ -1002,6 +1018,7 @@ def main() -> int:
         online_trust_radius=args.online_trust_radius,
         mine_model_dir=args.mine_against_model,
         mine_fork_budget=args.mine_fork_budget,
+        candidate_stride=args.candidate_stride,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -1057,6 +1074,7 @@ def main() -> int:
         "candidate_contract": {
             "provider": "placement_core_item_stratified_fixed_attempts",
             "attempt_budget": args.attempt_budget,
+            "candidate_stride": args.candidate_stride,
             "top_k": args.top_k,
         },
         "rollout_contract": {
