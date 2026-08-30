@@ -169,8 +169,15 @@ class RuleAlphaProposer:
             ranked: list = []
             observer = None
             if self.per_item_top_k > 1:
-                def observer(_archetype, candidates, _sink=ranked):
-                    _sink.extend(candidates)
+                def observer(payload, _sink=ranked):
+                    # Only the archetype that actually won: the family is
+                    # rule-alpha's own 2nd and 3rd choices, not a tour of
+                    # the archetypes its ladder deliberately skipped.
+                    _sink.extend(
+                        payload["ranked_by_archetype"].get(
+                            payload["chosen_archetype"], []
+                        )
+                    )
             decision = layer1.choose_for_item(
                 solver.board, item, config,
                 **({"ranked_observer": observer} if observer else {}),

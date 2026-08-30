@@ -3344,13 +3344,20 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     ranked_observer=None) -> Decision | None:
     """Choose one placement for ``profile``.
 
-    ``ranked_observer``, when given, is called as
-    ``ranked_observer(archetype, ranked_candidates)`` with the winning
-    archetype's own survivor list, already sorted, whose head is the
-    candidate this function goes on to return.  It exists so a caller
-    can recover the 2nd and 3rd choices this function discards without
-    re-deriving -- or forking -- the selection above.  Purely
+    ``ranked_observer``, when given, is called once with a payload
+    describing the ladder decision::
+
+        {"chosen_archetype", "ranked_by_archetype", "ladder",
+         "container_idx"}
+
+    ``ranked_by_archetype`` maps every ladder archetype that had
+    survivors to its own sorted candidate list, so a caller can recover
+    both the 2nd/3rd choices this function discards *and* what each
+    archetype the ladder skipped would have played -- without
+    re-deriving, or forking, the per-archetype sort keys above.  Purely
     observational: passing it changes nothing about what is returned.
+    It does cost the sort for the skipped archetypes, which the plain
+    path short-circuits, so it is only paid when an observer is passed.
 
     TRUNK-ONLY ADDITION.  ``rule_alpha/`` is vendored file-by-file from
     an orphan branch (see reports/league/cup-ledger.md); this parameter
@@ -3540,6 +3547,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         ladder = archetype_ladder(profile, board, container_idx, config)
         chosen = None
         chosen_archetype = None
+        ranked_by_archetype: dict[str, list] = {}
         for name in ladder:
             pool_for_archetype = [c for c in survivors if name in c.archetypes]
             if not pool_for_archetype:
@@ -3570,11 +3578,20 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     *key_fn(c),
                 )
             )
-            chosen = pool_for_archetype[0]
-            chosen_archetype = name
+            if chosen is None:
+                chosen = pool_for_archetype[0]
+                chosen_archetype = name
+                if ranked_observer is None:
+                    break
             if ranked_observer is not None:
-                ranked_observer(name, list(pool_for_archetype))
-            break
+                ranked_by_archetype[name] = list(pool_for_archetype)
+        if ranked_observer is not None and chosen is not None:
+            ranked_observer({
+                "chosen_archetype": chosen_archetype,
+                "ranked_by_archetype": ranked_by_archetype,
+                "ladder": list(ladder),
+                "container_idx": container_idx,
+            })
         if chosen is None:
             chosen = survivors[0]
             chosen_archetype = "fallback"

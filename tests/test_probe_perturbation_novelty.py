@@ -121,14 +121,37 @@ class VerdictTests(unittest.TestCase):
         ]}
         out = verdicts(fork, "base")
         self.assertTrue(out["base_genuine"])
-        self.assertEqual(out["per_candidate"]["p1"], "beats_base")
+        self.assertEqual(
+            out["per_candidate"]["p1"]["verdict"], "beats_base",
+        )
 
     def test_a_worse_fill_loses(self):
         fork = {"root_candidates": [
             _row("base", True, 10.0), _row("p1", True, 8.0),
         ]}
         self.assertEqual(
-            verdicts(fork, "base")["per_candidate"]["p1"], "loses_to_base",
+            verdicts(fork, "base")["per_candidate"]["p1"]["verdict"],
+            "loses_to_base",
+        )
+
+    def test_an_identical_terminal_is_not_reported_as_a_tradeoff(self):
+        """The distinction the v1 probe could not make afterwards: a
+        perturbation whose terminal is the same is evidence the episode
+        absorbed it, not evidence of a trade-off the rule declines."""
+        fork = {"root_candidates": [
+            _row("base", True, 10.0), _row("p1", True, 10.0),
+        ]}
+        entry = verdicts(fork, "base")["per_candidate"]["p1"]
+        self.assertEqual(entry["verdict"], "identical")
+
+    def test_the_raw_vectors_survive_into_the_record(self):
+        fork = {"root_candidates": [
+            _row("base", True, 10.0), _row("p1", True, 12.0),
+        ]}
+        out = verdicts(fork, "base")
+        self.assertEqual(out["base_terminal_vector"]["fill_gain"], 10.0)
+        self.assertEqual(
+            out["per_candidate"]["p1"]["terminal_vector"]["fill_gain"], 12.0,
         )
 
     def test_more_fill_but_a_new_violation_is_incomparable(self):
@@ -137,7 +160,8 @@ class VerdictTests(unittest.TestCase):
             _row("p1", True, 12.0, soft=1.0),
         ]}
         self.assertEqual(
-            verdicts(fork, "base")["per_candidate"]["p1"], "incomparable",
+            verdicts(fork, "base")["per_candidate"]["p1"]["verdict"],
+            "incomparable",
         )
 
     def test_a_non_genuine_perturbation_is_not_counted_as_a_loss(self):
@@ -145,7 +169,8 @@ class VerdictTests(unittest.TestCase):
             _row("base", True, 10.0), _row("p1", False, 99.0),
         ]}
         self.assertEqual(
-            verdicts(fork, "base")["per_candidate"]["p1"], "not_genuine",
+            verdicts(fork, "base")["per_candidate"]["p1"]["verdict"],
+            "not_genuine",
         )
 
     def test_a_non_genuine_base_yields_no_verdicts_at_all(self):

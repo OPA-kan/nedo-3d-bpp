@@ -69,7 +69,10 @@ from scripts.run_vector_mcts import (  # noqa: E402
     vector_search_root,
 )
 
-CONTRACT = "perturbation_novelty_probe_v1"
+CONTRACT = "perturbation_novelty_probe_v2"
+# Below this the four heads are treated as the same terminal rather
+# than as an unadjudicated trade-off.
+EQUAL_EPS = 1e-9
 ORIENTATION_COUNT = 6
 
 
@@ -189,6 +192,9 @@ def verdicts(fork: dict[str, Any], base_id: str) -> dict[str, Any]:
     )
     out: dict[str, Any] = {
         "base_genuine": base_vector is not None,
+        "base_terminal_vector": (
+            base.get("terminal_vector") if base else None
+        ),
         "per_candidate": {},
     }
     if base_vector is None:
@@ -196,19 +202,36 @@ def verdicts(fork: dict[str, Any], base_id: str) -> dict[str, Any]:
     for candidate_id, row in rows.items():
         if candidate_id == base_id:
             continue
+        # The raw vectors are kept, not just the verdict. "Incomparable"
+        # covers two completely different worlds -- a terminal the
+        # perturbation reached identically, and a genuine trade-off the
+        # four-head rule declines to adjudicate -- and a probe that
+        # records only the label cannot tell them apart afterwards.
+        entry: dict[str, Any] = {
+            "terminal_vector": row.get("terminal_vector"),
+            "terminal_genuine": row.get("terminal_genuine"),
+            "terminal_termination": row.get("terminal_termination"),
+        }
         if row.get("terminal_genuine") is not True:
-            out["per_candidate"][candidate_id] = "not_genuine"
+            entry["verdict"] = "not_genuine"
+            out["per_candidate"][candidate_id] = entry
             continue
         vector = _oriented(row.get("terminal_vector") or {})
         if vector is None:
-            out["per_candidate"][candidate_id] = "not_genuine"
+            entry["verdict"] = "not_genuine"
+            out["per_candidate"][candidate_id] = entry
             continue
         if _dominates(vector, base_vector):
-            out["per_candidate"][candidate_id] = "beats_base"
+            entry["verdict"] = "beats_base"
         elif _dominates(base_vector, vector):
-            out["per_candidate"][candidate_id] = "loses_to_base"
+            entry["verdict"] = "loses_to_base"
+        elif all(
+            abs(x - y) <= EQUAL_EPS for x, y in zip(vector, base_vector)
+        ):
+            entry["verdict"] = "identical"
         else:
-            out["per_candidate"][candidate_id] = "incomparable"
+            entry["verdict"] = "incomparable"
+        out["per_candidate"][candidate_id] = entry
     return out
 
 
@@ -370,6 +393,7 @@ def probe_step(
             fork.get("physical_step_equivalents", 0)
         ),
         "base_genuine": result["base_genuine"],
+        "base_terminal_vector": result.get("base_terminal_vector"),
         "verdicts": [
             {
                 "label": by_id[candidate_id],
@@ -381,9 +405,9 @@ def probe_step(
                     row["magnitude"] for row in picked
                     if row["label"] == by_id[candidate_id]
                 ),
-                "verdict": verdict,
+                **entry,
             }
-            for candidate_id, verdict in result["per_candidate"].items()
+            for candidate_id, entry in result["per_candidate"].items()
         ],
     })
     return out
