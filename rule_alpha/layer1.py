@@ -2759,6 +2759,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             for sh in model.shelves
         ]
         kept = []
+        shelf_near: list[tuple[float, Candidate]] = []
         for candidate in survivors:
             if candidate.surface != "shelf" or not shelf_rects:
                 kept.append(candidate)
@@ -2778,7 +2779,16 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 kept.append(candidate)
             else:
                 drop(candidate, "overhangs-the-shelf")
+                shelf_near.append((on / max(rect.area, 1e-9), candidate))
         survivors = kept
+        if not survivors and config.shelf_veto_has_fallback and shelf_near:
+            # the second of the two vetoes that could empty the list outright.
+            # On task 001 twelve of the seventeen candidates at the closing
+            # step died here, so like the plateau rule it was not a guard on a
+            # bad placement, it was the end of the episode.
+            shelf_near.sort(key=lambda pair: -pair[0])
+            if shelf_near[0][0] >= config.shelf_fallback_min_fraction:
+                survivors = [shelf_near[0][1]]
         if not survivors:
             return [], counts
 
@@ -2975,6 +2985,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     #     is exempt either way: it is a ramp, not a stack.
     if config.layer2_max_layers > 0:
         kept = []
+        near_misses: list[tuple[float, Candidate]] = []
         for candidate in survivors:
             if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
                 kept.append(candidate)  # the ramp grows as far as it can
@@ -3004,17 +3015,24 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                     "too-many-layers" if level > config.layer2_max_layers
                     else "no-plateau-to-build-on",
                 )
-        # No fallback.  Every other veto here yields when it would leave
-        # nothing, because refusing an item outright is usually worse than a
-        # compromised placement.  This one is a structural limit, not a
-        # preference: a third layer is a third layer however badly the board
-        # wants one, and letting it through when nothing else fits is exactly
-        # how the cap silently stopped applying.
+                if level <= config.layer2_max_layers:
+                    area, coverage = plateau_support(
+                        board, container_idx, candidate.box, config
+                    )
+                    near_misses.append((area * coverage, candidate))
+        # This began as the one veto with no fallback: a third layer is a third
+        # layer however badly the board wants one.  That reasoning holds for the
+        # layer *cap*, which still has none -- but not for the plateau *shape*,
+        # and the difference matters because of `max_space: 1`.  Measured on the
+        # step that ends task 000, ten candidates reached this rule and all ten
+        # died here, so this single test ended the episode with the board far
+        # from full.  Below the cap the shape condition now yields to the
+        # closest near miss rather than to nothing.
         survivors = kept
+        if not survivors and config.plateau_veto_has_fallback and near_misses:
+            near_misses.sort(key=lambda pair: -pair[0])
+            survivors = [near_misses[0][1]]
         if not survivors:
-            # the only structural veto with no fallback, so it is also the only
-            # one that can empty the list; everything after here assumes it is
-            # looking at at least one candidate
             return [], counts
 
     # 5. a follower may not break the last bay the frontier cargo still needs.

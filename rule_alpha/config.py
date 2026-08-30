@@ -98,6 +98,31 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    plateau_veto_has_fallback: bool = True
+    """Let the plateau *shape* test yield when it would refuse the item entirely.
+
+    Measured on the step that ends task 000: ten candidates reached the veto
+    ladder and all ten died on `no-plateau-to-build-on`, so one hand-set
+    threshold ended the episode.  Task 001 closes the same way -- seventeen in,
+    zero out, twelve to `overhangs-the-shelf` and five to this.  With
+    `max_space: 1` a veto with no fallback is not a guard on a bad placement, it
+    is the end of the run, and these two were the only vetoes in the ladder that
+    had none.
+
+    The layer *cap* keeps its absolute form: a third layer is a third layer.
+    Only the shape condition yields, and only to the closest near miss, ranked
+    by support area times coverage."""
+
+    shelf_veto_has_fallback: bool = True
+    """Let the shelf-overhang test yield rather than refuse the item entirely."""
+
+    shelf_fallback_min_fraction: float = 0.60
+    """How much of the underside still has to be on the shelf for the fallback.
+
+    A fallback that accepts any overhang would drop cargo off the shelf edge, so
+    the yield has its own floor, well under `shelf_min_support_fraction` (0.90)
+    but well over nothing."""
+
     terrace_keeps_level: bool = False
     """Break terrace ties by the room the box leaves at its own level.
 

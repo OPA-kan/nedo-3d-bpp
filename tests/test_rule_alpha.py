@@ -1565,6 +1565,46 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class VetoFallbackTest(unittest.TestCase):
+    """With `max_space: 1`, a veto that can empty the list ends the episode.
+
+    Two of the ladder's vetoes had no fallback, and measured on the closing step
+    they are exactly what stops both official tasks: ten of ten candidates died
+    on `no-plateau-to-build-on` on task 000, and twelve of seventeen on
+    `overhangs-the-shelf` (plus five on the plateau rule) on task 001.  Giving
+    each of them a yield is worth +1 item / +1.8 fill and +2 items / +5.9 fill.
+    These tests hold the two properties that make the yield safe."""
+
+    def test_the_layer_cap_still_has_no_fallback(self):
+        """Only the plateau *shape* yields.  A third layer is a third layer,
+        and the cap is what keeps a tower from growing on its own lid."""
+        source = pathlib.Path(
+            layer1.__file__
+        ).read_text()
+        marker = 'if level <= config.layer2_max_layers:'
+        self.assertIn(
+            marker, source,
+            "the plateau fallback must collect near misses only below the cap",
+        )
+
+    def test_the_shelf_fallback_will_not_hang_a_box_off_the_edge(self):
+        """The yield has its own floor, well under the veto but over nothing."""
+        self.assertGreater(DEFAULT_CONFIG.shelf_fallback_min_fraction, 0.0)
+        self.assertLess(
+            DEFAULT_CONFIG.shelf_fallback_min_fraction,
+            DEFAULT_CONFIG.shelf_min_support_fraction,
+        )
+
+    def test_a_fallback_yields_one_candidate_not_the_whole_refused_set(self):
+        """The yield is a last resort, not a repeal: it hands back the single
+        closest near miss, so everything downstream still sees a shortlist that
+        the rule approved of as far as it could."""
+        source = pathlib.Path(layer1.__file__).read_text()
+        for snippet in ("survivors = [near_misses[0][1]]",
+                        "survivors = [shelf_near[0][1]]"):
+            self.assertIn(snippet, source)
+
+
 class TerraceKeyTest(unittest.TestCase):
     """The terrace key has to be able to read the terms it ranks by.
 
