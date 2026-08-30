@@ -113,6 +113,37 @@ Among the champion and three rule studs (fully measured, 6 pairings x
 テイジュウシン 2, プリフヒバリ 1, カベヅタイ 1. As always, race wins
 decide nothing; no promotion or gating logic reads this table.
 
+## Shun Long distillation of this cup's memory
+
+Run 33299265660 (on `071e9b9`), first attempt, clean. 83 pairs, 6
+course-cell groups, `passes=1`, base model 32890092906, 0 one-sided
+verdicts skipped. Label balance 45 actor wins / 38 champion wins — the
+most actor-favourable corpus so far. Status stays
+`capability_only_not_league_evidence`: no match, no promotion, the
+registry is untouched, so プリフヒバリ remains champion.
+
+| | before | after |
+|---|---|---|
+| leave-one-course-cell-out AUC | 0.484 | **0.504** |
+| leave-one-course-cell-out log loss | 1.958 | **0.887** |
+| same-corpus AUC | 0.484 | 0.696 |
+
+**This is the first cup whose distillation does not degrade held-out
+ranking.** Cup 003 went 0.624 → 0.478 (below chance) on 56 pairs and
+Cup 006 went 0.590 → 0.566 on 78; here 0.484 → 0.504 — a small
+improvement rather than a loss, and the first time the after-value
+lands above chance. Held-out log loss more than halves (1.958 →
+0.887), continuing Cup 006's calibration gain.
+
+Read it carefully though: the *before* AUC is itself the lowest of the
+three (0.484 — the frozen champion is worse than chance at ranking
+this cup's pairs before any memory is applied), so the after-value of
+0.504 is still only chance-level ranking. The honest summary is that
+the memory now stops hurting and fixes calibration, not that it ranks
+well. Three cups is also three points: 56 → 78 → 83 pairs with
+held-out AUC deltas of −0.146, −0.024, +0.020 is consistent with
+"corpus size cures the overfit" but does not establish it.
+
 ## Notes
 
 Champion, dominance rule and course format unchanged. The registry is
