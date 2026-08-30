@@ -88,6 +88,19 @@ jobs:
         with:
           name: temporal-chunk-ensemble-aggregate
           path: reports/temporal-chunk/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/temporal-chunk/downloads
+            reports/temporal-chunk/aggregate
+          remote: temporal-chunk-ensemble/${{ github.run_id }}
+          pointer: >-
+            reports/temporal-chunk-ensemble/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         env:
           HISTORY_DIR: >-

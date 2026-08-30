@@ -58,6 +58,8 @@ jobs:
   aggregate:
     needs: episode
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -80,3 +82,15 @@ jobs:
           path: |
             reports/task-a-risk-on/summary.md
             reports/task-a-risk-on/summary.json
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/task-a-risk-on/artifacts
+          remote: task-a-risk-on/${{ github.run_id }}
+          pointer: >-
+            reports/task-a-risk-on/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+

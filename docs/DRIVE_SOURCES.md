@@ -32,7 +32,23 @@ GitHubを正本とするための移植元一覧。Driveのファイルを実行
 | `pct_lite_rollouts_v1_noprefix_debug` | `1mMbkIx0SdCX19-6WGng4ugs2OUBuQdXo` | デバッグrollout群 |
 | `pct_lite_rollouts_v2_step7` | `1FFsEvUDT9bnWT4JYRYSKciTnmMPeTpC` | rollout群 |
 
-必要になった時点で、Drive IDとSHA-256を持つ取得スクリプトまたはGitHub Releaseへ移行する。現在のCPUエージェントはこれらへ依存しない。
+取得スクリプトは `scripts/drive_artifacts.py` として用意した（Drive IDと
+SHA-256で同一性を確認する）。現在のCPUエージェントはこれらへ依存しない。
+
+## Driveへ書き出す — CI生出力
+
+上の2節はDriveを**移植元**として扱うが、この節だけは逆向きで、Driveが
+**保存先**である。CIの生出力はActions artifactでは90日で消えるため、
+workflowが実行のたびにDriveへ複製する。
+
+| 項目 | Drive ID | 扱い |
+|---|---|---|
+| `nedo-3d-bpp/ci-artifacts` | `1bT3bypRgB-npoF0BS-5pMq62FJnujgtu` | CI生出力の退避先。`<実験名>/<run_id>/` で階層化 |
+
+コード正本はGitHubのままである。Driveにあるのは再取得可能な生出力だけで、
+その在処とSHA-256は `reports/<実験名>/history/<run_id>/drive.json` として
+commitされる。実行時依存は増えない — 解析スクリプトはDriveを見ない。
+設定手順は `docs/DRIVE_ARTIFACTS.md`。
 
 ## 移行ルール
 

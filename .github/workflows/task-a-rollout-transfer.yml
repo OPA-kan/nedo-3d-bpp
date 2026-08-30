@@ -74,11 +74,25 @@ jobs:
           --summarize-root reports/task-a-rollout/artifacts
           --summary-output
           "reports/task-a-rollout/history/${{ github.run_id }}/summary"
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: reports/task-a-rollout/artifacts
+          remote: task-a-rollout/${{ github.run_id }}
+          pointer: >-
+            reports/task-a-rollout/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          # This job commits and pushes once, below; a second push from the
+          # action would race against it.
+          commit: "false"
       - name: Commit compact result
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "reports/task-a-rollout/history/${{ github.run_id }}/summary.md"
           git add "reports/task-a-rollout/history/${{ github.run_id }}/summary.json"
+          git add --ignore-errors \
+            "reports/task-a-rollout/history/${{ github.run_id }}/drive.json" || true
           git commit -m "Record Task A rollout transfer ${{ github.run_id }} [skip task-a]"
           git push

@@ -1,0 +1,93 @@
+name: Archive raw output to Drive
+description: >-
+  Copy raw run output to Google Drive, which does not expire, and record the
+  Drive ids and SHA-256 of every file in a committed pointer. Actions
+  artifacts are deleted after 90 days; the summaries that cite them are not.
+
+inputs:
+  source:
+    description: Directory to archive. One per line to archive several.
+    required: true
+  remote:
+    description: Folder path beneath the Drive root folder.
+    required: true
+  pointer:
+    description: Path of the drive.json pointer to write.
+    required: true
+  credentials:
+    description: >-
+      Service account key JSON. When empty the step is skipped with a notice
+      instead of failing, so a repository without the secret still runs CI.
+    required: false
+    default: ""
+  commit:
+    description: Commit and push the pointer when it changes.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Archive to Drive
+      shell: bash
+      env:
+        # Inputs are read from the environment, never interpolated into the
+        # script body, so a value containing shell syntax cannot execute.
+        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ inputs.credentials }}
+        ARCHIVE_SOURCE: ${{ inputs.source }}
+        ARCHIVE_REMOTE: ${{ inputs.remote }}
+        ARCHIVE_POINTER: ${{ inputs.pointer }}
+      run: |
+        set -euo pipefail
+        if [ -z "${GOOGLE_SERVICE_ACCOUNT_JSON}" ]; then
+          echo "::notice::GOOGLE_SERVICE_ACCOUNT_JSON is not set." \
+            "Raw output stays in the Actions artifact and will be deleted" \
+            "after 90 days. Setup: docs/DRIVE_ARTIFACTS.md"
+          exit 0
+        fi
+        python3 -m pip install --quiet --disable-pip-version-check \
+          -r requirements-drive.txt
+        args=()
+        while IFS= read -r line; do
+          [ -n "${line}" ] && args+=(--source "${line}")
+        done <<< "${ARCHIVE_SOURCE}"
+        python3 scripts/drive_artifacts.py upload \
+          "${args[@]}" \
+          --remote "${ARCHIVE_REMOTE}" \
+          --pointer "${ARCHIVE_POINTER}"
+
+    - name: Commit the pointer
+      if: inputs.commit == 'true' && inputs.credentials != ''
+      shell: bash
+      env:
+        ARCHIVE_POINTER: ${{ inputs.pointer }}
+        RUN_ID: ${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        [ -f "${ARCHIVE_POINTER}" ] || exit 0
+        git config user.name "github-actions[bot]"
+        git config user.email \
+          "41898282+github-actions[bot]@users.noreply.github.com"
+        git add "${ARCHIVE_POINTER}"
+        if git diff --cached --quiet; then exit 0; fi
+        git commit -m "Archive raw output for run ${RUN_ID} [skip ci]"
+        # Ablation workflows finish in bursts, so two aggregate jobs can reach
+        # this push within seconds of each other. Rebase and retry rather than
+        # failing a job whose measurement already succeeded.
+        branch="${GITHUB_REF_NAME}"
+        for attempt in 1 2 3 4 5; do
+          if git push origin "HEAD:${branch}"; then
+            exit 0
+          fi
+          echo "push rejected (attempt ${attempt}); rebasing on origin/${branch}"
+          git fetch origin "${branch}"
+          git rebase "origin/${branch}" || {
+            git rebase --abort || true
+            echo "::warning::could not rebase the pointer commit onto" \
+              "origin/${branch}; raw output is archived in Drive but the" \
+              "pointer was not committed"
+            exit 0
+          }
+          sleep $(( attempt * 3 ))
+        done
+        echo "::warning::pointer commit could not be pushed after 5 attempts"

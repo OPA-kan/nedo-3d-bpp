@@ -93,6 +93,19 @@ jobs:
         with:
           name: visible-pool-rollout-aggregate
           path: reports/visible-pool-rollout/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/visible-pool-rollout/downloads
+            reports/visible-pool-rollout/aggregate
+          remote: visible-pool-rollout/${{ github.run_id }}
+          pointer: >-
+            reports/visible-pool-rollout/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         env:
           HISTORY_DIR: >-

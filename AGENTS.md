@@ -150,8 +150,12 @@ CIは毎pushで`unit-tests`と`replay-integration`を回す。後者は
   選択は変わらなかった」は「探索幅は論点ではない」ではない。`HANDOFF.md`の
   `Not established`が、どこまで言えるかの境界である。
 - **artifactにしか無い結果を「無い」と扱う。** 重い生データはActions artifact
-  のみに残す設計で、compact summaryだけがcommitされる。git内に見えないことは
-  未計測を意味しない。どこに何が残るかは`HANDOFF.md`の`Where results live`。
+  に出し、compact summaryだけがcommitされる。git内に見えないことは未計測を
+  意味しない。ただしActions artifactは**90日で消える**ので、生出力はGoogle
+  Driveへも複製し、`reports/<実験名>/history/<run_id>/drive.json` がその
+  在処とSHA-256を持つ。取り戻しは
+  `python3 scripts/drive_artifacts.py fetch --pointer <そのdrive.json>`。
+  設計と設定は`docs/DRIVE_ARTIFACTS.md`。
 - **プロセスのexit 0を成功と見なす。** 物理検証は`is_included` / `is_valid` /
   `is_placed_safe`が全てtrueでなければ失敗である。
 - **`selected_*`混同行列をgate全体のprecision/recallとして読む。** rankingが

@@ -70,6 +70,8 @@ jobs:
   aggregate:
     needs: episode
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -94,3 +96,16 @@ jobs:
         with:
           name: rescue-scan-aggregate
           path: reports/rescue-scan/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/rescue-scan/downloads
+            reports/rescue-scan/aggregate
+          remote: rescue-scan/${{ github.run_id }}
+          pointer: >-
+            reports/rescue-scan/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+

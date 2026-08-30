@@ -16,6 +16,8 @@ concurrency:
 jobs:
   measure:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
@@ -65,3 +67,15 @@ jobs:
         with:
           name: anchor-recall-${{ github.run_id }}
           path: reports/anchor-recall/history/${{ github.run_id }}/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/anchor-recall/history/${{ github.run_id }}
+          remote: anchor-recall/${{ github.run_id }}
+          pointer: >-
+            reports/anchor-recall/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+

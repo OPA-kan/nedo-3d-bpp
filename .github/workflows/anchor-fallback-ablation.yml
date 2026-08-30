@@ -107,6 +107,8 @@ jobs:
   aggregate:
     needs: episode
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -133,3 +135,16 @@ jobs:
         with:
           name: anchor-fallback-aggregate
           path: reports/anchor-fallback/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/anchor-fallback/downloads
+            reports/anchor-fallback/aggregate
+          remote: anchor-fallback/${{ github.run_id }}
+          pointer: >-
+            reports/anchor-fallback/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+

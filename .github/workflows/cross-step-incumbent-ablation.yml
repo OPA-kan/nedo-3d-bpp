@@ -99,6 +99,19 @@ jobs:
         with:
           name: cross-step-incumbent-aggregate
           path: reports/cross-step-incumbent/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/cross-step-incumbent/downloads
+            reports/cross-step-incumbent/aggregate
+          remote: cross-step-incumbent/${{ github.run_id }}
+          pointer: >-
+            reports/cross-step-incumbent/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         if: github.ref == 'refs/heads/experiment/cross-step-incumbent'
         env:

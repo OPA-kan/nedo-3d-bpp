@@ -54,6 +54,8 @@ jobs:
   aggregate:
     needs: episode
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -78,3 +80,15 @@ jobs:
             reports/stowage/calibration/submission22-*/
             reports/stowage/proxy-calibration.json
             reports/stowage/proxy-calibration.txt
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/stowage/calibration
+          remote: submission22/${{ github.run_id }}
+          pointer: >-
+            reports/submission22/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+

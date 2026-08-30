@@ -250,6 +250,9 @@ integration tests may skip; `OK (skipped=3)` does not prove the physical
 contract. A process exit code of zero is not a physical success unless
 `is_included`, `is_valid`, and `is_placed_safe` are all true.
 
-Large raw logs stay in Actions artifacts or ignored raw directories. Commit
-compact summaries and additive evidence entries. Never open final holdout data
+Large raw logs stay in Actions artifacts or ignored raw directories, and are
+copied to Google Drive because those artifacts expire after 90 days; the
+committed `drive.json` beside each summary records where they went and their
+SHA-256 (`docs/DRIVE_ARTIFACTS.md`). Commit compact summaries and additive
+evidence entries. Never open final holdout data
 outside the one-shot protocol in `docs/RELEASE_RISK_PROTOCOL.md`.

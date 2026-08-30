@@ -94,6 +94,19 @@ jobs:
         with:
           name: multi-axis-selector-shadow-aggregate
           path: reports/multi-axis-selector/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/multi-axis-selector/downloads
+            reports/multi-axis-selector/aggregate
+          remote: multi-axis-selector/${{ github.run_id }}
+          pointer: >-
+            reports/multi-axis-selector/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         env:
           HISTORY_DIR: >-

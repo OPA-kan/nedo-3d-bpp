@@ -94,6 +94,19 @@ jobs:
         with:
           name: structured-selector-negative-control-aggregate
           path: reports/structured-selector/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/structured-selector/downloads
+            reports/structured-selector/aggregate
+          remote: structured-selector/${{ github.run_id }}
+          pointer: >-
+            reports/structured-selector/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         env:
           HISTORY_DIR: >-

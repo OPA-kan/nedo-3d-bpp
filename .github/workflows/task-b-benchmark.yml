@@ -167,6 +167,18 @@ jobs:
           path: |
             reports/task-b-screening/aggregate.md
             reports/task-b-screening/aggregate.json
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/task-b-screening
+          remote: task-b/${{ github.run_id }}
+          pointer: >-
+            reports/task-b/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
       - name: Persist compact aggregate history
         if: github.ref == 'refs/heads/experiment/anchor-recall-oracle'
         env:

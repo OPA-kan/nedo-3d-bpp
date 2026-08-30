@@ -95,6 +95,8 @@ jobs:
   aggregate:
     needs: episode
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -121,3 +123,16 @@ jobs:
         with:
           name: death-band-aggregate
           path: reports/death-band/aggregate/
+      - name: Archive raw output to Drive
+        if: always()
+        uses: ./.github/actions/archive-to-drive
+        with:
+          source: |
+            reports/death-band/downloads
+            reports/death-band/aggregate
+          remote: death-band/${{ github.run_id }}
+          pointer: >-
+            reports/death-band/history/${{ github.run_id }}/drive.json
+          credentials: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          commit: "true"
+
