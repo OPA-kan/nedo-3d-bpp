@@ -276,7 +276,7 @@ class Board:
             if self.placements[idx] or not self.containers[idx].get("packed_items"):
                 grid = build_floor_grid(
                     self.models[idx], self.placements[idx],
-                    self.config.candidate_grid_cell,
+                    self.config.candidate_grid_cell, self.config,
                 )
             else:
                 # Driving the real environment the board is rebuilt from each
@@ -287,7 +287,7 @@ class Board:
                 # if the container were empty.
                 grid = grid_from_packed(
                     self.models[idx], self.containers[idx],
-                    self.config.candidate_grid_cell,
+                    self.config.candidate_grid_cell, self.config,
                 )
             self._grids[idx] = grid
         return grid
@@ -2545,6 +2545,22 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
     """
     if not config.last_resort_enabled:
         return []
+    # Two passes, not one.  Flattest-first has to be decided over the whole
+    # board, not per rectangle: taking the widest pose that fits *this*
+    # rectangle, when a flat pose fits the next one, is how widening the search
+    # gained two items on task 000 and lost three on task 001.  So sweep every
+    # rectangle with the flat tier first, and escalate to the standing poses
+    # only if that found nowhere at all.
+    flat = _last_resort_pass(board, profile, container_idx, config, False)
+    if not config.last_resort_all_poses:
+        return flat
+    standing = _last_resort_pass(board, profile, container_idx, config, True)
+    return flat + standing
+
+
+def _last_resort_pass(board: "Board", profile: cls.ItemProfile,
+                      container_idx: int, config, escalate: bool
+                      ) -> list[Candidate]:
     model = board.model(container_idx)
     container = board.container(container_idx)
     grid = board.grid(container_idx)
@@ -2562,10 +2578,14 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
         if not fitting:
             continue
         flattest = min(o.dz for o in fitting)
+        flat = [o for o in fitting
+                if o.dz <= flattest + config.hole_fill_tier_tolerance]
+        # The escalating pass tries the poses the flat tier left out -- the
+        # four fitting poses that were cut to one at the step that ended task
+        # 000, and never tried when that one failed validation.
         tier = sorted(
-            (o for o in fitting
-             if o.dz <= flattest + config.hole_fill_tier_tolerance),
-            key=lambda o: -o.footprint,
+            [o for o in fitting if o not in flat] if escalate else flat,
+            key=lambda o: (o.dz, -o.footprint),
         )
         for orientation in tier:
             dx, dy, dz = orientation.dx, orientation.dy, orientation.dz

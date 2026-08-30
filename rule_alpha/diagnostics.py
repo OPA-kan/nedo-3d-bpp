@@ -163,7 +163,43 @@ class FloorGrid:
         return float((self.usable & self.occupied).sum()) * self.cell_area / self.usable_area
 
 
-def build_floor_grid(model: ContainerModel, placements, cell: float) -> FloorGrid:
+def carried_by_shelf(model, rect: Rect, bottom: float, config) -> bool:
+    """Is this box held up by a shelf, or merely as high as one?
+
+    The test used to be height alone: anything with its underside at or above
+    the shelf plane was dropped from the floor map.  That is right for cargo on
+    a shelf and for whatever is stacked on top of it, and wrong for everything
+    else in the container that happens to be that tall.  task 000's only shelf
+    is the small one, 0.44 m of a 1.92 m length at the chamfer end, so the
+    height test erased two floor-stacked boxes at the *opposite* end -- and with
+    them every grid-derived rule's view above 0.785 m.  `free_rectangles` then
+    offered a 0.464 x 0.674 rectangle at z 0.82 that was solid cargo, the last
+    resort proposed six anchors inside it, all six came back
+    `overlaps-packed-item`, and the episode ended with nothing generated.
+
+    So ask about the column, not the height: a box is the shelf's business only
+    if it stands over one."""
+    if not model.shelves:
+        return False
+    area = max(rect.area, 1e-9)
+    for shelf in model.shelves:
+        top = float(shelf.maximum[2])
+        if bottom < top - config.contact_tolerance:
+            continue
+        over = Rect(
+            max(rect.x_min, float(shelf.minimum[0])),
+            min(rect.x_max, float(shelf.maximum[0])),
+            max(rect.y_min, float(shelf.minimum[1])),
+            min(rect.y_max, float(shelf.maximum[1])),
+        )
+        if over.x_max > over.x_min and over.y_max > over.y_min:
+            if over.area / area >= config.shelf_column_fraction:
+                return True
+    return False
+
+
+def build_floor_grid(model: ContainerModel, placements, cell: float,
+                     config=None) -> FloorGrid:
     """Rasterise the Layer 1 placements of one container.
 
     ``placements`` are :class:`~rule_alpha.layer1.Placement` records.  Items
@@ -174,7 +210,12 @@ def build_floor_grid(model: ContainerModel, placements, cell: float) -> FloorGri
     for placement in placements:
         if placement.surface == "shelf":
             continue
-        if model.shelves and float(placement.box.minimum[2]) >= (
+        if config is not None and config.shelf_skip_needs_column:
+            if carried_by_shelf(
+                model, placement.rect, float(placement.box.minimum[2]), config
+            ):
+                continue  # over a shelf: carried by it, not by the floor
+        elif model.shelves and float(placement.box.minimum[2]) >= (
             model.shelf_bottom_z - 0.02
         ):
             continue  # stacked on shelf cargo: carried by the shelf, not the floor
@@ -189,7 +230,7 @@ def build_floor_grid(model: ContainerModel, placements, cell: float) -> FloorGri
 
 
 def grid_from_packed(model: ContainerModel, container: dict,
-                     cell: float) -> FloorGrid:
+                     cell: float, config=None) -> FloorGrid:
     """Rasterise what the *simulator* says is in the container.
 
     The planner's own ``Placement`` records only exist while it is running an
@@ -210,7 +251,12 @@ def grid_from_packed(model: ContainerModel, container: dict,
     grid = FloorGrid(model, cell)
     for box, is_soft, is_prioritized in packed_aabbs_local(container):
         bottom = float(box.minimum[2])
-        if model.shelves and bottom >= model.shelf_bottom_z - 0.02:
+        rect = Rect(float(box.minimum[0]), float(box.maximum[0]),
+                    float(box.minimum[1]), float(box.maximum[1]))
+        if config is not None and config.shelf_skip_needs_column:
+            if carried_by_shelf(model, rect, bottom, config):
+                continue  # over a shelf: carried by it, not by the floor
+        elif model.shelves and bottom >= model.shelf_bottom_z - 0.02:
             # Anything at or above the shelf plane is carried by the shelf, not
             # by the floor stack, and stamping it onto the floor's height map
             # makes the planner believe the space *under* the shelf is full.
@@ -221,8 +267,7 @@ def grid_from_packed(model: ContainerModel, container: dict,
             # empty ground it could not see.
             continue
         grid.stamp(
-            Rect(float(box.minimum[0]), float(box.maximum[0]),
-                 float(box.minimum[1]), float(box.maximum[1])),
+            rect,
             float(box.maximum[2]),
             support_code(is_soft, is_prioritized),
             False,
@@ -640,7 +685,7 @@ def lane_bottleneck(grid: FloorGrid, model: ContainerModel, rect: Rect) -> float
 
 def board_report(model: ContainerModel, placements, config, cell: float | None = None,
                  triangle_state=None) -> dict:
-    grid = build_floor_grid(model, placements, cell or config.grid_cell)
+    grid = build_floor_grid(model, placements, cell or config.grid_cell, config)
     plateaus = plateau_report(grid, config)
     holes = hole_report(grid, config)
     plateaus.pop("_labels", None)

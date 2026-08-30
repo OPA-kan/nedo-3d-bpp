@@ -28,6 +28,7 @@ from rule_alpha import layer2 as l2  # noqa: E402
 from rule_alpha import stability  # noqa: E402
 from rule_alpha._reuse import AABB  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
+from rule_alpha import diagnostics as diag  # noqa: E402
 from rule_alpha.diagnostics import (  # noqa: E402
     FloorGrid,
     lane_bottleneck,
@@ -784,12 +785,19 @@ class EpisodeTest(unittest.TestCase):
 
     def test_only_declared_roles_build_on_item_tops(self):
         """Floor, shelf, or one of the roles that is *about* standing on
-        cargo: the wedge staircase, and Layer 2's growth families."""
+        cargo: the wedge staircase, Layer 2's growth families, and the two
+        that seat a box wherever there is room -- hole fill and the last
+        resort, both of which work per level and so reach item tops by design.
+
+        Those last two were missing from this list until the floor map stopped
+        going blind above the shelf plane.  While a height test erased every
+        box stacked past 0.785 m, no hole was ever found up there for hole fill
+        to reach, so the omission never showed."""
         from rule_alpha import layer2 as l2
 
         allowed = (
             cls.ROLE_WEDGE_STEP, l2.ROLE_TERRACE, l2.ROLE_BRIDGE,
-            l2.ROLE_WEDGE_BRIDGE,
+            l2.ROLE_WEDGE_BRIDGE, l2.ROLE_HOLE_FILL, l2.ROLE_LAST_RESORT,
         )
         for placement in self.result.sequence:
             if placement.surface == "item":
@@ -1564,6 +1572,62 @@ class PlateauDepthTest(unittest.TestCase):
         allowed, level = layer1.may_build_here(board, 0, second, DEFAULT_CONFIG)
         self.assertEqual(level, 2)
         self.assertTrue(allowed)
+
+
+class ShelfColumnTest(unittest.TestCase):
+    """The floor map excludes what a shelf carries, not what is merely as tall.
+
+    The test was height alone, and task 000's only shelf is the small one --
+    0.44 m of a 1.92 m length, at the chamfer end -- so a floor-stacked box at
+    the opposite end was erased from the height map for being above 0.785 m.
+    Everything derived from that map went blind up there: `free_rectangles`
+    offered a 0.464 x 0.674 rectangle at z 0.82 that was solid cargo, the last
+    resort put six anchors inside it, all six came back `overlaps-packed-item`,
+    and the episode ended with an empty candidate pool."""
+
+    def _model(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.ContainerModel(container, DEFAULT_CONFIG)
+
+    def test_a_tall_stack_away_from_the_shelf_stays_on_the_map(self):
+        model = self._model()
+        self.assertTrue(model.shelves, "the fixture needs a shelf to be a test")
+        shelf = model.shelves[0]
+        far_x = float(shelf.maximum[0]) + 0.60
+        rect = Rect(far_x, far_x + 0.40, -0.20, 0.20)
+        self.assertFalse(
+            diag.carried_by_shelf(
+                model, rect, float(shelf.maximum[2]) + 0.30, DEFAULT_CONFIG
+            ),
+            "a box stacked high on the floor is not the shelf's business",
+        )
+
+    def test_a_box_over_the_shelf_is_still_excluded(self):
+        """The original defect stays fixed: cargo the shelf carries, and
+        whatever is stacked on it, must not be stamped as floor terrain."""
+        model = self._model()
+        shelf = model.shelves[0]
+        rect = Rect(float(shelf.minimum[0]) + 0.02, float(shelf.minimum[0]) + 0.32,
+                    -0.15, 0.15)
+        for lift in (0.0, 0.30):
+            self.assertTrue(
+                diag.carried_by_shelf(
+                    model, rect, float(shelf.maximum[2]) + lift, DEFAULT_CONFIG
+                ),
+                f"a box {lift:.2f} m above the shelf is carried by it",
+            )
+
+    def test_a_box_below_the_shelf_is_floor_terrain(self):
+        model = self._model()
+        shelf = model.shelves[0]
+        rect = Rect(float(shelf.minimum[0]) + 0.02, float(shelf.minimum[0]) + 0.32,
+                    -0.15, 0.15)
+        self.assertFalse(
+            diag.carried_by_shelf(
+                model, rect, float(shelf.minimum[2]) - 0.30, DEFAULT_CONFIG
+            ),
+            "the space under a shelf is floor, and the planner has to see it",
+        )
 
 
 class FloorTaxTest(unittest.TestCase):

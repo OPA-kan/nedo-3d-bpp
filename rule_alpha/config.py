@@ -98,6 +98,35 @@ class RuleAlphaConfig:
     move the decision upstream, and both of these tests read only cheap
     features, so they can move."""
 
+    shelf_skip_needs_column: bool = True
+    """Exclude an item from the floor map only if it stands over a shelf.
+
+    The test was height alone -- underside at or above the shelf plane -- which
+    is right for shelf cargo and wrong for anything else that tall.  task 000's
+    only shelf is the small one, 0.44 m of a 1.92 m length at the chamfer end,
+    so the height test erased floor-stacked boxes at the opposite end and blinded
+    every grid-derived rule above 0.785 m.  `free_rectangles` then offered a
+    0.464 x 0.674 rectangle at z 0.82 that was solid cargo (item 22 occupies
+    0.810-1.060 there), the last resort proposed six anchors inside it, all six
+    came back `overlaps-packed-item`, and the episode ended with an empty pool."""
+
+    shelf_column_fraction: float = 0.5
+    """How much of a box's footprint must stand over a shelf to count as its."""
+
+    last_resort_all_poses: bool = False
+    """Let the last resort escalate to standing poses when nothing flat fits.
+
+    Its own docstring promises "whatever pose that takes", but the tier filter
+    cut four fitting poses down to one, and when that one failed validation the
+    rectangle was abandoned with the other three never tried -- which is how
+    task 000 ended with an empty pool while three rectangles held poses that fit.
+
+    Escalation is a second sweep of the whole board rather than a wider search
+    within each rectangle.  Deciding per rectangle takes a standing pose here
+    when a flat one fits the next one along, which measured +2 items on task 000
+    and -3 on task 001; deciding over the board keeps the gain without the
+    loss."""
+
     floor_prefers_flat: bool = False
     """Refuse a floor placement by a box taller than the manifest can pave with.
 
