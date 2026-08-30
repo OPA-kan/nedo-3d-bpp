@@ -5,6 +5,8 @@ import sys
 import tempfile
 import unittest
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
 from scripts.host_diversity_cup import (
     allocate_course,
     next_cup_id,
@@ -130,6 +132,26 @@ class DiversityCupHostingTests(unittest.TestCase):
             )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(json.loads(completed.stdout)["cup_id"], "002")
+
+
+class PreregistrationRowTests(unittest.TestCase):
+    def test_the_row_asserts_no_rule_alpha_commit(self):
+        """The note hardcoded rule-alpha@7908b09 and kept saying so after
+        Cup 008 had moved to 803fd6f. An auto-generated preregistration
+        must not claim an actor version it cannot verify; the real commit
+        goes in the per-cup report, written by someone who checked."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = pathlib.Path(tmp) / "cup-ledger.md"
+            ledger.write_text(LEDGER, encoding="utf-8")
+            preregister(ledger, STATE, date="2026-08-26")
+            updated = ledger.read_text(encoding="utf-8")
+        row = next(
+            line for line in updated.splitlines()
+            if line.startswith("| 002 |")
+        )
+        self.assertIn("rule-alpha", row)
+        self.assertNotRegex(row, r"[0-9a-f]{7,40}\b(?<!32890092906)")
+        self.assertNotIn("@", row)
 
 
 if __name__ == "__main__":

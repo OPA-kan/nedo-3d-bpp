@@ -164,11 +164,17 @@ def preregister(
         "000: " + ",".join(map(str, by_source["000"]))
         + " · 001: " + ",".join(map(str, by_source["001"]))
     )
+    # The note deliberately asserts no rule-alpha commit. It used to read
+    # "rule-alpha@7908b09" and silently kept saying so after Cup 008 moved
+    # to 803fd6f -- an auto-generated preregistration must not claim a
+    # version it cannot verify. The actor's actual source commit belongs in
+    # the per-cup report and the ledger's vendor note, which are written by
+    # someone who checked.
     row = (
         f"| {selected_id} | {date} | {run_id} | {champion} "
         f"{display_name or champion} | {streams} | pending | pending | "
         "pending | preregistered six-horse field incl current-agent and "
-        "rule-alpha@7908b09 |\n"
+        "rule-alpha (actor commit recorded in the per-cup report) |\n"
     )
     marker = "\nPool allocation note:"
     if marker not in text:
