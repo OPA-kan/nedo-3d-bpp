@@ -107,7 +107,7 @@ class RuleAlphaConfig:
     anchor the clamp rescues is within 2 mm and the bound is a guard rather than
     a tuning knob."""
 
-    layer2_clamps_anchors: bool = False
+    layer2_clamps_anchors: bool = True
     """Pull a Layer 2 anchor back inside the container instead of losing it.
 
     Anchors are generated flush with the edge of the box they stand on, and a
@@ -118,19 +118,19 @@ class RuleAlphaConfig:
     that decides most placements generates nothing at all.  The replay never
     sees it, because the replay never settles anything.
 
-    This is a defect, and the clamp is the right repair, but repairing it splits
-    the two tasks::
+    On its own the repair splits the two tasks -- 23/25.521 against 23/29.484 on
+    task 000, 25/27.184 against 23/25.880 on task 001 -- because Layer 2 coming
+    back pushes task 000 off the floor and shelf rungs that were, by luck, doing
+    better there.  Part of that 29.484 was earned by the bug.  It looked like a
+    change not worth shipping until the landscape underneath it was re-examined:
+    with the shelf veto's fallback turned off as well it is 24/28.157 and
+    25/27.184, three more items than the shipped board at the same total fill.
 
-        arm       task 000        task 001
-        off       23 / 29.484     23 / 25.880
-        clamped   23 / 25.521     25 / 27.184
-
-    Layer 2 coming back on task 000 pushes the planner off the floor and shelf
-    rungs that were, by luck, doing better there -- so the 29.484 was partly
-    earned by the bug.  Two items gained against four points of fill lost, on a
-    sample of two, is not enough to ship a change that lowers the headline
-    score, so it is off with the measurement recorded.  Worth revisiting the
-    moment there is a third task."""
+    It also decides whether the analytic replay is worth anything.  Reproduced
+    placements go from 5% to 29% on task 000 and 5% to 19% on task 001, and rank
+    correlation with the official score from +0.42 to +0.79 and +0.27 to +0.55.
+    The replay was mostly measuring a planner whose Layer 2 rung was silently
+    dead."""
 
     grid_always_from_packed: bool = False
     """Build the height map from packed items even when placements exist.
@@ -284,8 +284,21 @@ class RuleAlphaConfig:
     Only the shape condition yields, and only to the closest near miss, ranked
     by support area times coverage."""
 
-    shelf_veto_has_fallback: bool = True
-    """Let the shelf-overhang test yield rather than refuse the item entirely."""
+    shelf_veto_has_fallback: bool = False
+    """Let the shelf-overhang test yield rather than refuse the item entirely.
+
+    Shipped on when it was measured against a board whose Layer 2 rung was dead
+    for anything standing on a settled box.  With `layer2_clamps_anchors` there
+    are real alternatives again, and taking a 60%-supported shelf place ahead of
+    them costs more than the item it saves::
+
+        arm                    task 000        task 001     items   fill
+        clamp off (was)        23 / 29.484     23 / 25.880    46    55.364
+        clamp                  23 / 25.521     25 / 27.184    48    52.705
+        clamp, no shelf fb     24 / 28.157     25 / 27.184    49    55.341
+
+    The plateau veto keeps its fallback: turning that off under the clamp is
+    20/22.886 and 23/24.576, worse on both."""
 
     shelf_fallback_min_fraction: float = 0.60
     """How much of the underside still has to be on the shelf for the fallback.

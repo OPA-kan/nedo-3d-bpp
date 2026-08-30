@@ -1716,6 +1716,14 @@ class FloorTaxTest(unittest.TestCase):
             "clearing the plane by the margin is what it would take to count",
         )
 
+    def test_the_shelf_fallback_is_off_under_the_anchor_clamp(self):
+        """The two are coupled: the shelf yield was measured against a board
+        whose Layer 2 rung was dead, and it stops paying once the clamp brings
+        that rung back.  The plateau yield still pays and stays on."""
+        self.assertTrue(DEFAULT_CONFIG.layer2_clamps_anchors)
+        self.assertFalse(DEFAULT_CONFIG.shelf_veto_has_fallback)
+        self.assertTrue(DEFAULT_CONFIG.plateau_veto_has_fallback)
+
     def test_the_two_levers_that_did_not_pay_stay_off(self):
         """Both were measured and both cost more than the tax they avoid, so
         the defaults have to say so."""
