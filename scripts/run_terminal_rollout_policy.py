@@ -198,6 +198,25 @@ def add_exact_agent_candidate(
     return list(candidates) + [current], candidate_id, False
 
 
+def find_exact_agent_candidate(
+    candidates: list[Any], action: dict[str, Any],
+) -> tuple[str | None, bool]:
+    """Locate an exact actor command already present in the candidate set.
+
+    The read-only counterpart of ``add_exact_agent_candidate``: it never
+    adds anything, so running an exact-agent policy through it is the
+    honest test of whether the *provider* can supply the actor's move.
+    Cup 008 measured rule-alpha at 89/89 misses against the generic
+    provider alone; with the rule-alpha proposal family unioned in, this
+    is what must start returning a hit.
+    """
+    command = canonical_action(action)
+    for candidate in candidates:
+        if canonical_action(_candidate_action(candidate)) == command:
+            return str(_candidate_record(candidate)["candidate_id"]), True
+    return None, False
+
+
 def add_current_agent_candidate(
     candidates: list[Any], action: dict[str, Any],
     observation: dict[str, Any],
@@ -417,9 +436,17 @@ def run_episode(
     mine_model_dir: pathlib.Path | None = None,
     mine_fork_budget: int = 12,
     candidate_stride: int = 1,
+    union_rule_alpha: bool = False,
+    rule_alpha_union_limit: int = 4,
+    exact_agent_candidate: bool = True,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    if not exact_agent_candidate and policy not in EXACT_AGENT_POLICIES:
+        raise ValueError(
+            "exact_agent_candidate=False is meaningful only for an exact"
+            " stateful actor policy"
+        )
     mining_policy = None
     if mine_model_dir is not None:
         if policy not in MINING_POLICIES:
@@ -454,6 +481,28 @@ def run_episode(
         scan_all_visible_items=True,
         candidate_stride=candidate_stride,
     )
+    # C(s) = C_generic(s) | C_rule-alpha(s).  The generic provider
+    # re-ranks one family of anchor placements, so every horse that only
+    # re-ranks it is confined to moves that family can express; Cup 008
+    # measured rule-alpha's own executed move outside it on 89 of 89
+    # boards.  Unioning a proposal family in is what makes a teacher's
+    # action selectable by the ranker at all -- a baseline for removing
+    # the train/inference mismatch, not an attempt to imitate rule-alpha.
+    union_stats: dict[str, Any] = {}
+    rule_alpha_proposer = None
+    if union_rule_alpha:
+        from scripts.rule_alpha_proposals import (
+            RuleAlphaProposer,
+            union_provider,
+        )
+
+        rule_alpha_proposer = RuleAlphaProposer(
+            max_proposals=int(rule_alpha_union_limit)
+        )
+        provider = union_provider(
+            provider, rule_alpha_proposer,
+            observation_fn=policy_observation, stats=union_stats,
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     env = _fresh_env(task_config)
     try:
@@ -467,6 +516,8 @@ def run_episode(
             exact_solver = RuleAlphaAgent()
         if exact_solver is not None:
             exact_solver.get_init_states(env.get_init_states())
+        if rule_alpha_proposer is not None:
+            rule_alpha_proposer.get_init_states(env.get_init_states())
         env.reset_item_stream()
         observation, _info = env.reset(seed=environment_seed)
         executed: list[Any] = []
@@ -514,13 +565,28 @@ def run_episode(
             phase_started = time.perf_counter()
             candidates = list(provider(env, observation, int(top_k)))
             if current_action is not None:
-                (
-                    candidates,
-                    current_candidate_id,
-                    current_support_hit,
-                ) = add_exact_agent_candidate(
-                    candidates, current_action, observed, policy=policy,
-                )
+                if exact_agent_candidate:
+                    (
+                        candidates,
+                        current_candidate_id,
+                        current_support_hit,
+                    ) = add_exact_agent_candidate(
+                        candidates, current_action, observed, policy=policy,
+                    )
+                else:
+                    # No safety net: the actor may only execute a move the
+                    # provider itself supplied.  An episode that runs to a
+                    # genuine terminal here is the proof that the
+                    # train/inference mismatch is gone.
+                    (
+                        current_candidate_id,
+                        current_support_hit,
+                    ) = find_exact_agent_candidate(candidates, current_action)
+                    if current_candidate_id is None:
+                        termination = (
+                            f"{policy.replace('-', '_')}_action_unsupported"
+                        )
+                        break
             provider_seconds = time.perf_counter() - phase_started
             if not candidates:
                 termination = "no_retained_candidate"
@@ -854,6 +920,25 @@ def run_episode(
                 learned_policy.adapter_norms()
                 if policy == "online" else None
             ),
+            "candidate_union": {
+                "rule_alpha_union": bool(union_rule_alpha),
+                "rule_alpha_union_limit": int(rule_alpha_union_limit),
+                "exact_agent_candidate": bool(exact_agent_candidate),
+                "states": int(union_stats.get("union_states", 0)),
+                "base_candidates": int(union_stats.get("base_candidates", 0)),
+                "union_added": int(union_stats.get("union_added", 0)),
+                "union_duplicates": int(
+                    union_stats.get("union_duplicates", 0)
+                ),
+                "proposer_seconds": (
+                    round(float(rule_alpha_proposer.seconds), 3)
+                    if rule_alpha_proposer is not None else None
+                ),
+                "proposer_calls": (
+                    int(rule_alpha_proposer.calls)
+                    if rule_alpha_proposer is not None else None
+                ),
+            },
             "mining_disagreements": (
                 mining_disagreements if mining_policy is not None else None
             ),
@@ -984,8 +1069,44 @@ def main() -> int:
              " (the stud still executes its own action)",
     )
     parser.add_argument("--mine-fork-budget", type=int, default=12)
+    parser.add_argument(
+        "--union-rule-alpha", action="store_true",
+        help=(
+            "union a rule-alpha proposal family into the inference-side"
+            " candidate set: C(s) = C_generic(s) | C_rule-alpha(s). Cup"
+            " 008 measured rule-alpha's own executed action absent from"
+            " the generic set on 89/89 boards, so the ranker could never"
+            " select the move its training labels praised"
+        ),
+    )
+    parser.add_argument(
+        "--rule-alpha-union-limit", type=int, default=4,
+        help=(
+            "how many Layer 1 proposals to take, one per visible pool"
+            " item in rule-alpha's own try order. The action rule-alpha"
+            " would execute is always first, so any limit >= 1 keeps it;"
+            " the rest are the moves it would make for the other items."
+            " Cost is roughly linear -- 1.4 s per proposal per state"
+        ),
+    )
+    parser.add_argument(
+        "--no-exact-agent-candidate", action="store_true",
+        help=(
+            "exact actor policies only: do NOT union the actor's command"
+            " in as a root candidate. The actor may then execute only a"
+            " move the provider itself supplied, which is the honest test"
+            " that the train/inference mismatch is gone"
+        ),
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
+    if args.no_exact_agent_candidate and args.policy not in (
+        EXACT_AGENT_POLICIES
+    ):
+        raise SystemExit(
+            "--no-exact-agent-candidate is valid only with"
+            " --policy current-agent/rule-alpha"
+        )
     if (args.policy in LEARNED_POLICIES) != (args.model_dir is not None):
         raise SystemExit(
             "--model-dir is required for --policy learned/online and"
@@ -1019,6 +1140,9 @@ def main() -> int:
         mine_model_dir=args.mine_against_model,
         mine_fork_budget=args.mine_fork_budget,
         candidate_stride=args.candidate_stride,
+        union_rule_alpha=args.union_rule_alpha,
+        rule_alpha_union_limit=args.rule_alpha_union_limit,
+        exact_agent_candidate=not args.no_exact_agent_candidate,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -1072,10 +1196,18 @@ def main() -> int:
             ),
         },
         "candidate_contract": {
-            "provider": "placement_core_item_stratified_fixed_attempts",
+            "provider": (
+                "placement_core_item_stratified_fixed_attempts"
+                " | rule_alpha_proposal_family"
+                if args.union_rule_alpha
+                else "placement_core_item_stratified_fixed_attempts"
+            ),
             "attempt_budget": args.attempt_budget,
             "candidate_stride": args.candidate_stride,
             "top_k": args.top_k,
+            "rule_alpha_union": bool(args.union_rule_alpha),
+            "rule_alpha_union_limit": int(args.rule_alpha_union_limit),
+            "exact_agent_candidate": not bool(args.no_exact_agent_candidate),
         },
         "rollout_contract": {
             "policy": "frozen_rank0_exact_physical_filter",
