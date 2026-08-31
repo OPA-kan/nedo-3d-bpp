@@ -116,6 +116,14 @@ EPS = 1e-9
 GENUINE_TERMINATIONS = {
     "stream_exhausted", "no_retained_candidate", "no_safe_retained_candidate",
 }
+# The ONLY termination whose remaining value is genuinely zero: every item
+# is placed, so there is nothing left to book. Every other ending -- the
+# generator running dry, a cap, a rejected action -- leaves a board that
+# still holds volume, which is why pinning its tail to zero was 2-4x
+# wrong. GENUINE_TERMINATIONS is a different question (may the dominance
+# rule read this row) and must not be reused for this one: it contains
+# no_retained_candidate, which is exactly the case the bootstrap is for.
+ZERO_REMAINING_TERMINATIONS = {"stream_exhausted"}
 LEAF_SUFFIX_TO_COMPONENT = {
     "fill_return": "fill_gain",
     "placed_return": "placed_gain",
@@ -511,8 +519,26 @@ def _terminal_rollout(
     prefix_actions: list[Any], forced_actions: list[Any], provider,
     legal_filter, top_k: int, root_step: int,
     max_continuation_steps: int,
+    bootstrap_value: Any | None = None,
 ) -> dict[str, Any]:
-    """Force a search path, then follow frozen rank-0 to termination."""
+    """Force a search path, then follow frozen rank-0 toward termination.
+
+    With ``bootstrap_value`` the continuation is an honest n-step
+    estimate rather than a walk to a physical terminal::
+
+        V(s_t) ~= measured prefix delta + V_theta(s_{t+n})
+
+    and the cap becomes n. Without it the tail is booked as zero, which
+    is what every cup through 010 did -- and 96.3% of Cup 009's rollouts
+    hit that zero at `no_retained_candidate`, on boards holding two to
+    four times more.
+
+    **This changes what a dominance verdict is.** A bootstrapped
+    terminal is a model's estimate, not a physical fact, so
+    ``terminal_bootstrapped`` is recorded on every row that used one and
+    the design record states the cost. Rollouts that reach a genuine
+    terminal before the cap are untouched and stay facts.
+    """
     rollout_started = time.perf_counter()
     timing = {
         "contract": "terminal_rollout_wall_clock_v1",
@@ -617,6 +643,32 @@ def _terminal_rollout(
         genuine = termination in GENUINE_TERMINATIONS
         terminal_metrics = cumulative_metrics(env)
         checkpoint_vector = _component_values(root_metrics, terminal_metrics)
+        bootstrap = None
+        if (
+            bootstrap_value is not None
+            and termination not in ZERO_REMAINING_TERMINATIONS
+        ):
+            # The board still holds volume: the generator ran dry, the
+            # cap hit, or an action was rejected. Book the tail with
+            # V_theta instead of with zero. compose_leaf_value is the
+            # same path the value shadow uses, so the composition is not
+            # reimplemented here.
+            prediction = bootstrap_value.fill_return(
+                policy_observation(env, observation)
+            )
+            bootstrap = {
+                "fill_return_mean": prediction["fill_return"]["mean"],
+                "predicted_volume": (
+                    prediction["fill_return"]["predicted_volume"]
+                ),
+                "container_volume": (
+                    prediction["fill_return"]["container_volume"]
+                ),
+                "stopped_at": termination,
+            }
+            checkpoint_vector = compose_leaf_value(
+                checkpoint_vector, prediction
+            )
         evaluation = None
         if genuine:
             phase_started = time.perf_counter()
@@ -630,7 +682,12 @@ def _terminal_rollout(
         )
         return {
             "termination": termination,
-            "genuine_terminal": genuine,
+            # A bootstrapped tail is evaluable, so the dominance rule can
+            # read it -- but it is an estimate. `terminal_bootstrapped`
+            # below is how a consumer tells the two apart, and
+            # `physically_genuine` keeps the unbootstrapped fact.
+            "genuine_terminal": genuine or bootstrap is not None,
+            "physically_genuine": genuine,
             "continuation_steps": continuation_steps,
             "physical_steps": forced_steps + continuation_steps,
             "physical_step_equivalents": (
@@ -653,9 +710,11 @@ def _terminal_rollout(
             # continuation cap.  It is an achieved prefix measurement, not a
             # learned suffix value and not genuine-terminal truth.
             "checkpoint_vector": checkpoint_vector,
+            "terminal_bootstrapped": bootstrap is not None,
+            "bootstrap": bootstrap,
             "terminal_vector": (
                 checkpoint_vector
-                if genuine else None
+                if genuine or bootstrap is not None else None
             ),
             "terminal_metrics": terminal_metrics,
             "evaluation": evaluation,
@@ -797,6 +856,7 @@ def vector_search_root(
     candidate_stride: int = 1,
     union_rule_alpha: bool = False,
     rule_alpha_union_limit: int = 4,
+    bootstrap_value: Any | None = None,
 ) -> dict[str, Any]:
     search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -907,6 +967,7 @@ def vector_search_root(
                 provider=provider, legal_filter=legal_filter,
                 top_k=rollout_top_k, root_step=step,
                 max_continuation_steps=rollout_max_steps,
+                bootstrap_value=bootstrap_value,
             )
     # node: key -> {actions, vector (accumulated), root_candidate_id,
     #               parent, depth, expanded, alive}.  Every node also owns
@@ -1182,6 +1243,10 @@ def vector_search_root(
                 "ended": ended,
                 "continuations": candidates,
                 "expanded": False,
+                "terminal_bootstrapped": (
+                    bool(terminal_result.get("terminal_bootstrapped"))
+                    if terminal_result else False
+                ),
                 "terminal_genuine": (
                     bool(terminal_result.get("genuine_terminal"))
                     if terminal_result else False

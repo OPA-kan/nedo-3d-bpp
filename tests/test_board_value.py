@@ -113,3 +113,64 @@ class IncumbentBaselineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BootstrapCompositionTests(unittest.TestCase):
+    """The two silent failures the smoke run caught."""
+
+    def test_zero_remaining_is_not_the_genuine_set(self):
+        """`no_retained_candidate` means the generator ran dry, not that
+        the board is full -- it is genuine (the rule may read the row)
+        but its remaining value is NOT zero. Conflating the two made the
+        bootstrap skip the only case it exists for."""
+        from scripts.run_vector_mcts import (
+            GENUINE_TERMINATIONS,
+            ZERO_REMAINING_TERMINATIONS,
+        )
+
+        self.assertEqual(ZERO_REMAINING_TERMINATIONS, {"stream_exhausted"})
+        self.assertIn("no_retained_candidate", GENUINE_TERMINATIONS)
+        self.assertNotIn(
+            "no_retained_candidate", ZERO_REMAINING_TERMINATIONS,
+        )
+
+    def test_every_head_is_emitted_so_none_can_void_the_vector(self):
+        """compose_leaf_value sets any component it is not given to None,
+        and a None head drops the candidate out of
+        terminal_eligible_candidates -- every verdict vanishes rather
+        than the tail simply reading zero."""
+        from scripts.run_vector_mcts import (
+            LEAF_SUFFIX_TO_COMPONENT,
+            compose_leaf_value,
+        )
+
+        achieved = {
+            component: 1.0 for component in LEAF_SUFFIX_TO_COMPONENT.values()
+        }
+        partial = compose_leaf_value(achieved, {"fill_return": {"mean": 5.0}})
+        self.assertIsNone(partial["soft_violation_gain"])
+
+        complete = {s: {"mean": 0.0} for s in LEAF_SUFFIX_TO_COMPONENT}
+        complete["fill_return"] = {"mean": 5.0}
+        composed = compose_leaf_value(achieved, complete)
+        self.assertEqual(composed["fill_gain"], 6.0)
+        self.assertEqual(composed["soft_violation_gain"], 1.0)
+
+    def test_the_model_emits_all_of_them(self):
+        from scripts.run_vector_mcts import LEAF_SUFFIX_TO_COMPONENT
+        from scripts.board_value_model import BoardValue
+
+        directory = ROOT / "reports" / "value" / "board-value-v1"
+        if not (directory / "model.json").exists():
+            self.skipTest("no fitted model in the tree")
+        prediction = BoardValue(directory).fill_return({
+            "depth_map": np.zeros((1, 4, 4)),
+            "container_list": [{
+                "height": 2.0, "length": 2.0, "width": 1.0,
+                "packed_items": [],
+            }],
+            "pool_list": [],
+        })
+        self.assertEqual(
+            set(prediction), set(LEAF_SUFFIX_TO_COMPONENT),
+        )

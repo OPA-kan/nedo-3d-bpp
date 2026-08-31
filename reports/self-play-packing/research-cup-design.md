@@ -387,3 +387,46 @@ teacher on 2026-08-30. A perturbation that pays off at step 25 cannot be
 seen by a rollout that stops at step 9. Those nulls are **not settled**
 and are to be re-run against the widened continuation before being read
 as evidence that the hand-coded rules are locally optimal.
+
+## Cup 010+ amendment WITHDRAWN, and what replaced it was too
+
+Date: 2026-08-31. The amendment above -- widening the teacher's rollout
+continuation with the rule-alpha union from Cup 010 -- **is withdrawn.
+Cup 011 returns to Cup 009's teacher.**
+
+**Why: it does not fit in a cell.** Cup 010 (run 33358944688) lost three
+of six cells to the 180-minute job timeout and its standings job was
+skipped. `dual-preloaded-dedicated` took **146 minutes** where the same
+family took 43 in Cup 009. The estimate that cleared this change looked
+only at the continuation growing from ~9 to ~18 steps; it missed that
+the unioned candidate set (2.71 -> 12.65 candidates per state) also
+multiplies the cost of every step *inside* that continuation. The two
+compound.
+
+**The cheaper replacement was measured and also not adopted.** Instead
+of extending the continuation, book its tail with a fitted V_theta:
+
+    V(s_t) ~= measured prefix delta + V_theta(s_{t+n})
+
+The model is real -- it ranks boards better than the ten-step rollout it
+would replace, Spearman +0.586 / +0.594 / +0.658 against +0.365 /
++0.477 / +0.399 on leave-one-cell-out folds. But against a
+higher-ceiling judge its verdicts agree 14/21 where the incumbent agrees
+13/21, and the reason is a scale mismatch: the bootstrap term averages
+**17.371 fill points** added to each side of a comparison whose measured
+gap averages **0.729**. A model validated on ranking *different* boards
+does not thereby earn the right to rank two boards *one move apart*.
+Full measurement: `reports/value/bootstrap-not-adopted-20260831.md`.
+
+**What stands from this line of work.** The candidate union on the
+*inference* side -- Cup 009's change, rule-alpha's own candidates in the
+actor's root set -- is unaffected and stays. So does the finding that
+provoked all of this: across 108 terminal rollouts in Cup 009, zero
+reached `stream_exhausted` and 96.3% stopped at `no_retained_candidate`,
+so the teacher books a 2-4x underestimate as a finished board. That
+defect is real and is **still open**. Two attempts to close it have now
+failed on cost and on resolution respectively, and both are recorded so
+a third does not repeat them.
+
+**Cup 010's course is burnt.** 000: 631/641/643/647 and 001: 509/521 are
+spent -- three cells did run -- and must not be redrawn.

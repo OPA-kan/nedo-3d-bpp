@@ -441,6 +441,7 @@ def run_episode(
     rule_alpha_per_item_top_k: int = 1,
     exact_agent_candidate: bool = True,
     union_rollout_continuation: bool = False,
+    bootstrap_value_dir: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
@@ -490,6 +491,11 @@ def run_episode(
     # boards.  Unioning a proposal family in is what makes a teacher's
     # action selectable by the ranker at all -- a baseline for removing
     # the train/inference mismatch, not an attempt to imitate rule-alpha.
+    bootstrap_value = None
+    if bootstrap_value_dir is not None:
+        from scripts.board_value_model import BoardValue
+
+        bootstrap_value = BoardValue(bootstrap_value_dir)
     union_stats: dict[str, Any] = {}
     rule_alpha_proposer = None
     if union_rule_alpha:
@@ -616,6 +622,7 @@ def run_episode(
                 ),
                 union_rule_alpha=union_rollout_continuation,
                 rule_alpha_union_limit=rule_alpha_union_limit,
+                bootstrap_value=bootstrap_value,
             )
             search_seconds = time.perf_counter() - phase_started
             phase_started = time.perf_counter()
@@ -687,6 +694,7 @@ def run_episode(
                             rule_alpha_union_limit=(
                                 rule_alpha_union_limit
                             ),
+                            bootstrap_value=bootstrap_value,
                         )
                         online_forks_used += 1
                         complete = bool(fork.get("terminal_truth_complete"))
@@ -802,6 +810,7 @@ def run_episode(
                             rule_alpha_union_limit=(
                                 rule_alpha_union_limit
                             ),
+                            bootstrap_value=bootstrap_value,
                         )
                         mining_forks_used += 1
                         mining_fork_step_equivalents += int(
@@ -835,6 +844,7 @@ def run_episode(
                                     for key in (
                                         "root_candidate_id",
                                         "terminal_genuine",
+                                        "terminal_bootstrapped",
                                         "terminal_termination",
                                         "terminal_vector",
                                     )
@@ -1121,6 +1131,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--bootstrap-value-dir", type=pathlib.Path, default=None,
+        help=(
+            "book the rollout's tail with a fitted V_theta instead of"
+            " with zero, making the continuation an honest n-step"
+            " estimate. 96%% of Cup 009's rollouts hit that zero at"
+            " no_retained_candidate on boards holding 2-4x more."
+            " NOTE: a bootstrapped dominance verdict is a model's"
+            " estimate, not a physical fact; rows carry"
+            " terminal_bootstrapped so the two can be told apart"
+        ),
+    )
+    parser.add_argument(
         "--union-rollout-continuation", action="store_true",
         help=(
             "union the rule-alpha proposal family into the TEACHER's own"
@@ -1190,6 +1212,7 @@ def main() -> int:
         rule_alpha_per_item_top_k=args.rule_alpha_per_item_top_k,
         exact_agent_candidate=not args.no_exact_agent_candidate,
         union_rollout_continuation=args.union_rollout_continuation,
+        bootstrap_value_dir=args.bootstrap_value_dir,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -1260,6 +1283,10 @@ def main() -> int:
             "exact_agent_candidate": not bool(args.no_exact_agent_candidate),
             "union_rollout_continuation": bool(
                 args.union_rollout_continuation
+            ),
+            "bootstrap_value_dir": (
+                str(args.bootstrap_value_dir)
+                if args.bootstrap_value_dir else None
             ),
         },
         "rollout_contract": {
