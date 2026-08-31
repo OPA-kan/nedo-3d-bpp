@@ -440,6 +440,7 @@ def run_episode(
     rule_alpha_union_limit: int = 4,
     rule_alpha_per_item_top_k: int = 1,
     exact_agent_candidate: bool = True,
+    union_rollout_continuation: bool = False,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
@@ -613,6 +614,8 @@ def run_episode(
                 item_symmetry_terminal_cache=(
                     policy == "terminal-rollout"
                 ),
+                union_rule_alpha=union_rollout_continuation,
+                rule_alpha_union_limit=rule_alpha_union_limit,
             )
             search_seconds = time.perf_counter() - phase_started
             phase_started = time.perf_counter()
@@ -680,6 +683,10 @@ def run_episode(
                             item_symmetry_cache_shadow=True,
                             item_symmetry_terminal_cache=True,
                             candidate_stride=candidate_stride,
+                            union_rule_alpha=union_rollout_continuation,
+                            rule_alpha_union_limit=(
+                                rule_alpha_union_limit
+                            ),
                         )
                         online_forks_used += 1
                         complete = bool(fork.get("terminal_truth_complete"))
@@ -791,6 +798,10 @@ def run_episode(
                             item_symmetry_cache_shadow=True,
                             item_symmetry_terminal_cache=True,
                             candidate_stride=candidate_stride,
+                            union_rule_alpha=union_rollout_continuation,
+                            rule_alpha_union_limit=(
+                                rule_alpha_union_limit
+                            ),
                         )
                         mining_forks_used += 1
                         mining_fork_step_equivalents += int(
@@ -1110,6 +1121,20 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--union-rollout-continuation", action="store_true",
+        help=(
+            "union the rule-alpha proposal family into the TEACHER's own"
+            " rollout continuation, not just the actor's root candidates."
+            " Across 108 terminal rollouts on one Cup 009 cell, zero ended"
+            " by exhausting the item stream and 96.3%% ended"
+            " no_retained_candidate -- which GENUINE_TERMINATIONS counts"
+            " as a finished board, so the teacher was scoring boards as"
+            " full while 60%% of their capacity was still free. This"
+            " changes what every verdict means, so a cup run with it is"
+            " not comparable to Cups 001-009"
+        ),
+    )
+    parser.add_argument(
         "--no-exact-agent-candidate", action="store_true",
         help=(
             "exact actor policies only: do NOT union the actor's command"
@@ -1164,6 +1189,7 @@ def main() -> int:
         rule_alpha_union_limit=args.rule_alpha_union_limit,
         rule_alpha_per_item_top_k=args.rule_alpha_per_item_top_k,
         exact_agent_candidate=not args.no_exact_agent_candidate,
+        union_rollout_continuation=args.union_rollout_continuation,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -1232,6 +1258,9 @@ def main() -> int:
                 args.rule_alpha_per_item_top_k
             ),
             "exact_agent_candidate": not bool(args.no_exact_agent_candidate),
+            "union_rollout_continuation": bool(
+                args.union_rollout_continuation
+            ),
         },
         "rollout_contract": {
             "policy": "frozen_rank0_exact_physical_filter",

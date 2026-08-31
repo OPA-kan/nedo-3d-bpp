@@ -47,6 +47,14 @@ on:
           inference-side candidate set per state (0 disables the union)
         required: false
         default: "4"
+      union_rollout_continuation:
+        description: >-
+          Cup 010+: widen the TEACHER's rollout continuation too. Cup 009
+          measured 0 of 108 terminal rollouts reaching stream_exhausted --
+          96.3% stopped at no_retained_candidate, which counts as a full
+          board. Runs with this on are not comparable to Cups 001-009.
+        required: false
+        default: "true"
       cup_id:
         description: Cup number for the ledger (e.g. "002")
         required: false
@@ -133,6 +141,7 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy learned \
+            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
             --model-dir reports/cup/model \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/learned/rollout
           python scripts/run_terminal_rollout_policy.py \
@@ -145,6 +154,7 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy current-agent \
+            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
             --mine-against-model reports/cup/model \
             --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/current-agent/rollout
@@ -158,6 +168,7 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy rule-alpha \
+            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
             --mine-against-model reports/cup/model \
             --mine-fork-budget "${{ inputs.rule_alpha_fork_budget || '40' }}" \
             --union-rule-alpha \
@@ -174,6 +185,7 @@ jobs:
               --rollout-max-steps 40 \
               --max-steps 40 \
               --policy "$stud" \
+              ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
               --mine-against-model reports/cup/model \
               --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
               --output-dir reports/cup/episodes/${{ matrix.cell }}/$stud/rollout

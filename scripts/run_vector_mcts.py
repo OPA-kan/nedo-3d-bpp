@@ -795,6 +795,8 @@ def vector_search_root(
     leaf_state_key_fn: Callable[..., tuple[str, str]] | None = None,
     shared_prefix_env: bool = False,
     candidate_stride: int = 1,
+    union_rule_alpha: bool = False,
+    rule_alpha_union_limit: int = 4,
 ) -> dict[str, Any]:
     search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -849,6 +851,32 @@ def vector_search_root(
         scan_all_visible_items=True,
         candidate_stride=candidate_stride,
     )
+    if union_rule_alpha:
+        # This provider is the ROLLOUT CONTINUATION -- the teacher's own
+        # lookahead -- so widening it changes what every verdict means.
+        # It is done because the narrow provider was not reaching a
+        # terminal at all: across 108 terminal rollouts on one Cup 009
+        # cell, zero ended by exhausting the item stream and 96.3% ended
+        # `no_retained_candidate`, which GENUINE_TERMINATIONS counts as a
+        # finished board. Measured over six cells, unioning the
+        # continuation takes it from 9.2 steps and 9.62 fill to 17.7 and
+        # 20.50, against rule-alpha's own 21.0 and 23.97 -- three
+        # quarters of the gap the teacher was blind to.
+        # (reports/candidate-support/rollout-ceiling-20260830.md)
+        from scripts.rule_alpha_proposals import (
+            RuleAlphaProposer,
+            union_provider,
+        )
+
+        # One proposer serves every rollout env this search builds.
+        # propose() rebuilds its board from the observation it is handed,
+        # and the Cup scenarios set agent.optimize false, so it carries no
+        # per-episode state that could leak between rollouts.
+        provider = union_provider(
+            provider,
+            RuleAlphaProposer(max_proposals=int(rule_alpha_union_limit)),
+            observation_fn=policy_observation,
+        )
     # Every try_action_path() call below replays the same prefix_actions
     # before its own actions -- across the many sibling calls one search
     # makes, that prefix is identical work paid over and over. Opt-in

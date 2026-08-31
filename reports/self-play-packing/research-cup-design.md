@@ -309,3 +309,81 @@ recorded: 756 fork step-equivalents against the baseline's 132, well
 inside the 180-minute cell timeout (Cup 008's longest cell ran 26
 minutes). Course isolation, four-head dominance, the genuine-terminal
 teacher contract and the no-auto-training boundary are unchanged.
+
+## Cup 010+ amendment: the teacher's rollout continuation is widened
+
+Date: 2026-08-30. **This one changes the teacher, so Cup 010 standings
+are NOT comparable to Cups 001-009 for any horse.** That is a real cost
+and it is paid deliberately; the reason follows.
+
+### What was wrong
+
+`_terminal_rollout` values a board by continuing with frozen rank-0 over
+the generic provider. Across the 108 terminal rollouts inside Cup 009's
+mining forks on one cell, **zero** ended by exhausting the item stream;
+96.3% ended `no_retained_candidate` and 3.7% `no_safe_retained_candidate`.
+Both are listed in `GENUINE_TERMINATIONS`, so "the generator ran out of
+proposals" has been recorded as "the board is full" in every cup so far.
+
+The teacher was therefore never a Monte Carlo return to a terminal. It
+was an n-step estimate with the bootstrap term pinned to zero,
+
+    V(s_t) ~= sum_{k<n} r_{t+k} + gamma^n * V(s_{t+n}),  V(s_{t+n}) := 0
+
+at n ~ 9-11. Measured against rule-alpha's own continuation from the
+same boards, that zero understates remaining capacity by 2-4x
+(`reports/candidate-support/rollout-ceiling-20260830.md`).
+
+### The change
+
+From Cup 010 the rollout continuation runs
+`--union-rollout-continuation`: the rule-alpha proposal family is unioned
+into the provider the continuation selects from, at
+`--rule-alpha-union-limit 4`. Measured over six cells the continuation
+goes from 9.2 steps / 9.62 fill to 17.7 / 20.50, against rule-alpha's own
+21.0 / 23.97 -- 40% of the reference ceiling to 85%.
+
+### Why this reverses a decision made eight hours earlier
+
+The Cup 009 amendment deliberately left this provider alone, arguing
+that the teacher's lookahead must not be given rule-alpha's flavour or
+the pipeline becomes imitation one level up. The argument stands on its
+own terms and the measurement overrides it on two counts.
+
+The price of the narrow teacher was a 60% underestimate of board
+capacity behind every dominance verdict in nine cups. And the composite
+is not imitation: on `dual-shelf-mixed` rank-0 choosing from the union
+reaches 25.68 fill where rank-0 alone reaches 7.45 and rule-alpha alone
+reaches 8.32. Proposals from rule-alpha, selection by the generic
+ranker, a result neither reaches by itself.
+
+### What it costs, stated plainly
+
+Cup 010's numbers stand alone. Strict-pair counts, novel-board rates and
+race tables from Cups 001-009 were produced by a teacher that stopped
+looking after nine moves; Cup 010's are produced by one that looks for
+about eighteen. Cross-cup trend lines through Cup 009 into 010 are not
+valid and must not be drawn. The per-cup reports keep their own numbers;
+the ledger row for 010 records the teacher change.
+
+Everything else is unchanged: course isolation, single-use primes, the
+four-head dominance rule, the genuine-terminal requirement, the
+no-auto-training boundary, and `mine_fork_budget` at 12 for the studs
+with rule-alpha's own budget separate.
+
+### What it does not fix
+
+The widened continuation still ends early -- `selected_action_failure`
+on 3 of 6 cells, because a wider candidate set contains physically
+riskier actions and greedy rank-0 takes them. rule-alpha, the reference,
+is itself non-genuine on 4 of 6 cells. The reference is a higher
+ceiling, not the true one, and the bootstrap term is still zero.
+
+### A consequence for two null results
+
+Stage 0 (mechanical perturbation, 40/40 `incomparable`) and the
+archetype-ladder swap probe both returned "no effect" through the narrow
+teacher on 2026-08-30. A perturbation that pays off at step 25 cannot be
+seen by a rollout that stops at step 9. Those nulls are **not settled**
+and are to be re-run against the widened continuation before being read
+as evidence that the hand-coded rules are locally optimal.
