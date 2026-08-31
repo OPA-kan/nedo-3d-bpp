@@ -164,6 +164,56 @@ STREAM_VARIANTS = (
     "permute-001-739", "permute-001-743", "permute-001-751",
     "permute-001-757", "permute-001-761", "permute-001-769",
     "permute-001-773", "permute-001-787", "permute-001-797",
+    # Policy-arena band, 809-1129, added 2026-08-31. DISJOINT from every
+    # band above and reserved for a different job: the arena
+    # (scripts/evaluate_policy_arena.py) compares two policy heads over
+    # hundreds of cells, where the Cup's six-cell course cannot resolve
+    # the differences today's changes produce -- a +0.65 fill-point
+    # effect against a paired sd of 4.63 needs about 396 cells
+    # (reports/value/advantage-distillation-20260831.md).
+    #
+    # These are NOT cup primes and must never become any: CUP_PRIME_RANGE
+    # in host_diversity_cup.py is (401, 799), so nothing here is drawable
+    # by a Cup, and widening that window to reach these would silently
+    # turn a re-used arena stream into a "fresh" cup stream. They are also
+    # outside the frozen eval variants (<= 197) and the season-1 wave
+    # primes (<= 379). Unlike cup primes, arena streams are deliberately
+    # RE-USABLE: an arena run is a measurement of two frozen policies, not
+    # a single-use corpus draw.
+    "permute-000-809", "permute-000-811", "permute-000-821",
+    "permute-000-823", "permute-000-827", "permute-000-829",
+    "permute-000-839", "permute-000-853", "permute-000-857",
+    "permute-000-859", "permute-000-863", "permute-000-877",
+    "permute-000-881", "permute-000-883", "permute-000-887",
+    "permute-000-907", "permute-000-911", "permute-000-919",
+    "permute-000-929", "permute-000-937", "permute-000-941",
+    "permute-000-947", "permute-000-953", "permute-000-967",
+    "permute-000-971", "permute-000-977", "permute-000-983",
+    "permute-000-991", "permute-000-997", "permute-000-1009",
+    "permute-000-1013", "permute-000-1019", "permute-000-1021",
+    "permute-000-1031", "permute-000-1033", "permute-000-1039",
+    "permute-000-1049", "permute-000-1051", "permute-000-1061",
+    "permute-000-1063", "permute-000-1069", "permute-000-1087",
+    "permute-000-1091", "permute-000-1093", "permute-000-1097",
+    "permute-000-1103", "permute-000-1109", "permute-000-1117",
+    "permute-000-1123", "permute-000-1129",
+    "permute-001-809", "permute-001-811", "permute-001-821",
+    "permute-001-823", "permute-001-827", "permute-001-829",
+    "permute-001-839", "permute-001-853", "permute-001-857",
+    "permute-001-859", "permute-001-863", "permute-001-877",
+    "permute-001-881", "permute-001-883", "permute-001-887",
+    "permute-001-907", "permute-001-911", "permute-001-919",
+    "permute-001-929", "permute-001-937", "permute-001-941",
+    "permute-001-947", "permute-001-953", "permute-001-967",
+    "permute-001-971", "permute-001-977", "permute-001-983",
+    "permute-001-991", "permute-001-997", "permute-001-1009",
+    "permute-001-1013", "permute-001-1019", "permute-001-1021",
+    "permute-001-1031", "permute-001-1033", "permute-001-1039",
+    "permute-001-1049", "permute-001-1051", "permute-001-1061",
+    "permute-001-1063", "permute-001-1069", "permute-001-1087",
+    "permute-001-1091", "permute-001-1093", "permute-001-1097",
+    "permute-001-1103", "permute-001-1109", "permute-001-1117",
+    "permute-001-1123", "permute-001-1129",
 )
 
 
