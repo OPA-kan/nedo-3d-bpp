@@ -142,3 +142,25 @@ identical confound, and it is small.
       --rollout-top-k 3 --rollout-max-steps 40 --max-steps 40 \
       --policy learned --model-dir <awr-model|reports/cup/model> \
       --output-dir <out>
+
+## Amendment, same day: the six-cell number above is superseded
+
+`reports/arena/policy-arena-20260831.md` re-ran this comparison over
+**200 cells**. The +0.652 headline in this report is noise, and its
+sign is wrong:
+
+| | estimate | MDE at that n |
+|---|---|---|
+| 6 cells (this report) | +0.652 | 5.295 |
+| 200 cells (arena) | **−0.050**, 95% CI [−0.305, +0.213] | 0.375 |
+
+The two heads are the same policy to within ±0.31 fill points. The
+"three wins, two losses, one tie" table above is a six-sample draw from
+a distribution whose true mean is approximately zero; the paired sd it
+reported (4.632) is itself inflated against the true 1.896.
+
+Nothing else in this report changes: the method transfers, the corpus is
+7.5x larger, no new simulator steps were spent, and the resulting policy
+is neither better nor worse. The measurement finding that closed this
+report — that six cells cannot resolve these effects — is now
+demonstrated rather than merely calculated.

@@ -1,0 +1,4377 @@
+{
+  "contract": "policy_arena_v1",
+  "arms": {
+    "champ": "/tmp/claude-0/-home-user-nedo-3d-bpp/403dedbf-8942-587a-8d59-1fd518b82a83/scratchpad/checkpoint/reports/cup/model",
+    "champ-argmax": "/tmp/claude-0/-home-user-nedo-3d-bpp/403dedbf-8942-587a-8d59-1fd518b82a83/scratchpad/iter/champ-argmax",
+    "awr": "/tmp/claude-0/-home-user-nedo-3d-bpp/403dedbf-8942-587a-8d59-1fd518b82a83/scratchpad/checkpoint/reports/value/advantage-policy-v1"
+  },
+  "baseline": "champ",
+  "scenarios": [
+    "single-empty-noshelf",
+    "single-empty-shelf",
+    "single-preloaded",
+    "dual-empty",
+    "dual-shelf-mixed",
+    "dual-dedicated-priority",
+    "dual-preloaded-dedicated",
+    "dual-full-stream"
+  ],
+  "streams": [
+    "permute-000-809",
+    "permute-001-809",
+    "permute-000-811",
+    "permute-001-811",
+    "permute-000-821",
+    "permute-001-821",
+    "permute-000-823",
+    "permute-001-823",
+    "permute-000-827",
+    "permute-001-827",
+    "permute-000-829",
+    "permute-001-829",
+    "permute-000-839",
+    "permute-001-839",
+    "permute-000-853",
+    "permute-001-853",
+    "permute-000-857",
+    "permute-001-857",
+    "permute-000-859",
+    "permute-001-859",
+    "permute-000-863",
+    "permute-001-863",
+    "permute-000-877",
+    "permute-001-877",
+    "permute-000-881"
+  ],
+  "cells_attempted": 200,
+  "cells_complete": 200,
+  "failures": [],
+  "failure_count": 0,
+  "per_arm": {
+    "champ": {
+      "cells": 200,
+      "mean_fill": 10.369617464476368,
+      "mean_placed": 10.83
+    },
+    "champ-argmax": {
+      "cells": 200,
+      "mean_fill": 10.262340966654723,
+      "mean_placed": 10.765
+    },
+    "awr": {
+      "cells": 200,
+      "mean_fill": 10.319711503338539,
+      "mean_placed": 11.04
+    }
+  },
+  "paired": {
+    "champ-argmax": {
+      "cells": 200,
+      "mean_difference": -0.10727649782164543,
+      "sd": 0.8853540408026265,
+      "se": 0.06260398460024484,
+      "t": -1.7135730018888586,
+      "ci95": [
+        -0.2417075210975589,
+        -4.4350142676417014e-05
+      ],
+      "wins": 16,
+      "losses": 19,
+      "ties": 165,
+      "sign_test_p": 0.7358788008568808,
+      "mde_at_this_n": 0.17529115688068556
+    },
+    "awr": {
+      "cells": 200,
+      "mean_difference": -0.04990596113782867,
+      "sd": 1.8956193398297074,
+      "se": 0.13404052897419524,
+      "t": -0.3723199357668627,
+      "ci95": [
+        -0.30529291499868605,
+        0.21321495287134076
+      ],
+      "wins": 66,
+      "losses": 80,
+      "ties": 54,
+      "sign_test_p": 0.2819365341298728,
+      "mde_at_this_n": 0.3753134811277467
+    }
+  },
+  "per_scenario": {
+    "single-empty-noshelf": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": -0.8108109457106806,
+        "sd": 2.2163548186602737,
+        "se": 0.44327096373205477,
+        "t": -1.82915420149377,
+        "ci95": [
+          -1.7875325432445817,
+          -0.052708077113514024
+        ],
+        "wins": 1,
+        "losses": 4,
+        "ties": 20,
+        "sign_test_p": 0.375,
+        "mde_at_this_n": 1.2411586984497531
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": 0.1337417543803609,
+        "sd": 3.0534783112914403,
+        "se": 0.6106956622582881,
+        "t": 0.21899902463003915,
+        "ci95": [
+          -1.002077377054417,
+          1.3319021626283762
+        ],
+        "wins": 8,
+        "losses": 7,
+        "ties": 10,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 1.7099478543232063
+      }
+    },
+    "single-empty-shelf": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": -0.004199397262981037,
+        "sd": 0.020996986314905187,
+        "se": 0.004199397262981038,
+        "t": -0.9999999999999998,
+        "ci95": [
+          -0.012598191788943112,
+          0.0
+        ],
+        "wins": 0,
+        "losses": 1,
+        "ties": 24,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.011758312336346905
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": -0.29082061162986006,
+        "sd": 2.3005059350831374,
+        "se": 0.4601011870166275,
+        "t": -0.6320796812448783,
+        "ci95": [
+          -1.1510794921199545,
+          0.648016402351663
+        ],
+        "wins": 4,
+        "losses": 11,
+        "ties": 10,
+        "sign_test_p": 0.11846923828125,
+        "mde_at_this_n": 1.288283323646557
+      }
+    },
+    "single-preloaded": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": 0.0,
+        "sd": 0.0,
+        "se": 0.0,
+        "t": null,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "wins": 0,
+        "losses": 0,
+        "ties": 25,
+        "sign_test_p": null,
+        "mde_at_this_n": 0.0
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": 0.12593037742177665,
+        "sd": 1.4510298525819352,
+        "se": 0.290205970516387,
+        "t": 0.4339344817672032,
+        "ci95": [
+          -0.41857001389576526,
+          0.6837076139213206
+        ],
+        "wins": 8,
+        "losses": 6,
+        "ties": 11,
+        "sign_test_p": 0.79052734375,
+        "mde_at_this_n": 0.8125767174458837
+      }
+    },
+    "dual-empty": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": -0.06140540896676178,
+        "sd": 0.3768141383424809,
+        "se": 0.07536282766849618,
+        "t": -0.8147970407489235,
+        "ci95": [
+          -0.22510741267229917,
+          0.05832328419236884
+        ],
+        "wins": 3,
+        "losses": 3,
+        "ties": 19,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.2110159174717893
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": 0.429114124966059,
+        "sd": 1.5025864863917646,
+        "se": 0.3005172972783529,
+        "t": 1.4279182225194638,
+        "ci95": [
+          -0.1410165671069658,
+          1.024987421936143
+        ],
+        "wins": 13,
+        "losses": 7,
+        "ties": 5,
+        "sign_test_p": 0.26317596435546875,
+        "mde_at_this_n": 0.841448432379388
+      }
+    },
+    "dual-shelf-mixed": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": 0.06210913330757762,
+        "sd": 0.5662804890204859,
+        "se": 0.11325609780409718,
+        "t": 0.5483954905016226,
+        "ci95": [
+          -0.16775549038282989,
+          0.2784793280742719
+        ],
+        "wins": 4,
+        "losses": 3,
+        "ties": 18,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.3171170738514721
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": -0.3091180130638985,
+        "sd": 1.4682505848978913,
+        "se": 0.29365011697957827,
+        "t": -1.0526745783159213,
+        "ci95": [
+          -0.9045239979858914,
+          0.23612147021989327
+        ],
+        "wins": 10,
+        "losses": 10,
+        "ties": 5,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.822220327542819
+      }
+    },
+    "dual-dedicated-priority": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": 0.006064423645162549,
+        "sd": 0.3120423237087864,
+        "se": 0.06240846474175728,
+        "t": 0.09717309455146499,
+        "ci95": [
+          -0.11630965596000607,
+          0.1241210329185894
+        ],
+        "wins": 3,
+        "losses": 2,
+        "ties": 20,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.17474370127692035
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": -0.13567588126307764,
+        "sd": 1.49256307416116,
+        "se": 0.298512614832232,
+        "t": -0.45450635759339436,
+        "ci95": [
+          -0.6790407529268958,
+          0.46920670350907984
+        ],
+        "wins": 7,
+        "losses": 13,
+        "ties": 5,
+        "sign_test_p": 0.26317596435546875,
+        "mde_at_this_n": 0.8358353215302495
+      }
+    },
+    "dual-preloaded-dedicated": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": 0.04814104202271231,
+        "sd": 0.4586842459213496,
+        "se": 0.09173684918426991,
+        "t": 0.5247732230917632,
+        "ci95": [
+          -0.10471737290165954,
+          0.24406185612292142
+        ],
+        "wins": 3,
+        "losses": 3,
+        "ties": 19,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.25686317771595574
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": -0.08976844383395352,
+        "sd": 1.439022079191699,
+        "se": 0.2878044158383398,
+        "t": -0.31190780576617905,
+        "ci95": [
+          -0.6158010429810411,
+          0.48027490057339994
+        ],
+        "wins": 9,
+        "losses": 13,
+        "ties": 3,
+        "sign_test_p": 0.5234670639038086,
+        "mde_at_this_n": 0.8058523643473514
+      }
+    },
+    "dual-full-stream": {
+      "champ-argmax": {
+        "cells": 25,
+        "mean_difference": -0.09811082960819249,
+        "sd": 0.45496785102184817,
+        "se": 0.09099357020436963,
+        "t": -1.0782171683981367,
+        "ci95": [
+          -0.29477940643382616,
+          0.04317720680466813
+        ],
+        "wins": 2,
+        "losses": 3,
+        "ties": 20,
+        "sign_test_p": 1.0,
+        "mde_at_this_n": 0.254781996572235
+      },
+      "awr": {
+        "cells": 25,
+        "mean_difference": -0.26265099608003617,
+        "sd": 1.9667678395451502,
+        "se": 0.39335356790903003,
+        "t": -0.6677224194920202,
+        "ci95": [
+          -0.9723809883235327,
+          0.5521667062271516
+        ],
+        "wins": 7,
+        "losses": 13,
+        "ties": 5,
+        "sign_test_p": 0.26317596435546875,
+        "mde_at_this_n": 1.101389990145284
+      }
+    }
+  },
+  "cells": {
+    "single-empty-noshelf:permute-000-809": {
+      "champ": {
+        "fill": 10.771215001038188,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.771215001038188,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.01729783257998,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-809": {
+      "champ": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-809": {
+      "champ": {
+        "fill": 16.400772053538624,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 16.400772053538624,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 16.400772053538624,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-809": {
+      "champ": {
+        "fill": 10.83017467536616,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.83017467536616,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.906654294909675,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-809": {
+      "champ": {
+        "fill": 11.988875227555553,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.988875227555553,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.243413675877475,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-809": {
+      "champ": {
+        "fill": 9.329354605567888,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.329354605567888,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.815251201903877,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-809": {
+      "champ": {
+        "fill": 9.960753445990193,
+        "placed": 12,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.960753445990193,
+        "placed": 12,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.86956148477056,
+        "placed": 19,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-809": {
+      "champ": {
+        "fill": 10.677916907091792,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.677916907091792,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.655837687469527,
+        "placed": 17,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-809": {
+      "champ": {
+        "fill": 8.585027711670845,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.585027711670845,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-809": {
+      "champ": {
+        "fill": 14.409490637814342,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.409490637814342,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.632058692752338,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-809": {
+      "champ": {
+        "fill": 13.033519541918894,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.033519541918894,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.033519541918894,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-809": {
+      "champ": {
+        "fill": 7.937719117858454,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.937719117858454,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-809": {
+      "champ": {
+        "fill": 8.052586312204726,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.202157718217457,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.202157718217457,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-809": {
+      "champ": {
+        "fill": 9.249493882668625,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.249493882668625,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.832408779089267,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-809": {
+      "champ": {
+        "fill": 10.971178764235173,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_safe_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.971178764235173,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.971178764235173,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-809": {
+      "champ": {
+        "fill": 8.799000791540744,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.799000791540744,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.799000791540744,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-811": {
+      "champ": {
+        "fill": 7.067673976584834,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.067673976584834,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.067673976584834,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-811": {
+      "champ": {
+        "fill": 10.90855194901438,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.90855194901438,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.90855194901438,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-811": {
+      "champ": {
+        "fill": 9.087276789279494,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.087276789279494,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.333359620821287,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-811": {
+      "champ": {
+        "fill": 7.9236811001613185,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.9236811001613185,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.224406634828856,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-811": {
+      "champ": {
+        "fill": 10.087923590992924,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.087923590992924,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.628880113854745,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-811": {
+      "champ": {
+        "fill": 8.913517325783832,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.913517325783832,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.173115087287769,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-811": {
+      "champ": {
+        "fill": 10.440541695283425,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.440541695283425,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.875146744078325,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-811": {
+      "champ": {
+        "fill": 10.402317714721567,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.082026761426443,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.226676114835978,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-811": {
+      "champ": {
+        "fill": 7.894357240971745,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.894357240971745,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.894357240971745,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-811": {
+      "champ": {
+        "fill": 9.608591472753323,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.608591472753323,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.106516476458674,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-811": {
+      "champ": {
+        "fill": 12.05148221501701,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.05148221501701,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.71929954159945,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-811": {
+      "champ": {
+        "fill": 8.992130224887793,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.992130224887793,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.732582875465187,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-811": {
+      "champ": {
+        "fill": 7.961340633649719,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.21366286720489,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.352703901193468,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-811": {
+      "champ": {
+        "fill": 8.515461535082816,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.245750411282723,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.261841348687888,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-811": {
+      "champ": {
+        "fill": 11.791934865594401,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.216376140011818,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.469996326406747,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-811": {
+      "champ": {
+        "fill": 9.204330234373527,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.352703901193468,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.946111171251877,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-821": {
+      "champ": {
+        "fill": 11.710826318899837,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.710826318899837,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.703077832260536,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-821": {
+      "champ": {
+        "fill": 9.41159033644583,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.41159033644583,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.41159033644583,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-821": {
+      "champ": {
+        "fill": 10.210318205050392,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.210318205050392,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.333359620821287,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-821": {
+      "champ": {
+        "fill": 6.266571100001597,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 6.266571100001597,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.397672958360618,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-821": {
+      "champ": {
+        "fill": 8.106588856655646,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.106588856655646,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.364497560326429,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-821": {
+      "champ": {
+        "fill": 6.266571100001597,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 6.266571100001597,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 6.266571100001597,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-821": {
+      "champ": {
+        "fill": 12.070199571946524,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.070199571946524,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.504804620741426,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-821": {
+      "champ": {
+        "fill": 11.721655740358749,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.056843947295505,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.001377002811608,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-821": {
+      "champ": {
+        "fill": 16.57733912057372,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.779688223737802,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.093284312159593,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-821": {
+      "champ": {
+        "fill": 15.894718640383385,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 15.894718640383385,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.928758460550371,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-821": {
+      "champ": {
+        "fill": 13.747274752831062,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.747274752831062,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.100016571100001,
+        "placed": 6,
+        "steps": 3,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-821": {
+      "champ": {
+        "fill": 8.28866956028686,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.28866956028686,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_safe_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.33959873979779,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-821": {
+      "champ": {
+        "fill": 8.137624801742385,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.287196207755116,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.895832940211365,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-821": {
+      "champ": {
+        "fill": 9.594517162069351,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.941593361178105,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 14.4532310650226,
+        "placed": 19,
+        "steps": 19,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-821": {
+      "champ": {
+        "fill": 11.721432821159897,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.721432821159897,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.639831134501428,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-821": {
+      "champ": {
+        "fill": 10.459113494230296,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.459113494230296,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.459135343535637,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-823": {
+      "champ": {
+        "fill": 7.262334488651791,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.456995000718747,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 14.163423988563943,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-823": {
+      "champ": {
+        "fill": 8.802060174892546,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_safe_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.802060174892546,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_safe_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.900968331604174,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-823": {
+      "champ": {
+        "fill": 9.087276789279494,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.087276789279494,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.333359620821287,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-823": {
+      "champ": {
+        "fill": 9.403288165439474,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.500618421472952,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.403288165439474,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-823": {
+      "champ": {
+        "fill": 8.344634555470918,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.344634555470918,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.689155395239037,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-823": {
+      "champ": {
+        "fill": 8.738510038492867,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.738510038492867,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.484889852097941,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-823": {
+      "champ": {
+        "fill": 11.373913894168568,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.373913894168568,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.549776689453592,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-823": {
+      "champ": {
+        "fill": 10.660226418392352,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.660226418392352,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.25833277882445,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-823": {
+      "champ": {
+        "fill": 7.46198629589995,
+        "placed": 4,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.46198629589995,
+        "placed": 4,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-823": {
+      "champ": {
+        "fill": 8.999678869621068,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.999678869621068,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 15.41364063040364,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-823": {
+      "champ": {
+        "fill": 14.409245276238241,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.409245276238241,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 14.409245276238241,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-823": {
+      "champ": {
+        "fill": 9.261036252775158,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.781871915379575,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.062531445159639,
+        "placed": 17,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-823": {
+      "champ": {
+        "fill": 9.47775691058768,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.47775691058768,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.822277750355799,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-823": {
+      "champ": {
+        "fill": 9.121279987701449,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.121279987701449,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.2105498011468,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-823": {
+      "champ": {
+        "fill": 9.374900174096375,
+        "placed": 11,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.374900174096375,
+        "placed": 11,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.692602101934225,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-823": {
+      "champ": {
+        "fill": 9.213641017899548,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.213641017899548,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.47775691058768,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-827": {
+      "champ": {
+        "fill": 10.771215001038188,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.771215001038188,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.200104018591578,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-827": {
+      "champ": {
+        "fill": 10.820858653228596,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.71587372165407,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.704140111654564,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-827": {
+      "champ": {
+        "fill": 13.719198717436788,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.719198717436788,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.719198717436788,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-827": {
+      "champ": {
+        "fill": 9.489076051366416,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.489076051366416,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.532307156319376,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-827": {
+      "champ": {
+        "fill": 10.966861555849308,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.966861555849308,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.499149863392185,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-827": {
+      "champ": {
+        "fill": 9.83409933076714,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.83409933076714,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.336660364324617,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-827": {
+      "champ": {
+        "fill": 9.677809400405692,
+        "placed": 12,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.336660364324617,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.186297596990848,
+        "placed": 12,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-827": {
+      "champ": {
+        "fill": 9.650006405819067,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.650006405819067,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.805496490703618,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-827": {
+      "champ": {
+        "fill": 8.585027711670845,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.585027711670845,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.585027711670845,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-827": {
+      "champ": {
+        "fill": 11.106170643742901,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.106170643742901,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-827": {
+      "champ": {
+        "fill": 12.861943770065004,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.861943770065004,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.033519541918894,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-827": {
+      "champ": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-827": {
+      "champ": {
+        "fill": 7.547941845094386,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.547941845094386,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.547941845094386,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-827": {
+      "champ": {
+        "fill": 10.717558577840247,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.717558577840247,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.717558577840247,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-827": {
+      "champ": {
+        "fill": 9.805087427526393,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.152163626635147,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.805087427526393,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-827": {
+      "champ": {
+        "fill": 8.455743238881437,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.455743238881437,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.455743238881437,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-829": {
+      "champ": {
+        "fill": 11.52802013288824,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.52802013288824,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.52802013288824,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-829": {
+      "champ": {
+        "fill": 12.013363964231017,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.013363964231017,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.843535398448696,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-829": {
+      "champ": {
+        "fill": 14.842240133207683,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.842240133207683,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.651061548659138,
+        "placed": 10,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-829": {
+      "champ": {
+        "fill": 9.397672958360618,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.397672958360618,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.738821994441693,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-829": {
+      "champ": {
+        "fill": 11.316015938075099,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.316015938075099,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.610547056948231,
+        "placed": 17,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-829": {
+      "champ": {
+        "fill": 14.75988376271782,
+        "placed": 19,
+        "steps": 19,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.75988376271782,
+        "placed": 19,
+        "steps": 19,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.442181834879968,
+        "placed": 17,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-829": {
+      "champ": {
+        "fill": 11.216688095960645,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.216688095960645,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.216688095960645,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-829": {
+      "champ": {
+        "fill": 12.314752650966287,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.289657234056712,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.037356849806882,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-829": {
+      "champ": {
+        "fill": 7.687842402849429,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.687842402849429,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.538133495184399,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-829": {
+      "champ": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-829": {
+      "champ": {
+        "fill": 11.727671940136402,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.727671940136402,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.727671940136402,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-829": {
+      "champ": {
+        "fill": 9.990701217077417,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.990701217077417,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-829": {
+      "champ": {
+        "fill": 8.137935161193251,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.137935161193251,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.045736554980303,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-829": {
+      "champ": {
+        "fill": 8.675182980881342,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.675182980881342,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.992884908719192,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-829": {
+      "champ": {
+        "fill": 11.556096168282515,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.556096168282515,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.965201189126162,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-829": {
+      "champ": {
+        "fill": 8.948904406309683,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.948904406309683,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.955754163534107,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-839": {
+      "champ": {
+        "fill": 11.521157102014087,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.521157102014087,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 17.19314016355476,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-839": {
+      "champ": {
+        "fill": 14.216812410454033,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.216812410454033,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.8543056173114,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-839": {
+      "champ": {
+        "fill": 10.529761096647446,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.529761096647446,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.585027711670845,
+        "placed": 5,
+        "steps": 2,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-839": {
+      "champ": {
+        "fill": 8.245619639348975,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.245619639348975,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.001800859301376,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-839": {
+      "champ": {
+        "fill": 10.898892836109354,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.898892836109354,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.052586312204726,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-839": {
+      "champ": {
+        "fill": 10.07056193997668,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.07056193997668,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.421512382405085,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-839": {
+      "champ": {
+        "fill": 11.260985840693829,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_safe_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.260985840693829,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_safe_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.498877457713746,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-839": {
+      "champ": {
+        "fill": 6.295641460844556,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 6.295641460844556,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.694322259377078,
+        "placed": 17,
+        "steps": 17,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-839": {
+      "champ": {
+        "fill": 10.771215001038188,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.771215001038188,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 5.9446325608139405,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-839": {
+      "champ": {
+        "fill": 11.954078355812463,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.954078355812463,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.954078355812463,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-839": {
+      "champ": {
+        "fill": 14.33437584852018,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.33437584852018,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 15.348856594099889,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-839": {
+      "champ": {
+        "fill": 7.869400765065724,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.528251728984651,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.419067146895813,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-839": {
+      "champ": {
+        "fill": 9.934606022264443,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.934606022264443,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.934606022264443,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-839": {
+      "champ": {
+        "fill": 8.268704379562042,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.268704379562042,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.077918110814737,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-839": {
+      "champ": {
+        "fill": 11.399494281972238,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.399494281972238,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.238082284495839,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-839": {
+      "champ": {
+        "fill": 8.875969935355851,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.285023691599042,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.285023691599042,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-853": {
+      "champ": {
+        "fill": 15.597797441262438,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 15.597797441262438,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.965875513105145,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-853": {
+      "champ": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.188380020749965,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-853": {
+      "champ": {
+        "fill": 13.7959398808478,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.7959398808478,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.7959398808478,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-853": {
+      "champ": {
+        "fill": 10.771215001038188,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.771215001038188,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.029071798782923,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-853": {
+      "champ": {
+        "fill": 9.290920521165523,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.290920521165523,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.943916805790465,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-853": {
+      "champ": {
+        "fill": 9.931741542749444,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.931741542749444,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.775451612387993,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-853": {
+      "champ": {
+        "fill": 12.034636593780446,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.034636593780446,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 14.767370705489625,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-853": {
+      "champ": {
+        "fill": 10.184755739663542,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.184755739663542,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.351794672146209,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-853": {
+      "champ": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-853": {
+      "champ": {
+        "fill": 12.591398646311944,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.591398646311944,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.106170643742901,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-853": {
+      "champ": {
+        "fill": 11.220431567346548,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.220431567346548,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.220431567346548,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-853": {
+      "champ": {
+        "fill": 7.615780578670798,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.615780578670798,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.424994309923493,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-853": {
+      "champ": {
+        "fill": 8.881866764922334,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.881866764922334,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.881866764922334,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-853": {
+      "champ": {
+        "fill": 10.590280550719546,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.677809400405692,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.024885599514445,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-853": {
+      "champ": {
+        "fill": 12.87473396396684,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.87473396396684,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.70146764043508,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-853": {
+      "champ": {
+        "fill": 9.381855840269662,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.381855840269662,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.381855840269662,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-857": {
+      "champ": {
+        "fill": 17.044649131913943,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.453513073200337,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.088916928876039,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-857": {
+      "champ": {
+        "fill": 14.57437873622845,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_safe_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.57437873622845,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_safe_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.27617212588311,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-857": {
+      "champ": {
+        "fill": 7.130689078247536,
+        "placed": 5,
+        "steps": 2,
+        "termination": "no_safe_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.130689078247536,
+        "placed": 5,
+        "steps": 2,
+        "termination": "no_safe_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.130689078247536,
+        "placed": 5,
+        "steps": 2,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-857": {
+      "champ": {
+        "fill": 8.021011356194794,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.772070509032248,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.021011356194794,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-857": {
+      "champ": {
+        "fill": 8.135452285586311,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.446410606050074,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.354190150531783,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-857": {
+      "champ": {
+        "fill": 8.274631542589724,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.274631542589724,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.898986168122793,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-857": {
+      "champ": {
+        "fill": 9.645365981727867,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.56295919915667,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.385818632305257,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-857": {
+      "champ": {
+        "fill": 11.858834617642126,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.858834617642126,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.169792938105886,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-857": {
+      "champ": {
+        "fill": 8.585027711670845,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.585027711670845,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.902729639508697,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-857": {
+      "champ": {
+        "fill": 10.913492416382592,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.913492416382592,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.217775801590832,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-857": {
+      "champ": {
+        "fill": 13.724190012617996,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.724190012617996,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 14.351221469756744,
+        "placed": 10,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-857": {
+      "champ": {
+        "fill": 8.682357967704323,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.682357967704323,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.300785430209714,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-857": {
+      "champ": {
+        "fill": 9.840256749200766,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.041103012522633,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.041103012522633,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-857": {
+      "champ": {
+        "fill": 12.218378647638518,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.883156774585121,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.300785430209714,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-857": {
+      "champ": {
+        "fill": 9.647861629318468,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.647861629318468,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.300785430209714,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-857": {
+      "champ": {
+        "fill": 10.098475812322414,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.098475812322414,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.90450115553031,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-859": {
+      "champ": {
+        "fill": 13.524538205369835,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.766092933923236,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 13.524538205369835,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-859": {
+      "champ": {
+        "fill": 13.996344054147526,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.996344054147526,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 16.627760486141995,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-859": {
+      "champ": {
+        "fill": 10.889134349694134,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.889134349694134,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.889134349694134,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-859": {
+      "champ": {
+        "fill": 10.085535825520292,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.424994309923493,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.518450322637321,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-859": {
+      "champ": {
+        "fill": 14.374608326373009,
+        "placed": 19,
+        "steps": 19,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.374608326373009,
+        "placed": 19,
+        "steps": 19,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.991091442322304,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-859": {
+      "champ": {
+        "fill": 10.684179291315946,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.0061178305036,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.187102692903574,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-859": {
+      "champ": {
+        "fill": 10.787436710377103,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.787436710377103,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.100016571100001,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-859": {
+      "champ": {
+        "fill": 9.349578457379454,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.349578457379454,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.276976195181833,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-859": {
+      "champ": {
+        "fill": 8.448391006085387,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.448391006085387,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.448391006085387,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-859": {
+      "champ": {
+        "fill": 7.860283582826937,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 7.860283582826937,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 7.860283582826937,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-859": {
+      "champ": {
+        "fill": 11.591035234550942,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.591035234550942,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.591035234550942,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-859": {
+      "champ": {
+        "fill": 8.764402382245365,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.764402382245365,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.764402382245365,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-859": {
+      "champ": {
+        "fill": 10.28282932613763,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.28282932613763,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.28282932613763,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-859": {
+      "champ": {
+        "fill": 8.105551418326439,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.105551418326439,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.105551418326439,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-859": {
+      "champ": {
+        "fill": 11.647499261288312,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.9129737737386,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.9129737737386,
+        "placed": 16,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-859": {
+      "champ": {
+        "fill": 9.37502793235058,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.37502793235058,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.37502793235058,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-863": {
+      "champ": {
+        "fill": 10.694473837627177,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.694473837627177,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.89261627721254,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-863": {
+      "champ": {
+        "fill": 14.668247616224498,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 14.668247616224498,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.71491033051727,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-863": {
+      "champ": {
+        "fill": 8.892616277212541,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.892616277212541,
+        "placed": 7,
+        "steps": 4,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.889134349694134,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-863": {
+      "champ": {
+        "fill": 8.419379102844639,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.419379102844639,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.643625017968661,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-863": {
+      "champ": {
+        "fill": 12.212334032180054,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.212334032180054,
+        "placed": 16,
+        "steps": 16,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.245896551484414,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-863": {
+      "champ": {
+        "fill": 10.238394240444665,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.238394240444665,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.111478581354119,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-863": {
+      "champ": {
+        "fill": 10.686674938906547,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.686674938906547,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.780130951620373,
+        "placed": 12,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-863": {
+      "champ": {
+        "fill": 10.185997177467012,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.185997177467012,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.16739745972031,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-863": {
+      "champ": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.097390151575652,
+        "placed": 6,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-863": {
+      "champ": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.434267081665928,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-863": {
+      "champ": {
+        "fill": 12.732794007251353,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.732794007251353,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.732794007251353,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-863": {
+      "champ": {
+        "fill": 8.935978154099251,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.935978154099251,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.848449304413103,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-863": {
+      "champ": {
+        "fill": 9.293403396772463,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.293403396772463,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.106588856655646,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-863": {
+      "champ": {
+        "fill": 10.658910859461098,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.658910859461098,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.658910859461098,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-863": {
+      "champ": {
+        "fill": 12.791753681579324,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.791753681579324,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.28919264802185,
+        "placed": 17,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-863": {
+      "champ": {
+        "fill": 10.519012868247698,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.519012868247698,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.42218071957708,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-877": {
+      "champ": {
+        "fill": 10.393124391061987,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.075422463224136,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.393124391061987,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-877": {
+      "champ": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.604268563806137,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-877": {
+      "champ": {
+        "fill": 11.917341157022154,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.917341157022154,
+        "placed": 8,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 15.469271590346432,
+        "placed": 11,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-877": {
+      "champ": {
+        "fill": 8.984019370218338,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.081349626251816,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.984019370218338,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-877": {
+      "champ": {
+        "fill": 9.599417815327687,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.347095581772516,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.347095581772516,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-877": {
+      "champ": {
+        "fill": 8.984019370218338,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.984019370218338,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.233765313293615,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-877": {
+      "champ": {
+        "fill": 10.091151032599146,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.091151032599146,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.334969812646744,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-877": {
+      "champ": {
+        "fill": 10.31107203616656,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.31107203616656,
+        "placed": 15,
+        "steps": 15,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.356428214603879,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-001-877": {
+      "champ": {
+        "fill": 11.415092079413503,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.415092079413503,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.902729639508697,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-001-877": {
+      "champ": {
+        "fill": 11.60824564003755,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.60824564003755,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 11.60824564003755,
+        "placed": 8,
+        "steps": 8,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-001-877": {
+      "champ": {
+        "fill": 12.861943770065004,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 12.861943770065004,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.850713355907297,
+        "placed": 9,
+        "steps": 6,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-001-877": {
+      "champ": {
+        "fill": 8.44028015141593,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.44028015141593,
+        "placed": 10,
+        "steps": 10,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.74693284911115,
+        "placed": 12,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-001-877": {
+      "champ": {
+        "fill": 9.76080472977872,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.502585666657067,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.76080472977872,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-001-877": {
+      "champ": {
+        "fill": 8.245619639348975,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.245619639348975,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.811014590554073,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-001-877": {
+      "champ": {
+        "fill": 11.38233670478685,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.38233670478685,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.729412903895605,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-001-877": {
+      "champ": {
+        "fill": 9.00259659130974,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.00259659130974,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.91627296535793,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-noshelf:permute-000-881": {
+      "champ": {
+        "fill": 9.613234518998865,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 9.613234518998865,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.613234518998865,
+        "placed": 5,
+        "steps": 5,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-empty-shelf:permute-000-881": {
+      "champ": {
+        "fill": 10.626945309026235,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.626945309026235,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.626945309026235,
+        "placed": 7,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "single-preloaded:permute-000-881": {
+      "champ": {
+        "fill": 13.684259651168361,
+        "placed": 10,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 13.684259651168361,
+        "placed": 10,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 12.982358766311553,
+        "placed": 10,
+        "steps": 7,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-empty:permute-000-881": {
+      "champ": {
+        "fill": 8.198202335127537,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.198202335127537,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.007416066380234,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-shelf-mixed:permute-000-881": {
+      "champ": {
+        "fill": 10.01995487125297,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 10.01995487125297,
+        "placed": 13,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 10.078612807466902,
+        "placed": 14,
+        "steps": 14,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-dedicated-priority:permute-000-881": {
+      "champ": {
+        "fill": 8.198202335127537,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.198202335127537,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.198202335127537,
+        "placed": 9,
+        "steps": 9,
+        "termination": "no_retained_candidate"
+      }
+    },
+    "dual-preloaded-dedicated:permute-000-881": {
+      "champ": {
+        "fill": 11.799109852417383,
+        "placed": 15,
+        "steps": 13,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 11.389199735661006,
+        "placed": 14,
+        "steps": 12,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 9.980094714817357,
+        "placed": 13,
+        "steps": 11,
+        "termination": "no_safe_retained_candidate"
+      }
+    },
+    "dual-full-stream:permute-000-881": {
+      "champ": {
+        "fill": 8.714893380355688,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "champ-argmax": {
+        "fill": 8.714893380355688,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      },
+      "awr": {
+        "fill": 8.714893380355688,
+        "placed": 11,
+        "steps": 11,
+        "termination": "no_retained_candidate"
+      }
+    }
+  }
+}
