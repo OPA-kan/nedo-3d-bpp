@@ -49,12 +49,29 @@ on:
         default: "4"
       union_rollout_continuation:
         description: >-
-          Cup 010+: widen the TEACHER's rollout continuation too. Cup 009
-          measured 0 of 108 terminal rollouts reaching stream_exhausted --
-          96.3% stopped at no_retained_candidate, which counts as a full
-          board. Runs with this on are not comparable to Cups 001-009.
+          Widen the TEACHER's rollout continuation too. Cup 009 measured
+          0 of 108 terminal rollouts reaching stream_exhausted -- 96.3%
+          stopped at no_retained_candidate, which counts as a full
+          board. WITHDRAWN as a default after Cup 010: three of six
+          cells hit the 180-minute timeout, because the unioned
+          candidate set multiplies the cost of every step inside a
+          continuation that also grew 9 -> 18 steps. Left dispatchable,
+          default off. Runs with this on are not comparable to Cups
+          001-009.
         required: false
-        default: "true"
+        default: "false"
+      rollout_continuation_top_k:
+        description: >-
+          Cup 011+: make the champion ensemble the TEACHER's own rollout
+          policy. The continuation retains this many safe candidates and
+          the champion ranks them, instead of always taking rank-0. This
+          is the policy-iteration arrow Cups 001-009 never had -- they
+          improved the policy at the root and threw the improvement
+          away, and five distillations moved held-out AUC 0.6125 ->
+          0.6130. 1 leaves nothing to rank and is exactly the Cups
+          001-009 teacher.
+        required: false
+        default: "1"
       cup_id:
         description: Cup number for the ledger (e.g. "002")
         required: false
@@ -141,7 +158,9 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy learned \
-            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
+            ${{ inputs.union_rollout_continuation == 'true' && '--union-rollout-continuation' || '' }} \
+            --rollout-continuation-top-k "${{ inputs.rollout_continuation_top_k || '1' }}" \
+            ${{ (inputs.rollout_continuation_top_k || '1') != '1' && '--rollout-continuation-model-dir reports/cup/model' || '' }} \
             --model-dir reports/cup/model \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/learned/rollout
           python scripts/run_terminal_rollout_policy.py \
@@ -154,7 +173,9 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy current-agent \
-            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
+            ${{ inputs.union_rollout_continuation == 'true' && '--union-rollout-continuation' || '' }} \
+            --rollout-continuation-top-k "${{ inputs.rollout_continuation_top_k || '1' }}" \
+            ${{ (inputs.rollout_continuation_top_k || '1') != '1' && '--rollout-continuation-model-dir reports/cup/model' || '' }} \
             --mine-against-model reports/cup/model \
             --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
             --output-dir reports/cup/episodes/${{ matrix.cell }}/current-agent/rollout
@@ -168,7 +189,9 @@ jobs:
             --rollout-max-steps 40 \
             --max-steps 40 \
             --policy rule-alpha \
-            ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
+            ${{ inputs.union_rollout_continuation == 'true' && '--union-rollout-continuation' || '' }} \
+            --rollout-continuation-top-k "${{ inputs.rollout_continuation_top_k || '1' }}" \
+            ${{ (inputs.rollout_continuation_top_k || '1') != '1' && '--rollout-continuation-model-dir reports/cup/model' || '' }} \
             --mine-against-model reports/cup/model \
             --mine-fork-budget "${{ inputs.rule_alpha_fork_budget || '40' }}" \
             --union-rule-alpha \
@@ -185,7 +208,9 @@ jobs:
               --rollout-max-steps 40 \
               --max-steps 40 \
               --policy "$stud" \
-              ${{ inputs.union_rollout_continuation != 'false' && '--union-rollout-continuation' || '' }} \
+              ${{ inputs.union_rollout_continuation == 'true' && '--union-rollout-continuation' || '' }} \
+              --rollout-continuation-top-k "${{ inputs.rollout_continuation_top_k || '1' }}" \
+              ${{ (inputs.rollout_continuation_top_k || '1') != '1' && '--rollout-continuation-model-dir reports/cup/model' || '' }} \
               --mine-against-model reports/cup/model \
               --mine-fork-budget "${{ inputs.mine_fork_budget }}" \
               --output-dir reports/cup/episodes/${{ matrix.cell }}/$stud/rollout

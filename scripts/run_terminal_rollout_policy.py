@@ -442,9 +442,16 @@ def run_episode(
     exact_agent_candidate: bool = True,
     union_rollout_continuation: bool = False,
     bootstrap_value_dir: pathlib.Path | None = None,
+    continuation_model_dir: pathlib.Path | None = None,
+    continuation_top_k: int = 1,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    if continuation_model_dir is not None and continuation_top_k < 2:
+        raise ValueError(
+            "a continuation policy with top_k < 2 has nothing to rank:"
+            " raise --rollout-continuation-top-k or drop the model"
+        )
     if not exact_agent_candidate and policy not in EXACT_AGENT_POLICIES:
         raise ValueError(
             "exact_agent_candidate=False is meaningful only for an exact"
@@ -491,6 +498,19 @@ def run_episode(
     # boards.  Unioning a proposal family in is what makes a teacher's
     # action selectable by the ranker at all -- a baseline for removing
     # the train/inference mismatch, not an attempt to imitate rule-alpha.
+    # The policy-iteration arrow: the champion the last cup distilled
+    # becomes the teacher's own rollout policy, instead of the frozen
+    # rank-0 walk every cup since 001 has used.  Without it the loop is
+    # evaluation + a single improvement step that is thrown away.
+    continuation_ranker = None
+    if continuation_model_dir is not None:
+        from scripts.rollout_continuation_policy import (
+            load_continuation_ranker,
+        )
+
+        continuation_ranker = load_continuation_ranker(
+            continuation_model_dir, case_id=case_id,
+        )
     bootstrap_value = None
     if bootstrap_value_dir is not None:
         from scripts.board_value_model import BoardValue
@@ -623,6 +643,8 @@ def run_episode(
                 union_rule_alpha=union_rollout_continuation,
                 rule_alpha_union_limit=rule_alpha_union_limit,
                 bootstrap_value=bootstrap_value,
+                continuation_policy=continuation_ranker,
+                continuation_top_k=continuation_top_k,
             )
             search_seconds = time.perf_counter() - phase_started
             phase_started = time.perf_counter()
@@ -695,6 +717,8 @@ def run_episode(
                                 rule_alpha_union_limit
                             ),
                             bootstrap_value=bootstrap_value,
+                            continuation_policy=continuation_ranker,
+                            continuation_top_k=continuation_top_k,
                         )
                         online_forks_used += 1
                         complete = bool(fork.get("terminal_truth_complete"))
@@ -811,6 +835,8 @@ def run_episode(
                                 rule_alpha_union_limit
                             ),
                             bootstrap_value=bootstrap_value,
+                            continuation_policy=continuation_ranker,
+                            continuation_top_k=continuation_top_k,
                         )
                         mining_forks_used += 1
                         mining_fork_step_equivalents += int(
@@ -969,6 +995,16 @@ def run_episode(
                     if rule_alpha_proposer is not None else None
                 ),
             },
+            # policy iteration: what the champion actually did when it
+            # WAS the rollout policy. switches == 0 is a null result.
+            "rollout_continuation_policy": (
+                {
+                    **continuation_ranker.stats(),
+                    "model_dir": str(continuation_model_dir),
+                    "continuation_top_k": int(continuation_top_k),
+                }
+                if continuation_ranker is not None else None
+            ),
             "mining_disagreements": (
                 mining_disagreements if mining_policy is not None else None
             ),
@@ -1165,6 +1201,30 @@ def main() -> int:
             " that the train/inference mismatch is gone"
         ),
     )
+    parser.add_argument(
+        "--rollout-continuation-model-dir", type=pathlib.Path, default=None,
+        help=(
+            "make this frozen champion ensemble the TEACHER's own rollout"
+            " policy: the continuation ranks the safe candidates the legal"
+            " filter retained instead of always taking rank-0. Cups"
+            " 001-009 improved the policy at the root and threw the"
+            " improvement away, so nothing compounded -- five"
+            " distillations moved held-out AUC 0.6125 -> 0.6130. Requires"
+            " a geometry-feature champion (an h1 one scores one_step"
+            " vectors the continuation never measures) and"
+            " --rollout-continuation-top-k >= 2"
+        ),
+    )
+    parser.add_argument(
+        "--rollout-continuation-top-k", type=int, default=1,
+        help=(
+            "how many safe candidates the rollout continuation retains"
+            " for the continuation policy to rank. 1 leaves nothing to"
+            " rank and is exactly the Cups 001-009 teacher. Each extra"
+            " one costs roughly one more physical trial per continuation"
+            " step, which is the whole added cost of closing the loop"
+        ),
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
     if args.no_exact_agent_candidate and args.policy not in (
@@ -1213,6 +1273,8 @@ def main() -> int:
         exact_agent_candidate=not args.no_exact_agent_candidate,
         union_rollout_continuation=args.union_rollout_continuation,
         bootstrap_value_dir=args.bootstrap_value_dir,
+        continuation_model_dir=args.rollout_continuation_model_dir,
+        continuation_top_k=args.rollout_continuation_top_k,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
@@ -1335,6 +1397,16 @@ def main() -> int:
         f"termination={episode['termination']} "
         f"switches={episode['terminal_dominance_switches']} "
         f"rollout_physical_steps={episode['terminal_rollout_physical_steps']}"
+        # distinct from `switches` above, which counts the teacher
+        # overriding the actor at the ROOT; this one counts the
+        # champion overriding rank-0 INSIDE a rollout continuation
+        + (
+            " continuation_switches="
+            + str(
+                episode["rollout_continuation_policy"]["continuation_switches"]
+            )
+            if episode.get("rollout_continuation_policy") else ""
+        )
     )
     print(output)
     return 0

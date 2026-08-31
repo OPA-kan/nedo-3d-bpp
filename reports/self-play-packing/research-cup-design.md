@@ -430,3 +430,75 @@ a third does not repeat them.
 
 **Cup 010's course is burnt.** 000: 631/641/643/647 and 001: 509/521 are
 spent -- three cells did run -- and must not be redrawn.
+
+## Cup 011+ amendment: the champion becomes the teacher's rollout policy
+
+Date: 2026-08-31.
+
+### The defect this addresses
+
+Every cup from 001 to 010 ran the same three-part loop, and only two of
+the parts were connected:
+
+| | |
+|---|---|
+| policy evaluation | ✓ the terminal rollout scores each root candidate |
+| policy improvement | ✓ the distilled ranker picks the root action (1-ply, `expansions=0, max_depth=1`) |
+| **policy iteration** | **✗ the improved policy never became the next rollout policy** |
+
+The rollout continuation has taken provider rank-0 since Cup 001. So the
+teacher that generates cup N+1's training pairs is the *same* teacher
+that generated cup 1's, no matter what cup N learned. Nothing
+compounds, and that is the structural reason five consecutive
+distillations produced no held-out ranking gain -- Cup 009 moved AUC
+0.6125 -> 0.6130 on the largest corpus the season has ever had.
+
+This is not the same defect as the zero-valued tail (Cup 010+ WITHDRAWN
+above), which is about *how far* the rollout goes. This one is about
+*who chooses* inside it. Both were open; this amendment closes only the
+second, and does not depend on the first.
+
+### The change
+
+`--rollout-continuation-model-dir <champion> --rollout-continuation-top-k k`
+makes the frozen champion ensemble the continuation's own policy: the
+legal filter retains `k` safe candidates instead of stopping at the
+first, and the champion ranks them.
+
+Two properties of the current champion make this cheap and safe, and
+both are preconditions, not conveniences:
+
+* its candidate feature mode is `geometry` -- container-local position,
+  orientation, container and item descriptors -- so a continuation
+  candidate is scorable from `command_action` and the snapshot alone.
+  **No one-step measurement is added.** An `h1` champion scores
+  `one_step_vector`, which the continuation never measures, so the
+  loader refuses one rather than silently scoring on zeros.
+* its objective is `preference`: scores are
+  `sigmoid(score_j - score_incumbent)` with the incumbent floored at
+  `switch_threshold`. Naming rank-0 the incumbent makes the argmax read
+  exactly *"keep the frozen rollout policy unless an alternate clearly
+  beats it"*. A tie, an unconfident model, and a model that declines to
+  score all fall back to rank-0.
+
+`k = 1` leaves nothing to rank and is bit-identical to the Cups 001-010
+teacher, so the flag defaults off and every earlier cup stays
+reproducible.
+
+### The cost, and why it is bounded where Cup 010's was not
+
+The only new physical work is retaining `k` safe candidates per
+continuation step instead of one. Cup 010 failed because two multipliers
+compounded -- a continuation that grew 9 -> 18 steps *and* a candidate
+set that grew 2.71 -> 12.65 per state. Here the continuation length is
+unchanged and the candidate set is unchanged; only the legal filter's
+early stop moves, and it moves by a factor the dispatcher names. That is
+one multiplier, and it is `k`.
+
+### What counts as a result
+
+`rollout_continuation_policy.continuation_switches` is recorded on every
+episode. **`switches == 0` is a null result, not a successful run**: it
+means the champion never disagreed with rank-0 and the teacher was
+unchanged, whatever the standings say. A cup dispatched with this on
+must report the switch rate before its standings are read.

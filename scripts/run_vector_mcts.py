@@ -520,6 +520,8 @@ def _terminal_rollout(
     legal_filter, top_k: int, root_step: int,
     max_continuation_steps: int,
     bootstrap_value: Any | None = None,
+    continuation_policy: Any | None = None,
+    continuation_top_k: int = 1,
 ) -> dict[str, Any]:
     """Force a search path, then follow frozen rank-0 toward termination.
 
@@ -532,6 +534,14 @@ def _terminal_rollout(
     is what every cup through 010 did -- and 96.3% of Cup 009's rollouts
     hit that zero at `no_retained_candidate`, on boards holding two to
     four times more.
+
+    With ``continuation_policy`` the continuation is no longer the
+    frozen rank-0 walk either: the legal filter retains
+    ``continuation_top_k`` safe candidates and the supplied ranker picks
+    among them.  That is the policy-iteration arrow -- the improved
+    policy becoming the next rollout policy -- which Cups 001-009 never
+    had.  ``continuation_top_k == 1`` leaves nothing to rank and is
+    exactly the old teacher, so the default is a no-op.
 
     **This changes what a dominance verdict is.** A bootstrapped
     terminal is a model's estimate, not a physical fact, so
@@ -593,6 +603,8 @@ def _terminal_rollout(
         continuation_actions = []
         legal_filter_physical_step_equivalents = 0
         legal_filter_symmetry_reused = 0
+        continuation_policy_switches = 0
+        continuation_policy_decisions = 0
         while termination is None:
             if continuation_steps >= max_continuation_steps:
                 termination = "continuation_cap"
@@ -610,7 +622,10 @@ def _terminal_rollout(
                 env=env, observation=observation, candidates=proposals,
                 actions=list(executed),
                 step=root_step + forced_steps + continuation_steps,
-                max_safe_candidates=1,
+                max_safe_candidates=(
+                    max(1, int(continuation_top_k))
+                    if continuation_policy is not None else 1
+                ),
             )
             timing["continuation_legal_filter_seconds"] += (
                 time.perf_counter() - phase_started
@@ -624,7 +639,16 @@ def _terminal_rollout(
             if not retained:
                 termination = "no_safe_retained_candidate"
                 break
-            action = _candidate_action(retained[0])
+            chosen_index = 0
+            if continuation_policy is not None:
+                continuation_policy_decisions += 1
+                chosen_index = int(continuation_policy.choose(
+                    env, observation, retained,
+                    step=root_step + forced_steps + continuation_steps,
+                ))
+                if chosen_index != 0:
+                    continuation_policy_switches += 1
+            action = _candidate_action(retained[chosen_index])
             phase_started = time.perf_counter()
             observation, _r, terminated, truncated, info = env.step(action)
             timing["continuation_action_seconds"] += (
@@ -689,6 +713,10 @@ def _terminal_rollout(
             "genuine_terminal": genuine or bootstrap is not None,
             "physically_genuine": genuine,
             "continuation_steps": continuation_steps,
+            # 0 switches means the champion never disagreed with the
+            # frozen rank-0 walk -- a null result, not a closed loop.
+            "continuation_policy_decisions": continuation_policy_decisions,
+            "continuation_policy_switches": continuation_policy_switches,
             "physical_steps": forced_steps + continuation_steps,
             "physical_step_equivalents": (
                 len(prefix_actions)
@@ -857,6 +885,8 @@ def vector_search_root(
     union_rule_alpha: bool = False,
     rule_alpha_union_limit: int = 4,
     bootstrap_value: Any | None = None,
+    continuation_policy: Any | None = None,
+    continuation_top_k: int = 1,
 ) -> dict[str, Any]:
     search_started = time.perf_counter()
     if leaf_eval not in {"measured", "rollout", "value"}:
@@ -968,6 +998,8 @@ def vector_search_root(
                 top_k=rollout_top_k, root_step=step,
                 max_continuation_steps=rollout_max_steps,
                 bootstrap_value=bootstrap_value,
+                continuation_policy=continuation_policy,
+                continuation_top_k=continuation_top_k,
             )
     # node: key -> {actions, vector (accumulated), root_candidate_id,
     #               parent, depth, expanded, alive}.  Every node also owns
