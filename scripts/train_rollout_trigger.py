@@ -355,6 +355,13 @@ def build_arrays(
                 pair_valid[index, position] = 1.0
     arrays["pair_label"] = pair_label
     arrays["pair_valid"] = pair_valid
+    # Advantage-weighted regression weight; 1.0 for every corpus that
+    # does not carry one, so the allocator and preference paths are
+    # numerically unchanged.
+    arrays["advantage_weight"] = np.asarray(
+        [float(row.get("advantage_weight", 1.0)) for row in examples],
+        dtype=np.float32,
+    )
     return arrays
 
 
@@ -581,6 +588,59 @@ def fit_allocator_member(
     return model, stats
 
 
+def fit_advantage_member(
+    torch, examples: list[dict[str, Any]], *, seed: int, epochs: int,
+    dim: int,
+):
+    """Advantage-weighted regression on the action that was taken.
+
+    This is the PCT/A2C signal with the advantage moved into the weight
+    so that a single logged action per state is usable off-policy::
+
+        -(A_t * log pi(a_t|s_t))   ->   -(w_t * log pi(a_t|s_t))
+        w_t = clip(exp(A_t / beta), 0, w_max)
+
+    The exponential form is what makes it sound offline: a negative
+    advantage shrinks the action's weight toward zero rather than
+    pushing probability mass onto some *other* action whose return was
+    never observed. With w == 1 everywhere this is exactly
+    ``fit_allocator_member`` -- plain behaviour cloning -- which is the
+    right degenerate case and the natural ablation.
+
+    Weights are prepared by the caller (see
+    ``scripts/train_advantage_policy.py``); this function only consumes
+    ``advantage_weight``.
+    """
+    torch.manual_seed(seed)
+    rng = random.Random(seed)
+    groups = sorted({row["group"] for row in examples})
+    sampled = collections.Counter(rng.choice(groups) for _ in groups)
+    bootstrap = [
+        row for row in examples for _ in range(sampled[row["group"]])
+    ] or list(examples)
+    stats = compute_stats(bootstrap)
+    arrays = build_arrays(bootstrap, stats)
+    widths = {key: len(stats[key][0]) for key in SET_KEYS}
+    model = build_allocator_model(torch, widths, dim=dim)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    indices = np.arange(len(bootstrap))
+    model.train()
+    for _epoch in range(epochs):
+        rng.shuffle(indices)
+        for start in range(0, len(indices), 64):
+            batch = _torch_batch(torch, arrays, indices[start:start + 64])
+            losses = torch.nn.functional.cross_entropy(
+                model(batch), batch["selected_index"], reduction="none",
+            )
+            loss = (losses * batch["advantage_weight"]).mean()
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimizer.step()
+    model.eval()
+    return model, stats
+
+
 def fit_preference_member(
     torch, examples: list[dict[str, Any]], *, seed: int, epochs: int,
     dim: int,
@@ -687,10 +747,12 @@ def save_allocator_ensemble(
     is the deployable policy head, not an evaluation artifact, and its
     honest report card is the league match it must win on frozen streams.
     """
-    if objective not in {"allocator", "preference"}:
+    if objective not in {"allocator", "preference", "advantage"}:
         raise ValueError(f"unsupported objective: {objective}")
-    fit = fit_preference_member if objective == "preference" \
-        else fit_allocator_member
+    fit = {
+        "preference": fit_preference_member,
+        "advantage": fit_advantage_member,
+    }.get(objective, fit_allocator_member)
     output_dir.mkdir(parents=True, exist_ok=True)
     member_meta = []
     widths = None

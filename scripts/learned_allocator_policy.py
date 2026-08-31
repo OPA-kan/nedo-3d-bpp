@@ -55,7 +55,7 @@ class LearnedAllocatorPolicy:
                 f"unsupported candidate feature mode: {self.feature_mode}"
             )
         self.objective = str(self.metadata.get("objective") or "allocator")
-        if self.objective not in {"allocator", "preference"}:
+        if self.objective not in {"allocator", "preference", "advantage"}:
             raise ValueError(f"unsupported objective: {self.objective}")
         self.switch_threshold = float(
             self.metadata.get("switch_threshold") or 0.5
