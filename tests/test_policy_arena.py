@@ -128,3 +128,29 @@ class ReadCellTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ArmSpecTests(unittest.TestCase):
+    """An arm is a learned head or one of the runner's own policies."""
+
+    def test_a_model_directory_becomes_the_learned_head(self):
+        self.assertEqual(
+            arena.arm_command("/models/champ")[:2], ["--policy", "learned"]
+        )
+        self.assertIn("--model-dir", arena.arm_command("/models/champ"))
+
+    def test_a_policy_arm_carries_no_model_dir(self):
+        """The hand-coded actors generate their own moves.
+
+        Passing --model-dir would silently turn current-agent into a
+        learned run, and the whole point of entering it is that it is
+        NOT confined to the generic candidate family.
+        """
+        command = arena.arm_command("policy:current-agent")
+        self.assertEqual(command, ["--policy", "current-agent"])
+        self.assertNotIn("--model-dir", command)
+
+    def test_rule_alpha_is_enterable(self):
+        self.assertEqual(
+            arena.arm_command("policy:rule-alpha"), ["--policy", "rule-alpha"]
+        )

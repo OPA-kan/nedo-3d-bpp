@@ -78,9 +78,25 @@ def build_configs(
     return target
 
 
+def arm_command(spec: str) -> list[str]:
+    """Policy flags for one arm.
+
+    An arm is either a learned head (a model directory) or one of the
+    runner's own policies, written `policy:<name>`. The hand-coded
+    actors have to be enterable: without them the arena only ever
+    compares learned heads to each other, and over 18 shared Cup cells
+    the champion sits 5th of 6 at 10.00 mean fill against
+    current-agent's 29.05. A scoreboard whose best entrant is 3x below
+    an actor already in the repository is not measuring what it thinks.
+    """
+    if spec.startswith("policy:"):
+        return ["--policy", spec.split(":", 1)[1]]
+    return ["--policy", "learned", "--model-dir", str(pathlib.Path(spec).resolve())]
+
+
 def run_cell(
     *, python: str, config_dir: pathlib.Path, scenario: str,
-    model_dir: pathlib.Path, output_dir: pathlib.Path, max_steps: int,
+    arm_spec: str, output_dir: pathlib.Path, max_steps: int,
 ) -> dict[str, Any]:
     manifest = output_dir / "manifest.json"
     if manifest.is_file():
@@ -95,8 +111,7 @@ def run_cell(
          "--top-k", "3", "--rollout-top-k", "3",
          "--rollout-max-steps", str(max_steps),
          "--max-steps", str(max_steps),
-         "--policy", "learned",
-         "--model-dir", str(model_dir),
+         *arm_command(arm_spec),
          "--output-dir", str(output_dir)],
         capture_output=True, text=True,
     )
@@ -206,12 +221,17 @@ def main() -> int:
     parser.add_argument("--python", default=sys.executable)
     args = parser.parse_args()
 
-    arms: dict[str, pathlib.Path] = {}
+    arms: dict[str, str] = {}
     for entry in args.arm:
-        name, _, path = entry.partition("=")
-        if not name or not path:
-            raise SystemExit(f"--arm needs NAME=MODEL_DIR, got {entry!r}")
-        arms[name] = pathlib.Path(path).resolve()
+        name, _, spec = entry.partition("=")
+        if not name or not spec:
+            raise SystemExit(
+                f"--arm needs NAME=MODEL_DIR or NAME=policy:<name>,"
+                f" got {entry!r}"
+            )
+        if not spec.startswith("policy:") and not pathlib.Path(spec).is_dir():
+            raise SystemExit(f"--arm {name}: no such model directory: {spec}")
+        arms[name] = spec
     if len(arms) < 2:
         raise SystemExit("an arena needs at least two arms")
     baseline = args.baseline or next(iter(arms))
@@ -237,8 +257,8 @@ def main() -> int:
     jobs = []
     for variant in streams:
         for scenario in scenarios:
-            for name, model_dir in arms.items():
-                jobs.append((variant, scenario, name, model_dir))
+            for name, spec in arms.items():
+                jobs.append((variant, scenario, name, spec))
     print(f"arena: {len(streams)} streams x {len(scenarios)} scenarios"
           f" x {len(arms)} arms = {len(jobs)} runs", flush=True)
 
@@ -251,13 +271,13 @@ def main() -> int:
                 python=args.python,
                 config_dir=config_root / variant,
                 scenario=scenario,
-                model_dir=model_dir,
+                arm_spec=spec,
                 output_dir=(
                     args.work_dir / "episodes" / name / scenario / variant
                 ),
                 max_steps=args.max_steps,
             ): (variant, scenario, name)
-            for variant, scenario, name, model_dir in jobs
+            for variant, scenario, name, spec in jobs
         }
         for future in concurrent.futures.as_completed(futures):
             variant, scenario, name = futures[future]
@@ -287,7 +307,7 @@ def main() -> int:
 
     report: dict[str, Any] = {
         "contract": CONTRACT,
-        "arms": {name: str(path) for name, path in arms.items()},
+        "arms": dict(arms),
         "baseline": baseline,
         "scenarios": scenarios,
         "streams": streams,

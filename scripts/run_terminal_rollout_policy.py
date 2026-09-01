@@ -444,6 +444,8 @@ def run_episode(
     bootstrap_value_dir: pathlib.Path | None = None,
     continuation_model_dir: pathlib.Path | None = None,
     continuation_top_k: int = 1,
+    search_expansions: int = 0,
+    search_max_depth: int = 1,
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
@@ -629,8 +631,8 @@ def run_episode(
                 root_candidates=candidates,
                 attempt_budget=attempt_budget,
                 deep_top_k=top_k,
-                expansions=0,
-                max_depth=1,
+                expansions=search_expansions,
+                max_depth=search_max_depth,
                 step=step,
                 leaf_eval=leaf_eval,
                 rollout_top_k=rollout_top_k,
@@ -702,8 +704,8 @@ def run_episode(
                             root_candidates=pair,
                             attempt_budget=attempt_budget,
                             deep_top_k=top_k,
-                            expansions=0,
-                            max_depth=1,
+                            expansions=search_expansions,
+                            max_depth=search_max_depth,
                             step=step,
                             leaf_eval="rollout",
                             rollout_top_k=rollout_top_k,
@@ -820,8 +822,8 @@ def run_episode(
                             root_candidates=pair,
                             attempt_budget=attempt_budget,
                             deep_top_k=top_k,
-                            expansions=0,
-                            max_depth=1,
+                            expansions=search_expansions,
+                            max_depth=search_max_depth,
                             step=step,
                             leaf_eval="rollout",
                             rollout_top_k=rollout_top_k,
@@ -1225,6 +1227,20 @@ def main() -> int:
             " step, which is the whole added cost of closing the loop"
         ),
     )
+    parser.add_argument(
+        "--search-expansions", type=int, default=0,
+        help=(
+            "how many tree expansions the root search may spend. Cups"
+            " 001-010 all ran 0, i.e. no tree at all: the search evaluated"
+            " the root candidates and stopped. The expansion loop and both"
+            " allocation rules are implemented and tested; nothing has"
+            " ever used them in a cup"
+        ),
+    )
+    parser.add_argument(
+        "--search-max-depth", type=int, default=1,
+        help="tree depth cap; 1 leaves nothing for expansions to expand",
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
     if args.no_exact_agent_candidate and args.policy not in (
@@ -1275,6 +1291,8 @@ def main() -> int:
         bootstrap_value_dir=args.bootstrap_value_dir,
         continuation_model_dir=args.rollout_continuation_model_dir,
         continuation_top_k=args.rollout_continuation_top_k,
+        search_expansions=args.search_expansions,
+        search_max_depth=args.search_max_depth,
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:
