@@ -446,9 +446,20 @@ def run_episode(
     continuation_top_k: int = 1,
     search_expansions: int = 0,
     search_max_depth: int = 1,
+    union_experts: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     if policy not in POLICIES:
         raise ValueError(f"unsupported policy: {policy}")
+    for expert in union_experts:
+        if expert not in EXACT_AGENT_POLICIES:
+            raise ValueError(
+                f"union expert must be an exact stateful actor: {expert!r}"
+            )
+        if expert == policy:
+            raise ValueError(
+                f"{expert} is already the actor; unioning it as an advisor"
+                " would measure nothing"
+            )
     if continuation_model_dir is not None and continuation_top_k < 2:
         raise ValueError(
             "a continuation policy with top_k < 2 has nothing to rank:"
@@ -547,6 +558,26 @@ def run_episode(
             exact_solver = RuleAlphaAgent()
         if exact_solver is not None:
             exact_solver.get_init_states(env.get_init_states())
+        # Advisors: experts whose move is unioned into the candidate set
+        # every step, but who never execute. The learned head still
+        # chooses. This is the portfolio the arena measured the need for
+        # -- at 56 cells a ranker over C_generic | C_rule-alpha scored
+        # 24.50 against current-agent's 28.83, and the remaining 4.33 is
+        # the move current-agent makes and nobody offers.
+        advisors: dict[str, Any] = {}
+        for expert in union_experts:
+            if expert == CURRENT_AGENT_POLICY:
+                advisor = agent_module.Agent("")
+            else:
+                from rule_alpha.agent import RuleAlphaAgent
+
+                advisor = RuleAlphaAgent()
+            advisor.get_init_states(env.get_init_states())
+            advisors[expert] = advisor
+        advisor_stats = {
+            expert: {"asked": 0, "declined": 0, "added": 0, "already_present": 0}
+            for expert in union_experts
+        }
         if rule_alpha_proposer is not None:
             rule_alpha_proposer.get_init_states(env.get_init_states())
         env.reset_item_stream()
@@ -618,6 +649,18 @@ def run_episode(
                             f"{policy.replace('-', '_')}_action_unsupported"
                         )
                         break
+            for expert, advisor in advisors.items():
+                stats = advisor_stats[expert]
+                stats["asked"] += 1
+                advice = exact_agent_action(advisor, observed)
+                if advice is None:
+                    # An honest decline from the expert, not an error.
+                    stats["declined"] += 1
+                    continue
+                candidates, _advice_id, present = add_exact_agent_candidate(
+                    candidates, advice, observed, policy=expert,
+                )
+                stats["already_present" if present else "added"] += 1
             provider_seconds = time.perf_counter() - phase_started
             if not candidates:
                 termination = "no_retained_candidate"
@@ -997,6 +1040,17 @@ def run_episode(
                     if rule_alpha_proposer is not None else None
                 ),
             },
+            # Which expert moves were offered, and how often the generic
+            # provider already had them. `added` is the size of the gap
+            # this advisor closes; `already_present` is where it did not
+            # need closing.
+            "union_experts": (
+                {
+                    "contract": "expert_advisor_union_v1",
+                    "experts": advisor_stats,
+                }
+                if advisor_stats else None
+            ),
             # policy iteration: what the champion actually did when it
             # WAS the rollout policy. switches == 0 is a null result.
             "rollout_continuation_policy": (
@@ -1241,6 +1295,18 @@ def main() -> int:
         "--search-max-depth", type=int, default=1,
         help="tree depth cap; 1 leaves nothing for expansions to expand",
     )
+    parser.add_argument(
+        "--union-expert", action="append", default=[],
+        choices=sorted(EXACT_AGENT_POLICIES),
+        help=(
+            "run this exact actor as an ADVISOR: its move is unioned into"
+            " the candidate set every step but it never executes, so the"
+            " acting policy may choose it. Repeatable. At 56 arena cells"
+            " a ranker over C_generic | C_rule-alpha reached 24.50 fill"
+            " against current-agent's 28.83; this is how the rest of the"
+            " board gets offered"
+        ),
+    )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args()
     if args.no_exact_agent_candidate and args.policy not in (
@@ -1293,6 +1359,7 @@ def main() -> int:
         continuation_top_k=args.rollout_continuation_top_k,
         search_expansions=args.search_expansions,
         search_max_depth=args.search_max_depth,
+        union_experts=tuple(args.union_expert),
     )
     policy_model = None
     if args.policy in LEARNED_POLICIES:

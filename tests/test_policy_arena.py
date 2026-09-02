@@ -174,3 +174,18 @@ class ArmModifierTests(unittest.TestCase):
 
     def test_a_plain_arm_is_unchanged(self):
         self.assertNotIn("--union-rule-alpha", arena.arm_command("/m/champ"))
+
+
+class ExpertAdvisorArmTests(unittest.TestCase):
+    """An advisor offers its move; the acting policy still chooses."""
+
+    def test_an_expert_advisor_does_not_change_the_acting_policy(self):
+        command = arena.arm_command("/models/champ,expert-agent")
+        self.assertEqual(command[:2], ["--policy", "learned"])
+        self.assertIn("--union-expert", command)
+        self.assertIn("current-agent", command)
+
+    def test_advisors_compose_with_the_rule_alpha_union(self):
+        command = arena.arm_command("/models/champ,union,expert-agent")
+        self.assertIn("--union-rule-alpha", command)
+        self.assertIn("--union-expert", command)

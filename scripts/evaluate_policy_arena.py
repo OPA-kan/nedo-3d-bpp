@@ -83,6 +83,9 @@ MODIFIERS = {
     # same ranker, a wider choice set: the one arm that separates "the
     # learner ranks badly" from "the learner is never offered the board".
     "union": ["--union-rule-alpha", "--rule-alpha-union-limit", "4"],
+    # Expert advisors: their move is offered, they never execute.
+    "expert-agent": ["--union-expert", "current-agent"],
+    "expert-alpha": ["--union-expert", "rule-alpha"],
 }
 
 
