@@ -189,3 +189,48 @@ class ExpertAdvisorArmTests(unittest.TestCase):
         command = arena.arm_command("/models/champ,union,expert-agent")
         self.assertIn("--union-rule-alpha", command)
         self.assertIn("--union-expert", command)
+
+
+class TaskShapeTests(unittest.TestCase):
+    """A, B and C differ only by the offline flag and the pool size."""
+
+    def _source(self):
+        return {"m-demo": {
+            "agent": {"optimize": False},
+            "item_stream": {"look_ahead": 10, "max_space": 3,
+                            "visible_pool": [1, 2], "item_list": []},
+            "containers": {"container_list": []},
+        }}
+
+    def _write(self, task):
+        import json
+        import tempfile
+
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        (tmp / "demo.json").write_text(json.dumps(self._source()))
+        path = arena.write_task_config(tmp, "demo", task)
+        return json.loads(path.read_text())
+
+    def test_task_b_uses_the_scenario_config_untouched(self):
+        tmp = pathlib.Path(__file__).parent
+        self.assertEqual(
+            arena.write_task_config(tmp, "demo", "b").name, "demo.json"
+        )
+
+    def test_task_a_turns_the_offline_pass_on_and_the_pool_to_one(self):
+        case = self._write("a")["am-demo"]
+        self.assertTrue(case["agent"]["optimize"])
+        self.assertEqual(case["item_stream"]["look_ahead"], 1)
+        self.assertEqual(case["item_stream"]["visible_pool"], [])
+
+    def test_task_c_keeps_the_offline_pass_off(self):
+        """C is arrival order: no offline pass, pool of one."""
+        case = self._write("c")["m-demo"]
+        self.assertFalse(case["agent"]["optimize"])
+        self.assertEqual(case["item_stream"]["look_ahead"], 1)
+        self.assertEqual(case["item_stream"]["max_space"], 1)
+
+    def test_the_case_id_follows_the_builder(self):
+        self.assertEqual(arena.task_case("demo", "a"), "am-demo")
+        self.assertEqual(arena.task_case("demo", "b"), "m-demo")
+        self.assertEqual(arena.task_case("demo", "c"), "m-demo")

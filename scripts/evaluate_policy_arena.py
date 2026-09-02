@@ -63,6 +63,64 @@ def arena_streams() -> list[str]:
     return [variant for _prime, _source, variant in sorted(found)]
 
 
+# The competition's three tasks differ only in the offline flag and the
+# online pool size (COMPETITION_RULES section 2):
+#
+#     A   offline ordering, pool 1     -- the whole order precomputed
+#     B   no offline,       pool 3-40  -- choose from a buffer
+#     C   no offline,       pool 1     -- place in arrival order
+#
+# All three run the same agent.policy(); only A also calls
+# agent.optimize(). Measuring only B -- which every arena run before
+# 2026-09-01 did -- says nothing about the two tasks where the online
+# pool holds a single item and there is nothing to rank.
+TASKS = ("a", "b", "c")
+
+
+def task_case(scenario: str, task: str) -> str:
+    return f"am-{scenario}" if task == "a" else f"m-{scenario}"
+
+
+def write_task_config(
+    config_dir: pathlib.Path, scenario: str, task: str,
+) -> pathlib.Path:
+    """Derive the Task A or Task C config from the scenario's Task B one.
+
+    `build_task_a_config` is the shipped builder and is reused verbatim
+    so a Task A cell here is the same object the Task A workflow runs.
+    Task C is the same shape with the offline pass off.
+    """
+    source_path = config_dir / f"{scenario}.json"
+    if task == "b":
+        return source_path
+    target = config_dir / f"{task}-{scenario}.json"
+    if target.is_file():
+        return target
+    from scripts.build_task_a_config import build_task_a_config
+
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    if task == "a":
+        result = build_task_a_config(
+            source, f"m-{scenario}",
+            optimization_timeout=180.0, policy_timeout=8.0,
+        )
+    else:
+        import copy
+
+        case = copy.deepcopy(source[f"m-{scenario}"])
+        case["agent"]["optimize"] = False
+        case["agent"]["policy_timeout"] = 8.0
+        case["item_stream"]["look_ahead"] = 1
+        case["item_stream"]["max_space"] = 1
+        case["item_stream"]["visible_pool"] = []
+        result = {f"m-{scenario}": case}
+    target.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return target
+
+
 def build_configs(
     variant: str, config_root: pathlib.Path, python: str,
 ) -> pathlib.Path:
@@ -115,6 +173,7 @@ def arm_command(spec: str) -> list[str]:
 def run_cell(
     *, python: str, config_dir: pathlib.Path, scenario: str,
     arm_spec: str, output_dir: pathlib.Path, max_steps: int,
+    task: str = "b",
 ) -> dict[str, Any]:
     manifest = output_dir / "manifest.json"
     if manifest.is_file():
@@ -122,8 +181,8 @@ def run_cell(
     output_dir.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         [python, str(ROOT / "scripts" / "run_terminal_rollout_policy.py"),
-         "--config", str(config_dir / f"{scenario}.json"),
-         "--case", f"m-{scenario}",
+         "--config", str(write_task_config(config_dir, scenario, task)),
+         "--case", task_case(scenario, task),
          "--environment-seed", "42",
          "--attempt-budget", "128",
          "--top-k", "3", "--rollout-top-k", "3",
@@ -231,6 +290,16 @@ def main() -> int:
         "--scenarios", default=None,
         help="comma-separated; default is every scenario in the matrix",
     )
+    parser.add_argument(
+        "--task", choices=TASKS, default="b",
+        help=(
+            "which competition task to run. b (default) is the buffered"
+            " pool every arena run before 2026-09-01 measured; a adds the"
+            " offline ordering pass and drops the pool to 1; c drops the"
+            " pool to 1 with no offline pass. On a and c the candidate"
+            " set holds one entry, so a ranker has nothing to choose"
+        ),
+    )
     parser.add_argument("--streams", type=int, default=25)
     parser.add_argument("--max-steps", type=int, default=40)
     parser.add_argument("--workers", type=int, default=4)
@@ -296,9 +365,11 @@ def main() -> int:
                 scenario=scenario,
                 arm_spec=spec,
                 output_dir=(
-                    args.work_dir / "episodes" / name / scenario / variant
+                    args.work_dir / "episodes" / args.task / name
+                    / scenario / variant
                 ),
                 max_steps=args.max_steps,
+                task=args.task,
             ): (variant, scenario, name)
             for variant, scenario, name, spec in jobs
         }
@@ -320,8 +391,8 @@ def main() -> int:
         for scenario in scenarios:
             for name in arms:
                 manifest = (
-                    args.work_dir / "episodes" / name / scenario / variant
-                    / "manifest.json"
+                    args.work_dir / "episodes" / args.task / name / scenario
+                    / variant / "manifest.json"
                 )
                 if manifest.is_file():
                     cells.setdefault(f"{scenario}:{variant}", {})[name] = (
@@ -330,6 +401,7 @@ def main() -> int:
 
     report: dict[str, Any] = {
         "contract": CONTRACT,
+        "task": args.task,
         "arms": dict(arms),
         "baseline": baseline,
         "scenarios": scenarios,
