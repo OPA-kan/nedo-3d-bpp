@@ -154,3 +154,23 @@ class ArmSpecTests(unittest.TestCase):
         self.assertEqual(
             arena.arm_command("policy:rule-alpha"), ["--policy", "rule-alpha"]
         )
+
+
+class ArmModifierTests(unittest.TestCase):
+    def test_the_union_modifier_widens_the_candidate_set(self):
+        command = arena.arm_command("/models/champ,union")
+        self.assertIn("--union-rule-alpha", command)
+        self.assertEqual(command[:2], ["--policy", "learned"])
+
+    def test_a_modifier_applies_to_a_policy_arm_too(self):
+        command = arena.arm_command("policy:rule-grid,union")
+        self.assertEqual(command[:2], ["--policy", "rule-grid"])
+        self.assertIn("--union-rule-alpha", command)
+
+    def test_an_unknown_modifier_is_refused_rather_than_ignored(self):
+        """A silently dropped modifier would run the wrong arm."""
+        with self.assertRaises(ValueError):
+            arena.arm_command("/models/champ,unoin")
+
+    def test_a_plain_arm_is_unchanged(self):
+        self.assertNotIn("--union-rule-alpha", arena.arm_command("/m/champ"))

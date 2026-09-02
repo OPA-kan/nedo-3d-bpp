@@ -78,20 +78,35 @@ def build_configs(
     return target
 
 
+MODIFIERS = {
+    # C(s) = C_generic(s) | C_rule-alpha(s) on the INFERENCE side. The
+    # same ranker, a wider choice set: the one arm that separates "the
+    # learner ranks badly" from "the learner is never offered the board".
+    "union": ["--union-rule-alpha", "--rule-alpha-union-limit", "4"],
+}
+
+
 def arm_command(spec: str) -> list[str]:
     """Policy flags for one arm.
 
-    An arm is either a learned head (a model directory) or one of the
-    runner's own policies, written `policy:<name>`. The hand-coded
-    actors have to be enterable: without them the arena only ever
-    compares learned heads to each other, and over 18 shared Cup cells
-    the champion sits 5th of 6 at 10.00 mean fill against
-    current-agent's 29.05. A scoreboard whose best entrant is 3x below
-    an actor already in the repository is not measuring what it thinks.
+    An arm is a learned head (a model directory) or one of the runner's
+    own policies, written `policy:<name>`, optionally followed by
+    comma-separated modifiers. The hand-coded actors have to be
+    enterable: without them the arena only compares learned heads to
+    each other, and at 200 cells the champion sits 17.70 fill points
+    below `current-agent`, which generates its own moves.
     """
-    if spec.startswith("policy:"):
-        return ["--policy", spec.split(":", 1)[1]]
-    return ["--policy", "learned", "--model-dir", str(pathlib.Path(spec).resolve())]
+    head, *modifiers = spec.split(",")
+    for modifier in modifiers:
+        if modifier not in MODIFIERS:
+            raise ValueError(f"unknown arm modifier: {modifier!r}")
+    extra = [flag for modifier in modifiers for flag in MODIFIERS[modifier]]
+    if head.startswith("policy:"):
+        return ["--policy", head.split(":", 1)[1]] + extra
+    return [
+        "--policy", "learned",
+        "--model-dir", str(pathlib.Path(head).resolve()),
+    ] + extra
 
 
 def run_cell(
@@ -229,8 +244,13 @@ def main() -> int:
                 f"--arm needs NAME=MODEL_DIR or NAME=policy:<name>,"
                 f" got {entry!r}"
             )
-        if not spec.startswith("policy:") and not pathlib.Path(spec).is_dir():
-            raise SystemExit(f"--arm {name}: no such model directory: {spec}")
+        head = spec.split(",")[0]
+        if not head.startswith("policy:") and not pathlib.Path(head).is_dir():
+            raise SystemExit(f"--arm {name}: no such model directory: {head}")
+        try:
+            arm_command(spec)
+        except ValueError as error:
+            raise SystemExit(f"--arm {name}: {error}")
         arms[name] = spec
     if len(arms) < 2:
         raise SystemExit("an arena needs at least two arms")
