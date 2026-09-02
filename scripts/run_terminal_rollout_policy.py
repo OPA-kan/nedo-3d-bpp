@@ -16,6 +16,7 @@ It still uses no learned value function.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import pathlib
 import platform
@@ -545,6 +546,62 @@ def run_episode(
             provider, rule_alpha_proposer,
             observation_fn=policy_observation, stats=union_stats,
         )
+    # Task A's offline pass, and it has to happen HERE -- before any
+    # environment exists.
+    #
+    # GroundHandlingEnv never calls agent.optimize(); it only carries
+    # `optimize` as a flag and the caller invokes it (compare
+    # measure_anchor_recall.py:838). A config with optimize=true and no
+    # call is not Task A, it is Task C wearing the flag.
+    #
+    # And installing the order with env.set_item_order() on the live
+    # environment alone is not enough: vector_search_root, the legal
+    # filter and every terminal rollout rebuild their own environment
+    # from `task_config`, which would still carry the original stream.
+    # Measured consequence: "prefix replay failed" on the first step.
+    # set_item_order takes a permutation of every item index, so folding
+    # that permutation into the config's item_list is equivalent and is
+    # inherited by every rebuild.
+    #
+    # The ordering comes from agent.Agent whichever policy acts, because
+    # a submission provides both halves and only this one implements the
+    # offline half; holding it fixed across arms is what isolates the
+    # online difference.
+    offline = None
+    if bool((task_config.get("agent") or {}).get("optimize")):
+        probe = _fresh_env(task_config)
+        try:
+            probe.reset_settings()
+            offline_solver = agent_module.Agent("")
+            offline_solver.get_init_states(probe.get_init_states())
+            offline_started = time.perf_counter()
+            optimized_order = offline_solver.optimize(
+                probe.get_info_for_optimization()
+            )
+            offline_seconds = time.perf_counter() - offline_started
+            if not probe.set_item_order(optimized_order):
+                raise RuntimeError(
+                    "agent returned an invalid optimized order"
+                )
+        finally:
+            probe.close()
+        order = [int(value) for value in optimized_order]
+        task_config = copy.deepcopy(task_config)
+        by_index = {
+            int(item["index"]): item
+            for item in task_config["item_stream"]["item_list"]
+        }
+        task_config["item_stream"]["item_list"] = [
+            by_index[value] for value in order
+        ]
+        # Consumed. Leaving it on would re-run the pass in every rebuild.
+        task_config["agent"]["optimize"] = False
+        offline = {
+            "contract": "task_a_offline_order_v1",
+            "seconds": round(float(offline_seconds), 3),
+            "items": len(order),
+            "order": order,
+        }
     output_dir.mkdir(parents=True, exist_ok=True)
     env = _fresh_env(task_config)
     try:
@@ -1040,6 +1097,10 @@ def run_episode(
                     if rule_alpha_proposer is not None else None
                 ),
             },
+            # Present only on Task A. `seconds` against the 180 s official
+            # budget is the number a submission has to respect; `order`
+            # makes the offline decision auditable rather than implied.
+            "offline_order": offline,
             # Which expert moves were offered, and how often the generic
             # provider already had them. `added` is the size of the gap
             # this advisor closes; `already_present` is where it did not

@@ -234,3 +234,45 @@ class TaskShapeTests(unittest.TestCase):
         self.assertEqual(arena.task_case("demo", "a"), "am-demo")
         self.assertEqual(arena.task_case("demo", "b"), "m-demo")
         self.assertEqual(arena.task_case("demo", "c"), "m-demo")
+
+
+class OfflinePassTests(unittest.TestCase):
+    """Task A's offline ordering has to actually be called.
+
+    GroundHandlingEnv only carries `optimize` as a flag; the caller
+    invokes agent.optimize(). A config with optimize=true and no call is
+    Task C wearing the flag.
+    """
+
+    def test_the_runner_calls_optimize_and_installs_the_order(self):
+        source = pathlib.Path(
+            __import__("scripts.run_terminal_rollout_policy", fromlist=["x"])
+            .__file__
+        ).read_text(encoding="utf-8")
+        self.assertIn("offline_solver.optimize(", source)
+        self.assertIn("get_info_for_optimization()", source)
+        # The order is validated against the environment AND folded into
+        # task_config. Installing it on the live env alone is not enough:
+        # vector_search_root, the legal filter and every terminal rollout
+        # rebuild their own env from task_config and would keep the
+        # original stream -- measured as "prefix replay failed" at step 0.
+        self.assertIn("probe.set_item_order(optimized_order)", source)
+        self.assertIn(
+            'task_config["item_stream"]["item_list"] = [', source
+        )
+        self.assertIn('task_config["agent"]["optimize"] = False', source)
+
+    def test_an_invalid_order_is_refused_rather_than_ignored(self):
+        source = pathlib.Path(
+            __import__("scripts.run_terminal_rollout_policy", fromlist=["x"])
+            .__file__
+        ).read_text(encoding="utf-8")
+        self.assertIn("agent returned an invalid optimized order", source)
+
+    def test_the_offline_pass_is_reported_so_it_can_be_checked(self):
+        source = pathlib.Path(
+            __import__("scripts.run_terminal_rollout_policy", fromlist=["x"])
+            .__file__
+        ).read_text(encoding="utf-8")
+        self.assertIn('"offline_order": offline', source)
+        self.assertIn("task_a_offline_order_v1", source)
