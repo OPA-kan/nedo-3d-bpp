@@ -1250,6 +1250,41 @@ class RuleAlphaConfig:
     shortlist_size: int = 60
     """How many candidates get the expensive free-space features."""
 
+    # ------------------------------------------------------------------
+    # Decision stability.  All three default to "off" so the shipped ladder
+    # is byte-identical; the bench compares the arm with them on.
+    # ------------------------------------------------------------------
+    anchor_slack: float = 0.0
+    """Extra margin, in metres, added to every anchor that is derived from a
+    boundary: wall anchors move inward by this, beside-an-obstacle anchors
+    move away by this.  Measured on the bench: an anchor sitting exactly on
+    the 16 mm inclusion line is valid or invalid depending on a 5.7e-9 m
+    settle drift of the packed item it was derived from, and the candidate
+    set -- hence the decision -- changes with it."""
+
+    anchor_clamp: bool = False
+    """Snap an anchor that lies within 1e-6 m outside the feasible interval
+    onto its bound instead of keeping it a hair outside, where the validity
+    check then rejects it."""
+
+    settle_sink_allowance: float = 0.0
+    """How far, in metres, an observed packed item's underside may sit *below*
+    a surface top and still count as resting on that surface.  A soft item
+    settles 9-12 mm into whatever carries it under its own weight (measured in
+    ``rule_alpha/penetration.py``), which is beyond ``contact_tolerance``; the
+    shipped test then stopped calling a shelf item a shelf item, stamped it
+    onto the floor map, and the next decision changed with it.  Applied only
+    to observed poses, never to candidates.  0 keeps the symmetric test."""
+
+    key_quantum: float = 0.0
+    """Quantum, in metres (and metres squared for area terms), applied to
+    every float term of the comparator and shortlist keys before sorting.
+    Two candidates whose terms round to the same multiple are tied, and the
+    tie is then broken explicitly on (orientation, x, y, z) rounded to a
+    millimetre.  Measured on the bench: two candidates with identical
+    y_back were ordered by a 1.2e-8 m difference in a packed item's
+    recorded pose.  0 disables."""
+
     residual_rect_shortlist: int = 24
     """How many get the largest-residual-rectangle measurement on top."""
 

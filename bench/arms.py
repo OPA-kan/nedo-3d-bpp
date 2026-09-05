@@ -64,8 +64,23 @@ class LadderArm:
         return {"arm": self.spec, "family": "ladder", "config": self.config.to_dict()}
 
 
+ALIASES = {
+    # the ladder with its decisions made insensitive to sub-tolerance noise:
+    # anchors clamped and given 0.5 mm of slack, comparator terms quantized to
+    # 5 mm with an explicit geometric tie-break, and an observed item that has
+    # settled up to 2 cm into its shelf still counted as a shelf item
+    "ladder-stable": (
+        "ladder@anchor_slack=0.0005,anchor_clamp=true,key_quantum=0.005,"
+        "settle_sink_allowance=0.02"
+    ),
+}
+
+
 def make_arm(spec: str):
-    base = spec.partition("@")[0]
+    resolved = ALIASES.get(spec, spec)
+    base = resolved.partition("@")[0]
     if base == "ladder":
-        return LadderArm(spec)
-    raise KeyError(f"unknown arm {spec!r}; known: ladder[@field=value,...]")
+        arm = LadderArm(resolved)
+        arm.spec = spec
+        return arm
+    raise KeyError(f"unknown arm {spec!r}; known: ladder[@field=value,...], " + ", ".join(ALIASES))

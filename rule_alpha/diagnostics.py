@@ -182,9 +182,10 @@ def carried_by_shelf(model, rect: Rect, bottom: float, config) -> bool:
     if not model.shelves:
         return False
     area = max(rect.area, 1e-9)
+    sink = float(getattr(config, "settle_sink_allowance", 0.0) or 0.0)
     for shelf in model.shelves:
         top = float(shelf.maximum[2])
-        if bottom < top - config.contact_tolerance:
+        if bottom < top - config.contact_tolerance - sink:
             continue
         over = Rect(
             max(rect.x_min, float(shelf.minimum[0])),

@@ -754,17 +754,73 @@ def validate(box: AABB, model: ContainerModel, container: dict, config) -> tuple
 # ---------------------------------------------------------------------------
 # Candidate generation
 # ---------------------------------------------------------------------------
-def _anchor_values(values, low, high, limit):
+def _anchor_values(values, low, high, limit, clamp: bool = False):
     seen = []
     for value in values:
         if value < low - 1e-6 or value > high + 1e-6:
             continue
+        if clamp:
+            # a hair outside the bound is the bound: an anchor derived from a
+            # packed item's settled edge carries that item's drift, and
+            # without this the validity check decides on the drift's sign
+            value = min(max(float(value), low), high)
         if any(abs(value - other) < 1e-4 for other in seen):
             continue
         seen.append(float(value))
         if len(seen) >= limit:
             break
     return seen
+
+
+def observed_rests_on(bottom: float, top: float, config) -> bool:
+    """Does an *observed* underside rest on a surface whose top is ``top``?
+
+    Symmetric ``contact_tolerance`` above, plus ``settle_sink_allowance``
+    below: a settled soft item sits inside the surface that carries it, and
+    that is still "resting on it".  Candidates keep the symmetric test."""
+    sink = float(getattr(config, "settle_sink_allowance", 0.0) or 0.0)
+    return -(config.contact_tolerance + sink) <= bottom - top <= config.contact_tolerance
+
+
+def quantized_key(key, quantum: float):
+    """Round every float term of a lexicographic key to a multiple of ``quantum``.
+
+    Ints and bools pass through: they are already discrete.  With ``quantum``
+    0 the key is returned unchanged, so the shipped comparators are untouched
+    unless the config asks for it."""
+    if quantum <= 0.0:
+        return key
+    out = []
+    for term in key:
+        if isinstance(term, bool) or isinstance(term, (int, np.integer)):
+            out.append(term)
+        elif isinstance(term, (float, np.floating)):
+            out.append(round(round(float(term) / quantum) * quantum, 9))
+        else:
+            out.append(term)
+    return tuple(out)
+
+
+def _explicit_tiebreak(candidate: Candidate):
+    """Deterministic, geometry-based order for candidates the key calls equal."""
+    c = candidate.box.center
+    return (
+        int(candidate.orientation.index),
+        round(float(c[0]), 3), round(float(c[1]), 3), round(float(c[2]), 3),
+    )
+
+
+def _stable_key(key_fn, config):
+    """Wrap a comparator: quantize its float terms and break the remaining
+    ties explicitly.  Identity when ``key_quantum`` is 0."""
+    quantum = float(getattr(config, "key_quantum", 0.0) or 0.0)
+    if quantum <= 0.0:
+        return key_fn
+
+    def key(candidate):
+        return (*quantized_key(key_fn(candidate), quantum), *_explicit_tiebreak(candidate))
+
+    return key
 
 
 WEDGE_BASE_LAYER = 0
@@ -890,7 +946,7 @@ def shelf_residual(shelf: AABB, container: dict, rect: Rect, config
     top = float(shelf.maximum[2])
     occupied = [rect]
     for box, _soft, _prio in packed_aabbs_local(container):
-        if abs(float(box.minimum[2]) - top) > config.contact_tolerance:
+        if not observed_rests_on(float(box.minimum[2]), top, config):
             continue
         occupied.append(box_rect(box))
     for taken in occupied:
@@ -934,10 +990,11 @@ def _shelf_anchors(shelf: AABB, container: dict, dx: float, dy: float,
     """
     rect = usable_shelf_rect(shelf, model, config)
     top = float(shelf.maximum[2])
-    xs = [rect.x_min + dx / 2.0, rect.x_max - dx / 2.0]
-    ys = [rect.y_max - dy / 2.0, rect.y_min + dy / 2.0]
+    slack = float(config.anchor_slack)
+    xs = [rect.x_min + dx / 2.0 + slack, rect.x_max - dx / 2.0 - slack]
+    ys = [rect.y_max - dy / 2.0 - slack, rect.y_min + dy / 2.0 + slack]
     for box, _soft, _prio in packed_aabbs_local(container):
-        if abs(float(box.minimum[2]) - top) > config.contact_tolerance:
+        if not observed_rests_on(float(box.minimum[2]), top, config):
             continue  # resting on some other surface, not this shelf
         xs.extend(
             (
@@ -954,11 +1011,12 @@ def _shelf_anchors(shelf: AABB, container: dict, dx: float, dy: float,
     return (
         _anchor_values(
             sorted(xs), rect.x_min + dx / 2.0, rect.x_max - dx / 2.0 + 1e-9,
-            config.max_anchor_x,
+            config.max_anchor_x, clamp=config.anchor_clamp,
         ),
         _anchor_values(
             sorted(ys, reverse=True), rect.y_min + dy / 2.0,
             rect.y_max - dy / 2.0 + 1e-9, config.max_anchor_y,
+            clamp=config.anchor_clamp,
         ),
     )
 
@@ -968,7 +1026,8 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
     model = board.model(container_idx)
     container = board.container(container_idx)
     dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
-    gap = config.settled_clearance
+    slack = float(config.anchor_slack)
+    gap = config.settled_clearance + slack
     rect = model.floor_rect
 
     packed = [b for b, _s, _p in packed_aabbs_local(container)]
@@ -984,8 +1043,8 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
 
     # ---- x anchors ----
     xs = [
-        rect.x_min + dx / 2.0,
-        rect.x_max - dx / 2.0,
+        rect.x_min + dx / 2.0 + slack,
+        rect.x_max - dx / 2.0 - slack,
         0.0,
         model.soft_zone.x_max - dx / 2.0,
         model.priority_zone.x_min + dx / 2.0,
@@ -1018,12 +1077,17 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
     xs = _anchor_values(
         sorted(xs, key=lambda v: (-abs(v), v)),
         model.x_wall_min + dx / 2.0,
-        rect.x_max - dx / 2.0 + 1e-9,
+        rect.x_max - dx / 2.0 - slack + 1e-9,
         config.max_anchor_x,
+        clamp=config.anchor_clamp,
     )
 
     # ---- y anchors (back first: Layer 1 grows from the back wall forward) ----
-    ys = [rect.y_max - dy / 2.0, model.corridor.y_max + dy / 2.0 + gap, rect.y_min + dy / 2.0]
+    ys = [
+        rect.y_max - dy / 2.0 - slack,
+        model.corridor.y_max + dy / 2.0 + gap,
+        rect.y_min + dy / 2.0 + slack,
+    ]
     for box in packed:
         ys.extend(
             (
@@ -1036,8 +1100,9 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
     ys = _anchor_values(
         sorted(ys, reverse=True),
         rect.y_min + dy / 2.0,
-        rect.y_max - dy / 2.0 + 1e-9,
+        rect.y_max - dy / 2.0 - slack + 1e-9,
         config.max_anchor_y,
+        clamp=config.anchor_clamp,
     )
 
     candidates: list[Candidate] = []
@@ -3640,11 +3705,15 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         chosen_ids = set()
         typed_rf = config.typed_floor_right_front
         front_limit = model.floor_rect.y_min + config.hard_front_band
+        shortlist_key = _stable_key(lambda c: _shortlist_key(c, typed_rf), config)
+        front_key = _stable_key(
+            lambda c: (c.features["top_z"], -c.features["y_back"]), config
+        )
         for (family, _index), group in buckets.items():
             per_bucket = max(
                 4, config.layer2_family_quota // max(1, poses_in_family[family])
             )
-            group.sort(key=lambda c: _shortlist_key(c, typed_rf))
+            group.sort(key=shortlist_key)
             take = list(group[:per_bucket])
             # The front gets slots of its own.  Hard floor candidates are
             # ranked by depth and the quota cuts the shallow ones, so a front
@@ -3659,15 +3728,13 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     if c.profile.cargo_class == cls.NORMAL_HARD
                     and c.box.center[1] < front_limit
                 ]
-                front.sort(
-                    key=lambda c: (c.features["top_z"], -c.features["y_back"])
-                )
+                front.sort(key=front_key)
                 take.extend(front[: config.front_shortlist_quota])
             for candidate in take:
                 if id(candidate) not in chosen_ids:
                     chosen_ids.add(id(candidate))
                     shortlist.append(candidate)
-        shortlist.sort(key=lambda c: _shortlist_key(c, typed_rf))
+        shortlist.sort(key=shortlist_key)
         for position, candidate in enumerate(shortlist):
             compute_features(
                 candidate, board, config, with_grid=True,
@@ -3736,9 +3803,12 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                 depth_first = config.perimeter_prefers_depth
                 key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
             pool_for_archetype.sort(
-                key=lambda c: (
-                    c.features.get("corridor_overlap", 0.0) > 1e-4,
-                    *key_fn(c),
+                key=_stable_key(
+                    lambda c: (
+                        c.features.get("corridor_overlap", 0.0) > 1e-4,
+                        *key_fn(c),
+                    ),
+                    config,
                 )
             )
             chosen = pool_for_archetype[0]
