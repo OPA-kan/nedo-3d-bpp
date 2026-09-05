@@ -3435,6 +3435,12 @@ class Decision:
     veto_counts: dict
     considered: int
     ladder: list
+    # every candidate that survived the vetoes in the chosen container, the
+    # chosen one included, so a measurement can ask the official validator
+    # about the alternatives the ladder did not take.  Read-only telemetry:
+    # nothing in rule-alpha consults it.
+    survivors: list = field(default_factory=list)
+    chosen: "Candidate | None" = None
 
 
 def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) -> list[tuple]:
@@ -3784,6 +3790,8 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             veto_counts=veto_counts,
             considered=len(pool),
             ladder=ladder,
+            survivors=list(survivors),
+            chosen=chosen,
         )
         # first container in routing order that can take the item wins
         best = decision
