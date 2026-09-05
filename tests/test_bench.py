@@ -71,6 +71,13 @@ class ArmTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             make_arm("random")
 
+    def test_alias_accepts_extra_overrides(self):
+        arm = make_arm("ladder-stable@inclusion_clearance=0.008")
+        self.assertTrue(arm.config.compaction_keeps_support)
+        self.assertEqual(arm.config.key_quantum, 0.005)
+        self.assertAlmostEqual(arm.config.inclusion_clearance, 0.008)
+        self.assertEqual(arm.describe()["arm"], "ladder-stable@inclusion_clearance=0.008")
+
 
 class MetricTests(unittest.TestCase):
     def _item(self, index, x, y, z, size=(0.5, 0.4, 0.2), soft=False, prio=False, cont_prio=False):

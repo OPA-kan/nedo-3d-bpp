@@ -77,8 +77,23 @@ ALIASES = {
 }
 
 
+def resolve_alias(spec: str) -> str:
+    """``alias`` or ``alias@k=v,...`` -> the full ``ladder@...`` spec.
+
+    Overrides written after an alias are appended to the alias's own, so
+    ``ladder-stable@inclusion_clearance=0.008`` is the stable arm with one
+    more field changed."""
+    name, _sep, extra = spec.partition("@")
+    if name not in ALIASES:
+        return spec
+    resolved = ALIASES[name]
+    if extra:
+        resolved = resolved + ("," if "@" in resolved else "@") + extra
+    return resolved
+
+
 def make_arm(spec: str):
-    resolved = ALIASES.get(spec, spec)
+    resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]
     if base == "ladder":
         arm = LadderArm(resolved)
