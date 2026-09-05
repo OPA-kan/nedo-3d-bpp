@@ -87,6 +87,12 @@ def cmd_run(args) -> int:
     rows = []
     for scene in _scenes(args):
         started = time.perf_counter()
+        existing = out / f"{scene.name}.json"
+        if args.resume and existing.exists():
+            record = json.loads(existing.read_text(encoding="utf-8"))
+            rows.append(_summary_row(record))
+            _write_summary(out, rows, arm.describe())
+            continue
         if args.sim == "analytic":
             record = run_analytic_episode(scene, arm, policy_budget=args.budget)
         else:
@@ -127,8 +133,12 @@ def cmd_agree(args) -> int:
     records = []
     for scene in _scenes(args):
         started = time.perf_counter()
-        record = run_episode(scene, arm, policy_budget=args.budget, probe=probe, with_shake=False)
-        write_record(record, out)
+        existing = out / f"{scene.name}.json"
+        if args.resume and existing.exists():
+            record = json.loads(existing.read_text(encoding="utf-8"))
+        else:
+            record = run_episode(scene, arm, policy_budget=args.budget, probe=probe, with_shake=False)
+            write_record(record, out)
         records.append(record)
         partial = agreement.confusion(records)
         print(f"[{scene.name}] probes so far {partial['n']} cells {partial['cells']} "
@@ -183,6 +193,8 @@ def main(argv=None) -> int:
         p.add_argument("--suite", default="smoke", choices=sorted(SUITES))
         p.add_argument("--scene", default="", help="single scene as TASK:LAYOUT:SEED, e.g. C:c1s:7")
         p.add_argument("--limit", type=int, default=0)
+        p.add_argument("--resume", action="store_true",
+                       help="skip scenes whose record already exists in --out")
 
     p = sub.add_parser("scenes"); scene_args(p); p.set_defaults(fn=cmd_scenes)
     p = sub.add_parser("run"); scene_args(p)
