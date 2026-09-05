@@ -96,6 +96,27 @@ rule-alpha の計画（候補生成と特徴量）で、PyBullet の settle で�
 `ladder-stable` は決定安定化の 4 項目を有効にした別名です（`bench/arms.py` の `ALIASES`）。
 新しい方策は `make_arm` に登録します。
 
+## 5b. 反事実ラベルと学習 ranker（`bench/rollouts.py`, `bench/ranker.py`）
+
+```bash
+# 各決定で ladder の選択＋最大 4 候補を解析モデルで最後まで続け、結果をラベルにする
+.venv312/bin/python -m bench rollouts --arm ladder-stable --suite train-small --k 5 --shard 0/4 --out runs/rollouts
+# 決定内で中心化した placed_h を目標に MLP を学習し、numpy で読める .npz に保存
+.venv312/bin/python -m bench train --rollouts runs/rollouts --out models/ranker.npz
+# 生存候補の中から学習器が選ぶ腕。margin 以内なら ladder の選択を残す
+.venv312/bin/python -m bench run --arm nn:models/ranker.npz:0.0 --suite core --sim analytic --out ...
+```
+
+学習用の suite（`train-small`, `train`）は評価用と seed が重なりません。
+候補生成・合法性・veto は ladder のままで、学習器が差し替えるのは最終選択だけです
+（`layer1.choose_for_item(selector=...)`）。
+
+## 5c. 高速な合法性判定
+
+`fast_validate`（既定 on）は `layer1.validate` をベクトル化した同値実装です。
+ランダム 1,000 箱以上と計画の全候補で参照実装と同じ判定、解析 core 48 シーンが
+両腕で一手ずつ同一であることを確認しています。1 手 1.0 秒 → 0.4 秒。
+
 ## 6. 出力
 
 `reports/bench/<label>/` に、シーンごとの JSON（終端量、各手の記録、settle 後の配置）と
