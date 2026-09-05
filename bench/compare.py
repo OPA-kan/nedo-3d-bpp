@@ -106,13 +106,22 @@ def compare_runs(run_a: dict[str, dict], run_b: dict[str, dict],
     }
 
 
-def _common_prefix(a: dict, b: dict) -> int:
-    """How many leading placements agree on item, container, orientation and pose."""
-    keys = ("event", "item_index", "container_idx", "orientation", "place_pos")
+POSE_TOLERANCE = 0.02   # metres: settled poses drift by millimetres, not decisions
+
+
+def _common_prefix(a: dict, b: dict, tolerance: float = POSE_TOLERANCE) -> int:
+    """How many leading placements agree on item, container, orientation and
+    pose (pose within ``tolerance``, so a settle drift does not count as a
+    different decision)."""
+    keys = ("event", "item_index", "container_idx", "orientation")
     count = 0
     for x, y in zip(a.get("steps", []), b.get("steps", [])):
         if any(x.get(k) != y.get(k) for k in keys):
             break
+        px, py = x.get("place_pos"), y.get("place_pos")
+        if px is not None and py is not None:
+            if float(np.max(np.abs(np.asarray(px) - np.asarray(py)))) > tolerance:
+                break
         count += 1
     return count
 
@@ -137,8 +146,8 @@ def markdown(result: dict) -> str:
         verdict = "PASS: identical step for step" if result["identical_steps"] else "FAIL: steps differ"
         lines += [f"Negative control (same arm both sides): **{verdict}**", ""]
     lines += [
-        f"Leading placements identical (item, container, orientation, pose): "
-        f"mean {result['common_prefix_mean']:.1f} steps per scene",
+        f"Leading placements identical (item, container, orientation, pose within "
+        f"{POSE_TOLERANCE * 100:.0f} cm): mean {result['common_prefix_mean']:.1f} steps per scene",
         "",
         f"End reasons {a}: `{result['end_reasons'][a]}`",
         f"End reasons {b}: `{result['end_reasons'][b]}`",

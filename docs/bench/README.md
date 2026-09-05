@@ -100,7 +100,13 @@ rule-alpha の計画（候補生成と特徴量）で、PyBullet の settle で�
 `reports/bench/<label>/` に、シーンごとの JSON（終端量、各手の記録、settle 後の配置）と
 `summary.md` / `summary.json`。`agree` はさらに `agreement.md` / `agreement.json`。
 
-## 7. 既知の制約
+## 7. 測定結果
+
+- `reports/bench/smoke-findings.md` — 4 シーンの初回結果。
+- `reports/bench/core-findings.md` — 48 シーンの基準線、負の対照、一致率、解析と物理の追随、
+  そして ladder の選択が 10⁻⁸ m の差で変わることの実証。
+
+## 8. 既知の制約
 
 - policy の時間制限は計測のみで、超過しても打ち切りません。壁時計依存の結果を作らないためです。評価環境（4 vCPU）での 8 秒は別のゲートとして読みます。
 - policy が `None` を返すと `declined` で終了します。公式ではランダム行動が入って失敗します。
