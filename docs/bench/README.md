@@ -93,6 +93,7 @@ rule-alpha の計画（候補生成と特徴量）で、PyBullet の settle で�
 
 `ladder` は rule-alpha の配布設定そのままです。`ladder@field=value,...` で
 `RuleAlphaConfig` の項目を上書きできます（例: `ladder@layer2_family_quota=48`）。
+`ladder-stable` は決定安定化の 4 項目を有効にした別名です（`bench/arms.py` の `ALIASES`）。
 新しい方策は `make_arm` に登録します。
 
 ## 6. 出力
@@ -105,6 +106,9 @@ rule-alpha の計画（候補生成と特徴量）で、PyBullet の settle で�
 - `reports/bench/smoke-findings.md` — 4 シーンの初回結果。
 - `reports/bench/core-findings.md` — 48 シーンの基準線、負の対照、一致率、解析と物理の追随、
   そして ladder の選択が 10⁻⁸ m の差で変わることの実証。
+- `reports/bench/stable-findings.md` — 安定化腕 `ladder-stable`（アンカー余裕と吸着、キー量子化、
+  沈み込み許容、圧縮の支持保持）の 48 シーン。先頭一致 6.6 → 12.9 手、解析の楽観バイアス消失、
+  転倒死 5 → 2、物理での積載数は非悪化。
 
 ## 8. 既知の制約
 
