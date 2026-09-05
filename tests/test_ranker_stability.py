@@ -71,9 +71,46 @@ class StabilityTests(unittest.TestCase):
         self.assertEqual(layer1._anchor_values(values, 0.0, 0.709 + 1e-9, 10, clamp=True),
                          [0.709 + 1e-9, 0.5])
 
+    def test_compaction_may_not_slide_a_terrace_off_its_support(self):
+        from rule_alpha import stability
+        from rule_alpha._reuse import AABB
+
+        scene = make_scene(1, "c1", "C")
+        containers = scene.rule_alpha_containers()
+        model_cfg = DEFAULT_CONFIG
+        # one hard box on the floor, and a smaller box chosen fully on top of it
+        # with 0.20 m of the support's depth still free behind it
+        support = {"index": 0, "length": 0.75, "width": 0.56, "height": 0.27, "mass": 18.0,
+                   "is_soft": False, "is_prioritized": False, "dims": (0.75, 0.56, 0.27),
+                   "pos": (0.3, 0.0, 0.05 + 0.135)}
+        c = copy.deepcopy(containers)
+        c[0]["packed_items"] = [support]
+        top = 0.05 + 0.27
+        box = AABB((0.3, -0.10, top + 0.12), (0.55, 0.36, 0.24), "terrace")
+        before = stability.evaluate(box, c[0], model_cfg)
+        self.assertAlmostEqual(before.contact_area, 0.55 * 0.36, places=6)
+
+        loose = dataclasses.replace(DEFAULT_CONFIG, compact_raised=True,
+                                    compaction_keeps_support=False)
+        strict = dataclasses.replace(DEFAULT_CONFIG, compact_raised=True,
+                                     compaction_keeps_support=True)
+        board_loose = layer1.Board(c, loose)
+        board_strict = layer1.Board(c, strict)
+        moved_loose = layer1.compact_backwards(box, board_loose, 0, "terrace", loose)
+        moved_strict = layer1.compact_backwards(box, board_strict, 0, "terrace", strict)
+        after_loose = stability.evaluate(moved_loose, c[0], loose)
+        after_strict = stability.evaluate(moved_strict, c[0], strict)
+        # the shipped slide hangs the box over the back edge down to the 3 cm margin
+        self.assertLess(after_loose.contact_area, before.contact_area - 0.01)
+        self.assertLess(after_loose.margin, 0.05)
+        # the guarded slide keeps every square centimetre of support
+        self.assertGreaterEqual(after_strict.contact_area, before.contact_area - 1e-9)
+        self.assertGreaterEqual(after_strict.margin, before.margin - 1e-9)
+
     def test_defaults_are_off(self):
         self.assertEqual(DEFAULT_CONFIG.anchor_slack, 0.0)
         self.assertFalse(DEFAULT_CONFIG.anchor_clamp)
+        self.assertFalse(DEFAULT_CONFIG.compaction_keeps_support)
         self.assertEqual(DEFAULT_CONFIG.key_quantum, 0.0)
         stable = make_arm("ladder-stable").config
         self.assertNotEqual(dataclasses.asdict(stable), dataclasses.asdict(DEFAULT_CONFIG))

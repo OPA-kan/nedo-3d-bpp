@@ -3403,6 +3403,8 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
     # simply forbids the slide in that case, which is no worse than not
     # compacting.
     needs_backing = ratio >= config.max_freestanding_ratio
+    keeps_support = bool(getattr(config, "compaction_keeps_support", False))
+    support_before = stability.evaluate(box, container, config) if keeps_support else None
 
     def acceptable(candidate: AABB) -> bool:
         ok, _why = validate(candidate, model, container, config)
@@ -3410,6 +3412,11 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
             return False
         if needs_backing and not _has_backing(candidate, model, container, config):
             return False
+        if keeps_support:
+            after = stability.evaluate(candidate, container, config)
+            if (after.contact_area < support_before.contact_area - 1e-9
+                    or after.margin < support_before.margin - 1e-9):
+                return False
         _reach, stranded = floor_reach(
             grid, model.z_floor, grid.rect_mask(box_rect(candidate))
         )

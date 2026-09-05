@@ -1267,6 +1267,18 @@ class RuleAlphaConfig:
     onto its bound instead of keeping it a hair outside, where the validity
     check then rejects it."""
 
+    compaction_keeps_support: bool = False
+    """Compaction may not reduce a box's contact area or centre-of-mass margin.
+
+    The slide accepted any pose that still passed ``validate``, whose stability
+    test is a 3 cm centre-of-mass margin.  On a terrace that meant a box chosen
+    with its whole underside on a hard top was slid backwards until it hung
+    44 % over the edge with 3 cm to spare -- and three of the five physics
+    episodes in the 48-scene core run ended exactly there, the box toppling
+    45-90 degrees on release.  With this on, a slide that loses support is
+    refused; floor and in-shelf slides are unaffected because their contact
+    area does not change."""
+
     settle_sink_allowance: float = 0.0
     """How far, in metres, an observed packed item's underside may sit *below*
     a surface top and still count as resting on that surface.  A soft item
