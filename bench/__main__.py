@@ -15,6 +15,7 @@ import sys
 import time
 
 from . import agreement, compare
+from .analytic import run_analytic_episode
 from .arms import make_arm
 from .episode import run_episode, write_record
 from .scenes import SUITES, build_suite, make_scene
@@ -50,13 +51,13 @@ def _summary_row(record: dict) -> dict:
         "scene": record["scene"],
         "placed": m["placed_count"], "total": m["total_items"],
         "fill_volume": round(m["fill_volume"], 3),
-        "fill_shipped": round(m["fill_evaluator_shipped"], 3),
-        "fill_tolerant": round(m["fill_evaluator_tolerant"], 3),
+        "fill_shipped": round(m["fill_evaluator_shipped"], 3) if "fill_evaluator_shipped" in m else None,
+        "fill_tolerant": round(m["fill_evaluator_tolerant"], 3) if "fill_evaluator_tolerant" in m else None,
         "com_z_ratio": round(m["com_z_above_floor_ratio"], 4),
         "priority_covered": m["priority_covered"], "priority_misrouted": m["priority_misrouted"],
         "soft_covered": m["soft_covered"],
-        "shake_mean_shift": round(m.get("shake_mean_shift", 0.0), 4),
-        "shake_topples": m.get("shake_topples", 0),
+        "shake_mean_shift": round(m["shake_mean_shift"], 4) if "shake_mean_shift" in m else None,
+        "shake_topples": m.get("shake_topples"),
         "policy_time_max": round(m["policy_time_max"], 3),
         "over_budget_steps": m["over_budget_steps"],
         "end_reason": m["end_reason"],
@@ -86,7 +87,10 @@ def cmd_run(args) -> int:
     rows = []
     for scene in _scenes(args):
         started = time.perf_counter()
-        record = run_episode(scene, arm, policy_budget=args.budget, with_shake=not args.no_shake)
+        if args.sim == "analytic":
+            record = run_analytic_episode(scene, arm, policy_budget=args.budget)
+        else:
+            record = run_episode(scene, arm, policy_budget=args.budget, with_shake=not args.no_shake)
         write_record(record, out)
         rows.append(_summary_row(record))
         m = record["metrics"]
@@ -184,6 +188,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("run"); scene_args(p)
     p.add_argument("--arm", default="ladder"); p.add_argument("--out", required=True)
     p.add_argument("--budget", type=float, default=8.0); p.add_argument("--no-shake", action="store_true")
+    p.add_argument("--sim", default="physics", choices=("physics", "analytic"),
+                   help="physics: the official PyBullet environment; analytic: rule-alpha's model")
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser("compare")
     p.add_argument("run_a"); p.add_argument("run_b"); p.add_argument("--out", default="")

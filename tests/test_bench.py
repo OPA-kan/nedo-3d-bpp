@@ -149,6 +149,29 @@ class CompareTests(unittest.TestCase):
             self.assertEqual(list(compare.load_run(path)), ["s1"])
 
 
+class AnalyticRunnerTests(unittest.TestCase):
+    def test_tiny_scene_runs_and_has_the_physics_schema(self):
+        from bench.analytic import run_analytic_episode
+
+        scene = make_scene(5, "c1", "C", items_per_container=6)
+        record = run_analytic_episode(scene, make_arm("ladder"))
+        metrics = record["metrics"]
+        self.assertEqual(metrics["total_items"], 6)
+        self.assertIn(metrics["end_reason"], ("stream-exhausted", "declined"))
+        self.assertEqual(metrics["placed_count"], metrics["attempted"])
+        for key in ("placed_count", "fill_volume", "com_z_above_floor_ratio",
+                    "priority_covered", "soft_covered", "policy_time_max"):
+            self.assertIn(key, metrics)
+        self.assertNotIn("fill_evaluator_shipped", metrics)
+        for step in record["steps"]:
+            if step["event"] == "step":
+                self.assertTrue(step["is_placed_safe"])
+        # deterministic: the same scene gives the same placements
+        again = run_analytic_episode(scene, make_arm("ladder"))
+        self.assertEqual([s.get("place_pos") for s in record["steps"]],
+                         [s.get("place_pos") for s in again["steps"]])
+
+
 class AgreementTests(unittest.TestCase):
     def test_confusion_cells(self):
         records = [{"probes": [{"probes": [

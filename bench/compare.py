@@ -89,6 +89,7 @@ def compare_runs(run_a: dict[str, dict], run_b: dict[str, dict],
             "evidence": evidence,
         }
     identical = all(_steps_identical(run_a[s], run_b[s]) for s in scenes) if scenes else False
+    prefixes = [_common_prefix(run_a[s], run_b[s]) for s in scenes]
     end_reasons = {
         label_a: _count(run_a[s]["metrics"]["end_reason"] for s in scenes),
         label_b: _count(run_b[s]["metrics"]["end_reason"] for s in scenes),
@@ -99,8 +100,21 @@ def compare_runs(run_a: dict[str, dict], run_b: dict[str, dict],
     return {
         "labels": [label_a, label_b], "scenes": scenes, "missing": missing,
         "same_arm": same_arm, "identical_steps": identical,
+        "common_prefix_steps": prefixes,
+        "common_prefix_mean": float(np.mean(prefixes)) if prefixes else 0.0,
         "end_reasons": end_reasons, "metrics": rows,
     }
+
+
+def _common_prefix(a: dict, b: dict) -> int:
+    """How many leading placements agree on item, container, orientation and pose."""
+    keys = ("event", "item_index", "container_idx", "orientation", "place_pos")
+    count = 0
+    for x, y in zip(a.get("steps", []), b.get("steps", [])):
+        if any(x.get(k) != y.get(k) for k in keys):
+            break
+        count += 1
+    return count
 
 
 def _count(values) -> dict:
@@ -123,6 +137,9 @@ def markdown(result: dict) -> str:
         verdict = "PASS: identical step for step" if result["identical_steps"] else "FAIL: steps differ"
         lines += [f"Negative control (same arm both sides): **{verdict}**", ""]
     lines += [
+        f"Leading placements identical (item, container, orientation, pose): "
+        f"mean {result['common_prefix_mean']:.1f} steps per scene",
+        "",
         f"End reasons {a}: `{result['end_reasons'][a]}`",
         f"End reasons {b}: `{result['end_reasons'][b]}`",
         "",
