@@ -56,8 +56,30 @@ local_to_world = _production.local_to_world
 world_to_local = _production.world_to_local
 packed_position_world = _production.packed_position_world
 packed_dimensions = _production.packed_dimensions
-packed_aabbs_local = _production.packed_aabbs_local
+_packed_aabbs_local_uncached = _production.packed_aabbs_local
 shelf_aabbs = _production.shelf_aabbs
+
+# ``packed_aabbs_local`` re-parses every packed item's dict on every call and
+# a single decision calls it thousands of times on the same, unchanged
+# container.  The result is a list of (frozen AABB, bool, bool) tuples, so it
+# can be shared.  Keyed on the identity of the container dict *and* of every
+# packed-item dict in it: ``Board.apply`` appends a new dict, an observation
+# builds new dicts, and neither mutates one in place.
+_PACKED_CACHE: dict = {}
+_PACKED_CACHE_LIMIT = 32
+
+
+def packed_aabbs_local(container):
+    packed = container.get("packed_items", [])
+    key = (id(container), len(packed), tuple(id(p) for p in packed))
+    hit = _PACKED_CACHE.get(key)
+    if hit is not None:
+        return hit
+    value = _packed_aabbs_local_uncached(container)
+    if len(_PACKED_CACHE) >= _PACKED_CACHE_LIMIT:
+        _PACKED_CACHE.pop(next(iter(_PACKED_CACHE)))
+    _PACKED_CACHE[key] = value
+    return value
 support_surfaces = _production.support_surfaces
 
 # --- overlap / clearance ----------------------------------------------------

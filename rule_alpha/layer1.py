@@ -698,6 +698,16 @@ def validate(box: AABB, model: ContainerModel, container: dict, config) -> tuple
     pose (what the evaluator finally measures), the commanded pose (what
     ``check_inclusion`` sees) and the transported pose (what the sweep sees).
     """
+    if getattr(config, "fast_validate", False):
+        from . import fastgeom
+
+        return fastgeom.validate(box, model, container, config, action_center, stability.is_stable)
+    return _validate_reference(box, model, container, config)
+
+
+def _validate_reference(box: AABB, model: ContainerModel, container: dict, config) -> tuple[bool, str]:
+    """The original per-pair implementation, kept as the oracle the fast
+    path is tested against."""
     if not model.inside(box, config.settled_wall_clearance, floor_clearance=0.0):
         return False, "settled-pose-outside"
 
@@ -3596,8 +3606,54 @@ def _shortlist_key(candidate: Candidate, typed_right_front: bool = True):
     )
 
 
+def build_placement(chosen: Candidate, chosen_archetype: str, board: Board,
+                    container_idx: int, profile: cls.ItemProfile, config) -> Placement:
+    """Turn a chosen candidate into the Placement the board applies.
+
+    Compaction happens here, so anything that picks a candidate -- the
+    ladder, an external selector, a rollout that tries an alternative --
+    goes through the same last step."""
+    model = board.model(container_idx)
+    box = chosen.box
+    if config.compaction_iterations > 0 and chosen.surface in (
+        ("floor", "item") if config.compact_raised else ("floor",)
+    ):
+        # Raised placements were never compacted at all, so a terrace could
+        # stop 0.10 m short of the chamfer strip -- and a step that reaches
+        # the strip is a step that recovers wedge area.  The same slack
+        # costs nothing anywhere else either: it is gap between the box and
+        # whatever it should be touching.
+        box = compact_backwards(box, board, container_idx, chosen.role, config)
+
+    return Placement(
+        profile=profile,
+        orientation=chosen.orientation,
+        container_idx=container_idx,
+        box=box,
+        surface=chosen.surface,
+        surface_name=chosen.surface_name,
+        role=chosen.role,
+        archetype=chosen_archetype,
+        reason=_reason_for(chosen, chosen_archetype, board, config),
+        features={
+            **{k: _round(v) for k, v in chosen.features.items()},
+            "compacted_y_m": _round(
+                float(box.center[1]) - float(chosen.box.center[1])
+            ),
+            "compacted_x_m": _round(
+                float(box.center[0]) - float(chosen.box.center[0])
+            ),
+        },
+        container_is_prioritized=model.is_prioritized,
+        container_has_shelf=model.has_shelf,
+        layer=stack_level(
+            box, board.container(container_idx), chosen.role, config, model
+        ),
+    )
+
+
 def choose_for_item(board: Board, profile: cls.ItemProfile, config,
-                    max_orientations: int = 3) -> Decision | None:
+                    max_orientations: int = 3, selector=None) -> Decision | None:
     best: Decision | None = None
     for container_idx in routing_order(profile, board, config):
         model = board.model(container_idx)
@@ -3825,41 +3881,19 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             chosen = survivors[0]
             chosen_archetype = "fallback"
 
-        box = chosen.box
-        if config.compaction_iterations > 0 and chosen.surface in (
-            ("floor", "item") if config.compact_raised else ("floor",)
-        ):
-            # Raised placements were never compacted at all, so a terrace could
-            # stop 0.10 m short of the chamfer strip -- and a step that reaches
-            # the strip is a step that recovers wedge area.  The same slack
-            # costs nothing anywhere else either: it is gap between the box and
-            # whatever it should be touching.
-            box = compact_backwards(box, board, container_idx, chosen.role, config)
+        if selector is not None:
+            # a learned or otherwise external selector sees exactly what the
+            # ladder saw -- the vetoed survivors with their features -- and
+            # the ladder's own pick, and may replace the pick.  Generation,
+            # validity and vetoes are not its to change.
+            override = selector(
+                survivors, chosen, chosen_archetype, board, container_idx, profile
+            )
+            if override is not None:
+                chosen, chosen_archetype = override
 
-        placement = Placement(
-            profile=profile,
-            orientation=chosen.orientation,
-            container_idx=container_idx,
-            box=box,
-            surface=chosen.surface,
-            surface_name=chosen.surface_name,
-            role=chosen.role,
-            archetype=chosen_archetype,
-            reason=_reason_for(chosen, chosen_archetype, board, config),
-            features={
-                **{k: _round(v) for k, v in chosen.features.items()},
-                "compacted_y_m": _round(
-                    float(box.center[1]) - float(chosen.box.center[1])
-                ),
-                "compacted_x_m": _round(
-                    float(box.center[0]) - float(chosen.box.center[0])
-                ),
-            },
-            container_is_prioritized=model.is_prioritized,
-            container_has_shelf=model.has_shelf,
-            layer=stack_level(
-                box, board.container(container_idx), chosen.role, config, model
-            ),
+        placement = build_placement(
+            chosen, chosen_archetype, board, container_idx, profile, config
         )
         decision = Decision(
             placement=placement,

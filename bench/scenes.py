@@ -195,6 +195,10 @@ SUITES = {
     "core-b": [("B", layout, seed) for seed in range(1, 13) for layout in ("c1", "c1s", "c2", "c2p")],
     # Task A: the manifest is handed to optimize()
     "core-a": [("A", layout, seed) for seed in range(1, 13) for layout in ("c1", "c1s", "c2", "c2p")],
+    # training streams for a learned ranker: disjoint seeds from every
+    # evaluation suite above
+    "train-small": [("C", layout, seed) for seed in range(101, 107) for layout in ("c1", "c1s", "c2", "c2p")],
+    "train": [("C", layout, seed) for seed in range(101, 125) for layout in ("c1", "c1s", "c2", "c2p")],
 }
 
 

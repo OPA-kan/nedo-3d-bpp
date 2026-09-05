@@ -148,6 +148,29 @@ def cmd_agree(args) -> int:
     return 0
 
 
+def cmd_rollouts(args) -> int:
+    from .rollouts import rollout_scene, write_jsonl
+
+    arm = make_arm(args.arm)
+    out = pathlib.Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    scenes = _scenes(args)
+    if args.shard:
+        index, _sep, count = args.shard.partition("/")
+        scenes = [s for i, s in enumerate(scenes) if i % int(count) == int(index)]
+    for scene in scenes:
+        path = out / f"{scene.name}.jsonl"
+        if args.resume and path.exists():
+            continue
+        started = time.perf_counter()
+        records = rollout_scene(scene, arm, horizon=args.horizon, k=args.k, seed=args.seed)
+        write_jsonl(records, path)
+        decisions = len({r["step"] for r in records})
+        print(f"[{scene.name}] {len(records)} labels over {decisions} decisions "
+              f"in {time.perf_counter() - started:.0f}s", flush=True)
+    return 0
+
+
 def _agreement_markdown(result: dict, arm_desc: dict) -> str:
     c = result["cells"]
     lines = [
@@ -207,6 +230,13 @@ def main(argv=None) -> int:
     p.add_argument("run_a"); p.add_argument("run_b"); p.add_argument("--out", default="")
     p.add_argument("--label-a", default=""); p.add_argument("--label-b", default="")
     p.set_defaults(fn=cmd_compare)
+    p = sub.add_parser("rollouts"); scene_args(p)
+    p.add_argument("--arm", default="ladder-stable"); p.add_argument("--out", required=True)
+    p.add_argument("--horizon", type=int, default=999, help="continuation length; 999 = to the end")
+    p.add_argument("--k", type=int, default=5, help="candidates labelled per decision")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
+    p.set_defaults(fn=cmd_rollouts)
     p = sub.add_parser("agree"); scene_args(p)
     p.add_argument("--arm", default="ladder"); p.add_argument("--out", required=True)
     p.add_argument("--budget", type=float, default=8.0)

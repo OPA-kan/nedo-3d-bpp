@@ -20,8 +20,11 @@ from .config import DEFAULT_CONFIG
 class RuleAlphaAgent:
     """get_init_states / optimize / policy, the official three."""
 
-    def __init__(self, module_path: str = "", config=None):
+    def __init__(self, module_path: str = "", config=None, selector=None):
         self.config = config or DEFAULT_CONFIG
+        # optional external pick among the ladder's survivors; see
+        # layer1.choose_for_item
+        self.selector = selector
         self.board: layer1.Board | None = None
         self.profiles: dict[int, cls.ItemProfile] = {}
         self.last_decision: layer1.Decision | None = None
@@ -117,7 +120,9 @@ class RuleAlphaAgent:
         ordered = layer1.pool_order(profiles, self.config)
 
         for pool_index, profile in ordered:
-            decision = layer1.choose_for_item(self.board, profile, self.config)
+            decision = layer1.choose_for_item(
+                self.board, profile, self.config, selector=self.selector
+            )
             if decision is None:
                 continue
             self.last_decision = decision

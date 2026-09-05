@@ -1267,6 +1267,11 @@ class RuleAlphaConfig:
     onto its bound instead of keeping it a hair outside, where the validity
     check then rejects it."""
 
+    fast_validate: bool = True
+    """Use the vectorised ``fastgeom.validate`` instead of the per-pair
+    reference.  Same verdicts (tested on random boxes and by the bench's
+    negative control); about four times less planner time per decision."""
+
     compaction_keeps_support: bool = False
     """Compaction may not reduce a box's contact area or centre-of-mass margin.
 
