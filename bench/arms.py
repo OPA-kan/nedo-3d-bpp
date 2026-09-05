@@ -92,11 +92,45 @@ def resolve_alias(spec: str) -> str:
     return resolved
 
 
+class LearnedArm(LadderArm):
+    """The stable ladder with a learned selector over its survivors.
+
+    Spec: ``nn:<model.npz>[:margin][@field=value,...]``.  Generation, validity
+    and vetoes are the ladder's; only the final pick among survivors is the
+    model's, and only when it beats the ladder's pick by more than ``margin``.
+    """
+
+    def __init__(self, spec: str):
+        from .ranker import LearnedSelector, file_sha
+
+        body, _at, overrides = spec.partition("@")
+        _nn, _colon, rest = body.partition(":")
+        path, _c2, margin = rest.partition(":")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.model_path = path
+        self.model_sha = file_sha(path)
+        self.margin = float(margin) if margin else 0.0
+        self.selector = LearnedSelector(path, margin=self.margin)
+
+    def __call__(self, scene):
+        return RuleAlphaAgent(config=self.config, selector=self.selector)
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "nn", "model": self.model_path,
+                "model_sha": self.model_sha, "margin": self.margin,
+                "model_meta": self.selector.meta, "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
+    if spec.startswith("nn:"):
+        return LearnedArm(spec)
     resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]
     if base == "ladder":
         arm = LadderArm(resolved)
         arm.spec = spec
         return arm
-    raise KeyError(f"unknown arm {spec!r}; known: ladder[@field=value,...], " + ", ".join(ALIASES))
+    raise KeyError(f"unknown arm {spec!r}; known: ladder[@field=value,...], nn:<model.npz>, "
+                   + ", ".join(ALIASES))

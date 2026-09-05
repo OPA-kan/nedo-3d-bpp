@@ -171,6 +171,22 @@ def cmd_rollouts(args) -> int:
     return 0
 
 
+def cmd_train(args) -> int:
+    from .ranker import train_from_jsonl
+
+    paths = sorted(pathlib.Path(args.rollouts).glob("*.jsonl"))
+    if not paths:
+        print("no rollout files"); return 1
+    out = pathlib.Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    meta = train_from_jsonl(paths, out, target=args.target, hidden=tuple(args.hidden),
+                            epochs=args.epochs, seed=args.seed,
+                            log=lambda row: print(row, flush=True))
+    print(json.dumps(meta, indent=1))
+    out.with_suffix(".meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
+    return 0
+
+
 def _agreement_markdown(result: dict, arm_desc: dict) -> str:
     c = result["cells"]
     lines = [
@@ -237,6 +253,14 @@ def main(argv=None) -> int:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
     p.set_defaults(fn=cmd_rollouts)
+    p = sub.add_parser("train")
+    p.add_argument("--rollouts", required=True, help="directory of rollout .jsonl files")
+    p.add_argument("--out", required=True, help="model .npz path")
+    p.add_argument("--target", default="placed_h")
+    p.add_argument("--hidden", type=int, nargs="*", default=[64, 64])
+    p.add_argument("--epochs", type=int, default=300)
+    p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(fn=cmd_train)
     p = sub.add_parser("agree"); scene_args(p)
     p.add_argument("--arm", default="ladder"); p.add_argument("--out", required=True)
     p.add_argument("--budget", type=float, default=8.0)
