@@ -123,9 +123,39 @@ class LearnedArm(LadderArm):
                 "model_meta": self.selector.meta, "config": self.config.to_dict()}
 
 
+class ValueArm(LadderArm):
+    """The stable ladder with survivors ranked by a value network over the
+    board each would leave.  Spec: ``vnet:<model.npz>[:margin][@field=value,...]``."""
+
+    def __init__(self, spec: str):
+        from .ranker import file_sha
+        from .valuenet import ValueSelector
+
+        body, _at, overrides = spec.partition("@")
+        _v, _colon, rest = body.partition(":")
+        path, _c2, margin = rest.partition(":")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.model_path = path
+        self.model_sha = file_sha(path)
+        self.margin = float(margin) if margin else 0.0
+        self.selector = ValueSelector(path, margin=self.margin)
+
+    def __call__(self, scene):
+        return RuleAlphaAgent(config=self.config, selector=self.selector)
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "vnet", "model": self.model_path,
+                "model_sha": self.model_sha, "margin": self.margin,
+                "model_spec": self.selector.net.spec, "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
     if spec.startswith("nn:"):
         return LearnedArm(spec)
+    if spec.startswith("vnet:"):
+        return ValueArm(spec)
     resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]
     if base == "ladder":

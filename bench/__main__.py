@@ -171,6 +171,33 @@ def cmd_rollouts(args) -> int:
     return 0
 
 
+def cmd_boards(args) -> int:
+    from .boards import build_from_rollouts
+
+    arm = make_arm(args.arm)
+    scenes = {s.name: s for s in build_suite(args.suite)}
+    n = build_from_rollouts(pathlib.Path(args.rollouts), pathlib.Path(args.out), arm, scenes,
+                            only_single_container=not args.all_layouts, resume=args.resume,
+                            log=lambda m: print(m, flush=True))
+    print(f"{n} scenes")
+    return 0
+
+
+def cmd_vtrain(args) -> int:
+    from .valuenet import train
+
+    paths = sorted(pathlib.Path(args.boards).glob("*.npz"))
+    if not paths:
+        print("no board files"); return 1
+    out = pathlib.Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    spec = train(paths, out, epochs=args.epochs, width=args.width, lr=args.lr, seed=args.seed,
+                 log=lambda row: print(row, flush=True))
+    print(json.dumps({k: v for k, v in spec.items() if k not in ("aux_mean", "aux_std")}, indent=1))
+    out.with_suffix(".meta.json").write_text(json.dumps(spec, indent=1), encoding="utf-8")
+    return 0
+
+
 def cmd_train(args) -> int:
     from .ranker import cross_validate, train_from_jsonl
 
@@ -259,6 +286,16 @@ def main(argv=None) -> int:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
     p.set_defaults(fn=cmd_rollouts)
+    p = sub.add_parser("boards")
+    p.add_argument("--rollouts", required=True); p.add_argument("--out", required=True)
+    p.add_argument("--arm", default="ladder-stable"); p.add_argument("--suite", default="train")
+    p.add_argument("--all-layouts", action="store_true"); p.add_argument("--resume", action="store_true")
+    p.set_defaults(fn=cmd_boards)
+    p = sub.add_parser("vtrain")
+    p.add_argument("--boards", required=True); p.add_argument("--out", required=True)
+    p.add_argument("--epochs", type=int, default=40); p.add_argument("--width", type=int, default=32)
+    p.add_argument("--lr", type=float, default=1e-3); p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(fn=cmd_vtrain)
     p = sub.add_parser("train")
     p.add_argument("--rollouts", required=True, help="directory of rollout .jsonl files")
     p.add_argument("--out", required=True, help="model .npz path")
