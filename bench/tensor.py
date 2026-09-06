@@ -16,6 +16,7 @@ from rule_alpha import diagnostics as diag
 from rule_alpha._reuse import packed_aabbs_local, shelf_aabbs
 
 REACH_HEIGHTS = (0.0, 0.4, 0.8)
+CANVAS = (48, 40)
 CHANNELS = (
     "height", "occupied",
     "top_hard", "top_soft", "top_priority", "top_soft_priority",
@@ -96,6 +97,11 @@ def board_tensor(board, idx: int, config) -> tuple[np.ndarray, dict]:
         cx, cy,
     ]
     X = np.stack([np.asarray(c, dtype=np.float32) for c in channels])
+    # every container is drawn on the same canvas so batches can be stacked:
+    # 1.92 x 1.37 m of usable floor at 4 cm is 48 x 35 cells, the shelf ULD
+    # 48 x 37; zero padding at the back and right marks "outside"
+    pad_x = max(0, CANVAS[0] - X.shape[1]); pad_y = max(0, CANVAS[1] - X.shape[2])
+    X = np.pad(X, ((0, 0), (0, pad_x), (0, pad_y)))[:, :CANVAS[0], :CANVAS[1]]
 
     cell_area = grid.cell_area
     hard_top = float((grid.usable & grid.occupied & (grid.support == diag.SUPPORT_HARD)).sum()) * cell_area
