@@ -172,11 +172,17 @@ def cmd_rollouts(args) -> int:
 
 
 def cmd_train(args) -> int:
-    from .ranker import train_from_jsonl
+    from .ranker import cross_validate, train_from_jsonl
 
     paths = sorted(pathlib.Path(args.rollouts).glob("*.jsonl"))
     if not paths:
         print("no rollout files"); return 1
+    if args.cv:
+        result = cross_validate(paths, target=args.target, hidden=tuple(args.hidden),
+                                epochs=args.epochs, folds=args.cv, seed=args.seed,
+                                weight_decay=args.weight_decay)
+        print(json.dumps(result, indent=1))
+        return 0
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     meta = train_from_jsonl(paths, out, target=args.target, hidden=tuple(args.hidden),
@@ -260,6 +266,8 @@ def main(argv=None) -> int:
     p.add_argument("--hidden", type=int, nargs="*", default=[64, 64])
     p.add_argument("--epochs", type=int, default=300)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--cv", type=int, default=0, help="leave-scenes-out folds; report the gate only")
+    p.add_argument("--weight-decay", type=float, default=1e-4)
     p.set_defaults(fn=cmd_train)
     p = sub.add_parser("agree"); scene_args(p)
     p.add_argument("--arm", default="ladder"); p.add_argument("--out", required=True)

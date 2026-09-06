@@ -289,6 +289,49 @@ def train_from_jsonl(paths, out_path: pathlib.Path, target: str = "placed_h",
     return meta
 
 
+def cross_validate(paths, target: str = "placed_h", hidden=(64, 64), epochs: int = 300,
+                   folds: int = 5, seed: int = 0, weight_decay: float = 1e-4,
+                   drop_context: bool = True) -> dict:
+    """Leave-scenes-out folds; the gate is the mean held-out top-1 agreement
+    of the model against the ladder's on the same decisions."""
+    from .rollouts import read_jsonl
+
+    records = read_jsonl(paths)
+    spec = FeatureSpec.from_records(records)
+    X = records_to_matrix(records, spec)
+    if drop_context:
+        ctx_start = len(spec.numeric_keys) + 6
+        X[:, ctx_start:ctx_start + len(CONTEXT_KEYS)] = 0.0
+    y = advantages(records, target)
+    scenes = sorted({r["scene"] for r in records})
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(len(scenes))
+    fold_of = {scenes[i]: k % folds for k, i in enumerate(order)}
+    per_fold = []
+    for k in range(folds):
+        is_val = np.array([fold_of[r["scene"]] == k for r in records])
+        if not is_val.any() or is_val.all():
+            continue
+        fold_spec = FeatureSpec(spec.numeric_keys, spec.roles, spec.families)
+        fold_spec.fit_scaler(X[~is_val])
+        Xs = fold_spec.transform(X)
+        model = MLP([spec.size, *hidden, 1], seed=seed + k)
+        model.train(Xs[~is_val], y[~is_val], Xs[is_val], y[is_val], epochs=epochs,
+                    seed=seed + k, weight_decay=weight_decay)
+        agree = _decision_agreement(records, model.predict(Xs), y, is_val)
+        per_fold.append({"fold": k, "val_scenes": int(is_val.sum()),
+                         "model": agree["val"], "ladder": agree["ladder_val"],
+                         "decisions": agree["val_n"]})
+    weights = np.array([f["decisions"] for f in per_fold], dtype=float)
+    def wmean(key):
+        vals = np.array([f[key] if f[key] is not None else 0.0 for f in per_fold])
+        return float((vals * weights).sum() / weights.sum()) if weights.sum() else None
+    return {"target": target, "hidden": list(hidden), "records": len(records),
+            "scenes": len(scenes), "folds": per_fold,
+            "model_top1": wmean("model"), "ladder_top1": wmean("ladder"),
+            "decisions": int(weights.sum())}
+
+
 def _decision_agreement(records, pred, y, is_val) -> dict:
     groups: dict = {}
     for i, r in enumerate(records):
@@ -306,4 +349,6 @@ def _decision_agreement(records, pred, y, is_val) -> dict:
             ladder = [i for i in idx if records[i]["is_ladder"]]
             if ladder:
                 hits["ladder_val"][0] += int(y[ladder[0]] >= best_label - 1e-9); hits["ladder_val"][1] += 1
-    return {k: (v[0] / v[1] if v[1] else None) for k, v in hits.items()}
+    out = {k: (v[0] / v[1] if v[1] else None) for k, v in hits.items()}
+    out["val_n"] = hits["val"][1]
+    return out
