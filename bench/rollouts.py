@@ -106,15 +106,22 @@ class EpisodeState:
         )
         self.apply_placement(placement, pool_index)
 
-    def run(self, max_steps: int, milestones=(3, 5, 10)) -> dict:
+    def run(self, max_steps: int, milestones=(3, 5, 10), board_sink=None) -> dict:
         """Greedy continuation; returns how it went, with the count at a few
-        truncation points so shorter-horizon labels can be read off later."""
+        truncation points so shorter-horizon labels can be read off later.
+
+        ``board_sink(board, container_idx, placed_so_far)`` is called before
+        every decision of the continuation, so every board the fixed policy
+        passes through can be kept with its return-to-go."""
         placed = 0
         declined = False
         at = {}
+        visited = []
         for step in range(max_steps):
             if not self.pool:
                 break
+            if board_sink is not None:
+                visited.append(board_sink(self.board, placed))
             action, decision = self.decide()
             if action is None:
                 declined = True
@@ -126,7 +133,7 @@ class EpisodeState:
         for m in milestones:
             at.setdefault(m, min(placed, m))
         return {"placed": placed, "declined": declined, "stream_empty": not self.pool,
-                "placed_at": {str(m): at[m] for m in milestones}}
+                "placed_at": {str(m): at[m] for m in milestones}, "visited": visited}
 
     def summary(self) -> dict:
         metrics = analytic_metrics(self.board, len(self.scene.items))
@@ -199,9 +206,54 @@ def sample_candidates(survivors, chosen, k: int, rng: random.Random) -> list:
     return picked
 
 
+class BoardStore:
+    """Collects (tensor, summary, return-to-go) for every board a pure pi_0
+    continuation passes through, for the value network."""
+
+    def __init__(self, config):
+        self.config = config
+        self.X, self.aux, self.y, self.step, self.origin = [], [], [], [], []
+        self._pending = []
+
+    def sink(self, decision_step: int, origin: int):
+        from .tensor import board_tensor, summary_vector
+
+        def _sink(board, placed_so_far):
+            X, summary = board_tensor(board, 0, self.config)
+            self._pending.append((X, summary_vector(summary), placed_so_far, decision_step, origin))
+            return len(self._pending) - 1
+        return _sink
+
+    def commit(self, total_placed_in_continuation: int):
+        for X, aux, placed_so_far, step, origin in self._pending:
+            self.X.append(X.astype(np.float16)); self.aux.append(aux)
+            self.y.append(float(total_placed_in_continuation - placed_so_far))
+            self.step.append(step); self.origin.append(origin)
+        self._pending = []
+
+    def save(self, path: pathlib.Path, scene_name: str):
+        if not self.y:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            path, X=np.stack(self.X), aux=np.stack(self.aux).astype(np.float32),
+            y=np.asarray(self.y, dtype=np.float32), step=np.asarray(self.step, dtype=np.int16),
+            kind=np.asarray(self.origin, dtype=np.int8), scene=np.array(scene_name),
+        )
+
+
 def rollout_scene(scene, arm, horizon: int, k: int, seed: int = 0,
-                  max_decisions: int = 400, min_survivors: int = 2) -> list[dict]:
-    """Follow the ladder through one episode; label sampled alternatives at each step."""
+                  max_decisions: int = 400, min_survivors: int = 2,
+                  explore_eps: float = 0.0, board_store: BoardStore | None = None) -> list[dict]:
+    """Follow the ladder through one episode; label sampled alternatives at each step.
+
+    ``explore_eps``: with this probability the *main line* takes a random
+    survivor instead of the ladder's pick, so later decisions are made on
+    boards the ladder would not have produced itself.  Labels are unaffected:
+    every label is a pure pi_0 continuation from the branch board.
+    ``board_store``: if given, every board visited by every continuation is
+    stored with its return-to-go (kind 1 = ladder's branch, 2 = alternative).
+    """
     rng = random.Random(seed)
     state = EpisodeState(scene, arm)
     records: list[dict] = []
@@ -218,15 +270,20 @@ def rollout_scene(scene, arm, horizon: int, k: int, seed: int = 0,
             sampled = sample_candidates(survivors, chosen, k, rng)
             for cand_index, candidate in enumerate(sampled):
                 t0 = time.perf_counter()
-                branch = state.clone()
-                # the branch's agent must see the same board the candidate
-                # came from: rebuild by asking it once, then apply the candidate
-                branch.agent.policy(branch.observation())
                 archetype = decision.placement.archetype if candidate is chosen else (
                     sorted(candidate.archetypes)[0] if candidate.archetypes else "alternative"
                 )
-                branch.apply_candidate(candidate, archetype, pool_index, profile)
-                run = branch.run(horizon)
+                placement = layer1.build_placement(
+                    candidate, archetype, state.agent.board, candidate.container_idx, profile, state.config
+                )
+                branch = state.clone()
+                branch.apply_placement(placement, pool_index)
+                sink = None
+                if board_store is not None and len(scene.containers) == 1:
+                    sink = board_store.sink(state.steps, 1 if candidate is chosen else 2)
+                run = branch.run(horizon, board_sink=sink)
+                if sink is not None:
+                    board_store.commit(run["placed"])
                 after = branch.summary()
                 records.append({
                     "scene": scene.name, "step": state.steps, "cand": cand_index,
@@ -250,7 +307,16 @@ def rollout_scene(scene, arm, horizon: int, k: int, seed: int = 0,
                     },
                     "seconds": round(time.perf_counter() - t0, 3),
                 })
-        state.apply_placement(decision.placement, pool_index)
+        if explore_eps > 0.0 and len(survivors) >= 2 and rng.random() < explore_eps:
+            # step off the ladder's own trajectory: apply a random survivor
+            pick = rng.choice([c for c in survivors if c is not decision.chosen])
+            archetype = sorted(pick.archetypes)[0] if pick.archetypes else "alternative"
+            placement = layer1.build_placement(
+                pick, archetype, state.agent.board, pick.container_idx, profile, state.config
+            )
+            state.apply_placement(placement, pool_index)
+        else:
+            state.apply_placement(decision.placement, pool_index)
     return records
 
 

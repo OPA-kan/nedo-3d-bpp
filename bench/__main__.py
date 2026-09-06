@@ -149,11 +149,12 @@ def cmd_agree(args) -> int:
 
 
 def cmd_rollouts(args) -> int:
-    from .rollouts import rollout_scene, write_jsonl
+    from .rollouts import BoardStore, rollout_scene, write_jsonl
 
     arm = make_arm(args.arm)
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    boards_out = pathlib.Path(args.boards_out) if args.boards_out else None
     scenes = _scenes(args)
     if args.shard:
         index, _sep, count = args.shard.partition("/")
@@ -163,10 +164,15 @@ def cmd_rollouts(args) -> int:
         if args.resume and path.exists():
             continue
         started = time.perf_counter()
-        records = rollout_scene(scene, arm, horizon=args.horizon, k=args.k, seed=args.seed)
+        store = BoardStore(arm.config) if boards_out is not None else None
+        records = rollout_scene(scene, arm, horizon=args.horizon, k=args.k, seed=args.seed,
+                                explore_eps=args.explore_eps, board_store=store)
         write_jsonl(records, path)
+        if store is not None:
+            store.save(boards_out / f"{scene.name}.npz", scene.name)
         decisions = len({r["step"] for r in records})
-        print(f"[{scene.name}] {len(records)} labels over {decisions} decisions "
+        extra = f", {len(store.y)} boards" if store is not None else ""
+        print(f"[{scene.name}] {len(records)} labels over {decisions} decisions{extra} "
               f"in {time.perf_counter() - started:.0f}s", flush=True)
     return 0
 
@@ -285,6 +291,9 @@ def main(argv=None) -> int:
     p.add_argument("--k", type=int, default=5, help="candidates labelled per decision")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
+    p.add_argument("--explore-eps", type=float, default=0.0,
+                   help="probability that the main line takes a random survivor (off-policy states)")
+    p.add_argument("--boards-out", default="", help="also store every continuation board with its return-to-go")
     p.set_defaults(fn=cmd_rollouts)
     p = sub.add_parser("boards")
     p.add_argument("--rollouts", required=True); p.add_argument("--out", required=True)
