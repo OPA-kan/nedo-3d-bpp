@@ -62,8 +62,8 @@ def build_scene(scene, arm, records: list[dict]) -> dict:
         profile = decision.placement.profile
         survivors = list(decision.survivors or [])
         for r in by_step.get(step, []):
-            if r["is_ladder"]:
-                continue
+            # the ladder's own pick is kept as a branch too (kind 2), so the
+            # held-out ranking check can compare the model's pick with it
             t0 = time.perf_counter()
             candidate = _match(survivors, r)
             if candidate is None:
@@ -78,7 +78,7 @@ def build_scene(scene, arm, records: list[dict]) -> dict:
             branch.apply_placement(placement, pool_index)
             Xb, sb = board_tensor(branch.board, 0, config)
             boards.append(Xb); targets.append(float(r["outcome"]["placed_h"]) - 1.0)
-            aux.append(summary_vector(sb)); kinds.append(1); steps.append(step)
+            aux.append(summary_vector(sb)); kinds.append(2 if r["is_ladder"] else 1); steps.append(step)
             branch_seconds += time.perf_counter() - t0
         state.apply_placement(decision.placement, pool_index)
     total = state.steps
@@ -116,7 +116,7 @@ def build_from_rollouts(rollout_dir: pathlib.Path, out_dir: pathlib.Path, arm, s
         data = build_scene(scene, arm, read_jsonl([path]))
         np.savez_compressed(target, **data)
         done += 1
-        log(f"[{name}] {len(data['y'])} boards ({int((data['kind'] == 1).sum())} branches) "
+        log(f"[{name}] {len(data['y'])} boards ({int((data['kind'] >= 1).sum())} branches) "
             f"in {time.perf_counter() - started:.0f}s")
     return done
 

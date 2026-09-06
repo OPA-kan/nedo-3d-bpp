@@ -163,6 +163,7 @@ def train(paths, out_path: pathlib.Path, epochs: int = 40, batch: int = 64, lr: 
 def _rank_agreement(paths, pred, y, names, is_val) -> dict:
     """Group branch boards by (scene, step) using the per-file step arrays."""
     groups: dict = {}
+    ladder_of: dict = {}
     offset = 0
     for p in paths:
         d = np.load(p)
@@ -170,17 +171,24 @@ def _rank_agreement(paths, pred, y, names, is_val) -> dict:
         if n == 0:
             continue
         for i in range(n):
-            if int(d["kind"][i]) == 1:
-                groups.setdefault((str(d["scene"]), int(d["step"][i])), []).append(offset + i)
+            kind = int(d["kind"][i])
+            if kind >= 1:
+                key = (str(d["scene"]), int(d["step"][i]))
+                groups.setdefault(key, []).append(offset + i)
+                if kind == 2:
+                    ladder_of[key] = offset + i
         offset += n
-    hits = {"train": [0, 0], "val": [0, 0]}
-    for idx in groups.values():
+    hits = {"train": [0, 0], "val": [0, 0], "ladder_val": [0, 0], "ladder_train": [0, 0]}
+    for key, idx in groups.items():
         idx = np.asarray(idx)
         if len(idx) < 2 or np.ptp(y[idx]) < 1e-9:
             continue
         split = "val" if is_val[idx[0]] else "train"
+        best = y[idx].max() - 1e-9
         pick = idx[int(np.argmax(pred[idx]))]
-        hits[split][0] += int(y[pick] >= y[idx].max() - 1e-9); hits[split][1] += 1
+        hits[split][0] += int(y[pick] >= best); hits[split][1] += 1
+        if key in ladder_of:
+            hits["ladder_" + split][0] += int(y[ladder_of[key]] >= best); hits["ladder_" + split][1] += 1
     return {k: (v[0] / v[1] if v[1] else None, v[1]) for k, v in hits.items()}
 
 
