@@ -76,6 +76,18 @@ class RankerTests(unittest.TestCase):
             # deeper candidate (cand 2) must score highest
             self.assertEqual(int(np.argmax(pred)), 2)
 
+    def test_cross_validation_reports_model_and_ladder(self):
+        records = _synthetic(n_scenes=10, steps=10)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "rollouts.jsonl"
+            with path.open("w") as fh:
+                for r in records:
+                    fh.write(json.dumps(r) + "\n")
+            result = ranker.cross_validate([path], folds=5, epochs=120, hidden=(16,))
+            self.assertEqual(len(result["folds"]), 5)
+            self.assertGreater(result["model_top1"], result["ladder_top1"])
+            self.assertGreater(result["decisions"], 50)
+
     def test_feature_size_matches_vector(self):
         records = _synthetic(n_scenes=1, steps=1)
         spec = ranker.FeatureSpec.from_records(records)
