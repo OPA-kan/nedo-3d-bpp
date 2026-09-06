@@ -69,17 +69,33 @@ _PACKED_CACHE: dict = {}
 _PACKED_CACHE_LIMIT = 32
 
 
-def packed_aabbs_local(container):
+def cache_lookup(cache: dict, limit: int, container, compute):
+    """Identity-keyed cache that cannot be fooled by address reuse.
+
+    The entry keeps strong references to the container dict and to every
+    packed-item dict it was computed from, so none of them can be freed and
+    their addresses handed to a different dict while the entry lives.  A hit
+    requires the very same objects, checked with ``is``.  A cloned board
+    (deepcopy) therefore never matches a stale entry, which an id-only key
+    could not guarantee.
+    """
     packed = container.get("packed_items", [])
-    key = (id(container), len(packed), tuple(id(p) for p in packed))
-    hit = _PACKED_CACHE.get(key)
-    if hit is not None:
-        return hit
-    value = _packed_aabbs_local_uncached(container)
-    if len(_PACKED_CACHE) >= _PACKED_CACHE_LIMIT:
-        _PACKED_CACHE.pop(next(iter(_PACKED_CACHE)))
-    _PACKED_CACHE[key] = value
+    entry = cache.get(id(container))
+    if entry is not None:
+        held_container, held_packed, value = entry
+        if held_container is container and len(held_packed) == len(packed) and all(
+            a is b for a, b in zip(held_packed, packed)
+        ):
+            return value
+    value = compute(container)
+    if len(cache) >= limit:
+        cache.pop(next(iter(cache)))
+    cache[id(container)] = (container, tuple(packed), value)
     return value
+
+
+def packed_aabbs_local(container):
+    return cache_lookup(_PACKED_CACHE, _PACKED_CACHE_LIMIT, container, _packed_aabbs_local_uncached)
 support_surfaces = _production.support_surfaces
 
 # --- overlap / clearance ----------------------------------------------------

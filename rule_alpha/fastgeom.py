@@ -17,6 +17,7 @@ from ._reuse import (
     AABB,
     CONTACT_TOLERANCE,
     EPS,
+    cache_lookup,
     packed_aabbs_local,
     shelf_aabbs,
     transport_samples,
@@ -26,34 +27,26 @@ _CACHE: dict = {}
 _CACHE_LIMIT = 16
 
 
-def _key(container: dict) -> tuple:
-    packed = container.get("packed_items", [])
-    return (id(container), len(packed), tuple(id(p) for p in packed),
-            bool(container.get("require_shelf", container.get("shelf", False))))
-
-
-def obstacles(container: dict) -> dict:
-    """Shelves and packed items of one container as arrays, cached.
-
-    Returns ``{"shelf_min", "shelf_max", "shelf_names", "packed_min",
-    "packed_max"}``; the packed arrays are (N, 3), the shelf arrays (S, 3)."""
-    key = _key(container)
-    hit = _CACHE.get(key)
-    if hit is not None:
-        return hit
+def _compute_obstacles(container: dict) -> dict:
     shelves = list(shelf_aabbs(container))
     packed = [box for box, _soft, _prio in packed_aabbs_local(container)]
-    out = {
+    return {
         "shelf_min": np.array([s.minimum for s in shelves], dtype=np.float64).reshape(-1, 3),
         "shelf_max": np.array([s.maximum for s in shelves], dtype=np.float64).reshape(-1, 3),
         "shelf_names": [s.name for s in shelves],
         "packed_min": np.array([b.minimum for b in packed], dtype=np.float64).reshape(-1, 3),
         "packed_max": np.array([b.maximum for b in packed], dtype=np.float64).reshape(-1, 3),
     }
-    if len(_CACHE) >= _CACHE_LIMIT:
-        _CACHE.pop(next(iter(_CACHE)))
-    _CACHE[key] = out
-    return out
+
+
+def obstacles(container: dict) -> dict:
+    """Shelves and packed items of one container as arrays, cached on the
+    identity of the container and its packed-item dicts (see
+    ``_reuse.cache_lookup`` for why identity alone is not enough).
+
+    Returns ``{"shelf_min", "shelf_max", "shelf_names", "packed_min",
+    "packed_max"}``; the packed arrays are (N, 3), the shelf arrays (S, 3)."""
+    return cache_lookup(_CACHE, _CACHE_LIMIT, container, _compute_obstacles)
 
 
 def _penetrates_any(cmin, cmax, omin, omax, clearance) -> np.ndarray:
