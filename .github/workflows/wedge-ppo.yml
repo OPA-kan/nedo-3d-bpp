@@ -8,14 +8,10 @@ name: Wedge PPO
 
 on:
   # GitHub only registers a workflow once it has run on some ref; a file that
-  # exists only on a feature branch cannot be dispatched by name (404).  A push
-  # that touches this file or the environment therefore starts one run with
-  # the defaults below, after which workflow_dispatch works for this branch.
-  push:
-    branches: [claude/rl-packing-policy-ftogt3]
-    paths:
-      - .github/workflows/wedge-ppo.yml
-      - wedge_rl/**
+  # exists only on a feature branch cannot be dispatched by name (404).  The
+  # first run came from a temporary push trigger; now that the workflow is
+  # registered, runs are started by dispatch only, so ordinary pushes to the
+  # environment code do not burn five runner-hours each.
   workflow_dispatch:
     inputs:
       layout:

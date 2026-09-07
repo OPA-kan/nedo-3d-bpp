@@ -6,11 +6,7 @@ name: Bench rollouts
 # also finish four times sooner than the sandbox's four cores.
 
 on:
-  # see wedge-ppo.yml: a push registers the workflow so it can be dispatched
-  push:
-    branches: [claude/rl-packing-policy-ftogt3]
-    paths:
-      - .github/workflows/bench-rollouts.yml
+  # registered by its first (push-triggered) run; dispatch only since then
   workflow_dispatch:
     inputs:
       suite:
