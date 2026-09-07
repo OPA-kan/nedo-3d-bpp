@@ -56,6 +56,45 @@ and passes on items that would block a better step later.  In other words
 the policy learned which items to keep out of the strip, which is the part of
 the problem a greedy rule cannot see.
 
+## Inside rule-alpha: the option does not raise the item count
+
+`wedge:<policy dir>` is the stable ladder with the policy asked first for
+every hard, non-priority item: the strip's candidates are generated on the
+live container (neighbours included), the policy places or passes, a pass
+hands the item to the ladder.  Core suite, 48 scenes, paired against the
+stable ladder (`reports/bench/stable-vs-wedge-core*.md`):
+
+| | analytic | physics |
+|---|---|---|
+| placed items, mean diff | -0.40 [-1.15, +0.38] | -0.73 [-1.77, +0.21] |
+| fill (volume), mean diff | -0.48 | -0.75 |
+| centre of mass ratio | -0.032, lower in 35/48 | -0.038, lower in 40/48 |
+| shake topples per scene | - | 0.15 -> 0.29 (interval spans zero) |
+| wedge-zone volume per scene (below the chamfer top, left of the floor line) | 0.020 -> 0.079, higher in 47/48 | |
+
+So the local objective transfers: inside a real container the option
+recovers four times the wedge volume the ladder's own `wedge-step` did.
+The global objective does not follow.  The option made 295 placements
+across the suite and the ladder's `max-footprint` fell from 234 to 116 and
+`terrace-extension` from 300 to 207: the policy takes the large hard items
+(the 0.75 x 0.56 and 0.65 x 0.45 suitcases) as bases and steps, which are
+the same items the ladder builds its floor terraces from.  Layer 1 then
+runs out sooner, and since the prototype has no Layer 2 the episode ends
+there.  Per layout the count moved -1.4 (c1), -1.1 (c2p), +0.4 (c1s), +0.5
+(c2); the losses are in the containers where the floor terrace matters most.
+
+What this says about the roadmap: a local policy trained on its own reward
+optimises the wrong currency for the whole.  Volume in the wedge is worth
+having only when it does not cost floor terrace, and the policy never saw
+that cost.  Three ways to price it, in order of cost:
+
+1. restrict the option to what the ladder would not use anyway (small
+   items as steps, bases only from items the ladder rejects), a rule;
+2. train the strip policy inside ladder boards, with the reward being the
+   ladder's downstream count rather than strip volume (the environment can
+   already start from a rollout board);
+3. learn the hand-off (when to call the option) from the continuation boards.
+
 ## Caveats
 
 * The environment is a strip in an otherwise empty container.  In an episode
