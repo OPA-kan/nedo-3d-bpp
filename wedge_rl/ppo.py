@@ -69,7 +69,11 @@ def _features(env) -> np.ndarray:
 
 
 def play_episode(env, policy: Policy, seed: int) -> tuple[list, float]:
-    """One sampled episode; the trajectory with GAE advantages and returns."""
+    """One sampled episode; the trajectory with GAE advantages and returns.
+
+    The action sampler is seeded per episode so a trajectory depends only on
+    (policy weights, seed), in this process or in a worker."""
+    torch.manual_seed(seed)
     obs = env.reset(seed)
     traj = []
     while not env.done:

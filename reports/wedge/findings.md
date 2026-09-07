@@ -95,6 +95,53 @@ that cost.  Three ways to price it, in order of cost:
    already start from a rollout board);
 3. learn the hand-off (when to call the option) from the continuation boards.
 
+## Second executor: the main shelf
+
+`ShelfEnv` (layout c1s) is the same construction on the main shelf: the
+container is empty except what the episode has put on the shelf, candidates
+are poses on the shelf plate or on boxes already there, PASS is allowed, the
+reward is the volume added, validity is rule-alpha's analytic validator
+(inclusion, transport past the shelf edge, stability, ceiling).  Run
+`ppo-shelf-c1s-s0/`: 600 iterations, 32 episodes each, four collection
+workers, 4.8 h on a hosted runner (20.8 environment steps per second; the
+sandbox does 8 single-process and 22-24 with four workers).
+
+Held-out seeds 20000-20039, 14 items per stream, m^3 on the shelf:
+
+| policy | analytic | settled (PyBullet) | boxes | accepted |
+|---|---|---|---|---|
+| PPO (iteration 365) | 0.4375 | 0.4375 | 7.0 | 279 / 279 |
+| greedy (place whenever legal, lowest and back-most first) | 0.3777 | 0.3777 | 6.3 | 253 / 253 |
+| random | 0.2854 | | 4.8 | |
+
+Paired on the settled figure PPO minus greedy is +0.060 m^3 per stream
+(bootstrap 95 % interval 0.040 to 0.081; 32 wins, 6 losses).  The curve
+rises from 0.31 to 0.43 by iteration 200 and is flat after that.  Settled
+boxes moved 0.2 mm on average, 2 mm at most.
+
+The mechanism is stacking.  Greedy fills the plate and then finds almost
+nothing legal above it (4 of 253 placements are on another box); PPO puts
+149 of 279 on top of earlier boxes, so it lays the first layer with tops
+that later items can use.  It also passes on items that would spoil that.
+
+## Wedge, second seed
+
+`ppo-wedge-c1-s1/` (seed 1, 391 iterations in 4.8 h at 12.8 steps per
+second; the strip generator is heavier than the shelf's) ends at 0.0672 on
+the held-out seeds, against 0.0677 for seed 0 and 0.0499 for the hand
+staircase, with the same plateau from iteration 240 on (best checkpoint
+0.0697 at iteration 230).  The wedge result is not a lucky seed.
+
+## Executor status
+
+| region | learned vs best hand rule | physics acceptance | plateau |
+|---|---|---|---|
+| wedge (c1) | 0.068 vs 0.050 m^3 | 203/203 | ~iteration 200, two seeds |
+| shelf (c1s) | 0.438 vs 0.378 m^3 | 279/279 | ~iteration 200 |
+
+Both executors are parked here: the next unit of work is the manager that
+hands items to them (`docs/rl-roadmap.md`).
+
 ## Caveats
 
 * The environment is a strip in an otherwise empty container.  In an episode
