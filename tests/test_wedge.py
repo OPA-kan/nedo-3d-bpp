@@ -40,14 +40,14 @@ class WedgeEnvTests(unittest.TestCase):
         while not env.done:
             a = staircase(env)
             cands = env.candidates()
-            gain = cands[a].strip_gain if a != PASS else 0.0
+            gain = cands[a].gain if a != PASS else 0.0
             _obs, r, _d, _i = env.step(a)
             self.assertAlmostEqual(r, gain)
             total += r
         self.assertAlmostEqual(total, env.strip_volume())
         for c in env.placed:
-            self.assertGreaterEqual(c.strip_gain, 0.0)
-            self.assertLessEqual(c.strip_gain, float(np.prod(c.dims)) + 1e-9)
+            self.assertGreaterEqual(c.gain, 0.0)
+            self.assertLessEqual(c.gain, float(np.prod(c.dims)) + 1e-9)
 
     def test_pass_places_nothing(self):
         env = WedgeEnv("c1", n_items=3)
@@ -97,6 +97,56 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(action["item_idx"], 0)
         self.assertEqual(agent.last_decision.placement.archetype, ARCHETYPE)
         self.assertTrue(np.allclose(action["place_pos"][:2], decision.placement.box.center[:2], atol=1e-6))
+
+    def test_shelf_candidates_sit_on_the_shelf_and_pay_their_volume(self):
+        from wedge_rl.shelf import ShelfEnv
+
+        env = ShelfEnv("c1s", n_items=8)
+        env.reset(2)
+        checked = 0
+        total = 0.0
+        while not env.done:
+            cands = env.candidates()
+            for c in cands:
+                ok, why = layer1.validate(c.box, env.model, env.container, env.config)
+                self.assertTrue(ok, why)
+                self.assertGreaterEqual(float(c.box.minimum[2]), env.shelf_top - 1e-6)
+                self.assertGreaterEqual(float(c.box.minimum[0]), env.rect.x_min - 1e-6)
+                self.assertLessEqual(float(c.box.maximum[1]), env.rect.y_max + 1e-6)
+                self.assertAlmostEqual(c.gain, float(np.prod(c.dims)))
+                checked += 1
+            a = staircase(env)
+            gain = cands[a].gain if a != PASS else 0.0
+            _obs, r, _d, _i = env.step(a)
+            self.assertAlmostEqual(r, gain)
+            total += r
+        self.assertGreater(checked, 10)
+        self.assertGreater(total, 0.0)
+        self.assertAlmostEqual(total, env.gain_total())
+        obs = env.observation()
+        self.assertEqual(obs["heightmap"].shape, (env.nx, env.ny))
+        self.assertEqual(obs["profile"].shape, (env.nx,))
+
+    def test_parallel_collection_matches_single_process(self):
+        """Forked workers play the same seeds to the same trajectories."""
+        import torch
+
+        from wedge_rl.__main__ import env_factory
+        from wedge_rl.ppo import Collector, Policy
+
+        factory = env_factory("wedge", "c1", 4)
+        env = factory()
+        torch.manual_seed(0)
+        policy = Policy(env.nx, env.ny)
+        single = Collector(factory, env.nx, env.ny, workers=1)
+        multi = Collector(factory, env.nx, env.ny, workers=2)
+        try:
+            torch.manual_seed(1); s_steps, s_ret = single.collect(policy, 4, seed_base=500)
+            torch.manual_seed(1); m_steps, m_ret = multi.collect(policy, 4, seed_base=500)
+        finally:
+            multi.close()
+        self.assertEqual(len(s_steps), len(m_steps))
+        self.assertEqual(sorted(round(r, 9) for r in s_ret), sorted(round(r, 9) for r in m_ret))
 
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted

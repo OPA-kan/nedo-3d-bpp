@@ -32,27 +32,33 @@ CELL = 0.04
 
 @dataclass
 class Candidate:
+    """One legal pose in a region.  ``gain`` is what the region pays for it
+    (wedge volume in the strip, box volume on the shelf); ``on_floor`` means
+    it rests on the region's base surface rather than on another box."""
+
     box: AABB
     orientation: int
     dims: tuple
     bottom: float
     on_floor: bool
-    strip_gain: float
+    gain: float
     support_ratio: float
     margin: float
 
-    def features(self, env: "WedgeEnv") -> np.ndarray:
+    def features(self, env) -> np.ndarray:
+        """Read through the env: ``model``, ``x_max_play``, ``z_top`` and
+        ``reach_of`` are what a region has to provide."""
         m = env.model
         return np.asarray([
             (float(self.box.center[0]) - m.x_wall_min) / max(env.x_max_play - m.x_wall_min, 1e-9),
             (float(self.box.center[1]) - m.y_opening) / max(m.y_back - m.y_opening, 1e-9),
             (self.bottom - m.z_floor) / max(env.z_top - m.z_floor, 1e-9),
             self.dims[0], self.dims[1], self.dims[2],
-            self.strip_gain / 0.2,
+            self.gain / 0.2,
             self.support_ratio, min(self.margin, 0.3) / 0.3,
             1.0 if self.on_floor else 0.0,
             float(self.box.maximum[2] - m.z_floor) / max(env.z_top - m.z_floor, 1e-9),
-            (m.x_floor_min - float(self.box.minimum[0])) / 0.415,   # how far it reaches into the wedge
+            env.reach_of(self.box),
         ], dtype=np.float32)
 
 
@@ -110,7 +116,7 @@ def strip_observation(model: ContainerModel, container: dict, nx: int, ny: int, 
     chamfer = np.asarray([chamfer_height_at(model, x) for x in xs], dtype=np.float32)
     return {
         "heightmap": strip_heightmap(model, container, nx, ny) / scale,
-        "chamfer": chamfer / scale,
+        "profile": chamfer / scale,
         "item": np.asarray([item["length"], item["width"], item["height"], item["mass"] / 20.0,
                             1.0 if item["is_soft"] else 0.0] if item else [0, 0, 0, 0, 0], dtype=np.float32),
         "remaining": float(remaining),
@@ -176,18 +182,24 @@ def strip_candidates(model: ContainerModel, container: dict, cfg, profile, x_max
                     st = stability.evaluate(box, container, cfg)
                     out.append(Candidate(
                         box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
-                        on_floor=on_floor, strip_gain=strip_gain_of(model, box),
+                        on_floor=on_floor, gain=strip_gain_of(model, box),
                         support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
                         margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
                     ))
     # deterministic order: most wedge volume first, then back-most (a box
     # at the front seals the column behind it), then lowest, then left
-    out.sort(key=lambda c: (-round(c.strip_gain, 6), -round(float(c.box.center[1]), 3),
+    out.sort(key=lambda c: (-round(c.gain, 6), -round(float(c.box.center[1]), 3),
                             round(c.bottom, 3), round(float(c.box.center[0]), 3)))
     return out[:max_candidates]
 
 
+def wedge_reach(model: ContainerModel, box: AABB) -> float:
+    """How far the box reaches into the wedge, in units of the chamfer's run (0.415 m)."""
+    return (model.x_floor_min - float(box.minimum[0])) / 0.415
+
+
 class WedgeEnv:
+    region = "wedge"
     def __init__(self, layout: str = "c1", n_items: int = 14, config=None,
                  x_extent: float = 0.80, sku_weights=None, max_candidates: int = 96,
                  seed: int = 0):
@@ -253,6 +265,9 @@ class WedgeEnv:
     def strip_gain(self, box: AABB) -> float:
         return strip_gain_of(self.model, box)
 
+    def reach_of(self, box: AABB) -> float:
+        return wedge_reach(self.model, box)
+
     def candidates(self) -> list[Candidate]:
         if self._cands is not None:
             return self._cands
@@ -280,13 +295,15 @@ class WedgeEnv:
                 "pos": tuple(float(v) for v in c.box.center), "layer": 1,
             })
             self.placed.append(c)
-            reward = c.strip_gain
+            reward = c.gain
         self.cursor += 1
         self._cands = None
         return self.observation(), reward, self.done, info
 
-    def strip_volume(self) -> float:
-        return sum(c.strip_gain for c in self.placed)
+    def gain_total(self) -> float:
+        return sum(c.gain for c in self.placed)
+
+    strip_volume = gain_total
 
     def placed_volume(self) -> float:
         return sum(float(np.prod(c.dims)) for c in self.placed)

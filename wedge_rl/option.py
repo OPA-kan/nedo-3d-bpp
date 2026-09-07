@@ -27,8 +27,8 @@ import numpy as np
 from rule_alpha import classify as cls
 from rule_alpha import layer1
 
-from .env import (FEATURE_SIZE, PASS, Candidate, grid_shape, play_region, strip_candidates,
-                  strip_observation)
+from .env import (PASS, Candidate, grid_shape, play_region, strip_candidates, strip_observation,
+                  wedge_reach)
 
 ARCHETYPE = "wedge-rl"
 
@@ -105,9 +105,9 @@ class WedgeOption:
         surface = "floor" if cand.on_floor else "item"
         candidate = layer1.Candidate(
             box=cand.box, profile=profile, orientation=orientation, container_idx=container_idx,
-            surface=surface, surface_name=surface, role=cls.ROLE_WEDGE_STEP if cand.strip_gain > 0 else cls.ROLE_NONE,
+            surface=surface, surface_name=surface, role=cls.ROLE_WEDGE_STEP if cand.gain > 0 else cls.ROLE_NONE,
             family="wedge-rl",
-            features={"strip_gain": cand.strip_gain, "support_ratio": cand.support_ratio,
+            features={"strip_gain": cand.gain, "support_ratio": cand.support_ratio,
                       "margin": cand.margin, "reach": float(model.x_floor_min - cand.box.minimum[0])},
             archetypes={ARCHETYPE},
         )
@@ -116,7 +116,7 @@ class WedgeOption:
         placement = layer1.Placement(
             profile=profile, orientation=orientation, container_idx=container_idx, box=cand.box,
             surface=surface, surface_name=surface, role=candidate.role, archetype=ARCHETYPE,
-            reason=f"wedge-rl: strip gain {cand.strip_gain:.4f} m^3 among {len(cands)} strip candidates",
+            reason=f"wedge-rl: strip gain {cand.gain:.4f} m^3 among {len(cands)} strip candidates",
             features=dict(candidate.features), container_is_prioritized=bool(model.is_prioritized),
             container_has_shelf=bool(model.shelves),
             layer=1 if cand.on_floor else 2,
@@ -128,9 +128,13 @@ class WedgeOption:
 
 class _Region:
     """What ``Candidate.features`` reads from the environment (``model``,
-    ``x_max_play``, ``z_top``), so the feature code stays shared with training."""
+    ``x_max_play``, ``z_top``, ``reach_of``), so the feature code stays shared
+    with training."""
 
     def __init__(self, model, x_max_play, z_top):
         self.model = model
         self.x_max_play = x_max_play
         self.z_top = z_top
+
+    def reach_of(self, box):
+        return wedge_reach(self.model, box)

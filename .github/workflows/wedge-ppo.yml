@@ -14,6 +14,10 @@ on:
   # environment code do not burn five runner-hours each.
   workflow_dispatch:
     inputs:
+      region:
+        description: Region to learn (wedge or shelf)
+        type: string
+        default: wedge
       layout:
         description: Container layout (c1 or c1s)
         type: string
@@ -36,6 +40,7 @@ on:
         default: ""
 
 env:
+  REGION: ${{ inputs.region || 'wedge' }}
   LAYOUT: ${{ inputs.layout || 'c1' }}
   ITERATIONS: ${{ inputs.iterations || 400 }}
   EPISODES: ${{ inputs.episodes || 32 }}
@@ -47,7 +52,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: wedge-ppo-${{ github.ref }}-${{ inputs.seed || 0 }}
+  group: wedge-ppo-${{ github.ref }}-${{ inputs.region || 'wedge' }}-${{ inputs.seed || 0 }}
   cancel-in-progress: false
 
 jobs:
@@ -67,34 +72,36 @@ jobs:
         if: env.INIT_RUN_ID != ''
         uses: actions/download-artifact@v4
         with:
-          name: wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}
+          name: ppo-${{ env.REGION }}-${{ env.LAYOUT }}-s${{ env.SEED }}
           path: init
           run-id: ${{ env.INIT_RUN_ID }}
           github-token: ${{ github.token }}
       - name: Baselines on the evaluation seeds
         run: >-
-          python -m wedge_rl baselines --layout "$LAYOUT" --episodes 40 --seed0 20000
-          --out "reports/wedge/baselines-$LAYOUT.json"
+          python -m wedge_rl baselines --region "$REGION" --layout "$LAYOUT" --episodes 40 --seed0 20000
+          --out "reports/wedge/baselines-$REGION-$LAYOUT.json"
       - name: Train
         run: |
           init=""
           if [ -n "$INIT_RUN_ID" ]; then init="--init init/policy.pt"; fi
           # stop before the job limit so the evaluation and upload still run;
-          # the best checkpoint and history.json are written as training goes
+          # the best checkpoint and history.json are written as training goes.
+          # Four collection processes: the hosted runner has four vCPUs.
           timeout --signal=INT 300m python -m wedge_rl train \
-            --layout "$LAYOUT" --iterations "$ITERATIONS" --episodes "$EPISODES" --seed "$SEED" \
-            --out "runs/wedge-ppo-$LAYOUT-s$SEED" $init || [ $? -eq 124 ]
+            --region "$REGION" --layout "$LAYOUT" --iterations "$ITERATIONS" --episodes "$EPISODES" \
+            --seed "$SEED" --workers 4 \
+            --out "runs/ppo-$REGION-$LAYOUT-s$SEED" $init || [ $? -eq 124 ]
       - name: Evaluate against the baselines
         if: always()
         run: >-
-          python -m wedge_rl eval
-          --policy "runs/wedge-ppo-$LAYOUT-s$SEED"
+          python -m wedge_rl eval --region "$REGION"
+          --policy "runs/ppo-$REGION-$LAYOUT-s$SEED"
           --layout "$LAYOUT" --episodes 40 --seed0 20000
-          --out "runs/wedge-ppo-$LAYOUT-s$SEED/eval.json"
+          --out "runs/ppo-$REGION-$LAYOUT-s$SEED/eval.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}
+          name: ppo-${{ env.REGION }}-${{ env.LAYOUT }}-s${{ env.SEED }}
           path: |
-            runs/wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}/
+            runs/ppo-${{ env.REGION }}-${{ env.LAYOUT }}-s${{ env.SEED }}/
             reports/wedge/

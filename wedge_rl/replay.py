@@ -97,7 +97,7 @@ def replay_episode(env: WedgeEnv, policy, seed: int, label: str, with_shake: boo
     from bench.episode import run_episode
 
     placed = arrangement(env, policy, seed)
-    planned_strip = float(sum(c.strip_gain for _i, c in placed))
+    planned_strip = float(sum(c.gain for _i, c in placed))
     row = {"seed": seed, "label": label, "planned": len(placed), "planned_strip": planned_strip,
            "planned_volume": float(sum(np.prod(c.dims) for _i, c in placed))}
     if not placed:
@@ -117,8 +117,8 @@ def replay_episode(env: WedgeEnv, policy, seed: int, label: str, with_shake: boo
         idx = int(s["item_index"])
         cand = plan[idx]
         ok = bool(s["is_included"] and s["is_valid"] and s["is_placed_safe"])
-        entry = {"item": idx, "ok": ok, "strip_gain": cand.strip_gain, "on_floor": cand.on_floor,
-                 "bottom": cand.bottom, "reach": float(env.model.x_floor_min - cand.box.minimum[0])}
+        entry = {"item": idx, "ok": ok, "strip_gain": cand.gain, "on_floor": cand.on_floor,
+                 "bottom": cand.bottom, "reach": float(env.reach_of(cand.box))}
         fin = settled.get(idx)
         if fin is not None:
             place = np.asarray(s["place_pos"], dtype=np.float64)
@@ -130,12 +130,15 @@ def replay_episode(env: WedgeEnv, policy, seed: int, label: str, with_shake: boo
             # how much further (or less) the box dropped than the release lift
             entry["z_anomaly"] = float(abs((place[2] - pos[2]) - lift))
             if ok:
-                # strip volume the settled pose still recovers: the same box
-                # shifted by what the simulator moved it in x (orientation
-                # changes are folded into the anomaly figures)
-                shifted = cand.box.minimum[0] + (pos[0] - place[0])
-                left = min(float(cand.box.maximum[0]) + (pos[0] - place[0]), env.model.x_floor_min) - shifted
-                realized += max(0.0, left) * float(cand.dims[1]) * float(cand.dims[2])
+                if env.region == "wedge":
+                    # strip volume the settled pose still recovers: the same
+                    # box shifted by what the simulator moved it in x
+                    # (orientation changes are folded into the anomaly figures)
+                    shifted = cand.box.minimum[0] + (pos[0] - place[0])
+                    left = min(float(cand.box.maximum[0]) + (pos[0] - place[0]), env.model.x_floor_min) - shifted
+                    realized += max(0.0, left) * float(cand.dims[1]) * float(cand.dims[2])
+                else:
+                    realized += cand.gain
         steps.append(entry)
     row.update({
         "accepted": sum(1 for e in steps if e["ok"]),

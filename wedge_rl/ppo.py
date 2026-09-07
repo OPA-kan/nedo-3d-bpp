@@ -5,12 +5,18 @@ and adds one PASS logit from the state alone; a softmax over that set is the
 action distribution, as in candidate-based packing policies (PCT, GOPT).
 The value head reads the state embedding.  Episodes are short (one per item
 stream), the environment is deterministic given the stream, and rewards are
-the wedge volume each placement recovers.
+whatever the region pays for a placement (wedge volume, shelf volume).
+
+Collection runs in forked worker processes: each holds one environment and
+one copy of the policy, plays its share of the episodes and returns the
+finished trajectories.  The update runs in the parent.
 """
 
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
+import os
 import pathlib
 import random
 import time
@@ -19,7 +25,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from .env import FEATURE_SIZE, PASS, WedgeEnv
+from .env import FEATURE_SIZE, PASS
+
+REWARD_SCALE = 10.0
 
 
 class Policy(nn.Module):
@@ -34,7 +42,7 @@ class Policy(nn.Module):
 
     def embed(self, obs: dict) -> torch.Tensor:
         h = torch.tensor(obs["heightmap"])[None]
-        ch = torch.tensor(obs["chamfer"])[None, :, None].expand(1, h.shape[1], h.shape[2])
+        ch = torch.tensor(obs["profile"])[None, :, None].expand(1, h.shape[1], h.shape[2])
         x = torch.stack([h[0], ch[0]])[None]          # (1, 2, nx, ny)
         z = torch.relu(self.conv1(x)); z = torch.relu(self.conv2(z))
         pooled = torch.cat([z.mean(dim=(2, 3)), z.amax(dim=(2, 3))], dim=1)[0]
@@ -53,52 +61,104 @@ class Policy(nn.Module):
         return self.value_fc(emb)[0]
 
 
-def _features(env: WedgeEnv) -> np.ndarray:
+def _features(env) -> np.ndarray:
     cands = env.candidates()
     if not cands:
         return np.zeros((0, FEATURE_SIZE), dtype=np.float32)
     return np.stack([c.features(env) for c in cands])
 
 
-def collect(env: WedgeEnv, policy: Policy, episodes: int, seed_base: int, rng: random.Random):
-    """Run episodes; keep everything PPO needs, including the candidate features."""
-    steps = []
-    returns = []
-    for e in range(episodes):
-        seed = seed_base + e
-        obs = env.reset(seed)
-        traj = []
-        while not env.done:
-            feats = _features(env)
-            with torch.no_grad():
-                emb = policy.embed(obs)
-                logits = policy.logits(emb, feats)
-                dist = torch.distributions.Categorical(logits=logits)
-                a = int(dist.sample())
-                logp = float(dist.log_prob(torch.tensor(a)))
-                v = float(policy.value(emb))
-            action = PASS if a == len(feats) else a
-            next_obs, r, done, _info = env.step(action)
-            # rewards are cubic metres of wedge (0.01-0.1 per step); scale so
-            # the value regression and advantages work in units near one
-            traj.append({"obs": obs, "feats": feats, "a": a, "logp": logp, "v": v, "r": r * REWARD_SCALE})
-            obs = next_obs
-        # GAE with gamma 1 (episodes are short and the objective is total volume)
-        adv = 0.0
-        ret = 0.0
-        for t in reversed(range(len(traj))):
-            next_v = traj[t + 1]["v"] if t + 1 < len(traj) else 0.0
-            delta = traj[t]["r"] + next_v - traj[t]["v"]
-            adv = delta + 0.95 * adv
-            ret = traj[t]["r"] + ret
-            traj[t]["adv"] = adv
-            traj[t]["ret"] = ret
-        steps.extend(traj)
-        returns.append(sum(s["r"] for s in traj) / REWARD_SCALE)
-    return steps, returns
+def play_episode(env, policy: Policy, seed: int) -> tuple[list, float]:
+    """One sampled episode; the trajectory with GAE advantages and returns."""
+    obs = env.reset(seed)
+    traj = []
+    while not env.done:
+        feats = _features(env)
+        with torch.no_grad():
+            emb = policy.embed(obs)
+            logits = policy.logits(emb, feats)
+            dist = torch.distributions.Categorical(logits=logits)
+            a = int(dist.sample())
+            logp = float(dist.log_prob(torch.tensor(a)))
+            v = float(policy.value(emb))
+        action = PASS if a == len(feats) else a
+        next_obs, r, _done, _info = env.step(action)
+        # rewards are cubic metres (0.01-0.1 per step); scale so the value
+        # regression and advantages work in units near one
+        traj.append({"obs": obs, "feats": feats, "a": a, "logp": logp, "v": v, "r": r * REWARD_SCALE})
+        obs = next_obs
+    # GAE with gamma 1 (episodes are short and the objective is total volume)
+    adv = 0.0
+    ret = 0.0
+    for t in reversed(range(len(traj))):
+        next_v = traj[t + 1]["v"] if t + 1 < len(traj) else 0.0
+        delta = traj[t]["r"] + next_v - traj[t]["v"]
+        adv = delta + 0.95 * adv
+        ret = traj[t]["r"] + ret
+        traj[t]["adv"] = adv
+        traj[t]["ret"] = ret
+    return traj, sum(s["r"] for s in traj) / REWARD_SCALE
 
 
-REWARD_SCALE = 10.0
+# --- worker processes --------------------------------------------------------
+_WORKER: dict = {}
+
+
+def _worker_init(env_factory, nx: int, ny: int):
+    torch.set_num_threads(1)
+    _WORKER["env"] = env_factory()
+    _WORKER["policy"] = Policy(nx, ny)
+    _WORKER["policy"].eval()
+
+
+def _worker_play(args):
+    state_dict, seeds = args
+    policy = _WORKER["policy"]
+    policy.load_state_dict(state_dict)
+    out = []
+    for seed in seeds:
+        out.append(play_episode(_WORKER["env"], policy, seed))
+    return out
+
+
+class Collector:
+    """Plays episodes, in this process or in ``workers`` forked ones."""
+
+    def __init__(self, env_factory, nx: int, ny: int, workers: int = 1):
+        self.env_factory = env_factory
+        self.workers = max(1, int(workers))
+        self.env = env_factory() if self.workers == 1 else None
+        self.pool = None
+        if self.workers > 1:
+            # spawn, not fork: the parent already runs torch's thread pool and
+            # forking a multi-threaded process is unsafe; the factory and the
+            # policy weights are picklable so a fresh interpreter is fine
+            ctx = mp.get_context("spawn")
+            self.pool = ctx.Pool(self.workers, initializer=_worker_init, initargs=(env_factory, nx, ny))
+
+    def collect(self, policy: Policy, episodes: int, seed_base: int):
+        seeds = [seed_base + e for e in range(episodes)]
+        if self.pool is None:
+            results = [play_episode(self.env, policy, s) for s in seeds]
+        else:
+            state = {k: v.detach().cpu() for k, v in policy.state_dict().items()}
+            chunks = [seeds[i::self.workers] for i in range(self.workers)]
+            results = [r for part in self.pool.map(_worker_play, [(state, c) for c in chunks if c]) for r in part]
+        steps = [s for traj, _ret in results for s in traj]
+        returns = [ret for _traj, ret in results]
+        return steps, returns
+
+    def close(self):
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+
+
+def collect(env, policy: Policy, episodes: int, seed_base: int, rng=None):
+    """Single-process collection (kept for callers that hold an env)."""
+    results = [play_episode(env, policy, seed_base + e) for e in range(episodes)]
+    return [s for traj, _r in results for s in traj], [r for _t, r in results]
 
 
 def ppo_update(policy: Policy, opt, steps, epochs: int = 4, clip: float = 0.2, ent: float = 0.01):
@@ -139,7 +199,7 @@ def decode(logits: torch.Tensor, n_cands: int) -> int:
     return int(torch.argmax(p[:-1]))
 
 
-def evaluate(env: WedgeEnv, policy: Policy, seeds) -> dict:
+def evaluate(env, policy: Policy, seeds) -> dict:
     """Deterministic evaluation on fixed seeds."""
     totals, placed, volumes = [], [], []
     for seed in seeds:
@@ -152,37 +212,42 @@ def evaluate(env: WedgeEnv, policy: Policy, seeds) -> dict:
             obs, r, _d, _i = env.step(decode(logits, len(feats)))
             total += r
         totals.append(total); placed.append(len(env.placed)); volumes.append(env.placed_volume())
-    return {"strip_volume": float(np.mean(totals)), "strip_max": float(np.max(totals)),
+    return {"gain": float(np.mean(totals)), "gain_max": float(np.max(totals)),
             "placed": float(np.mean(placed)), "placed_volume": float(np.mean(volumes)), "n": len(seeds)}
 
 
-def train(out_dir: pathlib.Path, layout: str = "c1", n_items: int = 14, iterations: int = 100,
-          episodes_per_iter: int = 16, lr: float = 3e-4, seed: int = 0, eval_seeds=range(10000, 10020),
-          log=print, init: pathlib.Path | None = None) -> dict:
+def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_per_iter: int = 16,
+          lr: float = 3e-4, seed: int = 0, eval_seeds=range(10000, 10020), log=print,
+          init: pathlib.Path | None = None, workers: int = 1) -> dict:
     torch.manual_seed(seed); np.random.seed(seed)
-    rng = random.Random(seed)
-    env = WedgeEnv(layout, n_items=n_items, seed=seed)
+    env = env_factory()
     policy = Policy(env.nx, env.ny)
     if init is not None and pathlib.Path(init).exists():
         policy.load_state_dict(torch.load(init))
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
     out_dir.mkdir(parents=True, exist_ok=True)
+    collector = Collector(env_factory, env.nx, env.ny, workers=workers)
     history = []
     best = (-1.0, None)
-    for it in range(iterations):
-        t0 = time.perf_counter()
-        steps, returns = collect(env, policy, episodes_per_iter, seed_base=1_000_000 + it * episodes_per_iter, rng=rng)
-        ppo_update(policy, opt, steps)
-        row = {"iter": it, "train_return": float(np.mean(returns)), "steps": len(steps),
-               "seconds": round(time.perf_counter() - t0, 1)}
-        if it % 5 == 0 or it == iterations - 1:
-            ev = evaluate(env, policy, list(eval_seeds))
-            row.update({"eval_" + k: v for k, v in ev.items()})
-            if ev["strip_volume"] > best[0]:
-                best = (ev["strip_volume"], {k: v.detach().clone() for k, v in policy.state_dict().items()})
-                torch.save(policy.state_dict(), out_dir / "policy.pt")
-        history.append(row)
-        if log:
-            log(row)
-        (out_dir / "history.json").write_text(json.dumps(history, indent=1), encoding="utf-8")
-    return {"best_eval_strip_volume": best[0], "history": history}
+    try:
+        for it in range(iterations):
+            t0 = time.perf_counter()
+            steps, returns = collector.collect(policy, episodes_per_iter, seed_base=1_000_000 + it * episodes_per_iter)
+            t_collect = time.perf_counter() - t0
+            ppo_update(policy, opt, steps)
+            row = {"iter": it, "train_return": float(np.mean(returns)), "steps": len(steps),
+                   "seconds": round(time.perf_counter() - t0, 1), "collect_seconds": round(t_collect, 1),
+                   "steps_per_second": round(len(steps) / max(t_collect, 1e-9), 1)}
+            if it % 5 == 0 or it == iterations - 1:
+                ev = evaluate(env, policy, list(eval_seeds))
+                row.update({"eval_" + k: v for k, v in ev.items()})
+                if ev["gain"] > best[0]:
+                    best = (ev["gain"], {k: v.detach().clone() for k, v in policy.state_dict().items()})
+                    torch.save(policy.state_dict(), out_dir / "policy.pt")
+            history.append(row)
+            if log:
+                log(row)
+            (out_dir / "history.json").write_text(json.dumps(history, indent=1), encoding="utf-8")
+    finally:
+        collector.close()
+    return {"best_eval_gain": best[0], "history": history}
