@@ -131,8 +131,8 @@ class WedgeEnvTests(unittest.TestCase):
         """Forked workers play the same seeds to the same trajectories."""
         import torch
 
-        from wedge_rl.__main__ import env_factory
         from wedge_rl.ppo import Collector, Policy
+        from wedge_rl.regions import env_factory
 
         factory = env_factory("wedge", "c1", 4)
         env = factory()
