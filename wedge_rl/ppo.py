@@ -216,9 +216,36 @@ def evaluate(env, policy: Policy, seeds) -> dict:
             "placed": float(np.mean(placed)), "placed_volume": float(np.mean(volumes)), "n": len(seeds)}
 
 
+class _StopFlag:
+    """SIGINT/SIGTERM set a flag instead of raising: a KeyboardInterrupt in the
+    middle of a pool.map can leave the pool hanging, and a job runner that
+    sends the signal at its time limit then never reaches the evaluation and
+    upload steps.  The training loop checks the flag between iterations."""
+
+    def __init__(self):
+        self.stop = False
+        self._previous = {}
+
+    def __enter__(self):
+        import signal
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            self._previous[sig] = signal.signal(sig, self._handle)
+        return self
+
+    def __exit__(self, *exc):
+        import signal
+
+        for sig, prev in self._previous.items():
+            signal.signal(sig, prev)
+
+    def _handle(self, _signum, _frame):
+        self.stop = True
+
+
 def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_per_iter: int = 16,
           lr: float = 3e-4, seed: int = 0, eval_seeds=range(10000, 10020), log=print,
-          init: pathlib.Path | None = None, workers: int = 1) -> dict:
+          init: pathlib.Path | None = None, workers: int = 1, max_minutes: float | None = None) -> dict:
     torch.manual_seed(seed); np.random.seed(seed)
     env = env_factory()
     policy = Policy(env.nx, env.ny)
@@ -229,8 +256,18 @@ def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_pe
     collector = Collector(env_factory, env.nx, env.ny, workers=workers)
     history = []
     best = (-1.0, None)
+    started = time.perf_counter()
     try:
+      with _StopFlag() as flag:
         for it in range(iterations):
+            if flag.stop:
+                if log:
+                    log({"stopped": "signal", "iter": it})
+                break
+            if max_minutes is not None and (time.perf_counter() - started) / 60.0 > max_minutes:
+                if log:
+                    log({"stopped": "time budget", "iter": it, "minutes": round((time.perf_counter() - started) / 60.0, 1)})
+                break
             t0 = time.perf_counter()
             steps, returns = collector.collect(policy, episodes_per_iter, seed_base=1_000_000 + it * episodes_per_iter)
             t_collect = time.perf_counter() - t0
@@ -250,4 +287,10 @@ def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_pe
             (out_dir / "history.json").write_text(json.dumps(history, indent=1), encoding="utf-8")
     finally:
         collector.close()
+    # the final policy is evaluated on the same seeds so that a best-so-far
+    # checkpoint always exists even when the loop ended early
+    if best[1] is None:
+        ev = evaluate(env, policy, list(eval_seeds))
+        best = (ev["gain"], None)
+        torch.save(policy.state_dict(), out_dir / "policy.pt")
     return {"best_eval_gain": best[0], "history": history}

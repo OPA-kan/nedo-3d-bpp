@@ -45,7 +45,8 @@ def cmd_train(args) -> int:
     result = train(pathlib.Path(args.out), env_factory(args.region, _layout(args), args.items, args.seed),
                    iterations=args.iterations, episodes_per_iter=args.episodes, lr=args.lr, seed=args.seed,
                    log=lambda row: print(row, flush=True),
-                   init=pathlib.Path(args.init) if args.init else None, workers=args.workers)
+                   init=pathlib.Path(args.init) if args.init else None, workers=args.workers,
+                   max_minutes=args.max_minutes)
     print(json.dumps({"best_eval_gain": result["best_eval_gain"]}))
     return 0
 
@@ -143,6 +144,8 @@ def main(argv=None) -> int:
     t.add_argument("--iterations", type=int, default=100); t.add_argument("--episodes", type=int, default=16)
     t.add_argument("--lr", type=float, default=3e-4); t.add_argument("--seed", type=int, default=0)
     t.add_argument("--workers", type=int, default=1, help="episode-collection processes")
+    t.add_argument("--max-minutes", type=float, default=None,
+                   help="stop cleanly (between iterations) after this wall-clock budget")
     t.add_argument("--out", required=True)
     t.add_argument("--init", default="", help="policy.pt to start from")
     t.set_defaults(fn=cmd_train)

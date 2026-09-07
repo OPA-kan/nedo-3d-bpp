@@ -86,11 +86,14 @@ jobs:
           if [ -n "$INIT_RUN_ID" ]; then init="--init init/policy.pt"; fi
           # stop before the job limit so the evaluation and upload still run;
           # the best checkpoint and history.json are written as training goes.
-          # Four collection processes: the hosted runner has four vCPUs.
-          timeout --signal=INT 300m python -m wedge_rl train \
+          # --max-minutes ends the loop between iterations; the outer timeout
+          # is a backstop (a SIGINT in the middle of the worker pool once left
+          # the process hanging until the job limit, so it now kills after
+          # a grace period).  Four collection processes: four vCPUs.
+          timeout --signal=INT --kill-after=3m 310m python -m wedge_rl train \
             --region "$REGION" --layout "$LAYOUT" --iterations "$ITERATIONS" --episodes "$EPISODES" \
-            --seed "$SEED" --workers 4 \
-            --out "runs/ppo-$REGION-$LAYOUT-s$SEED" $init || [ $? -eq 124 ]
+            --seed "$SEED" --workers 4 --max-minutes 290 \
+            --out "runs/ppo-$REGION-$LAYOUT-s$SEED" $init || [ $? -eq 124 ] || [ $? -eq 137 ]
       - name: Evaluate against the baselines
         if: always()
         run: >-
