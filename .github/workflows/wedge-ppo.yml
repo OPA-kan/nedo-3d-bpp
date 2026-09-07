@@ -7,6 +7,15 @@ name: Wedge PPO
 # an earlier one via `init_run_id`.
 
 on:
+  # GitHub only registers a workflow once it has run on some ref; a file that
+  # exists only on a feature branch cannot be dispatched by name (404).  A push
+  # that touches this file or the environment therefore starts one run with
+  # the defaults below, after which workflow_dispatch works for this branch.
+  push:
+    branches: [claude/rl-packing-policy-ftogt3]
+    paths:
+      - .github/workflows/wedge-ppo.yml
+      - wedge_rl/**
   workflow_dispatch:
     inputs:
       layout:
@@ -30,12 +39,19 @@ on:
         type: string
         default: ""
 
+env:
+  LAYOUT: ${{ inputs.layout || 'c1' }}
+  ITERATIONS: ${{ inputs.iterations || 400 }}
+  EPISODES: ${{ inputs.episodes || 32 }}
+  SEED: ${{ inputs.seed || 0 }}
+  INIT_RUN_ID: ${{ inputs.init_run_id || '' }}
+
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: wedge-ppo-${{ github.ref }}-${{ inputs.seed }}
+  group: wedge-ppo-${{ github.ref }}-${{ inputs.seed || 0 }}
   cancel-in-progress: false
 
 jobs:
@@ -52,37 +68,37 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
       - name: Fetch the checkpoint to start from
-        if: inputs.init_run_id != ''
+        if: env.INIT_RUN_ID != ''
         uses: actions/download-artifact@v4
         with:
-          name: wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}
+          name: wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}
           path: init
-          run-id: ${{ inputs.init_run_id }}
+          run-id: ${{ env.INIT_RUN_ID }}
           github-token: ${{ github.token }}
       - name: Baselines on the evaluation seeds
         run: >-
-          python -m wedge_rl baselines --layout "${{ inputs.layout }}" --episodes 40 --seed0 20000
-          --out "reports/wedge/baselines-${{ inputs.layout }}.json"
+          python -m wedge_rl baselines --layout "$LAYOUT" --episodes 40 --seed0 20000
+          --out "reports/wedge/baselines-$LAYOUT.json"
       - name: Train
-        run: >-
-          python -m wedge_rl train
-          --layout "${{ inputs.layout }}"
-          --iterations "${{ inputs.iterations }}"
-          --episodes "${{ inputs.episodes }}"
-          --seed "${{ inputs.seed }}"
-          --out "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}"
-          ${{ inputs.init_run_id != '' && '--init init/policy.pt' || '' }}
+        run: |
+          init=""
+          if [ -n "$INIT_RUN_ID" ]; then init="--init init/policy.pt"; fi
+          # stop before the job limit so the evaluation and upload still run;
+          # the best checkpoint and history.json are written as training goes
+          timeout --signal=INT 300m python -m wedge_rl train \
+            --layout "$LAYOUT" --iterations "$ITERATIONS" --episodes "$EPISODES" --seed "$SEED" \
+            --out "runs/wedge-ppo-$LAYOUT-s$SEED" $init || [ $? -eq 124 ]
       - name: Evaluate against the baselines
         if: always()
         run: >-
           python -m wedge_rl eval
-          --policy "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}"
-          --layout "${{ inputs.layout }}" --episodes 40 --seed0 20000
-          --out "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}/eval.json"
+          --policy "runs/wedge-ppo-$LAYOUT-s$SEED"
+          --layout "$LAYOUT" --episodes 40 --seed0 20000
+          --out "runs/wedge-ppo-$LAYOUT-s$SEED/eval.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}
+          name: wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}
           path: |
-            runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}/
+            runs/wedge-ppo-${{ env.LAYOUT }}-s${{ env.SEED }}/
             reports/wedge/

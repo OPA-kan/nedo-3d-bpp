@@ -6,6 +6,11 @@ name: Bench rollouts
 # also finish four times sooner than the sandbox's four cores.
 
 on:
+  # see wedge-ppo.yml: a push registers the workflow so it can be dispatched
+  push:
+    branches: [claude/rl-packing-policy-ftogt3]
+    paths:
+      - .github/workflows/bench-rollouts.yml
   workflow_dispatch:
     inputs:
       suite:
@@ -29,13 +34,20 @@ on:
         type: number
         default: 0
 
+env:
+  SUITE: ${{ inputs.suite || 'train' }}
+  SHARDS: ${{ inputs.shards || 8 }}
+  K: ${{ inputs.k || 5 }}
+  EXPLORE_EPS: ${{ inputs.explore_eps || '0.3' }}
+  SEED: ${{ inputs.seed || 0 }}
+
 permissions:
   contents: read
 
 jobs:
   shards:
     runs-on: ubuntu-24.04
-    timeout-minutes: 350
+    timeout-minutes: 10
     outputs:
       list: ${{ steps.mk.outputs.list }}
     steps:
@@ -43,7 +55,7 @@ jobs:
         run: |
           python3 - <<'EOF' >> "$GITHUB_OUTPUT"
           import json, os
-          n = int("${{ inputs.shards }}")
+          n = int(os.environ["SHARDS"])
           print("list=" + json.dumps(list(range(n))))
           EOF
 
@@ -65,14 +77,16 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Rollouts
         run: >-
-          python -m bench rollouts --arm ladder-stable --suite "${{ inputs.suite }}"
-          --horizon 999 --k "${{ inputs.k }}" --seed "${{ inputs.seed }}"
-          --explore-eps "${{ inputs.explore_eps }}"
-          --shard "${{ matrix.shard }}/${{ inputs.shards }}"
-          --boards-out "runs/boards-${{ inputs.suite }}"
-          --out "runs/rollouts-${{ inputs.suite }}"
+          timeout --signal=INT 330m
+          python -m bench rollouts --arm ladder-stable --suite "$SUITE"
+          --horizon 999 --k "$K" --seed "$SEED"
+          --explore-eps "$EXPLORE_EPS"
+          --shard "${{ matrix.shard }}/$SHARDS"
+          --boards-out "runs/boards-$SUITE"
+          --out "runs/rollouts-$SUITE"
+          || [ $? -eq 124 ]
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rollouts-${{ inputs.suite }}-s${{ inputs.seed }}-shard${{ matrix.shard }}
+          name: rollouts-${{ env.SUITE }}-s${{ env.SEED }}-shard${{ matrix.shard }}
           path: runs/
