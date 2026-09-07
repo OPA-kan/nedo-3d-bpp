@@ -45,6 +45,33 @@ def cmd_train(args) -> int:
     return 0
 
 
+def cmd_eval(args) -> int:
+    """The saved policy against every baseline on fresh seeds."""
+    import torch
+
+    from .ppo import Policy, evaluate
+
+    env = WedgeEnv(args.layout, n_items=args.items)
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    policy = Policy(env.nx, env.ny)
+    policy.load_state_dict(torch.load(pathlib.Path(args.policy) / "policy.pt"))
+    policy.eval()
+    rows = {"ppo": evaluate(env, policy, seeds)}
+    for name, pol in POLICIES.items():
+        res = [run_episode(env, pol, s, random.Random(s)) for s in seeds]
+        rows[name] = {"strip_volume": float(np.mean([r["strip_volume"] for r in res])),
+                      "strip_max": float(max(r["strip_volume"] for r in res)),
+                      "placed": float(np.mean([r["placed"] for r in res])),
+                      "placed_volume": float(np.mean([r["placed_volume"] for r in res])), "n": len(seeds)}
+    for name, row in rows.items():
+        print(f"{name:13s} strip {row['strip_volume']:.4f} (max {row['strip_max']:.4f})  placed {row['placed']:.2f}  volume {row['placed_volume']:.3f}")
+    if args.out:
+        pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(args.out).write_text(json.dumps({"layout": args.layout, "items": args.items,
+                                                       "seeds": seeds, "rows": rows}, indent=1))
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="wedge_rl", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -59,6 +86,12 @@ def main(argv=None) -> int:
     t.add_argument("--lr", type=float, default=3e-4); t.add_argument("--seed", type=int, default=0)
     t.add_argument("--out", required=True)
     t.set_defaults(fn=cmd_train)
+    e = sub.add_parser("eval")
+    e.add_argument("--policy", required=True, help="directory holding policy.pt")
+    e.add_argument("--layout", default="c1"); e.add_argument("--items", type=int, default=14)
+    e.add_argument("--episodes", type=int, default=40); e.add_argument("--seed0", type=int, default=20000)
+    e.add_argument("--out", default="")
+    e.set_defaults(fn=cmd_eval)
     args = p.parse_args(argv)
     return args.fn(args)
 

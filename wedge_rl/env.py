@@ -61,8 +61,13 @@ FEATURE_SIZE = 12
 
 class WedgeEnv:
     def __init__(self, layout: str = "c1", n_items: int = 14, config=None,
-                 x_extent: float = 0.45, sku_weights=None, max_candidates: int = 96,
+                 x_extent: float = 0.80, sku_weights=None, max_candidates: int = 96,
                  seed: int = 0):
+        # x_extent: floor to the right of the floor line that the episode may
+        # use for bases.  The largest item is 0.75 m long, and a base has to
+        # lie flat at the line for a step to overhang the wedge, so anything
+        # narrower than that forces standing poses (measured: 0.45 left only
+        # 0.25 x 0.65 x 0.45 standing poses, which closed the strip in two).
         from bench.arms import make_arm
 
         self.config = config or make_arm("ladder-stable").config

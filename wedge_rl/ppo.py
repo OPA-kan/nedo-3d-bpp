@@ -79,7 +79,9 @@ def collect(env: WedgeEnv, policy: Policy, episodes: int, seed_base: int, rng: r
                 v = float(policy.value(emb))
             action = PASS if a == len(feats) else a
             next_obs, r, done, _info = env.step(action)
-            traj.append({"obs": obs, "feats": feats, "a": a, "logp": logp, "v": v, "r": r})
+            # rewards are cubic metres of wedge (0.01-0.1 per step); scale so
+            # the value regression and advantages work in units near one
+            traj.append({"obs": obs, "feats": feats, "a": a, "logp": logp, "v": v, "r": r * REWARD_SCALE})
             obs = next_obs
         # GAE with gamma 1 (episodes are short and the objective is total volume)
         adv = 0.0
@@ -92,8 +94,11 @@ def collect(env: WedgeEnv, policy: Policy, episodes: int, seed_base: int, rng: r
             traj[t]["adv"] = adv
             traj[t]["ret"] = ret
         steps.extend(traj)
-        returns.append(sum(s["r"] for s in traj))
+        returns.append(sum(s["r"] for s in traj) / REWARD_SCALE)
     return steps, returns
+
+
+REWARD_SCALE = 10.0
 
 
 def ppo_update(policy: Policy, opt, steps, epochs: int = 4, clip: float = 0.2, ent: float = 0.01):
@@ -122,8 +127,20 @@ def ppo_update(policy: Policy, opt, steps, epochs: int = 4, clip: float = 0.2, e
             opt.step()
 
 
+def decode(logits: torch.Tensor, n_cands: int) -> int:
+    """Deterministic action: PASS only when it carries more than half the
+    probability mass; otherwise the best candidate.  A plain argmax would pass
+    whenever fifty similar candidates split the mass among themselves."""
+    if n_cands == 0:
+        return PASS
+    p = torch.softmax(logits, dim=0)
+    if float(p[-1]) > 0.5:
+        return PASS
+    return int(torch.argmax(p[:-1]))
+
+
 def evaluate(env: WedgeEnv, policy: Policy, seeds) -> dict:
-    """Greedy (argmax) evaluation on fixed seeds."""
+    """Deterministic evaluation on fixed seeds."""
     totals, placed, volumes = [], [], []
     for seed in seeds:
         obs = env.reset(seed)
@@ -132,8 +149,7 @@ def evaluate(env: WedgeEnv, policy: Policy, seeds) -> dict:
             feats = _features(env)
             with torch.no_grad():
                 logits = policy.logits(policy.embed(obs), feats)
-            a = int(torch.argmax(logits))
-            obs, r, _d, _i = env.step(PASS if a == len(feats) else a)
+            obs, r, _d, _i = env.step(decode(logits, len(feats)))
             total += r
         totals.append(total); placed.append(len(env.placed)); volumes.append(env.placed_volume())
     return {"strip_volume": float(np.mean(totals)), "strip_max": float(np.max(totals)),
