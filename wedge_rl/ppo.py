@@ -158,11 +158,13 @@ def evaluate(env: WedgeEnv, policy: Policy, seeds) -> dict:
 
 def train(out_dir: pathlib.Path, layout: str = "c1", n_items: int = 14, iterations: int = 100,
           episodes_per_iter: int = 16, lr: float = 3e-4, seed: int = 0, eval_seeds=range(10000, 10020),
-          log=print) -> dict:
+          log=print, init: pathlib.Path | None = None) -> dict:
     torch.manual_seed(seed); np.random.seed(seed)
     rng = random.Random(seed)
     env = WedgeEnv(layout, n_items=n_items, seed=seed)
     policy = Policy(env.nx, env.ny)
+    if init is not None and pathlib.Path(init).exists():
+        policy.load_state_dict(torch.load(init))
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
     out_dir.mkdir(parents=True, exist_ok=True)
     history = []

@@ -40,7 +40,8 @@ def cmd_train(args) -> int:
 
     result = train(pathlib.Path(args.out), layout=args.layout, n_items=args.items,
                    iterations=args.iterations, episodes_per_iter=args.episodes, lr=args.lr, seed=args.seed,
-                   log=lambda row: print(row, flush=True))
+                   log=lambda row: print(row, flush=True),
+                   init=pathlib.Path(args.init) if args.init else None)
     print(json.dumps({"best_eval_strip_volume": result["best_eval_strip_volume"]}))
     return 0
 
@@ -85,6 +86,7 @@ def main(argv=None) -> int:
     t.add_argument("--iterations", type=int, default=100); t.add_argument("--episodes", type=int, default=16)
     t.add_argument("--lr", type=float, default=3e-4); t.add_argument("--seed", type=int, default=0)
     t.add_argument("--out", required=True)
+    t.add_argument("--init", default="", help="policy.pt to start from")
     t.set_defaults(fn=cmd_train)
     e = sub.add_parser("eval")
     e.add_argument("--policy", required=True, help="directory holding policy.pt")

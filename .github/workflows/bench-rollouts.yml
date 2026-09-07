@@ -1,0 +1,78 @@
+name: Bench rollouts
+
+# Counterfactual labels and continuation boards for the value network, one
+# runner per shard, results as artifacts.  The interactive sandbox is
+# recreated when idle and cannot carry a multi-hour job; four hosted runners
+# also finish four times sooner than the sandbox's four cores.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Scene suite (train-small, train)
+        type: string
+        default: train
+      shards:
+        description: Number of shards (runners)
+        type: number
+        default: 8
+      k:
+        description: Candidates labelled per decision
+        type: number
+        default: 5
+      explore_eps:
+        description: Probability the main line takes a random survivor
+        type: string
+        default: "0.3"
+      seed:
+        description: Sampling seed
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+jobs:
+  shards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    outputs:
+      list: ${{ steps.mk.outputs.list }}
+    steps:
+      - id: mk
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          n = int("${{ inputs.shards }}")
+          print("list=" + json.dumps(list(range(n))))
+          EOF
+
+  rollouts:
+    needs: shards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.shards.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Rollouts
+        run: >-
+          python -m bench rollouts --arm ladder-stable --suite "${{ inputs.suite }}"
+          --horizon 999 --k "${{ inputs.k }}" --seed "${{ inputs.seed }}"
+          --explore-eps "${{ inputs.explore_eps }}"
+          --shard "${{ matrix.shard }}/${{ inputs.shards }}"
+          --boards-out "runs/boards-${{ inputs.suite }}"
+          --out "runs/rollouts-${{ inputs.suite }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rollouts-${{ inputs.suite }}-s${{ inputs.seed }}-shard${{ matrix.shard }}
+          path: runs/

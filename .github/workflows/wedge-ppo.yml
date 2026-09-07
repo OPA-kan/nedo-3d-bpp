@@ -1,0 +1,88 @@
+name: Wedge PPO
+
+# Long training runs do not survive the interactive sandbox, which is
+# recreated whenever the session idles.  This runs wedge_rl's PPO on a hosted
+# runner for as long as the job limit allows and keeps the checkpoint and
+# learning curve as artifacts.  A later run can start from the checkpoint of
+# an earlier one via `init_run_id`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      layout:
+        description: Container layout (c1 or c1s)
+        type: string
+        default: c1
+      iterations:
+        description: PPO iterations
+        type: number
+        default: 400
+      episodes:
+        description: Episodes per iteration
+        type: number
+        default: 32
+      seed:
+        description: Random seed
+        type: number
+        default: 0
+      init_run_id:
+        description: Run id of a previous Wedge PPO run whose policy to start from (optional)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: wedge-ppo-${{ github.ref }}-${{ inputs.seed }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Fetch the checkpoint to start from
+        if: inputs.init_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}
+          path: init
+          run-id: ${{ inputs.init_run_id }}
+          github-token: ${{ github.token }}
+      - name: Baselines on the evaluation seeds
+        run: >-
+          python -m wedge_rl baselines --layout "${{ inputs.layout }}" --episodes 40 --seed0 20000
+          --out "reports/wedge/baselines-${{ inputs.layout }}.json"
+      - name: Train
+        run: >-
+          python -m wedge_rl train
+          --layout "${{ inputs.layout }}"
+          --iterations "${{ inputs.iterations }}"
+          --episodes "${{ inputs.episodes }}"
+          --seed "${{ inputs.seed }}"
+          --out "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}"
+          ${{ inputs.init_run_id != '' && '--init init/policy.pt' || '' }}
+      - name: Evaluate against the baselines
+        if: always()
+        run: >-
+          python -m wedge_rl eval
+          --policy "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}"
+          --layout "${{ inputs.layout }}" --episodes 40 --seed0 20000
+          --out "runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}/eval.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}
+          path: |
+            runs/wedge-ppo-${{ inputs.layout }}-s${{ inputs.seed }}/
+            reports/wedge/
