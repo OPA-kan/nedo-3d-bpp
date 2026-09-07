@@ -61,6 +61,43 @@ class WedgeEnvTests(unittest.TestCase):
         res = [run_episode(env, staircase, s, random.Random(s)) for s in range(6)]
         self.assertGreater(max(r["strip_volume"] for r in res), 0.0)
 
+    def test_option_places_hard_items_and_leaves_soft_to_the_ladder(self):
+        """Inside rule-alpha: the option proposes a strip placement for a hard
+        item on an empty board (a floor base is always legal and the trained
+        policy takes one), declines soft cargo, and the agent's action carries
+        the proposed pose."""
+        import pathlib
+
+        from bench.arms import make_arm
+        from bench.scenes import make_scene
+        from rule_alpha import classify as cls
+        from wedge_rl.option import ARCHETYPE, WedgeOption
+
+        policy_dir = pathlib.Path("reports/wedge/ppo-c1-s0")
+        if not (policy_dir / "policy.pt").exists():
+            self.skipTest("no trained wedge policy in the tree")
+        config = make_arm("ladder-stable").config
+        scene = make_scene(1, "c1", "C")
+        board = layer1.Board(scene.rule_alpha_containers(), config)
+        option = WedgeOption(policy_dir, config)
+        hard = cls.classify_item(0, {"index": 0, "length": 0.55, "width": 0.40, "height": 0.24,
+                                     "mass": 8, "is_soft": False, "is_prioritized": False}, config)
+        soft = cls.classify_item(1, {"index": 1, "length": 0.50, "width": 0.40, "height": 0.40,
+                                     "mass": 10, "is_soft": True, "is_prioritized": False}, config)
+        self.assertIsNone(option.propose(board, soft))
+        decision = option.propose(board, hard)
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.placement.archetype, ARCHETYPE)
+        ok, why = layer1.validate(decision.placement.box, board.model(0), board.container(0), config)
+        self.assertTrue(ok, why)
+        arm = make_arm(f"wedge:{policy_dir}")
+        agent = arm(scene)
+        agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+        action = agent.policy({"container_list": scene.rule_alpha_containers(), "pool_list": [hard.item]})
+        self.assertEqual(action["item_idx"], 0)
+        self.assertEqual(agent.last_decision.placement.archetype, ARCHETYPE)
+        self.assertTrue(np.allclose(action["place_pos"][:2], decision.placement.box.center[:2], atol=1e-6))
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""

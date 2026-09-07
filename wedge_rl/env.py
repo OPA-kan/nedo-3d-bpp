@@ -59,6 +59,134 @@ class Candidate:
 FEATURE_SIZE = 12
 
 
+# ---------------------------------------------------------------------------
+# The strip as functions of (model, container), so the same generator and
+# observation serve the training environment (empty container) and the
+# option that runs inside rule-alpha (whatever the container holds).
+# ---------------------------------------------------------------------------
+def play_region(model: ContainerModel, x_extent: float) -> tuple[float, float]:
+    """(x_max_play, z_top): the strip's right edge and the height under the small shelf."""
+    x_max_play = model.x_floor_min + x_extent
+    z_top = float(model.small_shelf.minimum[2]) if model.small_shelf is not None else model.z_ceiling
+    return x_max_play, z_top
+
+
+def grid_shape(model: ContainerModel, x_max_play: float) -> tuple[int, int]:
+    nx = int(np.ceil((x_max_play - model.x_wall_min) / CELL))
+    ny = int(np.ceil((model.y_back - model.y_opening) / CELL))
+    return nx, ny
+
+
+def chamfer_height_at(model: ContainerModel, x: float) -> float:
+    """Height above the floor of the chamfer plane at column x (0 right of the floor line)."""
+    if x >= model.x_floor_min:
+        return 0.0
+    lo, hi = model.z_floor, model.z_chamfer_top
+    for _ in range(30):
+        mid = 0.5 * (lo + hi)
+        if model.x_limit_at_height(mid) <= x:
+            hi = mid
+        else:
+            lo = mid
+    return hi - model.z_floor
+
+
+def strip_heightmap(model: ContainerModel, container: dict, nx: int, ny: int) -> np.ndarray:
+    h = np.zeros((nx, ny), dtype=np.float32)
+    xs = model.x_wall_min + (np.arange(nx) + 0.5) * CELL
+    ys = model.y_opening + (np.arange(ny) + 0.5) * CELL
+    for box, _s, _p in packed_aabbs_local(container):
+        ix = (xs >= box.minimum[0]) & (xs <= box.maximum[0])
+        iy = (ys >= box.minimum[1]) & (ys <= box.maximum[1])
+        top = float(box.maximum[2]) - model.z_floor
+        h[np.ix_(ix, iy)] = np.maximum(h[np.ix_(ix, iy)], top)
+    return h
+
+
+def strip_observation(model: ContainerModel, container: dict, nx: int, ny: int, z_top: float,
+                      item: dict | None, remaining: float) -> dict:
+    scale = max(z_top - model.z_floor, 1e-9)
+    xs = model.x_wall_min + (np.arange(nx) + 0.5) * CELL
+    chamfer = np.asarray([chamfer_height_at(model, x) for x in xs], dtype=np.float32)
+    return {
+        "heightmap": strip_heightmap(model, container, nx, ny) / scale,
+        "chamfer": chamfer / scale,
+        "item": np.asarray([item["length"], item["width"], item["height"], item["mass"] / 20.0,
+                            1.0 if item["is_soft"] else 0.0] if item else [0, 0, 0, 0, 0], dtype=np.float32),
+        "remaining": float(remaining),
+    }
+
+
+def strip_gain_of(model: ContainerModel, box: AABB) -> float:
+    left = min(float(box.maximum[0]), model.x_floor_min) - float(box.minimum[0])
+    if left <= 0:
+        return 0.0
+    return left * float(box.size[1]) * float(box.size[2])
+
+
+def strip_candidates(model: ContainerModel, container: dict, cfg, profile, x_max_play: float,
+                     z_top: float, max_candidates: int = 96) -> list[Candidate]:
+    """Every legal pose of ``profile`` in the strip, most wedge volume first."""
+    packed = [box for box, _s, _p in packed_aabbs_local(container)]
+    gap = cfg.settled_clearance + cfg.anchor_slack
+    # the commanded pose (settled + release lift) must clear every wall by
+    # the inclusion clearance, so wall anchors use that, not the settled one
+    wall = cfg.inclusion_clearance + cfg.anchor_slack
+    # the chamfer is inclined: a clearance c from its plane needs a
+    # horizontal offset c / |n_x| from the x limit, not c
+    chamfer_nx = max(abs(float(n[0])) for n in model.plane_normals
+                     if abs(float(n[0])) > 1e-6 and abs(float(n[2])) > 1e-6)
+    wall_x = wall / chamfer_nx
+    supports = [(model.z_floor, True, None)] + [(float(b.maximum[2]), False, b) for b in packed]
+    out: list[Candidate] = []
+    seen = set()
+    for o in profile.orientations:
+        dx, dy, dz = o.dx, o.dy, o.dz
+        for bottom, on_floor, base in supports:
+            if bottom + dz > z_top - wall:
+                continue
+            x_left = model.x_limit_at_height(bottom) + dx / 2.0 + wall_x
+            xs = {x_left, x_max_play - dx / 2.0}
+            ys = {model.y_back - dy / 2.0 - wall, model.y_opening + dy / 2.0 + wall}
+            if base is not None:
+                # the step of a staircase: overhang the support's left edge
+                # by a fraction of the box's own width, as far as the
+                # chamfer allows -- the mechanism that recovers the wedge
+                for frac in (0.1, 0.2, 0.3, 0.4, 0.5):
+                    xs.add(max(x_left, float(base.minimum[0]) - frac * dx + dx / 2.0))
+            for b in packed:
+                xs.update((float(b.maximum[0]) + dx / 2.0 + gap, float(b.minimum[0]) - dx / 2.0 - gap,
+                           float(b.minimum[0]) + dx / 2.0, float(b.maximum[0]) - dx / 2.0))
+                ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap,
+                           float(b.minimum[1]) + dy / 2.0, float(b.maximum[1]) - dy / 2.0))
+            for x in xs:
+                if x - dx / 2.0 < model.x_wall_min or x + dx / 2.0 > x_max_play + 1e-9:
+                    continue
+                for y in ys:
+                    if y - dy / 2.0 < model.y_opening or y + dy / 2.0 > model.y_back:
+                        continue
+                    key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "wedge")
+                    ok, _why = layer1.validate(box, model, container, cfg)
+                    if not ok:
+                        continue
+                    st = stability.evaluate(box, container, cfg)
+                    out.append(Candidate(
+                        box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
+                        on_floor=on_floor, strip_gain=strip_gain_of(model, box),
+                        support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
+                        margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
+                    ))
+    # deterministic order: most wedge volume first, then back-most (a box
+    # at the front seals the column behind it), then lowest, then left
+    out.sort(key=lambda c: (-round(c.strip_gain, 6), -round(float(c.box.center[1]), 3),
+                            round(c.bottom, 3), round(float(c.box.center[0]), 3)))
+    return out[:max_candidates]
+
+
 class WedgeEnv:
     def __init__(self, layout: str = "c1", n_items: int = 14, config=None,
                  x_extent: float = 0.80, sku_weights=None, max_candidates: int = 96,
@@ -80,11 +208,8 @@ class WedgeEnv:
         scene = make_scene(1, layout, "C")
         self.template = scene.rule_alpha_containers()[0]
         self.model = ContainerModel(self.template, self.config)
-        m = self.model
-        self.x_max_play = m.x_floor_min + x_extent
-        self.z_top = float(m.small_shelf.minimum[2]) if m.small_shelf is not None else m.z_ceiling
-        self.nx = int(np.ceil((self.x_max_play - m.x_wall_min) / CELL))
-        self.ny = int(np.ceil((m.y_back - m.y_opening) / CELL))
+        self.x_max_play, self.z_top = play_region(self.model, x_extent)
+        self.nx, self.ny = grid_shape(self.model, self.x_max_play)
         self.container = None
         self.stream = []
         self.cursor = 0
@@ -118,54 +243,15 @@ class WedgeEnv:
 
     # ------------------------------------------------------------------
     def heightmap(self) -> np.ndarray:
-        m = self.model
-        h = np.zeros((self.nx, self.ny), dtype=np.float32)
-        xs = m.x_wall_min + (np.arange(self.nx) + 0.5) * CELL
-        ys = m.y_opening + (np.arange(self.ny) + 0.5) * CELL
-        for box, _s, _p in packed_aabbs_local(self.container):
-            ix = (xs >= box.minimum[0]) & (xs <= box.maximum[0])
-            iy = (ys >= box.minimum[1]) & (ys <= box.maximum[1])
-            top = float(box.maximum[2]) - m.z_floor
-            h[np.ix_(ix, iy)] = np.maximum(h[np.ix_(ix, iy)], top)
-        return h
+        return strip_heightmap(self.model, self.container, self.nx, self.ny)
 
     def observation(self) -> dict:
-        item = self.item
-        h = self.heightmap() / max(self.z_top - self.model.z_floor, 1e-9)
-        chamfer = np.zeros(self.nx, dtype=np.float32)
-        xs = self.model.x_wall_min + (np.arange(self.nx) + 0.5) * CELL
-        # height of the chamfer surface above the floor at each x column
-        for i, x in enumerate(xs):
-            chamfer[i] = self._chamfer_height_at(x)
-        return {
-            "heightmap": h,
-            "chamfer": chamfer / max(self.z_top - self.model.z_floor, 1e-9),
-            "item": np.asarray([item["length"], item["width"], item["height"], item["mass"] / 20.0,
-                                1.0 if item["is_soft"] else 0.0] if item else [0, 0, 0, 0, 0], dtype=np.float32),
-            "remaining": (len(self.stream) - self.cursor) / max(len(self.stream), 1),
-        }
-
-    def _chamfer_height_at(self, x: float) -> float:
-        """Height above the floor of the chamfer plane at column x (0 right of the floor line)."""
-        m = self.model
-        if x >= m.x_floor_min:
-            return 0.0
-        lo, hi = m.z_floor, m.z_chamfer_top
-        for _ in range(30):
-            mid = 0.5 * (lo + hi)
-            if m.x_limit_at_height(mid) <= x:
-                hi = mid
-            else:
-                lo = mid
-        return hi - m.z_floor
+        return strip_observation(self.model, self.container, self.nx, self.ny, self.z_top, self.item,
+                                 (len(self.stream) - self.cursor) / max(len(self.stream), 1))
 
     # ------------------------------------------------------------------
     def strip_gain(self, box: AABB) -> float:
-        m = self.model
-        left = min(float(box.maximum[0]), m.x_floor_min) - float(box.minimum[0])
-        if left <= 0:
-            return 0.0
-        return left * float(box.size[1]) * float(box.size[2])
+        return strip_gain_of(self.model, box)
 
     def candidates(self) -> list[Candidate]:
         if self._cands is not None:
@@ -174,65 +260,9 @@ class WedgeEnv:
         if item is None:
             self._cands = []
             return self._cands
-        m, cfg = self.model, self.config
-        profile = cls.classify_item(int(item["index"]), item, cfg)
-        packed = [box for box, _s, _p in packed_aabbs_local(self.container)]
-        gap = cfg.settled_clearance + cfg.anchor_slack
-        # the commanded pose (settled + release lift) must clear every wall by
-        # the inclusion clearance, so wall anchors use that, not the settled one
-        wall = cfg.inclusion_clearance + cfg.anchor_slack
-        # the chamfer is inclined: a clearance c from its plane needs a
-        # horizontal offset c / |n_x| from the x limit, not c
-        chamfer_nx = max(abs(float(n[0])) for n in m.plane_normals if abs(float(n[0])) > 1e-6 and abs(float(n[2])) > 1e-6)
-        wall_x = wall / chamfer_nx
-        supports = [(m.z_floor, True, None)] + [(float(b.maximum[2]), False, b) for b in packed]
-        out: list[Candidate] = []
-        seen = set()
-        for o in profile.orientations:
-            dx, dy, dz = o.dx, o.dy, o.dz
-            for bottom, on_floor, base in supports:
-                if bottom + dz > self.z_top - wall:
-                    continue
-                x_left = m.x_limit_at_height(bottom) + dx / 2.0 + wall_x
-                xs = {x_left, self.x_max_play - dx / 2.0}
-                ys = {m.y_back - dy / 2.0 - wall, m.y_opening + dy / 2.0 + wall}
-                if base is not None:
-                    # the step of a staircase: overhang the support's left edge
-                    # by a fraction of the box's own width, as far as the
-                    # chamfer allows -- the mechanism that recovers the wedge
-                    for frac in (0.1, 0.2, 0.3, 0.4, 0.5):
-                        xs.add(max(x_left, float(base.minimum[0]) - frac * dx + dx / 2.0))
-                for b in packed:
-                    xs.update((float(b.maximum[0]) + dx / 2.0 + gap, float(b.minimum[0]) - dx / 2.0 - gap,
-                               float(b.minimum[0]) + dx / 2.0, float(b.maximum[0]) - dx / 2.0))
-                    ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap,
-                               float(b.minimum[1]) + dy / 2.0, float(b.maximum[1]) - dy / 2.0))
-                for x in xs:
-                    if x - dx / 2.0 < m.x_wall_min or x + dx / 2.0 > self.x_max_play + 1e-9:
-                        continue
-                    for y in ys:
-                        if y - dy / 2.0 < m.y_opening or y + dy / 2.0 > m.y_back:
-                            continue
-                        key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
-                        if key in seen:
-                            continue
-                        seen.add(key)
-                        box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "wedge")
-                        ok, _why = layer1.validate(box, m, self.container, cfg)
-                        if not ok:
-                            continue
-                        st = stability.evaluate(box, self.container, cfg)
-                        out.append(Candidate(
-                            box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
-                            on_floor=on_floor, strip_gain=self.strip_gain(box),
-                            support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
-                            margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
-                        ))
-        # deterministic order: most wedge volume first, then back-most (a box
-        # at the front seals the column behind it), then lowest, then left
-        out.sort(key=lambda c: (-round(c.strip_gain, 6), -round(float(c.box.center[1]), 3),
-                                round(c.bottom, 3), round(float(c.box.center[0]), 3)))
-        self._cands = out[: self.max_candidates]
+        profile = cls.classify_item(int(item["index"]), item, self.config)
+        self._cands = strip_candidates(self.model, self.container, self.config, profile,
+                                       self.x_max_play, self.z_top, self.max_candidates)
         return self._cands
 
     # ------------------------------------------------------------------

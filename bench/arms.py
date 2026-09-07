@@ -12,6 +12,7 @@ checks that when two labels resolve to the same arm.
 from __future__ import annotations
 
 import dataclasses
+import pathlib
 
 from rule_alpha.agent import RuleAlphaAgent
 from rule_alpha.config import DEFAULT_CONFIG, RuleAlphaConfig
@@ -151,11 +152,40 @@ class ValueArm(LadderArm):
                 "model_spec": self.selector.net.spec, "config": self.config.to_dict()}
 
 
+class WedgeArm(LadderArm):
+    """The stable ladder with the learned wedge option asked before it.
+    Spec: ``wedge:<policy dir>[@field=value,...]``; the directory holds
+    ``policy.pt`` from ``wedge_rl train``."""
+
+    def __init__(self, spec: str):
+        from .ranker import file_sha
+
+        body, _at, overrides = spec.partition("@")
+        _w, _colon, path = body.partition(":")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.policy_dir = path
+        self.model_sha = file_sha(str(pathlib.Path(path) / "policy.pt"))
+
+    def __call__(self, scene):
+        from wedge_rl.option import WedgeOption
+
+        # one option per episode: it counts the items it has been offered
+        return RuleAlphaAgent(config=self.config, wedge_option=WedgeOption(self.policy_dir, self.config))
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "wedge", "model": self.policy_dir,
+                "model_sha": self.model_sha, "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
     if spec.startswith("nn:"):
         return LearnedArm(spec)
     if spec.startswith("vnet:"):
         return ValueArm(spec)
+    if spec.startswith("wedge:"):
+        return WedgeArm(spec)
     resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]
     if base == "ladder":
