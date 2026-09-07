@@ -61,6 +61,31 @@ class WedgeEnvTests(unittest.TestCase):
         res = [run_episode(env, staircase, s, random.Random(s)) for s in range(6)]
         self.assertGreater(max(r["strip_volume"] for r in res), 0.0)
 
+    def test_replay_scene_and_scripted_actions(self):
+        """The replay scene carries exactly the placed boxes, and the scripted
+        agent commands each planned pose (without running PyBullet)."""
+        from wedge_rl.replay import ScriptedAgent, arrangement, scene_for
+
+        env = WedgeEnv("c1", n_items=10)
+        placed = arrangement(env, staircase, 3)
+        self.assertGreater(len(placed), 0)
+        scene = scene_for(placed, "c1", 3)
+        self.assertEqual([i["index"] for i in scene.items], list(range(len(placed))))
+        for (item, _c), spec in zip(placed, scene.items):
+            self.assertEqual((spec["length"], spec["width"], spec["height"]),
+                             (item["length"], item["width"], item["height"]))
+            self.assertIn("lateralFriction", spec)
+        plan = {i: c for i, (_it, c) in enumerate(placed)}
+        agent = ScriptedAgent(plan, env.config)
+        observation = {"container_list": scene.rule_alpha_containers(), "pool_list": [scene.items[0]]}
+        action = agent.policy(observation)
+        self.assertEqual(action["item_idx"], 0)
+        self.assertEqual(action["orientation"], plan[0].orientation)
+        self.assertTrue(np.allclose(action["place_pos"][:2], plan[0].box.center[:2], atol=1e-6))
+        self.assertGreaterEqual(float(action["place_pos"][2]), float(plan[0].box.center[2]))
+        self.assertIsNone(agent.policy({"container_list": observation["container_list"],
+                                        "pool_list": [{"index": 99}]}))
+
 
 if __name__ == "__main__":
     unittest.main()

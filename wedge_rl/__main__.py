@@ -73,6 +73,52 @@ def cmd_eval(args) -> int:
     return 0
 
 
+def load_ppo_policy(policy_dir: str, env: WedgeEnv):
+    """The saved PPO policy as a ``policy(env, rng) -> action`` callable."""
+    import torch
+
+    from .ppo import Policy, _features, decode
+
+    policy = Policy(env.nx, env.ny)
+    policy.load_state_dict(torch.load(pathlib.Path(policy_dir) / "policy.pt"))
+    policy.eval()
+
+    def act(env: WedgeEnv, _rng=None) -> int:
+        feats = _features(env)
+        with torch.no_grad():
+            logits = policy.logits(policy.embed(env.observation()), feats)
+        return decode(logits, len(feats))
+
+    return act
+
+
+def cmd_replay(args) -> int:
+    """Plan with each policy, replay the boxes in PyBullet, report acceptance."""
+    from .replay import replay_many
+
+    env = WedgeEnv(args.layout, n_items=args.items)
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    policies = {}
+    for name in args.policies.split(","):
+        if name == "ppo":
+            policies["ppo"] = load_ppo_policy(args.policy, env)
+        else:
+            policies[name] = POLICIES[name]
+    out = pathlib.Path(args.out) if args.out else None
+    summary = replay_many(env, policies, seeds, out, with_shake=not args.no_shake,
+                          log=lambda line: print(line, flush=True))
+    for label, row in summary.items():
+        print(f"{label:10s} accept {row['acceptance']:.3f} clean {row['clean_episodes']:.2f} "
+              f"strip {row['planned_strip']:.4f}->{row['realized_strip']:.4f} "
+              f"overhang {row['overhang_steps']} ok {row['overhang_acceptance']} "
+              f"xy max {row['xy_shift_max']:.3f} ends {row['end_reasons']}")
+    if args.summary:
+        pathlib.Path(args.summary).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(args.summary).write_text(json.dumps({"layout": args.layout, "items": args.items,
+                                                           "seeds": seeds, "rows": summary}, indent=1))
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="wedge_rl", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -94,6 +140,15 @@ def main(argv=None) -> int:
     e.add_argument("--episodes", type=int, default=40); e.add_argument("--seed0", type=int, default=20000)
     e.add_argument("--out", default="")
     e.set_defaults(fn=cmd_eval)
+    r = sub.add_parser("replay", help="replay planned boxes in the official simulator")
+    r.add_argument("--policies", default="ppo,staircase", help="comma list of ppo and/or baseline names")
+    r.add_argument("--policy", default="", help="directory holding policy.pt (for ppo)")
+    r.add_argument("--layout", default="c1"); r.add_argument("--items", type=int, default=14)
+    r.add_argument("--episodes", type=int, default=40); r.add_argument("--seed0", type=int, default=20000)
+    r.add_argument("--no-shake", action="store_true")
+    r.add_argument("--out", default="", help="per-episode jsonl (appended; resumable)")
+    r.add_argument("--summary", default="")
+    r.set_defaults(fn=cmd_replay)
     args = p.parse_args(argv)
     return args.fn(args)
 
