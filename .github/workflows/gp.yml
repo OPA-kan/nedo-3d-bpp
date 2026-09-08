@@ -1,0 +1,67 @@
+name: Executor GP
+
+# Genetic programming of a priority function per region, one runner per
+# (region, seed); the best expression and its held-out evaluation are the
+# artifact.  Registered by a push that touches this file; dispatch after.
+
+on:
+  push:
+    branches: [claude/rl-packing-policy-ftogt3]
+    paths: [.github/workflows/gp.yml]
+  workflow_dispatch:
+    inputs:
+      generations:
+        description: Generations
+        type: string
+        default: "40"
+      population:
+        description: Population
+        type: string
+        default: "100"
+      train_streams:
+        description: Training streams per fitness evaluation
+        type: string
+        default: "16"
+      seeds:
+        description: JSON list of GP seeds
+        type: string
+        default: "[0, 1]"
+
+env:
+  GENERATIONS: ${{ inputs.generations || '40' }}
+  POPULATION: ${{ inputs.population || '100' }}
+  TRAIN_STREAMS: ${{ inputs.train_streams || '16' }}
+
+permissions:
+  contents: read
+
+jobs:
+  evolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [wedge, shelf]
+        seed: ${{ fromJson(inputs.seeds || '[0, 1]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Evolve
+        run: |
+          layout=c1; if [ "${{ matrix.region }}" = "shelf" ]; then layout=c1s; fi
+          timeout --signal=INT --kill-after=3m 330m python -m wedge_rl evolve \
+            --region "${{ matrix.region }}" --layout "$layout" \
+            --generations "$GENERATIONS" --population "$POPULATION" --train-streams "$TRAIN_STREAMS" \
+            --seed "${{ matrix.seed }}" --workers 4 --episodes 40 --seed0 20000 --max-minutes 290 \
+            --out "runs/gp-${{ matrix.region }}-s${{ matrix.seed }}" || [ $? -eq 124 ]
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gp-${{ matrix.region }}-s${{ matrix.seed }}
+          path: runs/

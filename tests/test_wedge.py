@@ -191,6 +191,36 @@ class WedgeEnvTests(unittest.TestCase):
         after = teacher_accuracy(policy, steps)
         self.assertGreaterEqual(after, max(before, 0.75))
 
+    def test_gp_expressions_evaluate_and_evolve(self):
+        import random as _random
+
+        from wedge_rl import gp
+        from wedge_rl.regions import env_factory
+
+        rng = _random.Random(0)
+        feats = np.random.default_rng(0).random((5, 12)).astype(np.float32)
+        state = np.zeros(5, dtype=np.float32)
+        for _ in range(50):
+            tree = gp.random_tree(rng, 5)
+            vals = gp.evaluate(tree, feats, state)
+            self.assertEqual(vals.shape, (5,))
+            self.assertTrue(np.all(np.isfinite(vals)), str(tree))
+            child = gp.crossover(rng, tree, gp.random_tree(rng, 4), 6)
+            self.assertLessEqual(child.depth(), 6)
+            mutant = gp.mutate(rng, tree, 6)
+            self.assertLessEqual(mutant.depth(), 6)
+            self.assertEqual(str(gp.Node.from_json(tree.to_json())), str(tree))
+        # the 'gain' expression is greedy_gain: same gains on the wedge
+        env = WedgeEnv("c1", n_items=5)
+        from wedge_rl.baselines import greedy_gain
+        for seed in (1, 2):
+            a = run_episode(env, gp.policy_of(gp.Node("gain")), seed)["gain"]
+            b = run_episode(env, greedy_gain, seed)["gain"]
+            self.assertAlmostEqual(a, b)
+        result = gp.evolve(env_factory("wedge", "c1", 4), [3, 4], generations=2, population=6, log=None)
+        self.assertIsNotNone(result["best"])
+        self.assertEqual(len(result["history"]), 2)
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""

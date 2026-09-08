@@ -192,6 +192,41 @@ def cmd_ceiling(args) -> int:
     return 0
 
 
+def cmd_evolve(args) -> int:
+    """Genetic programming of a priority function; held-out evaluation at the end."""
+    from . import gp
+
+    out = pathlib.Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    factory = env_factory(args.region, _layout(args), args.items, args.seed)
+    train_seeds = list(range(args.train_seed0, args.train_seed0 + args.train_streams))
+
+    def checkpoint(best, history):
+        gp.save(best, out / "best.json", {"history": history})
+
+    result = gp.evolve(factory, train_seeds, generations=args.generations, population=args.population,
+                       seed=args.seed, max_depth=args.max_depth, parsimony=args.parsimony,
+                       workers=args.workers, log=lambda row: print(row, flush=True), checkpoint=checkpoint,
+                       max_minutes=args.max_minutes)
+    best = result["best"]
+    env = factory()
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    rows = {"gp": {}}
+    res = [run_episode(env, gp.policy_of(best), s) for s in seeds]
+    rows["gp"] = {"gain": float(np.mean([r["gain"] for r in res])), "gain_max": float(max(r["gain"] for r in res)),
+                  "placed": float(np.mean([r["placed"] for r in res])),
+                  "placed_volume": float(np.mean([r["placed_volume"] for r in res])), "n": len(seeds)}
+    for name in ("greedy_any", "staircase"):
+        res = [run_episode(env, POLICIES[name], s, random.Random(s)) for s in seeds]
+        rows[name] = {"gain": float(np.mean([r["gain"] for r in res])), "placed": float(np.mean([r["placed"] for r in res]))}
+    print("best:", str(best))
+    for name, row in rows.items():
+        print(f"{name:10s} gain {row['gain']:.4f} placed {row['placed']:.2f}")
+    gp.save(best, out / "best.json", {"history": result["history"], "train_fitness": result["best_fitness"],
+                                      "eval": {"seeds": seeds, "rows": rows}})
+    return 0
+
+
 def _common(p, episodes: int, seed0: int):
     p.add_argument("--region", default="wedge", choices=REGIONS)
     p.add_argument("--layout", default="", help="container layout (default: c1 for wedge, c1s for shelf)")
@@ -249,6 +284,14 @@ def main(argv=None) -> int:
     h.add_argument("--shard", default="", help="i/n: this process takes every n-th seed starting at i")
     h.add_argument("--out", required=True, help="directory for s<seed>.pkl files (resumable)")
     h.set_defaults(fn=cmd_teach)
+    g = sub.add_parser("evolve", help="genetic programming of a priority function"); _common(g, 40, 20000)
+    g.add_argument("--train-seed0", type=int, default=1_000_000); g.add_argument("--train-streams", type=int, default=32)
+    g.add_argument("--generations", type=int, default=40); g.add_argument("--population", type=int, default=120)
+    g.add_argument("--max-depth", type=int, default=6); g.add_argument("--parsimony", type=float, default=1e-4)
+    g.add_argument("--seed", type=int, default=0); g.add_argument("--workers", type=int, default=1)
+    g.add_argument("--max-minutes", type=float, default=None, help="stop between generations after this budget")
+    g.add_argument("--out", required=True)
+    g.set_defaults(fn=cmd_evolve)
     args = p.parse_args(argv)
     return args.fn(args)
 
