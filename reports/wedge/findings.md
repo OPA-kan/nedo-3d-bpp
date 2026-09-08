@@ -157,6 +157,49 @@ learner is the limit, not the candidate set.  Cost of the search: 6 to 30
 minutes per stream on one core, which rules it out at play time (8 s) and
 makes it a teacher.
 
+## Two attempts to close the gap, neither did
+
+Held-out streams 20000-20039, paired against the plain PPO checkpoints:
+
+| region | plain PPO | search-taught PPO | GP (best of two seeds) | hand rule | ceiling |
+|---|---|---|---|---|---|
+| shelf | 0.4375 | 0.4221 (-0.015, CI -0.030 to -0.000) | 0.4017 (`reach / x`) | 0.3777 | 0.4665 |
+| wedge | 0.0677 | 0.0688 (+0.001, CI -0.003 to +0.005) | 0.0451 (`gt0(max(y/reach, margin - x))`) | 0.0502 | 0.0842 |
+
+**Search as the teacher** (`teach`, `train --teacher`).  Teacher data: 512
+shelf streams (7,168 steps, mean gain 0.471) and 301 wedge streams (4,214
+steps, mean gain 0.080; a wedge search takes 33 minutes per stream and the
+shards hit their limit).  Training started from the plain checkpoints,
+dropped the streams they already matched, cloned the rest for ten epochs
+and kept an imitation term (weight 0.5) in PPO.  The shelf policy fell
+from 0.4375 to 0.413 on cloning and never recovered; teacher accuracy sat
+at 74 % throughout, so the network could not reproduce the teacher and the
+imitation term held it below its own start.  The wedge policy ended level.
+Why it failed, most likely: the beam's trajectory is one arbitrary optimum
+among many near-equal ones (its tie-breaks are geometric, not learnable),
+so imitating the single chosen action is a noisy target.  The teacher
+should hand over the *values* of all children at each step (the rollout
+returns the beam already computes) as a soft target, the way AlphaZero
+trains on visit distributions rather than the best move; that is the one
+more variant worth trying.  Files: `ppo-shelf-c1s-s2/`, `ppo-wedge-c1-s2/`
+(`pretrain.json` has the cloning curve, `history.json` the
+`teacher_accuracy` column).  Physics replay of the wedge policy:
+`replay-wedge-c1-s2*`, 0.0688 planned to 0.0682 settled, two transport
+rejections in 40 streams.
+
+**Genetic programming** (`evolve`, `gp-*/best.json`).  Population 100, 16
+training streams, 290 minutes on four cores.  The shelf runs reached 24
+and 40 generations and converged to one-term expressions (`z`, `reach /
+x`) that beat greedy and sit 8 % below PPO; the evolved rule cannot see
+what PPO learned (which item to refuse so that a later one stacks).  The
+wedge runs managed 8 and 17 generations because one fitness evaluation
+costs 30 s there, and stayed below the hand staircase.  GP at this budget
+finds the obvious ordering rules and stops; it would need either a much
+larger budget or terminals that describe the future (remaining items by
+size, free top area), which is what the network gets from the heightmap.
+
+Both outcomes are on the branch as negative results with their data.
+
 ## Executor status
 
 | region | learned vs best hand rule | physics acceptance | plateau |
@@ -164,12 +207,12 @@ makes it a teacher.
 | wedge (c1) | 0.068 vs 0.050 m^3 | 203/203 | ~iteration 200, two seeds |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 279/279 | ~iteration 200 |
 
-Next for the executors: search as the teacher.  `wedge_rl teach` writes
-the beam's trajectory for many streams; `train --teacher` clones them and
-keeps an imitation term in PPO (expert iteration).  Teacher streams the
-current policy already beats are dropped, and the beam can use the trained
-policy as its rollout, so each round's teacher is at least as good as the
-last policy.
+The executors stand at 80-85 % of their action-space ceiling after plain
+PPO; one round of search-as-teacher and a first GP budget did not move
+them (previous section).  The remaining lever on the executors is a
+soft-target teacher; the larger lever for the whole system is still the
+missing Layer 2 (stacking on the open floor), which the shelf executor's
+mechanism already demonstrates.
 
 ## Caveats
 
