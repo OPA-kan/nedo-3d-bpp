@@ -124,6 +124,35 @@ def cmd_replay(args) -> int:
     return 0
 
 
+def cmd_ceiling(args) -> int:
+    """Beam search on a few streams next to the policy and the hand rules."""
+    from .search import ceilings
+
+    env = make_env(args.region, _layout(args), args.items)
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    beam = ceilings(args.region, _layout(args), args.items, seeds, args.width, args.k, workers=args.workers,
+                    spread=args.spread, rollout=args.rollout, log=lambda line: print(line, flush=True))
+    rows = []
+    ppo = load_ppo_policy(args.policy, env) if args.policy else None
+    for r in beam:
+        row = {"seed": r["seed"], "beam": r["gain"], "beam_placed": r["placed"], "beam_seconds": r["seconds"]}
+        if ppo is not None:
+            row["ppo"] = run_episode(env, ppo, r["seed"])["gain"]
+        for name in ("greedy_any", "staircase"):
+            row[name] = run_episode(env, POLICIES[name], r["seed"], random.Random(r["seed"]))["gain"]
+        rows.append(row)
+        print(" ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in row.items()), flush=True)
+    means = {k: float(np.mean([row[k] for row in rows])) for k in rows[0] if k != "seed"}
+    print("mean: " + " ".join(f"{k}={v:.4f}" for k, v in means.items()))
+    if args.out:
+        pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(args.out).write_text(json.dumps({"region": args.region, "layout": _layout(args),
+                                                       "items": args.items, "width": args.width, "k": args.k,
+                                                       "rows": rows, "means": means,
+                                                       "actions": {r["seed"]: r["actions"] for r in beam}}, indent=1))
+    return 0
+
+
 def _common(p, episodes: int, seed0: int):
     p.add_argument("--region", default="wedge", choices=REGIONS)
     p.add_argument("--layout", default="", help="container layout (default: c1 for wedge, c1s for shelf)")
@@ -160,6 +189,14 @@ def main(argv=None) -> int:
     r.add_argument("--out", default="", help="per-episode jsonl (appended; resumable)")
     r.add_argument("--summary", default="")
     r.set_defaults(fn=cmd_replay)
+    c = sub.add_parser("ceiling", help="beam-search ceiling of the region on a few streams"); _common(c, 6, 20000)
+    c.add_argument("--width", type=int, default=100); c.add_argument("--k", type=int, default=8)
+    c.add_argument("--spread", type=int, default=0, help="extra children spread along the candidate order")
+    c.add_argument("--rollout", default="", help="rank children by gain plus a baseline rollout: staircase|greedy_any")
+    c.add_argument("--workers", type=int, default=1)
+    c.add_argument("--policy", default="", help="directory holding policy.pt to compare against")
+    c.add_argument("--out", default="")
+    c.set_defaults(fn=cmd_ceiling)
     args = p.parse_args(argv)
     return args.fn(args)
 

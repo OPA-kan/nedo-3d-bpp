@@ -148,6 +148,24 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(len(s_steps), len(m_steps))
         self.assertEqual(sorted(round(r, 9) for r in s_ret), sorted(round(r, 9) for r in m_ret))
 
+    def test_beam_search_actions_replay_to_the_reported_gain(self):
+        from wedge_rl.baselines import staircase as roll
+        from wedge_rl.search import beam_search
+
+        env = WedgeEnv("c1", n_items=4)
+        result = beam_search(env, 7, width=4, k=3, spread=2, rollout=roll)
+        self.assertEqual(len(result["actions"]), 4)
+        env.reset(7)
+        total = 0.0
+        for a in result["actions"]:
+            cands = env.candidates()
+            if a != PASS:
+                self.assertLess(a, len(cands))
+            _obs, r, _d, _i = env.step(a)
+            total += r
+        self.assertAlmostEqual(total, result["gain"])
+        self.assertEqual(len(env.placed), result["placed"])
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""
