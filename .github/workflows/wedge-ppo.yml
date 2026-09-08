@@ -38,6 +38,18 @@ on:
         description: Run id of a previous Wedge PPO run whose policy to start from (optional)
         type: string
         default: ""
+      teacher_run_id:
+        description: Run id of an Executor teacher run whose trajectories to imitate (optional)
+        type: string
+        default: ""
+      teacher_weight:
+        description: Imitation term weight in the PPO loss (with teacher)
+        type: string
+        default: "0.5"
+      pretrain_epochs:
+        description: Behaviour-cloning epochs before PPO (with teacher)
+        type: string
+        default: "10"
 
 env:
   REGION: ${{ inputs.region || 'wedge' }}
@@ -46,6 +58,9 @@ env:
   EPISODES: ${{ inputs.episodes || 32 }}
   SEED: ${{ inputs.seed || 0 }}
   INIT_RUN_ID: ${{ inputs.init_run_id || '' }}
+  TEACHER_RUN_ID: ${{ inputs.teacher_run_id || '' }}
+  TEACHER_WEIGHT: ${{ inputs.teacher_weight || '0.5' }}
+  PRETRAIN_EPOCHS: ${{ inputs.pretrain_epochs || '10' }}
 
 permissions:
   contents: read
@@ -76,6 +91,15 @@ jobs:
           path: init
           run-id: ${{ env.INIT_RUN_ID }}
           github-token: ${{ github.token }}
+      - name: Fetch the teacher trajectories
+        if: env.TEACHER_RUN_ID != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: teacher-${{ env.REGION }}-shard*
+          path: teacher
+          merge-multiple: true
+          run-id: ${{ env.TEACHER_RUN_ID }}
+          github-token: ${{ github.token }}
       - name: Baselines on the evaluation seeds
         run: >-
           python -m wedge_rl baselines --region "$REGION" --layout "$LAYOUT" --episodes 40 --seed0 20000
@@ -84,6 +108,9 @@ jobs:
         run: |
           init=""
           if [ -n "$INIT_RUN_ID" ]; then init="--init init/policy.pt"; fi
+          if [ -n "$TEACHER_RUN_ID" ]; then
+            init="$init --teacher teacher --teacher-weight $TEACHER_WEIGHT --pretrain-epochs $PRETRAIN_EPOCHS"
+          fi
           # stop before the job limit so the evaluation and upload still run;
           # the best checkpoint and history.json are written as training goes.
           # --max-minutes ends the loop between iterations; the outer timeout

@@ -1,0 +1,86 @@
+name: Executor teacher
+
+# Searched trajectories (rollout-ranked beam) for many streams of one region,
+# sharded over runners; the pickles are the imitation targets for
+# `wedge_rl train --teacher`.  Registered by a push that touches this file.
+
+on:
+  push:
+    branches: [claude/rl-packing-policy-ftogt3]
+    paths: [.github/workflows/teacher.yml]
+  workflow_dispatch:
+    inputs:
+      region:
+        description: wedge or shelf
+        type: string
+        default: shelf
+      streams:
+        description: Number of streams (seeds from seed0)
+        type: string
+        default: "512"
+      seed0:
+        description: First seed
+        type: string
+        default: "30000"
+      shards:
+        description: Runners
+        type: string
+        default: "8"
+      width:
+        description: Beam width
+        type: string
+        default: "8"
+
+env:
+  REGION: ${{ inputs.region || 'shelf' }}
+  STREAMS: ${{ inputs.streams || '512' }}
+  SEED0: ${{ inputs.seed0 || '30000' }}
+  SHARDS: ${{ inputs.shards || '8' }}
+  WIDTH: ${{ inputs.width || '8' }}
+
+permissions:
+  contents: read
+
+jobs:
+  shards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      list: ${{ steps.mk.outputs.list }}
+    steps:
+      - id: mk
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          print("list=" + json.dumps(list(range(int(os.environ["SHARDS"])))))
+          EOF
+
+  teach:
+    needs: shards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.shards.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Search
+        run: |
+          rollout=staircase; layout=c1
+          if [ "$REGION" = "shelf" ]; then rollout=greedy_any; layout=c1s; fi
+          timeout --signal=INT --kill-after=3m 330m python -m wedge_rl teach \
+            --region "$REGION" --layout "$layout" --episodes "$STREAMS" --seed0 "$SEED0" \
+            --shard "${{ matrix.shard }}/$SHARDS" --width "$WIDTH" --k 4 --spread 4 \
+            --rollout "$rollout" --workers 4 --out "runs/teacher-$REGION" || [ $? -eq 124 ]
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: teacher-${{ env.REGION }}-shard${{ matrix.shard }}
+          path: runs/teacher-${{ env.REGION }}/

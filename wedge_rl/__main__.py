@@ -39,6 +39,21 @@ def cmd_baselines(args) -> int:
     return 0
 
 
+def _teacher_steps(spec: str):
+    """Teacher pickles from a directory (recursively) or a glob."""
+    import glob
+
+    from .search import load_teacher
+
+    if not spec:
+        return None
+    path = pathlib.Path(spec)
+    files = sorted(str(p) for p in path.rglob("s*.pkl")) if path.is_dir() else sorted(glob.glob(spec))
+    steps = load_teacher(files)
+    print(f"teacher: {len(files)} streams, {len(steps)} steps", flush=True)
+    return steps
+
+
 def cmd_train(args) -> int:
     from .ppo import train
 
@@ -46,8 +61,26 @@ def cmd_train(args) -> int:
                    iterations=args.iterations, episodes_per_iter=args.episodes, lr=args.lr, seed=args.seed,
                    log=lambda row: print(row, flush=True),
                    init=pathlib.Path(args.init) if args.init else None, workers=args.workers,
-                   max_minutes=args.max_minutes)
+                   max_minutes=args.max_minutes, teacher=_teacher_steps(args.teacher),
+                   teacher_weight=args.teacher_weight, pretrain_epochs=args.pretrain_epochs)
     print(json.dumps({"best_eval_gain": result["best_eval_gain"]}))
+    return 0
+
+
+def cmd_teach(args) -> int:
+    """Searched trajectories for many streams, as imitation targets."""
+    from .search import teach
+
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    if args.shard:
+        i, n = (int(v) for v in args.shard.split("/"))
+        seeds = seeds[i::n]
+    rows = teach(args.region, _layout(args), args.items, seeds, args.width, args.k, args.spread, args.rollout,
+                 args.out, workers=args.workers, log=lambda line: print(line, flush=True))
+    done = [r for r in rows if not r.get("skipped")]
+    if done:
+        print(f"mean gain {np.mean([r['gain'] for r in done]):.4f} over {len(done)} new streams "
+              f"({np.mean([r['seconds'] for r in done]):.0f}s each)")
     return 0
 
 
@@ -175,6 +208,9 @@ def main(argv=None) -> int:
     t.add_argument("--workers", type=int, default=1, help="episode-collection processes")
     t.add_argument("--max-minutes", type=float, default=None,
                    help="stop cleanly (between iterations) after this wall-clock budget")
+    t.add_argument("--teacher", default="", help="directory (or glob) of teacher pickles from `teach`")
+    t.add_argument("--teacher-weight", type=float, default=0.0, help="imitation term weight in the PPO loss")
+    t.add_argument("--pretrain-epochs", type=int, default=0, help="behaviour-cloning epochs before PPO")
     t.add_argument("--out", required=True)
     t.add_argument("--init", default="", help="policy.pt to start from")
     t.set_defaults(fn=cmd_train)
@@ -197,6 +233,15 @@ def main(argv=None) -> int:
     c.add_argument("--policy", default="", help="directory holding policy.pt to compare against")
     c.add_argument("--out", default="")
     c.set_defaults(fn=cmd_ceiling)
+    h = sub.add_parser("teach", help="searched trajectories for many streams (imitation targets)")
+    _common(h, 64, 30000)
+    h.add_argument("--width", type=int, default=8); h.add_argument("--k", type=int, default=4)
+    h.add_argument("--spread", type=int, default=4)
+    h.add_argument("--rollout", default="", help="staircase (wedge) or greedy_any (shelf)")
+    h.add_argument("--workers", type=int, default=1)
+    h.add_argument("--shard", default="", help="i/n: this process takes every n-th seed starting at i")
+    h.add_argument("--out", required=True, help="directory for s<seed>.pkl files (resumable)")
+    h.set_defaults(fn=cmd_teach)
     args = p.parse_args(argv)
     return args.fn(args)
 

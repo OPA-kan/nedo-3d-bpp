@@ -123,6 +123,81 @@ def beam_search(env, seed: int, width: int = 100, k: int = 8, spread: int = 0, r
             "width": width, "k": k, "spread": spread, "rollout": rollout is not None}
 
 
+def teacher_trajectory(env, seed: int, actions) -> list[dict]:
+    """Replay a searched action sequence and record what the policy would
+    have seen at each step: observation, candidate features, the chosen
+    index (len(feats) means PASS) and the reward.  This is the imitation
+    target for ``ppo.pretrain``."""
+    obs = env.reset(seed)
+    out = []
+    for a in actions:
+        cands = env.candidates()
+        feats = np.stack([c.features(env) for c in cands]) if cands else np.zeros((0, 12), dtype=np.float32)
+        target = len(feats) if a == PASS else int(a)
+        _obs2, r, _d, _i = env.step(a)
+        out.append({"obs": {k: (v.copy() if hasattr(v, "copy") else v) for k, v in obs.items()},
+                    "feats": feats, "a": target, "r": float(r)})
+        obs = _obs2
+    return out
+
+
+def _teach_one(args):
+    region, layout, n_items, seed, width, k, spread, rollout_name, out_dir = args
+    import pathlib
+    import pickle
+
+    from .baselines import greedy_any, staircase
+    from .regions import make_env
+
+    path = pathlib.Path(out_dir) / f"s{seed}.pkl"
+    if path.exists():
+        return {"seed": seed, "skipped": True}
+    env = make_env(region, layout, n_items)
+    rollout = {"": None, "none": None, "staircase": staircase, "greedy_any": greedy_any}[rollout_name]
+    result = beam_search(env, seed, width=width, k=k, spread=spread, rollout=rollout)
+    traj = teacher_trajectory(env, seed, result["actions"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as fh:
+        pickle.dump({"seed": seed, "region": region, "layout": layout, "gain": result["gain"],
+                     "placed": result["placed"], "seconds": result["seconds"], "width": width, "k": k,
+                     "spread": spread, "rollout": rollout_name, "steps": traj}, fh)
+    return {"seed": seed, "gain": result["gain"], "placed": result["placed"], "seconds": result["seconds"]}
+
+
+def teach(region: str, layout: str, n_items: int, seeds, width: int, k: int, spread: int, rollout: str,
+          out_dir, workers: int = 1, log=print) -> list[dict]:
+    """Searched trajectories for many streams, one pickle per stream (resumable)."""
+    jobs = [(region, layout, n_items, s, width, k, spread, rollout, str(out_dir)) for s in seeds]
+    out = []
+    if workers <= 1:
+        for job in jobs:
+            r = _teach_one(job)
+            out.append(r)
+            if log and not r.get("skipped"):
+                log(f"[teach {region} s{r['seed']}] gain {r['gain']:.4f} placed {r['placed']} in {r['seconds']}s")
+        return out
+    import multiprocessing as mp
+
+    with mp.get_context("spawn").Pool(workers) as pool:
+        for r in pool.imap_unordered(_teach_one, jobs):
+            out.append(r)
+            if log and not r.get("skipped"):
+                log(f"[teach {region} s{r['seed']}] gain {r['gain']:.4f} placed {r['placed']} in {r['seconds']}s")
+    return sorted(out, key=lambda r: r["seed"])
+
+
+def load_teacher(paths) -> list[dict]:
+    """All steps of all teacher pickles, flattened."""
+    import pickle
+
+    steps = []
+    for p in paths:
+        with open(p, "rb") as fh:
+            d = pickle.load(fh)
+        steps.extend(d["steps"])
+    return steps
+
+
 def _one(args):
     region, layout, n_items, seed, width, k, spread, rollout_name = args
     from .baselines import greedy_any, staircase

@@ -166,6 +166,31 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertAlmostEqual(total, result["gain"])
         self.assertEqual(len(env.placed), result["placed"])
 
+    def test_teacher_trajectory_and_behaviour_cloning(self):
+        """The searched actions replay to the searched gain, and cloning a
+        handful of them makes the policy reproduce them."""
+        import torch
+
+        from wedge_rl.baselines import greedy_any as roll
+        from wedge_rl.ppo import Policy, pretrain, teacher_accuracy
+        from wedge_rl.search import beam_search, teacher_trajectory
+        from wedge_rl.shelf import ShelfEnv
+
+        env = ShelfEnv("c1s", n_items=4)
+        steps = []
+        for seed in (11, 12):
+            result = beam_search(env, seed, width=3, k=3, spread=2, rollout=roll)
+            traj = teacher_trajectory(env, seed, result["actions"])
+            self.assertEqual(len(traj), 4)
+            self.assertAlmostEqual(sum(s["r"] for s in traj), result["gain"])
+            steps.extend(traj)
+        torch.manual_seed(0)
+        policy = Policy(env.nx, env.ny)
+        before = teacher_accuracy(policy, steps)
+        pretrain(policy, steps, epochs=60, lr=3e-3, log=None)
+        after = teacher_accuracy(policy, steps)
+        self.assertGreaterEqual(after, max(before, 0.75))
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""
