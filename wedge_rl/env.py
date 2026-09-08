@@ -130,8 +130,67 @@ def strip_gain_of(model: ContainerModel, box: AABB) -> float:
     return left * float(box.size[1]) * float(box.size[2])
 
 
+def prefilter(model: ContainerModel, cfg, container: dict, dx: float, dy: float, dz: float,
+              bottom: float, xs, ys, on_floor: bool) -> list[tuple[float, float]]:
+    """The (x, y) centres of a grid of poses that can still pass ``validate``.
+
+    Three of the validator's own rejections are evaluated for the whole grid
+    at once: the settled pose outside the container planes (``model.inside``
+    with the settled wall clearance), penetration of a packed item or shelf
+    (``fastgeom._penetrates_any``), and a raised pose that touches no top at
+    its own bottom (which stability rejects as no-support).  Every pose that
+    survives is then validated exactly as before, so the candidate set is
+    unchanged; only the thousands of poses that were going to fail are no
+    longer sent through the full validator one at a time."""
+    from rule_alpha import fastgeom
+    from rule_alpha._reuse import CONTACT_TOLERANCE, EPS
+
+    xs = np.asarray(sorted(xs), dtype=np.float64)
+    ys = np.asarray(sorted(ys), dtype=np.float64)
+    if xs.size == 0 or ys.size == 0:
+        return []
+    gx, gy = np.meshgrid(xs, ys, indexing="ij")
+    centres = np.stack([gx.ravel(), gy.ravel(), np.full(gx.size, bottom + dz / 2.0)], axis=1)
+    half = np.asarray([dx, dy, dz]) / 2.0
+    # 1. settled pose inside every plane (floor plane at zero clearance)
+    normals = model.plane_normals
+    points = model.plane_points
+    signed = centres @ normals.T - np.sum(normals * points, axis=1)[None, :] + (np.abs(normals) @ half)[None, :]
+    limits = np.full(normals.shape[0], -float(cfg.settled_wall_clearance))
+    if model.floor_plane_index >= 0:
+        limits[model.floor_plane_index] = 0.0
+    keep = np.all(signed <= limits[None, :] + 1e-9, axis=1)
+    if not keep.any():
+        return []
+    # 2. penetration of shelves or packed items
+    obs = fastgeom.obstacles(container)
+    cmin = centres - half
+    cmax = centres + half
+    clearance = float(cfg.settled_clearance)
+    for omin, omax in ((obs["shelf_min"], obs["shelf_max"]), (obs["packed_min"], obs["packed_max"])):
+        if omin.shape[0] == 0:
+            continue
+        vgap = np.maximum(omin[None, :, 2] - cmax[:, None, 2], cmin[:, None, 2] - omax[None, :, 2])
+        xgap = np.maximum(omin[None, :, 0] - cmax[:, None, 0], cmin[:, None, 0] - omax[None, :, 0])
+        ygap = np.maximum(omin[None, :, 1] - cmax[:, None, 1], cmin[:, None, 1] - omax[None, :, 1])
+        hit = (vgap < -CONTACT_TOLERANCE) & (xgap < clearance - EPS) & (ygap < clearance - EPS)
+        keep &= ~hit.any(axis=1)
+    # 3. a raised pose must overlap some top at its bottom height
+    if not on_floor:
+        pmin, pmax = obs["packed_min"], obs["packed_max"]
+        tops = np.abs(pmax[:, 2] - bottom) <= CONTACT_TOLERANCE if pmin.shape[0] else np.zeros(0, dtype=bool)
+        if tops.any():
+            tmin, tmax = pmin[tops], pmax[tops]
+            ox = np.minimum(cmax[:, None, 0], tmax[None, :, 0]) - np.maximum(cmin[:, None, 0], tmin[None, :, 0])
+            oy = np.minimum(cmax[:, None, 1], tmax[None, :, 1]) - np.maximum(cmin[:, None, 1], tmin[None, :, 1])
+            keep &= ((ox > 1e-9) & (oy > 1e-9)).any(axis=1)
+        else:
+            keep[:] = False
+    return [(float(c[0]), float(c[1])) for c in centres[keep]]
+
+
 def strip_candidates(model: ContainerModel, container: dict, cfg, profile, x_max_play: float,
-                     z_top: float, max_candidates: int = 96) -> list[Candidate]:
+                     z_top: float, max_candidates: int = 96, fast: bool = True) -> list[Candidate]:
     """Every legal pose of ``profile`` in the strip, most wedge volume first."""
     packed = [box for box, _s, _p in packed_aabbs_local(container)]
     gap = cfg.settled_clearance + cfg.anchor_slack
@@ -165,27 +224,28 @@ def strip_candidates(model: ContainerModel, container: dict, cfg, profile, x_max
                            float(b.minimum[0]) + dx / 2.0, float(b.maximum[0]) - dx / 2.0))
                 ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap,
                            float(b.minimum[1]) + dy / 2.0, float(b.maximum[1]) - dy / 2.0))
-            for x in xs:
-                if x - dx / 2.0 < model.x_wall_min or x + dx / 2.0 > x_max_play + 1e-9:
+            xs = {x for x in xs if x - dx / 2.0 >= model.x_wall_min and x + dx / 2.0 <= x_max_play + 1e-9}
+            ys = {y for y in ys if y - dy / 2.0 >= model.y_opening and y + dy / 2.0 <= model.y_back}
+            if fast:
+                pairs = prefilter(model, cfg, container, dx, dy, dz, bottom, xs, ys, on_floor)
+            else:
+                pairs = [(x, y) for x in sorted(xs) for y in sorted(ys)]
+            for x, y in pairs:
+                key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
+                if key in seen:
                     continue
-                for y in ys:
-                    if y - dy / 2.0 < model.y_opening or y + dy / 2.0 > model.y_back:
-                        continue
-                    key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "wedge")
-                    ok, _why = layer1.validate(box, model, container, cfg)
-                    if not ok:
-                        continue
-                    st = stability.evaluate(box, container, cfg)
-                    out.append(Candidate(
-                        box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
-                        on_floor=on_floor, gain=strip_gain_of(model, box),
-                        support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
-                        margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
-                    ))
+                seen.add(key)
+                box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "wedge")
+                ok, _why = layer1.validate(box, model, container, cfg)
+                if not ok:
+                    continue
+                st = stability.evaluate(box, container, cfg)
+                out.append(Candidate(
+                    box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
+                    on_floor=on_floor, gain=strip_gain_of(model, box),
+                    support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
+                    margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
+                ))
     # deterministic order: most wedge volume first, then back-most (a box
     # at the front seals the column behind it), then lowest, then left
     out.sort(key=lambda c: (-round(c.gain, 6), -round(float(c.box.center[1]), 3),

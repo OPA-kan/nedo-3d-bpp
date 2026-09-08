@@ -26,10 +26,11 @@ from rule_alpha import layer1, stability
 from rule_alpha._reuse import AABB, packed_aabbs_local
 from rule_alpha.geometry import ContainerModel
 
-from .env import CELL, PASS, Candidate
+from .env import CELL, PASS, Candidate, prefilter
 
 
-def shelf_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96):
+def shelf_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
+                     fast: bool = True):
     shelf = model.main_shelf
     if shelf is None:
         return []
@@ -57,27 +58,30 @@ def shelf_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                            float(b.minimum[0]) + dx / 2.0, float(b.maximum[0]) - dx / 2.0))
                 ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap,
                            float(b.minimum[1]) + dy / 2.0, float(b.maximum[1]) - dy / 2.0))
-            for x in xs:
-                if x - dx / 2.0 < rect.x_min - 1e-9 or x + dx / 2.0 > rect.x_max + 1e-9:
+            xs = {x for x in xs if x - dx / 2.0 >= rect.x_min - 1e-9 and x + dx / 2.0 <= rect.x_max + 1e-9}
+            ys = {y for y in ys if y - dy / 2.0 >= rect.y_min - 1e-9 and y + dy / 2.0 <= rect.y_max + 1e-9}
+            if fast:
+                # on the shelf plate a pose rests on the shelf, which the
+                # prefilter's support test does not know; treat it as a floor
+                pairs = prefilter(model, cfg, container, dx, dy, dz, bottom, xs, ys, on_floor=on_base)
+            else:
+                pairs = [(x, y) for x in sorted(xs) for y in sorted(ys)]
+            for x, y in pairs:
+                key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
+                if key in seen:
                     continue
-                for y in ys:
-                    if y - dy / 2.0 < rect.y_min - 1e-9 or y + dy / 2.0 > rect.y_max + 1e-9:
-                        continue
-                    key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "shelf")
-                    ok, _why = layer1.validate(box, model, container, cfg)
-                    if not ok:
-                        continue
-                    st = stability.evaluate(box, container, cfg)
-                    out.append(Candidate(
-                        box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
-                        on_floor=on_base, gain=dx * dy * dz,
-                        support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
-                        margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
-                    ))
+                seen.add(key)
+                box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "shelf")
+                ok, _why = layer1.validate(box, model, container, cfg)
+                if not ok:
+                    continue
+                st = stability.evaluate(box, container, cfg)
+                out.append(Candidate(
+                    box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
+                    on_floor=on_base, gain=dx * dy * dz,
+                    support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
+                    margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
+                ))
     # lowest first, then back-most, then left: the order a shelf is packed by hand
     out.sort(key=lambda c: (round(c.bottom, 3), -round(float(c.box.center[1]), 3),
                             round(float(c.box.center[0]), 3), -round(c.gain, 6)))
