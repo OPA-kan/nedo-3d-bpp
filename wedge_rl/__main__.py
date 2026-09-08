@@ -227,6 +227,17 @@ def cmd_evolve(args) -> int:
     return 0
 
 
+def cmd_diagnose(args) -> int:
+    """Where the policy loses: per-step regret against its own rollouts."""
+    from .diagnose import run
+
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    result = run(args.region, _layout(args), args.items, args.policy, seeds, k=args.k, spread=args.spread,
+                 out=args.out, log=lambda line: print(line, flush=True))
+    print(json.dumps(result["summary"], indent=1))
+    return 0
+
+
 def _common(p, episodes: int, seed0: int):
     p.add_argument("--region", default="wedge", choices=REGIONS)
     p.add_argument("--layout", default="", help="container layout (default: c1 for wedge, c1s for shelf)")
@@ -292,6 +303,10 @@ def main(argv=None) -> int:
     g.add_argument("--max-minutes", type=float, default=None, help="stop between generations after this budget")
     g.add_argument("--out", required=True)
     g.set_defaults(fn=cmd_evolve)
+    d = sub.add_parser("diagnose", help="per-step regret, ambiguity, confidence and value accuracy"); _common(d, 20, 20000)
+    d.add_argument("--policy", required=True); d.add_argument("--k", type=int, default=6)
+    d.add_argument("--spread", type=int, default=6); d.add_argument("--out", default="")
+    d.set_defaults(fn=cmd_diagnose)
     args = p.parse_args(argv)
     return args.fn(args)
 
