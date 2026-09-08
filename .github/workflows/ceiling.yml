@@ -1,0 +1,77 @@
+name: Executor ceiling
+
+# Beam search over each region's own candidates (with baseline rollouts as
+# the ranking) on a few held-out streams, next to the trained policy: how far
+# the learned executor is from what its action space allows.  Registered by
+# a push that touches this file; dispatch afterwards.
+
+on:
+  push:
+    branches: [claude/rl-packing-policy-ftogt3]
+    paths: [.github/workflows/ceiling.yml]
+  workflow_dispatch:
+    inputs:
+      episodes:
+        description: Streams per region (seeds 20000..)
+        type: string
+        default: "6"
+      wedge_width:
+        description: Beam width for the wedge
+        type: string
+        default: "8"
+      shelf_width:
+        description: Beam width for the shelf
+        type: string
+        default: "16"
+
+env:
+  EPISODES: ${{ inputs.episodes || '6' }}
+  WEDGE_WIDTH: ${{ inputs.wedge_width || '8' }}
+  SHELF_WIDTH: ${{ inputs.shelf_width || '16' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ceiling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - region: wedge
+            layout: c1
+            policy: reports/wedge/ppo-c1-s0
+            rollout: staircase
+            width_var: WEDGE_WIDTH
+          - region: shelf
+            layout: c1s
+            policy: reports/wedge/ppo-shelf-c1s-s0
+            rollout: greedy_any
+            width_var: SHELF_WIDTH
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Beam search
+        run: |
+          width="${!WIDTH_VAR}"
+          timeout --signal=INT --kill-after=3m 330m python -m wedge_rl ceiling \
+            --region "${{ matrix.region }}" --layout "${{ matrix.layout }}" \
+            --episodes "$EPISODES" --seed0 20000 --width "$width" --k 4 --spread 4 \
+            --rollout "${{ matrix.rollout }}" --workers 4 \
+            --policy "${{ matrix.policy }}" \
+            --out "runs/ceiling-${{ matrix.region }}.json" || [ $? -eq 124 ]
+        env:
+          WIDTH_VAR: ${{ matrix.width_var }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceiling-${{ matrix.region }}
+          path: runs/
