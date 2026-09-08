@@ -141,8 +141,56 @@ def teacher_trajectory(env, seed: int, actions) -> list[dict]:
     return out
 
 
+def value_teacher_trajectory(env, policy, seed: int, k: int = 4, by_gain: int = 1, explore_eps: float = 0.2,
+                             rng=None) -> list[dict]:
+    """Soft targets at the policy's own states (expert iteration, DAgger-style).
+
+    The stream is played by the policy with a little exploration (with
+    probability ``explore_eps`` one of its top three candidates is taken
+    instead of the decoded one, so the recorded states are the ones the
+    policy visits and some it nearly visits).  Every state is expanded with
+    ``Lookahead.expand``: the decoded choice, PASS, the policy's next
+    preferences and the best by gain, each finished with the policy.  The
+    recorded target is the dictionary of child values; the training loss
+    turns it into a distribution with a temperature, so equally good
+    children share the mass instead of one arbitrary member getting it all.
+    """
+    import random as _random
+
+    import torch
+
+    from .lookahead import Lookahead
+    from .ppo import _features, decode
+
+    rng = rng or _random.Random(seed)
+    la = Lookahead(policy, k=k, by_gain=by_gain, threshold=2.0, horizon=None)
+    obs = env.reset(seed)
+    out = []
+    while not env.done:
+        cands = env.candidates()
+        feats = _features(env)
+        with torch.no_grad():
+            logits = policy.logits(policy.embed(obs), feats)
+        a = decode(logits, len(feats))
+        if not cands:
+            obs, _r, _d, _i = env.step(PASS)
+            continue
+        p = torch.softmax(logits, dim=0).numpy()
+        values = la.expand(env, cands, p, a)
+        targets = {(len(feats) if key == PASS else int(key)): float(v) for key, v in values.items()}
+        out.append({"obs": {kk: (vv.copy() if hasattr(vv, "copy") else vv) for kk, vv in obs.items()},
+                    "feats": feats, "targets": targets, "decoded": (len(feats) if a == PASS else a)})
+        # continue along the policy's path, with exploration
+        step_action = a
+        if rng.random() < explore_eps:
+            top = np.argsort(-p[:-1])[:3].tolist()
+            step_action = rng.choice(top) if top else PASS
+        obs, _r, _d, _i = env.step(step_action)
+    return out
+
+
 def _teach_one(args):
-    region, layout, n_items, seed, width, k, spread, rollout_name, out_dir, policy_dir = args
+    region, layout, n_items, seed, width, k, spread, rollout_name, out_dir, policy_dir, mode, explore_eps = args
     import pathlib
     import pickle
 
@@ -152,21 +200,45 @@ def _teach_one(args):
     if path.exists():
         return {"seed": seed, "skipped": True}
     env = make_env(region, layout, n_items)
-    rollout = _rollout_policy(rollout_name, policy_dir, env)
-    result = beam_search(env, seed, width=width, k=k, spread=spread, rollout=rollout)
-    traj = teacher_trajectory(env, seed, result["actions"])
+    t0 = time.perf_counter()
+    if mode == "values":
+        import torch
+
+        from .ppo import Policy
+
+        policy = Policy(env.nx, env.ny)
+        policy.load_state_dict(torch.load(pathlib.Path(policy_dir) / "policy.pt"))
+        policy.eval()
+        traj = value_teacher_trajectory(env, policy, seed, k=k, by_gain=spread, explore_eps=explore_eps)
+        best = sum(max(s["targets"].values()) - s["targets"].get(s["decoded"], 0.0) for s in traj)
+        record = {"seed": seed, "region": region, "layout": layout, "mode": "values", "k": k, "by_gain": spread,
+                  "explore_eps": explore_eps, "policy": str(policy_dir), "gain": float("nan"),
+                  "regret": best, "placed": 0, "seconds": round(time.perf_counter() - t0, 1), "steps": traj}
+        summary = {"seed": seed, "gain": best, "placed": len(traj), "seconds": record["seconds"]}
+    else:
+        rollout = _rollout_policy(rollout_name, policy_dir, env)
+        result = beam_search(env, seed, width=width, k=k, spread=spread, rollout=rollout)
+        traj = teacher_trajectory(env, seed, result["actions"])
+        record = {"seed": seed, "region": region, "layout": layout, "mode": "beam", "gain": result["gain"],
+                  "placed": result["placed"], "seconds": result["seconds"], "width": width, "k": k,
+                  "spread": spread, "rollout": rollout_name, "steps": traj}
+        summary = {"seed": seed, "gain": result["gain"], "placed": result["placed"], "seconds": result["seconds"]}
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("wb") as fh:
-        pickle.dump({"seed": seed, "region": region, "layout": layout, "gain": result["gain"],
-                     "placed": result["placed"], "seconds": result["seconds"], "width": width, "k": k,
-                     "spread": spread, "rollout": rollout_name, "steps": traj}, fh)
-    return {"seed": seed, "gain": result["gain"], "placed": result["placed"], "seconds": result["seconds"]}
+        pickle.dump(record, fh)
+    return summary
 
 
 def teach(region: str, layout: str, n_items: int, seeds, width: int, k: int, spread: int, rollout: str,
-          out_dir, workers: int = 1, policy_dir: str = "", log=print) -> list[dict]:
-    """Searched trajectories for many streams, one pickle per stream (resumable)."""
-    jobs = [(region, layout, n_items, s, width, k, spread, rollout, str(out_dir), policy_dir) for s in seeds]
+          out_dir, workers: int = 1, policy_dir: str = "", mode: str = "beam", explore_eps: float = 0.2,
+          log=print) -> list[dict]:
+    """Teacher data for many streams, one pickle per stream (resumable).
+
+    ``mode="beam"``: the searched trajectory (hard targets).  ``mode="values"``:
+    child values at the policy's own states (soft targets); ``k`` children by
+    policy preference, ``spread`` by gain."""
+    jobs = [(region, layout, n_items, s, width, k, spread, rollout, str(out_dir), policy_dir, mode, explore_eps)
+            for s in seeds]
     out = []
     if workers <= 1:
         for job in jobs:
@@ -197,7 +269,7 @@ def load_teacher(paths, env=None, policy=None, log=None) -> list[dict]:
     for p in paths:
         with open(p, "rb") as fh:
             d = pickle.load(fh)
-        if env is not None and policy is not None:
+        if env is not None and policy is not None and d.get("mode", "beam") == "beam":
             from .baselines import run_episode
 
             own = run_episode(env, policy, d["seed"])["gain"]

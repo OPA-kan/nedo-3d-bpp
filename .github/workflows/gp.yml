@@ -5,9 +5,7 @@ name: Executor GP
 # artifact.  Registered by a push that touches this file; dispatch after.
 
 on:
-  push:
-    branches: [claude/rl-packing-policy-ftogt3]
-    paths: [.github/workflows/gp.yml]
+  # registered by its first push-triggered run; dispatch only since then
   workflow_dispatch:
     inputs:
       generations:

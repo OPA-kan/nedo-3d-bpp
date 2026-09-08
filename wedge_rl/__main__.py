@@ -67,7 +67,8 @@ def cmd_train(args) -> int:
                    log=lambda row: print(row, flush=True),
                    init=pathlib.Path(args.init) if args.init else None, workers=args.workers,
                    max_minutes=args.max_minutes, teacher=teacher,
-                   teacher_weight=args.teacher_weight, pretrain_epochs=args.pretrain_epochs)
+                   teacher_weight=args.teacher_weight, pretrain_epochs=args.pretrain_epochs,
+                   teacher_tau=args.teacher_tau)
     print(json.dumps({"best_eval_gain": result["best_eval_gain"]}))
     return 0
 
@@ -81,10 +82,12 @@ def cmd_teach(args) -> int:
         i, n = (int(v) for v in args.shard.split("/"))
         seeds = seeds[i::n]
     rows = teach(args.region, _layout(args), args.items, seeds, args.width, args.k, args.spread, args.rollout,
-                 args.out, workers=args.workers, policy_dir=args.policy, log=lambda line: print(line, flush=True))
+                 args.out, workers=args.workers, policy_dir=args.policy, mode=args.mode,
+                 explore_eps=args.explore_eps, log=lambda line: print(line, flush=True))
     done = [r for r in rows if not r.get("skipped")]
     if done:
-        print(f"mean gain {np.mean([r['gain'] for r in done]):.4f} over {len(done)} new streams "
+        label = "regret" if args.mode == "values" else "gain"
+        print(f"mean {label} {np.mean([r['gain'] for r in done]):.4f} over {len(done)} new streams "
               f"({np.mean([r['seconds'] for r in done]):.0f}s each)")
     return 0
 
@@ -313,6 +316,7 @@ def main(argv=None) -> int:
     t.add_argument("--teacher", default="", help="directory (or glob) of teacher pickles from `teach`")
     t.add_argument("--teacher-weight", type=float, default=0.0, help="imitation term weight in the PPO loss")
     t.add_argument("--pretrain-epochs", type=int, default=0, help="behaviour-cloning epochs before PPO")
+    t.add_argument("--teacher-tau", type=float, default=0.005, help="temperature (m^3) for soft child-value targets")
     t.add_argument("--out", required=True)
     t.add_argument("--init", default="", help="policy.pt to start from")
     t.set_defaults(fn=cmd_train)
@@ -342,7 +346,10 @@ def main(argv=None) -> int:
     h.add_argument("--width", type=int, default=8); h.add_argument("--k", type=int, default=4)
     h.add_argument("--spread", type=int, default=4)
     h.add_argument("--rollout", default="", help="staircase (wedge), greedy_any (shelf) or ppo (needs --policy)")
-    h.add_argument("--policy", default="", help="directory holding policy.pt, for --rollout ppo")
+    h.add_argument("--policy", default="", help="directory holding policy.pt (rollout ppo, or mode values)")
+    h.add_argument("--mode", default="beam", choices=("beam", "values"),
+                   help="beam: searched trajectory; values: child values at the policy's own states")
+    h.add_argument("--explore-eps", type=float, default=0.2, help="mode values: exploration along the path")
     h.add_argument("--workers", type=int, default=1)
     h.add_argument("--shard", default="", help="i/n: this process takes every n-th seed starting at i")
     h.add_argument("--out", required=True, help="directory for s<seed>.pkl files (resumable)")

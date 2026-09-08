@@ -96,6 +96,13 @@ class Lookahead:
         chosen_idx = len(feats) if a == PASS else a
         if p[chosen_idx] > self.threshold:
             return a
+        values = self.expand(env, cands, p, a)
+        return max(values, key=lambda key: (values[key], key == a))
+
+    def expand(self, env, cands, p, a) -> dict:
+        """Child values at the current state: the decoded choice, PASS, the
+        policy's next preferences and the best by gain, each finished with
+        the policy.  Restores the live state before returning."""
         t0 = time.perf_counter()
         self.expansions += 1
         # children in the order they are worth evaluating: the decoded choice,
@@ -124,9 +131,8 @@ class Lookahead:
         # restore the live state exactly
         self._load(env, packed0, cursor0)
         env.placed = placed0
-        best = max(values, key=lambda key: (values[key], key == a))
         self.seconds.append(time.perf_counter() - t0)
-        return best
+        return values
 
     def stats(self) -> dict:
         return {"decisions": self.decisions, "expansions": self.expansions, "truncated": self.truncated,

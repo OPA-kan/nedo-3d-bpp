@@ -28,6 +28,7 @@ from torch import nn
 from .env import FEATURE_SIZE, PASS
 
 REWARD_SCALE = 10.0
+TEACHER_TAU = 0.005   # m^3: children within about 5 ml of the best share the target mass
 
 
 class Policy(nn.Module):
@@ -166,7 +167,7 @@ def collect(env, policy: Policy, episodes: int, seed_base: int, rng=None):
 
 
 def ppo_update(policy: Policy, opt, steps, epochs: int = 4, clip: float = 0.2, ent: float = 0.01,
-               teacher=None, teacher_weight: float = 0.0, teacher_batch: int = 32):
+               teacher=None, teacher_weight: float = 0.0, teacher_batch: int = 32, tau: float = TEACHER_TAU):
     """One PPO update; with ``teacher`` steps, every minibatch also carries an
     imitation term (expert iteration's policy target) so the search's
     knowledge is not washed out by the policy gradient."""
@@ -192,24 +193,44 @@ def ppo_update(policy: Policy, opt, steps, epochs: int = 4, clip: float = 0.2, e
             loss = loss / len(idx)
             if teacher and teacher_weight > 0:
                 tidx = np.random.randint(0, len(teacher), size=min(teacher_batch, len(teacher)))
-                loss = loss + teacher_weight * imitation_loss(policy, teacher, tidx)
+                loss = loss + teacher_weight * imitation_loss(policy, teacher, tidx, tau)
             opt.zero_grad(); loss.backward()
             nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
             opt.step()
 
 
-def imitation_loss(policy: Policy, steps, idx) -> torch.Tensor:
-    """Cross-entropy of the searched action under the policy, averaged over
-    the given teacher steps (PASS is the last logit)."""
+def soft_target(step: dict, n: int, tau: float = TEACHER_TAU) -> torch.Tensor:
+    """Distribution over the n logits from a step's child values: mass
+    proportional to exp((v - v_max) / tau) on the expanded children, zero
+    elsewhere.  A step recorded with a single action gets a one-hot."""
+    q = torch.zeros(n)
+    if "targets" in step:
+        items = list(step["targets"].items())
+        vals = torch.tensor([v for _i, v in items], dtype=torch.float32)
+        w = torch.exp((vals - vals.max()) / tau)
+        w = w / w.sum()
+        for (i, _v), wi in zip(items, w):
+            q[int(i)] += wi
+    else:
+        q[int(step["a"])] = 1.0
+    return q
+
+
+def imitation_loss(policy: Policy, steps, idx, tau: float = TEACHER_TAU) -> torch.Tensor:
+    """Cross-entropy between the teacher's (soft or hard) target and the
+    policy's distribution, averaged over the given teacher steps (PASS is
+    the last logit)."""
     loss = 0.0
     for i in idx:
         s = steps[i]
         logits = policy.logits(policy.embed(s["obs"]), s["feats"])
-        loss = loss + nn.functional.cross_entropy(logits[None], torch.tensor([s["a"]]))
+        q = soft_target(s, logits.shape[0], tau)
+        loss = loss - (q * torch.log_softmax(logits, dim=0)).sum()
     return loss / max(len(idx), 1)
 
 
-def pretrain(policy: Policy, teacher, epochs: int = 10, lr: float = 1e-3, batch: int = 64, log=print) -> dict:
+def pretrain(policy: Policy, teacher, epochs: int = 10, lr: float = 1e-3, batch: int = 64, log=print,
+             tau: float = TEACHER_TAU) -> dict:
     """Behaviour cloning on teacher steps; returns the accuracy per epoch."""
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
     history = []
@@ -218,7 +239,7 @@ def pretrain(policy: Policy, teacher, epochs: int = 10, lr: float = 1e-3, batch:
         total = 0.0
         for start in range(0, len(order), batch):
             idx = order[start:start + batch]
-            loss = imitation_loss(policy, teacher, idx)
+            loss = imitation_loss(policy, teacher, idx, tau)
             opt.zero_grad(); loss.backward()
             nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
             opt.step()
@@ -231,16 +252,22 @@ def pretrain(policy: Policy, teacher, epochs: int = 10, lr: float = 1e-3, batch:
     return {"history": history}
 
 
-def teacher_accuracy(policy: Policy, teacher, limit: int = 2000) -> float:
-    """Share of teacher steps where the deterministic decode picks the
-    teacher's action."""
+def teacher_accuracy(policy: Policy, teacher, limit: int = 2000, tol: float = 1e-3) -> float:
+    """Share of teacher steps where the deterministic decode agrees with
+    the teacher: the recorded action for hard targets, any expanded child
+    within ``tol`` of the best value for soft ones."""
     hits = 0
     n = min(len(teacher), limit)
     with torch.no_grad():
         for s in teacher[:n]:
             logits = policy.logits(policy.embed(s["obs"]), s["feats"])
             a = decode(logits, len(s["feats"]))
-            hits += int((len(s["feats"]) if a == PASS else a) == s["a"])
+            idx = len(s["feats"]) if a == PASS else a
+            if "targets" in s:
+                best = max(s["targets"].values())
+                hits += int(idx in s["targets"] and s["targets"][idx] >= best - tol)
+            else:
+                hits += int(idx == s["a"])
     return hits / max(n, 1)
 
 
@@ -303,7 +330,8 @@ class _StopFlag:
 def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_per_iter: int = 16,
           lr: float = 3e-4, seed: int = 0, eval_seeds=range(10000, 10020), log=print,
           init: pathlib.Path | None = None, workers: int = 1, max_minutes: float | None = None,
-          teacher=None, teacher_weight: float = 0.0, pretrain_epochs: int = 0) -> dict:
+          teacher=None, teacher_weight: float = 0.0, pretrain_epochs: int = 0,
+          teacher_tau: float = TEACHER_TAU) -> dict:
     torch.manual_seed(seed); np.random.seed(seed)
     env = env_factory()
     policy = Policy(env.nx, env.ny)
@@ -311,7 +339,7 @@ def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_pe
         policy.load_state_dict(torch.load(init))
     out_dir.mkdir(parents=True, exist_ok=True)
     if teacher and pretrain_epochs > 0:
-        bc = pretrain(policy, teacher, epochs=pretrain_epochs, log=log)
+        bc = pretrain(policy, teacher, epochs=pretrain_epochs, log=log, tau=teacher_tau)
         (out_dir / "pretrain.json").write_text(json.dumps(bc["history"], indent=1), encoding="utf-8")
         torch.save(policy.state_dict(), out_dir / "policy-bc.pt")
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
@@ -333,7 +361,7 @@ def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_pe
             t0 = time.perf_counter()
             steps, returns = collector.collect(policy, episodes_per_iter, seed_base=1_000_000 + it * episodes_per_iter)
             t_collect = time.perf_counter() - t0
-            ppo_update(policy, opt, steps, teacher=teacher, teacher_weight=teacher_weight)
+            ppo_update(policy, opt, steps, teacher=teacher, teacher_weight=teacher_weight, tau=teacher_tau)
             row = {"iter": it, "train_return": float(np.mean(returns)), "steps": len(steps),
                    "seconds": round(time.perf_counter() - t0, 1), "collect_seconds": round(t_collect, 1),
                    "steps_per_second": round(len(steps) / max(t_collect, 1e-9), 1)}

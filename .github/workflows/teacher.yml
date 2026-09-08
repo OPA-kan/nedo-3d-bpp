@@ -5,9 +5,7 @@ name: Executor teacher
 # `wedge_rl train --teacher`.  Registered by a push that touches this file.
 
 on:
-  push:
-    branches: [claude/rl-packing-policy-ftogt3]
-    paths: [.github/workflows/teacher.yml]
+  # registered by its first push-triggered run; dispatch only since then
   workflow_dispatch:
     inputs:
       region:
@@ -27,9 +25,17 @@ on:
         type: string
         default: "8"
       width:
-        description: Beam width
+        description: Beam width (mode beam)
         type: string
         default: "8"
+      mode:
+        description: beam (searched trajectory) or values (child values at the policy's states)
+        type: string
+        default: beam
+      policy:
+        description: Policy directory in the repo for mode values (default by region)
+        type: string
+        default: ""
 
 env:
   REGION: ${{ inputs.region || 'shelf' }}
@@ -37,6 +43,8 @@ env:
   SEED0: ${{ inputs.seed0 || '30000' }}
   SHARDS: ${{ inputs.shards || '8' }}
   WIDTH: ${{ inputs.width || '8' }}
+  MODE: ${{ inputs.mode || 'beam' }}
+  POLICY: ${{ inputs.policy || '' }}
 
 permissions:
   contents: read
@@ -71,14 +79,24 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
       - name: Search
         run: |
-          rollout=staircase; layout=c1
-          if [ "$REGION" = "shelf" ]; then rollout=greedy_any; layout=c1s; fi
-          timeout --signal=INT --kill-after=3m 330m python -m wedge_rl teach \
-            --region "$REGION" --layout "$layout" --episodes "$STREAMS" --seed0 "$SEED0" \
-            --shard "${{ matrix.shard }}/$SHARDS" --width "$WIDTH" --k 4 --spread 4 \
-            --rollout "$rollout" --workers 4 --out "runs/teacher-$REGION" || [ $? -eq 124 ]
+          rollout=staircase; layout=c1; policy="reports/wedge/ppo-c1-s0"
+          if [ "$REGION" = "shelf" ]; then rollout=greedy_any; layout=c1s; policy="reports/wedge/ppo-shelf-c1s-s0"; fi
+          if [ -n "$POLICY" ]; then policy="$POLICY"; fi
+          if [ "$MODE" = "values" ]; then
+            # k children by policy preference, one by gain, PASS; finished with the policy
+            timeout --signal=INT --kill-after=3m 330m python -m wedge_rl teach --mode values \
+              --region "$REGION" --layout "$layout" --episodes "$STREAMS" --seed0 "$SEED0" \
+              --shard "${{ matrix.shard }}/$SHARDS" --k 4 --spread 1 --explore-eps 0.2 \
+              --policy "$policy" --workers 4 --out "runs/teacher-$REGION" || [ $? -eq 124 ]
+          else
+            timeout --signal=INT --kill-after=3m 330m python -m wedge_rl teach \
+              --region "$REGION" --layout "$layout" --episodes "$STREAMS" --seed0 "$SEED0" \
+              --shard "${{ matrix.shard }}/$SHARDS" --width "$WIDTH" --k 4 --spread 4 \
+              --rollout "$rollout" --workers 4 --out "runs/teacher-$REGION" || [ $? -eq 124 ]
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

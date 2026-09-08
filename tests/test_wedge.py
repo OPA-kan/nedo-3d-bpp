@@ -221,6 +221,40 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertIsNotNone(result["best"])
         self.assertEqual(len(result["history"]), 2)
 
+    def test_soft_value_targets(self):
+        """Child values at the policy's own states become a distribution that
+        shares mass among near-ties, and cloning them moves the policy."""
+        import torch
+
+        from wedge_rl.ppo import Policy, pretrain, soft_target, teacher_accuracy
+        from wedge_rl.search import value_teacher_trajectory
+        from wedge_rl.shelf import ShelfEnv
+
+        env = ShelfEnv("c1s", n_items=4)
+        torch.manual_seed(0)
+        policy = Policy(env.nx, env.ny)
+        steps = value_teacher_trajectory(env, policy, 5, k=2, by_gain=1, explore_eps=0.0)
+        self.assertGreater(len(steps), 0)
+        for s in steps:
+            self.assertIn("targets", s)
+            q = soft_target(s, len(s["feats"]) + 1, tau=0.005)
+            self.assertAlmostEqual(float(q.sum()), 1.0, places=5)
+            self.assertTrue(all(0 <= int(i) <= len(s["feats"]) for i in s["targets"]))
+        tie = {"targets": {0: 0.1, 1: 0.1, 2: 0.0}, "feats": np.zeros((3, 12), dtype=np.float32)}
+        q = soft_target(tie, 4, tau=0.005)
+        self.assertAlmostEqual(float(q[0]), float(q[1]), places=5)
+        self.assertLess(float(q[2]), 1e-6)
+        from wedge_rl.ppo import imitation_loss
+
+        idx = list(range(len(steps)))
+        with torch.no_grad():
+            before = float(imitation_loss(policy, steps, idx))
+        pretrain(policy, steps, epochs=20, lr=1e-3, log=None)
+        with torch.no_grad():
+            after = float(imitation_loss(policy, steps, idx))
+        self.assertLess(after, before)
+        self.assertGreaterEqual(teacher_accuracy(policy, steps), 0.5)
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""
