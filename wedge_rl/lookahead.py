@@ -31,15 +31,22 @@ def _entry(item, c):
 
 class Lookahead:
     def __init__(self, policy, k: int = 4, by_gain: int = 1, threshold: float = 0.9,
-                 horizon: int | None = None, use_value: bool = True):
+                 horizon: int | None = None, use_value: bool = True, deadline: float | None = None):
         self.policy = policy
         self.k = k
         self.by_gain = by_gain
         self.threshold = threshold
         self.horizon = horizon
         self.use_value = use_value
+        # wall-clock budget per decision: children are finished in order of
+        # the policy's own preference and the search stops when the budget
+        # is spent, keeping the best of what was evaluated (the decoded
+        # action is always evaluated first, so the result is never worse
+        # than the policy's own choice by its own measure)
+        self.deadline = deadline
         self.expansions = 0
         self.decisions = 0
+        self.truncated = 0
         self.seconds = []
 
     # -- the base policy ---------------------------------------------------
@@ -91,19 +98,29 @@ class Lookahead:
             return a
         t0 = time.perf_counter()
         self.expansions += 1
-        # children: policy's top-k, best by gain, the decoded choice, PASS
-        order = np.argsort(-p[:-1])[: self.k].tolist()
-        children = set(order)
-        children.update(sorted(range(len(cands)), key=lambda i: -cands[i].gain)[: self.by_gain])
-        if a != PASS:
-            children.add(a)
+        # children in the order they are worth evaluating: the decoded choice,
+        # PASS, the policy's next preferences, then the best by gain
+        order = [a] if a != PASS else []
+        order.append(PASS)
+        for i in np.argsort(-p[:-1])[: self.k].tolist():
+            if i not in order:
+                order.append(i)
+        for i in sorted(range(len(cands)), key=lambda i: -cands[i].gain)[: self.by_gain]:
+            if i not in order:
+                order.append(i)
         packed0 = list(env.container["packed_items"])
         cursor0 = env.cursor
         placed0 = list(env.placed)
         item = env.stream[cursor0]
-        values = {PASS: self._finish(env, packed0, cursor0 + 1)}
-        for i in children:
-            values[i] = cands[i].gain + self._finish(env, packed0 + [_entry(item, cands[i])], cursor0 + 1)
+        values = {}
+        for n, i in enumerate(order):
+            if self.deadline is not None and n >= 2 and time.perf_counter() - t0 > self.deadline:
+                self.truncated += 1
+                break
+            if i == PASS:
+                values[PASS] = self._finish(env, packed0, cursor0 + 1)
+            else:
+                values[i] = cands[i].gain + self._finish(env, packed0 + [_entry(item, cands[i])], cursor0 + 1)
         # restore the live state exactly
         self._load(env, packed0, cursor0)
         env.placed = placed0
@@ -112,7 +129,7 @@ class Lookahead:
         return best
 
     def stats(self) -> dict:
-        return {"decisions": self.decisions, "expansions": self.expansions,
+        return {"decisions": self.decisions, "expansions": self.expansions, "truncated": self.truncated,
                 "expansion_rate": self.expansions / max(self.decisions, 1),
                 "seconds_mean": float(np.mean(self.seconds)) if self.seconds else 0.0,
                 "seconds_max": float(np.max(self.seconds)) if self.seconds else 0.0}

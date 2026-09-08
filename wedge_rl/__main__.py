@@ -145,6 +145,17 @@ def cmd_replay(args) -> int:
     for name in args.policies.split(","):
         if name == "ppo":
             policies["ppo"] = load_ppo_policy(args.policy, env)
+        elif name == "lookahead":
+            import torch
+
+            from .lookahead import Lookahead
+            from .ppo import Policy
+
+            net = Policy(env.nx, env.ny)
+            net.load_state_dict(torch.load(pathlib.Path(args.policy) / "policy.pt"))
+            net.eval()
+            policies["lookahead"] = Lookahead(net, k=args.k, threshold=args.threshold, horizon=args.horizon,
+                                              deadline=args.deadline).act
         else:
             policies[name] = POLICIES[name]
     out = pathlib.Path(args.out) if args.out else None
@@ -253,7 +264,7 @@ def cmd_lookahead(args) -> int:
     plain = load_ppo_policy(args.policy, env)
     base = [run_episode(env, plain, s)["gain"] for s in seeds]
     la = Lookahead(policy, k=args.k, by_gain=args.by_gain, threshold=args.threshold,
-                   horizon=args.horizon, use_value=not args.no_value)
+                   horizon=args.horizon, use_value=not args.no_value, deadline=args.deadline)
     rows = []
     for s in seeds:
         r = run_episode(env, la.act, s)
@@ -265,6 +276,7 @@ def cmd_lookahead(args) -> int:
     boot = [float(np.mean(rng.choice(d, len(d)))) for _ in range(2000)]
     summary = {"region": args.region, "policy": args.policy, "k": args.k, "by_gain": args.by_gain,
                "threshold": args.threshold, "horizon": args.horizon, "use_value": not args.no_value,
+               "deadline": args.deadline,
                "seeds": seeds, "plain": float(np.mean(base)), "lookahead": float(np.mean(rows)),
                "diff": float(np.mean(d)), "ci": [float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))],
                "wins": int((d > 1e-9).sum()), "losses": int((d < -1e-9).sum()), **la.stats(),
@@ -312,6 +324,8 @@ def main(argv=None) -> int:
     r.add_argument("--policies", default="ppo,staircase", help="comma list of ppo and/or baseline names")
     r.add_argument("--policy", default="", help="directory holding policy.pt (for ppo)")
     r.add_argument("--no-shake", action="store_true")
+    r.add_argument("--k", type=int, default=4); r.add_argument("--threshold", type=float, default=0.9)
+    r.add_argument("--horizon", type=int, default=None); r.add_argument("--deadline", type=float, default=None)
     r.add_argument("--out", default="", help="per-episode jsonl (appended; resumable)")
     r.add_argument("--summary", default="")
     r.set_defaults(fn=cmd_replay)
@@ -349,6 +363,7 @@ def main(argv=None) -> int:
     la.add_argument("--policy", required=True); la.add_argument("--k", type=int, default=4)
     la.add_argument("--by-gain", type=int, default=1); la.add_argument("--threshold", type=float, default=0.9)
     la.add_argument("--horizon", type=int, default=None); la.add_argument("--no-value", action="store_true")
+    la.add_argument("--deadline", type=float, default=None, help="seconds per decision before the search stops")
     la.add_argument("--out", default="")
     la.set_defaults(fn=cmd_lookahead)
     args = p.parse_args(argv)
