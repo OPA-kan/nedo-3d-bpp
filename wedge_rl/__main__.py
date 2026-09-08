@@ -238,6 +238,44 @@ def cmd_diagnose(args) -> int:
     return 0
 
 
+def cmd_lookahead(args) -> int:
+    """The trained policy with selective one-step look-ahead, paired against itself."""
+    import torch
+
+    from .lookahead import Lookahead
+    from .ppo import Policy
+
+    env = make_env(args.region, _layout(args), args.items)
+    policy = Policy(env.nx, env.ny)
+    policy.load_state_dict(torch.load(pathlib.Path(args.policy) / "policy.pt"))
+    policy.eval()
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    plain = load_ppo_policy(args.policy, env)
+    base = [run_episode(env, plain, s)["gain"] for s in seeds]
+    la = Lookahead(policy, k=args.k, by_gain=args.by_gain, threshold=args.threshold,
+                   horizon=args.horizon, use_value=not args.no_value)
+    rows = []
+    for s in seeds:
+        r = run_episode(env, la.act, s)
+        rows.append(r["gain"])
+        print(f"[{args.region} s{s}] plain {base[len(rows) - 1]:.4f} lookahead {r['gain']:.4f} "
+              f"expansions {la.expansions}/{la.decisions} max {la.stats()['seconds_max']:.1f}s", flush=True)
+    d = np.array(rows) - np.array(base)
+    rng = np.random.default_rng(0)
+    boot = [float(np.mean(rng.choice(d, len(d)))) for _ in range(2000)]
+    summary = {"region": args.region, "policy": args.policy, "k": args.k, "by_gain": args.by_gain,
+               "threshold": args.threshold, "horizon": args.horizon, "use_value": not args.no_value,
+               "seeds": seeds, "plain": float(np.mean(base)), "lookahead": float(np.mean(rows)),
+               "diff": float(np.mean(d)), "ci": [float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))],
+               "wins": int((d > 1e-9).sum()), "losses": int((d < -1e-9).sum()), **la.stats(),
+               "per_seed": {"plain": base, "lookahead": rows}}
+    print(json.dumps({k: v for k, v in summary.items() if k != "per_seed"}, indent=1))
+    if args.out:
+        pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(args.out).write_text(json.dumps(summary, indent=1))
+    return 0
+
+
 def _common(p, episodes: int, seed0: int):
     p.add_argument("--region", default="wedge", choices=REGIONS)
     p.add_argument("--layout", default="", help="container layout (default: c1 for wedge, c1s for shelf)")
@@ -307,6 +345,12 @@ def main(argv=None) -> int:
     d.add_argument("--policy", required=True); d.add_argument("--k", type=int, default=6)
     d.add_argument("--spread", type=int, default=6); d.add_argument("--out", default="")
     d.set_defaults(fn=cmd_diagnose)
+    la = sub.add_parser("lookahead", help="selective one-step look-ahead over the policy"); _common(la, 40, 20000)
+    la.add_argument("--policy", required=True); la.add_argument("--k", type=int, default=4)
+    la.add_argument("--by-gain", type=int, default=1); la.add_argument("--threshold", type=float, default=0.9)
+    la.add_argument("--horizon", type=int, default=None); la.add_argument("--no-value", action="store_true")
+    la.add_argument("--out", default="")
+    la.set_defaults(fn=cmd_lookahead)
     args = p.parse_args(argv)
     return args.fn(args)
 
