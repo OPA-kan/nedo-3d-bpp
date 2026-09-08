@@ -200,6 +200,73 @@ size, free top area), which is what the network gets from the heightmap.
 
 Both outcomes are on the branch as negative results with their data.
 
+## Why the plateau
+
+`python -m wedge_rl diagnose` walks the trained policy's own deterministic
+trajectory on held-out streams and, at every visited state, expands the
+top candidates by gain, a spread of others, the chosen one and PASS, and
+finishes each child to the end of the stream *with the policy itself*.
+The regret of a step is the best child's total minus the chosen child's.
+Files `diag-shelf-c1s.json` (20 streams), `diag-wedge-c1.json` (10).
+
+| | shelf | wedge |
+|---|---|---|
+| steps with regret | 36 % | 15 % |
+| regret per stream (one-step, policy rollouts) | 0.232 | 0.0165 (= the whole 6-seed ceiling gap, 0.0168) |
+| share of regret in the first 4 / 7 steps | 51 % / 82 % | 80 % / 95 % |
+| regret mass by error: wrong pose / passed but should place / placed but should pass | 47 / 39 / 14 % | 22 / 3 / 76 % |
+| near-ties (children within 1 mm^3 of the best), mean; states with more than one | 3.2; 46 % | 7.5; 77 % |
+| entropy; mean probability of the chosen action; states with p > 0.9 | 0.86; 0.64; 40 % | 0.45; 0.82; 64 % |
+| regret mass in states where p <= 0.9 | 80 % (60 % of steps) | 97 % (36 % of steps) |
+| value head: correlation with the realised return | 0.97 | 0.95 |
+
+Reading:
+
+* It is not the value head (0.95-0.97) and not exploration collapse (the
+  shelf policy keeps 0.86 nats of entropy).  It is the decisions in the
+  first few steps, where the policy's own one-step look-ahead disagrees
+  with what it does.  On the wedge that disagreement accounts for the
+  entire measured gap to the ceiling; the shelf figure exceeds the beam's
+  gap because one-step regrets along a path are not additive and the beam
+  at width 8 is itself a weak ceiling.
+* The two regions fail differently.  The wedge places when it should wait
+  (76 % of the regret mass is "placed but should pass": a box that blocks
+  a better staircase later).  The shelf both passes items it could have
+  placed (39 %; it passes with p = 0.87 on medium items that a later
+  arrangement would have taken) and puts the right item in the wrong spot
+  (47 %; same volume, a worse top for what comes after).
+* The policy knows when it does not know.  Where its chosen probability is
+  below 0.9 sit 80 % (shelf) and 97 % (wedge) of the regret, on 60 % and
+  36 % of the steps.
+* The choices are ambiguous.  Half the shelf states and three quarters of
+  the wedge states have several children within a millilitre of the best.
+  That is why cloning a single searched action stalled at 74 % agreement
+  and pulled the shelf policy down: the target was one arbitrary member
+  of a tie set, and matching it exactly is neither possible nor useful.
+
+Why PPO stops here: the gradient signal for "which of these near-equal
+candidates" is small and noisy, the consequences of an early base or an
+early pass arrive three to ten steps later as a few percent of the return,
+and with 32 streams per iteration the estimate of that difference is
+dominated by stream-to-stream variance.  The policy converges to the right
+choice on average and stays wrong on the third of states where it matters.
+
+What this implies:
+
+1. The same look-ahead at play time is a policy improvement that needs no
+   training: expand only the unsure states (p <= 0.9) with a handful of
+   children and the policy as rollout.  On the shelf that is 60 % of steps
+   at about 0.8 s per child rollout, so top-4 plus PASS fits the 8 s budget;
+   on the wedge a rollout is 2-3 s, so the horizon must be cut to a few
+   steps and the value head (0.95) used at the leaf.
+2. For training, the teacher target should be the child *values* at the
+   student's own states (soft target proportional to exp(value / tau)),
+   not one searched action on searched states: it respects ties and puts
+   the labels where the policy actually goes.
+3. Larger batches (128 streams per iteration) or a lower entropy bonus
+   would sharpen the gradient but cannot fix the ambiguity; the two items
+   above address the cause.
+
 ## Executor status
 
 | region | learned vs best hand rule | physics acceptance | plateau |
