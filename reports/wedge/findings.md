@@ -132,6 +132,31 @@ the held-out seeds, against 0.0677 for seed 0 and 0.0499 for the hand
 staircase, with the same plateau from iteration 240 on (best checkpoint
 0.0697 at iteration 230).  The wedge result is not a lucky seed.
 
+## Ceiling: how far the executors are from their own action space
+
+`python -m wedge_rl ceiling` runs a beam search over exactly the candidates
+the policy sees (PASS included), ranking children by gain plus a baseline
+rollout to the end of the stream (staircase for the wedge, greedy for the
+shelf).  Whatever it finds is a lower bound on the optimum for this
+candidate set and this validator; the physical optimum is higher still
+(the analytic validator rejects 53 % of what PyBullet accepts).  Six
+held-out streams per region, width 8 (wedge) and 16 (shelf), files
+`ceiling-wedge-c1.json`, `ceiling-shelf-c1s.json`:
+
+| region | beam | PPO | best hand rule | ceiling (best of all per stream) | PPO / ceiling |
+|---|---|---|---|---|---|
+| wedge | 0.0778 | 0.0674 | 0.0520 | 0.0842 | 0.80 |
+| shelf | 0.4633 | 0.3976 | 0.3560 | 0.4665 | 0.85 |
+
+The beam beats the policy on four of six wedge streams (by up to 0.03 m^3,
+46 % on seed 20000) and on five of six shelf streams (by up to 0.18 m^3 on
+a stream where the policy fell below greedy).  A gain-ranked beam without
+rollouts (width 300, all children) finds only 0.0671 / 0.4015, so the
+look-ahead is what finds the better arrangements, not the width.  The
+learner is the limit, not the candidate set.  Cost of the search: 6 to 30
+minutes per stream on one core, which rules it out at play time (8 s) and
+makes it a teacher.
+
 ## Executor status
 
 | region | learned vs best hand rule | physics acceptance | plateau |
@@ -139,8 +164,12 @@ staircase, with the same plateau from iteration 240 on (best checkpoint
 | wedge (c1) | 0.068 vs 0.050 m^3 | 203/203 | ~iteration 200, two seeds |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 279/279 | ~iteration 200 |
 
-Both executors are parked here: the next unit of work is the manager that
-hands items to them (`docs/rl-roadmap.md`).
+Next for the executors: search as the teacher.  `wedge_rl teach` writes
+the beam's trajectory for many streams; `train --teacher` clones them and
+keeps an imitation term in PPO (expert iteration).  Teacher streams the
+current policy already beats are dropped, and the beam can use the trained
+policy as its rollout, so each round's teacher is at least as good as the
+last policy.
 
 ## Caveats
 

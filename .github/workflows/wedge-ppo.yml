@@ -38,6 +38,10 @@ on:
         description: Run id of a previous Wedge PPO run whose policy to start from (optional)
         type: string
         default: ""
+      init_artifact:
+        description: Artifact name in that run holding policy.pt (default ppo-<region>-<layout>-s<seed>)
+        type: string
+        default: ""
       teacher_run_id:
         description: Run id of an Executor teacher run whose trajectories to imitate (optional)
         type: string
@@ -58,6 +62,7 @@ env:
   EPISODES: ${{ inputs.episodes || 32 }}
   SEED: ${{ inputs.seed || 0 }}
   INIT_RUN_ID: ${{ inputs.init_run_id || '' }}
+  INIT_ARTIFACT: ${{ inputs.init_artifact || format('ppo-{0}-{1}-s{2}', inputs.region || 'wedge', inputs.layout || 'c1', inputs.seed || 0) }}
   TEACHER_RUN_ID: ${{ inputs.teacher_run_id || '' }}
   TEACHER_WEIGHT: ${{ inputs.teacher_weight || '0.5' }}
   PRETRAIN_EPOCHS: ${{ inputs.pretrain_epochs || '10' }}
@@ -87,7 +92,7 @@ jobs:
         if: env.INIT_RUN_ID != ''
         uses: actions/download-artifact@v4
         with:
-          name: ppo-${{ env.REGION }}-${{ env.LAYOUT }}-s${{ env.SEED }}
+          name: ${{ env.INIT_ARTIFACT }}
           path: init
           run-id: ${{ env.INIT_RUN_ID }}
           github-token: ${{ github.token }}

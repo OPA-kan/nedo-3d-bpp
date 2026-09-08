@@ -142,18 +142,17 @@ def teacher_trajectory(env, seed: int, actions) -> list[dict]:
 
 
 def _teach_one(args):
-    region, layout, n_items, seed, width, k, spread, rollout_name, out_dir = args
+    region, layout, n_items, seed, width, k, spread, rollout_name, out_dir, policy_dir = args
     import pathlib
     import pickle
 
-    from .baselines import greedy_any, staircase
     from .regions import make_env
 
     path = pathlib.Path(out_dir) / f"s{seed}.pkl"
     if path.exists():
         return {"seed": seed, "skipped": True}
     env = make_env(region, layout, n_items)
-    rollout = {"": None, "none": None, "staircase": staircase, "greedy_any": greedy_any}[rollout_name]
+    rollout = _rollout_policy(rollout_name, policy_dir, env)
     result = beam_search(env, seed, width=width, k=k, spread=spread, rollout=rollout)
     traj = teacher_trajectory(env, seed, result["actions"])
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,9 +164,9 @@ def _teach_one(args):
 
 
 def teach(region: str, layout: str, n_items: int, seeds, width: int, k: int, spread: int, rollout: str,
-          out_dir, workers: int = 1, log=print) -> list[dict]:
+          out_dir, workers: int = 1, policy_dir: str = "", log=print) -> list[dict]:
     """Searched trajectories for many streams, one pickle per stream (resumable)."""
-    jobs = [(region, layout, n_items, s, width, k, spread, rollout, str(out_dir)) for s in seeds]
+    jobs = [(region, layout, n_items, s, width, k, spread, rollout, str(out_dir), policy_dir) for s in seeds]
     out = []
     if workers <= 1:
         for job in jobs:
@@ -186,31 +185,60 @@ def teach(region: str, layout: str, n_items: int, seeds, width: int, k: int, spr
     return sorted(out, key=lambda r: r["seed"])
 
 
-def load_teacher(paths) -> list[dict]:
-    """All steps of all teacher pickles, flattened."""
+def load_teacher(paths, env=None, policy=None, log=None) -> list[dict]:
+    """All steps of all teacher pickles, flattened.  With ``env`` and a
+    ``policy(env, rng) -> action`` the streams the policy already matches or
+    beats are dropped: imitating a weaker teacher would pull the policy
+    down, and the search is only a lower bound on the optimum."""
     import pickle
 
     steps = []
+    kept = dropped = 0
     for p in paths:
         with open(p, "rb") as fh:
             d = pickle.load(fh)
+        if env is not None and policy is not None:
+            from .baselines import run_episode
+
+            own = run_episode(env, policy, d["seed"])["gain"]
+            if own >= d["gain"] - 1e-9:
+                dropped += 1
+                continue
+        kept += 1
         steps.extend(d["steps"])
+    if log:
+        log(f"teacher: kept {kept} streams, dropped {dropped} the policy already matches")
     return steps
 
 
-def _one(args):
-    region, layout, n_items, seed, width, k, spread, rollout_name = args
+def _rollout_policy(name: str, policy_dir: str, env):
     from .baselines import greedy_any, staircase
+
+    if name in ("", "none"):
+        return None
+    if name == "staircase":
+        return staircase
+    if name == "greedy_any":
+        return greedy_any
+    if name == "ppo":
+        from .__main__ import load_ppo_policy
+
+        return load_ppo_policy(policy_dir, env)
+    raise KeyError(f"unknown rollout {name!r}")
+
+
+def _one(args):
+    region, layout, n_items, seed, width, k, spread, rollout_name, policy_dir = args
     from .regions import make_env
 
     env = make_env(region, layout, n_items)
-    rollout = {"": None, "none": None, "staircase": staircase, "greedy_any": greedy_any}[rollout_name]
+    rollout = _rollout_policy(rollout_name, policy_dir, env)
     return beam_search(env, seed, width=width, k=k, spread=spread, rollout=rollout)
 
 
 def ceilings(region: str, layout: str, n_items: int, seeds, width: int, k: int, workers: int = 1,
-             spread: int = 0, rollout: str = "", log=print) -> list[dict]:
-    jobs = [(region, layout, n_items, s, width, k, spread, rollout) for s in seeds]
+             spread: int = 0, rollout: str = "", policy_dir: str = "", log=print) -> list[dict]:
+    jobs = [(region, layout, n_items, s, width, k, spread, rollout, policy_dir) for s in seeds]
     if workers <= 1:
         out = []
         for job in jobs:

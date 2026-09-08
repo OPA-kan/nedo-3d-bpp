@@ -39,8 +39,9 @@ def cmd_baselines(args) -> int:
     return 0
 
 
-def _teacher_steps(spec: str):
-    """Teacher pickles from a directory (recursively) or a glob."""
+def _teacher_steps(spec: str, env=None, policy_dir: str = ""):
+    """Teacher pickles from a directory (recursively) or a glob; with a
+    starting policy, streams it already matches are dropped."""
     import glob
 
     from .search import load_teacher
@@ -49,7 +50,8 @@ def _teacher_steps(spec: str):
         return None
     path = pathlib.Path(spec)
     files = sorted(str(p) for p in path.rglob("s*.pkl")) if path.is_dir() else sorted(glob.glob(spec))
-    steps = load_teacher(files)
+    policy = load_ppo_policy(policy_dir, env) if (policy_dir and env is not None) else None
+    steps = load_teacher(files, env=env, policy=policy, log=lambda line: print(line, flush=True))
     print(f"teacher: {len(files)} streams, {len(steps)} steps", flush=True)
     return steps
 
@@ -57,11 +59,14 @@ def _teacher_steps(spec: str):
 def cmd_train(args) -> int:
     from .ppo import train
 
-    result = train(pathlib.Path(args.out), env_factory(args.region, _layout(args), args.items, args.seed),
+    factory = env_factory(args.region, _layout(args), args.items, args.seed)
+    init_dir = str(pathlib.Path(args.init).parent) if args.init else ""
+    teacher = _teacher_steps(args.teacher, env=factory() if args.teacher else None, policy_dir=init_dir)
+    result = train(pathlib.Path(args.out), factory,
                    iterations=args.iterations, episodes_per_iter=args.episodes, lr=args.lr, seed=args.seed,
                    log=lambda row: print(row, flush=True),
                    init=pathlib.Path(args.init) if args.init else None, workers=args.workers,
-                   max_minutes=args.max_minutes, teacher=_teacher_steps(args.teacher),
+                   max_minutes=args.max_minutes, teacher=teacher,
                    teacher_weight=args.teacher_weight, pretrain_epochs=args.pretrain_epochs)
     print(json.dumps({"best_eval_gain": result["best_eval_gain"]}))
     return 0
@@ -76,7 +81,7 @@ def cmd_teach(args) -> int:
         i, n = (int(v) for v in args.shard.split("/"))
         seeds = seeds[i::n]
     rows = teach(args.region, _layout(args), args.items, seeds, args.width, args.k, args.spread, args.rollout,
-                 args.out, workers=args.workers, log=lambda line: print(line, flush=True))
+                 args.out, workers=args.workers, policy_dir=args.policy, log=lambda line: print(line, flush=True))
     done = [r for r in rows if not r.get("skipped")]
     if done:
         print(f"mean gain {np.mean([r['gain'] for r in done]):.4f} over {len(done)} new streams "
@@ -164,7 +169,8 @@ def cmd_ceiling(args) -> int:
     env = make_env(args.region, _layout(args), args.items)
     seeds = list(range(args.seed0, args.seed0 + args.episodes))
     beam = ceilings(args.region, _layout(args), args.items, seeds, args.width, args.k, workers=args.workers,
-                    spread=args.spread, rollout=args.rollout, log=lambda line: print(line, flush=True))
+                    spread=args.spread, rollout=args.rollout, policy_dir=args.policy,
+                    log=lambda line: print(line, flush=True))
     rows = []
     ppo = load_ppo_policy(args.policy, env) if args.policy else None
     for r in beam:
@@ -228,7 +234,7 @@ def main(argv=None) -> int:
     c = sub.add_parser("ceiling", help="beam-search ceiling of the region on a few streams"); _common(c, 6, 20000)
     c.add_argument("--width", type=int, default=100); c.add_argument("--k", type=int, default=8)
     c.add_argument("--spread", type=int, default=0, help="extra children spread along the candidate order")
-    c.add_argument("--rollout", default="", help="rank children by gain plus a baseline rollout: staircase|greedy_any")
+    c.add_argument("--rollout", default="", help="rank children by gain plus a rollout: staircase|greedy_any|ppo")
     c.add_argument("--workers", type=int, default=1)
     c.add_argument("--policy", default="", help="directory holding policy.pt to compare against")
     c.add_argument("--out", default="")
@@ -237,7 +243,8 @@ def main(argv=None) -> int:
     _common(h, 64, 30000)
     h.add_argument("--width", type=int, default=8); h.add_argument("--k", type=int, default=4)
     h.add_argument("--spread", type=int, default=4)
-    h.add_argument("--rollout", default="", help="staircase (wedge) or greedy_any (shelf)")
+    h.add_argument("--rollout", default="", help="staircase (wedge), greedy_any (shelf) or ppo (needs --policy)")
+    h.add_argument("--policy", default="", help="directory holding policy.pt, for --rollout ppo")
     h.add_argument("--workers", type=int, default=1)
     h.add_argument("--shard", default="", help="i/n: this process takes every n-th seed starting at i")
     h.add_argument("--out", required=True, help="directory for s<seed>.pkl files (resumable)")
