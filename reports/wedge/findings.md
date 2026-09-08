@@ -267,12 +267,49 @@ What this implies:
    would sharpen the gradient but cannot fix the ambiguity; the two items
    above address the cause.
 
+## Past the plateau without training: selective look-ahead
+
+`python -m wedge_rl lookahead` keeps the trained policy on the states
+where it is confident (chosen probability above 0.9) and, on the others,
+finishes a few children with the policy itself and takes the best: the
+decoded choice first, then PASS, then the policy's next preferences and
+the best candidate by gain.  A per-decision deadline stops the search in
+time; the decoded choice is always evaluated, so by the policy's own
+measure the result is never worse than the policy alone.  Forty held-out
+streams, paired against the plain policy:
+
+| region | plain | look-ahead | diff (95 %) | wins / losses | expanded | s per decision, mean / max |
+|---|---|---|---|---|---|---|
+| shelf, k 4, full rollouts | 0.4375 | 0.4814 | +0.044 [+0.032, +0.057] | 34 / 0 | 66 % | 5.0 / 11.8 |
+| shelf, same, 6 s deadline | 0.4375 | 0.4797 | +0.042 [+0.030, +0.056] | 33 / 0 | 65 % (140 searches cut short) | 5.1 / 8.2 |
+| wedge, k 3, horizon 3 + value head | 0.0677 | 0.0733 | +0.006 [+0.002, +0.009] | 25 / 6 | 41 % | 3.4 / 8.5 |
+
+The shelf gains ten percent with no loss on any stream and passes the
+six-stream beam figure (0.4665), which was therefore a weak bound.  The
+wedge recovers a third of its measured gap; its base decisions pay off
+three to ten steps later and a three-step horizon with the value head at
+the leaf sees only part of that, while a longer horizon does not fit the
+time budget because the strip's candidate generation is the slow part.
+
+In the official simulator (`replay-lookahead-*`): wedge 119 stacked
+placements, all accepted, 0.0738 m^3 settled; shelf 0.4726 m^3 settled
+with one transport rejection in 40 streams (0.983 acceptance), the same
+rate the hand staircase showed earlier.
+
+What this settles: the plateau was the learner, and the cheapest way past
+it is to let the policy search where it is unsure.  The same expansion
+gives the training signal that the searched-trajectory teacher lacked
+(child values at the policy's own states, ties preserved), which is the
+next training round.  For deployment the deadline needs a margin below
+the 8 s limit on the evaluation machine: the check runs between children,
+and a single shelf rollout can take two seconds.
+
 ## Executor status
 
-| region | learned vs best hand rule | physics acceptance | plateau |
-|---|---|---|---|
-| wedge (c1) | 0.068 vs 0.050 m^3 | 203/203 | ~iteration 200, two seeds |
-| shelf (c1s) | 0.438 vs 0.378 m^3 | 279/279 | ~iteration 200 |
+| region | learned vs best hand rule | with look-ahead | physics acceptance | plateau |
+|---|---|---|---|---|
+| wedge (c1) | 0.068 vs 0.050 m^3 | 0.073 | 203/203, look-ahead 100 % | ~iteration 200, two seeds |
+| shelf (c1s) | 0.438 vs 0.378 m^3 | 0.480 | 279/279, look-ahead 98.3 % | ~iteration 200 |
 
 The executors stand at 80-85 % of their action-space ceiling after plain
 PPO; one round of search-as-teacher and a first GP budget did not move
