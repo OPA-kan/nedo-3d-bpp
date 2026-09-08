@@ -112,7 +112,12 @@ jobs:
       - name: Train
         run: |
           init=""
-          if [ -n "$INIT_RUN_ID" ]; then init="--init init/policy.pt"; fi
+          if [ -n "$INIT_RUN_ID" ]; then
+            # the artifact keeps its run's directory layout (runs/<name>/policy.pt)
+            init_pt=$(find init -name policy.pt | head -1)
+            if [ -z "$init_pt" ]; then echo "no policy.pt in the init artifact"; find init | head; exit 1; fi
+            init="--init $init_pt"
+          fi
           if [ -n "$TEACHER_RUN_ID" ]; then
             init="$init --teacher teacher --teacher-weight $TEACHER_WEIGHT --pretrain-epochs $PRETRAIN_EPOCHS"
           fi
