@@ -169,7 +169,14 @@ def run(region: str, layout: str, n_items: int, policy_dir: str, seeds, k: int =
     policy.load_state_dict(torch.load(pathlib.Path(policy_dir) / "policy.pt"))
     policy.eval()
     episodes = []
+    if out is not None and pathlib.Path(out).exists():
+        # resume: keep the episodes already written for these seeds
+        prior = json.loads(pathlib.Path(out).read_text()).get("episodes", [])
+        episodes = [e for e in prior if e["seed"] in set(seeds)]
+    done = {e["seed"] for e in episodes}
     for seed in seeds:
+        if seed in done:
+            continue
         t0 = time.perf_counter()
         ep = diagnose_episode(env, policy, seed, k=k, spread=spread)
         episodes.append(ep)
