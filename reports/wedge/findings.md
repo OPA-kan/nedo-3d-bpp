@@ -283,13 +283,19 @@ streams, paired against the plain policy:
 | shelf, k 4, full rollouts | 0.4375 | 0.4814 | +0.044 [+0.032, +0.057] | 34 / 0 | 66 % | 5.0 / 11.8 |
 | shelf, same, 6 s deadline | 0.4375 | 0.4797 | +0.042 [+0.030, +0.056] | 33 / 0 | 65 % (140 searches cut short) | 5.1 / 8.2 |
 | wedge, k 3, horizon 3 + value head | 0.0677 | 0.0733 | +0.006 [+0.002, +0.009] | 25 / 6 | 41 % | 3.4 / 8.5 |
+| wedge, k 3, full rollouts, 6 s deadline, fast generator | 0.0677 | 0.0759 | +0.008 [+0.005, +0.011] | 30 / 0 | 43 % (6 cut short) | 3.4 / 7.6 |
+| wedge, k 4, horizon 8 + value head, 6 s deadline, fast generator | 0.0677 | 0.0774 | +0.010 [+0.007, +0.013] | 31 / 1 | 44 % (8 cut short) | 3.4 / 7.5 |
 
 The shelf gains ten percent with no loss on any stream and passes the
 six-stream beam figure (0.4665), which was therefore a weak bound.  The
-wedge recovers a third of its measured gap; its base decisions pay off
-three to ten steps later and a three-step horizon with the value head at
-the leaf sees only part of that, while a longer horizon does not fit the
-time budget because the strip's candidate generation is the slow part.
+wedge's base decisions pay off three to ten steps later, so a three-step
+horizon saw only part of it.  A vectorised prefilter in the candidate
+generators (poses outside the container, penetrating a box, or resting on
+nothing are dropped for the whole grid at once before the validator runs;
+the candidate set is unchanged, checked on 20 states, and the generator is
+five times faster) made an eight-step horizon fit the time budget, and the
+wedge now recovers 0.0774 of its 0.0842 ceiling: 58 % of the measured gap,
+against 34 % with the short horizon.
 
 In the official simulator (`replay-lookahead-*`): wedge 119 stacked
 placements, all accepted, 0.0738 m^3 settled; shelf 0.4726 m^3 settled
@@ -297,18 +303,32 @@ with one transport rejection in 40 streams (0.983 acceptance), the same
 rate the hand staircase showed earlier.
 
 What this settles: the plateau was the learner, and the cheapest way past
-it is to let the policy search where it is unsure.  The same expansion
-gives the training signal that the searched-trajectory teacher lacked
-(child values at the policy's own states, ties preserved), which is the
-next training round.  For deployment the deadline needs a margin below
-the 8 s limit on the evaluation machine: the check runs between children,
-and a single shelf rollout can take two seconds.
+it is to let the policy search where it is unsure.  For deployment the
+deadline needs a margin below the 8 s limit on the evaluation machine: the
+check runs between children, and a single shelf rollout can take two
+seconds.
+
+The same expansion gives the training signal that the searched-trajectory
+teacher lacked.  `teach --mode values` plays the policy with a little
+exploration and records, at every state it visits, the values of the
+children `Lookahead.expand` finishes with the policy; the imitation loss
+turns them into a distribution with a 5 ml temperature, so ties share the
+mass.  Generated on eight runners in 25 minutes each:
+
+| region | streams | states | children per state | near-ties (within 1 ml), share with more than one | decoded choice within 1 ml of the best | one-step regret per stream |
+|---|---|---|---|---|---|---|
+| shelf | 2048 | 20,546 | 5.8 | 2.6, 60 % | 58 % | 0.185 |
+| wedge | 1024 | 11,186 | 5.5 | 3.4, 71 % | 78 % | 0.028 |
+
+A training round from the current policies with these targets (weight
+0.5 in every PPO minibatch, five cloning epochs first) is the test of
+whether the look-ahead's gain can be folded into the policy itself.
 
 ## Executor status
 
 | region | learned vs best hand rule | with look-ahead | physics acceptance | plateau |
 |---|---|---|---|---|
-| wedge (c1) | 0.068 vs 0.050 m^3 | 0.073 | 203/203, look-ahead 100 % | ~iteration 200, two seeds |
+| wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 (horizon 8, 6 s deadline) | 203/203, look-ahead 100 % | ~iteration 200, two seeds |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 0.480 | 279/279, look-ahead 98.3 % | ~iteration 200 |
 
 The executors stand at 80-85 % of their action-space ceiling after plain
