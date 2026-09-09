@@ -324,12 +324,52 @@ A training round from the current policies with these targets (weight
 0.5 in every PPO minibatch, five cloning epochs first) is the test of
 whether the look-ahead's gain can be folded into the policy itself.
 
+## Soft-target round: the look-ahead folded into the policy
+
+Trained from the plain policies with the values-mode teacher (imitation
+weight 0.5 in every PPO minibatch, five cloning epochs first, 600
+iterations; `ppo-wedge-c1-s3/`, `ppo-shelf-c1s-s3/`).  Forty held-out
+streams, paired against the plain policy; look-ahead as in the previous
+section (wedge k 4, horizon 8, 6 s deadline; shelf k 4, 6 s deadline):
+
+| region | plain | soft-taught | diff (95 %) | wins / losses | look-ahead on plain | look-ahead on soft-taught | beam ceiling (6 streams) |
+|---|---|---|---|---|---|---|---|
+| wedge | 0.0677 | **0.0771** | +0.0094 [+0.0060, +0.0129] | 23 / 1 | 0.0774 | **0.0865** (+0.0094 [+0.0073, +0.0116], 34 / 0) | 0.0842 |
+| shelf | 0.4375 | 0.4451 | +0.0076 [-0.0047, +0.0203] | 17 / 13 | 0.4797 | **0.4912** (+0.0461 [+0.0372, +0.0568], 36 / 0) | 0.4665 |
+
+* The wedge policy alone now scores what the look-ahead scored on top of
+  the old policy (0.0771 vs 0.0774): the search's gain was folded into the
+  weights.  Agreement with the teacher rose from 0.74 to 0.81 during
+  training, and the curve reached 0.080 on the training-side seeds by
+  iteration 300 and stayed there.
+* The look-ahead on top of the new policy adds the same amount again and
+  passes the six-stream beam figure (0.0865 against 0.0842, 78 % of the
+  wedge), so that beam was a weak bound on the wedge as well.
+* The shelf moved less (+0.008, interval spanning zero; agreement with the
+  teacher 0.55).  Its targets are broader (60 % of states have several
+  near-ties among 5.8 children) and its regret was spread over "wrong
+  pose" and "passed but should place"; one round did not resolve that.
+  The look-ahead on top still gives +0.046 with no loss, 0.4912.
+* Physics (`replay-*-s3`): the wedge policy's arrangements are accepted
+  in 38 of 40 streams (two transport rejections, the same failure the hand
+  staircase showed), settled 0.0763; the shelf policy's are all accepted,
+  settled 0.4451.
+
+This is one turn of expert iteration: search at the policy's own states,
+soft targets, retrain, and the policy absorbs most of the search's gain
+while the search on top keeps adding.  The next turn's teacher comes from
+the new policy (the values-mode teacher takes any policy directory), and
+each round is about an hour of Actions time for the teacher plus five for
+training.  The candidate generator is five times faster than a day ago,
+which is what made the eight-step horizon and the teacher's 20,000 states
+affordable.
+
 ## Executor status
 
-| region | learned vs best hand rule | with look-ahead | physics acceptance | plateau |
-|---|---|---|---|---|
-| wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 (horizon 8, 6 s deadline) | 203/203, look-ahead 100 % | ~iteration 200, two seeds |
-| shelf (c1s) | 0.438 vs 0.378 m^3 | 0.480 | 279/279, look-ahead 98.3 % | ~iteration 200 |
+| region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
+|---|---|---|---|---|---|
+| wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 | 0.087 (horizon 8, 6 s deadline) | 203/203 plain; 38/40 streams soft-taught | 0.084 |
+| shelf (c1s) | 0.438 vs 0.378 m^3 | 0.445 | 0.491 (6 s deadline) | 279/279 plain; 40/40 soft-taught | 0.467 |
 
 The executors stand at 80-85 % of their action-space ceiling after plain
 PPO; one round of search-as-teacher and a first GP budget did not move
