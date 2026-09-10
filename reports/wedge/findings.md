@@ -452,6 +452,15 @@ so a continuation is running).  Forty held-out boards, paired:
   The realised gain over greedy is therefore small until the validator's
   optimism about tall stacks is priced: a height-aware support margin,
   or the settle result as a training signal.
+* The look-ahead makes this worse, not better (`replay-lookahead-stack-c1`):
+  it plans 6.5 stacked boxes an episode for 0.386, the simulator keeps
+  0.237, and only 19 of 40 episodes are clean (13 settle, 8 transport
+  failures, 21 boxes, all stacked, 15 of them from 0.84 m up).  Realised:
+  greedy 0.210, plain policy 0.215, look-ahead 0.237.  The search finds
+  more of what the validator allows, and what the validator allows on top
+  of the ladder's boxes is wrong one time in nine.  On the floor regions
+  the same validator lost 0-5 %; here the analytic-physics agreement is
+  the bottleneck, ahead of the policy.
 
 ## Executor status
 
@@ -459,7 +468,7 @@ so a continuation is running).  Forty held-out boards, paired:
 |---|---|---|---|---|---|
 | wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 | 0.087 (horizon 8, 6 s deadline) | 203/203 plain; 38/40 streams soft-taught | 0.084 |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 0.445 | 0.491 (6 s deadline) | 279/279 plain; 40/40 soft-taught | 0.467 |
-| stack (c1, ladder's board) | 0.282 vs 0.238 m^3 | (continuation running) | 0.395 (6 s deadline) | 28/40 episodes clean plain (91 % of stacked boxes) | 0.407 |
+| stack (c1, ladder's board) | 0.282 vs 0.238 m^3 | (continuation running) | 0.395 (6 s deadline) | 28/40 episodes clean plain (91 % of stacked boxes); 19/40 with look-ahead | 0.407 |
 
 The wedge and shelf executors stand at 80-85 % of their action-space
 ceiling after plain PPO and reach it with the soft-target round plus
