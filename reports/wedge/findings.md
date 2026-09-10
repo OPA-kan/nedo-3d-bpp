@@ -364,6 +364,48 @@ training.  The candidate generator is five times faster than a day ago,
 which is what made the eight-step horizon and the teacher's 20,000 states
 affordable.
 
+## Third executor: stacking on the ladder's board
+
+The missing Layer 2 is what happens after rule-alpha's ladder declines:
+the floor is taken, the stream still has items, and the container is a
+quarter full.  The stacking region starts exactly there.  A board is the
+ladder's own episode run analytically to its first decline (`wedge_rl
+boards`; 40 held-out boards at seeds 20000-20039 and a pool of 256 for
+training, cached under `reports/wedge/boards/c1/`); the stream is what the
+ladder left (25.7 items on average, after 15.3 placed).  Candidates are
+every pose the ladder-stable validator accepts on the floor or on a
+distinct box top, anchored at support and neighbour edges, lowest first;
+gain is the box's volume.  The replay puts the ladder's boxes into the
+simulator first, so the physics check is for the whole container.
+
+Baselines on the 40 held-out boards (m^3 added by the stack; the
+container is about 3.2 m^3):
+
+| policy | volume | boxes placed | passes |
+|---|---|---|---|
+| greedy (largest gain) | 0.231 | 4.1 | 21.2 |
+| greedy (first candidate) | 0.233 | 4.1 | 21.2 |
+| staircase rule | 0.238 | 4.1 | 21.2 |
+| random | 0.213 | 3.8 | 21.5 |
+
+* The region is sparse: on eight boards under the greedy rule, 83 % of the
+  steps have no legal candidate at all (mean 35 when there are any, all of
+  them on tops; the floor is closed).  What the ladder leaves behind are
+  the large boxes (0.65 x 0.45, 0.75 x 0.56), and once three or four of
+  them sit on the tops, no remaining top offers the 60 % support and the
+  centre-of-mass rule the validator asks for.  The spread between random
+  and the best rule is therefore small (0.213 to 0.238): the decisions
+  that matter are the first four, and they decide which tops survive.
+* Physics (`replay-stack-c1-baselines`): the ladder's 15 boxes are
+  accepted in every episode; of the stacked boxes 94-95 % are accepted,
+  and 33-34 of 40 episodes are clean.  Every failure is a stacked box whose
+  bottom is 0.84 m or higher (four topple at settle, two or three fail the
+  transport sweep), so the analytic validator is optimistic about tall
+  stacks in a way it was not about the floor.  Realised volume 0.210-0.219
+  against 0.233-0.238 planned.
+* Ceiling and PPO: pending (a width-6 rollout-ranked beam on six boards and
+  a 250-iteration run are on Actions).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
