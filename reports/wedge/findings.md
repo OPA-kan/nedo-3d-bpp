@@ -403,8 +403,55 @@ container is about 3.2 m^3):
   transport sweep), so the analytic validator is optimistic about tall
   stacks in a way it was not about the floor.  Realised volume 0.210-0.219
   against 0.233-0.238 planned.
-* Ceiling and PPO: pending (a width-6 rollout-ranked beam on six boards and
-  a 250-iteration run are on Actions).
+Ceiling (`ceiling-stack-c1.json`; width 6, four children by gain plus
+four spread, greedy rollouts, six boards; 33 minutes a board on the
+runner):
+
+| | beam | greedy (first) | staircase | plain PPO |
+|---|---|---|---|---|
+| six boards | **0.407** (7.2 boxes) | 0.278 | 0.288 | 0.313 |
+
+The first measurement of this ceiling was wrong by a factor of five: the
+beam (and the diagnosis) started every search from an empty container,
+which is right for the wedge and the shelf and wrong for a region whose
+container already holds the ladder's boxes.  It "placed" 24 boxes through
+the board.  Both now start from whatever reset leaves in the container,
+and a test replays the searched actions from reset on a held-out board.
+
+PPO (`ppo-stack-c1-s0/`; 125 iterations in the run's 290 minutes, 7.5
+steps per second with four collectors, 27-item streams; the curve on the
+training-side seeds went 0.195 to 0.300 and was still rising at the end,
+so a continuation is running).  Forty held-out boards, paired:
+
+| policy | volume | boxes | diff vs greedy (95 %) | wins / losses |
+|---|---|---|---|---|
+| greedy (first) | 0.233 | 4.1 | | |
+| staircase | 0.238 | 4.1 | | |
+| **plain PPO** | **0.282** | 5.0 | +0.049 [+0.021, +0.080] | 22 / 10 |
+| PPO + look-ahead (k 4, 6 s) | **0.395** | | +0.113 vs plain [35 / 0] | |
+
+* The policy is worth +21 % over the hand rules on the first try, more
+  than the wedge or the shelf gave at the same stage (+36 % and +16 %
+  relative, but from a base that had no 83 %-empty steps).  Its regret
+  is in the first placements, as the ceiling suggested: it places 5.0
+  boxes where greedy places 4.1.
+* The selective look-ahead is worth far more here than on the other two
+  regions: +0.113 with no losing board (`lookahead-stack-c1.json`; a third
+  of the decisions expanded, 7.6 s each, 296 of 334 expansions truncated
+  by the deadline).  0.395 is within 3 % of the six-board beam figure
+  (0.413 on those boards).  Where a wrong early placement kills the tops
+  that the rest of the stream needed, one step of search with the value
+  head sees it and the plain policy does not.
+* Physics (`replay-stack-c1-s0`): the ladder's boxes are again accepted
+  everywhere; of the policy's stacked boxes 91 % are accepted, 28 of 40
+  episodes are clean, and the realised volume is 0.215 against 0.282
+  planned (greedy: 0.210 against 0.233).  The failures are all stacked
+  boxes, seven topple at settle and five fail the transport sweep, at
+  bottoms from 0.44 to 1.31 m; the policy stacks higher than greedy
+  (58 of 149 accepted boxes start at 0.84 m or above) and pays for it.
+  The realised gain over greedy is therefore small until the validator's
+  optimism about tall stacks is priced: a height-aware support margin,
+  or the settle result as a training signal.
 
 ## Executor status
 
@@ -412,13 +459,17 @@ container is about 3.2 m^3):
 |---|---|---|---|---|---|
 | wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 | 0.087 (horizon 8, 6 s deadline) | 203/203 plain; 38/40 streams soft-taught | 0.084 |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 0.445 | 0.491 (6 s deadline) | 279/279 plain; 40/40 soft-taught | 0.467 |
+| stack (c1, ladder's board) | 0.282 vs 0.238 m^3 | (continuation running) | 0.395 (6 s deadline) | 28/40 episodes clean plain (91 % of stacked boxes) | 0.407 |
 
-The executors stand at 80-85 % of their action-space ceiling after plain
-PPO; one round of search-as-teacher and a first GP budget did not move
-them (previous section).  The remaining lever on the executors is a
-soft-target teacher; the larger lever for the whole system is still the
-missing Layer 2 (stacking on the open floor), which the shelf executor's
-mechanism already demonstrates.
+The wedge and shelf executors stand at 80-85 % of their action-space
+ceiling after plain PPO and reach it with the soft-target round plus
+look-ahead.  The stack executor is the newest and the one with the
+largest gap to its ceiling (0.282 against 0.407) and the largest gain
+from look-ahead (+0.113); its next steps are the same recipe (soft
+targets from the look-ahead's child values, then retrain) and a validator
+that is not optimistic about tall stacks.  With three executors that
+each cover one region of the container, the manager (`docs/rl-roadmap.md`)
+has something to route to.
 
 ## Caveats
 
