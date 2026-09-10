@@ -7,11 +7,15 @@ its qualified name.
 
 from __future__ import annotations
 
-REGIONS = ("wedge", "shelf")
-DEFAULT_LAYOUT = {"wedge": "c1", "shelf": "c1s"}
+REGIONS = ("wedge", "shelf", "stack")
+DEFAULT_LAYOUT = {"wedge": "c1", "shelf": "c1s", "stack": "c1"}
+# 27 for the stack: the 41-item stream minus what the ladder typically places
+DEFAULT_ITEMS = {"wedge": 14, "shelf": 14, "stack": 27}
 
 
-def make_env(region: str, layout: str, n_items: int, seed: int = 0):
+def make_env(region: str, layout: str, n_items: int | None = None, seed: int = 0):
+    layout = layout or DEFAULT_LAYOUT.get(region, "c1")
+    n_items = n_items or DEFAULT_ITEMS.get(region, 14)
     if region == "wedge":
         from .env import WedgeEnv
 
@@ -20,6 +24,10 @@ def make_env(region: str, layout: str, n_items: int, seed: int = 0):
         from .shelf import ShelfEnv
 
         return ShelfEnv(layout, n_items=n_items, seed=seed)
+    if region == "stack":
+        from .stack import StackEnv
+
+        return StackEnv(layout, n_items=n_items, seed=seed)
     raise KeyError(f"unknown region {region!r}; known: {REGIONS}")
 
 

@@ -255,6 +255,33 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertLess(after, before)
         self.assertGreaterEqual(teacher_accuracy(policy, steps), 0.5)
 
+    def test_stack_env_offers_tops_and_pays_volume(self):
+        """The stacking region starts from the ladder's declined board and
+        offers legal poses on the floor and on tops."""
+        import pathlib
+        import tempfile
+
+        from wedge_rl.stack import StackEnv
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = StackEnv("c1", n_items=6, boards_dir=pathlib.Path(tmp))
+            env.reset(20000)
+            self.assertGreater(len(env.container["packed_items"]), 0)
+            self.assertEqual(len(env.stream), 6)
+            cands = env.candidates()
+            self.assertGreater(len(cands), 0)
+            self.assertTrue(any(not c.on_floor for c in cands), "no candidate on a top")
+            for c in cands:
+                ok, why = layer1.validate(c.box, env.model, env.container, env.config)
+                self.assertTrue(ok, why)
+                self.assertAlmostEqual(c.gain, float(np.prod(c.dims)))
+            n0 = len(env.container["packed_items"])
+            _obs, r, _d, _i = env.step(0)
+            self.assertAlmostEqual(r, cands[0].gain)
+            self.assertEqual(len(env.container["packed_items"]), n0 + 1)
+            # seeds above the pool base map onto the pool
+            self.assertTrue((pathlib.Path(tmp) / "c1" / "s20000.json").exists())
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""

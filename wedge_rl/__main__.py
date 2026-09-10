@@ -291,10 +291,23 @@ def cmd_lookahead(args) -> int:
     return 0
 
 
+def cmd_boards(args) -> int:
+    """Layer-1 boards for the stacking region: the ladder's declined state per seed."""
+    from .stack import BOARDS_DIR, build_boards
+
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    rows = build_boards(args.layout or "c1", seeds, boards_dir=args.out or BOARDS_DIR, workers=args.workers,
+                        log=lambda line: print(line, flush=True))
+    if rows:
+        print(f"{len(rows)} boards: ladder placed {np.mean([r['placed'] for r in rows]):.1f}, "
+              f"{np.mean([len(r['remaining']) for r in rows]):.1f} remaining on average")
+    return 0
+
+
 def _common(p, episodes: int, seed0: int):
     p.add_argument("--region", default="wedge", choices=REGIONS)
     p.add_argument("--layout", default="", help="container layout (default: c1 for wedge, c1s for shelf)")
-    p.add_argument("--items", type=int, default=14)
+    p.add_argument("--items", type=int, default=None, help="items per stream (default 14; 27 for stack)")
     p.add_argument("--episodes", type=int, default=episodes)
     p.add_argument("--seed0", type=int, default=seed0)
 
@@ -307,7 +320,7 @@ def main(argv=None) -> int:
     b.set_defaults(fn=cmd_baselines)
     t = sub.add_parser("train")
     t.add_argument("--region", default="wedge", choices=REGIONS)
-    t.add_argument("--layout", default=""); t.add_argument("--items", type=int, default=14)
+    t.add_argument("--layout", default=""); t.add_argument("--items", type=int, default=None)
     t.add_argument("--iterations", type=int, default=100); t.add_argument("--episodes", type=int, default=16)
     t.add_argument("--lr", type=float, default=3e-4); t.add_argument("--seed", type=int, default=0)
     t.add_argument("--workers", type=int, default=1, help="episode-collection processes")
@@ -373,6 +386,11 @@ def main(argv=None) -> int:
     la.add_argument("--deadline", type=float, default=None, help="seconds per decision before the search stops")
     la.add_argument("--out", default="")
     la.set_defaults(fn=cmd_lookahead)
+    bo = sub.add_parser("boards", help="build the ladder's declined boards for the stacking region")
+    bo.add_argument("--layout", default="c1"); bo.add_argument("--episodes", type=int, default=256)
+    bo.add_argument("--seed0", type=int, default=1_000_000); bo.add_argument("--workers", type=int, default=1)
+    bo.add_argument("--out", default="", help="boards directory (default reports/wedge/boards)")
+    bo.set_defaults(fn=cmd_boards)
     args = p.parse_args(argv)
     return args.fn(args)
 

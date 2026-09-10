@@ -20,17 +20,45 @@ import numpy as np
 
 from bench.scenes import SKUS, Scene, make_scene
 from rule_alpha import layer1
+from rule_alpha._reuse import AABB
 
 from .env import PASS, WedgeEnv
 
 SKU_BY_NAME = {s[0]: s for s in SKUS}
+SKU_BY_DIMS = {(s[1], s[2], s[3]): s for s in SKUS}
+
+
+def sku_for(item: dict):
+    """The official SKU of an item, by name when the stream recorded one,
+    by dimensions otherwise (the ladder's boards carry no names)."""
+    if item.get("sku"):
+        return SKU_BY_NAME[item["sku"]]
+    return SKU_BY_DIMS[(float(item["length"]), float(item["width"]), float(item["height"]))]
+
+
+class FixedPose:
+    """A pre-placed box (the ladder's Layer 1) in the shape the scripted
+    agent expects of a candidate: ``box`` and ``orientation``."""
+
+    def __init__(self, packed: dict):
+        self.box = AABB(tuple(float(v) for v in packed["pos"]), tuple(float(v) for v in packed["dims"]), "fixed")
+        self.orientation = int(packed["orientation"])
+        self.dims = tuple(float(v) for v in packed["dims"])
+        self.gain = 0.0
+        self.on_floor = True
+        self.bottom = float(self.box.minimum[2])
 
 
 def arrangement(env: WedgeEnv, policy, seed: int, rng=None) -> list[tuple[dict, object]]:
-    """Run ``policy`` on one stream; the (item, candidate) pairs it placed."""
+    """Run ``policy`` on one stream; the (item, candidate) pairs it placed.
+    For a region that starts from a pre-filled board, the board's own boxes
+    come first so the replay rebuilds the whole container in order."""
     env.reset(seed)
     rng = rng or random.Random(seed)
     placed = []
+    if getattr(env, "board", None) is not None:
+        for packed in env.board["container"]["packed_items"]:
+            placed.append((dict(packed), FixedPose(packed)))
     while not env.done:
         item = env.item
         a = policy(env, rng)
@@ -46,7 +74,7 @@ def scene_for(placed, layout: str, seed: int) -> Scene:
     base = make_scene(seed, layout, "C")
     items = []
     for new_index, (item, _cand) in enumerate(placed):
-        _n, length, width, height, mass, soft, physics, _w = SKU_BY_NAME[item["sku"]]
+        _n, length, width, height, mass, soft, physics, _w = sku_for(item)
         items.append({"index": new_index, "length": length, "width": width, "height": height,
                       "mass": mass, "is_prioritized": False, "is_soft": soft, **physics})
     return Scene(name=f"wedge-{layout}-s{seed:05d}", seed=seed, layout=layout, task="C",
@@ -98,7 +126,8 @@ def replay_episode(env: WedgeEnv, policy, seed: int, label: str, with_shake: boo
 
     placed = arrangement(env, policy, seed)
     planned_strip = float(sum(c.gain for _i, c in placed))
-    row = {"seed": seed, "label": label, "planned": len(placed), "planned_strip": planned_strip,
+    fixed = sum(1 for _i, c in placed if isinstance(c, FixedPose))
+    row = {"seed": seed, "label": label, "planned": len(placed), "fixed": fixed, "planned_strip": planned_strip,
            "planned_volume": float(sum(np.prod(c.dims) for _i, c in placed))}
     if not placed:
         row.update({"accepted": 0, "end_reason": "nothing-planned", "realized_strip": 0.0,
