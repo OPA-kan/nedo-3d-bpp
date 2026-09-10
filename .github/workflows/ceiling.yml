@@ -3,7 +3,8 @@ name: Executor ceiling
 # Beam search over each region's own candidates (with baseline rollouts as
 # the ranking) on a few held-out streams, next to the trained policy: how far
 # the learned executor is from what its action space allows.  Registered by
-# a push that touches this file; dispatch afterwards.
+# a push that touches this file; dispatch afterwards.  ``regions`` picks
+# the matrix entries that actually run; the others finish at once.
 
 on:
   # registered by its first push-triggered run; dispatch only since then
@@ -21,11 +22,21 @@ on:
         description: Beam width for the shelf
         type: string
         default: "16"
+      stack_width:
+        description: Beam width for the stack (27-item streams, slow candidates)
+        type: string
+        default: "6"
+      regions:
+        description: Comma list of regions to run (wedge, shelf, stack)
+        type: string
+        default: "wedge,shelf,stack"
 
 env:
   EPISODES: ${{ inputs.episodes || '6' }}
   WEDGE_WIDTH: ${{ inputs.wedge_width || '8' }}
   SHELF_WIDTH: ${{ inputs.shelf_width || '16' }}
+  STACK_WIDTH: ${{ inputs.stack_width || '6' }}
+  REGIONS: ${{ inputs.regions || 'wedge,shelf,stack' }}
 
 permissions:
   contents: read
@@ -48,6 +59,11 @@ jobs:
             policy: reports/wedge/ppo-shelf-c1s-s0
             rollout: greedy_any
             width_var: SHELF_WIDTH
+          - region: stack
+            layout: c1
+            policy: ""
+            rollout: greedy_any
+            width_var: STACK_WIDTH
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -58,6 +74,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
       - name: Beam search
+        if: contains(format(',{0},', env.REGIONS), format(',{0},', matrix.region))
         run: |
           width="${!WIDTH_VAR}"
           timeout --signal=INT --kill-after=3m 330m python -m wedge_rl ceiling \
