@@ -83,7 +83,10 @@ def beam_search(env, seed: int, width: int = 100, k: int = 8, spread: int = 0, r
     template = dict(env.container)
     stream = list(env.stream)
     n = len(stream)
-    beam = [{"packed": [], "gain": 0.0, "placed": 0, "actions": [], "rank": 0.0}]
+    # a region that starts from a pre-filled board (the stack) has boxes in
+    # the container before the first item; the search starts from them
+    base = list(env.container["packed_items"])
+    beam = [{"packed": base, "gain": 0.0, "placed": 0, "actions": [], "rank": 0.0}]
     t0 = time.perf_counter()
     expansions = 0
     for t in range(n):
@@ -114,10 +117,8 @@ def beam_search(env, seed: int, width: int = 100, k: int = 8, spread: int = 0, r
             log(f"  seed {seed} step {t + 1}/{n}: beam {len(beam)} best gain {max(s['gain'] for s in beam):.4f} "
                 f"rank {beam[0]['rank']:.4f} ({time.perf_counter() - t0:.0f}s, {expansions} expansions)")
     best = max(beam, key=lambda s: (s["gain"], s["placed"]))
-    env.container = dict(template)
-    env.container["packed_items"] = []
-    env.cursor = 0
-    env._cands = None
+    _load(env, template, base, 0)
+    env.stream = stream
     return {"seed": seed, "gain": best["gain"], "placed": best["placed"], "actions": best["actions"],
             "expansions": expansions, "seconds": round(time.perf_counter() - t0, 1),
             "width": width, "k": k, "spread": spread, "rollout": rollout is not None}

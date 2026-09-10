@@ -75,7 +75,7 @@ def diagnose_episode(env, policy, seed: int, k: int = 6, spread: int = 6, tol: f
     template = dict(env.container)
     stream = list(env.stream)
     n = len(stream)
-    packed = []
+    packed = list(env.container["packed_items"])  # the board's boxes, if the region starts from one
     rows = []
     realised = []
     for t in range(n):

@@ -282,6 +282,34 @@ class WedgeEnvTests(unittest.TestCase):
             # seeds above the pool base map onto the pool
             self.assertTrue((pathlib.Path(tmp) / "c1" / "s20000.json").exists())
 
+    def test_beam_search_starts_from_the_board(self):
+        """On a region that starts pre-filled, the search must search over
+        the board's boxes: its actions replay to its gain from reset, and
+        the container it leaves behind still holds the ladder's boxes."""
+        import pathlib
+
+        from wedge_rl.search import beam_search
+        from wedge_rl.stack import StackEnv
+
+        boards = pathlib.Path("reports/wedge/boards")
+        if not (boards / "c1" / "s20000.json").exists():
+            self.skipTest("held-out boards not built")
+        env = StackEnv("c1", n_items=4, boards_dir=boards, build_boards=False)
+        env.reset(20000)
+        n_board = len(env.container["packed_items"])
+        result = beam_search(env, 20000, width=2, k=2, spread=1)
+        self.assertEqual(len(env.container["packed_items"]), n_board)
+        env.reset(20000)
+        total = 0.0
+        for a in result["actions"]:
+            cands = env.candidates()
+            if a != PASS:
+                self.assertLess(a, len(cands))
+            _obs, r, _d, _i = env.step(a)
+            total += r
+        self.assertAlmostEqual(total, result["gain"])
+        self.assertEqual(len(env.placed), result["placed"])
+
     def test_replay_scene_and_scripted_actions(self):
         """The replay scene carries exactly the placed boxes, and the scripted
         agent commands each planned pose (without running PyBullet)."""
