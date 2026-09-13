@@ -461,6 +461,16 @@ so a continuation is running).  Forty held-out boards, paired:
   of the ladder's boxes is wrong one time in nine.  On the floor regions
   the same validator lost 0-5 %; here the analytic-physics agreement is
   the bottleneck, ahead of the policy.
+* Continuation (`ppo-stack-c1-s0-cont/`; 130 more iterations from the
+  first checkpoint, the training-side curve 0.282 to 0.298): **0.309** on
+  the forty boards, 5.3 boxes; +0.076 [+0.042, +0.115] over greedy
+  (23 / 8) and +0.027 [+0.002, +0.054] over the first policy (16 / 9).
+  Look-ahead on top: 0.421 (+0.112, 34 / 0), past the six-board beam.
+  Physics tells the same story as before: 0.309 planned, 0.215 realised,
+  26 of 40 episodes clean, all 14 failures stacked boxes and 9 of them
+  from 0.84 m up.  The analytic gain of the continuation (+0.027) is
+  worth nothing in the simulator (0.2152 against 0.2145) because the
+  extra boxes go where the validator is wrong.
 
 ## Executor status
 
@@ -468,7 +478,7 @@ so a continuation is running).  Forty held-out boards, paired:
 |---|---|---|---|---|---|
 | wedge (c1) | 0.068 vs 0.050 m^3 | 0.077 | 0.087 (horizon 8, 6 s deadline) | 203/203 plain; 38/40 streams soft-taught | 0.084 |
 | shelf (c1s) | 0.438 vs 0.378 m^3 | 0.445 | 0.491 (6 s deadline) | 279/279 plain; 40/40 soft-taught | 0.467 |
-| stack (c1, ladder's board) | 0.282 vs 0.238 m^3 | (continuation running) | 0.395 (6 s deadline) | 28/40 episodes clean plain (91 % of stacked boxes); 19/40 with look-ahead | 0.407 |
+| stack (c1, ladder's board) | 0.282 vs 0.238 m^3 (0.309 after a continuation) | (not yet) | 0.421 (6 s deadline) | 26/40 episodes clean (90 % of stacked boxes); 19/40 with look-ahead; realised 0.215 whatever the policy | 0.407 |
 
 The wedge and shelf executors stand at 80-85 % of their action-space
 ceiling after plain PPO and reach it with the soft-target round plus
