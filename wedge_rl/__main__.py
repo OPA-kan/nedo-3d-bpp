@@ -176,6 +176,20 @@ def cmd_replay(args) -> int:
     return 0
 
 
+def cmd_probe(args) -> int:
+    """Replay each stacked placement in PyBullet with the validator's log
+    captured: analytic features next to the physics verdict, one row each."""
+    from .probe import probe_many
+
+    env = make_env(args.region, _layout(args), args.items)
+    seeds = list(range(args.seed0, args.seed0 + args.episodes))
+    for name in args.policies.split(","):
+        policy = load_ppo_policy(args.policy, env) if name == "ppo" else POLICIES[name]
+        label = args.policy if name == "ppo" else name
+        probe_many(env, policy, label, seeds, args.out, log=lambda line: print(line, flush=True))
+    return 0
+
+
 def cmd_ceiling(args) -> int:
     """Beam search on a few streams next to the policy and the hand rules."""
     from .search import ceilings
@@ -346,6 +360,10 @@ def main(argv=None) -> int:
     r.add_argument("--out", default="", help="per-episode jsonl (appended; resumable)")
     r.add_argument("--summary", default="")
     r.set_defaults(fn=cmd_replay)
+    pr = sub.add_parser("probe", help="physics verdict and analytic features of every stacked placement"); _common(pr, 40, 20000)
+    pr.add_argument("--policies", default="greedy_any"); pr.add_argument("--policy", default="")
+    pr.add_argument("--out", required=True, help="jsonl, appended")
+    pr.set_defaults(fn=cmd_probe)
     c = sub.add_parser("ceiling", help="beam-search ceiling of the region on a few streams"); _common(c, 6, 20000)
     c.add_argument("--width", type=int, default=100); c.add_argument("--k", type=int, default=8)
     c.add_argument("--spread", type=int, default=0, help="extra children spread along the candidate order")
