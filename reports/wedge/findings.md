@@ -472,6 +472,69 @@ so a continuation is running).  Forty held-out boards, paired:
   worth nothing in the simulator (0.2152 against 0.2145) because the
   extra boxes go where the validator is wrong.
 
+## Closing the validator-physics gap on the stack
+
+`wedge_rl probe` replays every stacked placement of a policy in PyBullet
+with the validator's own log captured, and writes the analytic features
+at planning time next to the physics verdict (`probe-stack/`, 475
+placements of greedy and the two policies on the forty boards, 33
+rejections).  What separated the rejections:
+
+| | accepted (p10 / p50 / p90) | rejected |
+|---|---|---|
+| contact ratio | 0.34 / 0.56 / 1.00 | 0.27 / 0.43 / 0.74 |
+| own centre-of-mass margin (m) | 0.035 / 0.058 / 0.125 | 0.033 / 0.041 / 0.097 |
+| bottom (m) | 0.04 / 0.68 / 1.20 | 0.58 / 1.01 / 1.26 |
+| support is itself a stacked box | 42 % | 91 % |
+| support drifted before placement (xy, p90) | 3 mm | 117 mm |
+
+* **Twenty of the 33 were the box underneath tipping.**  The validator
+  checks a pose against its own support polygon and stops there.  A box
+  put on a stacked box also loads that box, and the combined centre of
+  mass of the stacked box with everything on it left *its* support: the
+  support was a stacked box in all twenty cases, the pair went over by
+  45-90 degrees at settle, and the support had not drifted beforehand.
+  `Tower` (in `stack.py`) walks the chain of supports down to the floor
+  and reports the smallest combined margin; scored on the sample, a
+  floor of 0.04 m on it removes all twenty and seven of the transport
+  failures too (they were sweeps into a stack that had tipped without
+  crossing the 0.3 m threshold), and keeps 323 of the 442 accepted poses.
+  The rule is conservative on purpose: 80 accepted poses had a negative
+  combined margin and stood anyway, wedged against neighbours or bridged.
+* **The other thirteen were sweeps clipping a drifted box.**  Accepted
+  boxes settle 1.5-3 cm from their plan; the analytic transport clearance
+  (0.026 m) leaves 1.1 cm over the simulator's 0.015 m margin, and the
+  collisions were at 0.011-0.014 m.  A larger transport clearance alone is
+  not usable (every anchor sits exactly one clearance from a neighbour,
+  so 0.03 m would drop 79 % of the poses), so the stack region now steps
+  its anchors 1.4 cm further from neighbours and asks the sweep for that
+  much extra gap.
+
+Both are `StackEnv` defaults (0.04 m, 0.014 m).  The region gives up
+19 % of what the old validator allowed on paper (greedy 0.233 to 0.189,
+staircase 0.238 to 0.197) and the policies were trained on the old
+region; replayed in PyBullet on the forty boards:
+
+| | planned | realised | clean episodes | largest settle shift |
+|---|---|---|---|---|
+| greedy, old region | 0.233 | 0.210 | 33 / 40 | 0.56 m |
+| greedy, corrected | 0.189 | 0.188 | 39 / 40 | 0.03 m |
+| continuation policy, old region | 0.309 | 0.215 | 26 / 40 | 0.35 m |
+| continuation policy, corrected | 0.231 | **0.231** | **40 / 40** | 0.03 m |
+| continuation + look-ahead, old region | 0.386 | 0.237 | 19 / 40 | |
+| continuation + look-ahead, corrected | 0.306 | **0.306** | **40 / 40** | 0.03 m |
+
+The policy's realised volume rose from 0.215 to 0.231 while its planned
+volume fell by a quarter: what the validator was allowing above 0.8 m was
+not being kept.  The one remaining rejection is a greedy transport
+collision at 1.09 m.  The look-ahead, which on the old region turned its
+analytic gain into more toppled stacks, now keeps everything it plans:
+0.306 realised against 0.237 before, +0.076 over the plain policy on the
+corrected region (30 wins, no losses; `lookahead-stack-c1-tower-cont`).
+That is 1.46 times what the old region realised with the same policy and
+search.  The policy has not yet been trained on the corrected region;
+that run, from the continuation checkpoint, is on Actions.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
