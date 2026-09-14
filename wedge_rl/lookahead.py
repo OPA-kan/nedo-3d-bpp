@@ -21,6 +21,8 @@ import torch
 from .env import PASS
 from .ppo import REWARD_SCALE, _features, decode
 
+_RNG = np.random.default_rng(0)
+
 
 def _entry(item, c):
     return {"index": int(item["index"]), "length": item["length"], "width": item["width"],
@@ -31,8 +33,13 @@ def _entry(item, c):
 
 class Lookahead:
     def __init__(self, policy, k: int = 4, by_gain: int = 1, threshold: float = 0.9,
-                 horizon: int | None = None, use_value: bool = True, deadline: float | None = None):
+                 horizon: int | None = None, use_value: bool = True, deadline: float | None = None,
+                 futures=None):
         self.policy = policy
+        # ``futures(env, rng) -> list of streams``: when the true stream is
+        # not known (Task C hands one item at a time), the children are
+        # finished over imagined continuations and their values averaged
+        self.futures = futures
         self.k = k
         self.by_gain = by_gain
         self.threshold = threshold
@@ -118,17 +125,26 @@ class Lookahead:
         packed0 = list(env.container["packed_items"])
         cursor0 = env.cursor
         placed0 = list(env.placed)
+        stream0 = env.stream
         item = env.stream[cursor0]
+        streams = [stream0]
+        if self.futures is not None:
+            streams = [list(stream0[: cursor0 + 1]) + list(f) for f in self.futures(env, _RNG)]
         values = {}
         for n, i in enumerate(order):
             if self.deadline is not None and n >= 2 and time.perf_counter() - t0 > self.deadline:
                 self.truncated += 1
                 break
-            if i == PASS:
-                values[PASS] = self._finish(env, packed0, cursor0 + 1)
-            else:
-                values[i] = cands[i].gain + self._finish(env, packed0 + [_entry(item, cands[i])], cursor0 + 1)
+            totals = []
+            for stream in streams:
+                env.stream = stream
+                if i == PASS:
+                    totals.append(self._finish(env, packed0, cursor0 + 1))
+                else:
+                    totals.append(cands[i].gain + self._finish(env, packed0 + [_entry(item, cands[i])], cursor0 + 1))
+            values[i] = float(np.mean(totals))
         # restore the live state exactly
+        env.stream = stream0
         self._load(env, packed0, cursor0)
         env.placed = placed0
         self.seconds.append(time.perf_counter() - t0)

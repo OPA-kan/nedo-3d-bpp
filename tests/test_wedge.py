@@ -362,5 +362,48 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(decision.placement.archetype, "stack-rl")
         self.assertEqual(option.placed, 1)
 
+    def test_stack_option_lookahead_and_priority_cover(self):
+        """The option's look-ahead over imagined futures returns a legal
+        candidate index, and no stack candidate ever sits above priority
+        cargo."""
+        import pathlib
+
+        from rule_alpha import classify as cls
+        from rule_alpha._reuse import AABB
+        from wedge_rl.option import StackOption
+        from wedge_rl.stack import StackEnv, covers_priority, sample_future
+
+        boards = pathlib.Path("reports/wedge/boards")
+        policy_dir = pathlib.Path("reports/wedge/ppo-stack-c1-s0")
+        if not (boards / "c1" / "s20000.json").exists() or not (policy_dir / "policy.pt").exists():
+            self.skipTest("held-out boards or the stack policy not present")
+        env = StackEnv("c1", n_items=6, boards_dir=boards, build_boards=False)
+        env.reset(20000)
+        # mark the first board box as priority: nothing may be offered above it
+        env.container["packed_items"][0]["is_prioritized"] = True
+        env._cands = None
+        prio = env.container["packed_items"][0]
+        for c in env.candidates():
+            self.assertFalse(covers_priority(c.box, env.container))
+        from rule_alpha._reuse import packed_aabbs_local
+
+        b = packed_aabbs_local(env.container)[0][0]  # the local-frame box of that item
+        top = AABB((float(b.center[0]), float(b.center[1]), float(b.maximum[2]) + 0.05), (0.1, 0.1, 0.1), "probe")
+        self.assertTrue(covers_priority(top, env.container))
+        env.container["packed_items"][0]["is_prioritized"] = False
+        env._cands = None
+        # imagined futures are streams of official SKUs
+        fut = sample_future(np.random.default_rng(1), 5)
+        self.assertEqual(len(fut), 5)
+        self.assertTrue(all("length" in i and "mass" in i for i in fut))
+        option = StackOption(policy_dir, env.config, lookahead={"k": 2, "deadline": 2.0, "samples": 1, "length": 3})
+        board = layer1.Board([env.container], env.config)
+        item = env.stream[0]
+        decision = option.propose(board, cls.classify_item(int(item["index"]), item, env.config))
+        self.assertIsNotNone(decision)
+        ok, why = layer1.validate(decision.placement.box, board.model(0), board.container(0), env.config)
+        self.assertTrue(ok, why)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -192,10 +192,15 @@ class StackArm(LadderArm):
         parts = body.split("+")
         self.policy_dir = ""
         self.wedge_dir = ""
+        self.lookahead = None
         for part in parts:
             kind, _colon, path = part.partition(":")
             if kind == "stack":
                 self.policy_dir = path
+            elif kind == "stackla":
+                # the stack option with its look-ahead over imagined futures
+                self.policy_dir = path
+                self.lookahead = {"k": 4, "deadline": 3.0, "samples": 1, "length": 6}
             elif kind == "wedge":
                 self.wedge_dir = path
             else:
@@ -211,11 +216,12 @@ class StackArm(LadderArm):
 
         wedge = WedgeOption(self.wedge_dir, self.config) if self.wedge_dir else None
         return RuleAlphaAgent(config=self.config, wedge_option=wedge,
-                              stack_option=StackOption(self.policy_dir, self.config))
+                              stack_option=StackOption(self.policy_dir, self.config, lookahead=self.lookahead))
 
     def describe(self) -> dict:
         return {"arm": self.spec, "family": "stack", "model": self.policy_dir, "model_sha": self.model_sha,
-                "wedge_model": self.wedge_dir, "wedge_sha": self.wedge_sha, "config": self.config.to_dict()}
+                "wedge_model": self.wedge_dir, "wedge_sha": self.wedge_sha, "lookahead": self.lookahead,
+                "config": self.config.to_dict()}
 
 
 def make_arm(spec: str):
@@ -225,7 +231,7 @@ def make_arm(spec: str):
         return ValueArm(spec)
     if spec.startswith("wedge:"):
         return WedgeArm(spec)
-    if spec.startswith("stack:"):
+    if spec.startswith("stack:") or spec.startswith("stackla:"):
         return StackArm(spec)
     resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]

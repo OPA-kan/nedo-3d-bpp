@@ -235,6 +235,34 @@ def transport_gap(box: AABB, container: dict) -> float:
     return best
 
 
+def covers_priority(box: AABB, container: dict) -> bool:
+    """True when the box would sit above a prioritized item (which has to
+    stay reachable), whether or not it rests on it."""
+    # the flag is read from the item itself: the AABB cache keys on the
+    # container and would not see a flag changed in place
+    for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+        if not bool(packed.get("is_prioritized", False)) or float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+            continue
+        if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
+                and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
+            return True
+    return False
+
+
+def sample_future(rng, n: int, start_index: int = 100000) -> list[dict]:
+    """An imagined continuation of the stream: ``n`` items drawn from the
+    official SKU mix (no priority cargo; the option does not place it)."""
+    from bench.scenes import SKUS
+
+    weights = [s[7] for s in SKUS]
+    out = []
+    for k in range(n):
+        name, length, width, height, mass, soft, physics, _w = SKUS[int(rng.choice(len(SKUS), p=np.asarray(weights) / sum(weights)))]
+        out.append({"index": start_index + k, "sku": name, "length": length, "width": width, "height": height,
+                    "mass": mass, "is_prioritized": False, "is_soft": soft, **physics})
+    return out
+
+
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
                      extra_clearance: float = 0.0) -> list[Candidate]:
@@ -292,6 +320,8 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "stack")
                 ok, _why = layer1.validate(box, model, container, cfg)
                 if not ok:
+                    continue
+                if covers_priority(box, container):
                     continue
                 tw = tower.margin(box, mass) if tower is not None else float("inf")
                 if tw < (tower_min if tower_min is not None else -float("inf")):
@@ -398,6 +428,35 @@ class StackEnv:
         self.placed = []
         self._cands = None
         self._profile = stack_profile(m, self.nx)
+
+    @classmethod
+    def from_container(cls, container: dict, model: ContainerModel, config, **kw) -> "StackEnv":
+        """A scratch environment over a live container (the option's
+        look-ahead rolls imagined streams out on it); no boards involved."""
+        env = cls.__new__(cls)
+        env.config = config
+        env.layout = ""
+        env.n_items = 0
+        env.boards_dir = pathlib.Path(kw.get("boards_dir", BOARDS_DIR))
+        env.build = False
+        env.max_candidates = kw.get("max_candidates", 96)
+        env.tower_min = kw.get("tower_min", cls.TOWER_MIN)
+        env.extra_clearance = kw.get("extra_clearance", cls.EXTRA_CLEARANCE)
+        env.template = dict(container)
+        env.template["packed_items"] = []
+        env.model = model
+        env.x_max_play = model.x_wall_max
+        env.z_top = model.z_ceiling
+        env.nx, env.ny = stack_grid_shape(model)
+        env.container = dict(container)
+        env.container["packed_items"] = [dict(p) for p in container.get("packed_items", [])]
+        env.board = None
+        env.stream = []
+        env.cursor = 0
+        env.placed = []
+        env._cands = None
+        env._profile = stack_profile(model, env.nx)
+        return env
 
     def reach_of(self, box: AABB) -> float:
         return stack_reach(self.model, box)

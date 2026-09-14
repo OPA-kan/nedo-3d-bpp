@@ -155,7 +155,8 @@ class StackOption:
     the one the policy was trained on (other layouts) are left alone."""
 
     def __init__(self, policy_dir: str | pathlib.Path, config, horizon: int = 26, max_candidates: int = 96,
-                 tower_min: float | None = None, extra_clearance: float | None = None):
+                 tower_min: float | None = None, extra_clearance: float | None = None,
+                 lookahead: dict | None = None):
         import torch
 
         from .ppo import Policy
@@ -167,13 +168,18 @@ class StackOption:
         self.max_candidates = max_candidates
         self.tower_min = StackEnv.TOWER_MIN if tower_min is None else tower_min
         self.extra_clearance = StackEnv.EXTRA_CLEARANCE if extra_clearance is None else extra_clearance
+        # {"k", "deadline", "samples", "length"}: finish the unsure decisions
+        # over imagined continuations of the stream (Task C hides it)
+        self.lookahead = lookahead
         self._torch = torch
         self._policy_cls = Policy
         self._policies: dict[tuple[int, int], object] = {}
+        self._searchers: dict[tuple[int, int], object] = {}
         self.calls: dict[int, int] = {}
         self.placed = 0
         self.passed = 0
         self.silent = 0
+        self.expanded = 0
 
     def _policy(self, nx: int, ny: int):
         key = (nx, ny)
@@ -220,9 +226,39 @@ class StackOption:
             action = int(self._torch.argmax(scores).item())
             if logits.shape[0] > len(cands) and int(self._torch.argmax(logits).item()) == len(cands):
                 self.passed += 1  # the policy would rather have skipped this item
+            if self.lookahead is not None:
+                action = self._search(policy, nx, ny, model, container, item, remaining, cands, action)
             self.placed += 1
             return self._decision(cands[action], cands, profile, container_idx, model)
         return None
+
+    def _search(self, policy, nx, ny, model, container, item, remaining, cands, action) -> int:
+        """The look-ahead's choice over a scratch environment holding the
+        live container and the item, the future imagined from the SKU mix.
+        Falls back to ``action`` when the search returns PASS or nothing."""
+        from .lookahead import Lookahead
+        from .stack import StackEnv, sample_future
+
+        cfg = self.lookahead
+        key = (nx, ny)
+        if key not in self._searchers:
+            samples, length = int(cfg.get("samples", 1)), int(cfg.get("length", 6))
+            self._searchers[key] = Lookahead(
+                policy, k=int(cfg.get("k", 4)), threshold=float(cfg.get("threshold", 0.9)),
+                deadline=cfg.get("deadline", 3.0),
+                futures=lambda env, rng: [sample_future(rng, length) for _ in range(samples)])
+        searcher = self._searchers[key]
+        env = StackEnv.from_container(container, model, self.config, max_candidates=self.max_candidates,
+                                      tower_min=self.tower_min, extra_clearance=self.extra_clearance)
+        env.stream = [dict(item)]
+        env._cands = cands  # the same candidates, so the returned index is valid here
+        before = searcher.expansions
+        chosen = searcher.act(env)
+        if searcher.expansions > before:
+            self.expanded += 1
+        if chosen == PASS or not (0 <= int(chosen) < len(cands)):
+            return action
+        return int(chosen)
 
     def _decision(self, cand: Candidate, cands, profile, container_idx, model) -> layer1.Decision:
         orientation = next(o for o in profile.orientations if o.index == cand.orientation)
