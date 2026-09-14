@@ -20,7 +20,8 @@ from .config import DEFAULT_CONFIG
 class RuleAlphaAgent:
     """get_init_states / optimize / policy, the official three."""
 
-    def __init__(self, module_path: str = "", config=None, selector=None, wedge_option=None):
+    def __init__(self, module_path: str = "", config=None, selector=None, wedge_option=None,
+                 stack_option=None):
         self.config = config or DEFAULT_CONFIG
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
@@ -28,6 +29,7 @@ class RuleAlphaAgent:
         # optional learned option asked before the ladder: a placement in the
         # chamfer strip, or a pass (wedge_rl.option.WedgeOption)
         self.wedge_option = wedge_option
+        self.stack_option = stack_option
         self.board: layer1.Board | None = None
         self.profiles: dict[int, cls.ItemProfile] = {}
         self.last_decision: layer1.Decision | None = None
@@ -140,8 +142,17 @@ class RuleAlphaAgent:
             self.last_decision = decision
             return self._action(pool_index, decision.placement)
 
-        # Layer 1 is finished.  There is no Layer 2 in this prototype, so say so
-        # rather than inventing a placement that would fail validation.
+        # Layer 1 is finished.  The stack option is the learned Layer 2: it
+        # places on the boxes the ladder left, under the tower rule.
+        if self.stack_option is not None:
+            for pool_index, profile in ordered:
+                decision = self.stack_option.propose(self.board, profile)
+                if decision is not None:
+                    self.last_decision = decision
+                    return self._action(pool_index, decision.placement)
+
+        # Nothing else in this prototype, so say so rather than inventing a
+        # placement that would fail validation.
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None

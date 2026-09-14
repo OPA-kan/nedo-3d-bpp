@@ -179,6 +179,45 @@ class WedgeArm(LadderArm):
                 "model_sha": self.model_sha, "config": self.config.to_dict()}
 
 
+class StackArm(LadderArm):
+    """The stable ladder with the learned stack option after it: once the
+    ladder has nothing for an item, the stack policy places it on the boxes
+    already there.  Spec: ``stack:<policy dir>[@field=value,...]``; add
+    ``+wedge:<policy dir>`` to ask the wedge option before the ladder too."""
+
+    def __init__(self, spec: str):
+        from .ranker import file_sha
+
+        body, _at, overrides = spec.partition("@")
+        parts = body.split("+")
+        self.policy_dir = ""
+        self.wedge_dir = ""
+        for part in parts:
+            kind, _colon, path = part.partition(":")
+            if kind == "stack":
+                self.policy_dir = path
+            elif kind == "wedge":
+                self.wedge_dir = path
+            else:
+                raise KeyError(f"unknown option {kind!r} in {spec!r}")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.model_sha = file_sha(str(pathlib.Path(self.policy_dir) / "policy.pt"))
+        self.wedge_sha = file_sha(str(pathlib.Path(self.wedge_dir) / "policy.pt")) if self.wedge_dir else ""
+
+    def __call__(self, scene):
+        from wedge_rl.option import StackOption, WedgeOption
+
+        wedge = WedgeOption(self.wedge_dir, self.config) if self.wedge_dir else None
+        return RuleAlphaAgent(config=self.config, wedge_option=wedge,
+                              stack_option=StackOption(self.policy_dir, self.config))
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "stack", "model": self.policy_dir, "model_sha": self.model_sha,
+                "wedge_model": self.wedge_dir, "wedge_sha": self.wedge_sha, "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
     if spec.startswith("nn:"):
         return LearnedArm(spec)
@@ -186,6 +225,8 @@ def make_arm(spec: str):
         return ValueArm(spec)
     if spec.startswith("wedge:"):
         return WedgeArm(spec)
+    if spec.startswith("stack:"):
+        return StackArm(spec)
     resolved = resolve_alias(spec)
     base = resolved.partition("@")[0]
     if base == "ladder":

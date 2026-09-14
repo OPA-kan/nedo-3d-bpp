@@ -321,6 +321,47 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     return kept[:max_candidates]
 
 
+# ---------------------------------------------------------------------------
+# The stack as functions of (model, container), shared by the training
+# environment and the option that runs inside rule-alpha.
+# ---------------------------------------------------------------------------
+def stack_grid_shape(model: ContainerModel) -> tuple[int, int]:
+    return (int(np.ceil((model.x_wall_max - model.x_wall_min) / CELL)),
+            int(np.ceil((model.y_back - model.y_opening) / CELL)))
+
+
+def stack_profile(model: ContainerModel, nx: int) -> np.ndarray:
+    """Chamfer height per column, as a fraction of the container height."""
+    return np.asarray([chamfer_height_at(model, model.x_wall_min + (i + 0.5) * CELL) for i in range(nx)],
+                      dtype=np.float32) / max(model.z_ceiling - model.z_floor, 1e-9)
+
+
+def stack_reach(model: ContainerModel, box: AABB) -> float:
+    return (float(box.minimum[1]) - model.y_opening) / max(model.y_back - model.y_opening, 1e-9)
+
+
+def stack_heightmap(model: ContainerModel, container: dict, nx: int, ny: int) -> np.ndarray:
+    h = np.zeros((nx, ny), dtype=np.float32)
+    xs = model.x_wall_min + (np.arange(nx) + 0.5) * CELL
+    ys = model.y_opening + (np.arange(ny) + 0.5) * CELL
+    for box, _s, _p in packed_aabbs_local(container):
+        ix = (xs >= box.minimum[0]) & (xs <= box.maximum[0])
+        iy = (ys >= box.minimum[1]) & (ys <= box.maximum[1])
+        h[np.ix_(ix, iy)] = np.maximum(h[np.ix_(ix, iy)], float(box.maximum[2]) - model.z_floor)
+    return h
+
+
+def stack_observation(model: ContainerModel, container: dict, nx: int, ny: int, profile: np.ndarray,
+                      item: dict | None, remaining: float) -> dict:
+    return {
+        "heightmap": stack_heightmap(model, container, nx, ny) / max(model.z_ceiling - model.z_floor, 1e-9),
+        "profile": profile,
+        "item": np.asarray([item["length"], item["width"], item["height"], item["mass"] / 20.0,
+                            1.0 if item["is_soft"] else 0.0] if item else [0, 0, 0, 0, 0], dtype=np.float32),
+        "remaining": float(remaining),
+    }
+
+
 class StackEnv:
     region = "stack"
 
@@ -349,20 +390,17 @@ class StackEnv:
         m = self.model
         self.x_max_play = m.x_wall_max
         self.z_top = m.z_ceiling
-        self.nx = int(np.ceil((m.x_wall_max - m.x_wall_min) / CELL))
-        self.ny = int(np.ceil((m.y_back - m.y_opening) / CELL))
+        self.nx, self.ny = stack_grid_shape(m)
         self.container = None
         self.board = None
         self.stream = []
         self.cursor = 0
         self.placed = []
         self._cands = None
-        self._profile = np.asarray([chamfer_height_at(m, m.x_wall_min + (i + 0.5) * CELL) for i in range(self.nx)],
-                                   dtype=np.float32) / max(self.z_top - m.z_floor, 1e-9)
+        self._profile = stack_profile(m, self.nx)
 
     def reach_of(self, box: AABB) -> float:
-        m = self.model
-        return (float(box.minimum[1]) - m.y_opening) / max(m.y_back - m.y_opening, 1e-9)
+        return stack_reach(self.model, box)
 
     # training draws seeds from 1_000_000 upwards without bound; those map
     # onto a fixed pool of boards so the ladder's episode is not re-run for
@@ -395,25 +433,11 @@ class StackEnv:
         return None if self.done else self.stream[self.cursor]
 
     def heightmap(self) -> np.ndarray:
-        m = self.model
-        h = np.zeros((self.nx, self.ny), dtype=np.float32)
-        xs = m.x_wall_min + (np.arange(self.nx) + 0.5) * CELL
-        ys = m.y_opening + (np.arange(self.ny) + 0.5) * CELL
-        for box, _s, _p in packed_aabbs_local(self.container):
-            ix = (xs >= box.minimum[0]) & (xs <= box.maximum[0])
-            iy = (ys >= box.minimum[1]) & (ys <= box.maximum[1])
-            h[np.ix_(ix, iy)] = np.maximum(h[np.ix_(ix, iy)], float(box.maximum[2]) - m.z_floor)
-        return h
+        return stack_heightmap(self.model, self.container, self.nx, self.ny)
 
     def observation(self) -> dict:
-        item = self.item
-        return {
-            "heightmap": self.heightmap() / max(self.z_top - self.model.z_floor, 1e-9),
-            "profile": self._profile,
-            "item": np.asarray([item["length"], item["width"], item["height"], item["mass"] / 20.0,
-                                1.0 if item["is_soft"] else 0.0] if item else [0, 0, 0, 0, 0], dtype=np.float32),
-            "remaining": (len(self.stream) - self.cursor) / max(len(self.stream), 1),
-        }
+        return stack_observation(self.model, self.container, self.nx, self.ny, self._profile, self.item,
+                                 (len(self.stream) - self.cursor) / max(len(self.stream), 1))
 
     def candidates(self):
         if self._cands is not None:

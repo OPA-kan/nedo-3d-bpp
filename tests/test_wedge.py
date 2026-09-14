@@ -335,6 +335,32 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertIsNone(agent.policy({"container_list": observation["container_list"],
                                         "pool_list": [{"index": 99}]}))
 
+    def test_stack_option_places_after_the_ladder(self):
+        """Inside rule-alpha, the stack option turns the ladder's declined
+        board into a placement the validator accepts, and it never asks to
+        pass (a pass would end the episode)."""
+        import pathlib
+
+        from rule_alpha import classify as cls
+        from wedge_rl.option import StackOption
+        from wedge_rl.stack import StackEnv, load_board
+
+        boards = pathlib.Path("reports/wedge/boards")
+        policy_dir = pathlib.Path("reports/wedge/ppo-stack-c1-s0")
+        if not (boards / "c1" / "s20000.json").exists() or not (policy_dir / "policy.pt").exists():
+            self.skipTest("held-out boards or the stack policy not present")
+        env = StackEnv("c1", n_items=6, boards_dir=boards, build_boards=False)
+        env.reset(20000)
+        option = StackOption(policy_dir, env.config)
+        board = layer1.Board([env.container], env.config)
+        item = env.stream[0]
+        profile = cls.classify_item(int(item["index"]), item, env.config)
+        decision = option.propose(board, profile)
+        self.assertIsNotNone(decision)
+        ok, why = layer1.validate(decision.placement.box, board.model(0), board.container(0), env.config)
+        self.assertTrue(ok, why)
+        self.assertEqual(decision.placement.archetype, "stack-rl")
+        self.assertEqual(option.placed, 1)
 
 if __name__ == "__main__":
     unittest.main()

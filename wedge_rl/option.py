@@ -138,3 +138,122 @@ class _Region:
 
     def reach_of(self, box):
         return wedge_reach(self.model, box)
+
+
+# ---------------------------------------------------------------------------
+# The stack policy as rule-alpha's Layer 2
+# ---------------------------------------------------------------------------
+STACK_ARCHETYPE = "stack-rl"
+
+
+class StackOption:
+    """Asked only after the ladder has nothing for the item (Task C hands one
+    item at a time, and a decline ends the episode).  The policy was trained
+    with a PASS action on a 26-item leftover stream; inside an episode a pass
+    forfeits every later item, so the option places the policy's preferred
+    *pose* whenever the region offers any.  Containers whose grid differs from
+    the one the policy was trained on (other layouts) are left alone."""
+
+    def __init__(self, policy_dir: str | pathlib.Path, config, horizon: int = 26, max_candidates: int = 96,
+                 tower_min: float | None = None, extra_clearance: float | None = None):
+        import torch
+
+        from .ppo import Policy
+        from .stack import StackEnv
+
+        self.policy_dir = pathlib.Path(policy_dir)
+        self.config = config
+        self.horizon = horizon
+        self.max_candidates = max_candidates
+        self.tower_min = StackEnv.TOWER_MIN if tower_min is None else tower_min
+        self.extra_clearance = StackEnv.EXTRA_CLEARANCE if extra_clearance is None else extra_clearance
+        self._torch = torch
+        self._policy_cls = Policy
+        self._policies: dict[tuple[int, int], object] = {}
+        self.calls: dict[int, int] = {}
+        self.placed = 0
+        self.passed = 0
+        self.silent = 0
+
+    def _policy(self, nx: int, ny: int):
+        key = (nx, ny)
+        if key not in self._policies:
+            policy = self._policy_cls(nx, ny)
+            try:
+                policy.load_state_dict(self._torch.load(self.policy_dir / "policy.pt"))
+            except RuntimeError:
+                # a different container grid than the one the policy was trained on
+                self._policies[key] = None
+                return None
+            policy.eval()
+            self._policies[key] = policy
+        return self._policies[key]
+
+    def propose(self, board: layer1.Board, profile: cls.ItemProfile) -> layer1.Decision | None:
+        from .stack import (stack_candidates, stack_grid_shape, stack_observation, stack_profile,
+                            stack_reach)
+
+        item = profile.item
+        for container_idx in layer1.routing_order(profile, board, self.config):
+            model = board.model(container_idx)
+            container = board.container(container_idx)
+            nx, ny = stack_grid_shape(model)
+            policy = self._policy(nx, ny)
+            if policy is None:
+                self.silent += 1
+                continue
+            cands = stack_candidates(model, container, self.config, profile, self.max_candidates,
+                                     mass=float(item.get("mass", 0.0)), tower_min=self.tower_min,
+                                     extra_clearance=self.extra_clearance)
+            if not cands:
+                continue
+            seen = self.calls.get(container_idx, 0)
+            remaining = max(0.0, (self.horizon - seen) / self.horizon)
+            self.calls[container_idx] = seen + 1
+            obs = stack_observation(model, container, nx, ny, stack_profile(model, nx), item, remaining)
+            region = _StackRegion(model)
+            feats = np.stack([c.features(region) for c in cands])
+            with self._torch.no_grad():
+                logits = policy.logits(policy.embed(obs), feats)
+            # the last logit is PASS; an episode cannot pass, so take the best pose
+            scores = logits[: len(cands)] if logits.shape[0] > len(cands) else logits
+            action = int(self._torch.argmax(scores).item())
+            if logits.shape[0] > len(cands) and int(self._torch.argmax(logits).item()) == len(cands):
+                self.passed += 1  # the policy would rather have skipped this item
+            self.placed += 1
+            return self._decision(cands[action], cands, profile, container_idx, model)
+        return None
+
+    def _decision(self, cand: Candidate, cands, profile, container_idx, model) -> layer1.Decision:
+        orientation = next(o for o in profile.orientations if o.index == cand.orientation)
+        surface = "floor" if cand.on_floor else "item"
+        candidate = layer1.Candidate(
+            box=cand.box, profile=profile, orientation=orientation, container_idx=container_idx,
+            surface=surface, surface_name=surface, role=cls.ROLE_NONE, family="stack-rl",
+            features={"volume": cand.gain, "support_ratio": cand.support_ratio, "margin": cand.margin,
+                      "tower_margin": float(getattr(cand, "tower_margin", float("inf")))},
+            archetypes={STACK_ARCHETYPE},
+        )
+        placement = layer1.Placement(
+            profile=profile, orientation=orientation, container_idx=container_idx, box=cand.box,
+            surface=surface, surface_name=surface, role=candidate.role, archetype=STACK_ARCHETYPE,
+            reason=f"stack-rl: {cand.gain:.4f} m^3 at {cand.bottom:.2f} m among {len(cands)} stack candidates",
+            features=dict(candidate.features), container_is_prioritized=bool(model.is_prioritized),
+            container_has_shelf=bool(model.shelves),
+            layer=1 if cand.on_floor else 2,
+        )
+        return layer1.Decision(placement=placement, candidate_counts={STACK_ARCHETYPE: len(cands)},
+                               veto_counts={}, considered=len(cands), ladder=[STACK_ARCHETYPE],
+                               survivors=[candidate], chosen=candidate)
+
+
+class _StackRegion:
+    def __init__(self, model):
+        self.model = model
+        self.x_max_play = model.x_wall_max
+        self.z_top = model.z_ceiling
+
+    def reach_of(self, box):
+        from .stack import stack_reach
+
+        return stack_reach(self.model, box)
