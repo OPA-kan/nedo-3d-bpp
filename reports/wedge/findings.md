@@ -535,6 +535,44 @@ That is 1.46 times what the old region realised with the same policy and
 search.  The policy has not yet been trained on the corrected region;
 that run, from the continuation checkpoint, is on Actions.
 
+## The stack executor inside rule-alpha
+
+`StackOption` is asked once the ladder has nothing for the item (Task C
+hands one item at a time and a decline ends the episode, so the option
+places the policy's preferred pose whenever the corrected region offers
+one; a policy PASS would forfeit the rest of the stream).  Arm
+`stack:<policy dir>`, continuation policy, core suite (48 scenes, 12 seeds
+x 4 layouts), paired against `ladder-stable`:
+
+| | fill (stable) | fill (stack) | diff (95 %) | better / equal / worse |
+|---|---|---|---|---|
+| physics | 23.80 | **27.85** | +4.04 [+3.04, +5.10] | 41 / 7 / 0 |
+| analytic | 23.99 | 28.31 | +4.32 [+3.29, +5.37] | 37 / 11 / 0 |
+
+Per layout (physics): c1 +4.1, c1s +4.5, c2 +2.6, c2p +5.0 points; the
+policy was trained on c1 boards only and the c2 containers share its
+grid, so it ran everywhere.  Shipped-evaluator fill +3.1, tolerant +3.9.
+
+* **All 92 stack placements were accepted** by the simulator (no settle
+  or transport failure among them; the three episodes that ended at a
+  settle were the ladder's own boxes, against two for the stable ladder).
+  Shake topples 8 against 7.  This is what the tower rule bought: on the
+  old region the same policy lost a third of its stacked boxes.
+* **The ladder resumes after the stack.**  Eighty-nine further ladder
+  placements followed a stack placement across the suite (terrace
+  extensions on the box the option just put down), so the +3.75 boxes
+  per scene are roughly half the option's own and half what it unlocked.
+  The option and the ladder are already cooperating without a manager.
+* Costs: the centre of mass rises 0.016 of the container height, and the
+  shake's peak kinetic energy is higher (taller stacks); the policy's
+  slowest step is 4.8 s, under the 8 s budget, with no step over budget.
+  Four scenes covered a priority item that the ladder had left alone,
+  which the option does not check for; it should decline priority cargo
+  in Task C the way the wedge option declines soft cargo.
+* The whole system now ends at 27.9 % fill in physics against 23.8 %.
+  The stream holds 67 % of the container; what is left is the floor
+  plan, not the stacking.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
