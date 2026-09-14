@@ -245,7 +245,7 @@ class StackOption:
             samples, length = int(cfg.get("samples", 1)), int(cfg.get("length", 6))
             self._searchers[key] = Lookahead(
                 policy, k=int(cfg.get("k", 4)), threshold=float(cfg.get("threshold", 0.9)),
-                deadline=cfg.get("deadline", 3.0),
+                deadline=cfg.get("deadline", 3.0), horizon=cfg.get("horizon"), use_value=True,
                 futures=lambda env, rng: [sample_future(rng, length) for _ in range(samples)])
         searcher = self._searchers[key]
         env = StackEnv.from_container(container, model, self.config, max_candidates=self.max_candidates,

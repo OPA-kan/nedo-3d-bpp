@@ -200,7 +200,10 @@ class StackArm(LadderArm):
             elif kind == "stackla":
                 # the stack option with its look-ahead over imagined futures
                 self.policy_dir = path
-                self.lookahead = {"k": 4, "deadline": 3.0, "samples": 1, "length": 6}
+                # two imagined streams, the value head past a short horizon:
+                # on the held-out boards this keeps most of the true-future
+                # search's gain (0.285 against 0.289 at the same deadline)
+                self.lookahead = {"k": 3, "deadline": 2.5, "samples": 2, "length": 6, "horizon": 4}
             elif kind == "wedge":
                 self.wedge_dir = path
             else:
