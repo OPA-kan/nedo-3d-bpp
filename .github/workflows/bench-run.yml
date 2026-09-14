@@ -1,0 +1,67 @@
+name: Bench run
+
+# `python -m bench run` for one arm on one suite, on a hosted runner: the
+# interactive sandbox is recreated when idle and a 48-scene physics run
+# does not fit in one of its lifetimes.  The run directory is uploaded as
+# an artifact; with a run directory already in the tree the run resumes
+# from the scenes it holds.
+
+on:
+  # the first push registers the workflow (a file that exists only on a
+  # feature branch cannot be dispatched by name until it has run once)
+  push:
+    paths:
+      - .github/workflows/bench-run.yml
+  workflow_dispatch:
+    inputs:
+      arm:
+        description: Arm spec (ladder-stable, wedge:<dir>, stack:<dir>[+wedge:<dir>], ...)
+        type: string
+        default: stack:reports/wedge/ppo-stack-c1-s0-cont
+      suite:
+        description: Scene suite (smoke, core, core-b, core-a)
+        type: string
+        default: core
+      sim:
+        description: physics or analytic
+        type: string
+        default: physics
+      out:
+        description: Run directory (also the artifact name)
+        type: string
+        default: reports/bench/stack-core
+
+env:
+  ARM: ${{ inputs.arm || 'stack:reports/wedge/ppo-stack-c1-s0-cont' }}
+  SUITE: ${{ inputs.suite || 'core' }}
+  SIM: ${{ inputs.sim || 'physics' }}
+  OUT: ${{ inputs.out || 'reports/bench/stack-core' }}
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Run the suite
+        run: |
+          timeout --signal=INT --kill-after=3m 330m python -m bench run \
+            --arm "$ARM" --suite "$SUITE" --sim "$SIM" --resume --out "$OUT" || [ $? -eq 124 ]
+      - name: Artifact name
+        id: name
+        run: echo "name=$(basename "$OUT")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ steps.name.outputs.name }}
+          path: ${{ env.OUT }}
