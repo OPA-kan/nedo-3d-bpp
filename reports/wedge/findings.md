@@ -599,8 +599,26 @@ child's rollout is not bounded.  The imagined future is also the wrong
 model of the episode: the stack option sees only the items the ladder
 declines, one at a time, with the ladder resuming in between, so "the
 next six items are mine" is not what happens.  The way to keep search
-gains in Task C is to fold them into the weights (the soft-target round
-below); the arm stays for study, not for use.
+gains in Task C is to fold them into the weights; the arm stays for
+study, not for use.
+
+**The soft-target round did not fold anything in.**  Values-mode teacher
+at the corrected-region policy's own states (512 pool streams, k 4, one
+by gain, exploration 0.2), then PPO from that checkpoint with the
+imitation term (weight 0.5, five cloning epochs, 111 iterations in the
+run's time; `ppo-stack-c1-s3/`).  Agreement with the teacher went from
+0.52 to 0.56 only (the wedge reached 0.81), the training-side curve
+0.251 to 0.261, and on the forty held-out boards the result is 0.214
+against 0.221 for its starting point on the same region (-0.008
+[-0.037, +0.019], 16 / 9; the priority-cover rule, added since, costs
+both policies about 0.014 there).  On the wedge this recipe absorbed the
+search's gain; on the stack the teacher's targets are too flat to learn
+from: the diagnosis showed the stack's decisions are near-ties among
+many equivalent tops, and a soft distribution over ties carries little
+signal.  Three rounds of executor work on this region (continuation,
+retraining on the corrected rules, soft targets) moved the held-out
+figure by less than the paired interval each time.  The executor is
+where it is; the remaining volume is the floor plan.
 
 ## Executor status
 
