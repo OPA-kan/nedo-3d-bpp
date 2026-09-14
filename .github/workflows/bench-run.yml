@@ -53,15 +53,14 @@ jobs:
           cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt
       - run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+      # the official simulator (pybullet_data ships with pybullet)
+      - run: pip install pybullet==3.2.7
       - name: Run the suite
         run: |
           timeout --signal=INT --kill-after=3m 330m python -m bench run \
             --arm "$ARM" --suite "$SUITE" --sim "$SIM" --resume --out "$OUT" || [ $? -eq 124 ]
-      - name: Artifact name
-        id: name
-        run: echo "name=$(basename "$OUT")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ${{ steps.name.outputs.name }}
+          name: bench-${{ inputs.sim || 'physics' }}-${{ github.run_id }}
           path: ${{ env.OUT }}
