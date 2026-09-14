@@ -532,8 +532,18 @@ analytic gain into more toppled stacks, now keeps everything it plans:
 0.306 realised against 0.237 before, +0.076 over the plain policy on the
 corrected region (30 wins, no losses; `lookahead-stack-c1-tower-cont`).
 That is 1.46 times what the old region realised with the same policy and
-search.  The policy has not yet been trained on the corrected region;
-that run, from the continuation checkpoint, is on Actions.
+search.
+
+Retraining on the corrected region (`ppo-stack-c1-s0-tower/`; 235
+iterations from the continuation checkpoint) changed almost nothing:
+0.235 against the continuation policy's 0.231 on the same region
+(+0.004 [-0.005, +0.019], 3 wins / 4 losses, the two policies choosing
+identically on 33 boards); physics keeps all of it (40 / 40 clean,
+0.2351 planned and realised); look-ahead on top 0.313 (+0.078, 31 / 0)
+against 0.306 on the old weights.  The rules removed poses, they did not
+change which of the remaining ones are good, and the policy had already
+learned that.  The lever on this region is the look-ahead (and folding
+it into the weights with soft targets), not more PPO.
 
 ## The stack executor inside rule-alpha
 
