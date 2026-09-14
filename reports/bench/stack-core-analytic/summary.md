@@ -36,3 +36,4 @@
 | c-c2p-s0008 | 25 | 82 | 18.952 | None | None | 0.3093 | 0 | 0 | 0 | None | None | 1.475 | 0 | declined | 21.37 |
 | c-c1-s0009 | 19 | 41 | 31.931 | None | None | 0.3169 | 0 | 0 | 0 | None | None | 1.525 | 0 | declined | 14.79 |
 | c-c1s-s0009 | 19 | 41 | 31.606 | None | None | 0.3401 | 0 | 0 | 0 | None | None | 1.267 | 0 | declined | 15.3 |
+| c-c2-s0009 | 33 | 82 | 28.482 | None | None | 0.3382 | 1 | 0 | 0 | None | None | 3.955 | 0 | declined | 56.89 |
