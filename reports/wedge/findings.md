@@ -583,6 +583,25 @@ grid, so it ran everywhere.  Shipped-evaluator fill +3.1, tolerant +3.9.
   The stream holds 67 % of the container; what is left is the floor
   plan, not the stacking.
 
+**Search inside the option does not carry over.**  Task C hides the
+stream, so the option's look-ahead (`stackla:<dir>`) finishes each child
+over continuations drawn from the SKU mix.  On the held-out boards, where
+the true stream is known, this recovers most of the search's gain once
+the value head bootstraps past a short horizon (two imagined streams,
+horizon 4: 0.285 against 0.293 for the true future at the same 3 s
+deadline; one bare imagined stream of six: 0.241, the noise of a single
+random future swamping the difference between children).  Inside the
+episode it gives nothing: 27.68 % against 27.85 % (1 / 43 / 4, interval
+spanning zero; analytic 28.27 against 28.31), and it breaks the time
+budget on the hosted runner (median 7.6 s, 35 steps over 8 s, one of
+18 s), because the deadline is checked between children and a single
+child's rollout is not bounded.  The imagined future is also the wrong
+model of the episode: the stack option sees only the items the ladder
+declines, one at a time, with the ladder resuming in between, so "the
+next six items are mine" is not what happens.  The way to keep search
+gains in Task C is to fold them into the weights (the soft-target round
+below); the arm stays for study, not for use.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
