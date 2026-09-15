@@ -85,7 +85,11 @@ def cmd_run(args) -> int:
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     rows = []
-    for scene in _scenes(args):
+    scenes = _scenes(args)
+    if getattr(args, "shard", ""):
+        index, _sep, count = args.shard.partition("/")
+        scenes = [s for i, s in enumerate(scenes) if i % int(count) == int(index)]
+    for scene in scenes:
         started = time.perf_counter()
         existing = out / f"{scene.name}.json"
         if args.resume and existing.exists():
@@ -273,6 +277,7 @@ def main(argv=None) -> int:
         p.add_argument("--limit", type=int, default=0)
         p.add_argument("--resume", action="store_true",
                        help="skip scenes whose record already exists in --out")
+        p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
 
     p = sub.add_parser("scenes"); scene_args(p); p.set_defaults(fn=cmd_scenes)
     p = sub.add_parser("run"); scene_args(p)
@@ -290,7 +295,6 @@ def main(argv=None) -> int:
     p.add_argument("--horizon", type=int, default=999, help="continuation length; 999 = to the end")
     p.add_argument("--k", type=int, default=5, help="candidates labelled per decision")
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--shard", default="", help="i/n: take every n-th scene starting at i")
     p.add_argument("--explore-eps", type=float, default=0.0,
                    help="probability that the main line takes a random survivor (off-policy states)")
     p.add_argument("--boards-out", default="", help="also store every continuation board with its return-to-go")

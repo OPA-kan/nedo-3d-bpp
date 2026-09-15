@@ -227,7 +227,41 @@ class StackArm(LadderArm):
                 "config": self.config.to_dict()}
 
 
+class SearchArm(LadderArm):
+    """Search at play time over the ladder's survivors (``bench/search.py``):
+    ``search:<k>+stack:<dir>``.  The inner arm (the same ladder with the
+    stack option) continues every survivor to the end on the analytic model;
+    the best continuation is taken.  A ceiling measurement, analytic only."""
+
+    def __init__(self, spec: str):
+        body, _at, overrides = spec.partition("@")
+        head, _plus, rest = body.partition("+")
+        _s, _colon, k = head.partition(":")
+        self.k = int(k or 6)
+        self.inner_spec = rest or "ladder-stable"
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.inner = make_arm(self.inner_spec)
+
+    def __call__(self, scene):
+        from .search import SearchSelector
+
+        inner = self.inner
+        agent = inner(scene)  # the same lower level, with its options, decides and continues
+        selector = SearchSelector(scene, inner, k=self.k, log=lambda line: print(line, flush=True))
+        agent.selector = selector
+        agent.search = selector
+        return agent
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "search", "k": self.k, "inner": self.inner.describe(),
+                "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
+    if spec.startswith("search:"):
+        return SearchArm(spec)
     if spec.startswith("nn:"):
         return LearnedArm(spec)
     if spec.startswith("vnet:"):

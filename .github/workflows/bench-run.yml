@@ -30,20 +30,43 @@ on:
         description: Run directory (also the artifact name)
         type: string
         default: reports/bench/stack-core
+      shards:
+        description: Runners; scene i goes to runner i mod shards
+        type: string
+        default: "1"
 
 env:
   ARM: ${{ inputs.arm || 'stack:reports/wedge/ppo-stack-c1-s0-cont' }}
   SUITE: ${{ inputs.suite || 'core' }}
   SIM: ${{ inputs.sim || 'physics' }}
   OUT: ${{ inputs.out || 'reports/bench/stack-core' }}
+  SHARDS: ${{ inputs.shards || '1' }}
 
 permissions:
   contents: read
 
 jobs:
+  shards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      list: ${{ steps.mk.outputs.list }}
+    steps:
+      - id: mk
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          print("list=" + json.dumps(list(range(int(os.environ["SHARDS"])))))
+          EOF
+
   run:
+    needs: shards
     runs-on: ubuntu-24.04
     timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.shards.outputs.list) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -58,9 +81,10 @@ jobs:
       - name: Run the suite
         run: |
           timeout --signal=INT --kill-after=3m 330m python -m bench run \
-            --arm "$ARM" --suite "$SUITE" --sim "$SIM" --resume --out "$OUT" || [ $? -eq 124 ]
+            --arm "$ARM" --suite "$SUITE" --sim "$SIM" --resume --out "$OUT" \
+            --shard "${{ matrix.shard }}/$SHARDS" || [ $? -eq 124 ]
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bench-${{ inputs.sim || 'physics' }}-${{ github.run_id }}
+          name: bench-${{ inputs.sim || 'physics' }}-${{ github.run_id }}-shard${{ matrix.shard }}
           path: ${{ env.OUT }}
