@@ -654,9 +654,38 @@ analytic model; `rollouts-stack-train-small/`):
 
 The realistic gain of a one-step selector lies between the largest
 single regret (4 points a scene) and the sum (17), since gains do not
-compound fully.  The direct measurement is running: `search:6+stack`
+compound fully.  The direct measurement: `search:6+stack`
 (``bench/search.py``) takes the survivor with the best full continuation
-at every decision, on the same 24 scenes, against the stack arm alone.
+at every decision (the ladder's pick and up to five more, each continued
+to the end by the ladder with the stack option), on the same scenes,
+analytic, paired against the stack arm alone (`stack-vs-search-train-small-analytic`):
+
+| | stack arm | search over survivors | diff (95 %) | better / equal / worse |
+|---|---|---|---|---|
+| fill, 23 scenes | 29.20 | **33.63** | +4.43 [+3.10, +5.95] | 21 / 2 / 0 |
+| boxes placed | 26.2 | 29.8 | +3.6 [+2.7, +4.7] | |
+| by layout | | | c1 +6.0, c1s +5.7, c2 +3.4, c2p +2.5 | |
+
+One scene (c2 seed 105) did not finish in its runner's time.  The search
+costs 35 minutes a scene and up to 447 s a decision, and it reads the
+rest of the stream, so it is the ceiling of a one-step Layer-1 ranker,
+not a policy.  It says: choosing among the ladder's own survivors with
+the whole episode in view is worth about as much again as the stack
+executor was (+4.4 against +4.0 points), and the gain sits where the
+regret analysis put it, on c1 and c1s.  The centre of mass rises a
+little (0.011); priority and soft coverage do not move.
+
+What the manager is, then: a ranker over the ladder's survivors, taught
+by these searched choices (the searched pick as the policy label, its
+continuation fill as the value label), with the board and candidate
+features rule-alpha already computes, and no stream at play time.  The
+two earlier rankers failed for want of label variance; the labels now
+come from a search that changes the outcome in one decision out of
+three.  Next: collect searched decisions at scale (the rollouts labeller
+already produces them: ``rollouts-stack-train-small`` holds 476, the
+train suite four times that), train the ranker, run it as a selector
+(`nn:`-style arm) on the core suite in physics, paired against the stack
+arm.
 
 ## Executor status
 
