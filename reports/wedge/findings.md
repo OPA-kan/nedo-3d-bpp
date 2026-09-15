@@ -620,6 +620,44 @@ retraining on the corrected rules, soft targets) moved the held-out
 figure by less than the paired interval each time.  The executor is
 where it is; the remaining volume is the floor plan.
 
+## Manager, step 1: how much do the ladder's floor decisions leave?
+
+The executors are at their ceilings and the remaining volume is in the
+floor plan, so the manager is a Layer-1 question: at each ladder
+decision, would another of its own survivors have led to a fuller
+container once the ladder and the stack option finish the stream?
+`bench rollouts` with the stack arm as the continuation (train-small, 24
+scenes, 5 sampled survivors per decision, continued to the end on the
+analytic model; `rollouts-stack-train-small/`):
+
+| | value |
+|---|---|
+| ladder decisions labelled | 476 |
+| an alternative survivor beats the ladder's choice | 154 (32 %) |
+| exact ties in final fill | 322 (68 %) |
+| regret per decision, final fill (mean / p90 / max) | 0.85 / 3.3 / 8.6 points |
+| regret per decision, first ten decisions vs later | 1.2-1.4 vs 0.4-0.6 points |
+| per scene: largest single-decision regret | 4.2 points (mean) |
+| per scene: sum of regrets (optimistic bound) | 16.9 points (mean) |
+
+* One decision in three has a strictly better alternative among five
+  sampled survivors, and the early decisions carry the most: the first
+  ten placements decide what the stack can later use.
+* By layout the picture differs: on c2p the ladder's choices are already
+  best-of-five (two scenes with zero regret), on c2 and c1s the sum of
+  regrets runs 30-46 points.  The alternatives that win are shelf
+  placements (67), other floor poses (30), terrace extensions (20), and
+  the ladder's last-resort poses (13).
+* Unlike the two earlier attempts at pricing candidates, the labels now
+  vary: with a Layer 2 that keeps what it places, the difference between
+  two floor poses shows up in the final fill.
+
+The realistic gain of a one-step selector lies between the largest
+single regret (4 points a scene) and the sum (17), since gains do not
+compound fully.  The direct measurement is running: `search:6+stack`
+(``bench/search.py``) takes the survivor with the best full continuation
+at every decision, on the same 24 scenes, against the stack arm alone.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
