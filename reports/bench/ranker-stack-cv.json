@@ -1,0 +1,26 @@
+{
+  "what": "Leave-scenes-out cross-validation (5 folds) of one-step rankers over the ladder's survivors, trained on the stack-arm rollout labels (arm stack:reports/wedge/ppo-stack-c1-s0-tower, k=5, explore_eps 0.2). Regret = best sampled survivor's continuation minus the pick's, averaged over held-out decisions where the survivors differ; the ladder's own pick is the baseline. Candidate-feature MLP (bench/ranker.py, context keys zeroed) on the label 'fill_gain'; board value net (bench/valuenet.py, 20 epochs, every third continuation board) on the boards' return-to-go in items, one 20 % scene split.",
+  "labels": {
+    "rollouts-stack-train-small": {"records": 2074, "decisions": 476, "scenes": 24},
+    "rollouts-stack-train": {"records": 6000, "decisions": 1356, "scenes": 80, "note": "16 of 96 train scenes did not finish in the runners' 330 min; c1 285, c1s 378, c2 238, c2p 455 decisions"}
+  },
+  "candidate_ranker": [
+    {"labels": "train-small", "hidden": [64, 64], "weight_decay": 1e-4, "decisions": 293, "regret_model": 1.515, "regret_ladder": 1.387, "overrides": 136, "overrides_good": 40},
+    {"labels": "train-small", "hidden": [32], "weight_decay": 1e-2, "decisions": 293, "regret_model": 1.415, "regret_ladder": 1.387, "overrides": 133, "overrides_good": 45},
+    {"labels": "train-small", "hidden": [], "weight_decay": 1e-3, "decisions": 293, "regret_model": 1.476, "regret_ladder": 1.387, "overrides": 69, "overrides_good": 22},
+    {"labels": "train", "hidden": [64, 64], "weight_decay": 1e-4, "decisions": 826, "regret_model": 2.135, "regret_ladder": 2.092, "overrides": 463, "overrides_good": 162},
+    {"labels": "train", "hidden": [64, 64], "weight_decay": 1e-2, "decisions": 826, "regret_model": 2.123, "regret_ladder": 2.092, "overrides": 461, "overrides_good": 158},
+    {"labels": "train", "hidden": [32], "weight_decay": 1e-3, "decisions": 826, "regret_model": 2.022, "regret_ladder": 2.092, "overrides": 486, "overrides_good": 164},
+    {"labels": "train", "hidden": [], "weight_decay": 1e-2, "decisions": 826, "regret_model": 2.094, "regret_ladder": 2.092, "overrides": 366, "overrides_good": 130}
+  ],
+  "board_value_net": [
+    {"labels": "train boards (48 single-container scenes, 36522 boards, 13124 used)", "width": 32, "epochs": 20, "val_mse_items2": 4.16, "decisions": 93, "regret_model": 1.538, "regret_ladder": 1.269, "overrides": 68, "overrides_good": 21}
+  ],
+  "label_structure_train_small": {
+    "mean_advantage_by_type": {"floor/floor/none": 0.280, "item/wedge-step": 0.218, "floor/front-wedge": 0.145, "item/terrace-extension": 0.043, "item/last-resort": 0.024, "floor/last-resort": -0.006, "shelf/shelf": -0.009, "floor/hole-fill": -0.222, "floor/floor/tall-perimeter": -0.334},
+    "when_the_ladder_loses_the_winner_is": {"shelf->shelf": 41, "terrace->terrace": 14, "last-resort->last-resort": 13, "floor->floor": 11, "floor->tall-perimeter": 9, "terrace->shelf": 8, "floor->shelf": 8, "wedge-step->wedge-step": 7},
+    "gain_of_best_over_ladder_when_it_loses": {"median": 2.26, "mean": 2.64},
+    "strongest_rank_correlations_within_decision": {"footprint": 0.131, "tipping_ratio": -0.118, "dz": -0.112, "wall_contact": 0.082}
+  },
+  "reading": "Neither one-step evaluator beats the ladder's own pick on held-out scenes at this label scale; overrides are right about one time in three. The wins are mostly a different pose of the same kind (shelf against shelf, terrace against terrace), and the only systematic signal is weak (flatter, larger-footprint poses do slightly better). The search's +4.4 points come from evaluating the actual continuation, not from anything a candidate or its board shows in one step."
+}

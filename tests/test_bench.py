@@ -71,6 +71,20 @@ class ArmTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             make_arm("random")
 
+    def test_search_arm_parses_imagined_futures_and_runs(self):
+        from bench.analytic import run_analytic_episode
+
+        arm = make_arm("search:3/2/4+ladder-stable")
+        self.assertEqual((arm.k, arm.streams, arm.horizon), (3, 2, 4))
+        self.assertEqual(make_arm("search:6+ladder-stable").streams, 0)
+        scene = make_scene(7, "c1", "C", items_per_container=5)
+        record = run_analytic_episode(scene, arm)
+        self.assertEqual(record["metrics"]["placed_count"], record["metrics"]["attempted"])
+        # the same scene gives the same placements: the imagined futures are seeded
+        again = run_analytic_episode(scene, arm)
+        self.assertEqual([s.get("place_pos") for s in record["steps"]],
+                         [s.get("place_pos") for s in again["steps"]])
+
     def test_alias_accepts_extra_overrides(self):
         arm = make_arm("ladder-stable@inclusion_clearance=0.008")
         self.assertTrue(arm.config.compaction_keeps_support)

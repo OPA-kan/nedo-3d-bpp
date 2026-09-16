@@ -236,8 +236,13 @@ class SearchArm(LadderArm):
     def __init__(self, spec: str):
         body, _at, overrides = spec.partition("@")
         head, _plus, rest = body.partition("+")
-        _s, _colon, k = head.partition(":")
-        self.k = int(k or 6)
+        _s, _colon, params = head.partition(":")
+        # ``search:<k>[/<streams>/<horizon>]``: with streams the continuations
+        # run over imagined futures of ``horizon`` items instead of the true stream
+        parts = [p for p in params.split("/") if p]
+        self.k = int(parts[0]) if parts else 6
+        self.streams = int(parts[1]) if len(parts) > 1 else 0
+        self.horizon = int(parts[2]) if len(parts) > 2 else 999
         self.inner_spec = rest or "ladder-stable"
         base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
         super().__init__(base)
@@ -249,14 +254,15 @@ class SearchArm(LadderArm):
 
         inner = self.inner
         agent = inner(scene)  # the same lower level, with its options, decides and continues
-        selector = SearchSelector(scene, inner, k=self.k, log=lambda line: print(line, flush=True))
+        selector = SearchSelector(scene, inner, k=self.k, log=lambda line: print(line, flush=True),
+                                  streams=self.streams, horizon=self.horizon)
         agent.selector = selector
         agent.search = selector
         return agent
 
     def describe(self) -> dict:
-        return {"arm": self.spec, "family": "search", "k": self.k, "inner": self.inner.describe(),
-                "config": self.config.to_dict()}
+        return {"arm": self.spec, "family": "search", "k": self.k, "streams": self.streams,
+                "horizon": self.horizon, "inner": self.inner.describe(), "config": self.config.to_dict()}
 
 
 def make_arm(spec: str):
