@@ -687,6 +687,52 @@ train suite four times that), train the ranker, run it as a selector
 (`nn:`-style arm) on the core suite in physics, paired against the stack
 arm.
 
+## Manager, step 2: can a one-step ranker learn what the search finds?
+
+The labels were collected at scale first: the rollouts labeller with the
+stack arm as Layer 2 on the train suite (8 runners, 5.5 h, k = 5,
+exploration 0.2) gives 6000 labels over 1356 decisions on 80 scenes
+(`reports/bench/rollouts-stack-train`; 16 c2 scenes did not finish in
+the runners' time).  Two one-step evaluators were then cross-validated
+leaving scenes out (`reports/bench/ranker-stack-cv.json`), scored by
+regret: the best sampled survivor's continuation minus the pick's, on
+held-out decisions where the survivors differ, against the ladder's own
+pick.
+
+| evaluator | labels | held-out decisions | regret: model | regret: ladder | overrides right |
+|---|---|---|---|---|---|
+| candidate-feature MLP (64, 64) | train-small, 476 decisions | 293 | 1.51 | 1.39 | 40 / 136 |
+| candidate-feature MLP (32) | train, 1356 decisions | 826 | 2.02 | 2.09 | 164 / 486 |
+| candidate-feature MLP (64, 64) | train | 826 | 2.13 | 2.09 | 162 / 463 |
+| linear | train | 826 | 2.09 | 2.09 | 130 / 366 |
+| board value net (CNN over the board each survivor leaves) | train boards, 48 scenes, 13 k boards | 93 | 1.54 | 1.27 | 21 / 68 |
+
+Neither beats the ladder.  Four times the labels moved the candidate
+ranker from worse than the ladder to level with it, and its overrides
+are right one time in three whatever the width, the regularisation or
+the label (fill or boxes).  The board network predicts a board's
+remaining count within 2 boxes (validation MSE 4.2) while the survivors
+of one decision differ by about one.
+
+The labels themselves explain why.  When the ladder's pick loses, the
+winner is mostly a *different pose of the same kind*: shelf against shelf
+(41 decisions), terrace against terrace (14), last resort against last
+resort (13), floor against floor (11); the systematic part is weak
+(within a decision, footprint correlates +0.13 with the outcome, height
+and tipping ratio -0.11: flatter, wider poses do a little better for the
+stack that follows).  The rest is the actual continuation, which two
+poses that look alike do not share.  A one-step evaluator, over features
+or over the board, cannot see it; the search sees it because it runs it.
+
+So the manager as a learned ranker is closed at this label scale, and
+the +4.4 points sit in the search.  What remains is whether the search
+an agent *could* run keeps any of it: at play time the stream is hidden
+(Task C hands one item at a time), so the continuations must run over
+imagined futures drawn from the SKU mix and be cut at a horizon.
+`search:<k>/<streams>/<horizon>+stack:<dir>` (``bench/search.py``) does
+that; two settings (2 streams x 8 items, 3 x 14) are being measured on
+train-small, analytic, against the stack arm.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
