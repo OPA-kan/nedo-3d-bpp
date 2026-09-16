@@ -1352,6 +1352,22 @@ class RuleAlphaConfig:
 
     allow_slope_infill_on_items: bool = True
 
+    offline_dry_run: bool = False
+    """Task A: after the constructive order, dry-run the whole core (ladder
+    and options) over that order on the analytic board and move every item
+    the core declines to the tail of the order.
+
+    The official environment ends the episode at the first placement it
+    cannot make and has no skip action, so with one item in the pool an
+    unplaceable item in the middle of the order forfeits everything behind
+    it.  The dry-run is the agent itself on a scratch board; what it
+    declines offline it would have declined online too (``rule_alpha/offline.py``)."""
+
+    offline_budget_seconds: float = 150.0
+    """Wall-clock budget for the offline dry-run, inside the official
+    optimisation limit of 180 s.  When it runs out the items not yet tried
+    keep their constructive order, ahead of the deferred ones."""
+
     def to_dict(self) -> dict:
         return asdict(self)
 

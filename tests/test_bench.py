@@ -85,6 +85,21 @@ class ArmTests(unittest.TestCase):
         self.assertEqual([s.get("place_pos") for s in record["steps"]],
                          [s.get("place_pos") for s in again["steps"]])
 
+    def test_offline_dry_run_defers_what_the_core_declines(self):
+        from bench.analytic import run_analytic_episode
+
+        scene = make_scene(11, "c1", "A", items_per_container=6)
+        # an item no container can take, first in every rule-based order
+        big = dict(scene.items[0])
+        big.update({"index": 900, "length": 3.5, "width": 3.5, "height": 0.4, "mass": 30.0,
+                    "is_soft": False, "is_prioritized": False})
+        scene.items.insert(0, big)
+        plain = run_analytic_episode(scene, make_arm("ladder-stable"))
+        dry = run_analytic_episode(scene, make_arm("ladder-stable@offline_dry_run=true,offline_budget_seconds=60"))
+        self.assertEqual(dry["order"][-1], 900)
+        self.assertGreater(dry["metrics"]["placed_count"], plain["metrics"]["placed_count"])
+        self.assertEqual(plain["metrics"]["end_reason"], "declined")
+
     def test_alias_accepts_extra_overrides(self):
         arm = make_arm("ladder-stable@inclusion_clearance=0.008")
         self.assertTrue(arm.config.compaction_keeps_support)

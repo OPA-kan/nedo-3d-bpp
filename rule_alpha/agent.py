@@ -10,6 +10,8 @@ is the honest behaviour for something that has no Layer 2.
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from . import classify as cls
@@ -36,6 +38,8 @@ class RuleAlphaAgent:
         self.zone_scales: dict | None = None
         self.triangle_profiles: list | None = None
         self.declined: list[int] = []
+        # Task A: what the offline dry-run would place, step by step
+        self.plan: list[dict] = []
 
     def _resize_zones_for_what_is_left(self) -> None:
         """Re-sizes the reserved strips from the cargo still to come.
@@ -90,23 +94,46 @@ class RuleAlphaAgent:
         self.board = layer1.Board(containers, self.config)
         return True
 
-    def optimize(self, item_list: list):
+    def _prepare_manifest(self, item_list: list) -> list:
+        """What the whole manifest tells the agent before the stream starts:
+        the profiles, and the zone and foundation demand on the board."""
         profiles = [
             cls.classify_item(int(item["index"]), item, self.config)
             for item in item_list
         ]
         self.profiles = {p.index: p for p in profiles}
+        if self.board is not None:
+            self.zone_scales = self.board.set_zone_demand(profiles, self.config)
+            self.triangle_profiles = profiles
+            self.board.set_foundation_demand(profiles, self.config)
+        return profiles
+
+    def scratch_copy(self, containers: list, item_list: list) -> "RuleAlphaAgent":
+        """The same agent -- config, selector, options -- on its own board,
+        for dry-runs that must not disturb this one's state."""
+        scratch = RuleAlphaAgent(config=self.config, selector=self.selector,
+                                 wedge_option=self.wedge_option, stack_option=self.stack_option)
+        scratch.get_init_states({"container_list": containers})
+        scratch._prepare_manifest(item_list)
+        return scratch
+
+    def optimize(self, item_list: list):
+        started = time.perf_counter()
+        profiles = self._prepare_manifest(item_list)
         reference = None
         if self.board is not None and self.board.models:
             reference = next(
                 (m for m in self.board.models if not m.is_prioritized),
                 self.board.models[0],
             )
-        if self.board is not None:
-            self.zone_scales = self.board.set_zone_demand(profiles, self.config)
-            self.triangle_profiles = profiles
-            self.board.set_foundation_demand(profiles, self.config)
-        return layer1.constructive_order(profiles, self.config, reference)
+        order = layer1.constructive_order(profiles, self.config, reference)
+        self.plan = []
+        if self.config.offline_dry_run and self.board is not None and len(order) > 1:
+            from .offline import dry_run_order
+
+            deadline = started + float(self.config.offline_budget_seconds)
+            order, self.plan = dry_run_order(self, item_list, order, deadline)
+        return order
 
     def policy(self, observation: dict):
         containers = observation.get("container_list", [])
