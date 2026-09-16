@@ -730,8 +730,32 @@ an agent *could* run keeps any of it: at play time the stream is hidden
 (Task C hands one item at a time), so the continuations must run over
 imagined futures drawn from the SKU mix and be cut at a horizon.
 `search:<k>/<streams>/<horizon>+stack:<dir>` (``bench/search.py``) does
-that; two settings (2 streams x 8 items, 3 x 14) are being measured on
-train-small, analytic, against the stack arm.
+that.  Measured on train-small, analytic, paired against the stack arm
+(`stack-vs-searchi-*-train-small-analytic.json`):
+
+| search over the survivors | fill diff (95 %) | better / equal / worse | leading placements identical | s per decision (mean) |
+|---|---|---|---|---|
+| true remaining stream, to the end (ceiling) | **+4.43** [+3.10, +5.95] | 21 / 2 / 0 | | 35 min a scene |
+| 2 imagined streams x 8 items | +0.37 [-0.16, +0.88] | 6 / 17 / 1 | 21.3 of ~26 | 47 |
+| 3 imagined streams x 14 items (15 of 24 scenes so far) | -0.22 [-0.98, +0.47] | 5 / 6 / 4 | 3.9 | 90 |
+
+Nothing of the ceiling survives the loss of the stream.  The short
+imagined search hardly ever overrides the ladder (the averaged fills of
+two look-alike poses come out equal); the longer one overrides almost
+every decision and gains nothing, because the poses it prefers are good
+for an imagined future, not for the one that comes.  Together with the
+rankers this closes the manager as a play-time device for Task C: what
+the search knows that the ladder does not is *which items come next*,
+and no evaluator without that knowledge has reproduced any of its gain.
+
+The door that stays open is the one where the stream is known.  In Task A
+the agent orders the items itself, so at play time the remaining stream
+is its own plan, and the offline phase has three minutes: the same
+search with the true stream, run once offline as a dry-run over the
+plan, is a legitimate agent there.  In Task B the pool of 3 to 40 known
+items is a partial stream.  That is a planning problem over the existing
+agent, not a learned manager, and it is where the +4.4 points can still
+be collected.
 
 ## Executor status
 
