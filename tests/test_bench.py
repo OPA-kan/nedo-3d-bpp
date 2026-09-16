@@ -100,6 +100,19 @@ class ArmTests(unittest.TestCase):
         self.assertGreater(dry["metrics"]["placed_count"], plain["metrics"]["placed_count"])
         self.assertEqual(plain["metrics"]["end_reason"], "declined")
 
+    def test_last_resort_only_adds_placements_where_the_ladder_declined(self):
+        from bench.analytic import run_analytic_episode
+
+        scene = make_scene(13, "c1", "C", items_per_container=24)
+        strict = run_analytic_episode(scene, make_arm("ladder-stable"))
+        relaxed = run_analytic_episode(scene, make_arm("ladder-stable@last_resort_relax=true"))
+        n = strict["metrics"]["placed_count"]
+        # the same placements up to the strict run's decline, then possibly more
+        self.assertEqual([s.get("place_pos") for s in strict["steps"][:n]],
+                         [s.get("place_pos") for s in relaxed["steps"][:n]])
+        self.assertGreaterEqual(relaxed["metrics"]["placed_count"], n)
+        self.assertIn(relaxed["metrics"]["end_reason"], ("declined", "stream-exhausted"))
+
     def test_alias_accepts_extra_overrides(self):
         arm = make_arm("ladder-stable@inclusion_clearance=0.008")
         self.assertTrue(arm.config.compaction_keeps_support)

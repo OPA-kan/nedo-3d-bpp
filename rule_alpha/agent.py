@@ -10,6 +10,7 @@ is the honest behaviour for something that has no Layer 2.
 
 from __future__ import annotations
 
+import dataclasses
 import time
 
 import numpy as np
@@ -40,6 +41,7 @@ class RuleAlphaAgent:
         self.declined: list[int] = []
         # Task A: what the offline dry-run would place, step by step
         self.plan: list[dict] = []
+        self.last_resort_used = 0
 
     def _resize_zones_for_what_is_left(self) -> None:
         """Re-sizes the reserved strips from the cargo still to come.
@@ -111,7 +113,10 @@ class RuleAlphaAgent:
     def scratch_copy(self, containers: list, item_list: list) -> "RuleAlphaAgent":
         """The same agent -- config, selector, options -- on its own board,
         for dry-runs that must not disturb this one's state."""
-        scratch = RuleAlphaAgent(config=self.config, selector=self.selector,
+        # strict margins in the dry-run: a relaxed pose must never enter the
+        # plan mid-order, where a failure would forfeit everything behind it
+        config = dataclasses.replace(self.config, last_resort_relax=False)
+        scratch = RuleAlphaAgent(config=config, selector=self.selector,
                                  wedge_option=self.wedge_option, stack_option=self.stack_option)
         scratch.get_init_states({"container_list": containers})
         scratch._prepare_manifest(item_list)
@@ -178,10 +183,51 @@ class RuleAlphaAgent:
                     self.last_decision = decision
                     return self._action(pool_index, decision.placement)
 
-        # Nothing else in this prototype, so say so rather than inventing a
-        # placement that would fail validation.
+        # A decline ends the episode and scores no lower than a failed
+        # attempt, so before declining try once with the margins relaxed to
+        # just above the official validator's own.
+        if self.config.last_resort_relax:
+            action = self._last_resort(containers, ordered)
+            if action is not None:
+                return action
+
+        # Nothing else, so say so rather than inventing a placement that
+        # would fail validation.
         self.last_decision = None
         self.declined.append(len(self.declined))
+        return None
+
+    def _last_resort(self, containers: list, ordered: list) -> dict | None:
+        relaxed = dataclasses.replace(
+            self.config,
+            settled_clearance=min(self.config.settled_clearance, self.config.last_resort_settled_clearance),
+            com_margin=min(self.config.com_margin, self.config.last_resort_com_margin),
+        )
+        strict_config, strict_board = self.config, self.board
+        self.config = relaxed
+        self.board = layer1.Board(containers, relaxed)
+        self._reapply_zone_scales()
+        self._resize_zones_for_what_is_left()
+        try:
+            for pool_index, profile in ordered:
+                decision = layer1.choose_for_item(self.board, profile, relaxed, selector=self.selector)
+                if decision is not None:
+                    decision.placement.reason = "last-resort: " + decision.placement.reason
+                    self.last_decision = decision
+                    self.last_resort_used += 1
+                    return self._action(pool_index, decision.placement)
+            if self.stack_option is not None:
+                for pool_index, profile in ordered:
+                    decision = self.stack_option.propose(
+                        self.board, profile, tower_min=self.config.last_resort_tower_min,
+                        extra_clearance=self.config.last_resort_extra_clearance)
+                    if decision is not None:
+                        decision.placement.reason = "last-resort: " + decision.placement.reason
+                        self.last_decision = decision
+                        self.last_resort_used += 1
+                        return self._action(pool_index, decision.placement)
+        finally:
+            self.config, self.board = strict_config, strict_board
         return None
 
     def _action(self, pool_index: int, placement) -> dict:

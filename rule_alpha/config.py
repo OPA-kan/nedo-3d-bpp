@@ -1363,6 +1363,24 @@ class RuleAlphaConfig:
     it.  The dry-run is the agent itself on a scratch board; what it
     declines offline it would have declined online too (``rule_alpha/offline.py``)."""
 
+    last_resort_relax: bool = False
+    """When neither the ladder nor an option has a pose for any item in the
+    pool, try once more with the analytic margins relaxed to just above the
+    official validator's own (``last_resort_*``) before declining.
+
+    The official environment ends the episode at a decline and does not
+    score an invalid attempt any lower than a decline, so at that point an
+    attempt that might pass is free.  In Task A physics, 27 of 48 episodes
+    ended on an item the offline dry-run had placed on the analytic board:
+    the settled board differs by a few centimetres and the conservative
+    margins then find nothing.  The offline dry-run itself keeps the
+    strict margins, so a relaxed pose never enters the plan mid-order."""
+
+    last_resort_settled_clearance: float = 0.016
+    last_resort_com_margin: float = 0.010
+    last_resort_tower_min: float = 0.015
+    last_resort_extra_clearance: float = 0.002
+
     offline_budget_seconds: float = 150.0
     """Wall-clock budget for the offline dry-run, inside the official
     optimisation limit of 180 s.  When it runs out the items not yet tried

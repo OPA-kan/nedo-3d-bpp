@@ -195,10 +195,13 @@ class StackOption:
             self._policies[key] = policy
         return self._policies[key]
 
-    def propose(self, board: layer1.Board, profile: cls.ItemProfile) -> layer1.Decision | None:
+    def propose(self, board: layer1.Board, profile: cls.ItemProfile, tower_min: float | None = None,
+                extra_clearance: float | None = None) -> layer1.Decision | None:
         from .stack import (stack_candidates, stack_grid_shape, stack_observation, stack_profile,
                             stack_reach)
 
+        tower_min = self.tower_min if tower_min is None else tower_min
+        extra_clearance = self.extra_clearance if extra_clearance is None else extra_clearance
         item = profile.item
         for container_idx in layer1.routing_order(profile, board, self.config):
             model = board.model(container_idx)
@@ -209,8 +212,8 @@ class StackOption:
                 self.silent += 1
                 continue
             cands = stack_candidates(model, container, self.config, profile, self.max_candidates,
-                                     mass=float(item.get("mass", 0.0)), tower_min=self.tower_min,
-                                     extra_clearance=self.extra_clearance)
+                                     mass=float(item.get("mass", 0.0)), tower_min=tower_min,
+                                     extra_clearance=extra_clearance)
             if not cands:
                 continue
             seen = self.calls.get(container_idx, 0)
