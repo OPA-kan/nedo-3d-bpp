@@ -757,6 +757,80 @@ items is a partial stream.  That is a planning problem over the existing
 agent, not a learned manager, and it is where the +4.4 points can still
 be collected.
 
+## Task A: the offline phase inside rule-alpha
+
+Where the stream is known the agent orders it itself.  What the official
+flow makes of that order: `optimize` gets the manifest, the containers and
+180 s; then the items arrive one at a time in that order, and the
+episode ends at the first placement the environment cannot make (a
+placement that fails inclusion, transport or settling terminates; there
+is no skip action; `simulator/src/ground_handling/env.py`).  So an
+unplaceable item in the middle of the order forfeits everything behind
+it, and rule-alpha's `optimize` was a fixed rule (`constructive_order`)
+that could not know which items the core would decline on the board as
+it would stand.
+
+The offline phase is therefore the agent dry-running itself
+(``rule_alpha/offline.py``, config `offline_dry_run`): the same ladder
+and options on a scratch copy of the containers, over the constructive
+order, on the analytic model, inside a wall-clock budget (150 s; a
+decision is not started if the slowest so far would overrun it).  Items
+the core declines go to the tail; the placed sequence comes first, then
+whatever the budget did not reach in its constructive order.  The
+dry-run's placements are kept as `agent.plan`.  One dry-run costs
+about the same as an episode: 50 s on c1 (41 items), up to the budget on
+c2 (82 items, two containers); on the core Task A suite the offline time
+was 75 s on average, 149 s at most.
+
+Two levers were then measured on `core-a` (48 Task A scenes, 12 seeds x 4
+layouts), paired against the same agent with the constructive order:
+
+| core Task A | fill diff (95 %) | better / equal / worse | boxes |
+|---|---|---|---|
+| dry-run order, analytic | **+2.45** [+1.80, +3.17] | 45 / 3 / 0 | +3.3 |
+| dry-run order, physics | +0.34 [+0.08, +0.65] | 16 / 26 / 6 | +0.5 |
+| dry-run order + last resort, physics | **+0.80** [+0.44, +1.22] | 24 / 19 / 5 | +1.0 |
+
+By layout (analytic) the gain is c2p +6.4, c1 +1.3, c1s +1.2, c2 +0.9:
+the priority-container layout is where the constructive order most
+often put an unplaceable item early.
+
+Why physics keeps so little of the analytic gain: in 27 of the 48
+physics episodes the online core declined an item the dry-run had
+placed.  The settled board differs from the analytic one by a few
+centimetres, and rule-alpha's margins (settled clearance 0.026 m against
+the validator's 0.015, COM margin 0.030) then find nothing for an item
+that had fitted offline.  The deferred order cannot help with a decline
+that happens before the tail is reached.
+
+The second lever follows from the rules: a decline ends the episode, and
+the evaluator (`evaluator.py`) scores a failed attempt no lower than a
+decline (fill is the volume of what is inside; nothing is deducted).  So
+at the point of declining, one attempt with the margins relaxed to just
+above the validator's own is free: `last_resort_relax` re-runs the
+ladder with settled clearance 0.016 and COM margin 0.010, then the stack
+option with tower margin 0.015 and extra clearance 0.002, and only if
+both still decline does the agent decline.  The dry-run keeps the strict
+margins, so no relaxed pose enters the plan mid-order.  On top of the
+dry-run order it adds +0.46 [+0.19, +0.82] (12 / 35 / 1) in physics; the
+attempts it makes are accepted often enough to be worth it and the end
+reasons do not change (45 declined, 3 settle failures, as before).  On
+the Task C core suite alone it is +0.17 [-0.18, +0.51] (8 / 37 / 3): not
+established, and the one extra settle failure there is the risk of it.
+
+Where this leaves Task A: the offline phase as built is worth about
++0.8 fill points in physics and +2.5 on the analytic model.  The
+difference is the analytic-physics gap on the ladder's side, and it is
+now the largest lever left in Task A: either the dry-run must predict
+the settled board better (a settle model in the dry-run, or margins
+that are pessimistic where drift is likely), or the online core must be
+robust to drift beyond the one relaxed attempt.  A search over poses
+with the true stream (the +4.4-point ceiling) is possible in the
+offline phase in principle, but at 1-1.5 s a decision the budget holds
+one dry-run, not a search; it needs the core several times faster
+first (the profile: 95 % of a decision is candidate validation, 3 500
+validations per decision).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
