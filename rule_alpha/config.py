@@ -1376,6 +1376,14 @@ class RuleAlphaConfig:
     margins then find nothing.  The offline dry-run itself keeps the
     strict margins, so a relaxed pose never enters the plan mid-order."""
 
+    no_cover_other_attribute: bool = False
+    """Veto every candidate (ladder and stack option) that would sit anywhere
+    above a packed item whose attribute it does not share: non-priority
+    above priority, non-soft above soft.  The published rule penalises
+    exactly that with a contact-from-above test; the official soft score of
+    the first submission (8.9 against the trunk's 21.3) says the bench's
+    2 cm contact proxy undercounts it, so the veto reads "anywhere above"."""
+
     last_resort_any_container: bool = True
     """First stage of the last resort: with the strict margins, let normal
     and soft cargo use the priority container too (its hard-cargo budget

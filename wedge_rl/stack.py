@@ -235,6 +235,24 @@ def transport_gap(box: AABB, container: dict) -> float:
     return best
 
 
+def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool) -> bool:
+    """True when the box would sit anywhere above a packed item whose
+    attribute the box does not share: non-priority above priority, or
+    non-soft above soft.  The rule penalises exactly that (same attribute
+    on top is free), and it reads contact from above, which a gap of a few
+    centimetres does not rule out once the cargo settles."""
+    for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+        p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
+        if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
+            continue
+        if float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+            continue
+        if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
+                and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
+            return True
+    return False
+
+
 def covers_priority(box: AABB, container: dict) -> bool:
     """True when the box would sit above a prioritized item (which has to
     stay reachable), whether or not it rests on it."""
@@ -321,7 +339,11 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 ok, _why = layer1.validate(box, model, container, cfg)
                 if not ok:
                     continue
-                if covers_priority(box, container):
+                if getattr(cfg, "no_cover_other_attribute", False):
+                    if covers_other_attribute(box, container, bool(getattr(profile, "is_soft", False)),
+                                              bool(getattr(profile, "is_prioritized", False))):
+                        continue
+                elif covers_priority(box, container):
                     continue
                 tw = tower.margin(box, mass) if tower is not None else float("inf")
                 if tw < (tower_min if tower_min is not None else -float("inf")):

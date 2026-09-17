@@ -3481,6 +3481,21 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
 # ---------------------------------------------------------------------------
 # Routing
 # ---------------------------------------------------------------------------
+def _covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool) -> bool:
+    """The box would sit anywhere above a packed item whose attribute it does
+    not share (see ``wedge_rl.stack.covers_other_attribute``)."""
+    for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+        p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
+        if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
+            continue
+        if float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+            continue
+        if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
+                and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
+            return True
+    return False
+
+
 def routing_order(profile: cls.ItemProfile, board: Board, config) -> list[int]:
     """Which containers this item may use, best first (spec section 3)."""
     priority_indices = [i for i, m in enumerate(board.models) if m.is_prioritized]
@@ -3724,6 +3739,13 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     board, profile, container_idx, config
                 )
             )
+        if pool and getattr(config, "no_cover_other_attribute", False):
+            # nothing above cargo whose attribute the item does not share
+            # (non-priority above priority, non-soft above soft): the rule
+            # penalises exactly that, and reads contact from above
+            container = board.container(container_idx)
+            pool = [c for c in pool
+                    if not _covers_other_attribute(c.box, container, profile.is_soft, profile.is_prioritized)]
         if not pool:
             continue
 
