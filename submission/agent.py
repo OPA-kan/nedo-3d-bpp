@@ -16,6 +16,8 @@ import os
 import pathlib
 import sys
 
+import numpy as np
+
 _HERE = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
@@ -46,3 +48,20 @@ class Agent(RuleAlphaAgent):
             policy_dir = _HERE / STACK_POLICY
         stack = StackOption(policy_dir, config) if (policy_dir / "policy.npz").exists() else None
         super().__init__(module_path=module_path, config=config, stack_option=stack)
+        self.surrendered = 0
+
+    def policy(self, observation: dict):
+        """Always a well-formed action: the official app reads the action's
+        keys before anything else, so a ``None`` (rule-alpha's decline)
+        would crash it and lose the task instead of ending the episode.
+        When nothing can be placed, a placement far above the container
+        fails the inclusion check and ends the episode cleanly."""
+        try:
+            action = super().policy(observation)
+        except Exception:
+            action = None
+        if action is not None:
+            return action
+        self.surrendered += 1
+        return {"item_idx": 0, "container_idx": 0,
+                "place_pos": np.asarray([0.0, 0.0, 50.0], dtype=np.float32), "orientation": 0}

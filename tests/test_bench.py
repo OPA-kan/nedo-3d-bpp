@@ -113,6 +113,28 @@ class ArmTests(unittest.TestCase):
         self.assertGreaterEqual(relaxed["metrics"]["placed_count"], n)
         self.assertIn(relaxed["metrics"]["end_reason"], ("declined", "stream-exhausted"))
 
+    def test_submission_agent_never_answers_none(self):
+        import importlib.util
+        import pathlib
+
+        path = pathlib.Path("submission/agent.py").resolve()
+        spec = importlib.util.spec_from_file_location("_submission_agent", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        agent = module.Agent(str(path.parent))
+        scene = make_scene(3, "c1", "C", items_per_container=3)
+        containers = scene.rule_alpha_containers()
+        agent.get_init_states({"container_list": containers})
+        big = {"index": 7, "length": 3.5, "width": 3.5, "height": 0.4, "mass": 30.0,
+               "is_soft": False, "is_prioritized": False}
+        action = agent.policy({"container_list": containers, "pool_list": [big]})
+        self.assertEqual(set(action), {"item_idx", "container_idx", "place_pos", "orientation"})
+        self.assertEqual(len(action["place_pos"]), 3)
+        self.assertEqual(agent.surrendered, 1)
+        action = agent.policy({"container_list": containers, "pool_list": [dict(scene.items[0])]})
+        self.assertEqual(agent.surrendered, 1)
+        self.assertEqual(int(action["item_idx"]), 0)
+
     def test_alias_accepts_extra_overrides(self):
         arm = make_arm("ladder-stable@inclusion_clearance=0.008")
         self.assertTrue(arm.config.compaction_keeps_support)
