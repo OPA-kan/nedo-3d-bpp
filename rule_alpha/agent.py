@@ -208,40 +208,60 @@ class RuleAlphaAgent:
         return None
 
     def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:
-        relaxed = dataclasses.replace(
-            self.config,
-            settled_clearance=min(self.config.settled_clearance, self.config.last_resort_settled_clearance),
-            com_margin=min(self.config.com_margin, self.config.last_resort_com_margin),
-        )
-        strict_config, strict_board = self.config, self.board
-        self.config = relaxed
-        self.board = layer1.Board(containers, relaxed)
-        self._reapply_zone_scales()
-        self._resize_zones_for_what_is_left()
+        """Two stages before a decline: every container with the strict
+        margins (when there is a priority container and the item may not
+        use it yet), then the relaxed margins."""
+        strict = self.config
+        stages = []
+        if strict.last_resort_any_container and any(m.is_prioritized for m in self.board.models) \
+                and len(self.board.models) > 1:
+            stages.append(("any-container", dataclasses.replace(strict, routing_any_container=True)))
+        stages.append(("relaxed", dataclasses.replace(
+            strict,
+            settled_clearance=min(strict.settled_clearance, strict.last_resort_settled_clearance),
+            com_margin=min(strict.com_margin, strict.last_resort_com_margin),
+            routing_any_container=strict.last_resort_any_container,
+        )))
+        strict_board = self.board
         try:
+            for label, config in stages:
+                if time.perf_counter() > deadline:
+                    break
+                self.config = config
+                self.board = layer1.Board(containers, config)
+                self._reapply_zone_scales()
+                self._resize_zones_for_what_is_left()
+                action = self._last_resort_stage(label, config, ordered, deadline)
+                if action is not None:
+                    return action
+        finally:
+            self.config, self.board = strict, strict_board
+        return None
+
+    def _last_resort_stage(self, label: str, config, ordered: list, deadline: float) -> dict | None:
+        relaxed_margins = label == "relaxed"
+        for n, (pool_index, profile) in enumerate(ordered):
+            if n and time.perf_counter() > deadline:
+                break
+            decision = layer1.choose_for_item(self.board, profile, config, selector=self.selector)
+            if decision is not None:
+                decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
+                self.last_decision = decision
+                self.last_resort_used += 1
+                return self._action(pool_index, decision.placement)
+        if self.stack_option is not None:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and time.perf_counter() > deadline:
                     break
-                decision = layer1.choose_for_item(self.board, profile, relaxed, selector=self.selector)
+                decision = self.stack_option.propose(
+                    self.board, profile,
+                    tower_min=config.last_resort_tower_min if relaxed_margins else None,
+                    extra_clearance=config.last_resort_extra_clearance if relaxed_margins else None)
                 if decision is not None:
-                    decision.placement.reason = "last-resort: " + decision.placement.reason
+                    decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
                     self.last_decision = decision
                     self.last_resort_used += 1
                     return self._action(pool_index, decision.placement)
-            if self.stack_option is not None:
-                for n, (pool_index, profile) in enumerate(ordered):
-                    if n and time.perf_counter() > deadline:
-                        break
-                    decision = self.stack_option.propose(
-                        self.board, profile, tower_min=self.config.last_resort_tower_min,
-                        extra_clearance=self.config.last_resort_extra_clearance)
-                    if decision is not None:
-                        decision.placement.reason = "last-resort: " + decision.placement.reason
-                        self.last_decision = decision
-                        self.last_resort_used += 1
-                        return self._action(pool_index, decision.placement)
-        finally:
-            self.config, self.board = strict_config, strict_board
         return None
 
     def _action(self, pool_index: int, placement) -> dict:

@@ -3489,6 +3489,11 @@ def routing_order(profile: cls.ItemProfile, board: Board, config) -> list[int]:
 
     if not priority_indices:
         return normal_indices or list(range(len(board.models)))
+    if getattr(config, "routing_any_container", False) and klass not in (cls.PRIORITY, cls.SOFT_PRIORITY):
+        # the last resort before a decline: the rule penalises priority cargo
+        # in a normal container and covering, not normal cargo in the
+        # priority container, and a decline ends the episode
+        return normal_indices + priority_indices
 
     if klass == cls.SOFT:
         # soft-only never enters a priority container

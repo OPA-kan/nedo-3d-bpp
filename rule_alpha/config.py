@@ -1376,6 +1376,17 @@ class RuleAlphaConfig:
     margins then find nothing.  The offline dry-run itself keeps the
     strict margins, so a relaxed pose never enters the plan mid-order."""
 
+    last_resort_any_container: bool = True
+    """First stage of the last resort: with the strict margins, let normal
+    and soft cargo use the priority container too (its hard-cargo budget
+    and the soft ban lifted), then the relaxed margins.  On the two-container
+    layout with a priority container the submitted agent left that
+    container with 4 to 6 boxes where the trunk agent put 15 to 20."""
+
+    routing_any_container: bool = False
+    """Set by the last resort, not by hand: ``routing_order`` offers every
+    container to non-priority cargo."""
+
     last_resort_settled_clearance: float = 0.016
     last_resort_com_margin: float = 0.010
     last_resort_tower_min: float = 0.015
