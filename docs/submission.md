@@ -46,6 +46,14 @@ plus 002 = 001 with one visible item and no optimize (Task C).  Result
 For comparison the repository's baseline `agent/agent.py` placed 7 of 41 on
 task 000 (fill 14.0, `docs/COMPETITION_BASELINE.md`).
 
+Second build (7e750fa; the any-container last resort and strict budget
+accounting, `official-sample-abc-v2.json`): the same scores on these
+single-container sample tasks (the new stage only acts when a priority
+container exists), policy max 2.1 s (A), 5.3 s (B), 2.3 s (C), optimize
+39 s.  On the bench's 48-scene physics suites this build is +1.9 (Task C)
+and +2.0 (Task A) fill points over the first build and ahead of the live
+trunk agent on both (`reports/wedge/findings.md`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
