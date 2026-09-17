@@ -303,9 +303,41 @@ class OfficialArm:
         return {"arm": self.spec, "family": "official", "path": str(self.path), "sha": self.sha}
 
 
+class DenseArm(LadderArm):
+    """The dense layer-building core asked first for every item, the ladder
+    behind it, optionally the stack option after the ladder:
+    ``dense[+stack:<dir>][@field=value,...]``."""
+
+    def __init__(self, spec: str):
+        body, _at, overrides = spec.partition("@")
+        parts = body.split("+")
+        self.stack_dir = ""
+        for part in parts[1:]:
+            kind, _colon, path = part.partition(":")
+            if kind == "stack":
+                self.stack_dir = path
+            else:
+                raise KeyError(f"unknown option {kind!r} in {spec!r}")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+
+    def __call__(self, scene):
+        from wedge_rl.dense import DenseOption
+        from wedge_rl.option import StackOption
+
+        stack = StackOption(self.stack_dir, self.config) if self.stack_dir else None
+        return RuleAlphaAgent(config=self.config, wedge_option=DenseOption(self.config), stack_option=stack)
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "dense", "stack": self.stack_dir, "config": self.config.to_dict()}
+
+
 def make_arm(spec: str):
     if spec.startswith("official:"):
         return OfficialArm(spec)
+    if spec == "dense" or spec.startswith("dense+") or spec.startswith("dense@"):
+        return DenseArm(spec)
     if spec.startswith("search:"):
         return SearchArm(spec)
     if spec.startswith("nn:"):

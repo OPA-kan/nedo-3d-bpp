@@ -1376,6 +1376,14 @@ class RuleAlphaConfig:
     margins then find nothing.  The offline dry-run itself keeps the
     strict margins, so a relaxed pose never enters the plan mid-order."""
 
+    priority_cargo_first: bool = False
+    """Task A: when a priority container exists, hand the priority cargo
+    over first, so it takes that container's floor before normal cargo
+    overflows into it.  With the constructive order (priority last) the
+    overflow fills the priority container's floor and the priority boxes
+    end up on top of it; on the two-container layouts with a priority
+    container the shake proxy's peak energy is 239 against 43 on Task C."""
+
     no_cover_other_attribute: bool = False
     """Veto every candidate (ladder and stack option) that would sit anywhere
     above a packed item whose attribute it does not share: non-priority

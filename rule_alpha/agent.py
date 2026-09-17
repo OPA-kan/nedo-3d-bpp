@@ -133,6 +133,11 @@ class RuleAlphaAgent:
                 self.board.models[0],
             )
         order = layer1.constructive_order(profiles, self.config, reference)
+        if (self.config.priority_cargo_first and self.board is not None
+                and any(m.is_prioritized for m in self.board.models)):
+            by_index = {p.index: p for p in profiles}
+            first = [i for i in order if by_index[i].is_prioritized]
+            order = first + [i for i in order if not by_index[i].is_prioritized]
         self.plan = []
         if self.config.offline_dry_run and self.board is not None and len(order) > 1:
             from .offline import dry_run_order

@@ -177,7 +177,11 @@ def prefilter(model: ContainerModel, cfg, container: dict, dx: float, dy: float,
     # 3. a raised pose must overlap some top at its bottom height
     if not on_floor:
         pmin, pmax = obs["packed_min"], obs["packed_max"]
-        tops = np.abs(pmax[:, 2] - bottom) <= CONTACT_TOLERANCE if pmin.shape[0] else np.zeros(0, dtype=bool)
+        # a raised pose needs a top at its own bottom; how far below still
+        # counts as touching is the config's contact tolerance (the
+        # production constant when the config is stricter)
+        tol = max(float(CONTACT_TOLERANCE), float(getattr(cfg, "contact_tolerance", CONTACT_TOLERANCE)))
+        tops = np.abs(pmax[:, 2] - bottom) <= tol if pmin.shape[0] else np.zeros(0, dtype=bool)
         if tops.any():
             tmin, tmax = pmin[tops], pmax[tops]
             ox = np.minimum(cmax[:, None, 0], tmax[None, :, 0]) - np.maximum(cmin[:, None, 0], tmin[None, :, 0])

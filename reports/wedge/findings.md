@@ -899,6 +899,52 @@ and 8.0 s (Task A), against the official 8 s; the budget accounting had
 to become strict (no call is started that the slowest call so far would
 carry past the deadline).
 
+## The first official result, and what the bench can and cannot see
+
+The first submission scored, officially: fill 35.6, cog 36.3, stability
+45.9, placement 15.1, soft 8.9, placed fraction 0.504 (the trunk's best:
+34.2 / 40.7 / 53.2 / 17.0 / 21.3 / 0.505).  Fill is ahead; the other four
+are behind, soft by 12 points.  The bench's proxies say the opposite on
+two of them: our COM height ratio is lower than the trunk's on every
+suite (0.35 against 0.41), and fewer of our soft and priority boxes have
+anything above them, whether "in contact" (2 % of soft boxes against
+3 %, 3 % of priority against 25 %) or "anywhere above" (24 % against
+26 %, 28 % against 44 %).  So the official cog and soft scores are not
+the quantities the bench measures, and the definitions are not
+published beyond one sentence each.  The shake proxy does say
+something: on Task A our boards move more under the shake than the
+trunk's (topples 0.58 against 0.08 a scene, peak kinetic energy 108
+against 16), on Task C less (0.38 against 0.69, 33 against 62).
+
+Two variants, on the 48-scene physics suites against the current agent:
+
+| variant | fill | boxes | COM ratio | soft / priority covered | topples | peak energy |
+|---|---|---|---|---|---|---|
+| Task C, nothing above other-attribute cargo | -0.67 [-1.65, +0.42] | -0.5 | -0.006 | 0.17 -> **0**, 0.10 -> **0.02** | 0.38 -> **0.17** | 33 -> **16** |
+| Task A, same | -0.06 | -0.1 | 0 | 0 -> 0 | 0.58 -> 0.50 | 108 -> 108 |
+| Task C, no stack option | -3.15 [-3.88, -2.47] | -2.9 | -0.018 | n.s. | 0.38 -> 0.35 | 33 -> 18 |
+| Task A, no stack option | -3.37 [-4.25, -2.41] | -3.2 | -0.011 | 0 -> 0 | 0.58 -> 0.35 (n.s.) | 108 -> 101 |
+
+The no-cover veto is adopted: what it costs in fill is inside the noise
+and it clears both coverage counts and halves the shake proxies on Task
+C.  The stack option stays: removing it costs 3.2 to 3.4 fill points and
+does not remove Task A's shake energy, which therefore comes from the
+ladder's own Task A boards (c2 and c2p above all: 62 and 239 against 24
+and 43 on Task C) and is the next thing to look at.
+
+What all items would fill: 54.5 % of the container on these suites
+(55.7 % on the sample Task A).  The boards end at 30 to 38 with the
+columns at 0.6 m of a 1.5 m ceiling and a fifth of the floor bare; at
+the decline the stack generator's poses die of "no support" (1 100 to
+1 500 of 1 500 validated) because the tops sit at many levels a few
+centimetres apart.  A first dense, layer-building core over the same
+generator (``wedge_rl/dense.py``, `dense` arm: lowest, then a top on an
+existing level, then full support, then flat, deep, left) did worse than
+the ladder (16 to 19 fill on three scenes against 30 to 35): it pillars.
+Placing most of the items needs a real layer plan (a layer height most
+items can present, the SKU heights being 0.24 / 0.25 / 0.27 for the hard
+ones), and that is a separate build.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

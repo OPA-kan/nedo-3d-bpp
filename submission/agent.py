@@ -33,6 +33,10 @@ OVERRIDES = dict(
     settle_sink_allowance=0.02, compaction_keeps_support=True,
     offline_dry_run=True, offline_budget_seconds=140.0,
     last_resort_relax=True, policy_budget_seconds=6.0,
+    # nothing above cargo of another attribute: on the 48-scene physics
+    # suites it clears soft/priority coverage and halves the shake proxies
+    # for -0.7 fill points (not significant) on Task C, nothing on Task A
+    no_cover_other_attribute=True,
 )
 STACK_POLICY = "weights/stack"
 
