@@ -831,6 +831,47 @@ one dry-run, not a search; it needs the core several times faster
 first (the profile: 95 % of a decision is candidate validation, 3 500
 validations per decision).
 
+## The submitted agent against the live trunk agent
+
+The live trunk (`experiment/anchor-recall-oracle`, 386bb45; a 9 100-line
+sampling-search agent with a release-risk model, no learning) is the
+reference the submission has to beat.  It was run through the bench's
+physics suites by path (`official:bench/reference/trunk_agent_386bb45/agent.py`)
+and paired against the submitted agent (the stack arm; on Task A with the
+dry-run order and the last resort):
+
+| 48 scenes, physics | trunk | submitted | diff (95 %) | better / equal / worse |
+|---|---|---|---|---|
+| **Task C** fill | 27.21 | 27.85 | +0.63 [-1.54, +2.79] | 22 / 5 / 21 |
+| Task C boxes | 25.5 | 25.5 | -0.02 | |
+| Task C COM height ratio (lower is better) | 0.413 | **0.352** | -0.061 [-0.073, -0.048] | 45 / 0 / 3 |
+| Task C priority boxes covered (per scene) | 0.73 | **0.15** | -0.58 [-0.85, -0.31] | 22 / 22 / 4 |
+| Task C soft boxes covered | 0.29 | 0.21 | -0.08 [-0.25, +0.08] | 8 / 36 / 4 |
+| **Task A** fill | 33.96 | **36.41** | +2.46 [+0.56, +4.29] | 32 / 0 / 16 |
+| Task A boxes | 28.4 | 28.9 | +0.54 [-1.92, +2.88] | |
+| Task A COM height ratio | 0.453 | **0.389** | -0.065 [-0.076, -0.053] | 46 / 0 / 2 |
+| Task A priority / soft covered | 0 / 0 | 0 / 0 | | |
+| policy time, max per scene | 4.9 s / 5.6 s | 1.8 s / 3.0 s | | |
+
+On the official sample tasks (`reports/submission/`), same machine: Task A
+trunk 36.4 / 27 boxes against 32.1 / 25; Task B trunk 17.2 / 15 against
+**28.7 / 23**; Task C trunk 25.4 / 21 against 23.1 / 23.
+
+How the two end their episodes differs: the trunk ends 47 of 48 Task C
+episodes with a placement physics rejects (32 settle, 15 transport), the
+submitted agent ends 45 by declining (an attempt far above the container)
+after its relaxed last try.  The evaluator does not distinguish, but a
+shake test would see the trunk's final boards differently.
+
+By layout the picture is not uniform: submitted minus trunk on Task C is
+c1s +6.6, c2 +2.9, c1 -1.8, **c2p -5.2**, and on Task A c1s +7.5, c2 +5.1,
+c1 +2.8, **c2p -5.6**.  On c2p (two containers, one of them the priority
+container) the submitted agent puts 4 to 6 boxes into the second
+container where the trunk puts 15 to 20: rule-alpha routes normal cargo
+to the normal container only, and declines when that one is full, while
+the rule penalises only priority cargo in a non-priority container (and
+covering).  That is the largest single lever the comparison shows.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
