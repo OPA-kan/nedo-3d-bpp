@@ -3662,7 +3662,8 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
     best: Decision | None = None
     for container_idx in routing_order(profile, board, config):
         model = board.model(container_idx)
-        if profile.is_soft and not profile.is_prioritized and model.is_prioritized:
+        if (profile.is_soft and not profile.is_prioritized and model.is_prioritized
+                and not getattr(config, "routing_any_container", False)):
             continue
         pool: list[Candidate] = []
         for surface_kinds, surface_policy in _surface_filters(profile, model, config):
