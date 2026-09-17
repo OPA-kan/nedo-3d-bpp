@@ -335,6 +335,30 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertIsNone(agent.policy({"container_list": observation["container_list"],
                                         "pool_list": [{"index": 99}]}))
 
+    def test_numpy_policy_matches_torch(self):
+        import pathlib
+
+        import torch
+
+        from wedge_rl.npolicy import NumpyPolicy, export
+        from wedge_rl.ppo import Policy, _features
+        from wedge_rl.stack import StackEnv
+
+        policy_dir = pathlib.Path("reports/wedge/ppo-stack-c1-s0-tower")
+        export(policy_dir)
+        numpy_policy = NumpyPolicy.load(policy_dir)
+        env = StackEnv(layout="c1", build_boards=False)
+        env.reset(1000000)  # the first held-out board seed
+        torch_policy = Policy(env.nx, env.ny)
+        torch_policy.load_state_dict(torch.load(policy_dir / "policy.pt"))
+        torch_policy.eval()
+        obs, feats = env.observation(), _features(env)
+        with torch.no_grad():
+            expected = torch_policy.logits(torch_policy.embed(obs), feats).numpy()
+        got = numpy_policy.logits(numpy_policy.embed(obs), feats)
+        self.assertEqual(got.shape, expected.shape)
+        self.assertLess(float(np.max(np.abs(got - expected))), 1e-4)
+
     def test_stack_option_places_after_the_ladder(self):
         """Inside rule-alpha, the stack option turns the ladder's declined
         board into a placement the validator accepts, and it never asks to

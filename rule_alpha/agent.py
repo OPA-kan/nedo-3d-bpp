@@ -138,9 +138,15 @@ class RuleAlphaAgent:
 
             deadline = started + float(self.config.offline_budget_seconds)
             order, self.plan = dry_run_order(self, item_list, order, deadline)
-        return order
+        return [int(i) for i in order]
 
     def policy(self, observation: dict):
+        started = time.perf_counter()
+        budget = float(self.config.policy_budget_seconds)
+        # the ladder may use most of the budget, the options what is left;
+        # the first item is always tried
+        ladder_deadline = started + 0.6 * budget
+        option_deadline = started + 0.85 * budget
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
         # rebuild from the observation so the plan always reflects the settled
@@ -165,7 +171,9 @@ class RuleAlphaAgent:
                     self.last_decision = decision
                     return self._action(pool_index, decision.placement)
 
-        for pool_index, profile in ordered:
+        for n, (pool_index, profile) in enumerate(ordered):
+            if n and time.perf_counter() > ladder_deadline:
+                break
             decision = layer1.choose_for_item(
                 self.board, profile, self.config, selector=self.selector
             )
@@ -177,7 +185,9 @@ class RuleAlphaAgent:
         # Layer 1 is finished.  The stack option is the learned Layer 2: it
         # places on the boxes the ladder left, under the tower rule.
         if self.stack_option is not None:
-            for pool_index, profile in ordered:
+            for n, (pool_index, profile) in enumerate(ordered):
+                if n and time.perf_counter() > option_deadline:
+                    break
                 decision = self.stack_option.propose(self.board, profile)
                 if decision is not None:
                     self.last_decision = decision
@@ -186,8 +196,8 @@ class RuleAlphaAgent:
         # A decline ends the episode and scores no lower than a failed
         # attempt, so before declining try once with the margins relaxed to
         # just above the official validator's own.
-        if self.config.last_resort_relax:
-            action = self._last_resort(containers, ordered)
+        if self.config.last_resort_relax and time.perf_counter() < option_deadline:
+            action = self._last_resort(containers, ordered, started + budget)
             if action is not None:
                 return action
 
@@ -197,7 +207,7 @@ class RuleAlphaAgent:
         self.declined.append(len(self.declined))
         return None
 
-    def _last_resort(self, containers: list, ordered: list) -> dict | None:
+    def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:
         relaxed = dataclasses.replace(
             self.config,
             settled_clearance=min(self.config.settled_clearance, self.config.last_resort_settled_clearance),
@@ -209,7 +219,9 @@ class RuleAlphaAgent:
         self._reapply_zone_scales()
         self._resize_zones_for_what_is_left()
         try:
-            for pool_index, profile in ordered:
+            for n, (pool_index, profile) in enumerate(ordered):
+                if n and time.perf_counter() > deadline:
+                    break
                 decision = layer1.choose_for_item(self.board, profile, relaxed, selector=self.selector)
                 if decision is not None:
                     decision.placement.reason = "last-resort: " + decision.placement.reason
@@ -217,7 +229,9 @@ class RuleAlphaAgent:
                     self.last_resort_used += 1
                     return self._action(pool_index, decision.placement)
             if self.stack_option is not None:
-                for pool_index, profile in ordered:
+                for n, (pool_index, profile) in enumerate(ordered):
+                    if n and time.perf_counter() > deadline:
+                        break
                     decision = self.stack_option.propose(
                         self.board, profile, tower_min=self.config.last_resort_tower_min,
                         extra_clearance=self.config.last_resort_extra_clearance)

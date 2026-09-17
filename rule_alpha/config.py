@@ -1381,6 +1381,13 @@ class RuleAlphaConfig:
     last_resort_tower_min: float = 0.015
     last_resort_extra_clearance: float = 0.002
 
+    policy_budget_seconds: float = 6.0
+    """Wall-clock budget for one ``policy`` call, inside the official limit
+    of 8 s.  With a pool of several items (Task B) the ladder is asked
+    item by item and each ask costs up to a few seconds; once the budget
+    is spent no further item is tried, and the call answers with what it
+    has (a placement, or a decline)."""
+
     offline_budget_seconds: float = 150.0
     """Wall-clock budget for the offline dry-run, inside the official
     optimisation limit of 180 s.  When it runs out the items not yet tried

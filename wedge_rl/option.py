@@ -157,9 +157,6 @@ class StackOption:
     def __init__(self, policy_dir: str | pathlib.Path, config, horizon: int = 26, max_candidates: int = 96,
                  tower_min: float | None = None, extra_clearance: float | None = None,
                  lookahead: dict | None = None):
-        import torch
-
-        from .ppo import Policy
         from .stack import StackEnv
 
         self.policy_dir = pathlib.Path(policy_dir)
@@ -171,8 +168,18 @@ class StackOption:
         # {"k", "deadline", "samples", "length"}: finish the unsure decisions
         # over imagined continuations of the stream (Task C hides it)
         self.lookahead = lookahead
-        self._torch = torch
-        self._policy_cls = Policy
+        # the exported numpy weights when present (the submission carries no
+        # torch); otherwise the torch policy
+        self.numpy = (self.policy_dir / "policy.npz").exists()
+        self._torch = None
+        self._policy_cls = None
+        if not self.numpy:
+            import torch
+
+            from .ppo import Policy
+
+            self._torch = torch
+            self._policy_cls = Policy
         self._policies: dict[tuple[int, int], object] = {}
         self._searchers: dict[tuple[int, int], object] = {}
         self.calls: dict[int, int] = {}
@@ -184,6 +191,13 @@ class StackOption:
     def _policy(self, nx: int, ny: int):
         key = (nx, ny)
         if key not in self._policies:
+            if self.numpy:
+                from .npolicy import NumpyPolicy
+
+                if "numpy" not in self._policies:
+                    self._policies["numpy"] = NumpyPolicy.load(self.policy_dir)
+                self._policies[key] = self._policies["numpy"]
+                return self._policies[key]
             policy = self._policy_cls(nx, ny)
             try:
                 policy.load_state_dict(self._torch.load(self.policy_dir / "policy.pt"))
@@ -194,6 +208,12 @@ class StackOption:
             policy.eval()
             self._policies[key] = policy
         return self._policies[key]
+
+    def _logits(self, policy, obs: dict, feats: np.ndarray) -> np.ndarray:
+        if self.numpy:
+            return np.asarray(policy.logits(policy.embed(obs), feats), dtype=np.float32)
+        with self._torch.no_grad():
+            return policy.logits(policy.embed(obs), feats).numpy()
 
     def propose(self, board: layer1.Board, profile: cls.ItemProfile, tower_min: float | None = None,
                 extra_clearance: float | None = None) -> layer1.Decision | None:
@@ -222,14 +242,13 @@ class StackOption:
             obs = stack_observation(model, container, nx, ny, stack_profile(model, nx), item, remaining)
             region = _StackRegion(model)
             feats = np.stack([c.features(region) for c in cands])
-            with self._torch.no_grad():
-                logits = policy.logits(policy.embed(obs), feats)
+            logits = self._logits(policy, obs, feats)
             # the last logit is PASS; an episode cannot pass, so take the best pose
             scores = logits[: len(cands)] if logits.shape[0] > len(cands) else logits
-            action = int(self._torch.argmax(scores).item())
-            if logits.shape[0] > len(cands) and int(self._torch.argmax(logits).item()) == len(cands):
+            action = int(np.argmax(scores))
+            if logits.shape[0] > len(cands) and int(np.argmax(logits)) == len(cands):
                 self.passed += 1  # the policy would rather have skipped this item
-            if self.lookahead is not None:
+            if self.lookahead is not None and not self.numpy:
                 action = self._search(policy, nx, ny, model, container, item, remaining, cands, action)
             self.placed += 1
             return self._decision(cands[action], cands, profile, container_idx, model)

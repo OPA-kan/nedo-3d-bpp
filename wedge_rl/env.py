@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from bench.scenes import SKUS, make_scene
 from rule_alpha import classify as cls
 from rule_alpha import layer1, stability
 from rule_alpha._reuse import AABB, packed_aabbs_local
@@ -269,6 +268,7 @@ class WedgeEnv:
         # narrower than that forces standing poses (measured: 0.45 left only
         # 0.25 x 0.65 x 0.45 standing poses, which closed the strip in two).
         from bench.arms import make_arm
+        from bench.scenes import SKUS, make_scene
 
         self.config = config or make_arm("ladder-stable").config
         self.layout = layout
@@ -294,6 +294,8 @@ class WedgeEnv:
             self.rng = random.Random(seed)
         self.container = dict(self.template)
         self.container["packed_items"] = []
+        from bench.scenes import SKUS
+
         self.stream = []
         for index in range(self.n_items):
             sku = self.rng.choices(SKUS, weights=self.sku_weights, k=1)[0]

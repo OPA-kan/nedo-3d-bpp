@@ -18,7 +18,13 @@ import sys
 import types
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-_AGENT_PATH = _REPO_ROOT / "agent" / "agent.py"
+# in the checkout the helpers are the production agent itself; in a
+# submission bundle the same file travels as a private copy next to this one
+_AGENT_PATHS = (
+    _REPO_ROOT / "agent" / "agent.py",
+    pathlib.Path(__file__).resolve().parent / "_production_agent.py",
+)
+_AGENT_PATH = _AGENT_PATHS[0]
 _MODULE_NAME = "_rule_alpha_production_geometry"
 
 
@@ -26,12 +32,13 @@ def _load() -> types.ModuleType:
     cached = sys.modules.get(_MODULE_NAME)
     if cached is not None:
         return cached
-    if not _AGENT_PATH.exists():
+    path = next((p for p in _AGENT_PATHS if p.exists()), None)
+    if path is None:
         raise RuntimeError(
             f"rule-alpha needs the shared geometry helpers in {_AGENT_PATH}, "
             "which is missing from this checkout."
         )
-    spec = importlib.util.spec_from_file_location(_MODULE_NAME, _AGENT_PATH)
+    spec = importlib.util.spec_from_file_location(_MODULE_NAME, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"could not load {_AGENT_PATH}")
     module = importlib.util.module_from_spec(spec)

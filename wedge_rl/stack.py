@@ -22,7 +22,6 @@ import random
 
 import numpy as np
 
-from bench.scenes import make_scene
 from rule_alpha import classify as cls
 from rule_alpha import layer1, stability
 from rule_alpha._reuse import AABB, packed_aabbs_local
@@ -37,6 +36,7 @@ def build_board(layout: str, seed: int, config=None, task: str = "C") -> dict:
     """Run the stable ladder analytically on the seeded stream until it
     declines; return the container it leaves and the items still to come."""
     from bench.arms import make_arm
+    from bench.scenes import make_scene
 
     arm = make_arm("ladder-stable")
     config = config or arm.config
@@ -405,6 +405,7 @@ class StackEnv:
                  max_candidates: int = 96, seed: int = 0, build_boards: bool = True,
                  tower_min: float | None = TOWER_MIN, extra_clearance: float = EXTRA_CLEARANCE):
         from bench.arms import make_arm
+        from bench.scenes import make_scene
 
         self.config = config or make_arm("ladder-stable").config
         self.tower_min = tower_min
