@@ -265,7 +265,47 @@ class SearchArm(LadderArm):
                 "horizon": self.horizon, "inner": self.inner.describe(), "config": self.config.to_dict()}
 
 
+class OfficialArm:
+    """Any agent in the official format, by the path of its ``agent.py``:
+    ``official:<path/to/agent.py>``.  Loaded the way the official app loads
+    it (``Agent(module_path=<its directory>)``), one instance per scene.
+    Physics only: the analytic runner needs rule-alpha's decisions."""
+
+    def __init__(self, spec: str):
+        import hashlib
+
+        _o, _colon, path = spec.partition(":")
+        self.spec = spec
+        self.path = pathlib.Path(path).resolve()
+        if not self.path.exists():
+            raise FileNotFoundError(self.path)
+        self.sha = hashlib.sha256(self.path.read_bytes()).hexdigest()[:12]
+        self.config = config_from_spec(resolve_alias("ladder-stable"))
+        self._module = None
+
+    def _load(self):
+        if self._module is None:
+            import importlib.util
+            import sys
+
+            name = f"_official_agent_{self.sha}"
+            spec = importlib.util.spec_from_file_location(name, self.path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+            self._module = module
+        return self._module
+
+    def __call__(self, scene):
+        return self._load().Agent(module_path=str(self.path.parent))
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "official", "path": str(self.path), "sha": self.sha}
+
+
 def make_arm(spec: str):
+    if spec.startswith("official:"):
+        return OfficialArm(spec)
     if spec.startswith("search:"):
         return SearchArm(spec)
     if spec.startswith("nn:"):

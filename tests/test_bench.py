@@ -135,6 +135,19 @@ class ArmTests(unittest.TestCase):
         self.assertEqual(agent.surrendered, 1)
         self.assertEqual(int(action["item_idx"]), 0)
 
+    def test_official_arm_loads_an_agent_by_path(self):
+        arm = make_arm("official:submission/agent.py")
+        self.assertEqual(arm.describe()["family"], "official")
+        scene = make_scene(3, "c1", "C", items_per_container=3)
+        containers = scene.rule_alpha_containers()
+        agent = arm(scene)
+        self.assertTrue(agent.get_init_states({"container_list": containers}))
+        action = agent.policy({"container_list": containers, "pool_list": [dict(scene.items[0])],
+                               "optimize": False, "lookahead_k": 1})
+        self.assertEqual(set(action), {"item_idx", "container_idx", "place_pos", "orientation"})
+        with self.assertRaises(FileNotFoundError):
+            make_arm("official:no/such/agent.py")
+
     def test_alias_accepts_extra_overrides(self):
         arm = make_arm("ladder-stable@inclusion_clearance=0.008")
         self.assertTrue(arm.config.compaction_keeps_support)
