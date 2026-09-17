@@ -872,6 +872,33 @@ to the normal container only, and declines when that one is full, while
 the rule penalises only priority cargo in a non-priority container (and
 covering).  That is the largest single lever the comparison shows.
 
+### The any-container last resort
+
+So the last resort now has two stages: first every container with the
+strict margins (routing lifted for normal and soft cargo, which
+`choose_for_item` had also skipped for soft), then the relaxed margins.
+On the twelve c2p Task C scenes (analytic) fill goes 22.3 -> 30.6; on the
+physics suites, paired against the submitted agent and the trunk:
+
+| 48 scenes, physics | submitted | any-container | diff (95 %) | better / equal / worse |
+|---|---|---|---|---|
+| Task C fill | 27.85 | **29.76** | +1.91 [+0.87, +3.10] | 17 / 28 / 3 |
+| Task C boxes | 25.5 | 28.0 | +2.5 [+1.1, +4.0] | |
+| Task C COM ratio / priority covered / soft covered | 0.352 / 0.15 / 0.21 | 0.352 / 0.10 / 0.17 | n.s. | |
+| Task A fill | 36.41 | **38.40** | +1.99 [+0.96, +3.18] | 14 / 32 / 2 |
+| Task A boxes | 28.9 | 31.5 | +2.5 [+1.2, +4.1] | |
+| Task A COM ratio | 0.389 | 0.394 | +0.006 [+0.002, +0.010] | 3 / 32 / 13 |
+
+By layout the gain is c2p +7.0 (C) and +7.9 (A) with the other layouts
+unchanged, as intended.  Against the trunk the agent is now ahead on both
+tasks: Task C fill +2.5 [+0.6, +4.5] (26 / 5 / 17), Task A +4.4 [+3.1, +5.8]
+(38 / 0 / 10), with the COM and coverage advantages as before.  The cost
+is time: the two stages run the full ladder again before a decline, and
+the slowest policy call on the runners went from 1.8 s to 7.5 s (Task C)
+and 8.0 s (Task A), against the official 8 s; the budget accounting had
+to become strict (no call is started that the slowest call so far would
+carry past the deadline).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

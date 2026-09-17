@@ -42,6 +42,7 @@ class RuleAlphaAgent:
         # Task A: what the offline dry-run would place, step by step
         self.plan: list[dict] = []
         self.last_resort_used = 0
+        self._longest_call = 0.0
 
     def _resize_zones_for_what_is_left(self) -> None:
         """Re-sizes the reserved strips from the cargo still to come.
@@ -147,6 +148,9 @@ class RuleAlphaAgent:
         # the first item is always tried
         ladder_deadline = started + 0.6 * budget
         option_deadline = started + 0.85 * budget
+        # strict accounting: no call is started that the slowest call of
+        # this decision so far would carry past its deadline
+        self._longest_call = 0.0
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
         # rebuild from the observation so the plan always reflects the settled
@@ -172,11 +176,10 @@ class RuleAlphaAgent:
                     return self._action(pool_index, decision.placement)
 
         for n, (pool_index, profile) in enumerate(ordered):
-            if n and time.perf_counter() > ladder_deadline:
+            if n and not self._can_start(ladder_deadline):
                 break
-            decision = layer1.choose_for_item(
-                self.board, profile, self.config, selector=self.selector
-            )
+            decision = self._timed(layer1.choose_for_item, self.board, profile, self.config,
+                                   selector=self.selector)
             if decision is None:
                 continue
             self.last_decision = decision
@@ -186,9 +189,9 @@ class RuleAlphaAgent:
         # places on the boxes the ladder left, under the tower rule.
         if self.stack_option is not None:
             for n, (pool_index, profile) in enumerate(ordered):
-                if n and time.perf_counter() > option_deadline:
+                if n and not self._can_start(option_deadline):
                     break
-                decision = self.stack_option.propose(self.board, profile)
+                decision = self._timed(self.stack_option.propose, self.board, profile)
                 if decision is not None:
                     self.last_decision = decision
                     return self._action(pool_index, decision.placement)
@@ -196,7 +199,7 @@ class RuleAlphaAgent:
         # A decline ends the episode and scores no lower than a failed
         # attempt, so before declining try once with the margins relaxed to
         # just above the official validator's own.
-        if self.config.last_resort_relax and time.perf_counter() < option_deadline:
+        if self.config.last_resort_relax and self._can_start(started + budget):
             action = self._last_resort(containers, ordered, started + budget)
             if action is not None:
                 return action
@@ -206,6 +209,16 @@ class RuleAlphaAgent:
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None
+
+    def _can_start(self, deadline: float) -> bool:
+        return time.perf_counter() + getattr(self, "_longest_call", 0.0) <= deadline
+
+    def _timed(self, fn, *args, **kwargs):
+        t0 = time.perf_counter()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            self._longest_call = max(getattr(self, "_longest_call", 0.0), time.perf_counter() - t0)
 
     def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:
         """Two stages before a decline: every container with the strict
@@ -225,7 +238,7 @@ class RuleAlphaAgent:
         strict_board = self.board
         try:
             for label, config in stages:
-                if time.perf_counter() > deadline:
+                if not self._can_start(deadline):
                     break
                 self.config = config
                 self.board = layer1.Board(containers, config)
@@ -241,9 +254,9 @@ class RuleAlphaAgent:
     def _last_resort_stage(self, label: str, config, ordered: list, deadline: float) -> dict | None:
         relaxed_margins = label == "relaxed"
         for n, (pool_index, profile) in enumerate(ordered):
-            if n and time.perf_counter() > deadline:
+            if n and not self._can_start(deadline):
                 break
-            decision = layer1.choose_for_item(self.board, profile, config, selector=self.selector)
+            decision = self._timed(layer1.choose_for_item, self.board, profile, config, selector=self.selector)
             if decision is not None:
                 decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
                 self.last_decision = decision
@@ -251,10 +264,10 @@ class RuleAlphaAgent:
                 return self._action(pool_index, decision.placement)
         if self.stack_option is not None:
             for n, (pool_index, profile) in enumerate(ordered):
-                if n and time.perf_counter() > deadline:
+                if n and not self._can_start(deadline):
                     break
-                decision = self.stack_option.propose(
-                    self.board, profile,
+                decision = self._timed(
+                    self.stack_option.propose, self.board, profile,
                     tower_min=config.last_resort_tower_min if relaxed_margins else None,
                     extra_clearance=config.last_resort_extra_clearance if relaxed_margins else None)
                 if decision is not None:
