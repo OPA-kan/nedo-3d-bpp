@@ -32,7 +32,10 @@ OVERRIDES = dict(
     anchor_slack=0.0005, anchor_clamp=True, key_quantum=0.005,
     settle_sink_allowance=0.02, compaction_keeps_support=True,
     offline_dry_run=True, offline_budget_seconds=140.0,
-    last_resort_relax=True, policy_budget_seconds=6.0,
+    # the evaluation platform measured 7.2 s for the slowest decision with
+    # a 6 s budget (its machine is slower than ours); 5 s keeps the same
+    # decisions in almost every call and leaves room under the 8 s limit
+    last_resort_relax=True, policy_budget_seconds=5.0,
     # nothing above cargo of another attribute: on the 48-scene physics
     # suites it clears soft/priority coverage and halves the shake proxies
     # for -0.7 fill points (not significant) on Task C, nothing on Task A

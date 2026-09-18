@@ -283,7 +283,7 @@ def sample_future(rng, n: int, start_index: int = 100000) -> list[dict]:
 
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
-                     extra_clearance: float = 0.0) -> list[Candidate]:
+                     extra_clearance: float = 0.0, z_top: float | None = None) -> list[Candidate]:
     """Every legal pose on the floor or on a packed top, lowest first.
 
     ``tower_min``: smallest combined centre-of-mass margin (``Tower``) a
@@ -297,7 +297,9 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     slack = cfg.anchor_slack
     wall = cfg.inclusion_clearance + slack
     rect = model.floor_rect
-    z_top = model.z_ceiling
+    # ``z_top``: a lower ceiling than the container's, when headroom is
+    # being kept for cargo still to come (the soft layer on top)
+    z_top = model.z_ceiling if z_top is None else min(float(z_top), model.z_ceiling)
     # one support per distinct top height (tops within the contact tolerance
     # are the same level); the floor is its own support
     tops = {}

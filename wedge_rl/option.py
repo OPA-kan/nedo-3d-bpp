@@ -187,6 +187,10 @@ class StackOption:
         self.passed = 0
         self.silent = 0
         self.expanded = 0
+        # headroom kept under the ceiling for the cargo still to come (set
+        # by the agent each decision: the soft items of a Task A manifest
+        # not yet placed need a top layer nothing may stand on)
+        self.headroom_reserve = 0.0
 
     def _policy(self, nx: int, ny: int):
         key = (nx, ny)
@@ -231,9 +235,12 @@ class StackOption:
             if policy is None:
                 self.silent += 1
                 continue
+            z_top = None
+            if self.headroom_reserve > 0 and not bool(item.get("is_soft", False)):
+                z_top = model.z_ceiling - self.headroom_reserve
             cands = stack_candidates(model, container, self.config, profile, self.max_candidates,
                                      mass=float(item.get("mass", 0.0)), tower_min=tower_min,
-                                     extra_clearance=extra_clearance)
+                                     extra_clearance=extra_clearance, z_top=z_top)
             if not cands:
                 continue
             seen = self.calls.get(container_idx, 0)

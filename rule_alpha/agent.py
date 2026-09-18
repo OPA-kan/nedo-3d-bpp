@@ -170,6 +170,8 @@ class RuleAlphaAgent:
             profiles.append((pool_index, profile))
 
         ordered = layer1.pool_order(profiles, self.config)
+        if self.stack_option is not None:
+            self.stack_option.headroom_reserve = self._soft_headroom_reserve(containers)
 
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
@@ -214,6 +216,19 @@ class RuleAlphaAgent:
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None
+
+    def _soft_headroom_reserve(self, containers: list) -> float:
+        """Task A: the height the flattest pose of the soft cargo still to
+        come needs on top of the hard stacks, so the stacks stop short of
+        the ceiling by that much while any of it is unplaced."""
+        if not self.config.reserve_headroom_for_soft or not self.profiles:
+            return 0.0
+        placed = {int(p.get("index", -1)) for c in containers for p in c.get("packed_items", [])}
+        heights = [min(o.dz for o in pr.orientations) for i, pr in self.profiles.items()
+                   if i not in placed and pr.is_soft and pr.orientations]
+        if not heights:
+            return 0.0
+        return max(heights) + float(self.config.soft_headroom_slack)
 
     def _can_start(self, deadline: float) -> bool:
         return time.perf_counter() + getattr(self, "_longest_call", 0.0) <= deadline

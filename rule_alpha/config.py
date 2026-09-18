@@ -1376,6 +1376,16 @@ class RuleAlphaConfig:
     margins then find nothing.  The offline dry-run itself keeps the
     strict margins, so a relaxed pose never enters the plan mid-order."""
 
+    reserve_headroom_for_soft: bool = False
+    """Task A: while soft cargo of the manifest is unplaced, the stack option
+    keeps the hard stacks below the ceiling by the flattest height of that
+    cargo (plus ``soft_headroom_slack``), so a top layer stays for it.  At
+    the decline on core-a c1 the unplaced items were the soft ones (10 to
+    14 a scene, 12 to 17 % of the container) with every free top within
+    0.25 m of the ceiling."""
+
+    soft_headroom_slack: float = 0.03
+
     priority_cargo_first: bool = False
     """Task A: when a priority container exists, hand the priority cargo
     over first, so it takes that container's floor before normal cargo
