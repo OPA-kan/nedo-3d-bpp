@@ -37,6 +37,10 @@ OVERRIDES = dict(
     # suites it clears soft/priority coverage and halves the shake proxies
     # for -0.7 fill points (not significant) on Task C, nothing on Task A
     no_cover_other_attribute=True,
+    # Task A with a priority container: priority cargo first, so it takes
+    # that container's floor (three more priority boxes placed a scene on
+    # that layout, shake energy 239 -> 168, fill -0.3 on the suite, n.s.)
+    priority_cargo_first=True,
 )
 STACK_POLICY = "weights/stack"
 

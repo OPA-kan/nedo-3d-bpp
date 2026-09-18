@@ -932,6 +932,18 @@ does not remove Task A's shake energy, which therefore comes from the
 ladder's own Task A boards (c2 and c2p above all: 62 and 239 against 24
 and 43 on Task C) and is the next thing to look at.
 
+Task A's shake energy sits on the two-container layout with a priority
+container (c2p: 239 against 43 on Task C).  The constructive order hands
+the priority cargo over last, so by then the priority container's floor
+holds the overflow of normal cargo and the priority boxes go on top.
+With the priority cargo handed over first (`priority_cargo_first`), on
+core-a physics: fill -0.34 [-0.84, +0.13], c2p alone -1.4; priority boxes
+placed there 5.6 -> 8.7 a scene, sitting lower (mean height 0.72 -> 0.55
+on the analytic checks); shake energy 239 -> 168 on c2p, 108 -> 91 on the
+suite (significant); topples 0.75 -> 0.58.  Adopted for the submission.
+What is left on Task A is c1 (energy 98 with hardly a topple: something
+heavy slides) and c2 (topples 1.17), neither yet explained.
+
 What all items would fill: 54.5 % of the container on these suites
 (55.7 % on the sample Task A).  The boards end at 30 to 38 with the
 columns at 0.6 m of a 1.5 m ceiling and a fifth of the floor bare; at
