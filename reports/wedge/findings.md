@@ -1032,8 +1032,31 @@ The sample task A has one container and the planner's plan won the
 comparison on its soft share; the fill cost there is the bet that the
 official soft and placement components count the cargo placed.
 
-Suite figures (48 scenes) are in `reports/bench/v4-vs-hybrid-core-a-analytic.json`
-and the physics run `reports/bench/hybrid-core-a` (Actions).
+The 48-scene Task A suite in physics (`reports/bench/hybrid-core-a`
+against the v4 run, `v4-vs-hybrid-core-a.json`), hybrid minus v4:
+
+| metric | v4 | hybrid | diff [95 % CI] |
+|---|---|---|---|
+| fill | 38.01 | 37.78 | -0.23 [-1.68, +1.30] |
+| placed | 31.2 | 33.1 | +1.9 [+0.2, +3.9] |
+| soft items placed | 77 / 874 | 358 / 874 | |
+| priority items placed | 130 / 314 | 178 / 314 | |
+| COM height ratio | 0.392 | 0.339 | -0.053 [-0.063, -0.043] |
+| shake topples | 0.46 | 0.00 | -0.46 [-0.75, -0.21] |
+| shake peak energy | 90.7 | 16.7 | -74 [-103, -47] |
+| episodes ending in a physics failure | 3 | 0 | |
+
+Per layout (fill; soft and priority placed a scene): c1 41.8 -> 42.3
+(soft 1.5 -> 5.0, priority 1.2 -> 2.8), c1s 38.4 -> 38.5 (0.4 -> 4.0,
+0.4 -> 1.7), c2 38.2 -> 39.3 (0.9 -> 12.0, 0.6 -> 1.8), c2p 33.6 -> 31.1
+(3.6 -> 8.8, 8.7 -> 8.7).  So the fill is level, four to five times the
+soft cargo and a third more priority cargo are placed, the loads sit
+lower and do not topple in the shake, and no episode ends on the
+simulator refusing a placement.  Four scenes have a priority item
+covered (priority on priority, which the rule allows; the metric counts
+any cover).  The one loss is the priority-container layout's fill
+(-2.6), where the planner's rows in the priority container hold fewer
+boxes than the ladder's overflow did.
 
 ## Executor status
 

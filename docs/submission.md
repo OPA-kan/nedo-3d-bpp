@@ -69,10 +69,11 @@ dry-run, the better plan by fill + soft + priority shares replayed online
 (`offline_planner`, `plan_score_weights`, `priority_is_structure`;
 findings section "Task A: the row planner").  Sample scores A 29.2
 (24 of 41; v4 32.1 / 25), B 28.7, C 23.1; optimize 30 s, policy max
-4.4 s.  On the first four core-a scenes in physics the planner places
-10-14 of 25 soft items on the two-container layouts against 0-4, +2 to
-+7 fill there, -4 to -6 on the single-container ones (where the hybrid
-keeps the ladder's plan unless the soft share outweighs it).
+4.4 s.  On the 48-scene Task A suite in physics the hybrid is level on
+fill with v4 (37.8 against 38.0, n.s.), places 358 of 874 soft items
+against 77 and 178 of 314 priority items against 130, lowers the centre
+of mass, never topples in the shake (v4: 0.46 topples a scene) and ends
+no episode on a physics failure (v4: 3).
 
 ## Known limits
 
