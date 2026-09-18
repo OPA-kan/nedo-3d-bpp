@@ -1,0 +1,42 @@
+# bench run: `stack:reports/wedge/ppo-stack-c1-s0-tower@last_resort_relax=true,no_cover_other_attribute=true,priority_cargo_first=true,offline_dry_run=true`
+
+| scene | placed | total | fill_volume | fill_shipped | fill_tolerant | com_z_ratio | priority_covered | priority_misrouted | soft_covered | shake_mean_shift | shake_topples | policy_time_max | over_budget_steps | end_reason | runtime_seconds |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| a-c1-s0001 | 31 | 41 | 46.991 | None | None | 0.433 | 0 | 0 | 0 | None | None | 1.728 | 0 | declined | 49.3 |
+| a-c1s-s0001 | 25 | 41 | 40.622 | None | None | 0.3776 | 0 | 0 | 0 | None | None | 2.095 | 0 | declined | 49.23 |
+| a-c2-s0001 | 48 | 82 | 39.922 | None | None | 0.4073 | 0 | 0 | 0 | None | None | 3.733 | 0 | declined | 156.84 |
+| a-c2p-s0001 | 37 | 82 | 32.497 | None | None | 0.3821 | 0 | 0 | 0 | None | None | 4.665 | 0 | declined | 108.09 |
+| a-c1-s0002 | 23 | 41 | 44.266 | None | None | 0.3968 | 0 | 0 | 0 | None | None | 1.39 | 0 | declined | 37.95 |
+| a-c1s-s0002 | 24 | 41 | 46.183 | None | None | 0.394 | 0 | 0 | 0 | None | None | 1.687 | 0 | declined | 41.25 |
+| a-c2-s0002 | 45 | 82 | 39.212 | None | None | 0.4088 | 0 | 0 | 0 | None | None | 3.239 | 0 | declined | 142.91 |
+| a-c2p-s0002 | 44 | 82 | 39.882 | None | None | 0.3879 | 0 | 0 | 0 | None | None | 4.118 | 0 | declined | 93.6 |
+| a-c1-s0003 | 19 | 41 | 36.012 | None | None | 0.3981 | 0 | 0 | 0 | None | None | 1.812 | 0 | declined | 32.57 |
+| a-c1s-s0003 | 22 | 41 | 39.547 | None | None | 0.3837 | 0 | 0 | 0 | None | None | 1.125 | 0 | declined | 39.75 |
+| a-c2-s0003 | 44 | 82 | 41.006 | None | None | 0.4091 | 0 | 0 | 0 | None | None | 3.357 | 0 | declined | 142.56 |
+| a-c2p-s0003 | 24 | 82 | 25.426 | None | None | 0.2955 | 0 | 4 | 0 | None | None | 3.713 | 0 | declined | 89.53 |
+| a-c1-s0004 | 24 | 41 | 40.532 | None | None | 0.3917 | 0 | 0 | 0 | None | None | 1.813 | 0 | declined | 35.62 |
+| a-c1s-s0004 | 23 | 41 | 38.359 | None | None | 0.3722 | 0 | 0 | 0 | None | None | 1.804 | 0 | declined | 48.16 |
+| a-c2-s0004 | 50 | 82 | 40.403 | None | None | 0.4182 | 0 | 0 | 0 | None | None | 3.423 | 0 | declined | 160.21 |
+| a-c2p-s0004 | 36 | 82 | 32.034 | None | None | 0.3517 | 0 | 0 | 0 | None | None | 5.564 | 0 | declined | 104.64 |
+| a-c1-s0005 | 28 | 41 | 43.589 | None | None | 0.4073 | 0 | 0 | 0 | None | None | 1.409 | 0 | declined | 45.57 |
+| a-c1s-s0005 | 24 | 41 | 38.313 | None | None | 0.3764 | 0 | 0 | 0 | None | None | 2.012 | 0 | declined | 46.48 |
+| a-c2-s0005 | 53 | 82 | 43.199 | None | None | 0.4372 | 0 | 0 | 0 | None | None | 3.097 | 0 | declined | 147.86 |
+| a-c2p-s0005 | 47 | 82 | 40.148 | None | None | 0.389 | 0 | 0 | 0 | None | None | 2.988 | 0 | declined | 89.89 |
+| a-c1-s0006 | 20 | 41 | 36.686 | None | None | 0.3912 | 0 | 0 | 0 | None | None | 1.419 | 0 | declined | 36.93 |
+| a-c1s-s0006 | 22 | 41 | 39.547 | None | None | 0.3837 | 0 | 0 | 0 | None | None | 1.649 | 0 | declined | 41.71 |
+| a-c2-s0006 | 46 | 82 | 41.4 | None | None | 0.4149 | 0 | 0 | 0 | None | None | 2.789 | 0 | declined | 152.49 |
+| a-c2p-s0006 | 30 | 82 | 31.984 | None | None | 0.3637 | 0 | 0 | 0 | None | None | 3.454 | 0 | declined | 91.54 |
+| a-c1-s0007 | 28 | 41 | 47.374 | None | None | 0.4225 | 0 | 0 | 0 | None | None | 1.79 | 0 | declined | 41.88 |
+| a-c1s-s0007 | 25 | 41 | 42.978 | None | None | 0.3769 | 0 | 0 | 0 | None | None | 1.834 | 0 | declined | 44.82 |
+| a-c2-s0007 | 48 | 82 | 40.955 | None | None | 0.4279 | 0 | 0 | 0 | None | None | 3.034 | 0 | declined | 149.38 |
+| a-c2p-s0007 | 33 | 82 | 32.845 | None | None | 0.3777 | 0 | 0 | 0 | None | None | 2.854 | 0 | declined | 80.59 |
+| a-c1-s0008 | 24 | 41 | 40.542 | None | None | 0.4057 | 0 | 0 | 0 | None | None | 1.361 | 0 | declined | 32.15 |
+| a-c1s-s0008 | 25 | 41 | 40.989 | None | None | 0.3631 | 0 | 0 | 0 | None | None | 2.091 | 0 | declined | 45.88 |
+| a-c2-s0008 | 49 | 82 | 40.834 | None | None | 0.4109 | 0 | 0 | 0 | None | None | 3.458 | 0 | declined | 150.37 |
+| a-c2p-s0008 | 40 | 82 | 35.42 | None | None | 0.3585 | 0 | 0 | 0 | None | None | 3.755 | 0 | declined | 86.45 |
+| a-c1-s0009 | 19 | 41 | 38.664 | None | None | 0.3881 | 0 | 0 | 0 | None | None | 1.809 | 0 | declined | 32.5 |
+| a-c1s-s0009 | 23 | 41 | 42.85 | None | None | 0.4472 | 0 | 0 | 0 | None | None | 1.728 | 0 | declined | 41.26 |
+| a-c2-s0009 | 43 | 82 | 38.474 | None | None | 0.4092 | 0 | 0 | 0 | None | None | 3.395 | 0 | declined | 138.63 |
+| a-c2p-s0009 | 28 | 82 | 28.405 | None | None | 0.3211 | 0 | 1 | 0 | None | None | 4.802 | 0 | declined | 95.45 |
+| a-c1-s0010 | 22 | 41 | 41.858 | None | None | 0.4099 | 0 | 0 | 0 | None | None | 1.839 | 0 | declined | 37.73 |
+| a-c1s-s0010 | 21 | 41 | 40.764 | None | None | 0.4116 | 0 | 0 | 0 | None | None | 1.687 | 0 | declined | 37.04 |
