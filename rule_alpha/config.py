@@ -1418,10 +1418,11 @@ class RuleAlphaConfig:
     """Orders of the priority cargo the planner tries (``planning_order``);
     the plan with the most volume is kept."""
 
-    plan_min_support: float = 0.6
+    plan_min_support: float = 0.0
     """Least share of its footprint a planned hard box rests on (raised
-    poses); the validator's centre-of-mass rule alone is not enough for a
-    pose that has to survive the physics settle."""
+    poses), on top of the validator's centre-of-mass rule.  0.6 cost 3
+    fill points on the first core-a scenes (physics) for no failure
+    avoided; the validator's rule held for hard cargo there."""
 
     plan_min_support_soft: float = 0.8
     """The same for soft cargo, which deforms and tips off a partial
@@ -1430,6 +1431,13 @@ class RuleAlphaConfig:
     plan_standing: bool = True
     """Rows may stand a box up where no flat pose is legal at the slot
     (the mid-height transport band, see ``planner._standing_poses``)."""
+
+    plan_score_weights: str = "1,0.5,0.5"
+    """How the planner's plan and the ladder's dry-run plan are compared:
+    weights of the fill (volume over the containers' volume), the share of
+    the soft cargo placed and the share of the priority cargo placed.  The
+    official score has a component for each; the fill is the one whose
+    definition is known, so the other two count half."""
 
     plan_replay: bool = True
     """Online, replay the planned pose of the pool item when it still passes

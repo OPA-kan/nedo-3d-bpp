@@ -44,6 +44,7 @@ class RuleAlphaAgent:
         # Task A with the offline planner: settled pose per item index, and
         # how often a planned pose no longer fitted the settled board
         self.plan_by_index: dict[int, dict] = {}
+        self.plan_source = ""
         self.plan_misses = 0
         self.plan_replayed = 0
         self.last_resort_used = 0
@@ -145,16 +146,53 @@ class RuleAlphaAgent:
             order = first + [i for i in order if not by_index[i].is_prioritized]
         self.plan = []
         self.plan_by_index = {}
+        self.plan_source = ""
         deadline = started + float(self.config.offline_budget_seconds)
+        by_index = {int(item["index"]): item for item in item_list}
+        capacity = sum(float(c.get("length", 0)) * float(c.get("width", 0)) * float(c.get("height", 0))
+                       for c in (self.board.containers if self.board is not None else [])) or 1.0
+        soft_total = sum(1 for i in item_list if i.get("is_soft")) or 1
+        prio_total = sum(1 for i in item_list if i.get("is_prioritized")) or 1
+
+        weights = [float(w) for w in str(getattr(self.config, "plan_score_weights", "1,0.5,0.5")).split(",")]
+        weights = (weights + [0.0, 0.0, 0.0])[:3]
+
+        def score_of(plan):
+            """What the official score is made of, each part in [0, 1]:
+            the fill, the share of the soft cargo placed, the share of the
+            priority cargo placed -- weighted by ``plan_score_weights``."""
+            items = [by_index[int(e["index"])] for e in plan if int(e["index"]) in by_index]
+            volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in items)
+            return (weights[0] * volume / capacity
+                    + weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
+                    + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total)
+
+        planned = None
         if getattr(self.config, "offline_planner", "") and self.board is not None and len(order) > 1:
             from .planner import plan_packing
 
-            order, self.plan = plan_packing(self, item_list, deadline)
-            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
-        elif self.config.offline_dry_run and self.board is not None and len(order) > 1:
+            # the headroom reserve belongs to the planner's plan (see
+            # _soft_headroom_reserve); it is set while planning
+            self.plan_source = "planner"
+            planned = plan_packing(self, item_list, deadline)
+            self.plan_source = ""
+        if self.config.offline_dry_run and self.board is not None and len(order) > 1 \
+                and time.perf_counter() < deadline:
+            # the ladder's own dry-run with what is left of the budget; the
+            # plan that scores higher (fill, soft placed, priority placed)
+            # decides.  On a slow machine the dry-run is cut short and the
+            # planner's full plan wins by itself; on a fast one the ladder
+            # keeps the layouts it packs better
             from .offline import dry_run_order
 
-            order, self.plan = dry_run_order(self, item_list, order, deadline)
+            dry_order, dry_plan = dry_run_order(self, item_list, order, deadline)
+            if planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9:
+                order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
+                planned = None
+        if planned is not None:
+            order, self.plan = planned
+            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
+            self.plan_source = "planner"
         return [int(i) for i in order]
 
     def policy(self, observation: dict):
@@ -247,6 +285,11 @@ class RuleAlphaAgent:
         come needs on top of the hard stacks, so the stacks stop short of
         the ceiling by that much while any of it is unplaced."""
         if not self.config.reserve_headroom_for_soft or not self.profiles:
+            return 0.0
+        # the reserve is the planner's: the ladder packs worse under it (24
+        # against 31 of 41 on a-c1-s0001) and its dry-run plan, and the
+        # online ladder replaying or completing that plan, keep the ceiling
+        if getattr(self, "plan_source", "") != "planner":
             return 0.0
         placed = {int(p.get("index", -1)) for c in containers for p in c.get("packed_items", [])}
         soft = [pr for i, pr in self.profiles.items() if i not in placed and pr.is_soft and pr.orientations]

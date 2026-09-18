@@ -51,7 +51,10 @@ OVERRIDES = dict(
     # the ladder takes over wherever a pose no longer fits the settled
     # board.  The planner takes a few seconds where the dry-run took the
     # whole budget on the evaluation machine.
-    offline_planner="rows", plan_variants="after-hard",
+    # With offline_dry_run on as well, the ladder's dry-run gets what is
+    # left of the budget and the plan with the more volume is used: on a
+    # slow machine the planner's full plan wins by itself.
+    offline_planner="rows", plan_variants="after-hard", plan_min_support=0.0,
     reserve_headroom_for_soft=True, soft_headroom_volume_share=0.75, soft_headroom_slack=0.05,
     # priority cargo carries load (only priority cargo may sit on it under
     # the cover rule): the priority container gets its second layer
