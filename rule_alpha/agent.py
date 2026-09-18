@@ -41,6 +41,11 @@ class RuleAlphaAgent:
         self.declined: list[int] = []
         # Task A: what the offline dry-run would place, step by step
         self.plan: list[dict] = []
+        # Task A with the offline planner: settled pose per item index, and
+        # how often a planned pose no longer fitted the settled board
+        self.plan_by_index: dict[int, dict] = {}
+        self.plan_misses = 0
+        self.plan_replayed = 0
         self.last_resort_used = 0
         self._longest_call = 0.0
 
@@ -139,10 +144,16 @@ class RuleAlphaAgent:
             first = [i for i in order if by_index[i].is_prioritized]
             order = first + [i for i in order if not by_index[i].is_prioritized]
         self.plan = []
-        if self.config.offline_dry_run and self.board is not None and len(order) > 1:
+        self.plan_by_index = {}
+        deadline = started + float(self.config.offline_budget_seconds)
+        if getattr(self.config, "offline_planner", "") and self.board is not None and len(order) > 1:
+            from .planner import plan_packing
+
+            order, self.plan = plan_packing(self, item_list, deadline)
+            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
+        elif self.config.offline_dry_run and self.board is not None and len(order) > 1:
             from .offline import dry_run_order
 
-            deadline = started + float(self.config.offline_budget_seconds)
             order, self.plan = dry_run_order(self, item_list, order, deadline)
         return [int(i) for i in order]
 
@@ -170,8 +181,22 @@ class RuleAlphaAgent:
             profiles.append((pool_index, profile))
 
         ordered = layer1.pool_order(profiles, self.config)
+        reserve = self._soft_headroom_reserve(containers)
+        self.board.soft_headroom_reserve = reserve
         if self.stack_option is not None:
-            self.stack_option.headroom_reserve = self._soft_headroom_reserve(containers)
+            self.stack_option.headroom_reserve = reserve
+
+        # Task A with a plan: the planned pose, when it still fits the board
+        # as it settled; otherwise the item goes down the ladder like any other
+        if self.plan_by_index and getattr(self.config, "plan_replay", True):
+            from .planner import replay
+
+            hit = self._timed(replay, self, self.board, ordered, self.plan_by_index)
+            if hit is not None:
+                pool_index, decision = hit
+                self.last_decision = decision
+                self.plan_replayed += 1
+                return self._action(pool_index, decision.placement)
 
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
@@ -224,11 +249,29 @@ class RuleAlphaAgent:
         if not self.config.reserve_headroom_for_soft or not self.profiles:
             return 0.0
         placed = {int(p.get("index", -1)) for c in containers for p in c.get("packed_items", [])}
-        heights = [min(o.dz for o in pr.orientations) for i, pr in self.profiles.items()
-                   if i not in placed and pr.is_soft and pr.orientations]
-        if not heights:
+        soft = [pr for i, pr in self.profiles.items() if i not in placed and pr.is_soft and pr.orientations]
+        if not soft:
             return 0.0
-        return max(heights) + float(self.config.soft_headroom_slack)
+        share = float(getattr(self.config, "soft_headroom_volume_share", 1.0))
+        flattest = sorted(((min(o.dz for o in pr.orientations),
+                            pr.orientations[0].dx * pr.orientations[0].dy * pr.orientations[0].dz) for pr in soft))
+        total = sum(v for _h, v in flattest)
+        # the height under which the given share of the soft volume fits
+        # (1.0: the tallest item's); the tall few take what is left
+        reserve, seen = flattest[-1][0], 0.0
+        for h, v in flattest:
+            seen += v
+            if seen >= share * total - 1e-9:
+                reserve = h
+                break
+        factor = float(getattr(self.config, "soft_headroom_volume_factor", 0.0) or 0.0)
+        if factor > 0.0 and self.board is not None and self.board.models:
+            # the layer the soft volume needs over the whole floor, at the
+            # packing density the factor allows for
+            volume = sum(pr.orientations[0].dx * pr.orientations[0].dy * pr.orientations[0].dz for pr in soft)
+            area = sum(max(m.floor_rect.area, 1e-9) for m in self.board.models)
+            reserve = max(reserve, factor * volume / area)
+        return reserve + float(self.config.soft_headroom_slack)
 
     def _can_start(self, deadline: float) -> bool:
         return time.perf_counter() + getattr(self, "_longest_call", 0.0) <= deadline
@@ -256,7 +299,12 @@ class RuleAlphaAgent:
             routing_any_container=strict.last_resort_any_container,
         )))
         strict_board = self.board
+        # the headroom kept for the soft cargo is lifted here: a decline
+        # forfeits the rest of the stream, a box in the top layer does not
+        reserve = self.stack_option.headroom_reserve if self.stack_option is not None else 0.0
         try:
+            if self.stack_option is not None:
+                self.stack_option.headroom_reserve = 0.0
             for label, config in stages:
                 if not self._can_start(deadline):
                     break
@@ -269,6 +317,8 @@ class RuleAlphaAgent:
                     return action
         finally:
             self.config, self.board = strict, strict_board
+            if self.stack_option is not None:
+                self.stack_option.headroom_reserve = reserve
         return None
 
     def _last_resort_stage(self, label: str, config, ordered: list, deadline: float) -> dict | None:

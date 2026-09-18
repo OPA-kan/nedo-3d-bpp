@@ -100,6 +100,40 @@ class ArmTests(unittest.TestCase):
         self.assertGreater(dry["metrics"]["placed_count"], plain["metrics"]["placed_count"])
         self.assertEqual(plain["metrics"]["end_reason"], "declined")
 
+    def test_offline_row_planner_plans_legal_poses_and_replays_them(self):
+        from bench.analytic import run_analytic_episode
+        from rule_alpha import layer1
+        from rule_alpha.geometry import AABB
+
+        scene = make_scene(17, "c1", "A", items_per_container=14)
+        arm = make_arm("ladder-stable@offline_planner=rows,plan_variants=after-hard,"
+                       "reserve_headroom_for_soft=true,offline_budget_seconds=60")
+        agent = arm(scene)
+        containers = scene.rule_alpha_containers()
+        agent.get_init_states({"container_list": containers})
+        order = agent.optimize([dict(i) for i in scene.items])
+        self.assertEqual(sorted(order), sorted(int(i["index"]) for i in scene.items))
+        self.assertGreater(len(agent.plan), 0)
+        # the plan is feasible on the analytic model step by step: every pose
+        # passes the validator on the board its predecessors built
+        board = layer1.Board(containers, agent.config)
+        by_index = {int(i["index"]): i for i in scene.items}
+        for entry in agent.plan:
+            model = board.model(entry["container_idx"])
+            container = board.container(entry["container_idx"])
+            box = AABB(tuple(entry["center"]), tuple(entry["size"]), "plan")
+            ok, why = layer1.validate(box, model, container, agent.config)
+            self.assertTrue(ok, why)
+            profile = agent.profiles[entry["index"]]
+            orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
+            from rule_alpha.planner import _placement, _Pose
+            board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"], model))
+        # the plan's items come first in the order, in plan order
+        self.assertEqual(order[:len(agent.plan)], [e["index"] for e in agent.plan])
+        # online, the planned poses are replayed
+        record = run_analytic_episode(scene, arm)
+        self.assertGreaterEqual(record["metrics"]["placed_count"], len(agent.plan) - 1)
+
     def test_last_resort_only_adds_placements_where_the_ladder_declined(self):
         from bench.analytic import run_analytic_episode
 

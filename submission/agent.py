@@ -44,6 +44,18 @@ OVERRIDES = dict(
     # that container's floor (three more priority boxes placed a scene on
     # that layout, shake energy 239 -> 168, fill -0.3 on the suite, n.s.)
     priority_cargo_first=True,
+    # Task A: the manifest is packed offline by the row planner
+    # (rule_alpha/planner.py) instead of dry-running the ladder: rows back
+    # to front, layers on whole rows, the soft cargo on top under a
+    # headroom the hard stacks keep free; the plan is replayed online and
+    # the ladder takes over wherever a pose no longer fits the settled
+    # board.  The planner takes a few seconds where the dry-run took the
+    # whole budget on the evaluation machine.
+    offline_planner="rows", plan_variants="after-hard",
+    reserve_headroom_for_soft=True, soft_headroom_volume_share=0.75, soft_headroom_slack=0.05,
+    # priority cargo carries load (only priority cargo may sit on it under
+    # the cover rule): the priority container gets its second layer
+    priority_is_structure=True,
 )
 STACK_POLICY = "weights/stack"
 

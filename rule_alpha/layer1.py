@@ -247,6 +247,10 @@ class Board:
         self.foundation_pending: dict[int, tuple[float, float]] = {}
         self.large_threshold: float = float("inf")
         self.small_threshold: float = 0.0
+        # Task A: height kept free under the ceiling for the soft cargo still
+        # to come; non-soft candidates may not rise into it (the agent sets
+        # it per decision, see RuleAlphaAgent._soft_headroom_reserve)
+        self.soft_headroom_reserve: float = 0.0
         self.min_useful_width: float = config.row_min_useful_width
         # the flattest pose in the hard manifest, in metres.  The official
         # scorer counts an item only if every corner clears every plane by
@@ -3746,6 +3750,12 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             container = board.container(container_idx)
             pool = [c for c in pool
                     if not _covers_other_attribute(c.box, container, profile.is_soft, profile.is_prioritized)]
+        reserve = float(getattr(board, "soft_headroom_reserve", 0.0) or 0.0)
+        if pool and reserve > 0.0 and not profile.is_soft:
+            # the top layer is being kept for the soft cargo: hard stacks
+            # stop that far under the ceiling, whatever the archetype
+            cap = model.z_ceiling - reserve
+            pool = [c for c in pool if float(c.box.maximum[2]) <= cap + 1e-9]
         if not pool:
             continue
 

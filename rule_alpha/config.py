@@ -1377,14 +1377,63 @@ class RuleAlphaConfig:
     strict margins, so a relaxed pose never enters the plan mid-order."""
 
     reserve_headroom_for_soft: bool = False
-    """Task A: while soft cargo of the manifest is unplaced, the stack option
-    keeps the hard stacks below the ceiling by the flattest height of that
-    cargo (plus ``soft_headroom_slack``), so a top layer stays for it.  At
-    the decline on core-a c1 the unplaced items were the soft ones (10 to
-    14 a scene, 12 to 17 % of the container) with every free top within
-    0.25 m of the ceiling."""
+    """Task A: while soft cargo of the manifest is unplaced, the ladder and
+    the stack option keep every non-soft placement below the ceiling by the
+    flattest height of that cargo (plus ``soft_headroom_slack``), so a top
+    layer stays for it; the last resort lifts the cap.  At the decline on
+    core-a c1 the unplaced items were the soft ones (10 to 14 a scene, 12
+    to 17 % of the container): the terraces reach 1.44-1.50 of a 1.57
+    ceiling by the tenth item and the free tops that remain are pockets no
+    soft pose fits (zero validator-legal poses on a-c1-s0001)."""
 
     soft_headroom_slack: float = 0.03
+
+    soft_headroom_volume_factor: float = 0.0
+    """When positive, the reserve is at least this factor times the volume
+    of the unplaced soft cargo over the floor area (1.0 = a layer packed
+    without gaps; 1.5 allows for the usual waste), so a manifest with many
+    soft items keeps more than the tallest one's height."""
+
+    soft_headroom_volume_share: float = 1.0
+    """The reserve is the flattest height under which this share of the
+    unplaced soft volume fits (1.0: the tallest soft item's height; 0.75:
+    the tall few -- the 0.4 m standing D boxes -- take what is left)."""
+
+    offline_planner: str = ""
+    """Task A: plan the whole manifest offline with the greedy geometric
+    packer (``rule_alpha/planner.py``) instead of dry-running the ladder;
+    the value is the pose preference: ``lowest``, ``walls`` or ``band``.
+    Empty keeps the ladder dry-run (``offline_dry_run``)."""
+
+    plan_band: float = 0.22
+    """Layer band height of the ``band`` preference."""
+
+    priority_is_structure: bool = False
+    """Priority cargo carries load in the stability model (by default it is
+    left out, like soft cargo, so nothing is built on it).  With the cover
+    rule in force only priority cargo may sit on priority cargo anyway;
+    without this the priority container never gets a second layer."""
+
+    plan_variants: str = "after-hard,mixed,last"
+    """Orders of the priority cargo the planner tries (``planning_order``);
+    the plan with the most volume is kept."""
+
+    plan_min_support: float = 0.6
+    """Least share of its footprint a planned hard box rests on (raised
+    poses); the validator's centre-of-mass rule alone is not enough for a
+    pose that has to survive the physics settle."""
+
+    plan_min_support_soft: float = 0.8
+    """The same for soft cargo, which deforms and tips off a partial
+    support (a soft box on 40 % of its footprint fell in physics)."""
+
+    plan_standing: bool = True
+    """Rows may stand a box up where no flat pose is legal at the slot
+    (the mid-height transport band, see ``planner._standing_poses``)."""
+
+    plan_replay: bool = True
+    """Online, replay the planned pose of the pool item when it still passes
+    the validator on the settled board; otherwise the ladder decides."""
 
     priority_cargo_first: bool = False
     """Task A: when a priority container exists, hand the priority cargo
