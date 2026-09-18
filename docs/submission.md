@@ -63,6 +63,17 @@ v3 clears soft/priority coverage and halves the Task C shake proxies for
 priority-container layout and cuts its shake energy by a third for -0.3
 fill on the Task A suite (n.s.).  See `reports/wedge/findings.md`.
 
+Fifth build (v5, `official-sample-abc-v5.json`): Task A is packed offline
+by the row planner (`rule_alpha/planner.py`) against the ladder's
+dry-run, the better plan by fill + soft + priority shares replayed online
+(`offline_planner`, `plan_score_weights`, `priority_is_structure`;
+findings section "Task A: the row planner").  Sample scores A 29.2
+(24 of 41; v4 32.1 / 25), B 28.7, C 23.1; optimize 30 s, policy max
+4.4 s.  On the first four core-a scenes in physics the planner places
+10-14 of 25 soft items on the two-container layouts against 0-4, +2 to
++7 fill there, -4 to -6 on the single-container ones (where the hybrid
+keeps the ladder's plan unless the soft share outweighs it).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

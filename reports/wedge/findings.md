@@ -957,6 +957,84 @@ Placing most of the items needs a real layer plan (a layer height most
 items can present, the SKU heights being 0.24 / 0.25 / 0.27 for the hard
 ones), and that is a separate build.
 
+## Task A: the row planner (v5)
+
+What the dry-run leaves behind.  On a-c1-s0001 the v4 agent places 31 of
+41 (fill 47.0); the ten items left are soft, and a probe over every anchor
+pose the stack region would try finds *zero* validator-legal poses for
+them: the ladder's terraces reach 1.44-1.50 of the 1.57 ceiling by the
+tenth item and the free tops that remain are pockets (0.45 x 0.20,
+0.23 x 0.35 ...).  A headroom cap for the soft cargo applied to the
+ladder's own archetypes did not help (24 of 41: the cap stops the
+terraces and the soft still finds no plateau), so the cap now only
+serves the planner below.
+
+Two facts about the simulator shape any planned layout:
+
+* The transport check lifts an item by 0.08 m, but when the item's top
+  comes within 0.098 m of the mid-height "ceiling" (height/2 + buffer,
+  0.81 m in these containers -- a surface the validator checks in *every*
+  container, shelf or not) the lift is cut to the clearance minus 0.0185
+  m.  Below 0.015 m of lift the item collides with its own support on the
+  way in.  So no box may rest on another with its top in (0.7765, 0.81]
+  (our validator: (0.7655, 0.81]): a third flat layer of A or B boxes
+  over two flat layers is dead, and the terraces are how the ladder lives
+  with it.  The planner stands a box up where no flat pose is legal.
+* The stability model does not count priority cargo as support ("not
+  structure"), so nothing -- not even priority cargo -- could be built
+  on it, and the priority container never got a second layer.
+  `priority_is_structure` makes it carry load; the cover rule already
+  keeps everything but priority cargo off it.
+
+`rule_alpha/planner.py`: rows from the back wall to the opening, left to
+right, on row lines found once by a search over the flat sides of the
+manifest (most volume, greedy fill) and shared by every layer, so a layer
+rests on whole rows; poses drop onto the packed tops (or a shelf top),
+slide along the row and a little forward until the validator accepts
+them, and a raised soft pose needs 80 % of its footprint on support (a
+soft box on 40 % tipped in physics and ended the episode).  The hard
+stacks stop below the ceiling by the height under which three quarters
+of the soft volume fits (+0.05), the soft rows go on top, priority cargo
+after the normal hard cargo (nothing may be built on it but more of it),
+and what the rows leave goes through the greedy pose search.  The plan is
+replayed online, each pose re-validated on the settled board; the ladder
+takes over where a pose no longer fits.  Planning takes 3-12 s here
+(the dry-run 26 s; on the evaluation machine the dry-run used the whole
+140 s budget).
+
+Both plans are made offline -- the planner first, the ladder's dry-run
+with what is left of the budget -- and the one that scores higher on
+fill share + 0.5 x soft share placed + 0.5 x priority share placed is
+used; the reserve is off under the dry-run (it cost the ladder 7 of 31).
+
+Five core-a scenes, analytic (v4 dry-run / planner alone / hybrid):
+
+| scene | v4 | planner | hybrid |
+|---|---|---|---|
+| a-c1-s0001 | 31, fill 47.0, soft 5/15 | 25, 40.8, soft 4/15 | 27, 42.2, soft 6/15 |
+| a-c1-s0002 | 23, 44.3, soft 2/15 | 27, 46.8, 8/15 | - |
+| a-c1s-s0002 | 24, 46.2, soft 1/15 | 20-24, 36-44, 6-7/15 | 22, 37.5, 6/15 |
+| a-c1-s0004 | 24, 40.5, soft 1/15 | 25, 40.6, 7/15 | - |
+| a-c2p-s0009 | 28/82, 28.4, soft 4/21, prio 12/12 | 40, 34.8, 12/21, 12/12 | 36, 28.1, 10/21, 12/12 |
+
+Physics, first four core-a scenes, planner alone (`rows3b-core-a-physics4`,
+against the v4 physics run): every episode ends on a decline, no settle
+failure; a-c1-s0001 25 / 40.8 (v4 31 / 47.0), a-c1s-s0001 22 / 35.4
+(24 / 39.3), a-c2-s0001 52 / 42.5 with 14 of 25 soft and 4 of 10
+priority items placed (v4 46 / 38.7, soft 0, priority 0), a-c2p-s0001
+46 / 38.8 with 10 of 25 soft (36 / 32.2, soft 4).  Shake energy 7-21
+against 10-268.  The single-container layouts are the ladder's, the
+two-container ones the planner's; the hybrid takes each.
+
+Official sample tasks (this sandbox): A 29.2 with 24 of 41 (v4 32.1 /
+25), B and C unchanged (28.7, 23.1); optimize 30 s, policy max 4.4 s.
+The sample task A has one container and the planner's plan won the
+comparison on its soft share; the fill cost there is the bet that the
+official soft and placement components count the cargo placed.
+
+Suite figures (48 scenes) are in `reports/bench/v4-vs-hybrid-core-a-analytic.json`
+and the physics run `reports/bench/hybrid-core-a` (Actions).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
