@@ -44,3 +44,9 @@
 | a-c2p-s0010 | 34 | 82 | 27.635 | None | None | 0.2649 | 0 | 0 | 0 | None | None | 2.374 | 0 | declined | 77.23 |
 | a-c1-s0011 | 29 | 41 | 45.331 | None | None | 0.4099 | 0 | 0 | 0 | None | None | 1.526 | 0 | declined | 48.33 |
 | a-c1s-s0011 | 23 | 41 | 36.395 | None | None | 0.3375 | 0 | 0 | 0 | None | None | 1.747 | 0 | declined | 39.32 |
+| a-c2-s0011 | 48 | 82 | 36.973 | None | None | 0.3201 | 0 | 0 | 0 | None | None | 3.254 | 0 | declined | 101.48 |
+| a-c2p-s0011 | 40 | 82 | 32.028 | None | None | 0.3353 | 0 | 0 | 0 | None | None | 3.465 | 0 | declined | 85.77 |
+| a-c1-s0012 | 21 | 41 | 35.537 | None | None | 0.2829 | 0 | 0 | 0 | None | None | 0.849 | 0 | declined | 25.82 |
+| a-c1s-s0012 | 22 | 41 | 37.797 | None | None | 0.3535 | 0 | 0 | 0 | None | None | 1.046 | 0 | declined | 31.36 |
+| a-c2-s0012 | 47 | 82 | 37.488 | None | None | 0.3249 | 0 | 0 | 0 | None | None | 2.267 | 0 | declined | 93.97 |
+| a-c2p-s0012 | 34 | 82 | 27.564 | None | None | 0.2797 | 0 | 0 | 0 | None | None | 2.249 | 0 | declined | 66.15 |
