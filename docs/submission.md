@@ -54,6 +54,15 @@ container exists), policy max 2.1 s (A), 5.3 s (B), 2.3 s (C), optimize
 and +2.0 (Task A) fill points over the first build and ahead of the live
 trunk agent on both (`reports/wedge/findings.md`).
 
+Third and fourth builds (v3: `no_cover_other_attribute`; v4: v3 plus
+`priority_cargo_first`, commit 7606e9f): sample scores unchanged (the
+sample tasks have one container and their coverage was already clean),
+policy max 2.7 s (A), 5.4 s (B), 3.0 s (C), optimize 51 s.  On the bench
+v3 clears soft/priority coverage and halves the Task C shake proxies for
+-0.7 fill (n.s.); v4 places three more priority boxes a scene on the
+priority-container layout and cuts its shake energy by a third for -0.3
+fill on the Task A suite (n.s.).  See `reports/wedge/findings.md`.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
