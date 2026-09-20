@@ -75,6 +75,15 @@ against 77 and 178 of 314 priority items against 130, lowers the centre
 of mass, never topples in the shake (v4: 0.46 topples a scene) and ends
 no episode on a physics failure (v4: 3).
 
+Sixth and seventh builds (v6: no standing boxes, three ranked row
+layouts; v7, commit 78d478f: v6 plus the tolerant plan replay and the
+conservative transport model, findings section "v6 and v7").  v7 on the
+48-scene Task A physics suite: fill 39.3 (v5 37.8), soft items placed
+49 % (41 %), priority 79 % (57 %), one physics failure in 48 episodes.
+Sample tasks: A 24.6 with 20 of 41 (the plan score takes the 4-of-4
+priority plan over the ladder's 25-item one on that manifest), B 28.7,
+C 23.1; optimize 54 s, policy max 4.5 s.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

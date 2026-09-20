@@ -1058,6 +1058,48 @@ any cover).  The one loss is the priority-container layout's fill
 (-2.6), where the planner's rows in the priority container hold fewer
 boxes than the ladder's overflow did.
 
+### v6 and v7: what the first official result taught, and two physics gaps
+
+The official v5 result (fill 34.6, cog 40.9, stability 46.1, placement
+25.5, soft 20.45; v4: 36.3 / 41.4 / 50.1 / 19.4 / 10.4) moved the two
+components the planner was built for by +10 and +6 and cost 1.7 fill and
+4.1 stability.  Optimization took the whole budget there, so the
+planner's plan is the one in use on every Task A scene of the platform.
+
+Three changes followed, each measured on the 48-scene physics suite:
+
+* **No standing boxes** (`plan_standing`): a standing box takes a slot a
+  flat row above would have used; alone, +0.6 fill and no failure.
+* **Three ranked row layouts** (`plan_layouts`), each packed in full, the
+  best plan by the score kept.  Alone it *lost* 2.5 fill: its plans did
+  not replay.  The plan's gaps are the strict clearance plus half a
+  millimetre, so a neighbour that settled a millimetre off failed the
+  next pose as planned, and once the ladder improvised the rest of the
+  plan was gone (a-c2-s0002: 2 of 47 planned poses replayed).  The
+  replay now re-checks a pose with the simulator's own settled clearance
+  (0.02) and slides it up to 2 cm; the sweep keeps the strict clearance.
+* **Conservative transport model** (`rule_alpha/transport.py`): with the
+  replay fix eight episodes ended on a transport failure, every one a
+  box whose bottom sat exactly at the shelf level (0.86 m).  The
+  simulator's zero-lift rule triggered in its float32 (0.860000) and not
+  in ours (0.859999), so it carried the box in at its own height onto
+  its support.  The two height rules are now applied within 3 mm of
+  their edges.
+
+| build | fill | soft placed | priority placed | planned poses replayed / scene | physics failures | topples |
+|---|---|---|---|---|---|---|
+| v4 | 38.0 | 9 % | 41 % | - | 3 | 0.46 |
+| v5 | 37.8 | 41 % | 57 % | 26.2 | 0 | 0.00 |
+| v5, standing off | 38.4 | 43 % | 56 % | 27.5 | 0 | 0.00 |
+| v5, three layouts | 35.3 | 30 % | 63 % | 13.6 | 2 | 0.17 |
+| v6 (both) with the replay fix | 39.0 | 47 % | 74 % | 31.3 | 9 | 0.04 |
+| v7 (v6 + conservative transport) | 39.3 | 49 % | 79 % | 31.9 | 1 | 0.04 |
+
+v7 minus v5: fill +1.6 [+0.5, +2.6]; per layout c1 41.7 (42.3), c1s
+41.7 (38.4), c2 41.0 (39.3), c2p 33.0 (31.1).  Official sample task A:
+24.6 with 20 of 41 (v5 29.2 / 24): the plan score takes the 4-of-4
+priority plan over the ladder's 25-item plan on that manifest.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
