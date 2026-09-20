@@ -167,25 +167,49 @@ class RuleAlphaAgent:
                     + weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
                     + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total)
 
+        self.plan_score = score_of
         planned = None
-        if getattr(self.config, "offline_planner", "") and self.board is not None and len(order) > 1:
+        use_planner = bool(getattr(self.config, "offline_planner", "")) and self.board is not None and len(order) > 1
+        use_dry_run = bool(self.config.offline_dry_run) and self.board is not None and len(order) > 1
+        # with a main shelf the ladder's shelf archetypes pack ten fill
+        # points more than the rows (a-c1s-s0002: 46 against 36), so there
+        # the dry-run goes first and takes the budget; the planner only
+        # runs if time is left.  On the evaluation machine the dry-run
+        # fills the budget, so this decides which plan a layout gets.
+        dry_run_first = use_dry_run and getattr(self.config, "plan_dry_run_first_with_shelf", False) \
+            and any(getattr(m, "main_shelf", None) is not None for m in self.board.models)
+
+        def run_planner():
             from .planner import plan_packing
 
             # the headroom reserve belongs to the planner's plan (see
             # _soft_headroom_reserve); it is set while planning
             self.plan_source = "planner"
-            planned = plan_packing(self, item_list, deadline)
+            result = plan_packing(self, item_list, deadline)
             self.plan_source = ""
-        if self.config.offline_dry_run and self.board is not None and len(order) > 1 \
-                and time.perf_counter() < deadline:
-            # the ladder's own dry-run with what is left of the budget; the
-            # plan that scores higher (fill, soft placed, priority placed)
-            # decides.  On a slow machine the dry-run is cut short and the
-            # planner's full plan wins by itself; on a fast one the ladder
-            # keeps the layouts it packs better
+            return result
+
+        def run_dry_run():
             from .offline import dry_run_order
 
-            dry_order, dry_plan = dry_run_order(self, item_list, order, deadline)
+            return dry_run_order(self, item_list, order, deadline)
+
+        dry = None
+        if dry_run_first:
+            dry = run_dry_run()
+            if use_planner and time.perf_counter() < deadline - float(getattr(self.config, "plan_min_seconds", 15.0)):
+                planned = run_planner()
+        else:
+            if use_planner:
+                planned = run_planner()
+            if use_dry_run and time.perf_counter() < deadline:
+                # the ladder's own dry-run with what is left of the budget;
+                # the plan that scores higher (fill, soft placed, priority
+                # placed) decides.  On a slow machine the dry-run is cut
+                # short and the planner's full plan wins by itself
+                dry = run_dry_run()
+        if dry is not None:
+            dry_order, dry_plan = dry
             if planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9:
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None

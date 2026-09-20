@@ -159,7 +159,8 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
 
 
 def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
-              planned: list, deadline: float, log=None, row_lines: list | None = None) -> list:
+              planned: list, deadline: float, log=None, row_lines: list | None = None,
+              layout_index: int = 0) -> list:
     """Fills one container with the given items in layers of rows: rows from
     the back wall to the opening, each row from the left to the right, each
     layer on whatever the last one left (poses drop onto the packed tops);
@@ -221,19 +222,20 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             x_cursor += o.dx + gap
         return row
 
-    def best_layout(pool: list, x_left: float) -> list:
-        """The sequence of rows (depth, items) over the floor's depth with
-        the most volume, by a search over the row depths (the flat sides of
-        the items) with the greedy row fill above."""
+    def best_layouts(pool: list, x_left: float, k: int = 1) -> list:
+        """The ``k`` best sequences of rows (depth, items) over the floor's
+        depth by volume, by a search over the row depths (the flat sides of
+        the items) with the greedy row fill above; distinct in their row
+        depths."""
         depths = sorted({round(side, 4) for p in pool for o in _flat_poses(p) for side in (o.dx, o.dy)}, reverse=True)
-        best = (0.0, [])
+        found: dict[tuple, tuple] = {}
         budget = [4000]
 
         def search(remaining: list, y_left: float, rows: list, volume: float):
-            nonlocal best
             budget[0] -= 1
-            if volume > best[0]:
-                best = (volume, list(rows))
+            key = tuple(d for d, _r in rows)
+            if rows and volume > found.get(key, (0.0, []))[0]:
+                found[key] = (volume, list(rows))
             if not remaining or budget[0] <= 0:
                 return
             for d in depths:
@@ -251,7 +253,16 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                     return
 
         search(list(pool), rect.y_max - slack - y_front, [], 0.0)
-        return best[1]
+        # a prefix of a longer sequence is not a different layout
+        ranked = sorted(found.items(), key=lambda kv: -kv[1][0])
+        out = []
+        for key, (_v, rows) in ranked:
+            if any(key == other[:len(key)] for other in (o[0] for o in out)):
+                continue
+            out.append((key, rows))
+            if len(out) >= k:
+                break
+        return [rows for _key, rows in out]
 
     def try_slot(profile, orientation, x_cursor: float, y_back: float):
         """The pose at the row's cursor, slid along the row and a little
@@ -339,8 +350,10 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
         if not row_lines:
             # the floor's rows come from the search; every later layer
             # keeps the same row lines, so its boxes rest on whole rows
+            layouts = best_layouts(list(items), x_left, layout_index + 1)
+            layout = layouts[min(layout_index, len(layouts) - 1)] if layouts else []
             y_back = rect.y_max - slack
-            for depth, _row in best_layout(list(items), x_left):
+            for depth, _row in layout:
                 row_lines.append((y_back, depth))
                 y_back -= depth + gap
         for y_back, depth in row_lines:
@@ -375,23 +388,34 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     item with the settled pose.  Several orders of the priority cargo are
     planned within the deadline and the plan with the most volume kept."""
     config = agent.config
-    variants = [v for v in str(getattr(config, "plan_variants", "after-hard,mixed,last")).split(",") if v]
+    import re
+
+    # "+" as well as "," between variants: an arm spec's overrides are
+    # themselves comma-separated
+    orders = [v for v in re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard,mixed,last"))) if v]
+    layouts = max(1, int(getattr(config, "plan_layouts", 1)))
+    variants = [(o, li) for li in range(layouts) for o in orders]
+    scorer = getattr(agent, "plan_score", None)
     best = None
     started = time.perf_counter()
-    for n, variant in enumerate(variants):
+    for n, (variant, layout_index) in enumerate(variants):
         share = (deadline - time.perf_counter()) / max(1, len(variants) - n)
-        order, plan = _plan_once(agent, item_list, min(deadline, time.perf_counter() + share), variant, log)
+        order, plan = _plan_once(agent, item_list, min(deadline, time.perf_counter() + share), variant, log,
+                                 layout_index=layout_index)
         volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
+        score = scorer(plan) if scorer is not None else volume
         if log:
-            log(f"  [plan] variant {variant}: {len(plan)} planned, {volume:.3f} m^3, {time.perf_counter() - started:.1f}s")
-        if best is None or (volume, len(plan)) > best[0]:
-            best = ((volume, len(plan)), order, plan)
+            log(f"  [plan] variant {variant}/layout {layout_index}: {len(plan)} planned, {volume:.3f} m^3, "
+                f"score {score:.3f}, {time.perf_counter() - started:.1f}s")
+        if best is None or (score, len(plan)) > best[0]:
+            best = ((score, len(plan)), order, plan)
         if time.perf_counter() >= deadline:
             break
     return best[1], best[2]
 
 
-def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log=None) -> tuple[list[int], list[dict]]:
+def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log=None,
+               layout_index: int = 0) -> tuple[list[int], list[dict]]:
     from wedge_rl.stack import stack_candidates
 
     config = agent.config
@@ -421,12 +445,12 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
         if priority_idx:
             for ci in priority_idx:
                 items = [p for p in remaining if p.is_prioritized]
-                pack_rows(agent, board, ci, items, config, plan, planned, deadline, log)
+                pack_rows(agent, board, ci, items, config, plan, planned, deadline, log, layout_index=layout_index)
                 remaining = [p for p in remaining if p.index not in set(planned)]
         for ci in normal_idx or list(range(len(board.models))):
             items = [p for p in remaining if not (p.is_prioritized and priority_idx)]
             hard = [p for p in items if not p.is_soft]
-            lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log)
+            lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, layout_index=layout_index)
             soft = [p for p in items if p.is_soft]
             pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log, row_lines=lines)
             remaining = [p for p in remaining if p.index not in set(planned)]

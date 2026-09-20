@@ -54,7 +54,18 @@ OVERRIDES = dict(
     # With offline_dry_run on as well, the ladder's dry-run gets what is
     # left of the budget and the plan with the more volume is used: on a
     # slow machine the planner's full plan wins by itself.
-    offline_planner="rows", plan_variants="after-hard", plan_min_support=0.0,
+    # three ranked row layouts, each packed in full, the best plan by the
+    # score kept (+0.7 fill, +3 priority boxes on a-c1s-s0002 over one);
+    # the deadline cuts what does not fit the budget
+    offline_planner="rows", plan_variants="after-hard", plan_layouts=3, plan_min_support=0.0,
+    # no standing boxes in the rows: flat only packs 2 fill points more on
+    # the five probe scenes, and v5's official stability fell 4 points
+    plan_standing=False,
+    # containers with a main shelf: the ladder's dry-run first would pack
+    # 0.4 fill points more on the shelf layouts (30 s budget, analytic) but
+    # place 3 of 15 soft items fewer; the official v5 result priced soft
+    # and placement above that, so the planner goes first everywhere
+    plan_dry_run_first_with_shelf=False,
     reserve_headroom_for_soft=True, soft_headroom_volume_share=0.75, soft_headroom_slack=0.05,
     # priority cargo carries load (only priority cargo may sit on it under
     # the cover rule): the priority container gets its second layer

@@ -1428,9 +1428,12 @@ class RuleAlphaConfig:
     """The same for soft cargo, which deforms and tips off a partial
     support (a soft box on 40 % of its footprint fell in physics)."""
 
-    plan_standing: bool = True
+    plan_standing: bool = False
     """Rows may stand a box up where no flat pose is legal at the slot
-    (the mid-height transport band, see ``planner._standing_poses``)."""
+    (the mid-height transport band, see ``planner._standing_poses``).
+    Off: on five core-a scenes the flat-only rows pack 2 fill points and
+    1.6 soft items a scene more (a standing box takes a slot a flat row
+    above would have used), and v5's official stability score fell."""
 
     plan_score_weights: str = "1,0.5,0.5"
     """How the planner's plan and the ladder's dry-run plan are compared:
@@ -1438,6 +1441,21 @@ class RuleAlphaConfig:
     the soft cargo placed and the share of the priority cargo placed.  The
     official score has a component for each; the fill is the one whose
     definition is known, so the other two count half."""
+
+    plan_layouts: int = 1
+    """How many of the row-depth layouts the search ranks the planner
+    packs in full (each a plan of its own; the best by the plan score is
+    kept).  A plan takes 3-12 s here, about five times that on the
+    evaluation machine."""
+
+    plan_dry_run_first_with_shelf: bool = False
+    """When a container has a main shelf, run the ladder's dry-run before
+    the planner (the shelf archetypes pack about ten fill points more
+    than the rows there); the planner runs only with ``plan_min_seconds``
+    of the budget left.  On the evaluation machine the dry-run takes the
+    whole budget, so this chooses the ladder's plan for shelf layouts."""
+
+    plan_min_seconds: float = 15.0
 
     plan_replay: bool = True
     """Online, replay the planned pose of the pool item when it still passes
