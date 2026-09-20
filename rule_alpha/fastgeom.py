@@ -83,7 +83,9 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
     if not model.inside(commanded, config.inclusion_clearance):
         return False, "outside-container"
 
-    samples = transport_samples(box, container)
+    from .transport import transport_samples as conservative_samples
+
+    samples = conservative_samples(box, container)
     if samples:
         transport_z = float(samples[0].center[2])
         transported = AABB(
