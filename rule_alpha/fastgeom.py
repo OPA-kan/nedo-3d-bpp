@@ -115,8 +115,9 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
         centres = np.array([s.center for s in samples], dtype=np.float64)
         smin = centres - half
         smax = centres + half
-        shelf_hits = _within_clearance(smin, smax, obs["shelf_min"], obs["shelf_max"], config.settled_clearance)
-        packed_hits = _within_clearance(smin, smax, obs["packed_min"], obs["packed_max"], config.settled_clearance)
+        sweep = getattr(config, "transport_clearance", None) or config.settled_clearance
+        shelf_hits = _within_clearance(smin, smax, obs["shelf_min"], obs["shelf_max"], sweep)
+        packed_hits = _within_clearance(smin, smax, obs["packed_min"], obs["packed_max"], sweep)
         shelf_rows = shelf_hits.any(axis=1) if shelf_hits.size else np.zeros(len(samples), dtype=bool)
         packed_rows = packed_hits.any(axis=1) if packed_hits.size else np.zeros(len(samples), dtype=bool)
         any_rows = shelf_rows | packed_rows

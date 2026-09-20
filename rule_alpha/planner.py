@@ -28,6 +28,7 @@ Preferences (``config.offline_planner``):
 from __future__ import annotations
 
 import copy
+import dataclasses
 import time
 
 from . import classify as cls
@@ -526,12 +527,33 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
             continue
         model = board.model(container_idx)
         container = board.container(container_idx)
-        box = AABB(tuple(entry["center"]), tuple(entry["size"]), ARCHETYPE)
-        ok, why = layer1.validate(box, model, container, config)
-        if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
-                box, container, bool(profile.is_soft), bool(profile.is_prioritized)):
-            ok, why = False, "covers-other-attribute"
-        if not ok:
+        # the plan's gaps are the validator's clearance plus half a
+        # millimetre; a settled neighbour a millimetre off makes the pose
+        # illegal as planned, and once one pose is missed the ladder's
+        # improvisation breaks the rest of the plan (a-c2-s0002: two of 47
+        # planned poses replayed).  So the pose is checked with the
+        # clearance the simulator itself asks (plus a guard), and slid by
+        # up to ``plan_replay_nudge`` to clear what has drifted.
+        clearance = min(config.settled_clearance, float(getattr(config, "plan_replay_clearance", 0.02)))
+        replay_config = dataclasses.replace(config, settled_clearance=clearance,
+                                            transport_clearance=config.settled_clearance)
+        nudge = float(getattr(config, "plan_replay_nudge", 0.02))
+        shifts = sorted({0.0, nudge / 2.0, -nudge / 2.0, nudge, -nudge}, key=abs)
+        box = None
+        for dy in shifts:
+            for dx in shifts:
+                centre = (float(entry["center"][0]) + dx, float(entry["center"][1]) + dy, float(entry["center"][2]))
+                candidate = AABB(centre, tuple(entry["size"]), ARCHETYPE)
+                ok, why = layer1.validate(candidate, model, container, replay_config)
+                if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
+                        candidate, container, bool(profile.is_soft), bool(profile.is_prioritized)):
+                    ok = False
+                if ok:
+                    box = candidate
+                    break
+            if box is not None:
+                break
+        if box is None:
             agent.plan_misses += 1
             continue
         orientation = next(o for o in profile.orientations if o.index == int(entry["orientation"]))

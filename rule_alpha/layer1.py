@@ -757,10 +757,10 @@ def _validate_reference(box: AABB, model: ContainerModel, container: dict, confi
 
     for sample in samples:
         for obstacle in shelf_aabbs(container):
-            if within_euclidean_clearance(sample, obstacle, config.settled_clearance):
+            if within_euclidean_clearance(sample, obstacle, getattr(config, "transport_clearance", None) or config.settled_clearance):
                 return False, f"transport-hits-{obstacle.name}"
         for obstacle, _soft, _prio in packed_aabbs_local(container):
-            if within_euclidean_clearance(sample, obstacle, config.settled_clearance):
+            if within_euclidean_clearance(sample, obstacle, getattr(config, "transport_clearance", None) or config.settled_clearance):
                 return False, "transport-hits-packed-item"
     return True, "ok"
 

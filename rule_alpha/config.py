@@ -1457,6 +1457,23 @@ class RuleAlphaConfig:
 
     plan_min_seconds: float = 15.0
 
+    transport_clearance: float = 0.0
+    """Clearance of the transport sweep from packed cargo and shelves when
+    positive; otherwise ``settled_clearance``.  Set by the plan replay,
+    which relaxes the settled clearance but not the sweep's (the analytic
+    sweep is a coarser model of the simulator's than the settled overlap)."""
+
+    plan_replay_clearance: float = 0.02
+    """Clearance a planned pose is re-checked with online (the simulator's
+    own margin is 0.015): the plan's gaps are the strict clearance plus
+    half a millimetre, and a neighbour that settled a millimetre off would
+    otherwise fail the pose as planned."""
+
+    plan_replay_nudge: float = 0.02
+    """How far (m) a planned pose may slide in x and y at replay to clear
+    neighbours that settled off the plan; the smallest shift that passes
+    is taken."""
+
     plan_replay: bool = True
     """Online, replay the planned pose of the pool item when it still passes
     the validator on the settled board; otherwise the ladder decides."""
