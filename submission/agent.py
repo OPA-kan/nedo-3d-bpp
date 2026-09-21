@@ -26,6 +26,7 @@ from rule_alpha.agent import RuleAlphaAgent  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 
 PLAN_LAYOUTS = 1
+PLAN_VARIANTS = "after-hard"
 PLAN_STANDING = True
 REPLAY_CLEARANCE = 0.026
 REPLAY_NUDGE = 0.0
@@ -65,7 +66,7 @@ OVERRIDES = dict(
     # v5's 35.1 while the bench had it ahead, so the two are probed one at
     # a time from here; the replay tolerance and the conservative
     # transport model (safety fixes) are on
-    offline_planner="rows", plan_variants="after-hard", plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
+    offline_planner="rows", plan_variants=PLAN_VARIANTS, plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
     plan_standing=PLAN_STANDING,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
