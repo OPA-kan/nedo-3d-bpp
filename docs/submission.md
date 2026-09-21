@@ -84,6 +84,15 @@ Sample tasks: A 24.6 with 20 of 41 (the plan score takes the 4-of-4
 priority plan over the ladder's 25-item one on that manifest), B 28.7,
 C 23.1; optimize 54 s, policy max 4.5 s.
 
+Eighth build (v8, commit 6d50bda): v7 with the planner's layouts run one
+after the other against the whole budget, a cut plan used only when none
+finished.  The official v7 result (total 29.47 against v5's 35.09) came
+from the budget split: on the evaluation machine a third of the budget
+did not finish a plan, so the soft rows and the priority cargo -- the
+end of every plan -- were never planned.  Sample tasks unchanged from
+v7 (A 24.6, B 28.7, C 23.1), optimize 40 s, policy max 4.5 s.  On this
+machine v8 plans exactly as v7, so the v7 physics suite figures stand.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
