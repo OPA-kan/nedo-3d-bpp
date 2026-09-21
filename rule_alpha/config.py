@@ -1463,6 +1463,11 @@ class RuleAlphaConfig:
     which relaxes the settled clearance but not the sweep's (the analytic
     sweep is a coarser model of the simulator's than the settled overlap)."""
 
+    conservative_transport: bool = True
+    """The transport sweep applies the simulator's zero-lift and ceiling
+    rules within 3 mm of their edges (``rule_alpha/transport.py``).  Off
+    reproduces the production model's exact rules (the v5 build)."""
+
     plan_replay_clearance: float = 0.02
     """Clearance a planned pose is re-checked with online (the simulator's
     own margin is 0.015): the plan's gaps are the strict clearance plus

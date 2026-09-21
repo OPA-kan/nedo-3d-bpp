@@ -723,9 +723,12 @@ def _validate_reference(box: AABB, model: ContainerModel, container: dict, confi
     if not model.inside(commanded, config.inclusion_clearance):
         return False, "outside-container"
 
-    from .transport import transport_samples as conservative_samples
+    if getattr(config, "conservative_transport", True):
+        from .transport import transport_samples as conservative_samples
 
-    samples = conservative_samples(box, container)
+        samples = conservative_samples(box, container)
+    else:
+        samples = transport_samples(box, container)
     if samples:
         transport_z = float(samples[0].center[2])
         transported = AABB(

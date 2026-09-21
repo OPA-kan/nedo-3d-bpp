@@ -27,6 +27,9 @@ from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 
 PLAN_LAYOUTS = 1
 PLAN_STANDING = True
+REPLAY_CLEARANCE = 0.026
+REPLAY_NUDGE = 0.0
+CONSERVATIVE_TRANSPORT = False
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
@@ -64,6 +67,13 @@ OVERRIDES = dict(
     # transport model (safety fixes) are on
     offline_planner="rows", plan_variants="after-hard", plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
     plan_standing=PLAN_STANDING,
+    # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
+    # at replay, the conservative transport model) cost 2.4 points on the
+    # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the
+    # bench could see, so the replay is strict again and the production
+    # transport rules are used: this reproduces the v5 build's decisions
+    plan_replay_clearance=REPLAY_CLEARANCE, plan_replay_nudge=REPLAY_NUDGE,
+    conservative_transport=CONSERVATIVE_TRANSPORT,
     # containers with a main shelf: the ladder's dry-run first would pack
     # 0.4 fill points more on the shelf layouts (30 s budget, analytic) but
     # place 3 of 15 soft items fewer; the official v5 result priced soft

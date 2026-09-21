@@ -8,6 +8,24 @@
 | v5 (c47d35e: Task A row planner, hybrid with the dry-run) | 34.60 | 40.92 | 46.05 | 25.5 | 20.45 | 0.503 | 139.1 | 6.43 |
 | v7 (78d478f: no standing boxes, three layouts, replay tolerance, conservative transport) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 140.4 | 6.46 |
 | v8 (6d50bda: v7 with the layouts run one after the other against the whole budget) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 139.8 | 6.47 |
+| v9 (e56c13f: v5's planner settings plus the replay tolerance and the conservative transport model) | 34.09 | 37.25 | 41.87 | 21.4 | 20.6 | 0.493 | 139.9 | 6.42 |
+
+v9's total was 32.69: the two "safety fixes" alone cost 2.4 points
+against v5 (cog -3.7, stability -4.2, placement -4.1, fill -0.5, soft
++0.15), and v7's other two changes another 3.2.  On the bench's physics
+suite v5 and v9 are indistinguishable on every proxy (mass-weighted
+centre of mass 0.364 / 0.365, shake shift 0.0240 / 0.0237, no covered
+priority or soft cargo in either), so the bench does not measure what
+the platform's cog, stability and placement scores measure.  The
+platform is deterministic (v5 resubmitted and v8 against v7 gave
+identical components), so each official run is one clean measurement.
+
+Three totals fit the weights better: on a 0.025 grid, the weightings
+within 0.15 of all three put the fill at 0.275-0.325, cog and stability
+together at 0.40-0.45, placement at 0.10-0.175 and soft at 0.075-0.20;
+(0.30, 0.35, 0.10, 0.125, 0.125) fits within 0.05 in total.  So the
+centre of gravity and the shake test together weigh half again as much
+as the fill.
 
 v7's total was 29.47 against v5's 35.09, while the bench's 48-scene
 physics suite had v7 ahead of v5 on every count.  The difference is the
