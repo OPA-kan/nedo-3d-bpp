@@ -19,6 +19,15 @@ improvisation over a half plan is what the cog and stability drops
 show.  v8 runs the layouts one after the other against the whole budget
 and keeps a cut plan only when none finished.
 
+Two totals (v5 35.09, v7 29.47) constrain the platform's weights: on a
+0.05 grid, 23 weightings summing to one reproduce both within 0.2.
+None gives the fill more than 0.4, most give cog and stability together
+0.3-0.5 and soft and placement together 0.2-0.35; (0.30, 0.15, 0.25,
+0.15, 0.15) for fill, cog, stability, placement, soft fits within 0.17.
+So the fill is one part in three or four, and the four other parts --
+which the bench can only proxy -- carry the rest; a third total would
+pin them.
+
 v5 against v4: soft +10.0 and placement +6.1 (the two components the
 planner was built for; the bench's counts of soft and priority cargo
 placed moved the same way), fill -1.7, stability -4.1, cog -0.5.  The
