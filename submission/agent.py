@@ -25,6 +25,9 @@ if str(_HERE) not in sys.path:
 from rule_alpha.agent import RuleAlphaAgent  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 
+PLAN_LAYOUTS = 1
+PLAN_STANDING = True
+
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
 # budgets inside the official limits (8 s a decision, 180 s offline)
@@ -54,13 +57,13 @@ OVERRIDES = dict(
     # With offline_dry_run on as well, the ladder's dry-run gets what is
     # left of the budget and the plan with the more volume is used: on a
     # slow machine the planner's full plan wins by itself.
-    # three ranked row layouts, each packed in full, the best plan by the
-    # score kept (+0.7 fill, +3 priority boxes on a-c1s-s0002 over one);
-    # the deadline cuts what does not fit the budget
-    offline_planner="rows", plan_variants="after-hard", plan_layouts=3, plan_min_support=0.0,
-    # no standing boxes in the rows: flat only packs 2 fill points more on
-    # the five probe scenes, and v5's official stability fell 4 points
-    plan_standing=False,
+    # v5's planner settings (one layout, standing boxes allowed): the v7
+    # build (three layouts, flat only) scored 29.5 on the platform against
+    # v5's 35.1 while the bench had it ahead, so the two are probed one at
+    # a time from here; the replay tolerance and the conservative
+    # transport model (safety fixes) are on
+    offline_planner="rows", plan_variants="after-hard", plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
+    plan_standing=PLAN_STANDING,
     # containers with a main shelf: the ladder's dry-run first would pack
     # 0.4 fill points more on the shelf layouts (30 s budget, analytic) but
     # place 3 of 15 soft items fewer; the official v5 result priced soft
