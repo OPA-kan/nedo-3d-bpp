@@ -7,6 +7,7 @@
 | v4 (7606e9f: any-container last resort, no-cover veto, priority first) | 36.29 | 41.38 | 50.12 | 19.4 | 10.4 | 0.515 | 138.6 | 7.21 |
 | v5 (c47d35e: Task A row planner, hybrid with the dry-run) | 34.60 | 40.92 | 46.05 | 25.5 | 20.45 | 0.503 | 139.1 | 6.43 |
 | v7 (78d478f: no standing boxes, three layouts, replay tolerance, conservative transport) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 140.4 | 6.46 |
+| v8 (6d50bda: v7 with the layouts run one after the other against the whole budget) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 139.8 | 6.47 |
 
 v7's total was 29.47 against v5's 35.09, while the bench's 48-scene
 physics suite had v7 ahead of v5 on every count.  The difference is the
@@ -16,8 +17,13 @@ third was not enough to finish a plan, so every plan was cut before its
 soft rows and its priority cargo -- which is exactly what the official
 soft (-4) and placement (-9.5) scores show, and the ladder's
 improvisation over a half plan is what the cog and stability drops
-show.  v8 runs the layouts one after the other against the whole budget
-and keeps a cut plan only when none finished.
+show -- so ran the reasoning; v8, which runs the layouts one after the
+other against the whole budget, then scored *identically* to v7 in every
+component (total 29.47 again), so the budget split was not the cause:
+the plans were complete in both and the platform's four non-fill
+components fell on the v7 packing itself, which the bench's proxies
+(topples, shake energy, centre-of-mass height, cargo placed) do not
+see.  The v5 build stays the best official result.
 
 Two totals (v5 35.09, v7 29.47) constrain the platform's weights: on a
 0.05 grid, 23 weightings summing to one reproduce both within 0.2.
