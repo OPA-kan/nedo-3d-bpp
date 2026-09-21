@@ -397,22 +397,40 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     layouts = max(1, int(getattr(config, "plan_layouts", 1)))
     variants = [(o, li) for li in range(layouts) for o in orders]
     scorer = getattr(agent, "plan_score", None)
+    # Every variant gets the whole of what is left of the budget, one after
+    # the other, and a variant the deadline cuts short counts only when no
+    # variant finished.  v7 gave each of three layouts a third of the
+    # budget: on the evaluation machine (about five times slower than
+    # this one) every plan was cut before its soft rows and its priority
+    # cargo, and the official soft and placement scores fell by a quarter
+    # while the bench, with time to spare, had shown them rising.
     best = None
+    best_partial = None
     started = time.perf_counter()
-    for n, (variant, layout_index) in enumerate(variants):
-        share = (deadline - time.perf_counter()) / max(1, len(variants) - n)
-        order, plan = _plan_once(agent, item_list, min(deadline, time.perf_counter() + share), variant, log,
-                                 layout_index=layout_index)
+    longest = 0.0
+    for variant, layout_index in variants:
+        now = time.perf_counter()
+        if best is not None and now + longest * 1.2 >= deadline:
+            break
+        t0 = now
+        order, plan = _plan_once(agent, item_list, deadline, variant, log, layout_index=layout_index)
+        complete = time.perf_counter() < deadline
+        longest = max(longest, time.perf_counter() - t0)
         volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
         score = scorer(plan) if scorer is not None else volume
         if log:
             log(f"  [plan] variant {variant}/layout {layout_index}: {len(plan)} planned, {volume:.3f} m^3, "
-                f"score {score:.3f}, {time.perf_counter() - started:.1f}s")
-        if best is None or (score, len(plan)) > best[0]:
-            best = ((score, len(plan)), order, plan)
+                f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
+        entry = ((score, len(plan)), order, plan)
+        if complete:
+            if best is None or entry[0] > best[0]:
+                best = entry
+        elif best_partial is None or entry[0] > best_partial[0]:
+            best_partial = entry
         if time.perf_counter() >= deadline:
             break
-    return best[1], best[2]
+    chosen = best if best is not None else best_partial
+    return chosen[1], chosen[2]
 
 
 def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log=None,
