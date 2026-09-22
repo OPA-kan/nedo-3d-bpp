@@ -485,10 +485,12 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
         remaining = [profiles[i] for i in order]
         priority_idx = [i for i, m in enumerate(board.models) if m.is_prioritized]
         normal_idx = [i for i, m in enumerate(board.models) if not m.is_prioritized]
+        priority_lines: dict[int, list] = {}
         if priority_idx:
             for ci in priority_idx:
                 items = [p for p in remaining if p.is_prioritized]
-                pack_rows(agent, board, ci, items, config, plan, planned, deadline, log, layout_index=layout_index)
+                priority_lines[ci] = pack_rows(agent, board, ci, items, config, plan, planned, deadline, log,
+                                               layout_index=layout_index)
                 remaining = [p for p in remaining if p.index not in set(planned)]
         for ci in normal_idx or list(range(len(board.models))):
             items = [p for p in remaining if not (p.is_prioritized and priority_idx)]
@@ -497,6 +499,17 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
             soft = [p for p in items if p.is_soft]
             pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log, row_lines=lines)
             remaining = [p for p in remaining if p.index not in set(planned)]
+        if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
+            # the priority container's spare rows take the normal hard cargo
+            # the normal containers left (the rule penalises priority cargo
+            # in a normal container and cargo of another attribute on top
+            # of priority cargo -- which the pose check refuses -- not
+            # normal cargo beside it; soft-only cargo never enters it)
+            for ci in priority_idx:
+                hard = [p for p in remaining if not p.is_soft and not p.is_prioritized]
+                pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log,
+                          row_lines=priority_lines.get(ci))
+                remaining = [p for p in remaining if p.index not in set(planned)]
         order = [p.index for p in remaining]
         key = _key("walls", 0.22)
     for n, index in enumerate(order):

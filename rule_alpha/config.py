@@ -1443,6 +1443,14 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    plan_normal_in_priority_container: bool = False
+    """After the priority cargo's rows and the normal containers' rows, the
+    planner packs the normal hard cargo left over into the priority
+    container's spare rows (beside the priority cargo, never above it:
+    the pose check refuses cargo of another attribute on top).  On the
+    physics suite the priority-container scenes place 36-50 of 82 items
+    with the priority container holding 9-21, the normal one 21-33."""
+
     plan_size_orders: str = ""
     """Size orders of the hard cargo the planner tries as variants, each
     against the whole budget like the priority orders: "small" (the
