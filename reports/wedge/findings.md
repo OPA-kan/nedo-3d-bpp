@@ -1100,6 +1100,35 @@ v7 minus v5: fill +1.6 [+0.5, +2.6]; per layout c1 41.7 (42.3), c1s
 24.6 with 20 of 41 (v5 29.2 / 24): the plan score takes the 4-of-4
 priority plan over the ladder's 25-item plan on that manifest.
 
+### What the official runs turned on: the count of items placed
+
+Five official results (v4, v5, v7, v9, v11) order their four non-fill
+components exactly by the fraction of items placed (0.515, 0.503, 0.500,
+0.493, 0.488 -> stability 50.1, 46.1, 41.8, 41.9, 37.6), while nothing
+the bench measures (mass-weighted centre of mass, shake shift, topples,
+covered cargo) separates v5 from v9 or v11.  The README makes every
+component but the fill zero for an episode that places fewer than "a
+certain number" of items, and reports averages over episodes.  Our
+episodes place about half the items, so a threshold near there zeroes
+the four components on roughly half of them and makes their averages
+swing with the count (about 4.6 stability points a percent of items
+placed); the values conditional on crossing it would then be about
+twice what we see, which with the fitted weights (fill 0.3, cog and
+stability 0.45 together, placement 0.14, soft 0.12) gives a total near
+60 -- the top of the leaderboard.
+
+`count_first` (v12): the pool is tried smallest footprint first within a
+class, the planner packs the hard cargo smallest first and fills rows
+with the most boxes rather than the most volume, and a plan is judged by
+its count share above all.  Task A physics suite, v12 against v5: items
+placed 35.8 against 33.1 a scene (+2.7 [+1.7, +3.8]), episodes with at
+least half the items placed 39 against 36 of 48, at least 55 % 35
+against 22, at least 60 % 20 against 11; fill 35.7 against 37.8 (-2.1);
+priority placed 68 % (57 %), soft 40 % (41 %); shake topples 0.31 a
+scene against 0 (small boxes stacked first topple).  Sample task B: 25
+of 42 placed against 23, fill 23.1 against 28.7.  The official run says
+whether the count buys what the fill and the topples cost.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
