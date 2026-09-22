@@ -409,7 +409,12 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # themselves comma-separated
     orders = [v for v in re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard,mixed,last"))) if v]
     layouts = max(1, int(getattr(config, "plan_layouts", 1)))
-    variants = [(o, li) for li in range(layouts) for o in orders]
+    # the size order of the hard cargo as a variant too ("small": the
+    # smallest first, count_first; "big": the biggest first): on the
+    # physics suite the better of the two orders a scene places 0.4 items
+    # more than the smallest-first order alone
+    sizes = [s for s in re.split(r"[,+|]", str(getattr(config, "plan_size_orders", "") or "")) if s] or [None]
+    variants = [(o, li, s) for li in range(layouts) for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     # Every variant gets the whole of what is left of the budget, one after
     # the other, and a variant the deadline cuts short counts only when no
@@ -422,18 +427,23 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     best_partial = None
     started = time.perf_counter()
     longest = 0.0
-    for variant, layout_index in variants:
+    for variant, layout_index, size_order in variants:
         now = time.perf_counter()
         if best is not None and now + longest * 1.2 >= deadline:
             break
         t0 = now
-        order, plan = _plan_once(agent, item_list, deadline, variant, log, layout_index=layout_index)
+        if size_order is not None:
+            agent.config = dataclasses.replace(config, count_first=(size_order == "small"))
+        try:
+            order, plan = _plan_once(agent, item_list, deadline, variant, log, layout_index=layout_index)
+        finally:
+            agent.config = config
         complete = time.perf_counter() < deadline
         longest = max(longest, time.perf_counter() - t0)
         volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
         score = scorer(plan) if scorer is not None else volume
         if log:
-            log(f"  [plan] variant {variant}/layout {layout_index}: {len(plan)} planned, {volume:.3f} m^3, "
+            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}: {len(plan)} planned, {volume:.3f} m^3, "
                 f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
         entry = ((score, len(plan)), order, plan)
         if complete:

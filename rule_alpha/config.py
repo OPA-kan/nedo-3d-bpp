@@ -1443,6 +1443,14 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    plan_size_orders: str = ""
+    """Size orders of the hard cargo the planner tries as variants, each
+    against the whole budget like the priority orders: "small" (the
+    smallest first, ``count_first`` on) and/or "big" (the biggest first).
+    Empty: the configured ``count_first`` alone.  On the physics suite the
+    better of the two a scene places 0.4 items more than "small" alone
+    (36.2 against 35.8 a scene), and the plan score picks by count."""
+
     plan_soft_count_first: bool = False
     """The planner takes the soft cargo smallest first (by volume) instead
     of flattest first: more soft items placed for the count and the soft
