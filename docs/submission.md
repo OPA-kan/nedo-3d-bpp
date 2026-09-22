@@ -115,7 +115,19 @@ where its bottom is at or below 0.6 m, since v12's topples were the
 standing boxes on the fourth level (bottom 0.86 m).  Physics suite
 against v12: topples 0.125 a scene (from 0.31), items -0.7 a scene,
 fill -0.2 (n.s.); against v5 still +2.1 items.  Sample tasks identical
-to v12 (no standing pose above the cap on those manifests).
+to v12 (no standing pose above the cap on those manifests).  Not
+adopted after v12's official result (38.21, cog +7.2 and stability
++8.4 with those topples in): the count is what the platform pays for.
+
+Fourteenth build (v14): v12 with the three priority orders planned one
+after the other (`plan_variants` after-hard,mixed,last; the best
+complete plan by the plan score) and the policy budget at 4.5 s (the
+platform's slowest call reached 7.31 s of 8 at 5 s).  Physics suite
+against v12: priority items +0.67 a scene [+0.21, +1.23], soft +0.3
+(n.s.), count and fill unchanged, planner 27 s longer on the Actions
+runners.  Two other probes did not move the count (the soft cargo
+smallest first; a pure count plan score, which lost 26 soft and 26
+priority items on the suite).
 
 ## Known limits
 

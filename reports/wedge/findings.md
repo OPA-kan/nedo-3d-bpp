@@ -1159,7 +1159,23 @@ to refuse); items placed 35.2 against
 35.8 (-0.7 [-1.4, +0.1]), fill -0.2 (n.s.); against v5: items +2.1
 [+1.1, +3.1], fill -2.3, episodes with at least half the items placed
 38 against 36 of 48, at least 55 % 30 against 22, at least 60 % 19
-against 11.
+against 11.  Not adopted: v12's official stability rose 8 points with
+those topples in, so the count is what the platform pays for.
+
+Three count probes on the v12 base (physics suite, 48 scenes each):
+the soft cargo smallest first (`plan_soft_count_first`), the three
+priority orders planned one after the other (`plan_variants`
+after-hard,mixed,last), and a pure count plan score (weights 0,0,0,1).
+None moves the count (-0.06, +0.06, +0.04 items a scene, all within
++-0.5): the rows are full at 35.8 items a scene, and what is left is
+what does not fit.  The three orders place 0.67 more priority items a
+scene [+0.21, +1.23], all on the two-normal-container layouts (41 ->
+72 of the 144 there), soft +0.3 (n.s.), fill -0.26 (n.s.), topples 12
+against 15, and take the planner 27 s longer on the Actions runners;
+the pure count score gives fill +0.45 (n.s.) and places 26 soft and 26
+priority items fewer.  v14 is the three orders, with the policy budget
+lowered to 4.5 s (the platform's slowest call reached 7.31 s of 8 at
+5 s with the pool tried smallest first).
 
 ## Executor status
 
