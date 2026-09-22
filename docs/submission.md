@@ -129,6 +129,22 @@ runners.  Two other probes did not move the count (the soft cargo
 smallest first; a pure count plan score, which lost 26 soft and 26
 priority items on the suite).
 
+Fifteenth build (v15): v12's plan with the 4.5 s policy budget alone
+(the v14 official result, 37.38 with more items placed, put the loss on
+the platform's placement and soft penalties, which neither the bench's
+AABB test nor a pybullet contact probe reproduces).  Sample tasks
+identical to v12.
+
+Eighteenth build (v18): v15 plus the priority container's room --
+its priority rows built up one row at a time, the leftover normal hard
+cargo into its spare rows, the cover veto letting a pair a shelf
+separates through, and the soft headroom reserve per container
+(findings section "The priority container's room").  Physics suite
+against v12: items +2.2 a scene [+1.2, +3.4], fill +1.5, the
+priority-container scenes 49.0 against 40.8 items; other layouts
+unchanged.  Two probes between them did not move the count: v16 (the
+size order as a variant) and v17 (the spare rows alone).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

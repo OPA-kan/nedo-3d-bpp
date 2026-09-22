@@ -46,6 +46,16 @@ COUNT_FIRST = True
 # v12's official stability score rose 8 points with those topples in, and
 # the cap cost 0.7 items a scene; the count is what the platform pays for
 PLAN_STANDING_MAX_BOTTOM = 10.0
+# v18: the priority container's room.  Its priority rows are built up one
+# row at a time (back rows to the ceiling, the front rows' floor free),
+# the normal hard cargo the normal containers leave goes into its spare
+# rows, the cover veto lets a pair a shelf separates through (the rule
+# reads contact from above, and nothing touches through a shelf), and the
+# soft headroom reserve counts only the soft cargo that may enter the
+# container (in a priority container the soft priority cargo alone).  On
+# three priority-container scenes the plan goes 48/42/40 -> 59/53/50 of
+# 82 items (analytic).
+PRIORITY_CONTAINER_ROOM = True
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
@@ -84,6 +94,8 @@ OVERRIDES = dict(
     # transport model (safety fixes) are on
     offline_planner="rows", plan_variants=PLAN_VARIANTS, plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
     plan_standing=PLAN_STANDING, plan_standing_max_bottom=PLAN_STANDING_MAX_BOTTOM,
+    plan_normal_in_priority_container=PRIORITY_CONTAINER_ROOM, plan_priority_deep_first=PRIORITY_CONTAINER_ROOM,
+    cover_veto_ignores_shelf=PRIORITY_CONTAINER_ROOM, soft_headroom_per_container=PRIORITY_CONTAINER_ROOM,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
     # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the

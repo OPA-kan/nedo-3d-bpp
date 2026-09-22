@@ -1204,7 +1204,40 @@ bench can see and the platform pays for is the count, so the next
 variant is the size order itself: the better of smallest-first and
 biggest-first a scene would place 36.2 against 35.8 (v5 beat v12 on 9
 of 48 scenes, by up to 4 items), and `plan_size_orders` = small,big
-plans both and lets the plan score choose.
+plans both and lets the plan score choose.  Measured (v16): the count
+is unchanged (+0.04 a scene) -- the biggest-first plan wins by 2-4
+items on single-container scenes and loses by 1-5 on priority-container
+ones, where the analytic count that chose it did not survive physics.
+Not adopted.
+
+### The priority container's room (v18)
+
+The priority-container scenes are the weak layout: 36-50 of 82 items
+placed, the priority container holding 9-21 items against the normal
+container's 21-33.  Packing the leftover normal hard cargo into its
+spare rows (v17) placed nothing, and the planner's refusal log on
+a-c2p-s0010 said why: the priority cargo lay in one layer over the
+whole floor (7 boxes), nothing of another attribute may go above it,
+and the two rules that should have opened the shelf top both closed it
+-- the cover veto counted a box on the main shelf as covering the
+priority boxes under the shelf (2645 refusals), and the soft headroom
+reserve, 0.45 m for 22 soft items of which only the 2 priority ones
+may ever enter that container, capped the shelf top at 1.12 m (5424).
+Four changes, one flag each: the priority rows built up one row at a
+time so the back rows go to the ceiling and the front rows' floor stays
+free (`plan_priority_deep_first`); the normal hard cargo into the
+spare rows (`plan_normal_in_priority_container`); the cover veto
+letting a pair a shelf separates through -- the rule reads contact from
+above, and nothing touches through a shelf (`cover_veto_ignores_shelf`);
+the reserve per container from the soft cargo that may enter it
+(`soft_headroom_per_container`).  Analytic, three scenes: 48/42/40 ->
+59/53/50 of 82.  Physics suite, v18 against v12: items +2.19 a scene
+[+1.17, +3.35] (15 scenes better, none worse), fill +1.5 [+0.8, +2.3],
+episodes with at least half the items placed 45 against 39 of 48, at
+least 55 % 41 against 35; the priority-container scenes 49.0 against
+40.8 items and fill 36.9 against 31.5, the other layouts unchanged;
+covered priority cargo unchanged (2 scenes each way), topples 11
+against 15, the centre of mass 0.004 higher (the shelf top is used).
 
 ## Executor status
 
