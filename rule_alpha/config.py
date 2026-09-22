@@ -1435,6 +1435,14 @@ class RuleAlphaConfig:
     1.6 soft items a scene more (a standing box takes a slot a flat row
     above would have used), and v5's official stability score fell."""
 
+    plan_standing_max_bottom: float = 10.0
+    """Rows stand a box up only where its bottom would be at or below this
+    height (m, container frame).  The standing fallback exists for the
+    mid-height transport band (a flat third layer); on the physics suite
+    the v12 build (count first) also stood 0.24 m deep boxes on the fourth
+    level, bottom 0.86 m, and those are what toppled under the shake
+    proxy (15 topples on 48 scenes against v5's none)."""
+
     count_first: bool = False
     """Place as many items as possible before as much volume as possible:
     the pool is tried smallest footprint first within each class, the

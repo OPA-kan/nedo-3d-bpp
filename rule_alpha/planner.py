@@ -28,6 +28,7 @@ Preferences (``config.offline_planner``):
 from __future__ import annotations
 
 import copy
+import math
 import dataclasses
 import time
 
@@ -270,12 +271,13 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 break
         return [rows for _key, rows in out]
 
-    def try_slot(profile, orientation, x_cursor: float, y_back: float):
+    def try_slot(profile, orientation, x_cursor: float, y_back: float, max_bottom: float = math.inf):
         """The pose at the row's cursor, slid along the row and a little
         forward until it is legal: above the chamfer pocket there is
         nothing to rest on until the layer below begins, a deeper row below
         lifts a sliver of the footprint onto its edge, and a settled layer
-        is never exactly where the plan put it."""
+        is never exactly where the plan put it.  A pose whose bottom would
+        be above ``max_bottom`` is not tried."""
         x0 = x_cursor + orientation.dx / 2.0
         for dy_shift in (0.0, 0.05, 0.1, 0.15, 0.2):
             y = y_back - dy_shift - orientation.dy / 2.0
@@ -288,6 +290,9 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 x = max(x, model.x_limit_at_height(bottom) + wall + orientation.dx / 2.0)
                 if x + orientation.dx / 2.0 > x_right + 1e-9:
                     break
+                if bottom > max_bottom + 1e-9:
+                    x += 0.05
+                    continue
                 box = place(profile, orientation, x, y)
                 if box is not None:
                     return box
@@ -328,8 +333,9 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                             standing.append((row_dz is not None and abs(o.dz - row_dz) > 1e-6, o.dz,
                                              -o.dx * o.dy, n, o, profile))
                 standing.sort(key=lambda t: t[:4])
+                standing_cap = float(getattr(config, "plan_standing_max_bottom", math.inf))
                 for _h, _z, _a, _n, o, profile in standing[:8]:
-                    box = try_slot(profile, o, x_cursor, y_back)
+                    box = try_slot(profile, o, x_cursor, y_back, max_bottom=standing_cap)
                     if box is not None:
                         break
             if box is None:
