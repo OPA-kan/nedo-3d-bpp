@@ -32,6 +32,11 @@ REPLAY_CLEARANCE = 0.026
 REPLAY_NUDGE = 0.0
 CONSERVATIVE_TRANSPORT = False
 COUNT_FIRST = True
+# v13: a standing box only where its bottom is at or below this height --
+# the standing boxes the rows put on the fourth level (bottom 0.86 m) are
+# what toppled on the physics suite (9 of v12's 15 topples), for 0.7 items
+# a scene
+PLAN_STANDING_MAX_BOTTOM = 0.6
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
@@ -68,7 +73,7 @@ OVERRIDES = dict(
     # a time from here; the replay tolerance and the conservative
     # transport model (safety fixes) are on
     offline_planner="rows", plan_variants=PLAN_VARIANTS, plan_layouts=PLAN_LAYOUTS, plan_min_support=0.0,
-    plan_standing=PLAN_STANDING,
+    plan_standing=PLAN_STANDING, plan_standing_max_bottom=PLAN_STANDING_MAX_BOTTOM,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
     # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the

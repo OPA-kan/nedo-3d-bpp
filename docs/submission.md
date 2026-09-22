@@ -93,6 +93,30 @@ end of every plan -- were never planned.  Sample tasks unchanged from
 v7 (A 24.6, B 28.7, C 23.1), optimize 40 s, policy max 4.5 s.  On this
 machine v8 plans exactly as v7, so the v7 physics suite figures stand.
 
+v8 then scored identically to v7 on the platform, so the packing itself,
+not the budget, was the cause; the probes that followed are single
+changes against v5 (`reports/submission/official-results.md` has every
+official result): v9 (commit e56c13f) v5's planner settings plus the two
+safety fixes -- 2.4 points below v5, so they are off again; v11 (commit
+4220db3) the priority cargo mixed into the size order -- 2.8 below.
+Every loss since v5 fell on the four non-fill components together and
+in the order of the fraction of items placed, which the README zeroes
+for an episode that places too few items.
+
+Twelfth build (v12, commit 3e84dbb): `count_first` -- the small cargo
+first, rows with the most boxes, the plan judged by its count share.
+Task A physics suite against v5: +2.7 items a scene, fill -2.1, topples
+0.31 a scene (v5 none).  Sample tasks: A 32.1 with 25 of 41, B 23.1
+with 25 of 42, C 23.1.
+
+Thirteenth build (v13, commit 006b59d): v12 with
+`plan_standing_max_bottom` = 0.6 m -- the rows stand a box up only
+where its bottom is at or below 0.6 m, since v12's topples were the
+standing boxes on the fourth level (bottom 0.86 m).  Physics suite
+against v12: topples 0.125 a scene (from 0.31), items -0.7 a scene,
+fill -0.2 (n.s.); against v5 still +2.1 items.  Sample tasks identical
+to v12 (no standing pose above the cap on those manifests).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

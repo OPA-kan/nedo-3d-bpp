@@ -1129,6 +1129,29 @@ scene against 0 (small boxes stacked first topple).  Sample task B: 25
 of 42 placed against 23, fill 23.1 against 28.7.  The official run says
 whether the count buys what the fill and the topples cost.
 
+The topples, traced (a shake replay recording each item's shift and
+tilt on the three scenes with the most): in two of them, standing boxes
+(0.24 m deep, 0.4 m tall) the rows put on the fourth level with their
+bottom at 0.86 m -- the standing fallback was made for the mid-height
+transport band (a flat third layer whose top lands in it), and with
+`count_first` the rows reach a fourth level where nothing flat fits the
+row's depth and stand a box there, with the soft cargo on top; in the
+third, a ladder terrace of three flat boxes on a standing box of the
+plan (44 % support, the ladder's own tower, also in v5's run of that
+scene).  `plan_standing_max_bottom` = 0.6 m (v13) refuses a standing
+pose whose bottom would be higher.  Task A physics suite, v13 against
+v12: topples 0.125 against 0.31 a scene (6 against 15, [-0.33, -0.06]),
+all 6 left in priority-container layouts (probed: four are the
+ladder's terraces on a standing box's narrow top -- a flat 0.55 x 0.4
+box on a 0.24 x 0.55 x 0.4 box standing, 44 % support -- one a row's
+standing priority box under the cap, bottom 0.57 m, on a flat box of
+its own size; the ladder's towers on standing boxes are the next thing
+to refuse); items placed 35.2 against
+35.8 (-0.7 [-1.4, +0.1]), fill -0.2 (n.s.); against v5: items +2.1
+[+1.1, +3.1], fill -2.3, episodes with at least half the items placed
+38 against 36 of 48, at least 55 % 30 against 22, at least 60 % 19
+against 11.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
