@@ -251,6 +251,9 @@ class RuleAlphaAgent:
         ordered = layer1.pool_order(profiles, self.config)
         reserve = self._soft_headroom_reserve(containers)
         self.board.soft_headroom_reserve = reserve
+        self.board.soft_headroom_reserve_by_container = {
+            ci: self._soft_headroom_reserve(containers, ci) for ci in range(len(containers))
+        } if getattr(self.config, "soft_headroom_per_container", False) else {}
         if self.stack_option is not None:
             self.stack_option.headroom_reserve = reserve
 
@@ -310,10 +313,15 @@ class RuleAlphaAgent:
         self.declined.append(len(self.declined))
         return None
 
-    def _soft_headroom_reserve(self, containers: list) -> float:
+    def _soft_headroom_reserve(self, containers: list, container_idx: int | None = None) -> float:
         """Task A: the height the flattest pose of the soft cargo still to
         come needs on top of the hard stacks, so the stacks stop short of
-        the ceiling by that much while any of it is unplaced."""
+        the ceiling by that much while any of it is unplaced.  With
+        ``soft_headroom_per_container`` and a container given, only the
+        soft cargo that may enter that container counts: in a priority
+        container that is the soft priority cargo alone (soft-only cargo
+        never enters it), so its top is not kept for cargo that will never
+        come."""
         if not self.config.reserve_headroom_for_soft or not self.profiles:
             return 0.0
         # the reserve is the planner's: the ladder packs worse under it (24
@@ -323,6 +331,9 @@ class RuleAlphaAgent:
             return 0.0
         placed = {int(p.get("index", -1)) for c in containers for p in c.get("packed_items", [])}
         soft = [pr for i, pr in self.profiles.items() if i not in placed and pr.is_soft and pr.orientations]
+        if (container_idx is not None and getattr(self.config, "soft_headroom_per_container", False)
+                and len(containers) > 1 and bool(containers[container_idx].get("is_prioritized", False))):
+            soft = [pr for pr in soft if pr.is_prioritized]
         if not soft:
             return 0.0
         share = float(getattr(self.config, "soft_headroom_volume_share", 1.0))

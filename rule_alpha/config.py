@@ -1443,6 +1443,31 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    cover_veto_ignores_shelf: bool = False
+    """The cover veto (``no_cover_other_attribute``) lets a box sit above
+    cargo of another attribute when one of the container's shelves lies
+    between them over their whole overlap: the rule reads contact from
+    above, and nothing touches through a shelf.  Without it the main
+    shelf's top in a priority container is dead for the normal cargo once
+    priority cargo is under the shelf (2645 refusals on a-c2p-s0010)."""
+
+    soft_headroom_per_container: bool = False
+    """The soft headroom reserve is taken per container from the soft cargo
+    that may enter it: in a priority container the soft priority cargo
+    alone.  Without it the reserve for 22 soft items (0.45 m) capped the
+    hard cargo on the priority container's shelf top at 1.12 m (5424
+    refusals on a-c2p-s0010) for soft cargo that never enters it."""
+
+    plan_priority_deep_first: bool = False
+    """The priority cargo's rows in the priority container are built up in
+    layers one row at a time, back to front, so it takes the back rows to
+    the ceiling instead of one layer over the whole floor; nothing of
+    another attribute may go above it, so a floor-wide layer makes the
+    rest of the container dead for the normal cargo
+    (``plan_normal_in_priority_container``): on a-c2p-s0010 the priority
+    container held 8 priority boxes in one layer and refused 37 hard
+    boxes, 1720 of the refusals "covers-other-attribute"."""
+
     plan_normal_in_priority_container: bool = False
     """After the priority cargo's rows and the normal containers' rows, the
     planner packs the normal hard cargo left over into the priority

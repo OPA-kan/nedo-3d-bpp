@@ -148,7 +148,8 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
     box = AABB((x, y, bottom + orientation.dz / 2.0), (orientation.dx, orientation.dy, orientation.dz), ARCHETYPE)
     ok, why = layer1.validate(box, model, container, config)
     if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
-            box, container, bool(profile.is_soft), bool(profile.is_prioritized)):
+            box, container, bool(profile.is_soft), bool(profile.is_prioritized),
+            shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
         ok, why = False, "covers-other-attribute"
     if ok and bottom > model.z_floor + 1e-6:
         # the validator's rule (centre of mass inside the support) let a
@@ -166,7 +167,7 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
 
 def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
               planned: list, deadline: float, log=None, row_lines: list | None = None,
-              layout_index: int = 0) -> list:
+              layout_index: int = 0, deep_first: bool = False) -> list:
     """Fills one container with the given items in layers of rows: rows from
     the back wall to the opening, each row from the left to the right, each
     layer on whatever the last one left (poses drop onto the packed tops);
@@ -189,7 +190,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
     area_sign = 1.0 if count_first else -1.0
 
     def place(profile, orientation, x, y):
-        reserve = agent._soft_headroom_reserve(board.containers) if not profile.is_soft else 0.0
+        reserve = agent._soft_headroom_reserve(board.containers, container_idx) if not profile.is_soft else 0.0
         z_cap = model.z_ceiling - reserve if reserve > 0 else None
         box, why = _try_pose(board, container_idx, profile, orientation, x, y, config, z_cap)
         if box is None:
@@ -371,13 +372,24 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             for depth, _row in layout:
                 row_lines.append((y_back, depth))
                 y_back -= depth + gap
-        for y_back, depth in row_lines:
-            if time.perf_counter() >= deadline:
-                break
-            fill_row(y_back, depth, x_left)
+        if deep_first:
+            # each row built up in layers before the next row is opened:
+            # the priority cargo in its container takes the back rows to
+            # the ceiling and leaves the front rows' floor to the rest
+            for y_back, depth in row_lines:
+                for _layer in range(12):
+                    if not items or time.perf_counter() >= deadline:
+                        break
+                    if fill_row(y_back, depth, x_left) == 0:
+                        break
+        else:
+            for y_back, depth in row_lines:
+                if time.perf_counter() >= deadline:
+                    break
+                fill_row(y_back, depth, x_left)
         if log:
             log(f"  [plan] container {container_idx} pass {passes}: {len(planned) - before} placed, {len(items)} left")
-        if len(planned) == before:
+        if len(planned) == before or deep_first:
             break
     return row_lines
 
@@ -490,7 +502,8 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
             for ci in priority_idx:
                 items = [p for p in remaining if p.is_prioritized]
                 priority_lines[ci] = pack_rows(agent, board, ci, items, config, plan, planned, deadline, log,
-                                               layout_index=layout_index)
+                                               layout_index=layout_index,
+                                               deep_first=bool(getattr(config, "plan_priority_deep_first", False)))
                 remaining = [p for p in remaining if p.index not in set(planned)]
         for ci in normal_idx or list(range(len(board.models))):
             items = [p for p in remaining if not (p.is_prioritized and priority_idx)]
@@ -520,11 +533,11 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
         t0 = now
         profile = profiles[index]
         item = by_index[index]
-        reserve = agent._soft_headroom_reserve(board.containers) if not profile.is_soft else 0.0
         chosen = None
         for container_idx in layer1.routing_order(profile, board, config):
             model = board.model(container_idx)
             container = board.container(container_idx)
+            reserve = agent._soft_headroom_reserve(board.containers, container_idx) if not profile.is_soft else 0.0
             z_top = model.z_ceiling - reserve if reserve > 0 else None
             cands = stack_candidates(model, container, config, profile, max_candidates=10 ** 6,
                                      mass=float(item.get("mass", 0.0)), z_top=z_top)
@@ -601,7 +614,8 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
                 candidate = AABB(centre, tuple(entry["size"]), ARCHETYPE)
                 ok, why = layer1.validate(candidate, model, container, replay_config)
                 if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
-                        candidate, container, bool(profile.is_soft), bool(profile.is_prioritized)):
+                        candidate, container, bool(profile.is_soft), bool(profile.is_prioritized),
+                        shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
                     ok = False
                 if ok:
                     box = candidate

@@ -3490,9 +3490,13 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
 # ---------------------------------------------------------------------------
 # Routing
 # ---------------------------------------------------------------------------
-def _covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool) -> bool:
+def _covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool,
+                            shelves=None) -> bool:
     """The box would sit anywhere above a packed item whose attribute it does
-    not share (see ``wedge_rl.stack.covers_other_attribute``)."""
+    not share (see ``wedge_rl.stack.covers_other_attribute``); a pair one
+    of ``shelves`` separates is not covering."""
+    from wedge_rl.stack import shelf_between
+
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
         p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
         if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
@@ -3501,6 +3505,8 @@ def _covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_priori
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
+            if shelves and shelf_between(shelves, b, box):
+                continue
             return True
     return False
 
@@ -3753,9 +3759,12 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             # (non-priority above priority, non-soft above soft): the rule
             # penalises exactly that, and reads contact from above
             container = board.container(container_idx)
+            shelves = board.model(container_idx).shelves if getattr(config, "cover_veto_ignores_shelf", False) else None
             pool = [c for c in pool
-                    if not _covers_other_attribute(c.box, container, profile.is_soft, profile.is_prioritized)]
-        reserve = float(getattr(board, "soft_headroom_reserve", 0.0) or 0.0)
+                    if not _covers_other_attribute(c.box, container, profile.is_soft, profile.is_prioritized,
+                                                   shelves=shelves)]
+        by_container = getattr(board, "soft_headroom_reserve_by_container", None) or {}
+        reserve = float(by_container.get(container_idx, getattr(board, "soft_headroom_reserve", 0.0)) or 0.0)
         if pool and reserve > 0.0 and not profile.is_soft:
             # the top layer is being kept for the soft cargo: hard stacks
             # stop that far under the ceiling, whatever the archetype

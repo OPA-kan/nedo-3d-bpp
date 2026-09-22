@@ -235,12 +235,32 @@ def transport_gap(box: AABB, container: dict) -> float:
     return best
 
 
-def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool) -> bool:
+def shelf_between(shelves, lower: AABB, upper: AABB) -> bool:
+    """True when one of the container's shelves (local AABBs) lies between
+    the two boxes over the whole of their xy overlap: nothing on the
+    shelf can touch what is under it."""
+    if not shelves:
+        return False
+    x0, x1 = max(lower.minimum[0], upper.minimum[0]), min(lower.maximum[0], upper.maximum[0])
+    y0, y1 = max(lower.minimum[1], upper.minimum[1]), min(lower.maximum[1], upper.maximum[1])
+    for shelf in shelves:
+        if float(shelf.minimum[2]) < float(lower.maximum[2]) - 1e-3 or float(shelf.maximum[2]) > float(upper.minimum[2]) + 1e-3:
+            continue
+        if (float(shelf.minimum[0]) <= x0 + 1e-6 and float(shelf.maximum[0]) >= x1 - 1e-6
+                and float(shelf.minimum[1]) <= y0 + 1e-6 and float(shelf.maximum[1]) >= y1 - 1e-6):
+            return True
+    return False
+
+
+def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool,
+                           shelves=None) -> bool:
     """True when the box would sit anywhere above a packed item whose
     attribute the box does not share: non-priority above priority, or
     non-soft above soft.  The rule penalises exactly that (same attribute
     on top is free), and it reads contact from above, which a gap of a few
-    centimetres does not rule out once the cargo settles."""
+    centimetres does not rule out once the cargo settles.  A pair a shelf
+    separates (``shelves``: the container's shelf AABBs) is not covering:
+    the rule reads contact, and nothing touches through a shelf."""
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
         p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
         if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
@@ -249,6 +269,8 @@ def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_priorit
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
+            if shelves and shelf_between(shelves, b, box):
+                continue
             return True
     return False
 
