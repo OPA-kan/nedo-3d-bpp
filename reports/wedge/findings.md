@@ -1190,6 +1190,22 @@ contact test itself: which of our settled loads have a hard box
 touching a soft or priority box from above where the AABB test sees
 nothing.
 
+Measured (a probe that lists every pybullet contact between a soft or
+priority box and a box of another attribute at the victim's top face,
+in the settled load): on ten scene runs of the v12 and v14b arms, one
+such pair -- a hard box the ladder's terrace put squarely on a
+priority box (0.21 m^2, 38 N) in a v12 load, which the ladder's cover
+veto should have refused and which a physics-only shift may explain --
+and none in the v14b loads on the scenes where the three orders
+changed the load.  So the platform's placement and soft penalties are
+not the AABB or contact test the bench runs, or not on the bench's
+scenes, and they will be learnt one official run at a time.  What the
+bench can see and the platform pays for is the count, so the next
+variant is the size order itself: the better of smallest-first and
+biggest-first a scene would place 36.2 against 35.8 (v5 beat v12 on 9
+of 48 scenes, by up to 4 items), and `plan_size_orders` = small,big
+plans both and lets the plan score choose.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
