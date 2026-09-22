@@ -68,7 +68,8 @@ def planning_order(profiles: list, config, has_priority_container: bool, priorit
         o = p.orientations[0]
         return o.dx * o.dy * o.dz
 
-    hard = sorted((p for p in profiles if not p.is_soft), key=lambda p: (-volume(p), p.index))
+    sign = 1.0 if getattr(config, "count_first", False) else -1.0
+    hard = sorted((p for p in profiles if not p.is_soft), key=lambda p: (sign * volume(p), p.index))
     soft = sorted((p for p in profiles if p.is_soft),
                   key=lambda p: (min(o.dz for o in p.orientations), -volume(p), p.index))
     if has_priority_container and getattr(config, "priority_cargo_first", False):
@@ -178,6 +179,10 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
     y_front = rect.y_min + slack
     # (back line, depth) of every row, shared by all layers of the container
     row_lines = row_lines if row_lines is not None else []
+    # count first: the smallest box that fits a slot, and the layout with
+    # the most boxes; otherwise the biggest and the most volume
+    count_first = bool(getattr(config, "count_first", False))
+    area_sign = 1.0 if count_first else -1.0
 
     def place(profile, orientation, x, y):
         reserve = agent._soft_headroom_reserve(board.containers) if not profile.is_soft else 0.0
@@ -213,7 +218,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             for n, profile in enumerate(pool):
                 for o in _flat_poses(profile):
                     if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9:
-                        choices.append((abs(o.dy - depth) > 1e-6, -o.dx * o.dy, n, o, profile))
+                        choices.append((abs(o.dy - depth) > 1e-6, area_sign * o.dx * o.dy, n, o, profile))
             if not choices:
                 break
             choices.sort(key=lambda t: t[:3])
@@ -246,7 +251,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 row = fill_row_plan(pool2, d, x_left)
                 if not row:
                     continue
-                gained = sum(o.dx * o.dy * o.dz for _p, o in row)
+                gained = float(len(row)) if count_first else sum(o.dx * o.dy * o.dz for _p, o in row)
                 rows.append((d, row))
                 search(pool2, y_left - d - gap, rows, volume + gained)
                 rows.pop()
@@ -304,7 +309,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 for o in _flat_poses(profile):
                     if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9:
                         choices.append((row_dz is not None and abs(o.dz - row_dz) > 1e-6,
-                                        abs(o.dy - depth) > 1e-6, -o.dx * o.dy, n, o, profile))
+                                        abs(o.dy - depth) > 1e-6, area_sign * o.dx * o.dy, n, o, profile))
             if not choices:
                 break
             choices.sort(key=lambda t: t[:4])

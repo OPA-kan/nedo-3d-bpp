@@ -154,8 +154,9 @@ class RuleAlphaAgent:
         soft_total = sum(1 for i in item_list if i.get("is_soft")) or 1
         prio_total = sum(1 for i in item_list if i.get("is_prioritized")) or 1
 
-        weights = [float(w) for w in str(getattr(self.config, "plan_score_weights", "1,0.5,0.5")).split(",")]
-        weights = (weights + [0.0, 0.0, 0.0])[:3]
+        weights = [float(w) for w in str(getattr(self.config, "plan_score_weights", "1,0.5,0.5,0")).split(",")]
+        weights = (weights + [0.0, 0.0, 0.0, 0.0])[:4]
+        n_items = max(1, len(item_list))
 
         def score_of(plan):
             """What the official score is made of, each part in [0, 1]:
@@ -165,7 +166,8 @@ class RuleAlphaAgent:
             volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in items)
             return (weights[0] * volume / capacity
                     + weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
-                    + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total)
+                    + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total
+                    + weights[3] * len(items) / n_items)
 
         self.plan_score = score_of
         planned = None

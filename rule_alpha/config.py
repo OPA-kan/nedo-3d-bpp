@@ -1435,10 +1435,21 @@ class RuleAlphaConfig:
     1.6 soft items a scene more (a standing box takes a slot a flat row
     above would have used), and v5's official stability score fell."""
 
-    plan_score_weights: str = "1,0.5,0.5"
+    count_first: bool = False
+    """Place as many items as possible before as much volume as possible:
+    the pool is tried smallest footprint first within each class, the
+    planner packs the hard cargo smallest first and fills rows with the
+    most boxes rather than the most volume.  The platform zeroes every
+    component but the fill when an episode places fewer than "a certain
+    number" of items, and the four official runs order exactly by the
+    fraction placed (0.503 / 0.500 / 0.493 / 0.488 -> cog 40.9 / 36.4 /
+    37.2 / 32.3), so the count decides most of the score."""
+
+    plan_score_weights: str = "1,0.5,0.5,0"
     """How the planner's plan and the ladder's dry-run plan are compared:
     weights of the fill (volume over the containers' volume), the share of
-    the soft cargo placed and the share of the priority cargo placed.  The
+    the soft cargo placed, the share of the priority cargo placed and the
+    share of all items placed.  The
     official score has a component for each; the fill is the one whose
     definition is known, so the other two count half."""
 

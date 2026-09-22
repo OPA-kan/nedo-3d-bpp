@@ -31,6 +31,7 @@ PLAN_STANDING = True
 REPLAY_CLEARANCE = 0.026
 REPLAY_NUDGE = 0.0
 CONSERVATIVE_TRANSPORT = False
+COUNT_FIRST = True
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
@@ -75,6 +76,12 @@ OVERRIDES = dict(
     # transport rules are used: this reproduces the v5 build's decisions
     plan_replay_clearance=REPLAY_CLEARANCE, plan_replay_nudge=REPLAY_NUDGE,
     conservative_transport=CONSERVATIVE_TRANSPORT,
+    # the platform zeroes every component but the fill for an episode
+    # that places too few items, and the five official runs order by the
+    # fraction placed: so the count comes first (small cargo first, rows
+    # with the most boxes, the pool tried smallest first), and a plan is
+    # judged by its count share above all
+    count_first=COUNT_FIRST, plan_score_weights="1,0.5,0.5,3",
     # containers with a main shelf: the ladder's dry-run first would pack
     # 0.4 fill points more on the shelf layouts (30 s budget, analytic) but
     # place 3 of 15 soft items fewer; the official v5 result priced soft

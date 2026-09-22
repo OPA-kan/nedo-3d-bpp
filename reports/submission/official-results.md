@@ -9,6 +9,24 @@
 | v7 (78d478f: no standing boxes, three layouts, replay tolerance, conservative transport) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 140.4 | 6.46 |
 | v8 (6d50bda: v7 with the layouts run one after the other against the whole budget) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 139.8 | 6.47 |
 | v9 (e56c13f: v5's planner settings plus the replay tolerance and the conservative transport model) | 34.09 | 37.25 | 41.87 | 21.4 | 20.6 | 0.493 | 139.9 | 6.42 |
+| v11 (4220db3: v5 with the priority cargo mixed into the size order) | 34.49 | 36.37 | 41.84 | 22.2 | 17.55 | 0.4996 | 139.9 | 6.53 |
+
+v11's total was 32.29.  Every change from v5 has now lost the same four
+components together, and by how much tracks one number: the fraction of
+items placed.  v5 0.503 -> cog 40.9, stability 46.1; v11 0.4996 -> 36.4,
+41.8; v9 0.493 -> 37.2, 41.9; v7 0.488 -> 32.3, 37.6; and v4 0.515 ->
+41.4, 50.1.  The README says every component but the fill is zero for an
+episode that places fewer than "a certain number" of items, and the
+platform reports the components as averages over episodes.  Our episodes
+place about half the items, so a threshold near there would zero the
+four components on roughly half of them, make their averages swing with
+tiny changes in the count (about 4.6 stability points per percent of
+items placed, from these five runs), and put the values *conditional on
+crossing it* at about twice what we see -- cog around 80, stability
+around 90 -- which with these weights is a total near 60, the top of the
+leaderboard.  So the count of items placed per episode, not the volume,
+is what the score turns on, and the next builds place the small cargo
+first (``count_first``).
 
 v9's total was 32.69: the two "safety fixes" alone cost 2.4 points
 against v5 (cog -3.7, stability -4.2, placement -4.1, fill -0.5, soft

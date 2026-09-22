@@ -4013,9 +4013,10 @@ def pool_order(pairs, config):
             profile.cargo_class == cls.NORMAL_HARD
         ):
             rank += 1
+        footprint = round(profile.max_footprint, 6)
         return (
             rank,
-            -round(profile.max_footprint, 6),
+            footprint if getattr(config, "count_first", False) else -footprint,
             -round(profile.mass, 6) if config.pool_order_breaks_on_mass else 0.0,
             position,
         )
