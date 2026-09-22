@@ -11,6 +11,28 @@
 | v9 (e56c13f: v5's planner settings plus the replay tolerance and the conservative transport model) | 34.09 | 37.25 | 41.87 | 21.4 | 20.6 | 0.493 | 139.9 | 6.42 |
 | v11 (4220db3: v5 with the priority cargo mixed into the size order) | 34.49 | 36.37 | 41.84 | 22.2 | 17.55 | 0.4996 | 139.9 | 6.53 |
 | v12 (3e84dbb: count first -- small cargo first, rows with the most boxes, count-weighted plan score) | 34.05 | 48.08 | 54.46 | 27.5 | 18.05 | 0.540 | 139.9 | 7.31 |
+| v14 (588645a: v12 with the three priority orders planned in sequence, policy budget 4.5 s) | 34.06 | 47.14 | 54.30 | 25.6 | 15.8 | 0.5427 | 140.0 | 6.71 |
+
+v14's total was 37.38, 0.83 below v12, with *more* items placed
+(0.5427 against 0.540): the first run where the four components did
+not follow the count.  The fill and the stability held (0.00, -0.16),
+the cog lost 0.94, and the two penalty scores lost together --
+placement -1.9, soft -2.25 -- which is exactly what the bench could
+not see: it had the three orders placing 0.67 more priority items a
+scene with no covered priority or soft cargo by its AABB test, and the
+platform's "contact from above" test found more of both covered.  So
+placing more priority cargo is not the aim; placing it where nothing
+of another attribute can touch it from above is, and the mixed and
+last orders (priority in the size order, or after the soft cargo) put
+it where that happens.  The policy budget at 4.5 s brought the slowest
+call to 6.71 s (7.31 at 5 s) and cost nothing the count shows; it
+stays.  The next build is v12's plan with the 4.5 s budget (v15).
+
+Six totals fit the weights to 0.001: fill 0.287, cog 0.219, stability
+0.210, placement 0.143, soft 0.141 -- which is 2 : 1.5 : 1.5 : 1 : 1
+(2/7, 3/14, 3/14, 1/7, 1/7) within the rounding of the reported
+components.  v14's loss by component: cog -0.21, placement -0.27, soft
+-0.32, stability -0.03.
 
 v12's total was 38.21, the best so far (v5 35.09), and it confirms the
 count threshold: the fraction placed rose from 0.503 to 0.540 and the

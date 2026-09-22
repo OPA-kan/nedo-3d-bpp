@@ -26,14 +26,15 @@ from rule_alpha.agent import RuleAlphaAgent  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
 
 PLAN_LAYOUTS = 1
-# v14: the three priority orders (after the normal hard cargo, mixed into
-# the size order, last) planned one after the other against the whole
-# budget, the best complete plan by the plan score used -- on the physics
-# suite +0.67 priority items a scene [+0.21, +1.23] (all on the two-normal-
-# container layouts), soft +0.3 (n.s.), the count unchanged, and the
-# planner 27 s longer on the Actions runners; v12's own order is the
-# first variant, so a slow machine still has v12's plan
-PLAN_VARIANTS = "after-hard,mixed,last"
+# v14 (not adopted): the three priority orders (after the normal hard
+# cargo, mixed into the size order, last) planned one after the other,
+# the best complete plan by the plan score used -- the physics suite had
+# +0.67 priority items a scene and nothing covered by its AABB test, the
+# platform scored placement -1.9 and soft -2.25 (total 37.38 against
+# v12's 38.21 with more items placed): its contact-from-above test finds
+# what the mixed and last orders put under other cargo.  v15 is v12's
+# order again.
+PLAN_VARIANTS = "after-hard"
 PLAN_STANDING = True
 REPLAY_CLEARANCE = 0.026
 REPLAY_NUDGE = 0.0

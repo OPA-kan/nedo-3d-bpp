@@ -1177,6 +1177,19 @@ priority items fewer.  v14 is the three orders, with the policy budget
 lowered to 4.5 s (the platform's slowest call reached 7.31 s of 8 at
 5 s with the pool tried smallest first).
 
+v14's official total is 37.38, 0.83 below v12, with more items placed
+(0.5427 against 0.540): fill and stability held, cog -0.94, placement
+-1.9, soft -2.25.  The bench's AABB test had no covered priority or
+soft cargo in either build; the platform's contact-from-above test
+found more of both under the mixed and last orders.  Six totals now
+fit the weights to 0.001: fill 0.287, cog 0.219, stability 0.210,
+placement 0.143, soft 0.141, i.e. 2 : 1.5 : 1.5 : 1 : 1.  The 4.5 s
+policy budget brought the slowest call to 6.71 s and stays; v15 is
+v12's plan with it.  The next thing to measure is the platform's
+contact test itself: which of our settled loads have a hard box
+touching a soft or priority box from above where the AABB test sees
+nothing.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
