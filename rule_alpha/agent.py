@@ -154,7 +154,11 @@ class RuleAlphaAgent:
         soft_total = sum(1 for i in item_list if i.get("is_soft")) or 1
         prio_total = sum(1 for i in item_list if i.get("is_prioritized")) or 1
 
-        weights = [float(w) for w in str(getattr(self.config, "plan_score_weights", "1,0.5,0.5,0")).split(",")]
+        import re
+
+        # "," or ";" between the weights: an arm spec's overrides are
+        # themselves comma-separated
+        weights = [float(w) for w in re.split(r"[,;]", str(getattr(self.config, "plan_score_weights", "1,0.5,0.5,0"))) if w]
         weights = (weights + [0.0, 0.0, 0.0, 0.0])[:4]
         n_items = max(1, len(item_list))
 
