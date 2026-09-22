@@ -10,6 +10,32 @@
 | v8 (6d50bda: v7 with the layouts run one after the other against the whole budget) | 34.52 | 32.32 | 37.60 | 16.0 | 16.35 | 0.488 | 139.8 | 6.47 |
 | v9 (e56c13f: v5's planner settings plus the replay tolerance and the conservative transport model) | 34.09 | 37.25 | 41.87 | 21.4 | 20.6 | 0.493 | 139.9 | 6.42 |
 | v11 (4220db3: v5 with the priority cargo mixed into the size order) | 34.49 | 36.37 | 41.84 | 22.2 | 17.55 | 0.4996 | 139.9 | 6.53 |
+| v12 (3e84dbb: count first -- small cargo first, rows with the most boxes, count-weighted plan score) | 34.05 | 48.08 | 54.46 | 27.5 | 18.05 | 0.540 | 139.9 | 7.31 |
+
+v12's total was 38.21, the best so far (v5 35.09), and it confirms the
+count threshold: the fraction placed rose from 0.503 to 0.540 and the
+three components that follow it rose with it -- cog 40.9 -> 48.1,
+stability 46.1 -> 54.5, placement 25.5 -> 27.5 -- by almost exactly the
+slope the five earlier runs gave (about 2 cog and 2.3 stability points
+a percent of items placed); the fill (-0.55) and the soft score (-2.4)
+paid for it, since the small hard cargo first leaves less room for the
+soft cargo on top.  The bench's 15 topples on 48 scenes (v5: none) did
+not show in the platform's stability score, so on the platform the
+count of items in an episode outweighs what the shake proxy measures.
+The slowest policy call took 7.31 s of the 8 s limit (v5 6.43 s, same
+5 s budget): the pool tried smallest first runs the ladder to its
+deadline more often, and a call over the limit is answered with a
+random action by the platform, so the next build lowers the budget.
+
+Five totals now pin the weights: the least-squares weighting summing to
+one that reproduces all five exactly is fill 0.287, cog 0.222,
+stability 0.207, placement 0.143, soft 0.140 -- the fill three parts in
+ten, the centre of gravity and the shake test two each, the placement
+and soft scores one and a half each (the nearest round weighting,
+0.3/0.2/0.2/0.15/0.15, misses v12 by 0.65 because the reported
+components are rounded).  With these weights one percent of items
+placed is worth about 0.9 points of total through cog and stability
+alone, and a fill point 0.29.
 
 v11's total was 32.29.  Every change from v5 has now lost the same four
 components together, and by how much tracks one number: the fraction of

@@ -1443,6 +1443,11 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    plan_soft_count_first: bool = False
+    """The planner takes the soft cargo smallest first (by volume) instead
+    of flattest first: more soft items placed for the count and the soft
+    score, which v12's official run lost (18.05 against v5's 20.45)."""
+
     count_first: bool = False
     """Place as many items as possible before as much volume as possible:
     the pool is tried smallest footprint first within each class, the

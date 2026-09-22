@@ -1129,6 +1129,15 @@ scene against 0 (small boxes stacked first topple).  Sample task B: 25
 of 42 placed against 23, fill 23.1 against 28.7.  The official run says
 whether the count buys what the fill and the topples cost.
 
+It did: v12's official total is 38.21 (v5 35.09).  The fraction placed
+rose from 0.503 to 0.540 and cog (40.9 -> 48.1), stability (46.1 ->
+54.5) and placement (25.5 -> 27.5) rose with it at the slope the
+earlier runs predicted; the fill (-0.55) and the soft score (-2.4)
+paid.  The bench's topples did not register in the platform's
+stability score.  Five totals fit the weights exactly: fill 0.287, cog
+0.222, stability 0.207, placement 0.143, soft 0.140.  The slowest
+policy call took 7.31 s of 8 (v5 6.43 s at the same 5 s budget).
+
 The topples, traced (a shake replay recording each item's shift and
 tilt on the three scenes with the most): in two of them, standing boxes
 (0.24 m deep, 0.4 m tall) the rows put on the fourth level with their

@@ -71,8 +71,11 @@ def planning_order(profiles: list, config, has_priority_container: bool, priorit
 
     sign = 1.0 if getattr(config, "count_first", False) else -1.0
     hard = sorted((p for p in profiles if not p.is_soft), key=lambda p: (sign * volume(p), p.index))
-    soft = sorted((p for p in profiles if p.is_soft),
-                  key=lambda p: (min(o.dz for o in p.orientations), -volume(p), p.index))
+    if getattr(config, "plan_soft_count_first", False):
+        soft = sorted((p for p in profiles if p.is_soft), key=lambda p: (volume(p), p.index))
+    else:
+        soft = sorted((p for p in profiles if p.is_soft),
+                      key=lambda p: (min(o.dz for o in p.orientations), -volume(p), p.index))
     if has_priority_container and getattr(config, "priority_cargo_first", False):
         hard = [p for p in hard if p.is_prioritized] + [p for p in hard if not p.is_prioritized]
         return [p.index for p in hard] + [p.index for p in soft]
