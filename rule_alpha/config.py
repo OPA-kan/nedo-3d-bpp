@@ -1443,6 +1443,22 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    online_row_depths: str = "0.56,0.45,0.4"
+    """The fixed row depths (m, back to front) of the online rows policy
+    (``online_planner`` = "rows"): the canonical flat depths of the hard
+    cargo classes, the deepest at the back so every class has a row."""
+
+    online_planner: str = ""
+    """The planner's pose search used online for the items no plan covers
+    (Tasks B and C, a Task A item off the plan): "lowest" (the lowest
+    legal pose over every anchor, then deepest, then leftmost), "walls"
+    or "band" (see ``planner._key``).  Empty: the ladder.  On the Task C
+    physics suite the ladder placed 27 of 61 items a scene (0.445) and
+    every episode ended on a decline with the floor 52 % covered, the
+    declined box an ordinary one (0.65 x 0.45 eleven times, the smallest
+    hard box eight): its terraces fragment the floor and no rectangle is
+    left for the next box.  Lowest-first fills the floor before it stacks."""
+
     plan_standing_rows: bool = False
     """Once nothing flat fits anywhere in a container's rows, the hard
     cargo left is packed standing in rows of its own (a fresh row-depth

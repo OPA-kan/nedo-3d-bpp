@@ -269,6 +269,73 @@ class RuleAlphaAgent:
                 self.plan_replayed += 1
                 return self._action(pool_index, decision.placement)
 
+        # the online planner (Tasks B and C, or a Task A item off the plan):
+        # the lowest legal pose over every anchor -- the floor filled before
+        # anything is stacked, so a large flat area stays for the big boxes
+        # the ladder's terraces leave no room for (Task C ended on a decline
+        # with the floor 52 % covered, 27 of 41 items placed)
+        name = str(getattr(self.config, "online_planner", "") or "")
+        if name == "rows" and (not self.plan_by_index or self.plan_source != "planner"):
+            # fixed row lines per container (the canonical depths of the
+            # cargo classes, back to front), the item at the lowest legal
+            # pose on them: the floor of every row fills before anything is
+            # stacked and the layers rest on whole rows
+            from .planner import _Pose, _placement, online_row_lines, online_row_pose
+
+            import re
+
+            depths = [float(d) for d in re.split(r"[,;+|]", str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4"))) if d]
+            for n, (pool_index, profile) in enumerate(ordered):
+                if n and not self._can_start(ladder_deadline):
+                    break
+                t0 = time.perf_counter()
+                hit = None
+                for container_idx in layer1.routing_order(profile, self.board, self.config):
+                    model = self.board.model(container_idx)
+                    lines = online_row_lines(model, self.config, depths)
+                    box, orientation = online_row_pose(self.board, container_idx, profile, self.config, lines,
+                                                       standing=bool(getattr(self.config, "plan_standing", True)))
+                    if box is not None:
+                        hit = (container_idx, model, box, orientation)
+                        break
+                self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                if hit is None:
+                    continue
+                container_idx, model, box, orientation = hit
+                placement = _placement(_Pose(box, orientation, model.z_floor), 1, profile, container_idx, model)
+                placement.archetype = "online-rows"
+                self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": 1},
+                                                     veto_counts={}, considered=1, ladder=[])
+                return self._action(pool_index, placement)
+        elif name and (not self.plan_by_index or self.plan_source != "planner"):
+            from .planner import _key, _placement
+            from wedge_rl.stack import stack_candidates
+
+            key = _key(name, float(getattr(self.config, "plan_band", 0.22)))
+            for n, (pool_index, profile) in enumerate(ordered):
+                if n and not self._can_start(ladder_deadline):
+                    break
+                t0 = time.perf_counter()
+                chosen = None
+                for container_idx in layer1.routing_order(profile, self.board, self.config):
+                    model = self.board.model(container_idx)
+                    container = self.board.container(container_idx)
+                    cands = stack_candidates(model, container, self.config, profile, max_candidates=10 ** 6,
+                                             mass=float(pool[pool_index].get("mass", 0.0)), z_top=None)
+                    if cands:
+                        best = min(cands, key=lambda c: key(c, model))
+                        chosen = (container_idx, model, best, len(cands))
+                        break
+                self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                if chosen is None:
+                    continue
+                container_idx, model, cand, count = chosen
+                placement = _placement(cand, count, profile, container_idx, model)
+                placement.archetype = "online-" + name
+                self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": count},
+                                                     veto_counts={}, considered=count, ladder=[])
+                return self._action(pool_index, placement)
+
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
         if self.wedge_option is not None:

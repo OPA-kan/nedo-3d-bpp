@@ -1299,6 +1299,43 @@ the centre of mass +0.006 (n.s.), one episode ended on a physics
 failure.  Not adopted: the count gain is not significant and the soft
 and placement scores would pay for it.
 
+### Tasks B and C: where the online ladder stops
+
+Every gain since v5 is Task A's planner.  The v18 agent on the Task B
+and C physics suites (48 scenes each, the same layouts and seeds as
+Task A's):
+
+| task | items a scene | fraction placed | c1 / c1s / c2 / c2p |
+|---|---|---|---|
+| A (planned) | 38.0 | 0.616 | 0.644 / 0.577 / 0.646 / 0.598 |
+| B (a pool to choose from) | 31.5 | 0.526 | 0.579 / 0.551 / 0.478 / 0.496 |
+| C (one item at a time) | 27.2 | 0.445 | 0.439 / 0.463 / 0.437 / 0.439 |
+
+The official fraction placed (0.5526 for v18) is close to the mean of
+the three (0.529), so a third of the platform's episodes are Task C
+episodes at 0.445, below whatever the threshold is -- and Task C is
+unchanged from v4 (27.5 a scene): nothing since touched it.  Every C
+episode ends on a decline (no legal pose for the item in hand), 44 of
+48, and the declined item is an ordinary box: 0.65 x 0.45 x 0.25
+eleven times, the smallest hard box (0.55 x 0.4 x 0.24) eight, the
+biggest eight, a soft box fifteen.  The settled floor is 52 % covered
+then (37-64 %).  A brute-force probe over every anchor (5 cm grid, all
+orientations, both containers, the last-resort margins) confirms the
+decline: zero legal poses -- the free floor is in pieces smaller than
+the box and no top is flat enough.  So the loss is the fragmentation
+the ladder's terraces leave, not a rule refusing room.
+
+Four online policies from the planner's pose search, analytic, four
+scenes (the ladder: 19 / 17 / 39 / ~36): lowest-first 12 / 10 / 28 /
+37 (the floor is filled front and back at once and the back is then
+unreachable), walls (deepest first) 22 / 16 / 38 / 43, band 15 / 10 /
+28 / 37, fixed row lines with the item at the lowest pose on them 14 /
+11 / 28 / 38 -- the last one stood the first big box up on the floor
+and put the first soft box on the back row's floor, killing the column
+above it.  None beats the ladder; the ladder's own flags are being
+swept next (`ground_before_growth`, `floor_paving_order`,
+`floor_prefers_flat`, `last_resort_all_poses`, `count_first` off).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

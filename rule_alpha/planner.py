@@ -722,3 +722,59 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
                                    considered=1, ladder=[ARCHETYPE], survivors=[candidate], chosen=candidate)
         return pool_index, decision
     return None
+
+
+def online_row_lines(model, config, depths: list[float]) -> list[tuple[float, float]]:
+    """Fixed row lines for the online rows policy: the given depths laid
+    from the back wall to the opening as far as the floor's depth allows."""
+    rect = model.floor_rect
+    gap = config.settled_clearance + config.anchor_slack
+    slack = config.anchor_slack
+    y_front = rect.y_min + slack
+    lines = []
+    y_back = rect.y_max - slack
+    for depth in depths:
+        if y_back - depth < y_front - 1e-9:
+            continue
+        lines.append((y_back, float(depth)))
+        y_back -= depth + gap
+    return lines
+
+
+def online_row_pose(board, container_idx: int, profile, config, row_lines: list, z_cap: float | None = None,
+                    standing: bool = True):
+    """The item's pose on the fixed row lines: the lowest legal pose, then
+    the deepest row, then the leftmost -- so the floor of every row fills
+    before anything is stacked and the rows stay aligned for the layers.
+    Flat poses first; a standing pose only where no flat one is legal."""
+    model = board.model(container_idx)
+    rect = model.floor_rect
+    slack = config.anchor_slack
+    wall = config.inclusion_clearance + slack
+    x_right = rect.x_max - slack
+    x_left = max(model.x_limit_at_height(model.z_floor) + wall, rect.x_min)
+    container = board.container(container_idx)
+
+    def poses(orientations):
+        found = []
+        for row_index, (y_back, depth) in enumerate(row_lines):
+            for o in orientations:
+                if o.dy > depth + 1e-9:
+                    continue
+                y = y_back - o.dy / 2.0
+                x = x_left + o.dx / 2.0
+                while x + o.dx / 2.0 <= x_right + 1e-9:
+                    bottom = _drop_height(container, model, x, y, o.dx, o.dy, o.dz)
+                    box, why = _try_pose(board, container_idx, profile, o, x, y, config, z_cap)
+                    if box is not None:
+                        found.append(((round(bottom, 3), row_index, round(x, 3)), box, o))
+                    x += 0.05
+        return found
+
+    found = poses(_flat_poses(profile))
+    if not found and standing:
+        found = poses(_standing_poses(profile))
+    if not found:
+        return None, None
+    found.sort(key=lambda t: t[0])
+    return found[0][1], found[0][2]
