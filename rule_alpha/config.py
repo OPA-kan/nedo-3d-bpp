@@ -1443,6 +1443,25 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    plan_layout_variants: str = ""
+    """Layout scorings the planner tries as variants, each against the
+    whole budget like the priority orders: "floor" (the floor layer's
+    count, ``plan_layout_layers`` off) and/or "layers" (what the rows hold
+    over their layers).  Empty: the configured ``plan_layout_layers``
+    alone.  Analytic, four scenes: the layered search plans 26 against 17
+    of 41 on a shelf-container scene and 50 against 53, 45 against 50 of
+    82 on two-container ones, so both are planned and the plan score
+    chooses; "floor" first, so a slow machine still has v18's plan."""
+
+    plan_layout_layers: bool = False
+    """The planner's row-depth search scores a row by what it holds over
+    its layers up to its ceiling (the main shelf's underside under the
+    shelf, else the ceiling under the soft headroom reserve), not by its
+    floor layer alone.  Sized for the floor layer's count the rows took
+    the smallest boxes' depth and the bulk never fitted a row: on
+    a-c1s-s0010 the planner placed 17 of 41 with the 15 boxes of
+    0.65 x 0.45 refused by every 0.4 m row."""
+
     cover_veto_ignores_shelf: bool = False
     """The cover veto (``no_cover_other_attribute``) lets a box sit above
     cargo of another attribute when one of the container's shelves lies

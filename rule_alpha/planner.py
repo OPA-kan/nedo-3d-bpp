@@ -241,6 +241,28 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
         depths = sorted({round(side, 4) for p in pool for o in _flat_poses(p) for side in (o.dx, o.dy)}, reverse=True)
         found: dict[tuple, tuple] = {}
         budget = [4000]
+        # with plan_layout_layers a row is worth what it holds over its
+        # layers up to its ceiling (the main shelf's underside where the
+        # row runs under the shelf, else the ceiling under the soft
+        # headroom reserve), not its floor layer alone: sized for the
+        # floor layer's count, the rows took the smallest boxes' depth and
+        # the bulk of the cargo never fitted a row (a-c1s-s0010: 17 of 41
+        # planned, the 15 boxes of 0.65 x 0.45 refused by every 0.4 m row)
+        layers = bool(getattr(config, "plan_layout_layers", False))
+        reserve = agent._soft_headroom_reserve(board.containers, container_idx) if layers else 0.0
+        wide_shelves = [s for s in (model.shelves or [])
+                        if float(s.maximum[0]) - float(s.minimum[0]) > 0.5 * (rect.x_max - rect.x_min)]
+
+        def row_zmax(y_top: float, d: float) -> float:
+            zmax = model.z_ceiling - reserve - wall
+            for s in wide_shelves:
+                if float(s.minimum[1]) < y_top - 1e-9 and float(s.maximum[1]) > y_top - d + 1e-9 \
+                        and float(s.minimum[2]) > model.z_floor + 0.1:
+                    zmax = min(zmax, float(s.minimum[2]) - wall)
+            return zmax
+
+        def row_worth(row: list) -> float:
+            return float(len(row)) if count_first else sum(o.dx * o.dy * o.dz for _p, o in row)
 
         def search(remaining: list, y_left: float, rows: list, volume: float):
             budget[0] -= 1
@@ -256,7 +278,18 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 row = fill_row_plan(pool2, d, x_left)
                 if not row:
                     continue
-                gained = float(len(row)) if count_first else sum(o.dx * o.dy * o.dz for _p, o in row)
+                gained = row_worth(row)
+                if layers:
+                    height = model.z_floor + max(o.dz for _p, o in row)
+                    zmax = row_zmax(y_front + y_left, d)
+                    while pool2:
+                        snapshot = list(pool2)
+                        more = fill_row_plan(pool2, d, x_left)
+                        if not more or height + max(o.dz for _p, o in more) > zmax + 1e-9:
+                            pool2[:] = snapshot
+                            break
+                        gained += row_worth(more)
+                        height += max(o.dz for _p, o in more)
                 rows.append((d, row))
                 search(pool2, y_left - d - gap, rows, volume + gained)
                 rows.pop()
@@ -426,7 +459,12 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # physics suite the better of the two orders a scene places 0.4 items
     # more than the smallest-first order alone
     sizes = [s for s in re.split(r"[,+|]", str(getattr(config, "plan_size_orders", "") or "")) if s] or [None]
-    variants = [(o, li, s) for li in range(layouts) for s in sizes for o in orders]
+    # the layout scoring as a variant too ("floor": the floor layer's
+    # count; "layers": what the rows hold over their layers): the layered
+    # search gains 9 items on a shelf-container scene and loses 3-5 on the
+    # two-container ones, so both are planned and the plan score chooses
+    modes = [m for m in re.split(r"[,+|]", str(getattr(config, "plan_layout_variants", "") or "")) if m] or [None]
+    variants = [(o, li, s, m) for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     # Every variant gets the whole of what is left of the budget, one after
     # the other, and a variant the deadline cuts short counts only when no
@@ -439,13 +477,18 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     best_partial = None
     started = time.perf_counter()
     longest = 0.0
-    for variant, layout_index, size_order in variants:
+    for variant, layout_index, size_order, mode in variants:
         now = time.perf_counter()
         if best is not None and now + longest * 1.2 >= deadline:
             break
         t0 = now
+        changes = {}
         if size_order is not None:
-            agent.config = dataclasses.replace(config, count_first=(size_order == "small"))
+            changes["count_first"] = size_order == "small"
+        if mode is not None:
+            changes["plan_layout_layers"] = mode == "layers"
+        if changes:
+            agent.config = dataclasses.replace(config, **changes)
         try:
             order, plan = _plan_once(agent, item_list, deadline, variant, log, layout_index=layout_index)
         finally:
@@ -455,7 +498,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
         score = scorer(plan) if scorer is not None else volume
         if log:
-            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}: {len(plan)} planned, {volume:.3f} m^3, "
+            by_index = {int(i["index"]): i for i in item_list}
+            n_soft = sum(1 for e in plan if by_index[int(e["index"])].get("is_soft"))
+            n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
+            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}/mode {mode}: {len(plan)} planned "
+                f"(soft {n_soft}, priority {n_prio}), {volume:.3f} m^3, "
                 f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
         entry = ((score, len(plan)), order, plan)
         if complete:
