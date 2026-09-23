@@ -1284,6 +1284,21 @@ one strip and wastes the rest -- a third of the container's height
 carries three soft boxes.  `plan_soft_own_rows` gives the soft cargo
 its own layout search over the hard stack's top.
 
+Measured: the soft cargo's own rows gain nothing (analytic, four
+scenes: 24/18/51/50 against 24/17/53/50), since the standing layer's
+top is a third covered whatever rows the soft cargo is laid in.
+Standing rows (`plan_standing_rows`: once nothing flat fits, the hard
+cargo left packed standing in rows of its own, poses capped at 0.45 m)
+plan 24/24/53/51 (the shelf-container scene +7), and on the physics
+suite against v18: items +0.65 a scene [-0.31, +1.58], fill +1.4
+[+0.5, +2.3], episodes with 60 % placed 33 against 24 -- but 54 fewer
+soft and 27 fewer priority items over the suite (295 against 349, 184
+against 211): the standing rows take the room and the uneven top they
+leave (0.94-0.99 m) carries less soft cargo.  Topples 8 against 11,
+the centre of mass +0.006 (n.s.), one episode ended on a physics
+failure.  Not adopted: the count gain is not significant and the soft
+and placement scores would pay for it.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
