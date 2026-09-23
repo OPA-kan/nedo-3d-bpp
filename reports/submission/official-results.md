@@ -12,6 +12,21 @@
 | v11 (4220db3: v5 with the priority cargo mixed into the size order) | 34.49 | 36.37 | 41.84 | 22.2 | 17.55 | 0.4996 | 139.9 | 6.53 |
 | v12 (3e84dbb: count first -- small cargo first, rows with the most boxes, count-weighted plan score) | 34.05 | 48.08 | 54.46 | 27.5 | 18.05 | 0.540 | 139.9 | 7.31 |
 | v14 (588645a: v12 with the three priority orders planned in sequence, policy budget 4.5 s) | 34.06 | 47.14 | 54.30 | 25.6 | 15.8 | 0.5427 | 140.0 | 6.71 |
+| v18 (3bdd115: v15 plus the priority container's room -- priority rows deep first, normal cargo in its spare rows, the cover veto through a shelf, the soft reserve per container) | 34.82 | 54.83 | 62.69 | 35.6 | 19.85 | 0.5526 | 139.3 | 5.92 |
+
+v18's total was 43.05, 4.85 above v12 and the best so far, on 1.25
+points more of items placed (0.5526 against 0.540).  Every component
+rose: fill +0.77, cog +6.75, stability +8.23, placement +8.1, soft
++1.8; by weight cog 1.45, stability 1.75, placement 1.16, soft 0.26,
+fill 0.22.  The placement score's jump is the priority cargo staying in
+its container (the deep-first rows leave it room, so the last resort
+sends less of it to a normal one) and the count crossing the threshold
+on more episodes; the bench had predicted the count (+2.2 items a
+scene, the priority-container scenes 40.8 -> 49.0) and nothing else.
+The slowest policy call took 5.92 s at the 4.5 s budget.
+
+Seven totals fit the weights to 0.001: fill 0.286, cog 0.216,
+stability 0.213, placement 0.143, soft 0.142 -- 2 : 1.5 : 1.5 : 1 : 1.
 
 v14's total was 37.38, 0.83 below v12, with *more* items placed
 (0.5427 against 0.540): the first run where the four components did

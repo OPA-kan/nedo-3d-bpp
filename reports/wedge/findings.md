@@ -1239,6 +1239,14 @@ least 55 % 41 against 35; the priority-container scenes 49.0 against
 covered priority cargo unchanged (2 scenes each way), topples 11
 against 15, the centre of mass 0.004 higher (the shelf top is used).
 
+Official: v18 scored 43.05 (v12 38.21) on 0.5526 of items placed
+(0.540): fill +0.77, cog +6.75, stability +8.23, placement +8.1, soft
++1.8.  Seven totals fit the weights to 0.001 (fill 0.286, cog 0.216,
+stability 0.213, placement 0.143, soft 0.142).  The method that found
+it -- the planner's refusal log on a scene of the weakest layout, the
+reasons tallied, the two rules that closed the room named -- is the
+one to repeat on the other layouts.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
