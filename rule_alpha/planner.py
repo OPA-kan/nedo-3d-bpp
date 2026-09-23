@@ -188,6 +188,20 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
     # the most boxes; otherwise the biggest and the most volume
     count_first = bool(getattr(config, "count_first", False))
     area_sign = 1.0 if count_first else -1.0
+    # the poses a row is built from: flat, or -- once nothing flat fits
+    # anywhere and plan_standing_rows is on -- standing, in rows of their
+    # own over the flat layers (the mid-height transport band kills a flat
+    # third layer; a standing box in a flat row's slot covers a third of
+    # the row's depth, standing rows cover it all)
+    pose_fn = _flat_poses
+    flat_lines = None
+    standing_cap = float(getattr(config, "plan_standing_rows_max_height", 10.0))
+
+    def standing_fn(profile):
+        # a box standing taller than the cap (a 0.75 x 0.56 x 0.27 box on
+        # its side is 0.56 or 0.75 m tall) is height and a topple the
+        # count does not pay for
+        return [o for o in _standing_poses(profile) if o.dz <= standing_cap + 1e-9]
 
     def place(profile, orientation, x, y):
         reserve = agent._soft_headroom_reserve(board.containers, container_idx) if not profile.is_soft else 0.0
@@ -221,7 +235,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             width = x_right - x_cursor
             choices = []
             for n, profile in enumerate(pool):
-                for o in _flat_poses(profile):
+                for o in pose_fn(profile):
                     if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9:
                         choices.append((abs(o.dy - depth) > 1e-6, area_sign * o.dx * o.dy, n, o, profile))
             if not choices:
@@ -238,7 +252,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
         depth by volume, by a search over the row depths (the flat sides of
         the items) with the greedy row fill above; distinct in their row
         depths."""
-        depths = sorted({round(side, 4) for p in pool for o in _flat_poses(p) for side in (o.dx, o.dy)}, reverse=True)
+        depths = sorted({round(side, 4) for p in pool for o in pose_fn(p) for side in (o.dx, o.dy)}, reverse=True)
         found: dict[tuple, tuple] = {}
         budget = [4000]
         # with plan_layout_layers a row is worth what it holds over its
@@ -348,7 +362,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             width = x_right - x_cursor
             choices = []
             for n, profile in enumerate(items):
-                for o in _flat_poses(profile):
+                for o in pose_fn(profile):
                     if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9:
                         choices.append((row_dz is not None and abs(o.dz - row_dz) > 1e-6,
                                         abs(o.dy - depth) > 1e-6, area_sign * o.dx * o.dy, n, o, profile))
@@ -360,7 +374,8 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 box = try_slot(profile, o, x_cursor, y_back)
                 if box is not None:
                     break
-            if box is None and getattr(config, "plan_standing", True):
+            if (box is None and getattr(config, "plan_standing", True)
+                    and not (getattr(config, "plan_standing_rows", False) and pose_fn is _flat_poses)):
                 # nothing flat fits here (the mid-height band, most often):
                 # a standing pose of the same items, lowest first
                 standing = []
@@ -421,9 +436,21 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                     break
                 fill_row(y_back, depth, x_left)
         if log:
-            log(f"  [plan] container {container_idx} pass {passes}: {len(planned) - before} placed, {len(items)} left")
+            log(f"  [plan] container {container_idx} pass {passes}: {len(planned) - before} placed, {len(items)} left"
+                + (" (standing rows)" if pose_fn is not _flat_poses else ""))
         if len(planned) == before or deep_first:
+            if (items and pose_fn is _flat_poses and getattr(config, "plan_standing_rows", False)
+                    and getattr(config, "plan_standing", True) and not deep_first
+                    and not any(p.is_soft for p in items)):
+                pose_fn = standing_fn
+                flat_lines = list(row_lines)
+                row_lines.clear()
+                continue
             break
+    if flat_lines is not None:
+        # the flat rows' lines are what the next pass (the soft cargo on
+        # the hard rows' lines) expects
+        row_lines[:] = flat_lines
     return row_lines
 
 
@@ -557,7 +584,12 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
             hard = [p for p in items if not p.is_soft]
             lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, layout_index=layout_index)
             soft = [p for p in items if p.is_soft]
-            pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log, row_lines=lines)
+            # the soft cargo's rows: its own layout over the hard stack's
+            # top (plan_soft_own_rows) or the hard rows' lines, which are
+            # sized for hard boxes twice as deep as a soft one and waste
+            # half of every row on it
+            soft_lines = None if getattr(config, "plan_soft_own_rows", False) else lines
+            pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log, row_lines=soft_lines)
             remaining = [p for p in remaining if p.index not in set(planned)]
         if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
             # the priority container's spare rows take the normal hard cargo

@@ -1269,6 +1269,21 @@ never fitted a row.  Three suites on the v18 base:
   9-item analytic gain on one scene did not carry to the layout or
   through physics.  Left in the code, off.
 
+Official: v19 scored 40.44 (v18 43.05) on 0.3 points more of items
+placed: cog -4.5, stability -4.2, placement -5.55, fill and soft held.
+So height and topples do count on the platform -- v12's 15 topples
+were carried by 3.7 points of items, v19's 21 by 0.3 -- and the fourth
+hard layer on standing boxes at 0.93 m is what they paid for.  The
+reserve goes back to three quarters, and the count has to come from
+below.  Where it can: on a-c1-s0003 the plan holds 16 hard and 8 of 17
+soft items, the hard stack ends at 0.93 m (two flat layers, then a
+standing layer because a flat third layer's top would land in the
+mid-height transport band), and the soft rows on top reuse the hard
+rows' lines, 0.65 m deep for boxes 0.3 m deep, so each soft row holds
+one strip and wastes the rest -- a third of the container's height
+carries three soft boxes.  `plan_soft_own_rows` gives the soft cargo
+its own layout search over the hard stack's top.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

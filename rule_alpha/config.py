@@ -1443,6 +1443,30 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    plan_standing_rows: bool = False
+    """Once nothing flat fits anywhere in a container's rows, the hard
+    cargo left is packed standing in rows of its own (a fresh row-depth
+    search over the standing poses) over the flat layers, instead of a
+    standing box in a flat row's slot here and there.  The mid-height
+    transport band kills a flat third layer; a standing box (0.24 m
+    deep) in a 0.65 m row's slot covers a third of the row, standing
+    rows cover it all, and the soft cargo on top then has a top to rest
+    on (on a-c1-s0003 the soft rows found support for 3 of 17 up there).
+    Needs ``plan_soft_own_rows`` for the soft rows to use the surface."""
+
+    plan_standing_rows_max_height: float = 10.0
+    """Standing rows take only poses up to this height (m): a 0.75 x 0.56
+    x 0.27 box on its side is 0.56 or 0.75 m of top-heavy stack, and the
+    platform's v19 result priced height and topples above the count."""
+
+    plan_soft_own_rows: bool = False
+    """The soft cargo's rows come from their own layout search over the
+    hard stack's top instead of the hard rows' lines.  The hard rows are
+    sized for boxes 0.45-0.65 m deep and a soft box is 0.3 m deep, so on
+    the hard lines each soft row holds one strip of soft boxes and wastes
+    the rest of its depth: on a-c1-s0003 the plan had 8 of 17 soft items
+    with a third of the height unused."""
+
     plan_layout_variants: str = ""
     """Layout scorings the planner tries as variants, each against the
     whole budget like the priority orders: "floor" (the floor layer's

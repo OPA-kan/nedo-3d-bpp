@@ -14,6 +14,22 @@
 | v14 (588645a: v12 with the three priority orders planned in sequence, policy budget 4.5 s) | 34.06 | 47.14 | 54.30 | 25.6 | 15.8 | 0.5427 | 140.0 | 6.71 |
 | v18 (3bdd115: v15 plus the priority container's room -- priority rows deep first, normal cargo in its spare rows, the cover veto through a shelf, the soft reserve per container) | 34.82 | 54.83 | 62.69 | 35.6 | 19.85 | 0.5526 | 139.3 | 5.92 |
 
+| v19 (b8d99c1: v18 with the soft headroom reserve sized for half the soft volume) | 34.82 | 50.32 | 58.50 | 30.05 | 20.2 | 0.5558 | 139.7 | 5.88 |
+
+v19's total was 40.44, 2.61 below v18, on 0.3 points more of items
+placed (0.5558 against 0.5526): fill and soft held (0.00, +0.35), cog
+-4.5, stability -4.2, placement -5.55.  The bench had it +1.33 items a
+scene with the centre of mass 0.015 higher and topples 21 against 11:
+the fourth hard layer the smaller reserve allows sits on standing boxes
+at 0.93 m, and the platform's cog and stability scores paid for that
+height and those topples at once, with too little count to cover it
+(v12's 15 topples were carried by 3.7 points of items placed; v19's
+0.3 points carried nothing).  So topples and height do count, at
+roughly this rate: -0.9 cog and -0.8 stability points per topple a
+scene on 48 scenes, or -3 cog points per 0.01 of centre-of-mass ratio.
+Reverted: v20 is v18's reserve again, and the count has to come from
+below, not from a higher stack.
+
 v18's total was 43.05, 4.85 above v12 and the best so far, on 1.25
 points more of items placed (0.5526 against 0.540).  Every component
 rose: fill +0.77, cog +6.75, stability +8.23, placement +8.1, soft
