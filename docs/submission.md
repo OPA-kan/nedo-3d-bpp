@@ -145,6 +145,18 @@ priority-container scenes 49.0 against 40.8 items; other layouts
 unchanged.  Two probes between them did not move the count: v16 (the
 size order as a variant) and v17 (the spare rows alone).
 
+v18 scored 43.05 on the platform (v12 38.21): every component up,
+placement +8.1.
+
+Nineteenth build (v19): v18 with the soft headroom reserve sized for
+half the soft volume (`soft_headroom_volume_share` 0.5, from 0.75).
+Physics suite against v18: items +1.3 a scene [+0.5, +2.3], fill +1.2,
+the soft count unchanged, priority +11 over the suite, topples 21
+against 11; the two-container scenes 53.0 -> 57.9 items.  Two other
+probes: no reserve at all halves the soft count (not adopted); the
+row-depth search scored over a row's layers, as a planner variant, is
+in the code but off (count +0.08, n.s.).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

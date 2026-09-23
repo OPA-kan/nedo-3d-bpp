@@ -1247,6 +1247,28 @@ it -- the planner's refusal log on a scene of the weakest layout, the
 reasons tallied, the two rules that closed the room named -- is the
 one to repeat on the other layouts.
 
+Repeated on the other two layouts (v18 arm, refusal tallies): on a
+two-container scene the top reason is the soft headroom reserve's cap
+(1.12 m; 4444 and 2843 refusals in the two containers), on a
+shelf-container scene the planner places 17 of 41 because the
+row-depth search, sized for the floor layer's count, took the ten
+smallest boxes' depth (0.4 m) and the fifteen boxes of 0.65 x 0.45
+never fitted a row.  Three suites on the v18 base:
+
+* the reserve sized for half the soft volume instead of three quarters
+  (v19a): items +1.33 a scene [+0.48, +2.27], fill +1.2, the soft count
+  unchanged (346 against 349), priority +11, the two-container scenes
+  53.0 -> 57.9; topples 21 against 11 [+0.02, +0.5] and the centre of
+  mass 0.015 higher.  Adopted (v19): the count is what the platform
+  pays for, and v12's stability rose with 15 topples in.
+* no reserve at all (v19b): items -0.46 (n.s.), the soft count halved
+  (169), topples 33.  Not adopted.
+* the row-depth search scored over a row's layers, as a variant beside
+  the floor-layer scoring with the plan score choosing (v19c): items
+  +0.08 (n.s.); the shelf-container scenes 23.7 -> 24.0 only, so the
+  9-item analytic gain on one scene did not carry to the layout or
+  through physics.  Left in the code, off.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

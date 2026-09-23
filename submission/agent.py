@@ -114,7 +114,11 @@ OVERRIDES = dict(
     # place 3 of 15 soft items fewer; the official v5 result priced soft
     # and placement above that, so the planner goes first everywhere
     plan_dry_run_first_with_shelf=False,
-    reserve_headroom_for_soft=True, soft_headroom_volume_share=0.75, soft_headroom_slack=0.05,
+    # v19: the reserve sized for half the soft volume (0.75 before): on the
+    # physics suite +1.3 items a scene [+0.5, +2.3] and fill +1.2, the soft
+    # count unchanged (346 against 349 of 48 scenes), priority +11,
+    # topples 21 against 11; no reserve at all halves the soft count
+    reserve_headroom_for_soft=True, soft_headroom_volume_share=0.5, soft_headroom_slack=0.05,
     # priority cargo carries load (only priority cargo may sit on it under
     # the cover rule): the priority container gets its second layer
     priority_is_structure=True,
