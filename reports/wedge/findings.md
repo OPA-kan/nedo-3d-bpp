@@ -1349,6 +1349,27 @@ official run.  The Task C loss is the ladder's floor fragmentation
 itself, and only a policy that keeps a level surface (a layer core)
 would move it by more than a box a scene.
 
+### The online layer policy (`online_planner` = layers)
+
+Built over ``stack_candidates``: flat poses before standing ones
+(standing capped at 0.45 m), then the lowest layer band, then a pose
+resting on most of its footprint, then the deepest, then the leftmost
+for the hard cargo; the cargo nothing may rest on goes to the shelf
+gallery first (a shelf-top scan, since the candidate generator has no
+shelf anchors), then onto its own kind, then the highest top.  Three
+things it taught: an item is carried in only 0.08 m up, so a box at
+the front blocks every floor pose behind it (no front strip for soft
+cargo); the first soft and priority boxes fragment the back row unless
+they go to the shelf; and support ranked before the band builds towers
+over a floor 73 % covered.  Analytic, 48 scenes each, items a scene
+against the ladder: Task C +0.67 [-0.62, +1.94] (two-normal-container
+scenes +2.6, priority-container ones -0.8), the centre of mass 0.016
+lower, soft +17; Task B -0.92 [-2.06, +0.25]; choosing the pool item
+whose pose ranks best (Task B) -3.65, since keys of different items do
+not compare.  The ladder with the two flags stays ahead on the count
+(+1.67); the layer policy's lower centre of mass is what a physics run
+on Task C decides.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
