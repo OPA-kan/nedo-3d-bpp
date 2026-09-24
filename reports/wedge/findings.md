@@ -1402,6 +1402,20 @@ ones' 11.9), which v19 priced at about 3 cog points per 0.01; the
 count is worth far more here (B: +6.4 points of the fraction), and the
 physics suites decide.
 
+Physics, 48 scenes each, v23 against v18: Task A items +2.65 [+1.75,
++3.63] (fraction 0.616 -> 0.658, soft 349 -> 485), Task B +4.92
+[+2.85, +6.81] (0.526 -> 0.608; episodes at half the items 29 -> 44,
+soft 201 -> 367, priority 200 -> 133), Task C +4.65 [+3.04, +6.25]
+(0.445 -> 0.518; 11 -> 31 at half, soft 384 -> 459).  The costs: the
+centre of mass +0.017 / +0.032 / +0.034, topples on C 9 -> 29 (0.19 ->
+0.60 a scene), soft cargo covered by other cargo 0 -> 0.08 / 0.10 /
+0.29 a scene, physics failures 2 / 3 / 7 episodes.  By the platform's
+prices the count (+6.6 points of the fraction over the three tasks,
+about +13 cog and +15 stability points at the v12 -> v18 slope) is
+worth several times the height (-8 cog) and the topples (-0.5): v23
+goes to the platform, and the covered soft cargo and Task C's topples
+are the next things to take out.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

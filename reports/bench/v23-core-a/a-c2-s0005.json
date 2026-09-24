@@ -1,0 +1,3353 @@
+{
+ "scene": "a-c2-s0005",
+ "scene_spec": {
+  "name": "a-c2-s0005",
+  "seed": 5,
+  "layout": "c2",
+  "task": "A",
+  "look_ahead": 1,
+  "optimize": true,
+  "item_count": 82,
+  "notes": ""
+ },
+ "arm": {
+  "arm": "stack:reports/wedge/ppo-stack-c1-s0-tower@offline_dry_run=true,last_resort_relax=true,no_cover_other_attribute=true,priority_cargo_first=true,offline_planner=rows,plan_variants=after-hard,plan_layouts=1,priority_is_structure=true,reserve_headroom_for_soft=true,soft_headroom_volume_share=0.75,soft_headroom_slack=0.05,plan_min_support=0.0,plan_standing=true,plan_replay_clearance=0.026,plan_replay_nudge=0.0,conservative_transport=false,count_first=true,plan_score_weights=1;0.5;0.5;3,plan_normal_in_priority_container=true,plan_priority_deep_first=true,cover_veto_ignores_shelf=true,soft_headroom_per_container=true,soft_is_structure=true,soft_first_when_free=true",
+  "family": "stack",
+  "model": "reports/wedge/ppo-stack-c1-s0-tower",
+  "model_sha": "bac906e27212",
+  "wedge_model": "",
+  "wedge_sha": "",
+  "lookahead": null,
+  "config": {
+   "inclusion_clearance": 0.016,
+   "floor_action_lift": 0.02,
+   "settled_wall_clearance": 0.006,
+   "transport_clearance": 0.0,
+   "settled_clearance": 0.026,
+   "contact_tolerance": 0.006,
+   "min_support_ratio": 0.6,
+   "com_margin": 0.03,
+   "elongation_tau": 1.8,
+   "tipping_normal": 1.5,
+   "tipping_wall_preferred": 2.0,
+   "tipping_wall_strong": 3.0,
+   "max_freestanding_ratio": 2.0,
+   "ground_before_growth": false,
+   "prefilter_dead_candidates": true,
+   "layer2_anchor_clamp": 0.005,
+   "wedge_keeps_its_overhang": false,
+   "seal_counts_what_is_left": true,
+   "seal_boxes_worth": 2,
+   "seal_ranks_terraces": false,
+   "seal_check_all_surfaces": false,
+   "back_reachability_guard": true,
+   "back_guard_band": 0.7,
+   "back_guard_slack": 0.05,
+   "layer2_clamps_anchors": true,
+   "grid_always_from_packed": false,
+   "pool_order_demotes_elongated": false,
+   "pool_order_breaks_on_mass": false,
+   "shelf_skip_needs_column": true,
+   "shelf_column_fraction": 0.5,
+   "last_resort_all_poses": false,
+   "floor_prefers_flat": false,
+   "floor_paving_tolerance": 0.02,
+   "floor_paving_order": false,
+   "wall_front_order_quota": 0,
+   "plateau_veto_has_fallback": true,
+   "shelf_veto_has_fallback": false,
+   "shelf_fallback_min_fraction": 0.6,
+   "terrace_keeps_level": false,
+   "plateau_gain_bucket": 0.02,
+   "row_tiling": true,
+   "row_min_useful_width": 0.35,
+   "min_floor_footprint_fraction": 0.6,
+   "shelf_min_support_fraction": 0.9,
+   "max_shelf_tipping_ratio": 2.2,
+   "back_band_fraction": 0.42,
+   "edge_band_fraction": 0.26,
+   "corridor_width_fraction": 0.46,
+   "corridor_depth_fraction": 0.34,
+   "layer2_enabled": true,
+   "layer2_family_quota": 12,
+   "max_orientations_layer2": 3,
+   "layer2_max_level_step": 0.45,
+   "shelf_takes_hard": true,
+   "shelf_own_anchors": true,
+   "shelf_residual_key": true,
+   "shelf_depth_bucket": 0.05,
+   "typed_floor_right_front": true,
+   "front_shortlist_quota": 4,
+   "front_stays_low": true,
+   "front_release_back_share_of_headroom": 0.45,
+   "front_release_back_height": 0.6,
+   "front_release_back_share": 0.5,
+   "front_height_slack": 0.05,
+   "hard_avoids_front": false,
+   "hard_front_band": 0.35,
+   "typed_cap_enabled": false,
+   "typed_cap_min_height": 0.3,
+   "layer2_free_depth": 2,
+   "plateau_support_min_area": 0.25,
+   "plateau_support_footprint_multiple": 0.0,
+   "support_coverage_at_any_depth": false,
+   "perch_min_coverage": 0.5,
+   "plateau_support_coverage": 0.7,
+   "layer2_max_layers": 5,
+   "typed_front_right_slack": 0.25,
+   "wedge_approach_band": 0.3,
+   "wedge_approach_max_height": 0.45,
+   "wedge_top_must_advance": true,
+   "wedge_bottleneck_is_local": true,
+   "wedge_bridge_strip": 0.25,
+   "hole_fill_enabled": true,
+   "hole_fill_min_area": 0.05,
+   "hole_fill_min_enclosure": 0.5,
+   "hole_fill_max_rect_share": 0.2,
+   "hole_fill_min_coverage": 0.55,
+   "hole_fill_min_headroom": 0.1,
+   "front_wedge_enabled": true,
+   "front_wedge_band": 0.55,
+   "front_wedge_min_drop": 0.08,
+   "front_wedge_max_steps": 6,
+   "front_wedge_poses": 2,
+   "last_resort_enabled": true,
+   "last_resort_max_rects": 8,
+   "last_resort_rects_per_region": 4,
+   "hole_fill_rects_per_region": 5,
+   "hole_fill_max_holes": 8,
+   "hole_fill_tier_tolerance": 0.01,
+   "bridge_keeps_floor": true,
+   "bridge_max_sealed_floor": 0.06,
+   "compact_raised": true,
+   "compact_sideways_always": true,
+   "layer2_bridge_level_tolerance": 0.06,
+   "plateau_merge_min_gain": 0.02,
+   "corridor_release_fill": 0.62,
+   "back_first_slack": 0.1,
+   "back_first_hole_tolerance": 0.012,
+   "stranded_veto_area": 0.12,
+   "reach_probe_heights": [
+    0.0,
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+   ],
+   "sealed_veto_area": 0.3,
+   "foundation_large_quantile": 0.6,
+   "foundation_small_quantile": 0.4,
+   "compaction_min_gain": 0.008,
+   "compaction_iterations": 7,
+   "perimeter_prefers_depth": true,
+   "frontier_prefers_lying": true,
+   "small_hard_fit_guard": true,
+   "wall_front_band": 0.1,
+   "wall_front_target_ratio": 0.5,
+   "wall_front_min_height": 0.25,
+   "wall_front_max_height_shelf_fraction": 0.5,
+   "tall_perimeter_max_footprint_fraction": 0.18,
+   "tall_perimeter_min_height": 0.3,
+   "wall_front_strip_fraction": 0.22,
+   "wall_front_max_footprint_fraction": 0.13,
+   "wall_front_depth_target": 0.85,
+   "wedge_overhang_fraction": 0.4,
+   "wedge_step_max_footprint_fraction": 0.13,
+   "wedge_step_max_height": 0.35,
+   "wedge_min_step_gain": 0.03,
+   "wedge_step_probe_width": 0.4,
+   "wedge_step_probe_height": 0.2,
+   "wedge_cap_ladder_depth": 1,
+   "wedge_weight_step": 1.0,
+   "wedge_weight_cap": 0.6,
+   "wedge_weight_area": 0.6,
+   "wedge_weight_fill": 0.9,
+   "wedge_weight_bottleneck": 0.6,
+   "wedge_min_step_count": 3,
+   "wedge_min_step_share": 0.1,
+   "wedge_reserve_threshold": 0.25,
+   "slope_pocket_margin": 0.004,
+   "slope_pocket_min_penetration": 0.06,
+   "slope_pocket_min_share": 0.5,
+   "grid_cell": 0.02,
+   "candidate_grid_cell": 0.04,
+   "max_new_interior_hole": 0.06,
+   "plateau_height_tolerance": 0.03,
+   "priority_container_hard_budget": 0.45,
+   "max_candidates_per_orientation": 220,
+   "max_anchor_x": 26,
+   "max_anchor_y": 22,
+   "shortlist_size": 60,
+   "anchor_slack": 0.0005,
+   "anchor_clamp": true,
+   "fast_validate": true,
+   "compaction_keeps_support": true,
+   "settle_sink_allowance": 0.02,
+   "key_quantum": 0.005,
+   "residual_rect_shortlist": 24,
+   "zone_guard_fraction": 0.15,
+   "frontier_item_contact_weight": 2.0,
+   "count_all_shelves_as_relief": true,
+   "zones_shrink_with_demand": false,
+   "zone_reference_share": 0.25,
+   "layer1_only": true,
+   "allow_slope_infill_on_items": true,
+   "offline_dry_run": true,
+   "last_resort_relax": true,
+   "reserve_headroom_for_soft": true,
+   "soft_headroom_slack": 0.05,
+   "soft_headroom_volume_factor": 0.0,
+   "soft_headroom_volume_share": 0.75,
+   "offline_planner": "rows",
+   "plan_band": 0.22,
+   "priority_is_structure": true,
+   "plan_variants": "after-hard",
+   "plan_min_support": 0.0,
+   "plan_min_support_soft": 0.8,
+   "plan_standing": true,
+   "plan_standing_max_bottom": 10.0,
+   "soft_is_structure": true,
+   "soft_first_when_free": true,
+   "soft_first_min_hard_height": 0.24,
+   "online_layer_band": 0.25,
+   "online_front_strip": 0.45,
+   "online_layer_support": 0.85,
+   "online_standing_max_height": 10.0,
+   "online_pool_best": false,
+   "online_row_depths": "0.56,0.45,0.4",
+   "online_planner": "",
+   "plan_standing_rows": false,
+   "plan_standing_rows_max_height": 10.0,
+   "plan_soft_own_rows": false,
+   "plan_layout_variants": "",
+   "plan_layout_layers": false,
+   "cover_veto_ignores_shelf": true,
+   "soft_headroom_per_container": true,
+   "plan_priority_deep_first": true,
+   "plan_normal_in_priority_container": true,
+   "plan_size_orders": "",
+   "plan_soft_count_first": false,
+   "count_first": true,
+   "plan_score_weights": "1;0.5;0.5;3",
+   "plan_layouts": 1,
+   "plan_dry_run_first_with_shelf": false,
+   "plan_min_seconds": 15.0,
+   "conservative_transport": false,
+   "plan_replay_clearance": 0.026,
+   "plan_replay_nudge": 0.0,
+   "plan_replay": true,
+   "priority_cargo_first": true,
+   "no_cover_other_attribute": true,
+   "last_resort_any_container": true,
+   "routing_any_container": false,
+   "last_resort_settled_clearance": 0.016,
+   "last_resort_com_margin": 0.01,
+   "last_resort_tower_min": 0.015,
+   "last_resort_extra_clearance": 0.002,
+   "policy_budget_seconds": 6.0,
+   "offline_budget_seconds": 150.0
+  }
+ },
+ "runtime_seconds": 206.46,
+ "order": [
+  3,
+  8,
+  9,
+  13,
+  14,
+  16,
+  18,
+  23,
+  24,
+  27,
+  31,
+  34,
+  35,
+  39,
+  41,
+  42,
+  46,
+  47,
+  4,
+  15,
+  2,
+  10,
+  30,
+  73,
+  77,
+  36,
+  1,
+  5,
+  6,
+  7,
+  17,
+  21,
+  25,
+  32,
+  37,
+  38,
+  44,
+  45,
+  51,
+  53,
+  54,
+  55,
+  59,
+  60,
+  50,
+  62,
+  63,
+  68,
+  29,
+  61,
+  70,
+  76,
+  78,
+  80,
+  81,
+  11,
+  20,
+  26,
+  40,
+  56,
+  71,
+  19,
+  48,
+  64,
+  65,
+  66,
+  67,
+  69,
+  72,
+  75,
+  0,
+  12,
+  43,
+  52,
+  58,
+  74,
+  79,
+  22,
+  33,
+  49,
+  57,
+  28
+ ],
+ "metrics": {
+  "placed_count": 62,
+  "total_items": 82,
+  "placed_fraction": 0.7560975609756098,
+  "placed_volume_m3": 3.3495000000000004,
+  "fill_volume": 41.58195922720994,
+  "fill_evaluator_shipped": 28.936673761069912,
+  "fill_evaluator_tolerant": 41.581959227209936,
+  "com_z": 0.6654982713344039,
+  "com_z_above_floor_ratio": 0.37993720452740976,
+  "per_container_count": {
+   "0": 34,
+   "1": 28
+  },
+  "priority_count": 1,
+  "priority_covered": 0,
+  "priority_misrouted": 0,
+  "soft_count": 22,
+  "soft_covered": 0,
+  "shake_mean_shift": 0.02450479271733603,
+  "shake_max_shift": 0.1551807195427875,
+  "shake_topples": 0,
+  "shake_peak_kinetic_energy": 16.61455320031482,
+  "policy_time_max": 5.6224,
+  "policy_time_mean": 0.3425746031746033,
+  "over_budget_steps": 0,
+  "optimize_seconds": 147.475,
+  "end_reason": "declined",
+  "attempted": 62
+ },
+ "steps": [
+  {
+   "step": 0,
+   "event": "step",
+   "item_index": 3,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    -0.3338,
+    0.4185,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0018,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.3338,
+    0.4185,
+    0.17
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 1,
+   "event": "step",
+   "item_index": 8,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    0.0927,
+    0.4185,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0018,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.0927,
+    0.4185,
+    0.17
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 2,
+   "event": "step",
+   "item_index": 9,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    0.5192,
+    0.4185,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.5192,
+    0.4185,
+    0.17
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 3,
+   "event": "step",
+   "item_index": 13,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2588,
+    -0.083,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0019,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2588,
+    -0.083,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 4,
+   "event": "step",
+   "item_index": 14,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3177,
+    -0.083,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3177,
+    -0.083,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 5,
+   "event": "step",
+   "item_index": 16,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2588,
+    -0.5095,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2588,
+    -0.5095,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 6,
+   "event": "step",
+   "item_index": 18,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3177,
+    -0.5095,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3177,
+    -0.5095,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 7,
+   "event": "step",
+   "item_index": 23,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    -0.3343,
+    0.4185,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.3343,
+    0.4185,
+    0.41
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 8,
+   "event": "step",
+   "item_index": 24,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    0.0922,
+    0.4185,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.0922,
+    0.4185,
+    0.41
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 9,
+   "event": "step",
+   "item_index": 27,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    0.5187,
+    0.4185,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.5187,
+    0.4185,
+    0.41
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 10,
+   "event": "step",
+   "item_index": 31,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2593,
+    -0.083,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2593,
+    -0.083,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 11,
+   "event": "step",
+   "item_index": 34,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3172,
+    -0.083,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3172,
+    -0.083,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 12,
+   "event": "step",
+   "item_index": 35,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2593,
+    -0.5095,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2593,
+    -0.5095,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 13,
+   "event": "step",
+   "item_index": 39,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3172,
+    -0.5095,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3172,
+    -0.5095,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 14,
+   "event": "step",
+   "item_index": 41,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2093,
+    -0.103,
+    0.73
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2093,
+    -0.103,
+    0.73
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 15,
+   "event": "step",
+   "item_index": 42,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.3672,
+    -0.103,
+    0.73
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3672,
+    -0.103,
+    0.73
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 16,
+   "event": "step",
+   "item_index": 46,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2093,
+    -0.4295,
+    0.73
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2093,
+    -0.4295,
+    0.73
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 17,
+   "event": "step",
+   "item_index": 47,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.3672,
+    -0.4295,
+    0.73
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3672,
+    -0.4295,
+    0.73
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 18,
+   "event": "step",
+   "item_index": 4,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2343,
+    0.5685,
+    1.061
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2343,
+    0.5685,
+    1.01
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 19,
+   "event": "step",
+   "item_index": 15,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.3939,
+    0.5685,
+    1.061
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.1065,
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 612,
+   "survivors": 12,
+   "pos_local": [
+    0.3939,
+    0.5685,
+    1.01
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 20,
+   "event": "step",
+   "item_index": 2,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2593,
+    -0.083,
+    1.03
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2593,
+    -0.083,
+    1.03
+   ],
+   "size": [
+    0.45,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "step": 21,
+   "event": "step",
+   "item_index": 10,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3172,
+    -0.083,
+    1.03
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3172,
+    -0.083,
+    1.03
+   ],
+   "size": [
+    0.45,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "step": 22,
+   "event": "step",
+   "item_index": 30,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2593,
+    -0.4595,
+    1.03
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2593,
+    -0.4595,
+    1.03
+   ],
+   "size": [
+    0.45,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "step": 23,
+   "event": "step",
+   "item_index": 73,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3172,
+    -0.4595,
+    1.03
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3172,
+    -0.4595,
+    1.03
+   ],
+   "size": [
+    0.45,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "step": 24,
+   "event": "step",
+   "item_index": 77,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.3093,
+    0.5435,
+    1.26
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.3093,
+    0.5435,
+    1.26
+   ],
+   "size": [
+    0.45,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "step": 25,
+   "event": "step",
+   "item_index": 36,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.3922,
+    0.5435,
+    1.285
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.3922,
+    0.5435,
+    1.285
+   ],
+   "size": [
+    0.6,
+    0.3,
+    0.25
+   ]
+  },
+  {
+   "step": 26,
+   "event": "step",
+   "item_index": 1,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.1593,
+    -0.048,
+    1.305
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0025,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.1593,
+    -0.048,
+    1.305
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 27,
+   "event": "step",
+   "item_index": 5,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.1593,
+    -0.4245,
+    1.305
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.1593,
+    -0.4245,
+    1.305
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 28,
+   "event": "step",
+   "item_index": 6,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.303,
+    0.3435,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0018,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.303,
+    0.3435,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 29,
+   "event": "step",
+   "item_index": 7,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.1735,
+    0.3435,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0018,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.1735,
+    0.3435,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 30,
+   "event": "step",
+   "item_index": 17,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.65,
+    0.3435,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.65,
+    0.3435,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 31,
+   "event": "step",
+   "item_index": 21,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.303,
+    -0.333,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0019,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.303,
+    -0.333,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 32,
+   "event": "step",
+   "item_index": 25,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.1735,
+    -0.333,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.002,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.1735,
+    -0.333,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 33,
+   "event": "step",
+   "item_index": 32,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.65,
+    -0.333,
+    0.185
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0019,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.65,
+    -0.333,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 34,
+   "event": "step",
+   "item_index": 37,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.3035,
+    0.3435,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0021,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.3035,
+    0.3435,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 35,
+   "event": "step",
+   "item_index": 38,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.173,
+    0.3435,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0021,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.173,
+    0.3435,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 36,
+   "event": "step",
+   "item_index": 44,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.6495,
+    0.3435,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0021,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.6495,
+    0.3435,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 37,
+   "event": "step",
+   "item_index": 45,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.3035,
+    -0.333,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0021,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.3035,
+    -0.333,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 38,
+   "event": "step",
+   "item_index": 51,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.173,
+    -0.333,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.173,
+    -0.333,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 39,
+   "event": "step",
+   "item_index": 53,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.6495,
+    -0.333,
+    0.415
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0022,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.6495,
+    -0.333,
+    0.415
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 40,
+   "event": "step",
+   "item_index": 54,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    -0.2035,
+    0.5485,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2035,
+    0.5485,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 41,
+   "event": "step",
+   "item_index": 55,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.373,
+    0.5485,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.373,
+    0.5485,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 42,
+   "event": "step",
+   "item_index": 59,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    -0.2035,
+    -0.128,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2035,
+    -0.128,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 43,
+   "event": "step",
+   "item_index": 60,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.373,
+    -0.128,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.373,
+    -0.128,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 44,
+   "event": "step",
+   "item_index": 50,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    -0.2285,
+    0.5435,
+    1.09
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2285,
+    0.5435,
+    1.09
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 45,
+   "event": "step",
+   "item_index": 62,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.398,
+    0.5435,
+    1.09
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.398,
+    0.5435,
+    1.09
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 46,
+   "event": "step",
+   "item_index": 63,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    -0.2285,
+    -0.133,
+    1.09
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0023,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2285,
+    -0.133,
+    1.09
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 47,
+   "event": "step",
+   "item_index": 68,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.398,
+    -0.133,
+    1.09
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.398,
+    -0.133,
+    1.09
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 48,
+   "event": "step",
+   "item_index": 29,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.2285,
+    0.5185,
+    1.365
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0024,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2285,
+    0.5185,
+    1.365
+   ],
+   "size": [
+    0.6,
+    0.3,
+    0.25
+   ]
+  },
+  {
+   "step": 49,
+   "event": "step",
+   "item_index": 61,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 2,
+   "place_pos": [
+    0.7887,
+    -0.083,
+    0.345
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.7887,
+    -0.083,
+    0.325
+   ],
+   "size": [
+    0.24,
+    0.4,
+    0.55
+   ]
+  },
+  {
+   "step": 50,
+   "event": "step",
+   "item_index": 70,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 2,
+   "place_pos": [
+    0.7887,
+    -0.5095,
+    0.345
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0025,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.7887,
+    -0.5095,
+    0.325
+   ],
+   "size": [
+    0.24,
+    0.4,
+    0.55
+   ]
+  },
+  {
+   "step": 51,
+   "event": "step",
+   "item_index": 76,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 5,
+   "place_pos": [
+    0.7887,
+    -0.4345,
+    0.8
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.7887,
+    -0.4345,
+    0.8
+   ],
+   "size": [
+    0.24,
+    0.55,
+    0.4
+   ]
+  },
+  {
+   "step": 52,
+   "event": "step",
+   "item_index": 78,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    -0.2035,
+    -0.4045,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0031,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2035,
+    -0.4045,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 53,
+   "event": "step",
+   "item_index": 80,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.6494,
+    -0.5123,
+    0.74
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.5707,
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 2,
+   "survivors": 1,
+   "pos_local": [
+    0.6494,
+    -0.5123,
+    0.74
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 54,
+   "event": "step",
+   "item_index": 81,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.2036,
+    -0.4771,
+    1.06
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 5.6224,
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 1,
+   "considered": 12,
+   "survivors": 6,
+   "pos_local": [
+    -0.2036,
+    -0.4771,
+    1.06
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 55,
+   "event": "step",
+   "item_index": 11,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    0.7437,
+    -0.208,
+    1.115
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0027,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.7437,
+    -0.208,
+    1.115
+   ],
+   "size": [
+    0.35,
+    0.65,
+    0.23
+   ]
+  },
+  {
+   "step": 56,
+   "event": "step",
+   "item_index": 20,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.6085,
+    0.042,
+    1.345
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0026,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.6085,
+    0.042,
+    1.345
+   ],
+   "size": [
+    0.65,
+    0.35,
+    0.23
+   ]
+  },
+  {
+   "step": 57,
+   "event": "step",
+   "item_index": 26,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 5,
+   "place_pos": [
+    0.315,
+    -0.3873,
+    1.3
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.6301,
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 12,
+   "survivors": 1,
+   "pos_local": [
+    0.315,
+    -0.3873,
+    1.3
+   ],
+   "size": [
+    0.23,
+    0.65,
+    0.35
+   ]
+  },
+  {
+   "step": 58,
+   "event": "step",
+   "item_index": 40,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.6185,
+    0.4935,
+    1.345
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 3.9519,
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 88,
+   "survivors": 1,
+   "pos_local": [
+    0.6185,
+    0.4935,
+    1.345
+   ],
+   "size": [
+    0.65,
+    0.35,
+    0.23
+   ]
+  },
+  {
+   "step": 59,
+   "event": "step",
+   "item_index": 56,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.4035,
+    -0.083,
+    1.355
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0025,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.4035,
+    -0.083,
+    1.355
+   ],
+   "size": [
+    0.65,
+    0.35,
+    0.23
+   ]
+  },
+  {
+   "step": 60,
+   "event": "step",
+   "item_index": 71,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.273,
+    -0.083,
+    1.355
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0025,
+   "archetype": "plan",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.273,
+    -0.083,
+    1.355
+   ],
+   "size": [
+    0.65,
+    0.35,
+    0.23
+   ]
+  },
+  {
+   "step": 61,
+   "event": "step",
+   "item_index": 19,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 2,
+   "place_pos": [
+    0.4474,
+    -0.4988,
+    1.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.9506,
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 42,
+   "survivors": 1,
+   "pos_local": [
+    0.4474,
+    -0.4988,
+    1.19
+   ],
+   "size": [
+    0.4,
+    0.4,
+    0.5
+   ]
+  },
+  {
+   "step": 62,
+   "event": "declined",
+   "policy_seconds": 3.6227
+  }
+ ],
+ "final_items": [
+  {
+   "index": 3,
+   "container": 0,
+   "pos": [
+    -0.3352,
+    0.4185,
+    0.17
+   ],
+   "orn": [
+    -0.0,
+    -0.0,
+    0.7071,
+    0.70711
+   ]
+  },
+  {
+   "index": 8,
+   "container": 0,
+   "pos": [
+    0.0927,
+    0.4207,
+    0.17
+   ],
+   "orn": [
+    -1e-05,
+    3e-05,
+    0.70691,
+    0.7073
+   ]
+  },
+  {
+   "index": 9,
+   "container": 0,
+   "pos": [
+    0.5203,
+    0.4189,
+    0.17
+   ],
+   "orn": [
+    1e-05,
+    -1e-05,
+    0.70741,
+    0.7068
+   ]
+  },
+  {
+   "index": 13,
+   "container": 0,
+   "pos": [
+    -0.2688,
+    -0.0791,
+    0.17
+   ],
+   "orn": [
+    1e-05,
+    -9e-05,
+    0.00065,
+    1.0
+   ]
+  },
+  {
+   "index": 14,
+   "container": 0,
+   "pos": [
+    0.3136,
+    -0.0797,
+    0.17
+   ],
+   "orn": [
+    -0.00036,
+    0.00019,
+    0.00501,
+    0.99999
+   ]
+  },
+  {
+   "index": 16,
+   "container": 0,
+   "pos": [
+    -0.2613,
+    -0.509,
+    0.17
+   ],
+   "orn": [
+    -0.00011,
+    -4e-05,
+    0.00067,
+    1.0
+   ]
+  },
+  {
+   "index": 18,
+   "container": 0,
+   "pos": [
+    0.3149,
+    -0.5119,
+    0.17
+   ],
+   "orn": [
+    -5e-05,
+    -2e-05,
+    0.00522,
+    0.99999
+   ]
+  },
+  {
+   "index": 23,
+   "container": 0,
+   "pos": [
+    -0.3344,
+    0.4185,
+    0.41
+   ],
+   "orn": [
+    -1e-05,
+    0.0,
+    0.70712,
+    0.70709
+   ]
+  },
+  {
+   "index": 24,
+   "container": 0,
+   "pos": [
+    0.092,
+    0.4187,
+    0.41
+   ],
+   "orn": [
+    0.0,
+    1e-05,
+    0.70689,
+    0.70733
+   ]
+  },
+  {
+   "index": 27,
+   "container": 0,
+   "pos": [
+    0.5191,
+    0.418,
+    0.41
+   ],
+   "orn": [
+    -0.0,
+    0.0,
+    0.70708,
+    0.70714
+   ]
+  },
+  {
+   "index": 31,
+   "container": 0,
+   "pos": [
+    -0.2712,
+    -0.0788,
+    0.4099
+   ],
+   "orn": [
+    -9e-05,
+    -0.00013,
+    0.00324,
+    0.99999
+   ]
+  },
+  {
+   "index": 34,
+   "container": 0,
+   "pos": [
+    0.3051,
+    -0.0671,
+    0.4099
+   ],
+   "orn": [
+    -0.00063,
+    0.00023,
+    0.00375,
+    0.99999
+   ]
+  },
+  {
+   "index": 35,
+   "container": 0,
+   "pos": [
+    -0.2626,
+    -0.5121,
+    0.4099
+   ],
+   "orn": [
+    -2e-05,
+    -4e-05,
+    0.0049,
+    0.99999
+   ]
+  },
+  {
+   "index": 39,
+   "container": 0,
+   "pos": [
+    0.3127,
+    -0.504,
+    0.4099
+   ],
+   "orn": [
+    -4e-05,
+    -7e-05,
+    0.00587,
+    0.99998
+   ]
+  },
+  {
+   "index": 41,
+   "container": 0,
+   "pos": [
+    -0.2175,
+    -0.101,
+    0.7299
+   ],
+   "orn": [
+    0.70703,
+    0.00391,
+    0.0041,
+    0.70716
+   ]
+  },
+  {
+   "index": 42,
+   "container": 0,
+   "pos": [
+    0.3508,
+    -0.0923,
+    0.7299
+   ],
+   "orn": [
+    0.70653,
+    0.00766,
+    0.00731,
+    0.70761
+   ]
+  },
+  {
+   "index": 46,
+   "container": 0,
+   "pos": [
+    -0.2121,
+    -0.4318,
+    0.7299
+   ],
+   "orn": [
+    0.70712,
+    0.00308,
+    0.00312,
+    0.70708
+   ]
+  },
+  {
+   "index": 47,
+   "container": 0,
+   "pos": [
+    0.3639,
+    -0.425,
+    0.7299
+   ],
+   "orn": [
+    0.70707,
+    0.00217,
+    0.00238,
+    0.70714
+   ]
+  },
+  {
+   "index": 4,
+   "container": 0,
+   "pos": [
+    -0.233,
+    0.5683,
+    1.0037
+   ],
+   "orn": [
+    0.7078,
+    0.00335,
+    -0.00318,
+    0.7064
+   ]
+  },
+  {
+   "index": 15,
+   "container": 0,
+   "pos": [
+    0.3943,
+    0.5696,
+    0.9978
+   ],
+   "orn": [
+    0.70513,
+    0.00078,
+    -0.00045,
+    0.70908
+   ]
+  },
+  {
+   "index": 2,
+   "container": 0,
+   "pos": [
+    -0.272,
+    -0.078,
+    1.013
+   ],
+   "orn": [
+    -0.01816,
+    -0.00853,
+    0.00759,
+    0.99977
+   ]
+  },
+  {
+   "index": 10,
+   "container": 0,
+   "pos": [
+    0.3019,
+    -0.0741,
+    1.0137
+   ],
+   "orn": [
+    -0.02056,
+    -0.00368,
+    -0.0014,
+    0.99978
+   ]
+  },
+  {
+   "index": 30,
+   "container": 0,
+   "pos": [
+    -0.2639,
+    -0.4632,
+    1.0122
+   ],
+   "orn": [
+    0.01247,
+    -0.00301,
+    0.00093,
+    0.99992
+   ]
+  },
+  {
+   "index": 73,
+   "container": 0,
+   "pos": [
+    0.3113,
+    -0.4609,
+    1.0075
+   ],
+   "orn": [
+    0.02983,
+    -0.01037,
+    0.00176,
+    0.9995
+   ]
+  },
+  {
+   "index": 77,
+   "container": 0,
+   "pos": [
+    -0.3077,
+    0.5427,
+    1.2441
+   ],
+   "orn": [
+    0.0018,
+    0.00368,
+    0.0002,
+    0.99999
+   ]
+  },
+  {
+   "index": 36,
+   "container": 0,
+   "pos": [
+    0.3935,
+    0.5448,
+    1.2598
+   ],
+   "orn": [
+    0.00172,
+    0.00159,
+    0.00052,
+    1.0
+   ]
+  },
+  {
+   "index": 1,
+   "container": 0,
+   "pos": [
+    -0.1756,
+    -0.0337,
+    1.2708
+   ],
+   "orn": [
+    0.69274,
+    -0.00538,
+    0.01069,
+    0.72109
+   ]
+  },
+  {
+   "index": 5,
+   "container": 0,
+   "pos": [
+    -0.1661,
+    -0.4383,
+    1.2698
+   ],
+   "orn": [
+    0.72479,
+    -0.00493,
+    0.00444,
+    0.68894
+   ]
+  },
+  {
+   "index": 61,
+   "container": 0,
+   "pos": [
+    0.7902,
+    -0.0818,
+    0.325
+   ],
+   "orn": [
+    -0.00266,
+    0.70712,
+    0.00269,
+    0.70709
+   ]
+  },
+  {
+   "index": 70,
+   "container": 0,
+   "pos": [
+    0.7894,
+    -0.5108,
+    0.325
+   ],
+   "orn": [
+    -0.00085,
+    0.70709,
+    0.00082,
+    0.70712
+   ]
+  },
+  {
+   "index": 76,
+   "container": 0,
+   "pos": [
+    0.7954,
+    -0.442,
+    0.8
+   ],
+   "orn": [
+    0.49988,
+    0.50013,
+    0.50014,
+    0.49985
+   ]
+  },
+  {
+   "index": 11,
+   "container": 0,
+   "pos": [
+    0.7476,
+    -0.1173,
+    1.0968
+   ],
+   "orn": [
+    -0.14712,
+    0.17258,
+    0.68512,
+    0.69223
+   ]
+  },
+  {
+   "index": 20,
+   "container": 0,
+   "pos": [
+    0.6241,
+    0.1969,
+    1.1723
+   ],
+   "orn": [
+    -0.25635,
+    -0.00679,
+    0.00134,
+    0.96656
+   ]
+  },
+  {
+   "index": 26,
+   "container": 0,
+   "pos": [
+    0.313,
+    -0.405,
+    1.2681
+   ],
+   "orn": [
+    0.51288,
+    0.48186,
+    0.5191,
+    0.48507
+   ]
+  },
+  {
+   "index": 6,
+   "container": 1,
+   "pos": [
+    2.1961,
+    0.3456,
+    0.165
+   ],
+   "orn": [
+    -4e-05,
+    1e-05,
+    0.70748,
+    0.70673
+   ]
+  },
+  {
+   "index": 7,
+   "container": 1,
+   "pos": [
+    2.6736,
+    0.345,
+    0.165
+   ],
+   "orn": [
+    -3e-05,
+    0.0,
+    0.70662,
+    0.7076
+   ]
+  },
+  {
+   "index": 17,
+   "container": 1,
+   "pos": [
+    3.1523,
+    0.3437,
+    0.165
+   ],
+   "orn": [
+    -4e-05,
+    -3e-05,
+    0.70791,
+    0.7063
+   ]
+  },
+  {
+   "index": 21,
+   "container": 1,
+   "pos": [
+    2.1955,
+    -0.3337,
+    0.165
+   ],
+   "orn": [
+    -5e-05,
+    -6e-05,
+    0.70743,
+    0.70678
+   ]
+  },
+  {
+   "index": 25,
+   "container": 1,
+   "pos": [
+    2.6737,
+    -0.3334,
+    0.165
+   ],
+   "orn": [
+    -2e-05,
+    0.0,
+    0.70742,
+    0.70679
+   ]
+  },
+  {
+   "index": 32,
+   "container": 1,
+   "pos": [
+    3.1496,
+    -0.3327,
+    0.165
+   ],
+   "orn": [
+    -3e-05,
+    -3e-05,
+    0.70732,
+    0.7069
+   ]
+  },
+  {
+   "index": 37,
+   "container": 1,
+   "pos": [
+    2.1951,
+    0.3472,
+    0.415
+   ],
+   "orn": [
+    -5e-05,
+    -0.0,
+    0.70865,
+    0.70556
+   ]
+  },
+  {
+   "index": 38,
+   "container": 1,
+   "pos": [
+    2.6729,
+    0.3455,
+    0.415
+   ],
+   "orn": [
+    2e-05,
+    3e-05,
+    0.70945,
+    0.70475
+   ]
+  },
+  {
+   "index": 44,
+   "container": 1,
+   "pos": [
+    3.1488,
+    0.3439,
+    0.415
+   ],
+   "orn": [
+    -3e-05,
+    -1e-05,
+    0.70926,
+    0.70495
+   ]
+  },
+  {
+   "index": 45,
+   "container": 1,
+   "pos": [
+    2.1952,
+    -0.3343,
+    0.4149
+   ],
+   "orn": [
+    -0.00013,
+    -4e-05,
+    0.70817,
+    0.70605
+   ]
+  },
+  {
+   "index": 51,
+   "container": 1,
+   "pos": [
+    2.6723,
+    -0.3325,
+    0.415
+   ],
+   "orn": [
+    -2e-05,
+    1e-05,
+    0.70798,
+    0.70623
+   ]
+  },
+  {
+   "index": 53,
+   "container": 1,
+   "pos": [
+    3.1492,
+    -0.3328,
+    0.4149
+   ],
+   "orn": [
+    1e-05,
+    1e-05,
+    0.70703,
+    0.70719
+   ]
+  },
+  {
+   "index": 54,
+   "container": 1,
+   "pos": [
+    2.2972,
+    0.5461,
+    0.7399
+   ],
+   "orn": [
+    0.70707,
+    0.00156,
+    0.00164,
+    0.70714
+   ]
+  },
+  {
+   "index": 55,
+   "container": 1,
+   "pos": [
+    2.872,
+    0.5474,
+    0.7399
+   ],
+   "orn": [
+    0.70709,
+    0.00092,
+    0.00094,
+    0.70712
+   ]
+  },
+  {
+   "index": 59,
+   "container": 1,
+   "pos": [
+    2.2962,
+    -0.1283,
+    0.7399
+   ],
+   "orn": [
+    0.70705,
+    0.00092,
+    0.00125,
+    0.70716
+   ]
+  },
+  {
+   "index": 60,
+   "container": 1,
+   "pos": [
+    2.8727,
+    -0.1276,
+    0.7399
+   ],
+   "orn": [
+    0.70709,
+    0.00093,
+    0.00085,
+    0.70712
+   ]
+  },
+  {
+   "index": 50,
+   "container": 1,
+   "pos": [
+    2.2714,
+    0.5354,
+    1.0783
+   ],
+   "orn": [
+    0.71589,
+    0.00012,
+    0.00094,
+    0.69821
+   ]
+  },
+  {
+   "index": 62,
+   "container": 1,
+   "pos": [
+    2.9006,
+    0.5361,
+    1.074
+   ],
+   "orn": [
+    0.7202,
+    0.01065,
+    -0.00824,
+    0.69364
+   ]
+  },
+  {
+   "index": 63,
+   "container": 1,
+   "pos": [
+    2.2686,
+    -0.1272,
+    1.0706
+   ],
+   "orn": [
+    0.69213,
+    -0.00618,
+    0.00835,
+    0.7217
+   ]
+  },
+  {
+   "index": 68,
+   "container": 1,
+   "pos": [
+    2.8988,
+    -0.1304,
+    1.0778
+   ],
+   "orn": [
+    0.70232,
+    0.00324,
+    -0.00064,
+    0.71185
+   ]
+  },
+  {
+   "index": 29,
+   "container": 1,
+   "pos": [
+    2.2715,
+    0.5021,
+    1.3403
+   ],
+   "orn": [
+    0.02741,
+    0.00106,
+    0.00167,
+    0.99962
+   ]
+  },
+  {
+   "index": 78,
+   "container": 1,
+   "pos": [
+    2.2964,
+    -0.4042,
+    0.7399
+   ],
+   "orn": [
+    0.7071,
+    0.00067,
+    0.00081,
+    0.70712
+   ]
+  },
+  {
+   "index": 80,
+   "container": 1,
+   "pos": [
+    3.1488,
+    -0.5119,
+    0.7399
+   ],
+   "orn": [
+    0.70709,
+    -0.00064,
+    -0.00064,
+    0.70712
+   ]
+  },
+  {
+   "index": 81,
+   "container": 1,
+   "pos": [
+    2.2968,
+    -0.4768,
+    1.0599
+   ],
+   "orn": [
+    -2e-05,
+    -0.00011,
+    0.00108,
+    1.0
+   ]
+  },
+  {
+   "index": 40,
+   "container": 1,
+   "pos": [
+    3.1309,
+    0.4764,
+    1.304
+   ],
+   "orn": [
+    0.04057,
+    0.03131,
+    0.00188,
+    0.99868
+   ]
+  },
+  {
+   "index": 56,
+   "container": 1,
+   "pos": [
+    2.0841,
+    -0.0633,
+    1.2984
+   ],
+   "orn": [
+    -0.04726,
+    -0.03783,
+    0.00051,
+    0.99817
+   ]
+  },
+  {
+   "index": 71,
+   "container": 1,
+   "pos": [
+    2.7752,
+    -0.0741,
+    1.3289
+   ],
+   "orn": [
+    -0.02346,
+    0.00577,
+    0.00153,
+    0.99971
+   ]
+  },
+  {
+   "index": 19,
+   "container": 1,
+   "pos": [
+    2.9411,
+    -0.4967,
+    1.1801
+   ],
+   "orn": [
+    -0.00271,
+    0.69794,
+    -0.00283,
+    0.71615
+   ]
+  }
+ ],
+ "log_tail": "transport item 3\nplace item 3\ntransport item 8\nplace item 8\ntransport item 9\nplace item 9\ntransport item 13\nplace item 13\ntransport item 14\nplace item 14\ntransport item 16\nplace item 16\ntransport item 18\nplace item 18\ntransport item 23\nplace item 23\ntransport item 24\nplace item 24\ntransport item 27\nplace item 27\ntransport item 31\nplace item 31\ntransport item 34\nplace item 34\ntransport item 35\nplace item 35\ntransport item 39\nplace item 39\ntransport item 41\nplace item 41\ntransport item 42\nplace item 42\ntransport item 46\nplace item 46\ntransport item 47\nplace item 47\ntransport item 4\nplace item 4\ntransport item 15\nplace item 15\ntransport item 2\nplace item 2\ntransport item 10\nplace item 10\ntransport item 30\nplace item 30\ntransport item 73\nplace item 73\ntransport item 77\nplace item 77\ntransport item 36\nplace item 36\ntransport item 1\nplace item 1\ntransport item 5\nplace item 5\ntransport item 6\nplace item 6\ntransport item 7\nplace item 7\ntransport item 17\nplace item 17\ntransport item 21\nplace item 21\ntransport item 25\nplace item 25\ntransport item 32\nplace item 32\ntransport item 37\nplace item 37\ntransport item 38\nplace item 38\ntransport item 44\nplace item 44\ntransport item 45\nplace item 45\ntransport item 51\nplace item 51\ntransport item 53\nplace item 53\ntransport item 54\nplace item 54\ntransport item 55\nplace item 55\ntransport item 59\nplace item 59\ntransport item 60\nplace item 60\ntransport item 50\nplace item 50\ntransport item 62\nplace item 62\ntransport item 63\nplace item 63\ntransport item 68\nplace item 68\ntransport item 29\nplace item 29\ntransport item 61\nplace item 61\ntransport item 70\nplace item 70\ntransport item 76\nplace item 76\ntransport item 78\nplace item 78\ntransport item 80\nplace item 80\ntransport item 81\nplace item 81\ntransport item 11\nplace item 11\ntransport item 20\nplace item 20\ntransport item 26\nplace item 26\ntransport item 40\nplace item 40\ntransport item 56\nplace item 56\ntransport item 71\nplace item 71\ntransport item 19\nplace item 19\nclose env.\n"
+}
