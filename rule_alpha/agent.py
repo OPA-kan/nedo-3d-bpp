@@ -270,6 +270,20 @@ class RuleAlphaAgent:
                 self.plan_replayed += 1
                 return self._action(pool_index, decision.placement)
 
+        # soft cargo where it costs the hard stacks nothing (Task B, and any
+        # item off the plan): the pool order puts every soft item behind
+        # every hard one, so on the Task B suite the ladder placed 23 % of
+        # the soft cargo (two classes at 1 % and 4 %), all of it at the end
+        # on rugged tops.  Before the hard cargo is tried, a soft item that
+        # has a pose on a shelf, on soft cargo, or on a top nothing hard
+        # could use any more goes first: a count point and a soft-score
+        # point that add no height the hard cargo would not add.
+        if (getattr(self.config, "soft_first_when_free", False)
+                and (not self.plan_by_index or self.plan_source != "planner")):
+            action = self._soft_first(ordered, ladder_deadline)
+            if action is not None:
+                return action
+
         # the online planner (Tasks B and C, or a Task A item off the plan):
         # the lowest legal pose over every anchor -- the floor filled before
         # anything is stacked, so a large flat area stays for the big boxes
@@ -435,6 +449,73 @@ class RuleAlphaAgent:
         # would fail validation.
         self.last_decision = None
         self.declined.append(len(self.declined))
+        return None
+
+    def _soft_first(self, ordered: list, deadline: float):
+        """A soft item's pose that costs the hard stacks nothing: on a
+        shelf, on soft cargo, or on a top too high for another hard box.
+        The ladder chooses the pose (its shelf preference for soft cargo
+        included); only where it lands is judged here."""
+        from ._reuse import packed_aabbs_local
+
+        wall = self.config.inclusion_clearance + self.config.anchor_slack
+        min_hard = float(getattr(self.config, "soft_first_min_hard_height", 0.24))
+        from .planner import _Pose, _placement, online_shelf_pose
+
+        # normal soft cargo before soft priority cargo: nothing but priority
+        # cargo may rest on priority cargo, so a soft priority box on the
+        # shelf floor blocks the gallery above it, while it may itself rest
+        # on normal soft cargo
+        soft_pairs = sorted(((pi, pr) for pi, pr in ordered if pr.is_soft),
+                            key=lambda pp: (1 if pp[1].is_prioritized else 0, round(pp[1].max_footprint, 6)))
+        for n, (pool_index, profile) in enumerate(soft_pairs):
+            if not self._can_start(deadline):
+                break
+            # the shelf gallery first, flat and packed from the back: the
+            # ladder stands soft boxes on the shelf on their narrow side
+            # (three of fifteen fitted that way on b-c1-s0001)
+            for container_idx in layer1.routing_order(profile, self.board, self.config):
+                model = self.board.model(container_idx)
+                t0 = time.perf_counter()
+                box, orientation = online_shelf_pose(self.board, container_idx, profile, self.config)
+                self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                if box is not None:
+                    placement = _placement(_Pose(box, orientation, model.z_floor), 1, profile, container_idx, model)
+                    placement.surface = "shelf"
+                    placement.surface_name = "shelf"
+                    placement.archetype = "soft-first-shelf"
+                    placement.reason = "soft-first: the shelf gallery"
+                    self.last_decision = layer1.Decision(placement=placement, candidate_counts={"soft-first": 1},
+                                                         veto_counts={}, considered=1, ladder=[])
+                    self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
+                    return self._action(pool_index, placement)
+            decision = self._timed(layer1.choose_for_item, self.board, profile, self.config, selector=self.selector)
+            if decision is None:
+                continue
+            placement = decision.placement
+            box = placement.box
+            model = self.board.model(placement.container_idx)
+            container = self.board.container(placement.container_idx)
+            free = placement.surface == "shelf"
+            if not free:
+                # on soft cargo: the support under the box is soft
+                for packed, (b, so, _pr) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+                    if not packed.get("is_soft"):
+                        continue
+                    if abs(float(b.maximum[2]) - float(box.minimum[2])) < 0.02 and \
+                            min(float(box.maximum[0]), float(b.maximum[0])) - max(float(box.minimum[0]), float(b.minimum[0])) > 0.05 and \
+                            min(float(box.maximum[1]), float(b.maximum[1])) - max(float(box.minimum[1]), float(b.minimum[1])) > 0.05:
+                        free = True
+                        break
+            if not free and float(box.minimum[2]) + min_hard > model.z_ceiling - wall:
+                # a top no hard box fits on any more
+                free = True
+            if not free:
+                continue
+            placement.reason = "soft-first: " + placement.reason
+            self.last_decision = decision
+            self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
+            return self._action(pool_index, placement)
         return None
 
     def _soft_headroom_reserve(self, containers: list, container_idx: int | None = None) -> float:

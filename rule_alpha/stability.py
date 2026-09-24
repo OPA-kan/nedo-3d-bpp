@@ -54,13 +54,16 @@ class Stability:
 
 
 def contact_patches(box: AABB, container: dict, tolerance: float,
-                    priority_is_structure: bool = False) -> list[Rect]:
+                    priority_is_structure: bool = False, soft_is_structure: bool = False) -> list[Rect]:
     """Rectangles where the underside of ``box`` meets something solid.
 
-    Soft cargo deforms under load and never counts.  Priority cargo is
-    hard; it is left out by default so that nothing is built on it, but
-    with ``priority_is_structure`` it carries load like any hard box (the
-    cover rule then decides what may sit on it)."""
+    Soft cargo deforms under load and by default never counts.  Priority
+    cargo is hard; it is left out by default so that nothing is built on
+    it, but with ``priority_is_structure`` it carries load like any hard
+    box (the cover rule then decides what may sit on it).  With
+    ``soft_is_structure`` soft cargo carries load too: the cover rule
+    lets only soft cargo rest on it, and soft on soft is what the rule
+    allows and what a one-layer soft gallery was missing."""
     bottom = float(box.minimum[2])
     surfaces = [
         AABB(
@@ -72,7 +75,7 @@ def contact_patches(box: AABB, container: dict, tolerance: float,
     ]
     surfaces.extend(shelf_aabbs(container))
     for packed, is_soft, is_prioritized in packed_aabbs_local(container):
-        if is_soft or (is_prioritized and not priority_is_structure):
+        if (is_soft and not soft_is_structure) or (is_prioritized and not priority_is_structure):
             continue  # deforms under load, so it is not structure
         surfaces.append(packed)
 
@@ -198,7 +201,8 @@ def evaluate(box: AABB, container: dict, config) -> Stability:
     and assuming it is uniform is the only assumption available.
     """
     patches = contact_patches(box, container, config.contact_tolerance,
-                              bool(getattr(config, "priority_is_structure", False)))
+                              bool(getattr(config, "priority_is_structure", False)),
+                              bool(getattr(config, "soft_is_structure", False)))
     if not patches:
         return Stability(-float("inf"), 0.0, 0, ())
 

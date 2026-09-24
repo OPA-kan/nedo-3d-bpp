@@ -1443,6 +1443,28 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    soft_is_structure: bool = False
+    """Soft cargo carries load in the analytic support model.  Off, soft
+    cargo never counts as support, so nothing can rest on it -- not even
+    soft cargo, which the rule allows -- and every soft gallery (the Task A
+    rows on top of the hard stack, the shelf gallery) is one layer deep:
+    on the Task B scene b-c1-s0001 the shelf held two soft boxes with
+    ten in the pool, every pose on them "no-support".  The cover veto
+    keeps hard cargo off it."""
+
+    soft_first_when_free: bool = False
+    """Before the hard cargo is tried, a soft item in the pool whose best
+    pose (the ladder's) lands on a shelf, on soft cargo, or on a top too
+    high for another hard box goes first.  The pool order puts every
+    soft item behind every hard one, and on the Task B suite the ladder
+    placed 23 % of the soft cargo, all of it at the end on rugged tops
+    (two classes at 1 % and 4 %); 22.8 points of the fraction placed
+    were soft cargo left in the pool."""
+
+    soft_first_min_hard_height: float = 0.24
+    """The lowest hard box (m): a top closer than this to the ceiling
+    counts as one no hard box could use."""
+
     online_layer_band: float = 0.25
     """The online layer policy's layer band (m): poses are ranked by the
     band their bottom falls in, so the floor fills before the next layer."""
