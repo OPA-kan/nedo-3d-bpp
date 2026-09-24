@@ -1336,6 +1336,19 @@ above it.  None beats the ladder; the ladder's own flags are being
 swept next (`ground_before_growth`, `floor_paving_order`,
 `floor_prefers_flat`, `last_resort_all_poses`, `count_first` off).
 
+The sweep (analytic, Task C, 48 scenes, items a scene against 27.58):
+`ground_before_growth` +1.02 [+0.17, +1.94] (the priority-container
+scenes +2.3, the shelf ones +1.2), `last_resort_all_poses` +0.71 (n.s.),
+the other three 0; both together 29.25 (+1.67); on Task B nothing
+(31.9 -> 31.9).  Physics, both flags on the v18 base: Task C items
++1.0 a scene [-0.23, +2.17], fill +1.2, topples 0.19 -> 0.38 a scene
+(n.s.), centre of mass +0.007; Task B -0.17 (n.s.); Task A -0.21
+(n.s.) with fill -0.5.  Net about +0.2 items an episode over the three
+tasks for twice the topples on C: not adopted, and not worth an
+official run.  The Task C loss is the ladder's floor fragmentation
+itself, and only a policy that keeps a level surface (a layer core)
+would move it by more than a box a scene.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
