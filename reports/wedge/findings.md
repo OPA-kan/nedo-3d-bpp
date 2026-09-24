@@ -1380,6 +1380,28 @@ analytic model counts as placed falls or ends the episode.  The
 layer-policy line stops here; the code stays behind ``online_planner``
 = "" and the ladder keeps Tasks B and C.
 
+### Soft cargo: the one-layer gallery (v23)
+
+Chasing Task B's soft cargo (23 % placed, 22.8 points of the fraction
+left in the pool) led to a rule that places a soft item before the
+hard cargo when its pose costs the hard stacks nothing -- on a shelf,
+on soft cargo, or on a top no hard box could use -- with a flat,
+back-to-front shelf-top scan (`soft_first_when_free`).  The shelf took
+two boxes and then every pose on them was "no-support": the analytic
+support model (``stability.contact_patches``) never counted soft cargo
+as structure, so soft could not rest on soft anywhere, although the
+rule allows it and the cover veto keeps hard cargo off it.  Every soft
+gallery -- the Task A rows on the hard stack, the shelf -- was one layer
+deep by construction.  `soft_is_structure` lets it carry load.
+Analytic, 48 scenes each, items a scene: Task A +2.48 [+1.73, +3.29]
+(soft 410 -> 561 of 874), Task B with the soft-first rule +5.25 [+4.00,
++6.56] (soft 209 -> 352; episodes at half the items 30 -> 45 of 48),
+Task C +4.00 [+2.75, +5.29] (11 -> 31 at half).  The centre of mass
+rises 0.017 / 0.025 / 0.030 (soft boxes weigh 9.4 kg against the hard
+ones' 11.9), which v19 priced at about 3 cog points per 0.01; the
+count is worth far more here (B: +6.4 points of the fraction), and the
+physics suites decide.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

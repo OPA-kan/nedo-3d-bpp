@@ -56,6 +56,14 @@ PLAN_STANDING_MAX_BOTTOM = 10.0
 # three priority-container scenes the plan goes 48/42/40 -> 59/53/50 of
 # 82 items (analytic).
 PRIORITY_CONTAINER_ROOM = True
+# v23: soft cargo carries load in the analytic support model (soft on soft,
+# which the rule allows and the cover veto keeps hard cargo off; without
+# it every soft gallery was one layer deep), and in the online tasks a
+# soft item goes to the shelf gallery, onto soft cargo or onto a top no
+# hard box could use before the hard cargo is tried.  Analytic suites:
+# A +2.5, B +5.3, C +4.0 items a scene; the centre of mass +0.02-0.03.
+SOFT_STRUCTURE = True
+
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
 # offline phase, the relaxed last attempt before a decline and the time
@@ -96,6 +104,7 @@ OVERRIDES = dict(
     plan_standing=PLAN_STANDING, plan_standing_max_bottom=PLAN_STANDING_MAX_BOTTOM,
     plan_normal_in_priority_container=PRIORITY_CONTAINER_ROOM, plan_priority_deep_first=PRIORITY_CONTAINER_ROOM,
     cover_veto_ignores_shelf=PRIORITY_CONTAINER_ROOM, soft_headroom_per_container=PRIORITY_CONTAINER_ROOM,
+    soft_is_structure=SOFT_STRUCTURE, soft_first_when_free=SOFT_STRUCTURE,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
     # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the
