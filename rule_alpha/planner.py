@@ -132,13 +132,14 @@ def _standing_poses(profile) -> list:
 
 
 def _try_pose(board, container_idx: int, profile, orientation, x: float, y: float, config,
-              z_cap: float | None):
+              z_cap: float | None, bottom: float | None = None):
     from wedge_rl.stack import covers_other_attribute
 
     model = board.model(container_idx)
     container = board.container(container_idx)
     wall = config.inclusion_clearance + config.anchor_slack
-    bottom = _drop_height(container, model, x, y, orientation.dx, orientation.dy, orientation.dz)
+    if bottom is None:
+        bottom = _drop_height(container, model, x, y, orientation.dx, orientation.dy, orientation.dz)
     if bottom + orientation.dz > model.z_ceiling - wall + 1e-9:
         return None, "ceiling"
     if z_cap is not None and bottom + orientation.dz > z_cap + 1e-9:
@@ -774,6 +775,124 @@ def online_row_pose(board, container_idx: int, profile, config, row_lines: list,
     found = poses(_flat_poses(profile))
     if not found and standing:
         found = poses(_standing_poses(profile))
+    if not found:
+        return None, None
+    found.sort(key=lambda t: t[0])
+    return found[0][1], found[0][2]
+
+
+_MODEL_CONTAINER: dict = {}
+
+
+def board_container(model):
+    return _MODEL_CONTAINER.get(id(model))
+
+
+def online_layers_key(profile, model, config):
+    """The online layer policy's preference over ``stack_candidates``.
+
+    Hard cargo that other cargo may rest on: flat poses before standing
+    ones whatever the height, then a pose resting on most of its
+    footprint, then the lowest layer band, then the deepest, then the
+    leftmost -- the floor fills back to front before anything is stacked,
+    the layers stay level, and the front never rises above the back (the
+    transport path from the opening passes over it; an item is carried
+    only 0.08 m up, so a box at the front blocks every floor pose behind
+    it, which is why nothing goes to the front before the back is full).
+
+    Cargo nothing else may rest on (soft; priority where no priority
+    container takes it): the highest well-supported top first, then the
+    deepest -- above the hard stacks, where the column it kills is
+    shortest.
+    """
+    band = float(getattr(config, "online_layer_band", 0.25))
+    support_ok = float(getattr(config, "online_layer_support", 0.85))
+    blocking = profile.is_soft or (profile.is_prioritized and not model.is_prioritized)
+
+    def flat(c):
+        return 0 if abs(float(c.dims[2]) - min(c.dims)) < 1e-6 else 1
+
+    def supported(c):
+        return 0 if c.on_floor or float(getattr(c, "support_ratio", 1.0)) >= support_ok else 1
+
+    def band_of(c):
+        return int((c.bottom - model.z_floor) / band + 1e-6)
+
+    shelves = list(getattr(model, "shelves", None) or [])
+
+    def on_shelf(c):
+        # a shelf's top carries the cargo nothing may rest on: the room
+        # above a shelf is the least the hard stacks want
+        for sh in shelves:
+            if abs(float(sh.maximum[2]) - float(c.bottom)) < 0.02 and \
+                    float(sh.minimum[0]) <= float(c.box.center[0]) <= float(sh.maximum[0]) and \
+                    float(sh.minimum[1]) <= float(c.box.center[1]) <= float(sh.maximum[1]):
+                return 0
+        return 1
+
+    if not blocking:
+        return lambda c: (flat(c), supported(c), band_of(c),
+                          -round(float(c.box.center[1]), 2), round(float(c.box.center[0]), 2))
+
+    container = board_container(model)
+    packed = list(_packed(container)) if container is not None else []
+
+    def on_same(c):
+        # on cargo of its own attribute (soft on soft, priority on
+        # priority is free): a column of it in one place kills one column
+        # for the hard stacks, not one per box
+        for b, so, pr in packed:
+            if abs(float(b.maximum[2]) - float(c.bottom)) > 0.02:
+                continue
+            if (min(float(c.box.maximum[0]), float(b.maximum[0])) - max(float(c.box.minimum[0]), float(b.minimum[0])) > 0.05
+                    and min(float(c.box.maximum[1]), float(b.maximum[1])) - max(float(c.box.minimum[1]), float(b.minimum[1])) > 0.05):
+                if (profile.is_soft and so) or (profile.is_prioritized and pr and not so):
+                    return 0
+        return 1
+
+    # else the deepest corner of the floor (soft to the left, priority to
+    # the right) while the floor is open there, else the highest top
+    x_side = 1.0 if profile.is_soft else -1.0
+    return lambda c: (flat(c), supported(c), on_shelf(c), on_same(c),
+                      0 if c.on_floor else 1,
+                      -round(float(c.box.center[1]), 2) if c.on_floor else -band_of(c),
+                      x_side * round(float(c.box.center[0]), 2))
+
+
+def online_shelf_pose(board, container_idx: int, profile, config, standing: bool = False):
+    """The lowest, deepest, leftmost legal pose of the item on one of the
+    container's shelf tops (or on what already stands there): the shelf
+    gallery for the cargo nothing may rest on.  ``stack_candidates`` has
+    no shelf anchors, so the tops are scanned here on a 5 cm grid."""
+    model = board.model(container_idx)
+    shelves = list(getattr(model, "shelves", None) or [])
+    if not shelves:
+        return None, None
+    container = board.container(container_idx)
+    wall = config.inclusion_clearance + config.anchor_slack
+    found = []
+    orientations = list(_flat_poses(profile)) + (list(_standing_poses(profile)) if standing else [])
+    for sh in shelves:
+        x0, x1 = max(float(sh.minimum[0]), model.x_wall_min) + wall, float(sh.maximum[0]) - wall
+        y0, y1 = float(sh.minimum[1]) + wall, float(sh.maximum[1]) - wall
+        top = float(sh.maximum[2])
+        for o in orientations:
+            if o.dx > x1 - x0 + 1e-9 or o.dy > y1 - y0 + 1e-9:
+                continue
+            y = y1 - o.dy / 2.0
+            while y - o.dy / 2.0 >= y0 - 1e-9:
+                x = x0 + o.dx / 2.0
+                while x + o.dx / 2.0 <= x1 + 1e-9:
+                    bottom = max(top, _drop_height(container, model, x, y, o.dx, o.dy, o.dz))
+                    if bottom >= top - 1e-6:
+                        box, why = _try_pose(board, container_idx, profile, o, x, y, config, None, bottom=bottom)
+                        if box is not None:
+                            found.append(((round(bottom, 3), -round(y, 3), round(x, 3)), box, o))
+                            if bottom <= top + 1e-6:
+                                # the deepest, leftmost pose on the shelf itself: nothing beats it
+                                return box, o
+                    x += 0.05
+                y -= 0.05
     if not found:
         return None, None
     found.sort(key=lambda t: t[0])

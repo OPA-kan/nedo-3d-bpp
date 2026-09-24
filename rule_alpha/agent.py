@@ -11,6 +11,7 @@ is the honest behaviour for something that has no Layer 2.
 from __future__ import annotations
 
 import dataclasses
+import os
 import time
 
 import numpy as np
@@ -311,7 +312,10 @@ class RuleAlphaAgent:
             from .planner import _key, _placement
             from wedge_rl.stack import stack_candidates
 
-            key = _key(name, float(getattr(self.config, "plan_band", 0.22)))
+            from .planner import online_layers_key
+
+            key = _key(name, float(getattr(self.config, "plan_band", 0.22))) if name != "layers" else None
+            standing_cap = float(getattr(self.config, "online_standing_max_height", 10.0))
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(ladder_deadline):
                     break
@@ -320,10 +324,42 @@ class RuleAlphaAgent:
                 for container_idx in layer1.routing_order(profile, self.board, self.config):
                     model = self.board.model(container_idx)
                     container = self.board.container(container_idx)
+                    if name == "layers" and (profile.is_soft or (profile.is_prioritized and not model.is_prioritized)):
+                        # the shelf gallery first for the cargo nothing may
+                        # rest on: the room above a shelf is the least the
+                        # hard stacks want
+                        from .planner import _Pose, online_shelf_pose
+
+                        t_shelf = time.perf_counter()
+                        box, orientation = online_shelf_pose(self.board, container_idx, profile, self.config)
+                        if os.environ.get("ONLINE_DEBUG"):
+                            print(f"[online-time] item {profile.index} c{container_idx} shelf scan {time.perf_counter() - t_shelf:.2f}s hit={box is not None}")
+                        if box is not None:
+                            pose = _Pose(box, orientation, model.z_floor)
+                            chosen = (container_idx, model, pose, 1)
+                            break
+                    t_c = time.perf_counter()
                     cands = stack_candidates(model, container, self.config, profile, max_candidates=10 ** 6,
                                              mass=float(pool[pool_index].get("mass", 0.0)), z_top=None)
+                    if os.environ.get("ONLINE_DEBUG"):
+                        print(f"[online-time] item {profile.index} c{container_idx} stack_candidates {time.perf_counter() - t_c:.2f}s n={len(cands)}")
+                    # a standing pose taller than the cap is height and a
+                    # topple the count does not pay for (v19)
+                    cands = [c for c in cands if float(c.dims[2]) <= standing_cap + 1e-9
+                             or abs(float(c.dims[2]) - min(c.dims)) < 1e-6]
                     if cands:
-                        best = min(cands, key=lambda c: key(c, model))
+                        if name == "layers":
+                            from . import planner as _planner
+
+                            _planner._MODEL_CONTAINER[id(model)] = container
+                            item_key = online_layers_key(profile, model, self.config)
+                            best = min(cands, key=item_key)
+                            if os.environ.get("ONLINE_DEBUG"):
+                                ranked = sorted(cands, key=item_key)[:4]
+                                print(f"[online] item {profile.index} c{container_idx} {len(cands)} cands; bottoms {sorted({round(float(c.bottom), 2) for c in cands})}; top:",
+                                      [(item_key(c), [round(float(v), 2) for v in c.box.center], [round(float(v), 2) for v in c.dims]) for c in ranked])
+                        else:
+                            best = min(cands, key=lambda c: key(c, model))
                         chosen = (container_idx, model, best, len(cands))
                         break
                 self._longest_call = max(self._longest_call, time.perf_counter() - t0)

@@ -1443,6 +1443,23 @@ class RuleAlphaConfig:
     level, bottom 0.86 m, and those are what toppled under the shake
     proxy (15 topples on 48 scenes against v5's none)."""
 
+    online_layer_band: float = 0.25
+    """The online layer policy's layer band (m): poses are ranked by the
+    band their bottom falls in, so the floor fills before the next layer."""
+
+    online_front_strip: float = 0.45
+    """The depth (m) of the strip at the opening whose floor takes the
+    cargo nothing may rest on (soft; priority without a priority
+    container): the column it kills is the one built last."""
+
+    online_layer_support: float = 0.85
+    """A pose resting on at least this share of its footprint ranks
+    before one resting on less: the layers stay level."""
+
+    online_standing_max_height: float = 10.0
+    """The online policies take a standing pose only up to this height
+    (m); a 0.75 x 0.56 x 0.27 box on its side is a 0.56-0.75 m tower."""
+
     online_row_depths: str = "0.56,0.45,0.4"
     """The fixed row depths (m, back to front) of the online rows policy
     (``online_planner`` = "rows"): the canonical flat depths of the hard
