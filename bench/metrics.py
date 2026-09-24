@@ -144,13 +144,13 @@ def shake_proxy(env, items: list[dict]) -> dict:
         client.setGravity(0, 0, -g)
         for _ in range(SHAKE_SETTLE_STEPS):
             client.stepSimulation()
-        shifts, topples = [], 0
+        shifts, toppled = [], []
         for entry in items:
             pos, orn = client.getBasePositionAndOrientation(entry["pybullet_id"])
             shifts.append(float(np.linalg.norm(np.asarray(pos) - np.asarray(entry["pos"]))))
             dot = min(1.0, abs(float(np.dot(np.asarray(orn), np.asarray(entry["orn"])))))
             if math.degrees(2.0 * math.acos(dot)) > TOPPLE_ANGLE_DEG:
-                topples += 1
+                toppled.append(int(entry["index"]))
     finally:
         client.setGravity(0, 0, -g)
         client.restoreState(stateId=state)
@@ -158,8 +158,38 @@ def shake_proxy(env, items: list[dict]) -> dict:
     return {
         "shake_mean_shift": float(np.mean(shifts)),
         "shake_max_shift": float(np.max(shifts)),
-        "shake_topples": int(topples),
+        "shake_topples": len(toppled),
+        # which items, so a run's steps say how each toppled box got there
+        "shake_toppled_items": toppled,
         "shake_peak_kinetic_energy": float(peak),
+    }
+
+
+def contact_cover(env, items: list[dict]) -> dict:
+    """The rule's own reading of coverage: a soft or priority item touched
+    from above by an item of another attribute (contact points in the
+    settled load, not AABB overlap).  ``attribute_violations`` reads AABBs
+    and misses a hard box that rests on a soft box's corner, which the
+    contact test finds -- and the platform's placement/soft scores fell on
+    exactly those (v14, v23)."""
+    client = env.client
+    pairs = []
+    for victim in items:
+        if not (victim["is_soft"] or victim["is_prioritized"]):
+            continue
+        top = victim["aabb_max"][2]
+        for other in items:
+            if other is victim:
+                continue
+            offends = (victim["is_soft"] and not other["is_soft"]) or (victim["is_prioritized"] and not other["is_prioritized"])
+            if not offends:
+                continue
+            points = client.getContactPoints(bodyA=victim["pybullet_id"], bodyB=other["pybullet_id"])
+            if any(cp[5][2] >= top - 0.03 and cp[6][2] >= cp[5][2] - 0.01 for cp in points):
+                pairs.append([int(victim["index"]), int(other["index"])])
+    return {
+        "contact_covered": len({v for v, _o in pairs}),
+        "contact_covered_pairs": pairs,
     }
 
 
@@ -190,6 +220,7 @@ def terminal_metrics(env, with_shake: bool = True) -> dict:
         },
     }
     out.update(attribute_violations(items, any(c.is_prioritized for c in containers)))
+    out.update(contact_cover(env, items))
     if with_shake:
         out.update(shake_proxy(env, items))
     return out
@@ -206,6 +237,7 @@ COMPARED = {
     "priority_covered": "down",
     "priority_misrouted": "down",
     "soft_covered": "down",
+    "contact_covered": "down",
     "shake_mean_shift": "down",
     "shake_topples": "down",
     "shake_peak_kinetic_energy": "down",

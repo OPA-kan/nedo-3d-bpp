@@ -3493,15 +3493,16 @@ def compact_backwards(box: AABB, board: Board, container_idx: int, role: str,
 def _covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool,
                             shelves=None) -> bool:
     """The box would sit anywhere above a packed item whose attribute it does
-    not share (see ``wedge_rl.stack.covers_other_attribute``); a pair one
-    of ``shelves`` separates is not covering."""
+    not share (see ``wedge_rl.stack.covers_other_attribute``: an item is
+    under the box when its bottom is below the box's bottom, whatever its
+    top); a pair one of ``shelves`` separates is not covering."""
     from wedge_rl.stack import shelf_between
 
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
         p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
         if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
             continue
-        if float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+        if float(b.minimum[2]) >= float(box.minimum[2]) - 1e-6:
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):

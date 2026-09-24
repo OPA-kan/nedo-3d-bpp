@@ -1416,6 +1416,44 @@ worth several times the height (-8 cog) and the topples (-0.5): v23
 goes to the platform, and the covered soft cargo and Task C's topples
 are the next things to take out.
 
+### v23's costs: the veto's micron, and the soft pile (v24)
+
+Where the covered soft cargo came from.  A contact probe (the rule's
+own test: a soft or priority item touched from above by an item of
+another attribute, `bench.metrics.contact_cover` now) on c-c2-s0005
+and c-c2-s0011 found five pairs, every offender a hard box the stack
+option placed, and in every pair the pose's bottom was the soft box's
+top: action z 0.814 for a 0.25 m box, the soft box's settled top 0.689.
+The cover veto had passed the pose.  `stack_candidates` rests a box on
+a support top rounded to the millimetre, and the veto skipped any
+packed item whose top was above the box's bottom by more than a micron
+-- so a settled soft box beside the support, its top 0.3 mm (or, with
+the 2 cm the validator lets a box sink, 2 mm) higher than the rounded
+bottom, was "not under" the box, and the box landed on it.  The same
+test was in the ladder's copy and in `covers_priority`.  An item is
+under the box when its *bottom* is below the box's bottom, whatever
+its top (a top far above would be a penetration the validator rejects):
+with that, the two scenes have no pair, and 4 items fewer each (47 ->
+43, 45 -> 41); on c-c2p-s0001 the change costs nothing (48 both).
+
+Where Task C's topples came from, by the per-item shake record
+(`shake_toppled_items` now in the metrics): (a) soft boxes the stack
+option puts on the soft pile -- a 0.35 x 0.23 x 0.65 box on end at
+0.23 m fell over (83 degrees), flat 0.65 x 0.35 x 0.23 boxes at 0.87
+and 1.06 m with a corner in the air tilted 55-60 degrees (c-c2p-s0001,
+all three of its topples; two of c-c2p-s0012's five); (b) the ladder's
+flat boxes in a tower on a standing 0.65 m box (c-c2p-s0012: four
+terrace-extension boxes from 0.70 to 1.44 m, three of the five).
+Taking soft cargo out of the stack option's support model altogether
+(`stack_soft_is_structure` off) clears (a) -- c-c2p-s0001 0 topples --
+and costs 11 items there (48 -> 37, under the platform's count
+threshold), because the soft pile *is* the count.  Two narrower rules
+instead: no soft box on end (`stack_soft_standing` off) and 80 % of a
+soft box's footprint in contact off the floor (`stack_soft_min_support`
+0.8, the planner's own figure for soft cargo): c-c2p-s0001 41 items,
+0 topples; c-c2p-s0012 45 items (44 before), the two ladder-tower
+topples left.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

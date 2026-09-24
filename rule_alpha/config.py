@@ -1452,6 +1452,28 @@ class RuleAlphaConfig:
     ten in the pool, every pose on them "no-support".  The cover veto
     keeps hard cargo off it."""
 
+    stack_soft_is_structure: bool = True
+    """Off, the stack option judges its poses with soft cargo carrying no
+    load whatever ``soft_is_structure`` says.  On the Task C physics suite
+    the v23 build's stack option put soft boxes on soft boxes at 0.8-1.3 m
+    (three of c-c2p-s0001's three topples, two of c-c2p-s0012's five),
+    where a soft support sinks and tilts under the shake; but the soft
+    pile is also where the count comes from (c-c2p-s0001: 48 -> 37 items
+    without it, under the platform's count threshold), so the two rules
+    below are the ones used."""
+
+    stack_soft_standing: bool = True
+    """Off, the stack option does not stand a soft box on end (its height
+    the longest side): a 0.35 x 0.23 x 0.65 soft box on end at 0.23 m fell
+    over (83 degrees) under the shake on c-c2p-s0001."""
+
+    stack_soft_min_support: float = 0.0
+    """A soft item's pose off the floor needs this share of its footprint
+    in contact (0: the validator's centre-of-mass rule alone): the flat
+    soft boxes the stack option put on the soft pile with a corner in the
+    air tilted 55-60 degrees under the shake (c-c2p-s0001's items 24 and
+    26).  The planner's rows use 0.8 (``plan_min_support_soft``)."""
+
     soft_first_when_free: bool = False
     """Before the hard cargo is tried, a soft item in the pool whose best
     pose (the ladder's) lands on a shelf, on soft cargo, or on a top too

@@ -16,6 +16,7 @@ ladder's episode takes ten to twenty seconds and training reuses seeds.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import pathlib
 import random
@@ -260,12 +261,20 @@ def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_priorit
     on top is free), and it reads contact from above, which a gap of a few
     centimetres does not rule out once the cargo settles.  A pair a shelf
     separates (``shelves``: the container's shelf AABBs) is not covering:
-    the rule reads contact, and nothing touches through a shelf."""
+    the rule reads contact, and nothing touches through a shelf.
+
+    A packed item is under the box when its bottom is below the box's
+    bottom, whatever its top: the stack option's candidates rest on a
+    support top rounded to the millimetre, and a settled soft box beside
+    that support whose top is a fraction of a millimetre (or, squashed, a
+    couple of centimetres) higher is exactly what the box lands on -- the
+    old test (a top at or below the bottom, to the micron) let those
+    through, and the platform's contact test found every one of them."""
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
         p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
         if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
             continue
-        if float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+        if float(b.minimum[2]) >= float(box.minimum[2]) - 1e-6:
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
@@ -281,7 +290,7 @@ def covers_priority(box: AABB, container: dict) -> bool:
     # the flag is read from the item itself: the AABB cache keys on the
     # container and would not see a flag changed in place
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
-        if not bool(packed.get("is_prioritized", False)) or float(b.maximum[2]) > float(box.minimum[2]) + 1e-6:
+        if not bool(packed.get("is_prioritized", False)) or float(b.minimum[2]) >= float(box.minimum[2]) - 1e-6:
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):
@@ -312,6 +321,10 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     pose may leave on the boxes it loads; ``extra_clearance``: how much
     further than the validator's clearance the anchors step away from
     neighbours and the transport sweep must stay from packed boxes."""
+    if getattr(cfg, "soft_is_structure", False) and not getattr(cfg, "stack_soft_is_structure", True):
+        # soft cargo carries no load here (see the config): the validator
+        # and the stability call below read the flag from ``cfg``
+        cfg = dataclasses.replace(cfg, soft_is_structure=False)
     packed = [b for b, _s, _p in packed_aabbs_local(container)]
     gap = cfg.settled_clearance + cfg.anchor_slack + extra_clearance
     tower = Tower(container, cfg) if tower_min is not None else None
@@ -331,8 +344,13 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     supports = [(model.z_floor, True, [])] + [(z, False, bs) for z, bs in sorted(tops.items())]
     out: list[Candidate] = []
     seen = set()
+    is_soft = bool(getattr(profile, "is_soft", False))
+    soft_standing = bool(getattr(cfg, "stack_soft_standing", True))
+    soft_min_support = float(getattr(cfg, "stack_soft_min_support", 0.0)) if is_soft else 0.0
     for o in profile.orientations:
         dx, dy, dz = o.dx, o.dy, o.dz
+        if is_soft and not soft_standing and dz > max(dx, dy) + 1e-6:
+            continue  # a soft box on end fell over under the shake
         for bottom, on_floor, bases in supports:
             if bottom + dz > z_top - wall:
                 continue
@@ -375,10 +393,13 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 if min_gap is not None and not on_floor and transport_gap(box, container) < min_gap - 1e-9:
                     continue
                 st = stability.evaluate(box, container, cfg)
+                support_ratio = min(1.0, st.contact_area / max(dx * dy, 1e-9))
+                if soft_min_support > 0.0 and not on_floor and support_ratio < soft_min_support - 1e-9:
+                    continue  # a soft box deforms and tips off a partial support
                 c = Candidate(
                     box=box, orientation=int(o.index), dims=(dx, dy, dz), bottom=bottom,
                     on_floor=on_floor, gain=dx * dy * dz,
-                    support_ratio=min(1.0, st.contact_area / max(dx * dy, 1e-9)),
+                    support_ratio=support_ratio,
                     margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
                 )
                 c.tower_margin = tw
