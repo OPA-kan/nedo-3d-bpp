@@ -63,6 +63,20 @@ PRIORITY_CONTAINER_ROOM = True
 # hard box could use before the hard cargo is tried.  Analytic suites:
 # A +2.5, B +5.3, C +4.0 items a scene; the centre of mass +0.02-0.03.
 SOFT_STRUCTURE = True
+# v24: (1) the cover veto counts a packed item as under the box when its
+# bottom is below the box's bottom, whatever its top (the old test, a top
+# at or below the bottom to the micron, let the stack option rest hard
+# boxes on a soft box whose settled top sat a fraction of a millimetre
+# above the rounded support top: every covered soft item on the Task C
+# probes; the physics suites go from 0.08 / 0.10 / 0.29 covered a scene
+# to 0 / 0 / 0.02, Task C -1.1 items a scene, A and B unchanged); (2) in
+# the online tasks a soft item the stack option places off the floor
+# needs 80 % of its footprint in contact (the flat soft boxes it put on
+# the soft pile with a corner in the air were the topples: Task C 0.56 ->
+# 0.21 a scene, the count unchanged on B and C).  On Task A the same rule
+# cost 1.5 items a scene for no topple, so the offline phase turns it off.
+STACK_SOFT_MIN_SUPPORT = 0.8
+STACK_SOFT_MIN_SUPPORT_TASK_A = 0.0
 
 
 # the "ladder-stable" settings the benchmarks were run with, plus the Task A
@@ -105,6 +119,7 @@ OVERRIDES = dict(
     plan_normal_in_priority_container=PRIORITY_CONTAINER_ROOM, plan_priority_deep_first=PRIORITY_CONTAINER_ROOM,
     cover_veto_ignores_shelf=PRIORITY_CONTAINER_ROOM, soft_headroom_per_container=PRIORITY_CONTAINER_ROOM,
     soft_is_structure=SOFT_STRUCTURE, soft_first_when_free=SOFT_STRUCTURE,
+    stack_soft_min_support=STACK_SOFT_MIN_SUPPORT,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
     # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the
@@ -149,6 +164,16 @@ class Agent(RuleAlphaAgent):
         stack = StackOption(policy_dir, config) if (policy_dir / "policy.npz").exists() else None
         super().__init__(module_path=module_path, config=config, stack_option=stack)
         self.surrendered = 0
+
+    def optimize(self, item_list: list):
+        """Task A (the only task that calls this): the stack option's soft
+        support share is the offline value.  The option reads its own copy
+        of the config, so both are replaced."""
+        self.config = dataclasses.replace(self.config, stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+        if self.stack_option is not None:
+            self.stack_option.config = dataclasses.replace(
+                self.stack_option.config, stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+        return super().optimize(item_list)
 
     def policy(self, observation: dict):
         """Always a well-formed action: the official app reads the action's

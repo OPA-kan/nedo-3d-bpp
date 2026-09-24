@@ -157,6 +157,34 @@ probes: no reserve at all halves the soft count (not adopted); the
 row-depth search scored over a row's layers, as a planner variant, is
 in the code but off (count +0.08, n.s.).
 
+v19 scored 40.44 on the platform (cog -4.5, stability -4.2, placement
+-5.55 against v18): a fourth hard layer on standing boxes.  Three
+probes after it were not adopted: v20 (standing rows over the flat
+layers: soft -54 on the suite), v21 (ladder flags: C +1.0 n.s., topples
+doubled), v22 (an online layer policy for B/C: physics -1.4).
+
+Twenty-third build (v23): v18 with soft cargo carrying load in the
+analytic support model (`soft_is_structure`) and, in the online tasks,
+a soft item going to the shelf gallery, onto soft cargo or onto a top
+no hard box could use before the hard cargo is tried
+(`soft_first_when_free`).  Physics suites against v18: Task A +2.65
+items a scene, B +4.92, C +4.65; costs: soft cargo covered 0.08 / 0.10
+/ 0.29 a scene, Task C topples 9 -> 29 (findings section "Soft cargo:
+the one-layer gallery").
+
+Twenty-fourth build (v24): v23 with the cover veto counting a packed
+item as under the box when its bottom is below the box's bottom (the
+old test skipped a soft box whose settled top sat a fraction of a
+millimetre above the stack option's rounded support top, and the box
+landed on it: every covered soft item on the Task C probes), and, in
+the online tasks, the stack option's soft poses off the floor needing
+80 % of their footprint in contact (`stack_soft_min_support`; the
+offline phase turns it off, where it cost 1.5 items a scene for no
+topple).  Physics suites against v23: covered soft cargo 0 / 0 / 0.02 a
+scene, Task C topples 0.60 -> 0.21, items A -0.4 (n.s.), B +0.3 (n.s.),
+C -1.0 [-2.0, -0.1] (findings section "v23's costs: the veto's micron,
+and the soft pile").
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

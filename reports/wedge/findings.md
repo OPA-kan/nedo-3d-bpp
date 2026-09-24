@@ -1452,7 +1452,24 @@ instead: no soft box on end (`stack_soft_standing` off) and 80 % of a
 soft box's footprint in contact off the floor (`stack_soft_min_support`
 0.8, the planner's own figure for soft cargo): c-c2p-s0001 41 items,
 0 topples; c-c2p-s0012 45 items (44 before), the two ladder-tower
-topples left.
+topples left.  The support share alone does the work (42 items, 0
+topples); the standing ban alone leaves 3 topples (they move to other
+flat soft boxes on the pile) and costs an item on top of the share.
+
+Physics, 48 scenes each.  The veto fix against v23: Task A -0.38 items
+a scene [-0.83, +0.06] (fill -0.67), Task B +0.25 [-0.25, +0.85], Task
+C -1.06 [-1.73, -0.44]; soft cargo covered (AABB) 0.08 / 0.10 / 0.29 ->
+0 / 0 / 0.02 a scene, and by the contact test 2 / 2 / 3 pairs are left
+on 48 scenes (a plan pose beside a plan pose, the shelf's space-saving
+pose on the soft-first gallery, a terrace on a stack-rl soft box).  The
+0.8 support share on top of the fix: Task C topples 0.56 -> 0.21 a
+scene [-0.69, -0.04] with the count unchanged (+0.04); Task B topples
+0.31 -> 0.27 (n.s.), count unchanged; Task A -1.54 items [-2.27, -0.90]
+for no topple (0.29 -> 0.27), so the offline phase turns the share off
+(the stack option places soft cargo on the planned load's tops there,
+where partial support has not toppled).  What is left on C (10 topples
+on 48 scenes): the ladder's flat boxes in towers at 1.1-1.4 m (6) and
+the stack option's (4).
 
 ## Executor status
 
