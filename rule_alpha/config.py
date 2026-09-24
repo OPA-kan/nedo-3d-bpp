@@ -1460,6 +1460,12 @@ class RuleAlphaConfig:
     """The online policies take a standing pose only up to this height
     (m); a 0.75 x 0.56 x 0.27 box on its side is a 0.56-0.75 m tower."""
 
+    online_pool_best: bool = False
+    """With a pool to choose from (Task B) the online layer policy finds
+    every pool item's best pose and places the item whose pose ranks best
+    (the lowest band, the deepest), instead of the first item in the
+    pool order that has any pose."""
+
     online_row_depths: str = "0.56,0.45,0.4"
     """The fixed row depths (m, back to front) of the online rows policy
     (``online_planner`` = "rows"): the canonical flat depths of the hard

@@ -831,7 +831,11 @@ def online_layers_key(profile, model, config):
         return 1
 
     if not blocking:
-        return lambda c: (flat(c), supported(c), band_of(c),
+        # the band before the support: a well-supported pose five layers
+        # up ranked before a 70 %-supported one on the second layer, and
+        # the policy built towers over a floor 73 % covered (c-c2-s0012,
+        # 39 against the ladder's 50)
+        return lambda c: (flat(c), band_of(c), supported(c),
                           -round(float(c.box.center[1]), 2), round(float(c.box.center[0]), 2))
 
     container = board_container(model)
@@ -850,13 +854,12 @@ def online_layers_key(profile, model, config):
                     return 0
         return 1
 
-    # else the deepest corner of the floor (soft to the left, priority to
-    # the right) while the floor is open there, else the highest top
+    # else the highest top, the deepest, soft to the left and priority to
+    # the right (on an empty floor that is the back corner; a floor pose
+    # at the front would block every floor pose behind it)
     x_side = 1.0 if profile.is_soft else -1.0
-    return lambda c: (flat(c), supported(c), on_shelf(c), on_same(c),
-                      0 if c.on_floor else 1,
-                      -round(float(c.box.center[1]), 2) if c.on_floor else -band_of(c),
-                      x_side * round(float(c.box.center[0]), 2))
+    return lambda c: (flat(c), supported(c), on_shelf(c), on_same(c), -band_of(c),
+                      -round(float(c.box.center[1]), 2), x_side * round(float(c.box.center[0]), 2))
 
 
 def online_shelf_pose(board, container_idx: int, profile, config, standing: bool = False):

@@ -316,6 +316,12 @@ class RuleAlphaAgent:
 
             key = _key(name, float(getattr(self.config, "plan_band", 0.22))) if name != "layers" else None
             standing_cap = float(getattr(self.config, "online_standing_max_height", 10.0))
+            # with a pool to choose from (Task B) every item's best pose is
+            # found and the item whose pose ranks best goes first: the one
+            # that fills the floor gap in front of the wall, not the
+            # smallest one whatever it fits
+            pool_best = bool(getattr(self.config, "online_pool_best", False)) and len(ordered) > 1
+            best_overall = None
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(ladder_deadline):
                     break
@@ -365,7 +371,22 @@ class RuleAlphaAgent:
                 self._longest_call = max(self._longest_call, time.perf_counter() - t0)
                 if chosen is None:
                     continue
+                if pool_best and name == "layers":
+                    container_idx, model, cand, count = chosen
+                    rank = (0 if profile.is_soft or profile.is_prioritized else 1) if False else 0
+                    item_key = online_layers_key(profile, model, self.config)
+                    score = (rank, item_key(cand), n)
+                    if best_overall is None or score < best_overall[0]:
+                        best_overall = (score, pool_index, profile, chosen)
+                    continue
                 container_idx, model, cand, count = chosen
+                placement = _placement(cand, count, profile, container_idx, model)
+                placement.archetype = "online-" + name
+                self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": count},
+                                                     veto_counts={}, considered=count, ladder=[])
+                return self._action(pool_index, placement)
+            if best_overall is not None:
+                _score, pool_index, profile, (container_idx, model, cand, count) = best_overall
                 placement = _placement(cand, count, profile, container_idx, model)
                 placement.archetype = "online-" + name
                 self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": count},
