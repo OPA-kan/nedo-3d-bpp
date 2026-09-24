@@ -1370,6 +1370,16 @@ not compare.  The ladder with the two flags stays ahead on the count
 (+1.67); the layer policy's lower centre of mass is what a physics run
 on Task C decides.
 
+Physics, Task C, 48 scenes, the layer policy against the ladder: items
+-1.4 a scene [-3.1, +0.1], fill -1.2, nine episodes ended on a physics
+failure against two, topples 0.19 -> 0.33 a scene, the shake energy
+doubled; the centre of mass 0.030 lower as promised.  The analytic
+count did not survive physics: the second-layer poses the band-first
+ranking takes on 60-85 % of their footprint settle badly, and what the
+analytic model counts as placed falls or ends the episode.  The
+layer-policy line stops here; the code stays behind ``online_planner``
+= "" and the ladder keeps Tasks B and C.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
