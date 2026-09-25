@@ -1471,6 +1471,32 @@ where partial support has not toppled).  What is left on C (10 topples
 on 48 scenes): the ladder's flat boxes in towers at 1.1-1.4 m (6) and
 the stack option's (4).
 
+### v24 on the platform: 36.58, and what the prices say
+
+v24 scored 36.58 against v18's 43.05 (`reports/submission/
+official-results.md`): soft +18.05, fill -3.04, cog -14.2, stability
+-16.3, placement -11.6, the fraction placed 0.5447 (v18 0.5526), the
+slowest call 7.03 s.  Not a time-out: the official runner records a
+timed-out call at the limit itself, so 7.03 s means none reached 8 s
+(and on the Actions runners with the limit set to 6 s, v18 itself has
+38 calls over it on the Task B suite, v24 57, v25's soft-first budget
+share 25).  The structure the bench and the platform agree on: the
+centre of mass +0.02 / +0.04 / +0.03 (Task B's two-container layout
++0.045), Task B's priority cargo halved (the soft-first pass takes the
+shelf and the tops the priority cargo had), and soft cargo, smaller
+than hard cargo, displacing hard volume (fill -3 on the same count).
+With v19 (count +0.3 points, com +0.015, priority unchanged: -2.6) and
+v24 (count -0.8, com +0.03, placement -11.6: -6.5) as the two platform
+data points, the fit gives about 1.7 total points per 0.01 of the
+centre-of-mass ratio and nothing for the count at the margin -- the
+count buys the threshold and no more.  A cheaper soft-first (the
+"floor-gap" mode: a soft item on the floor only where the smallest
+hard box in the pool has no legal pose) is a no-op on Task C (one
+visible item) and on Task B costs 0.27 items, 0.23 soft items and 0.13
+priority items a scene analytically for no change in the centre of
+mass: not adopted.  v18 is the base again; what the prices ask for is
+a lower load at the same count.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
