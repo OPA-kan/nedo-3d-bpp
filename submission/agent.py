@@ -84,7 +84,9 @@ SOFT_HEADROOM_SHARE = 0.9
 # the soft pile with a corner in the air were the topples: Task C 0.56 ->
 # 0.21 a scene, the count unchanged on B and C).  On Task A the same rule
 # cost 1.5 items a scene for no topple, so the offline phase turns it off.
-STACK_SOFT_MIN_SUPPORT = 0.8
+# v25: off -- the rule was measured on v23's loads (soft on soft), and
+# v25 changes one thing against v18
+STACK_SOFT_MIN_SUPPORT = 0.0
 STACK_SOFT_MIN_SUPPORT_TASK_A = 0.0
 
 

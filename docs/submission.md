@@ -185,6 +185,21 @@ scene, Task C topples 0.60 -> 0.21, items A -0.4 (n.s.), B +0.3 (n.s.),
 C -1.0 [-2.0, -0.1] (findings section "v23's costs: the veto's micron,
 and the soft pile").
 
+v24 scored 36.58 on the platform (v18 43.05): soft +18, but the load
+0.02-0.045 higher, Task B's priority cargo halved and hard volume
+displaced by soft (fill -3), which the platform priced at three times
+the soft gain.  v23's direction is off again.
+
+Twenty-fifth build (v25): v18's loads (the cover veto's tolerance fix
+kept; it changes nothing on them) with the soft headroom reserve sized
+for 0.9 of the soft volume (0.75 in v18): v19's move to 0.5 cost 2.61
+points on the platform for +1.33 items and +0.015 of the centre of
+mass, and this reverses it at about the same size.  Physics suite
+against v18 (Task A, the only task the reserve touches): items -0.85
+[-1.71, -0.06], the centre of mass -0.013 [-0.021, -0.005], topples
+0.23 -> 0.19 (n.s.), episodes above the count threshold 45 -> 44 of 48,
+the soft count kept (analytic +0.04).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

@@ -1534,8 +1534,10 @@ episodes go under the threshold.  The reserve is the lever the
 platform has already priced in the other direction (v19: 0.75 -> 0.5,
 items +1.33, com +0.015, total -2.61): 0.9 reverses that move at about
 the same size, keeps the soft count and every episode above the
-threshold.  v25 = v18 with the reserve at 0.9, physics on the A suite
-to confirm the count and the height before the build.
+threshold.  v25 = v18 with the reserve at 0.9.  Physics, 48 A scenes
+against v18: items -0.85 [-1.71, -0.06], centre of mass -0.013
+[-0.021, -0.005], topples 0.23 -> 0.19 (n.s.), episodes above the
+threshold 45 -> 44; at the platform's prices about +2.
 
 ## Executor status
 
