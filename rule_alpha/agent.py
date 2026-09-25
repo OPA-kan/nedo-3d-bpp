@@ -365,8 +365,22 @@ class RuleAlphaAgent:
                             chosen = (container_idx, model, pose, 1)
                             break
                     t_c = time.perf_counter()
+                    # the stack option's tower rule (the combined centre of
+                    # mass of everything a pose loads inside every support
+                    # polygon by a margin) and its transport clearance:
+                    # without them the layer policy's high poses knocked
+                    # their towers over on landing (v22: 9 of 48 Task C
+                    # episodes ended on a settle failure, all of them
+                    # layer poses at 0.8-1.25 m, one on full support)
+                    tower_min, extra = None, 0.0
+                    if getattr(self.config, "online_tower_rule", False):
+                        from wedge_rl.stack import StackEnv
+
+                        tower_min = self.stack_option.tower_min if self.stack_option is not None else StackEnv.TOWER_MIN
+                        extra = self.stack_option.extra_clearance if self.stack_option is not None else StackEnv.EXTRA_CLEARANCE
                     cands = stack_candidates(model, container, self.config, profile, max_candidates=10 ** 6,
-                                             mass=float(pool[pool_index].get("mass", 0.0)), z_top=None)
+                                             mass=float(pool[pool_index].get("mass", 0.0)), z_top=None,
+                                             tower_min=tower_min, extra_clearance=extra)
                     if os.environ.get("ONLINE_DEBUG"):
                         print(f"[online-time] item {profile.index} c{container_idx} stack_candidates {time.perf_counter() - t_c:.2f}s n={len(cands)}")
                     # a standing pose taller than the cap is height and a

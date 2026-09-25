@@ -1483,6 +1483,14 @@ class RuleAlphaConfig:
     (two classes at 1 % and 4 %); 22.8 points of the fraction placed
     were soft cargo left in the pool."""
 
+    online_tower_rule: bool = False
+    """The online planner's poses (``online_planner``) pass the stack
+    option's tower rule and transport clearance (``wedge_rl.stack.Tower``,
+    margin 0.04 m; clearance +0.014 m): the layer policy's poses at
+    0.8-1.25 m knocked their towers over on landing without them (v22: 9
+    of 48 Task C episodes ended on a settle failure, one pose on full
+    support; the simulator warps the box 8 cm up and lets it fall)."""
+
     soft_first_mode: str = "free"
     """What makes a soft item's pose cost the hard cargo nothing.  "free":
     a shelf, soft cargo under it, or a top too high for another hard box
