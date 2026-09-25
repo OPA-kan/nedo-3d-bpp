@@ -31,6 +31,24 @@ tolerance fix, on every task -- measured on v23's loads only (Task C
 -1.1 items), never on v18's.  v18 with the current code on all three
 suites is the next measurement.
 
+Measured (`reports/bench/v18fix-core-{a,b,c}`, the v18 arm on the
+current code against the stored v18 runs): the fix changes 3 to 8
+scenes of 48 on each suite and the means by nothing -- items A +0.29
+[-0.02, +0.69], B -0.19 [-0.42, -0.04], C +0.25 [-0.04, +0.77]; the
+centre of mass within 0.002; priority and soft cargo within 0.2 a
+scene; the covered priority cargo 0.08 -> 0 a scene on B.  So v25's
+2.5 points under v18 are the reserve's (0.75 -> 0.9), which the bench
+prices at -0.85 items and -0.013 of the centre of mass on Task A and
+the platform paid as cog -4.2, stability -4.2, placement -6.3 with the
+fraction placed *up* 0.6 points; and v19's 2.6 points under v18 were
+the reserve's the other way (0.5), with the fraction up 0.3 points.
+Three builds one setting apart, the middle one 2.5 points above both
+neighbours, the bench unable to order them: at this size of change the
+platform's score is not a function the bench resolves, and v18's
+43.05 is best read as a favourable realisation of a family that
+scores 40.5-43 -- to be beaten by a change the bench can see whole
+(several items a scene on B and C at the same height), not by tuning.
+
 v24's total was 36.58, 6.47 below v18 (v23 was not run on the
 platform, so this is v23's soft cargo and v24's fixes together): soft
 +18.05 (the covered soft cargo gone and the soft galleries), but fill
