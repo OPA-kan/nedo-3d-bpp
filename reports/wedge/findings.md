@@ -1497,6 +1497,27 @@ priority items a scene analytically for no change in the centre of
 mass: not adopted.  v18 is the base again; what the prices ask for is
 a lower load at the same count.
 
+The online layer policy (v22) as that candidate.  Its settle failures
+first: the simulator warps a box 8 cm up and lets it fall, and nine of
+v22's 48 Task C episodes ended with a layer pose at 0.8-1.25 m falling
+0.4-0.9 m -- the box knocked its own tower over on landing, one of them
+from full support.  The online branch had been calling the stack
+candidates without the stack option's tower rule (the combined centre
+of mass of everything a pose loads inside every support polygon by 4
+cm) and its extra transport clearance; with them (`online_tower_rule`)
+eight of the nine settle (the ninth is a ladder terrace) and those
+episodes go from 204 to 272 items.  Physics, 48 scenes, v18 + layers +
+tower rule against v18: Task B items -2.29 [-3.88, -0.50], centre of
+mass -0.038 [-0.049, -0.027], topples 0.25 -> 0.08, settle-ended
+episodes 4 -> 0, priority 4.17 -> 3.75; Task C items -1.25 [-2.29,
+-0.21], centre of mass -0.027, topples 0.19 -> 0.33 (n.s.), settle 4 ->
+1.  At the prices that would be worth about +3.7 -- but the threshold
+decides: the episodes at or above half the items go 29 -> 19 of 48 on
+B and 11 -> 5 on C, and an episode under it scores fill alone.  Not
+adopted.  The asymmetry it shows: the Task A episodes sit at 0.62-0.66
+of the items, far above the threshold, so a lower load bought with
+count is cheap there and dear on B and C.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
