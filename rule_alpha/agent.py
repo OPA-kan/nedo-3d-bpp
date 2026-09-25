@@ -474,12 +474,18 @@ class RuleAlphaAgent:
         # on normal soft cargo
         soft_pairs = sorted(((pi, pr) for pi, pr in ordered if pr.is_soft),
                             key=lambda pp: (1 if pp[1].is_prioritized else 0, round(pp[1].max_footprint, 6)))
+        # "free": a shelf, soft cargo or a top too high for hard cargo (v23:
+        # the soft score doubled on the platform, but the load rose, the
+        # priority cargo lost the shelf and the count did not pay for it);
+        # "floor-gap": a floor pose in a gap no hard box in the pool fits,
+        # which adds a light item low and takes nothing from the hard cargo
+        mode = str(getattr(self.config, "soft_first_mode", "free") or "free")
         # the shelf gallery first, flat and packed from the back, for every
         # soft item before any ladder decision (the scan is cheap, a ladder
         # decision is not): the ladder stands soft boxes on the shelf on
         # their narrow side (three of fifteen fitted that way on b-c1-s0001)
         for pool_index, profile in soft_pairs:
-            if not self._can_start(deadline):
+            if mode != "free" or not self._can_start(deadline):
                 break
             for container_idx in layer1.routing_order(profile, self.board, self.config):
                 model = self.board.model(container_idx)
@@ -507,6 +513,14 @@ class RuleAlphaAgent:
             box = placement.box
             model = self.board.model(placement.container_idx)
             container = self.board.container(placement.container_idx)
+            if mode == "floor-gap":
+                if placement.surface != "floor" or self._hard_box_fits_over(
+                        ordered, model, container, placement.container_idx, box):
+                    continue
+                placement.reason = "soft-first (floor gap): " + placement.reason
+                self.last_decision = decision
+                self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
+                return self._action(pool_index, placement)
             free = placement.surface == "shelf"
             if not free:
                 # on soft cargo: the support under the box is soft
@@ -528,6 +542,35 @@ class RuleAlphaAgent:
             self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
             return self._action(pool_index, placement)
         return None
+
+    def _hard_box_fits_over(self, ordered: list, model, container: dict, container_idx: int, box) -> bool:
+        """Would the smallest hard box in the pool (or the smallest hard
+        SKU, when the pool has none: the stream may bring one) have a legal
+        floor pose over the footprint of ``box``?  Then the gap is hard
+        cargo's, not a soft item's."""
+        from wedge_rl.stack import stack_candidates
+
+        hard = [pr for _pi, pr in ordered if not pr.is_soft and pr.orientations]
+        if hard:
+            ref = min(hard, key=lambda pr: pr.max_footprint)
+        else:
+            ref = cls.classify_item(-1, {"index": -1, "length": 0.55, "width": 0.40, "height": 0.24, "mass": 8.0,
+                                         "is_soft": False, "is_prioritized": False}, self.config)
+        if not ref.orientations:
+            return False
+        t0 = time.perf_counter()
+        try:
+            cands = stack_candidates(model, container, self.config, ref, max_candidates=10 ** 6, mass=8.0)
+        finally:
+            self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+        for c in cands:
+            if not c.on_floor:
+                continue
+            ox = min(float(c.box.maximum[0]), float(box.maximum[0])) - max(float(c.box.minimum[0]), float(box.minimum[0]))
+            oy = min(float(c.box.maximum[1]), float(box.maximum[1])) - max(float(c.box.minimum[1]), float(box.minimum[1]))
+            if ox > 0.01 and oy > 0.01:
+                return True
+        return False
 
     def _soft_headroom_reserve(self, containers: list, container_idx: int | None = None) -> float:
         """Task A: the height the flattest pose of the soft cargo still to

@@ -1483,6 +1483,16 @@ class RuleAlphaConfig:
     (two classes at 1 % and 4 %); 22.8 points of the fraction placed
     were soft cargo left in the pool."""
 
+    soft_first_mode: str = "free"
+    """What makes a soft item's pose cost the hard cargo nothing.  "free":
+    a shelf, soft cargo under it, or a top too high for another hard box
+    (v23; on the platform the soft score doubled, +18, but the load's
+    centre of mass rose 0.02-0.045 and Task B's priority cargo lost the
+    shelf, which cost cog, stability and placement three times as much).
+    "floor-gap": a floor pose over which the smallest hard box in the
+    pool (the smallest hard SKU when the pool has none) has no legal
+    floor pose: a light item low, in room the hard cargo could not use."""
+
     soft_first_budget_share: float = 1.0
     """The share of the policy budget the soft-first pass may use (1.0:
     the ladder's whole deadline, 60 % of the budget).  The pass runs a

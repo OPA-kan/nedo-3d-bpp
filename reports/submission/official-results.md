@@ -25,10 +25,21 @@ platform, so this is v23's soft cargo and v24's fixes together): soft
 with the slowest policy call at 7.03 s against v18's 5.92 (limit 8).
 The physics suites had v23 +2.65 / +4.92 / +4.65 items a scene over
 v18 and v24 within an item of v23: the platform saw fewer items and
-less volume, not more.  What the bench does not have is the platform's
-machine: the calls the soft-first pass adds run 1.1 s longer at the
-tail, and a call over 8 s is answered with a random action that ends
-the episode.
+less volume, not more.  A time-out is not the reason: the official
+runner reports a timed-out call at the limit itself (its `poll` returns
+at the limit and that elapsed time is what `time_results` keeps), so a
+slowest call of 7.03 s means no call reached 8 s.  What the bench and
+the platform agree on is the structure of the load: the centre of mass
++0.02 / +0.04 / +0.03 (Task B's two-container layout +0.045), which
+v19 priced at about 3 cog and 3 stability points per 0.01, and the
+priority cargo on Task B halved (c1 2.9 -> 1.8, c1s 2.7 -> 1.3, c2 5.7
+-> 3.0 a scene), which is the placement score.  Soft cargo is smaller
+than hard cargo, so the soft galleries that lift the soft score are
+volume the hard cargo no longer gets: fill -3 on the same count.  The
+platform's prices, per component weight: soft +18 x 0.142 = +2.6
+against cog -14 x 0.216, stability -16 x 0.21, placement -11.6 x 0.143
+and fill -3 x 0.286 = -9.1.  v23's direction (more soft cargo, higher)
+is a loss at those prices whatever the count does.
 
 v19's total was 40.44, 2.61 below v18, on 0.3 points more of items
 placed (0.5558 against 0.5526): fill and soft held (0.00, +0.35), cog
