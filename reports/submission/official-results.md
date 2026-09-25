@@ -15,6 +15,20 @@
 | v18 (3bdd115: v15 plus the priority container's room -- priority rows deep first, normal cargo in its spare rows, the cover veto through a shelf, the soft reserve per container) | 34.82 | 54.83 | 62.69 | 35.6 | 19.85 | 0.5526 | 139.3 | 5.92 |
 
 | v19 (b8d99c1: v18 with the soft headroom reserve sized for half the soft volume) | 34.82 | 50.32 | 58.50 | 30.05 | 20.2 | 0.5558 | 139.7 | 5.88 |
+| v24 (7f2edae: v18 plus v23's soft cargo as structure and soft first when free, the cover veto's tolerance fixed, the stack option's soft support share online) | 31.78 | 40.59 | 46.43 | 24.05 | 37.9 | 0.5447 | 139.0 | 7.03 |
+
+v24's total was 36.58, 6.47 below v18 (v23 was not run on the
+platform, so this is v23's soft cargo and v24's fixes together): soft
++18.05 (the covered soft cargo gone and the soft galleries), but fill
+-3.04 (the first fill under 34 of any build), cog -14.2, stability
+-16.3, placement -11.6, on 0.8 points fewer of items placed (0.5447)
+with the slowest policy call at 7.03 s against v18's 5.92 (limit 8).
+The physics suites had v23 +2.65 / +4.92 / +4.65 items a scene over
+v18 and v24 within an item of v23: the platform saw fewer items and
+less volume, not more.  What the bench does not have is the platform's
+machine: the calls the soft-first pass adds run 1.1 s longer at the
+tail, and a call over 8 s is answered with a random action that ends
+the episode.
 
 v19's total was 40.44, 2.61 below v18, on 0.3 points more of items
 placed (0.5558 against 0.5526): fill and soft held (0.00, +0.35), cog

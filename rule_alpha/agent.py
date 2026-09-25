@@ -280,7 +280,13 @@ class RuleAlphaAgent:
         # point that add no height the hard cargo would not add.
         if (getattr(self.config, "soft_first_when_free", False)
                 and (not self.plan_by_index or self.plan_source != "planner")):
-            action = self._soft_first(ordered, ladder_deadline)
+            # its own share of the budget: with the ladder's whole deadline
+            # the pass ran a full ladder decision per soft item in the pool
+            # and left the ladder's first item, the option's and the last
+            # resort to run after it (v24: three times v18's calls over
+            # 5.5 s on the Task B suite, 7.03 s on the platform)
+            share = float(getattr(self.config, "soft_first_budget_share", 1.0))
+            action = self._soft_first(ordered, min(ladder_deadline, started + share * budget))
             if action is not None:
                 return action
 
@@ -468,12 +474,13 @@ class RuleAlphaAgent:
         # on normal soft cargo
         soft_pairs = sorted(((pi, pr) for pi, pr in ordered if pr.is_soft),
                             key=lambda pp: (1 if pp[1].is_prioritized else 0, round(pp[1].max_footprint, 6)))
-        for n, (pool_index, profile) in enumerate(soft_pairs):
+        # the shelf gallery first, flat and packed from the back, for every
+        # soft item before any ladder decision (the scan is cheap, a ladder
+        # decision is not): the ladder stands soft boxes on the shelf on
+        # their narrow side (three of fifteen fitted that way on b-c1-s0001)
+        for pool_index, profile in soft_pairs:
             if not self._can_start(deadline):
                 break
-            # the shelf gallery first, flat and packed from the back: the
-            # ladder stands soft boxes on the shelf on their narrow side
-            # (three of fifteen fitted that way on b-c1-s0001)
             for container_idx in layer1.routing_order(profile, self.board, self.config):
                 model = self.board.model(container_idx)
                 t0 = time.perf_counter()
@@ -489,6 +496,10 @@ class RuleAlphaAgent:
                                                          veto_counts={}, considered=1, ladder=[])
                     self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
                     return self._action(pool_index, placement)
+        max_items = int(getattr(self.config, "soft_first_max_items", 0) or 0)
+        for n, (pool_index, profile) in enumerate(soft_pairs):
+            if not self._can_start(deadline) or (max_items and n >= max_items):
+                break
             decision = self._timed(layer1.choose_for_item, self.board, profile, self.config, selector=self.selector)
             if decision is None:
                 continue

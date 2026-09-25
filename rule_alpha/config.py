@@ -1483,6 +1483,20 @@ class RuleAlphaConfig:
     (two classes at 1 % and 4 %); 22.8 points of the fraction placed
     were soft cargo left in the pool."""
 
+    soft_first_budget_share: float = 1.0
+    """The share of the policy budget the soft-first pass may use (1.0:
+    the ladder's whole deadline, 60 % of the budget).  The pass runs a
+    ladder decision per soft item in the pool, and the ladder's first
+    item, the option's and the last resort run after it whatever is
+    left: on the Task B physics suite v24 had 96 calls over 5.5 s
+    against v18's 33 (runner time), and the platform's slowest call was
+    7.03 s against v18's 5.92 with the limit at 8."""
+
+    soft_first_max_items: int = 0
+    """At most this many soft items get a ladder decision in the
+    soft-first pass (0: as many as the deadline allows); the shelf scan
+    runs for every soft item first."""
+
     soft_first_min_hard_height: float = 0.24
     """The lowest hard box (m): a top closer than this to the ceiling
     counts as one no hard box could use."""

@@ -34,6 +34,10 @@ on:
         description: Runners; scene i goes to runner i mod shards
         type: string
         default: "1"
+      budget:
+        description: The simulator's policy time limit in seconds (8 is the official one; less emulates a slower machine)
+        type: string
+        default: "8"
 
 env:
   ARM: ${{ inputs.arm || 'stack:reports/wedge/ppo-stack-c1-s0-cont' }}
@@ -41,6 +45,7 @@ env:
   SIM: ${{ inputs.sim || 'physics' }}
   OUT: ${{ inputs.out || 'reports/bench/stack-core' }}
   SHARDS: ${{ inputs.shards || '1' }}
+  BUDGET: ${{ inputs.budget || '8' }}
 
 permissions:
   contents: read
@@ -82,7 +87,7 @@ jobs:
         run: |
           timeout --signal=INT --kill-after=3m 330m python -m bench run \
             --arm "$ARM" --suite "$SUITE" --sim "$SIM" --resume --out "$OUT" \
-            --shard "${{ matrix.shard }}/$SHARDS" || [ $? -eq 124 ]
+            --budget "$BUDGET" --shard "${{ matrix.shard }}/$SHARDS" || [ $? -eq 124 ]
       - uses: actions/upload-artifact@v4
         if: always()
         with:
