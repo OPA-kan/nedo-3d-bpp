@@ -16,6 +16,20 @@
 
 | v19 (b8d99c1: v18 with the soft headroom reserve sized for half the soft volume) | 34.82 | 50.32 | 58.50 | 30.05 | 20.2 | 0.5558 | 139.7 | 5.88 |
 | v24 (7f2edae: v18 plus v23's soft cargo as structure and soft first when free, the cover veto's tolerance fixed, the stack option's soft support share online) | 31.78 | 40.59 | 46.43 | 24.05 | 37.9 | 0.5447 | 139.0 | 7.03 |
+| v25 (e1ff972: v18's loads with the soft headroom reserve at 0.9 of the soft volume; the cover veto's tolerance fix in) | 35.10 | 50.59 | 58.47 | 29.3 | 20.6 | 0.5585 | 139.0 | 5.58 |
+
+v25's total was 40.53, 2.52 below v18 and within 0.09 of v19 -- the
+reserve moved the other way (0.9 against v19's 0.5) and landed on the
+same components: fill +0.28, soft +0.75, the fraction placed +0.6
+points (the bench had Task A -0.85 items), cog -4.2, stability -4.2,
+placement -6.3.  Two builds that differ from v18 by one setting each,
+in opposite directions, score the same 2.5 points under it: the height
+story that explained v19 does not explain v25 (its load is lower), and
+the reserve is not what v18's 43.05 rests on.  What v19 and v25 share
+against v18 is placement -6, and what v25 alone carries is the veto's
+tolerance fix, on every task -- measured on v23's loads only (Task C
+-1.1 items), never on v18's.  v18 with the current code on all three
+suites is the next measurement.
 
 v24's total was 36.58, 6.47 below v18 (v23 was not run on the
 platform, so this is v23's soft cargo and v24's fixes together): soft
