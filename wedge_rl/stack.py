@@ -345,6 +345,10 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     out: list[Candidate] = []
     seen = set()
     is_soft = bool(getattr(profile, "is_soft", False))
+    # no pose whose bottom is above this height (m, container frame): the
+    # platform prices the load's height, and the option's late poses on
+    # Task A sit on the plan's top layer
+    max_bottom = float(getattr(cfg, "stack_max_bottom", 10.0))
     soft_standing = bool(getattr(cfg, "stack_soft_standing", True))
     soft_min_support = float(getattr(cfg, "stack_soft_min_support", 0.0)) if is_soft else 0.0
     for o in profile.orientations:
@@ -352,7 +356,7 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
         if is_soft and not soft_standing and dz > max(dx, dy) + 1e-6:
             continue  # a soft box on end fell over under the shake
         for bottom, on_floor, bases in supports:
-            if bottom + dz > z_top - wall:
+            if bottom + dz > z_top - wall or bottom > max_bottom + 1e-9:
                 continue
             # under the main shelf nothing may rise above it; the prefilter
             # and validator reject penetration, so anchors need no special case

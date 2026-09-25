@@ -1462,6 +1462,11 @@ class RuleAlphaConfig:
     without it, under the platform's count threshold), so the two rules
     below are the ones used."""
 
+    stack_max_bottom: float = 10.0
+    """The stack option places nothing whose bottom is above this height
+    (m, container frame; 10: no cap).  A Task A lever: its late poses
+    sit on the plan's top layer, and the platform prices height."""
+
     stack_soft_standing: bool = True
     """Off, the stack option does not stand a soft box on end (its height
     the longest side): a 0.35 x 0.23 x 0.65 soft box on end at 0.23 m fell
