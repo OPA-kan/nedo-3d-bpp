@@ -1518,6 +1518,25 @@ adopted.  The asymmetry it shows: the Task A episodes sit at 0.62-0.66
 of the items, far above the threshold, so a lower load bought with
 count is cheap there and dear on B and C.
 
+Task A's levers, analytic, 48 scenes against v18 (39.98 items, centre
+of mass 0.348, 48 of 48 episodes above the threshold):
+
+| lever | items | com | soft | priority | above 0.5 |
+|---|---|---|---|---|---|
+| stack option capped at bottom 0.6 m | -1.85 | -0.020 | -2.02 | -0.35 | 45 |
+| stack option capped at bottom 0.9 m | -1.60 | -0.015 | -1.92 | -0.38 | 46 |
+| soft reserve for 0.9 of the soft volume | -1.54 | -0.017 | +0.04 | -0.19 | 48 |
+| soft reserve for 1.0 of the soft volume | -1.67 | -0.018 | +0.04 | -0.21 | 48 |
+
+The stack option's late poses on Task A are the soft leftovers on the
+plan's top layer: capping them loses the soft cargo, and three
+episodes go under the threshold.  The reserve is the lever the
+platform has already priced in the other direction (v19: 0.75 -> 0.5,
+items +1.33, com +0.015, total -2.61): 0.9 reverses that move at about
+the same size, keeps the soft count and every episode above the
+threshold.  v25 = v18 with the reserve at 0.9, physics on the A suite
+to confirm the count and the height before the build.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

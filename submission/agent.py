@@ -56,13 +56,22 @@ PLAN_STANDING_MAX_BOTTOM = 10.0
 # three priority-container scenes the plan goes 48/42/40 -> 59/53/50 of
 # 82 items (analytic).
 PRIORITY_CONTAINER_ROOM = True
-# v23: soft cargo carries load in the analytic support model (soft on soft,
-# which the rule allows and the cover veto keeps hard cargo off; without
-# it every soft gallery was one layer deep), and in the online tasks a
-# soft item goes to the shelf gallery, onto soft cargo or onto a top no
-# hard box could use before the hard cargo is tried.  Analytic suites:
-# A +2.5, B +5.3, C +4.0 items a scene; the centre of mass +0.02-0.03.
-SOFT_STRUCTURE = True
+# v23 (not adopted): soft cargo carries load in the analytic support
+# model (soft on soft), and in the online tasks a soft item goes to the
+# shelf gallery, onto soft cargo or onto a top no hard box could use
+# before the hard cargo is tried.  Physics suites: A +2.65, B +4.92, C
+# +4.65 items a scene, the centre of mass +0.02-0.045; the platform
+# (v24, 36.58 against v18's 43.05) priced the height, Task B's halved
+# priority cargo and the hard volume the soft galleries displace at
+# three times the soft score's +18.  Off: v18's loads again.
+SOFT_STRUCTURE = False
+# v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
+# in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
+# centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
+# that move at about the same size on the analytic A suite (items
+# -1.54, centre of mass -0.017, the soft count and every episode's
+# place above the count threshold kept).
+SOFT_HEADROOM_SHARE = 0.9
 # v24: (1) the cover veto counts a packed item as under the box when its
 # bottom is below the box's bottom, whatever its top (the old test, a top
 # at or below the bottom to the micron, let the stack option rest hard
@@ -144,7 +153,7 @@ OVERRIDES = dict(
     # 40.44 against v18's 43.05 (cog -4.5, stability -4.2, placement
     # -5.55): a fourth hard layer on standing boxes is height and topples
     # the count does not cover.  0.75 again.
-    reserve_headroom_for_soft=True, soft_headroom_volume_share=0.75, soft_headroom_slack=0.05,
+    reserve_headroom_for_soft=True, soft_headroom_volume_share=SOFT_HEADROOM_SHARE, soft_headroom_slack=0.05,
     # priority cargo carries load (only priority cargo may sit on it under
     # the cover rule): the priority container gets its second layer
     priority_is_structure=True,
