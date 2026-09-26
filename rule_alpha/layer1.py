@@ -441,6 +441,20 @@ class Board:
         self._holes = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
+    def undo_last(self, idx: int) -> None:
+        """Take back the last ``apply`` on container ``idx`` (a trial
+        placement scored and withdrawn); the caches reset as ``apply``
+        does.  A foundation entry the placement removed is not restored."""
+        self.containers[idx]["packed_items"].pop()
+        self.placements[idx].pop()
+        self._grids[idx] = None
+        self._triangle[idx] = None
+        self._reach = [None for _ in self.containers]
+        self._plateau = [None for _ in self.containers]
+        self._plateau_labels = [None for _ in self.containers]
+        self._back_height = [None for _ in self.containers]
+        self._holes = [None for _ in self.containers]
+
 
     # -- reachability and frontier demand --------------------------------
     def plateau_stats(self, idx: int) -> dict:

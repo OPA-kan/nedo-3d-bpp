@@ -457,6 +457,17 @@ class RuleAlphaAgent:
                                                      veto_counts={}, considered=count, ladder=[])
                 return self._action(pool_index, placement)
 
+        # Task B: which of the visible items goes next (see the config's
+        # ``pool_item_search``); the ladder's own item is tried first, so
+        # the search never costs a placement
+        if (getattr(self.config, "pool_item_search", False) and len(ordered) > 1
+                and not (self.plan_by_index and self.plan_source == "planner")):
+            hit = self._pool_item_search(ordered, pool, started + float(getattr(self.config, "pool_item_search_seconds", 3.5)))
+            if hit is not None:
+                pool_index, decision = hit
+                self.last_decision = decision
+                return self._action(pool_index, decision.placement)
+
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
         if self.wedge_option is not None:
@@ -500,6 +511,56 @@ class RuleAlphaAgent:
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None
+
+    def _pool_item_search(self, ordered: list, pool: list, deadline: float):
+        """The item after which the most of the other pool items still fit
+        (``room.fit_count``), among the first ``pool_item_search_k`` of the
+        ladder's order and the largest hard box; each is placed by the
+        ladder on the board and withdrawn.  Returns (pool_index, decision)
+        or None (the ladder goes on as usual)."""
+        from .room import RoomScorer, fit_count
+
+        k = int(getattr(self.config, "pool_item_search_k", 3))
+        margin = float(getattr(self.config, "pool_item_search_margin", 0.5))
+        candidates = list(ordered[:k])
+        hard = [(pi, pr) for pi, pr in ordered if not pr.is_soft]
+        if hard:
+            biggest = max(hard, key=lambda pp: pp[1].max_footprint)
+            if biggest not in candidates:
+                candidates.append(biggest)
+        scorer = getattr(self, "_room_scorer", None)
+        if scorer is None:
+            scorer = self._room_scorer = RoomScorer(self.config, [], cell=0.05, tolerance=0.02)
+        clearance = float(self.config.settled_clearance)
+        best = None
+        ladder_score = None
+        first_decision = None
+        for n, (pool_index, profile) in enumerate(candidates):
+            if n and time.perf_counter() > deadline:
+                break
+            decision = self._timed(layer1.choose_for_item, self.board, profile, self.config, selector=self.selector)
+            if decision is None:
+                continue
+            ci = decision.placement.container_idx
+            self.board.apply(decision.placement)
+            try:
+                others = [item for j, item in enumerate(pool) if j != pool_index]
+                score = fit_count(scorer, self.board, others, clearance)
+            finally:
+                self.board.undo_last(ci)
+            if first_decision is None:
+                first_decision = (pool_index, decision)
+                ladder_score = score
+            if best is None or score > best[0] + 1e-9:
+                best = (score, pool_index, decision)
+        self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
+        if first_decision is None:
+            return None
+        if best[1] != first_decision[0] and best[0] > ladder_score + margin:
+            self.pool_item_overrides = getattr(self, "pool_item_overrides", 0) + 1
+            best[2].placement.reason = "pool item search: " + best[2].placement.reason
+            return best[1], best[2]
+        return first_decision
 
     def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:
         """Plan the visible pool with the row planner on a scratch copy of

@@ -1504,6 +1504,21 @@ class RuleAlphaConfig:
     room_selector_classes: str = "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"
     """``lxwxh:weight`` per reference class."""
 
+    pool_item_search: bool = False
+    """Task B: which of the visible items goes next.  The first
+    ``pool_item_search_k`` items of the ladder's order (and the largest
+    hard box in the pool) are each placed by the ladder on the board,
+    and the item after which the most of the other pool items still have
+    a level, reachable window on the heightmap (``rule_alpha.room.fit_count``)
+    goes, when that beats the ladder's own item by ``pool_item_search_margin``.
+    The full search (the ladder continuing over the rest of the pool)
+    gained 23 / 21 / 33 against 22 / 20 / 23 on three scenes at 70-110 s
+    a decision; this is its one-step form inside the time limit."""
+
+    pool_item_search_k: int = 3
+    pool_item_search_margin: float = 0.5
+    pool_item_search_seconds: float = 3.5
+
     pool_planner: bool = False
     """Task B: the visible pool is planned with the row planner on a
     scratch board whenever no planned item is left in it, and the plan is

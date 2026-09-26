@@ -118,6 +118,46 @@ class RoomScorer:
         return score
 
 
+def fit_count(scorer: "RoomScorer", board, items: list, clearance: float = 0.026) -> float:
+    """How many of ``items`` (dicts with length, width, height) have, on
+    some container, a level and reachable window for one of their flat
+    footprints (each side widened by the clearance): a one-step measure of
+    the room the load leaves the visible pool.  Fractional credit (0.5)
+    for a standing footprint only."""
+    total = 0.0
+    maps = [scorer.heightmap(board, ci) for ci in range(len(board.models))]
+    for item in items:
+        l, w, h = float(item["length"]), float(item["width"]), float(item["height"])
+        credit = 0.0
+        for model, xs, ys, height in maps:
+            if credit >= 1.0:
+                break
+            ceiling = float(model.z_ceiling) - scorer.wall
+            finite = np.isfinite(height)
+            levels = sorted({round(float(v), 2) for v in height[finite]})
+            front = np.full_like(height, -np.inf)
+            run = np.full(height.shape[1], -np.inf)
+            for j in range(height.shape[0]):
+                front[j] = run
+                run = np.maximum(run, np.where(finite[j], height[j], -np.inf))
+            faces = [((l, w), h, 1.0), ((w, l), h, 1.0), ((l, h), w, 0.5), ((h, l), w, 0.5), ((w, h), l, 0.5), ((h, w), l, 0.5)]
+            for (dx, dy), dz, value in faces:
+                if value <= credit:
+                    continue
+                nx = max(1, int(round((dx + 2 * clearance) / scorer.cell)))
+                ny = max(1, int(round((dy + 2 * clearance) / scorer.cell)))
+                for level in levels:
+                    if level + dz > ceiling + 1e-9:
+                        continue
+                    mask = finite & (np.abs(height - level) <= scorer.tolerance) & (front <= level + LIFT - scorer.clearance + 1e-9)
+                    ok = scorer._windows_all(mask, ny, nx)
+                    if ok.size and ok.any():
+                        credit = max(credit, value)
+                        break
+        total += credit
+    return total
+
+
 class RoomSelector:
     """A ``layer1.choose_for_item`` selector: among the first ``k``
     survivors (the ladder's pick always among them) the one after which
