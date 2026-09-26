@@ -131,6 +131,7 @@ class ItemSearchAgent:
         self.agent = inner_arm(scene)
         self.k = k
         self.log = log
+        self._room = None
         self.decisions = 0
         self.searched = 0
         self.overrides = 0
@@ -153,15 +154,26 @@ class ItemSearchAgent:
     def _continuation(self, containers, pool, first_index: int) -> float:
         rest = [dict(i) for i in pool if int(i["index"]) != first_index]
         first = next(dict(i) for i in pool if int(i["index"]) == first_index)
+        # the item alone in the pool for its own decision (the ladder's pose
+        # for it), then the rest of the pool for the continuation
         branch = EpisodeState(self.scene, self.inner_arm, containers=copy.deepcopy(containers),
-                              queue=[], pool=[first] + rest)
+                              queue=[], pool=[first])
         action, decision = branch.decide()
-        if action is None or int(action["item_idx"]) != 0:
-            return -1.0  # the ladder would not place this item first
+        if action is None:
+            return -1.0  # the ladder has no pose for this item now
         branch.apply_placement(decision.placement, 0)
+        branch.pool.extend(rest)
         branch.run(999)
         summary = branch.summary()
-        return float(summary["placed_count"]) + float(summary["fill_volume"]) / 1000.0
+        # early in the episode every continuation places the whole pool, so
+        # the tie is broken by the room the load keeps for the frequent
+        # footprints (rule_alpha.room), then the fill
+        if self._room is None:
+            from rule_alpha.room import RoomScorer, parse_classes
+
+            self._room = RoomScorer(self.agent.config, parse_classes("0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"))
+        slots = sum(self._room.slots(branch.board, ci) for ci in range(len(branch.board.models)))
+        return float(summary["placed_count"]) + min(0.5, slots / 40.0) + float(summary["fill_volume"]) / 10000.0
 
     def policy(self, observation):
         self.decisions += 1
