@@ -798,7 +798,16 @@ def online_row_pose(board, container_idx: int, profile, config, row_lines: list,
         found = poses(_standing_poses(profile))
     if not found:
         return None, None
-    found.sort(key=lambda t: t[0])
+    if str(getattr(config, "online_row_order", "lowest")) == "deep-first":
+        # the back row built up before the next is opened: an item travels
+        # in at its own height plus the lift, so a tall box in a front row
+        # closes every level behind it; a staircase falling towards the
+        # door never closes anything (v18 + lowest-first rows: 13 of 41 on
+        # c-c1-s0001 with the back row one layer high behind 1.2 m towers
+        # in the front row)
+        found.sort(key=lambda t: (t[0][1], t[0][0], t[0][2]))
+    else:
+        found.sort(key=lambda t: t[0])
     return found[0][1], found[0][2]
 
 
