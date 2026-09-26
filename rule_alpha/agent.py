@@ -543,11 +543,30 @@ class RuleAlphaAgent:
                 continue
             ci = decision.placement.container_idx
             self.board.apply(decision.placement)
+            applied = [ci]
             try:
-                others = [item for j, item in enumerate(pool) if j != pool_index]
-                score = fit_count(scorer, self.board, others, clearance)
+                others = [(j, item) for j, item in enumerate(pool) if j != pool_index]
+                # a few true continuation steps: the ladder places the next
+                # items of the pool (its own order) before the rest is
+                # counted by the fit test
+                steps = int(getattr(self.config, "pool_item_search_steps", 0))
+                placed_on = 0
+                if steps > 0:
+                    order = [(pi, pr) for pi, pr in ordered if pi != pool_index]
+                    for pi, pr in order:
+                        if placed_on >= steps or time.perf_counter() > deadline:
+                            break
+                        d2 = self._timed(layer1.choose_for_item, self.board, pr, self.config, selector=self.selector)
+                        if d2 is None:
+                            continue
+                        self.board.apply(d2.placement)
+                        applied.append(d2.placement.container_idx)
+                        placed_on += 1
+                        others = [(j, item) for j, item in others if j != pi]
+                score = placed_on + fit_count(scorer, self.board, [item for _j, item in others], clearance)
             finally:
-                self.board.undo_last(ci)
+                for c in reversed(applied):
+                    self.board.undo_last(c)
             if first_decision is None:
                 first_decision = (pool_index, decision)
                 ladder_score = score

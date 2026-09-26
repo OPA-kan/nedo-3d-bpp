@@ -1516,6 +1516,11 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    pool_item_search_steps: int = 0
+    """True continuation steps per candidate (the ladder placing the next
+    pool items) before the rest is counted by the fit test; 0: the fit
+    test alone (which lost 0.3-0.4 items a scene on the analytic B suite
+    at every margin: its overrides are right about half the time)."""
     pool_item_search_margin: float = 0.5
     pool_item_search_seconds: float = 3.5
 

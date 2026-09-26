@@ -1587,6 +1587,31 @@ problem over the SKU distribution (an online packer with look-ahead
 over sampled futures and a packer at least as good as the ladder to
 evaluate them), not a rule.
 
+### Task B: the pool as a known partial stream
+
+Where the stream is partly known the search route is legitimate, and
+Task B shows ten items.  Measured, analytic, 48 scenes against v18
+(31.79 items a scene):
+
+| search | items | note |
+|---|---|---|
+| pose search over the ladder's survivors, continued over the pool (`search:6/pool`) | +0.12 [-0.62, +0.83] (42 scenes) | 146 s a decision; the pose of the ladder's item with nine items in view is worth nothing |
+| policy budget 4.5 s / 8.0 s (the bench runs at 6 s, the platform allows 10 s on B) | -0.02 / +0.15 | |
+| pool planner (the row planner over the visible pool, replayed; class-depth rows) | 17 / 16 / 30 on three scenes (v18 22 / 20 / 31) | ten items make a row policy, not a plan |
+| pool planner with the rows the planner picks for the expected manifest (`planner.mix_row_lines`: 0.65 m rows on the plain container) | 21 / 15 / 30 | |
+| **item search**: which pool item goes next, each of the first four placed by the ladder and the rest of the pool continued by it (`itemsearch:4`) | **23 / 21 / 33** on the same three (v18 22 / 20 / 23) | 21 of 80 decisions changed, 67-109 s a decision; the 48-scene ceiling is on Actions |
+| the item search's one-step form (`pool_item_search`: the ladder places each candidate and withdraws it, the item after which the most of the other pool items still have a level, reachable window goes) | -0.40 [-0.81, 0.00]; margin 1.0: -0.33; k = 2: -0.31 | 26 on the scene the full search took to 33, and losses on 12-13 of 48: the fit test is right about half the time |
+| the same with two true continuation steps per candidate (k = 2) | 23 / 22 / 20 = v18 | the 6 s deadline cuts the second candidate: a late ladder decision costs 1-2 s (20,000 validator calls, the candidate volume, not the validator) |
+
+The order within the pool is worth items (+12 on three scenes, up to
++10 on one); a play-time form needs the ladder's own continuation and
+the ladder is 1-2 s a call late in an episode, so two candidates with
+three steps each do not fit in Task B's 10 s.  The prize and the cost
+are both measured; what is left is the ladder's speed (a decision is
+700 candidates through a 0.2 ms validator, `geometry.inside` alone 1.2
+of 5.7 s) or a continuation cheaper than the ladder that still ranks
+like it.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
