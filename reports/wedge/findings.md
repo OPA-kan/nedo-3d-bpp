@@ -1539,6 +1539,25 @@ against v18: items -0.85 [-1.71, -0.06], centre of mass -0.013
 [-0.021, -0.005], topples 0.23 -> 0.19 (n.s.), episodes above the
 threshold 45 -> 44; at the platform's prices about +2.
 
+### Where Task C stops: a third of the floor free, in strips
+
+Task C ends at the first item with no legal pose (one visible item, no
+way to skip it), so the count is the length of the stream up to that
+item.  v18's 44 declines on the 48-scene physics suite
+(`scratchpad/decline_floor.py`): the declined item is the 0.65 x 0.45
+box 12 times, the 0.55 x 0.40 box 9, the 0.75 x 0.56 box 8 (soft boxes
+15); at the decline 32 % of the floor is free on average, but the
+largest empty rectangle is a strip 0.12-0.28 m wide along a wall or
+between rows (1.44 x 0.14, 0.2 x 1.48, 0.28 x 0.66 ...), and 6-8 boxes
+sit on the floor with towers 3-5 high (tops 1.3-1.5 m) beside the empty
+strips: the ladder builds up before it packs out.  The layer policy
+(v22 with the tower rule) declines at the same count with 28 % free,
+its rows 5 cm apart and a 0.15-0.25 m strip at the right wall.  The
+online rows policy's fixed depths (0.56, 0.45, 0.40) fit two rows in
+the 1.38 m floor and leave 0.32 m at the front no hard box uses; the
+"auto" depths take 0.56 + 0.45 + 0.30 there (0.56 + 0.45 + 0.35 in the
+1.44 m shelf containers).
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
