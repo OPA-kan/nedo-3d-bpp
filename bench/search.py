@@ -29,11 +29,17 @@ class SearchSelector:
     continuation, the ladder's own pick on ties."""
 
     def __init__(self, scene, inner_arm, k: int = 6, log=None, streams: int = 0, horizon: int = 999,
-                 seed: int = 0):
+                 seed: int = 0, pool_only: bool = False):
         self.scene = scene
         self.inner_arm = inner_arm
         self.k = k
         self.log = log
+        # ``pool_only``: the continuation runs over the items the agent can
+        # see (the current pool, set by the arm before every decision) and
+        # nothing after them -- the search a Task B agent may run; scored by
+        # the items it places, the fill breaking ties
+        self.pool_only = pool_only
+        self.pool = []
         # ``streams`` > 0: the continuation does not read the true stream (a
         # Task C agent cannot) but ``streams`` imagined ones, each ``horizon``
         # items drawn from the SKU mix, and the fills are averaged -- the
@@ -54,6 +60,8 @@ class SearchSelector:
         return [dict(i) for i in self.scene.items if int(i["index"]) not in placed and int(i["index"]) != current_index]
 
     def _futures(self, remaining) -> list[list[dict]]:
+        if self.pool_only:
+            return [[]]
         if self.streams <= 0:
             return [remaining]
         from wedge_rl.stack import sample_future
@@ -63,13 +71,18 @@ class SearchSelector:
     def _score(self, candidate, archetype, board, profile, futures) -> float:
         fills = []
         for future in futures:
+            rest = [dict(i) for i in self.pool if int(i["index"]) != int(profile.index)] if self.pool_only else []
             branch = EpisodeState(self.scene, self.inner_arm, containers=copy.deepcopy(board.containers),
-                                  queue=copy.deepcopy(future), pool=[dict(profile.item)])
+                                  queue=copy.deepcopy(future), pool=[dict(profile.item)] + rest)
             placement = layer1.build_placement(candidate, archetype, branch.agent.board, candidate.container_idx,
                                                profile, branch.config)
             branch.apply_placement(placement, 0)
             branch.run(self.horizon if self.streams > 0 else 999)
-            fills.append(float(branch.summary()["fill_volume"]))
+            summary = branch.summary()
+            if self.pool_only:
+                fills.append(float(summary["placed_count"]) + float(summary["fill_volume"]) / 1000.0)
+            else:
+                fills.append(float(summary["fill_volume"]))
         return float(np.mean(fills))
 
     def __call__(self, survivors, chosen, chosen_archetype, board, container_idx, profile):

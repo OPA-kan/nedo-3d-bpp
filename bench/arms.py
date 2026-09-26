@@ -241,9 +241,13 @@ class SearchArm(LadderArm):
         # run over imagined futures of ``horizon`` items instead of the true stream
         parts = [p for p in params.split("/") if p]
         self.k = int(parts[0]) if parts else 6
-        self.streams = int(parts[1]) if len(parts) > 1 else 0
+        # ``search:<k>/pool``: the continuation over the visible pool alone
+        self.pool_only = len(parts) > 1 and parts[1] == "pool"
+        self.streams = int(parts[1]) if len(parts) > 1 and not self.pool_only else 0
         self.horizon = int(parts[2]) if len(parts) > 2 else 999
-        self.inner_spec = rest or "ladder-stable"
+        # the overrides after the "@" belong to the inner arm as well (they
+        # are the ladder's settings; the outer agent is the inner arm's agent)
+        self.inner_spec = (rest or "ladder-stable") + ("@" + overrides if overrides and "@" not in (rest or "") else "")
         base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
         super().__init__(base)
         self.spec = spec
@@ -255,14 +259,24 @@ class SearchArm(LadderArm):
         inner = self.inner
         agent = inner(scene)  # the same lower level, with its options, decides and continues
         selector = SearchSelector(scene, inner, k=self.k, log=lambda line: print(line, flush=True),
-                                  streams=self.streams, horizon=self.horizon)
+                                  streams=self.streams, horizon=self.horizon, pool_only=self.pool_only)
         agent.selector = selector
         agent.search = selector
+        if self.pool_only:
+            # the selector sees the pool the agent sees, before every decision
+            inner_policy = agent.policy
+
+            def policy(observation, _inner=inner_policy, _sel=selector):
+                _sel.pool = [dict(i) for i in observation.get("pool_list", [])]
+                return _inner(observation)
+
+            agent.policy = policy
         return agent
 
     def describe(self) -> dict:
         return {"arm": self.spec, "family": "search", "k": self.k, "streams": self.streams,
-                "horizon": self.horizon, "inner": self.inner.describe(), "config": self.config.to_dict()}
+                "horizon": self.horizon, "pool_only": self.pool_only, "inner": self.inner.describe(),
+                "config": self.config.to_dict()}
 
 
 class OfficialArm:
