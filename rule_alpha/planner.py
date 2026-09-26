@@ -777,6 +777,22 @@ def online_row_pose(board, container_idx: int, profile, config, row_lines: list,
     x_left = max(model.x_limit_at_height(model.z_floor) + wall, rect.x_min)
     container = board.container(container_idx)
 
+    order = str(getattr(config, "online_row_order", "lowest"))
+    staircase = order == "staircase"
+    # the staircase: each row's tallest top and the height of the boxes on
+    # its top level, from the packed boxes whose centre lies in the row
+    row_top, row_dz = {}, {}
+    if staircase:
+        for b, _s, _p in _packed(container):
+            cy = float(b.center[1])
+            for row_index, (y_back, depth) in enumerate(row_lines):
+                if y_back - depth - 1e-6 <= cy <= y_back + 1e-6:
+                    top = float(b.maximum[2])
+                    if top > row_top.get(row_index, -1.0) + 1e-6:
+                        row_top[row_index] = top
+                        row_dz[row_index] = float(b.size[2])
+                    break
+
     def poses(orientations):
         found = []
         for row_index, (y_back, depth) in enumerate(row_lines):
@@ -787,9 +803,23 @@ def online_row_pose(board, container_idx: int, profile, config, row_lines: list,
                 x = x_left + o.dx / 2.0
                 while x + o.dx / 2.0 <= x_right + 1e-9:
                     bottom = _drop_height(container, model, x, y, o.dx, o.dy, o.dz)
+                    if staircase and row_index > 0:
+                        # a row never rises above the row behind it: an item
+                        # is carried in at its own height plus the lift, and
+                        # a taller front row closes every level behind it
+                        behind = row_top.get(row_index - 1, model.z_floor)
+                        if bottom + o.dz > behind + 0.02:
+                            x += 0.05
+                            continue
                     box, why = _try_pose(board, container_idx, profile, o, x, y, config, z_cap)
                     if box is not None:
-                        found.append(((round(bottom, 3), row_index, round(x, 3)), box, o))
+                        if staircase:
+                            # the row whose top level is this box's own height
+                            # keeps its tops level for the layer above
+                            mismatch = abs(o.dz - row_dz.get(row_index, o.dz))
+                            found.append(((round(bottom, 3), round(mismatch, 3), row_index, round(x, 3)), box, o))
+                        else:
+                            found.append(((round(bottom, 3), row_index, round(x, 3)), box, o))
                     x += 0.05
         return found
 
@@ -798,7 +828,10 @@ def online_row_pose(board, container_idx: int, profile, config, row_lines: list,
         found = poses(_standing_poses(profile))
     if not found:
         return None, None
-    if str(getattr(config, "online_row_order", "lowest")) == "deep-first":
+    if staircase:
+        found.sort(key=lambda t: t[0])
+        return found[0][1], found[0][2]
+    if order == "deep-first":
         # the back row built up before the next is opened: an item travels
         # in at its own height plus the lift, so a tall box in a front row
         # closes every level behind it; a staircase falling towards the
@@ -930,3 +963,37 @@ def online_shelf_pose(board, container_idx: int, profile, config, standing: bool
         return None, None
     found.sort(key=lambda t: t[0])
     return found[0][1], found[0][2]
+
+
+# the official SKU mix: (length, width, height, mass, soft, weight); the
+# weights sum to 41, so the expected 41-item manifest is the mix itself
+SKU_MIX = [
+    (0.55, 0.40, 0.24, 8, False, 13), (0.65, 0.45, 0.25, 13, False, 11), (0.75, 0.56, 0.27, 18, False, 4),
+    (0.50, 0.40, 0.40, 10, True, 2), (0.45, 0.30, 0.20, 5, True, 2), (0.65, 0.35, 0.23, 12, True, 5),
+    (0.60, 0.30, 0.25, 7, True, 4),
+]
+
+
+def mix_row_lines(agent, board: layer1.Board, container_idx: int, config, seconds: float = 3.0) -> list:
+    """Row lines for a container from the planner's own layout search over
+    the expected manifest (the SKU mix, 41 items), on a scratch copy of the
+    container: the layout a Task A plan would build for a typical stream.
+    On a-c1-s0001 the manifest's rows were 0.65 m deep (the 0.65 x 0.45
+    boxes across, three a row, six on the floor), a depth the class-depth
+    sets never offer."""
+    import copy
+
+    from . import classify as cls
+
+    items = []
+    index = 10 ** 6
+    for l, w, h, mass, soft, weight in SKU_MIX:
+        for _ in range(weight):
+            items.append(cls.classify_item(index, {"index": index, "length": l, "width": w, "height": h, "mass": mass,
+                                                   "is_soft": soft, "is_prioritized": False}, config))
+            index += 1
+    hard = [p for p in items if not p.is_soft]
+    scratch = layer1.Board(copy.deepcopy(board.containers), config)
+    lines: list = []
+    pack_rows(agent, scratch, container_idx, hard, config, [], [], time.perf_counter() + seconds, row_lines=lines)
+    return lines

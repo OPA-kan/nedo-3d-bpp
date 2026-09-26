@@ -1504,6 +1504,19 @@ class RuleAlphaConfig:
     room_selector_classes: str = "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"
     """``lxwxh:weight`` per reference class."""
 
+    pool_planner: bool = False
+    """Task B: the visible pool is planned with the row planner on a
+    scratch board whenever no planned item is left in it, and the plan is
+    replayed like Task A's; the ladder takes any item whose planned pose
+    no longer fits.  A pool-horizon *pose* search over the ladder's
+    survivors gained nothing (+0.12 items a scene, 42 scenes); the order
+    is what the planner has over the ladder."""
+
+    pool_planner_rows: str = "auto"
+    """The row lines the pool plans share: "auto" (``online_row_lines``
+    from the class depths) or "" (the planner's own layout search over
+    the first pool)."""
+
     rollout_selector: bool = False
     """Among the ladder's first ``rollout_selector_k`` survivors, the one
     after which a fast heightmap packer fits the most of a few sampled
@@ -1590,7 +1603,10 @@ class RuleAlphaConfig:
     "lowest" (the lowest pose, then the deepest row, then leftmost) or
     "deep-first" (the deepest row, then the lowest pose in it: the back
     row built to the ceiling before the next opens, a staircase falling
-    towards the door that the transport sweep never runs into)."""
+    towards the door that the transport sweep never runs into), or
+    "staircase" (the lowest pose, but no row may rise above the row
+    behind it, and among equal bottoms the row whose top level has the
+    item's own height, so the tops stay level for the layer above)."""
 
     online_planner: str = ""
     """The planner's pose search used online for the items no plan covers

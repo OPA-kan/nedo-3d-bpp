@@ -266,6 +266,15 @@ class RuleAlphaAgent:
         if self.stack_option is not None:
             self.stack_option.headroom_reserve = reserve
 
+        # Task B: the visible pool is a known partial stream, and what the
+        # row planner has over the ladder is the order (the rows of one
+        # depth and one height the manifest lets it build).  The pool is
+        # planned on a scratch board whenever no planned item is left in
+        # it, and the plan is replayed like Task A's.
+        if (getattr(self.config, "pool_planner", False) and len(pool) > 1
+                and not (self.plan_by_index and self.plan_source == "planner")):
+            self._timed(self._pool_plan, containers, profiles, started + 0.6 * budget)
+
         # Task A with a plan: the planned pose, when it still fits the board
         # as it settled; otherwise the item goes down the ladder like any other
         if self.plan_by_index and getattr(self.config, "plan_replay", True):
@@ -314,8 +323,13 @@ class RuleAlphaAgent:
             import re
 
             spec = str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4"))
-            # "auto": the row lines chosen per container (planner.online_row_lines)
-            depths = [] if spec.strip() == "auto" else [float(d) for d in re.split(r"[,;+|]", spec) if d]
+            # "auto": the row lines chosen per container (planner.online_row_lines);
+            # "mix": the planner's layout over the expected manifest (once a container)
+            depths = [] if spec.strip() in ("auto", "mix") else [float(d) for d in re.split(r"[,;+|]", spec) if d]
+            if spec.strip() == "mix" and getattr(self, "_mix_rows", None) is None:
+                from .planner import mix_row_lines
+
+                self._mix_rows = {ci: mix_row_lines(self, self.board, ci, self.config) for ci in range(len(self.board.models))}
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(ladder_deadline):
                     break
@@ -323,7 +337,7 @@ class RuleAlphaAgent:
                 hit = None
                 for container_idx in layer1.routing_order(profile, self.board, self.config):
                     model = self.board.model(container_idx)
-                    lines = online_row_lines(model, self.config, depths)
+                    lines = self._mix_rows[container_idx] if spec.strip() == "mix" else online_row_lines(model, self.config, depths)
                     box, orientation = online_row_pose(self.board, container_idx, profile, self.config, lines,
                                                        standing=bool(getattr(self.config, "plan_standing", True)))
                     if box is not None:
@@ -480,6 +494,46 @@ class RuleAlphaAgent:
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None
+
+    def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:
+        """Plan the visible pool with the row planner on a scratch copy of
+        the board (``planner.pack_rows``, the row lines kept per container
+        across plans), when no planned item is left in the pool."""
+        import copy
+
+        from .planner import mix_row_lines, online_row_lines, pack_rows
+
+        in_pool = {int(pr.index) for _pi, pr in profiles}
+        self.plan_by_index = {i: e for i, e in self.plan_by_index.items() if i in in_pool} \
+            if self.plan_source == "pool" else {}
+        if self.plan_by_index:
+            return
+        scratch = layer1.Board(copy.deepcopy(containers), self.config)
+        rows = getattr(self, "_pool_rows", None)
+        if rows is None or len(rows) != len(scratch.models):
+            rows = {}
+            spec = str(getattr(self.config, "pool_planner_rows", "auto"))
+            for ci, model in enumerate(scratch.models):
+                if spec == "mix":
+                    rows[ci] = mix_row_lines(self, scratch, ci, self.config)
+                elif spec == "auto":
+                    rows[ci] = online_row_lines(model, self.config, [])
+                else:
+                    rows[ci] = []
+            self._pool_rows = rows
+        items = [pr for _pi, pr in profiles]
+        plan, planned = [], []
+        for ci in range(len(scratch.models)):
+            if not items or time.perf_counter() >= deadline:
+                break
+            allowed = [pr for pr in items if ci in layer1.routing_order(pr, scratch, self.config)]
+            if not allowed:
+                continue
+            pack_rows(self, scratch, ci, allowed, self.config, plan, planned, deadline, row_lines=rows[ci])
+            items = [pr for pr in items if pr.index not in planned]
+        self.plan_by_index = {int(e["index"]): e for e in plan}
+        self.plan_source = "pool" if plan else ""
+        self.pool_plans = getattr(self, "pool_plans", 0) + 1
 
     def _soft_first(self, ordered: list, deadline: float):
         """A soft item's pose that costs the hard stacks nothing: on a
