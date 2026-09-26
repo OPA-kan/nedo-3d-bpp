@@ -279,6 +279,31 @@ class SearchArm(LadderArm):
                 "config": self.config.to_dict()}
 
 
+class ItemSearchArm(LadderArm):
+    """Task B item-choice search (``bench/search.py`` ItemSearchAgent):
+    ``itemsearch:<k>+<inner spec>``.  Analytic only."""
+
+    def __init__(self, spec: str):
+        body, _at, overrides = spec.partition("@")
+        head, _plus, rest = body.partition("+")
+        _s, _colon, params = head.partition(":")
+        self.k = int(params) if params else 4
+        self.inner_spec = (rest or "ladder-stable") + ("@" + overrides if overrides and "@" not in (rest or "") else "")
+        base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
+        super().__init__(base)
+        self.spec = spec
+        self.inner = make_arm(self.inner_spec)
+
+    def __call__(self, scene):
+        from .search import ItemSearchAgent
+
+        return ItemSearchAgent(scene, self.inner, k=self.k, log=lambda line: print(line, flush=True))
+
+    def describe(self) -> dict:
+        return {"arm": self.spec, "family": "itemsearch", "k": self.k, "inner": self.inner.describe(),
+                "config": self.config.to_dict()}
+
+
 class OfficialArm:
     """Any agent in the official format, by the path of its ``agent.py``:
     ``official:<path/to/agent.py>``.  Loaded the way the official app loads
@@ -352,6 +377,8 @@ def make_arm(spec: str):
         return OfficialArm(spec)
     if spec == "dense" or spec.startswith("dense+") or spec.startswith("dense@"):
         return DenseArm(spec)
+    if spec.startswith("itemsearch:"):
+        return ItemSearchArm(spec)
     if spec.startswith("search:"):
         return SearchArm(spec)
     if spec.startswith("nn:"):

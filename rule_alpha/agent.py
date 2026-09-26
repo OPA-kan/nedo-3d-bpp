@@ -333,6 +333,12 @@ class RuleAlphaAgent:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(ladder_deadline):
                     break
+                if profile.is_soft and getattr(self.config, "online_rows_hard_only", True):
+                    # soft cargo carries nothing in the support model, so a
+                    # soft box in a row's floor kills the column above it;
+                    # the ladder's soft archetypes (edges, shelves, tops)
+                    # place it instead
+                    continue
                 t0 = time.perf_counter()
                 hit = None
                 for container_idx in layer1.routing_order(profile, self.board, self.config):

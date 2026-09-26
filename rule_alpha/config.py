@@ -1598,6 +1598,13 @@ class RuleAlphaConfig:
     with a 0.56 m row first -- the fixed set fits two rows in a 1.38 m
     floor and leaves 0.32 m at the front no hard box uses."""
 
+    online_rows_hard_only: bool = True
+    """The online rows policy places hard cargo only; soft cargo goes to
+    the ladder (its edge, shelf and top archetypes).  Soft cargo carries
+    nothing in the support model, so a soft box in a row's floor wastes
+    the column above it (c-c1-s0005: the staircase rows declined a soft
+    box at 15 items with every top in reach soft, "no-support" 168 times)."""
+
     online_row_order: str = "lowest"
     """The online rows policy's preference among its legal poses:
     "lowest" (the lowest pose, then the deepest row, then leftmost) or
