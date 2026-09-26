@@ -1488,6 +1488,35 @@ class RuleAlphaConfig:
     (two classes at 1 % and 4 %); 22.8 points of the fraction placed
     were soft cargo left in the pool."""
 
+    room_selector: bool = False
+    """Among the ladder's first ``room_selector_k`` survivors, the one
+    after which the load keeps the most level, reachable slots for the
+    reference classes (``rule_alpha.room``): Task C ends at the first
+    item with no legal pose, most often a 0.65 x 0.45 or 0.75 x 0.56
+    box, with a third of the floor free in strips no box fits."""
+
+    room_selector_k: int = 6
+    room_selector_margin: float = 0.25
+    """Slots the alternative must keep over the ladder's pick."""
+    room_selector_seconds: float = 1.0
+    room_selector_cell: float = 0.05
+    room_selector_tolerance: float = 0.02
+    room_selector_classes: str = "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"
+    """``lxwxh:weight`` per reference class."""
+
+    rollout_selector: bool = False
+    """Among the ladder's first ``rollout_selector_k`` survivors, the one
+    after which a fast heightmap packer fits the most of a few sampled
+    continuations of the stream (``rule_alpha.room.RolloutSelector``)."""
+
+    rollout_selector_k: int = 6
+    rollout_selector_futures: int = 4
+    rollout_selector_length: int = 12
+    rollout_selector_margin: float = 0.5
+    """Items the alternative's rollouts must beat the ladder's pick by."""
+    rollout_selector_seconds: float = 1.2
+    rollout_selector_seed: int = 7
+
     online_tower_rule: bool = False
     """The online planner's poses (``online_planner``) pass the stack
     option's tower rule and transport clearance (``wedge_rl.stack.Tower``,

@@ -1558,6 +1558,35 @@ the 1.38 m floor and leave 0.32 m at the front no hard box uses; the
 "auto" depths take 0.56 + 0.45 + 0.30 there (0.56 + 0.45 + 0.35 in the
 1.44 m shelf containers).
 
+What was tried against v18's 27.54 items a scene on the analytic C
+suite (48 scenes; v18's own physics count is 27.2):
+
+| policy | items | note |
+|---|---|---|
+| online rows, fixed depths | 25.00 | two rows in the 1.38 m floor |
+| online rows, 0.56/0.45/0.30 | 21.23 | three rows, the floor full of mixed heights |
+| online rows, 0.45/0.45/0.40 | 21.02 | |
+| online rows, auto depths, deep-first | 18 / 14 / 15 on 3 scenes (v18 19 / 16 / 21) | tall boxes in the front rows close the levels behind (lowest-first); deep-first: uneven row tops carry no second layer |
+| online layers + tower rule | 26.69 | physics 25.96 |
+| contact tolerance 0.02 / 0.03 (a top within it counts as support) | 27.79 | identical at both values: the candidates never bridge a step, so the tolerance is not what binds; physics on 4 scenes identical to v18 |
+| room selector (the survivor after which the load keeps the most level, reachable slots for the 0.65 x 0.45 / 0.75 x 0.56 / 0.55 x 0.40 footprints, `rule_alpha/room.py`) | 19 / 14 / 17 / 16 / 35 on 5 scenes (v18 19 / 19 / 21 / 15 / 34) | overrides the first floor picks; the ladder's later archetypes lose the structure they build on |
+| rollout selector (the survivor after which a heightmap packer fits the most of 4 sampled 12-item continuations) | 18 / 14 / 16 / 18 / 37 on the same 5 (v18 19 / 19 / 21 / 15 / 34) | the heightmap packer itself fits 15-17 of 41 on an *empty* floor: a random order packs worse than the ladder |
+
+The ceiling and the gap: the offline row planner with the manifest
+known plans 29 of 41 on the c1 container (a-c1-s0001; the physics A
+suite places 26.4 there), the ladder online 19, a lowest-then-deepest
+heightmap greedy on a random order 16.  The ten items between the
+ladder and the planner are the order: with the manifest the rows are
+built of one depth and one height each, and every layer rests on whole
+rows; with one item at a time every row is a mixture and the layer
+above it finds no level support.  None of the cheap online policies
+above recovers any of it, and the two selectors that re-rank the
+ladder's survivors by a room measure lose to the ladder's own
+structure.  A count gain of several items on Task C is a search
+problem over the SKU distribution (an online packer with look-ahead
+over sampled futures and a packer at least as good as the ladder to
+evaluate them), not a rule.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |

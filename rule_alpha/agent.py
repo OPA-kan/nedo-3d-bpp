@@ -29,6 +29,14 @@ class RuleAlphaAgent:
         self.config = config or DEFAULT_CONFIG
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
+        if selector is None and getattr(self.config, "rollout_selector", False):
+            from .room import RolloutSelector
+
+            selector = RolloutSelector(self.config)
+        elif selector is None and getattr(self.config, "room_selector", False):
+            from .room import RoomSelector
+
+            selector = RoomSelector(self.config)
         self.selector = selector
         # optional learned option asked before the ladder: a placement in the
         # chamfer strip, or a pass (wedge_rl.option.WedgeOption)
