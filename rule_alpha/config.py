@@ -1550,7 +1550,11 @@ class RuleAlphaConfig:
     online_row_depths: str = "0.56,0.45,0.4"
     """The fixed row depths (m, back to front) of the online rows policy
     (``online_planner`` = "rows"): the canonical flat depths of the hard
-    cargo classes, the deepest at the back so every class has a row."""
+    cargo classes, the deepest at the back so every class has a row.
+    "auto": chosen per container from the class depths (0.56, 0.45,
+    0.40, 0.35, 0.30) as the set that uses the most of the floor's depth
+    with a 0.56 m row first -- the fixed set fits two rows in a 1.38 m
+    floor and leaves 0.32 m at the front no hard box uses."""
 
     online_planner: str = ""
     """The planner's pose search used online for the items no plan covers

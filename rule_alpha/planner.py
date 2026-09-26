@@ -734,6 +734,27 @@ def online_row_lines(model, config, depths: list[float]) -> list[tuple[float, fl
     y_front = rect.y_min + slack
     lines = []
     y_back = rect.y_max - slack
+    if not depths:
+        # "auto": the set of class depths that uses the most of this
+        # floor's depth, a 0.56 m row (the largest class lies flat in no
+        # other) first, the deeper second row on a tie.  The fixed
+        # "0.56,0.45,0.4" fits two rows in a 1.38 m floor and leaves 0.32
+        # m at the front that no hard box uses; 0.56 + 0.45 + 0.30 fits.
+        import itertools
+
+        usable = (rect.y_max - slack) - y_front
+        classes = [0.56, 0.45, 0.40, 0.35, 0.30]
+        best = None
+        for n in range(1, 5):
+            for combo in itertools.combinations_with_replacement(classes, n):
+                combo = sorted(combo, reverse=True)
+                used = sum(combo) + gap * (n - 1)
+                if used > usable + 1e-9:
+                    continue
+                key = (1 if combo[0] >= 0.56 - 1e-9 else 0, round(used, 3), combo[1] if n > 1 else 0.0)
+                if best is None or key > best[0]:
+                    best = (key, combo)
+        depths = best[1] if best else []
     for depth in depths:
         if y_back - depth < y_front - 1e-9:
             continue

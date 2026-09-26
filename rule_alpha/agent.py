@@ -305,7 +305,9 @@ class RuleAlphaAgent:
 
             import re
 
-            depths = [float(d) for d in re.split(r"[,;+|]", str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4"))) if d]
+            spec = str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4"))
+            # "auto": the row lines chosen per container (planner.online_row_lines)
+            depths = [] if spec.strip() == "auto" else [float(d) for d in re.split(r"[,;+|]", spec) if d]
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(ladder_deadline):
                     break
