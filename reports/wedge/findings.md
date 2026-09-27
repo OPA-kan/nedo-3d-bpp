@@ -1649,6 +1649,26 @@ soft priority items, the fill +1.1: fewer items, but items of every
 class.  The play-time form is the rolling search (below) with either
 candidate set; the priority-weighted ceilings are on Actions.
 
+**The rolling search** (`pool_item_search_mode=rolling`): the ladder's
+continuation is kept across steps, revalidated pose by pose on the
+board (the ladder is deterministic, so its poses for the next items
+are its decisions at the next step while the board is the one it
+expected), extended by one decision to the horizon, its first pose the
+ladder's own item without a ladder call; each other candidate is
+decided on the board and the plan replayed after it through the
+validator, a spoiled pose decided again.  A step costs about one
+ladder decision and the candidates' own.  On b-c1-s0005 /
+b-c1s-s0006 / b-c2-s0001 it placed 25 / 23 / 43 (v18 23 / 19 / 38, the
+soft ceiling 25 / 24 / 43).  On the suite, 4 s of search a decision:
+
+| candidates | items | soft | priority | fill | com | max policy call |
+|---|---|---|---|---|---|---|
+| soft (k = 3, horizon 4) | +1.09 (30 better, 14 worse) | +3.64 | -0.89 | -0.18 | 0.000 | 6.12 s (v18 5.68) |
+
+The soft candidates lose 3-7 items on five c1 scenes at play time and
+gain 5-8 on c2: the ceiling's trade, less well made where the deadline
+cuts the search.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
