@@ -1705,6 +1705,18 @@ steps over the 6 s budget, from decisions started after the search's
 deadline late in an episode; the plan and candidate phases now stop at
 the deadline and the head keeps policy's own deadlines.
 
+**Rerun with the deadline fix** (`reports/bench/roll6t-core-b`,
+`v18-vs-roll6t-core-b.json`): +0.77 items [-0.42, +2.02] (24 better, 8
+equal, 16 worse), fill +0.41, the evaluator's tolerant fill +0.96, soft
++0.77, priority -0.85, com -0.003, priority covered 0.08 -> 0, no
+episode ended on a settle failure (v18 4), topples 0.25 -> 0.29; the
+slowest call 6.78 s against v18's 7.79 s.  So the play-time form of
+the Task B item search, on physics: about one item a scene more at
+the same load, a soft item for a priority item, inside the time.  The
+analytic +1.60 is +0.77 on physics; the interval holds zero.  Not the
+several items a scene the route was taken for; v18 stays the
+submission of record.
+
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
 before it, or the pose had been decided on a board without the item
