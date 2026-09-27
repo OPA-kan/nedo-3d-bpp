@@ -460,6 +460,7 @@ class RuleAlphaAgent:
         # Task B: which of the visible items goes next (see the config's
         # ``pool_item_search``); the ladder's own item is tried first, so
         # the search never costs a placement
+        self._pool_exhausted = False
         if (getattr(self.config, "pool_item_search", False) and len(ordered) > 1
                 and not (self.plan_by_index and self.plan_source == "planner")):
             hit = self._pool_item_search(ordered, pool, started + float(getattr(self.config, "pool_item_search_seconds", 3.5)))
@@ -467,17 +468,21 @@ class RuleAlphaAgent:
                 pool_index, decision = hit
                 self.last_decision = decision
                 return self._action(pool_index, decision.placement)
+        # the rolling search tried the ladder and the stack option on every
+        # pool item within its deadline and found nothing: the loops below
+        # would find the same nothing at the same cost
+        exhausted = bool(getattr(self, "_pool_exhausted", False))
 
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
-        if self.wedge_option is not None:
+        if self.wedge_option is not None and not exhausted:
             for pool_index, profile in ordered:
                 decision = self.wedge_option.propose(self.board, profile)
                 if decision is not None:
                     self.last_decision = decision
                     return self._action(pool_index, decision.placement)
 
-        for n, (pool_index, profile) in enumerate(ordered):
+        for n, (pool_index, profile) in enumerate(ordered if not exhausted else []):
             if n and not self._can_start(ladder_deadline):
                 break
             decision = self._timed(layer1.choose_for_item, self.board, profile, self.config,
@@ -489,7 +494,7 @@ class RuleAlphaAgent:
 
         # Layer 1 is finished.  The stack option is the learned Layer 2: it
         # places on the boxes the ladder left, under the tower rule.
-        if self.stack_option is not None:
+        if self.stack_option is not None and not exhausted:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(option_deadline):
                     break
@@ -811,6 +816,8 @@ class RuleAlphaAgent:
         self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
         if not plan:
             self._pool_cache = []
+            # every pool item was tried by the ladder and the stack option
+            self._pool_exhausted = bool(complete)
             return None
         first = plan[0]
         first_index = int(first.placement.profile.index)
