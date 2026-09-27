@@ -801,6 +801,10 @@ class RuleAlphaAgent:
             search's for the plan.  Returns (decision, complete)."""
             known = known or {}
             fails = fails if fails is not None else set()
+            # the head is policy's own decision: its first ladder call is
+            # always made (policy's loop does the same); a plan decision is
+            # not started once the search's deadline has passed
+            head_search = ladder_deadline is not None
             n = 0
             for pi, pr in items:
                 d = known.get(pr.index)
@@ -810,7 +814,10 @@ class RuleAlphaAgent:
                     continue
                 if pr.index in fails:
                     continue
-                if n and not self._can_start(ladder_deadline if ladder_deadline is not None else deadline):
+                if head_search:
+                    if n and not self._can_start(ladder_deadline):
+                        return None, False
+                elif not self._can_start(deadline):
                     return None, False
                 n += 1
                 d = ladder(board, pr)
@@ -822,7 +829,10 @@ class RuleAlphaAgent:
                 d = known.get(pr.index)
                 if d is not None:
                     return d, True
-                if n and not self._can_start(option_deadline if option_deadline is not None else deadline):
+                if head_search:
+                    if n and not self._can_start(option_deadline):
+                        return None, False
+                elif not self._can_start(deadline):
                     return None, False
                 n += 1
                 d = stack(board, pr)
@@ -849,6 +859,9 @@ class RuleAlphaAgent:
                 ci = p.container_idx
                 ok, _why = layer1.validate(p.box, board.model(ci), board.container(ci), self.config)
                 if not ok:
+                    if not self._can_start(deadline):
+                        complete = False
+                        break
                     d = ladder(board, p.profile) or stack(board, p.profile)
                     if d is None:
                         continue
@@ -895,6 +908,10 @@ class RuleAlphaAgent:
                 else:
                     fails += fails_in[1:1 + len(kept)] + [set()] * max(0, len(kept) - len(fails_in[1:]))
         planned = {d.placement.profile.index for d in plan}
+        if complete and not self._can_start(deadline):
+            # the head took the search's time (a late-episode decision):
+            # the ladder's item goes, no candidate is tried
+            complete = False
         if complete:
             rest = [(pi, pr) for pi, pr in ordered if pr.index not in planned]
             while rest and len(plan) < horizon + 1:
@@ -930,9 +947,11 @@ class RuleAlphaAgent:
             else:
                 others = [(pi, pr) for pi, pr in ordered if pr.index != first_index][: max(0, k - 1)]
             for pi, pr in others:
-                if late():
+                if not self._can_start(deadline):
                     break
-                d = ladder(self.board, pr) or stack(self.board, pr)
+                d = ladder(self.board, pr)
+                if d is None and self._can_start(deadline):
+                    d = stack(self.board, pr)
                 if d is None:
                     continue
                 if pr.is_soft and not getattr(self.config, "pool_item_search_soft_floor", True) \

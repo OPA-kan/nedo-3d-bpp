@@ -1688,7 +1688,22 @@ items (1.21 a scene) and on the floor (0.62) comes down to 0.46 and
 0.33 while the shelf holds 2.5 soft items, so the loss is not the
 shelf or the priority container but the tops and floor the priority
 cargo found late in a v18 episode and does not find after the soft
-cargo went first.
+cargo went first.  Keeping the shelf for the hard priority cargo in
+view (`pool_item_search_soft_shelf_over_priority=false`) gives half of
+it back at a cost: +1.31 items, priority -0.63, fill +0.72.
+
+**On the physics B suite** (`reports/bench/roll6s-core-b`, the
+off-the-floor form, 4 s of search, the 6 s budget; against
+`v18-core-b`): +1.08 items [-0.27, +2.48] (23 better, 8 equal, 17
+worse), fill +0.53, the evaluator's tolerant fill +1.14, soft +1.02,
+priority -0.96, com -0.006, priority covered 0.08 -> 0, settle
+failures ending an episode 4 -> 1, topples 0.25 -> 0.29.  The swings
+are large (+19 on b-c2-s0005 where v18 ended on a settle failure, -11
+on b-c2p-s0009).  The time tail is the disqualifier as run: the
+slowest calls 10.3 / 9.9 / 9.5 s on the Actions runner (v18 7.8 s), 83
+steps over the 6 s budget, from decisions started after the search's
+deadline late in an episode; the plan and candidate phases now stop at
+the deadline and the head keeps policy's own deadlines.
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
