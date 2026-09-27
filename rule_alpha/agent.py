@@ -236,6 +236,7 @@ class RuleAlphaAgent:
 
     def policy(self, observation: dict):
         started = time.perf_counter()
+        self._policy_started = started
         budget = float(self.config.policy_budget_seconds)
         # the ladder may use most of the budget, the options what is left;
         # the first item is always tried
@@ -732,15 +733,19 @@ class RuleAlphaAgent:
     def _pool_item_rolling(self, ordered: list, pool: list, deadline: float):
         """The continuation search with the ladder's continuation kept
         across steps.  The ladder is deterministic on a board, so the
-        poses it chose for the next items at the last step are its
-        decisions at this step as long as the board is the one it
-        expected: the plan is revalidated pose by pose (a validator call
-        each), extended by one decision to the horizon, and its first
-        pose is the ladder's own item without a ladder call.  Each soft
-        candidate is decided on the board, and the plan is replayed on
-        the board with the candidate in it; a pose the candidate spoiled
-        is decided again.  A step then costs about one ladder decision
-        and the soft candidates' own, whatever the horizon."""
+        decisions it made for the next items at the last step (on the
+        boards it expected) are its decisions at this step while the
+        board is the one it expected: the plan's poses are revalidated
+        (a validator call each), the items it found no ladder pose for
+        are remembered, an item the pool order ranks before the plan's
+        head (a new arrival) is decided on the board, and the plan is
+        extended by one decision to the horizon.  The head is the
+        ladder's own item, found the way ``policy`` finds it: the ladder
+        over the pool in its order, then the stack option.  Each other
+        candidate is decided on the board and the plan replayed after
+        it; a pose the candidate spoiled is decided again.  A step then
+        costs about one ladder decision and the candidates' own,
+        whatever the horizon."""
         import copy
 
         from .room import RoomScorer, parse_classes
@@ -755,6 +760,7 @@ class RuleAlphaAgent:
             scorer = self._slot_scorer = RoomScorer(self.config, classes, cell=0.05, tolerance=0.02)
         slot_cap = float(getattr(self.config, "pool_item_search_slot_cap", 0.5))
         in_pool = {int(pr.index): (pi, pr) for pi, pr in ordered}
+        late = lambda: time.perf_counter() > deadline
 
         def scratch():
             board = layer1.Board(copy.deepcopy(self.board.containers), self.config)
@@ -762,62 +768,153 @@ class RuleAlphaAgent:
             board.soft_headroom_reserve_by_container = dict(getattr(self.board, "soft_headroom_reserve_by_container", {}))
             return board
 
-        def replay(board, decisions, skip_index=None):
+        def put(board, placement):
+            """Apply a pose to a scratch board the way the next step's board
+            has it: ``policy`` rebuilds its board from the containers each
+            step, so the ladder never sees the Placement objects of the
+            steps before (``Board.placements``), and a scratch board must
+            not carry them either or its decisions differ."""
+            board.apply(placement)
+            board.placements = [[] for _ in board.containers]
+
+        def ladder(board, profile):
+            d = self._timed(layer1.choose_for_item, board, profile, self.config, selector=self.selector)
+            if d is not None:
+                d.via = "ladder"
+            return d
+
+        def stack(board, profile):
+            if self.stack_option is None:
+                return None
+            d = self._timed(self.stack_option.propose, board, profile)
+            if d is not None:
+                d.via = "stack"
+            return d
+
+        def first_decision(board, items, known=None, fails=None, ladder_deadline=None, option_deadline=None):
+            """``policy``'s own choice among ``items`` (the pool order): the
+            ladder over every item, then the stack option.  ``known`` maps
+            an item to a decision already made on this board; ``fails``
+            is the set of items the ladder had nothing for on it, filled
+            in as it goes.  The deadlines are policy's own for the head
+            (the ladder's share of the budget, then the option's), the
+            search's for the plan.  Returns (decision, complete)."""
+            known = known or {}
+            fails = fails if fails is not None else set()
+            n = 0
+            for pi, pr in items:
+                d = known.get(pr.index)
+                if d is not None:
+                    if d.via == "ladder":
+                        return d, True
+                    continue
+                if pr.index in fails:
+                    continue
+                if n and not self._can_start(ladder_deadline if ladder_deadline is not None else deadline):
+                    return None, False
+                n += 1
+                d = ladder(board, pr)
+                if d is not None:
+                    return d, True
+                fails.add(pr.index)
+            n = 0
+            for pi, pr in items:
+                d = known.get(pr.index)
+                if d is not None:
+                    return d, True
+                if n and not self._can_start(option_deadline if option_deadline is not None else deadline):
+                    return None, False
+                n += 1
+                d = stack(board, pr)
+                if d is not None:
+                    return d, True
+            return None, True
+
+        def replay(board, decisions, skip_index=None, stale=False):
             """Apply the plan's poses to ``board`` in order, each through the
             validator, a spoiled one decided again; returns (placed, volume,
-            kept decisions, complete)."""
+            kept decisions, complete).  ``stale``: the board is not the one
+            the poses were decided on (an item went in before them), so a
+            pose that still fits is kept as a pose, not as the ladder's
+            decision (``via = "replay"``): it is decided again before it
+            is played as the ladder's own item."""
             placed, volume, kept, complete = 0, 0.0, [], True
             for d in decisions:
                 p = d.placement
                 if p.profile.index == skip_index or p.profile.index not in in_pool:
                     continue
-                if time.perf_counter() > deadline:
+                if late():
                     complete = False
                     break
                 ci = p.container_idx
                 ok, _why = layer1.validate(p.box, board.model(ci), board.container(ci), self.config)
                 if not ok:
-                    d = self._decide_one(board, p.profile)
+                    d = ladder(board, p.profile) or stack(board, p.profile)
                     if d is None:
                         continue
                     p = d.placement
-                board.apply(p)
+                elif stale:
+                    d.via = "replay"
+                put(board, p)
                 kept.append(d)
                 placed += 1
                 volume += float(np.prod(p.box.size))
             return placed, volume, kept, complete
 
-        # the ladder's branch: the plan revalidated on this board, then
-        # extended to horizon + 1 poses by the ladder's own decisions
-        cache = getattr(self, "_pool_cache", None) or []
+        # the ladder's branch: the head the way policy finds it, with the
+        # cached decisions and failures standing in for the ladder calls
+        cache = getattr(self, "_pool_cache", None) or {"plan": [], "fails": []}
+        plan_in = [d for d in cache["plan"] if d.placement.profile.index in in_pool]
+        fails_in = [set(f) & set(in_pool) for f in cache["fails"]][:len(plan_in)] or [set()]
+        # only the plan's head was decided on this board (the poses after
+        # it were decided on the boards after it), and only when it is a
+        # decision, not a pose kept through an insertion
+        genuine = bool(plan_in) and getattr(plan_in[0], "via", "replay") != "replay"
+        known = {int(plan_in[0].placement.profile.index): plan_in[0]} if genuine else {}
+        fail0 = set(fails_in[0]) if (fails_in and genuine) else set()
+        started = float(getattr(self, "_policy_started", time.perf_counter()))
+        budget = float(self.config.policy_budget_seconds)
+        head, complete = first_decision(self.board, ordered, known, fail0,
+                                        ladder_deadline=started + 0.6 * budget, option_deadline=started + 0.85 * budget)
         board = scratch()
-        placed, volume, plan, complete = replay(board, cache)
+        placed, volume, plan, fails = 0, 0.0, [], []
+        if head is not None:
+            put(board, head.placement)
+            placed, volume, plan, fails = 1, float(np.prod(head.placement.box.size)), [head], [fail0]
+            rest_plan = [d for d in plan_in if d.placement.profile.index != head.placement.profile.index]
+            # the plan's poses were decided on the boards after its own
+            # head; with another item in front they are poses, not decisions
+            stale = not (plan_in and head is plan_in[0])
+            if complete:
+                p2, v2, kept, complete = replay(board, rest_plan, stale=stale)
+                placed += p2
+                volume += v2
+                plan += kept
+                if stale:
+                    fails += [set() for _d in kept]
+                else:
+                    fails += fails_in[1:1 + len(kept)] + [set()] * max(0, len(kept) - len(fails_in[1:]))
         planned = {d.placement.profile.index for d in plan}
         if complete:
             rest = [(pi, pr) for pi, pr in ordered if pr.index not in planned]
             while rest and len(plan) < horizon + 1:
-                hit = None
-                for pi, pr in rest:
-                    if time.perf_counter() > deadline:
-                        complete = False
-                        break
-                    d = self._decide_one(board, pr)
-                    if d is not None:
-                        hit = (pi, d)
-                        break
-                if hit is None:
+                fail_here = set()
+                d, complete = first_decision(board, rest, None, fail_here)
+                if d is None:
                     break
-                board.apply(hit[1].placement)
-                plan.append(hit[1])
-                planned.add(hit[1].placement.profile.index)
+                put(board, d.placement)
+                plan.append(d)
+                fails.append(fail_here)
+                planned.add(d.placement.profile.index)
                 placed += 1
-                volume += float(np.prod(hit[1].placement.box.size))
-                rest = [(pi, pr) for pi, pr in rest if pi != hit[0]]
+                volume += float(np.prod(d.placement.box.size))
+                rest = [(pi, pr) for pi, pr in rest if pr.index != d.placement.profile.index]
         self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
         if not plan:
-            self._pool_cache = []
-            # every pool item was tried by the ladder and the stack option
-            self._pool_exhausted = bool(complete)
+            self._pool_cache = {"plan": [], "fails": []}
+            # the head was looked for the way policy looks, under policy's
+            # own deadlines: its loops would find the same nothing
+            self._pool_exhausted = True
             return None
         first = plan[0]
         first_index = int(first.placement.profile.index)
@@ -833,13 +930,13 @@ class RuleAlphaAgent:
             else:
                 others = [(pi, pr) for pi, pr in ordered if pr.index != first_index][: max(0, k - 1)]
             for pi, pr in others:
-                if time.perf_counter() > deadline:
+                if late():
                     break
-                d = self._decide_one(self.board, pr)
+                d = ladder(self.board, pr) or stack(self.board, pr)
                 if d is None:
                     continue
                 b2 = scratch()
-                b2.apply(d.placement)
+                put(b2, d.placement)
                 after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]
                 p2, v2, _kept, ok = replay(b2, after, skip_index=pr.index)
                 if not ok:
@@ -854,12 +951,17 @@ class RuleAlphaAgent:
         best = max(results, key=lambda r: r[0]) if results else None
         if best is not None and best[1] != first_index and best[0] > results[0][0] + margin:
             self.pool_item_overrides = getattr(self, "pool_item_overrides", 0) + 1
+            if os.environ.get("ONLINE_DEBUG"):
+                print("[pool-item-rolling] override: item %d for %d" % (best[1], first_index), flush=True)
             best[2].placement.reason = "pool item search: " + best[2].placement.reason
             # the plan stands: its poses are checked on the board with the
             # candidate in it at the next step
-            self._pool_cache = list(plan)
+            keep = [d for d in plan if d.placement.profile.index != best[1]]
+            for d in keep:
+                d.via = "replay"
+            self._pool_cache = {"plan": keep, "fails": [set() for _d in keep]}
             return in_pool[best[1]][0], best[2]
-        self._pool_cache = list(plan[1:])
+        self._pool_cache = {"plan": list(plan[1:]), "fails": list(fails[1:])}
         return in_pool[first_index][0], first
 
     def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:
