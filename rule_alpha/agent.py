@@ -942,6 +942,13 @@ class RuleAlphaAgent:
                     # c1 scenes that way); the shelf and the tops are the
                     # places where it costs the hard cargo nothing
                     continue
+                if pr.is_soft and not pr.is_prioritized \
+                        and not getattr(self.config, "pool_item_search_soft_in_priority", True) \
+                        and self.board.model(d.placement.container_idx).is_prioritized:
+                    # the priority container's shelf and rows kept for the
+                    # priority cargo still to come (the soft search lost
+                    # 0.9-1.4 priority items a scene)
+                    continue
                 b2 = scratch()
                 put(b2, d.placement)
                 after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]

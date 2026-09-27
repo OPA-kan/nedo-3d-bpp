@@ -1667,6 +1667,13 @@ soft ceiling 25 / 24 / 43).  On the suite, 4 s of search a decision:
 | the ladder's next three (k = 4, horizon 4), first form | -0.75 (16 / 28) | +1.63 | +0.08 | -1.45 | -0.002 | 6.19 s |
 | the ladder's next three, head as policy finds it | -0.44 (16 / 22) | -0.25 | -0.35 | -0.68 | +0.001 | 5.93 s |
 | soft (k = 3, horizon 4), head as policy finds it | +0.77 (28 / 13) | +2.23 | -1.44 | -0.53 | -0.008 | 6.29 s |
+| **soft candidates off the floor** (the shelf and the tops; `pool_item_search_soft_floor=false`) | **+1.60 (31 / 10)** | +1.38 | -0.90 | +1.14 | -0.001 | 6.29 s |
+
+The floor filter turns the trade into a gain: the count, the fill and
+the soft count up at the same load, with the priority loss the one
+cost left (the priority container's shelf and rows go to normal soft
+cargo before the priority cargo arrives).  This is the form on the
+physics B suite (`reports/bench/roll6s-core-b`).
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
