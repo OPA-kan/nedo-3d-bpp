@@ -1538,6 +1538,18 @@ class RuleAlphaConfig:
     in an episode (a ladder decision at 1-2 s) the search falls back to
     the ladder's item by itself."""
     pool_item_search_slot_cap: float = 0.5
+    """``rolling``: the continuation search with the ladder's continuation
+    kept across steps (agent._pool_item_rolling): the plan is revalidated
+    on the board each step, extended by one decision, and its first pose
+    is the ladder's own item; the soft candidates replay the plan after
+    themselves.  About one ladder decision and the candidates' own a
+    step, whatever the horizon (``pool_item_search_steps``, 4 when 0)."""
+    pool_item_search_replay: bool = False
+    """``continue`` mode: the other candidates do not run a continuation of
+    their own; the ladder's continuation is replayed on the board with the
+    candidate in it, pose by pose through the validator, and only a pose
+    the candidate spoiled is decided again.  A candidate then costs its
+    own decision and a few validator calls."""
 
     pool_planner: bool = False
     """Task B: the visible pool is planned with the row planner on a

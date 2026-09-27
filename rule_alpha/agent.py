@@ -520,8 +520,11 @@ class RuleAlphaAgent:
         or None (the ladder goes on as usual)."""
         from .room import RoomScorer, fit_count
 
-        if str(getattr(self.config, "pool_item_search_mode", "fit")) == "continue":
+        mode = str(getattr(self.config, "pool_item_search_mode", "fit"))
+        if mode == "continue":
             return self._pool_item_continue(ordered, pool, deadline)
+        if mode == "rolling":
+            return self._pool_item_rolling(ordered, pool, deadline)
         k = int(getattr(self.config, "pool_item_search_k", 3))
         margin = float(getattr(self.config, "pool_item_search_margin", 0.5))
         hard = [(pi, pr) for pi, pr in ordered if not pr.is_soft]
@@ -632,6 +635,8 @@ class RuleAlphaAgent:
         slot_cap = float(getattr(self.config, "pool_item_search_slot_cap", 0.5))
         results = []  # (score, pool_index, decision, complete)
         first = None
+        replay = bool(getattr(self.config, "pool_item_search_replay", False))
+        plan = []  # the ladder's own continuation: its item's pose, then the poses after it
         for n, (pool_index, profile) in enumerate(candidates):
             if n and time.perf_counter() > deadline:
                 break
@@ -640,6 +645,8 @@ class RuleAlphaAgent:
                 if n == 0:
                     first = (None, pool_index, None, True)
                 continue
+            if n == 0:
+                plan.append(decision.placement)
             board = layer1.Board(copy.deepcopy(self.board.containers), self.config)
             board.soft_headroom_reserve = getattr(self.board, "soft_headroom_reserve", 0.0)
             board.soft_headroom_reserve_by_container = dict(getattr(self.board, "soft_headroom_reserve_by_container", {}))
@@ -651,6 +658,32 @@ class RuleAlphaAgent:
             # whole pool): the bench's horizon-4 ceilings kept most of the
             # full one's gain (soft candidates +2.9 against +3.1 a scene)
             horizon = int(getattr(self.config, "pool_item_search_steps", 0) or 0) or len(remaining)
+            if n > 0 and replay and plan:
+                # the ladder's own continuation replayed pose by pose on
+                # the board with the candidate in it: a pose still legal
+                # is applied (a validator call), one the candidate spoiled
+                # is decided again by the ladder (a decision), so the
+                # candidate costs as many decisions as it spoils, not a
+                # continuation of its own
+                for p in plan[:horizon]:
+                    if p.profile.index == profile.index:
+                        continue
+                    if time.perf_counter() > deadline:
+                        complete = False
+                        break
+                    ci = p.container_idx
+                    ok, _why = layer1.validate(p.box, board.model(ci), board.container(ci), self.config)
+                    if ok:
+                        board.apply(p)
+                        placed += 1
+                        volume += float(np.prod(p.box.size))
+                        continue
+                    d2 = self._decide_one(board, p.profile)
+                    if d2 is not None:
+                        board.apply(d2.placement)
+                        placed += 1
+                        volume += float(np.prod(d2.placement.box.size))
+                remaining = []
             while remaining and placed - 1 < horizon:
                 hit = None
                 for pi, pr in remaining:
@@ -667,6 +700,8 @@ class RuleAlphaAgent:
                 placed += 1
                 volume += float(np.prod(hit[1].placement.box.size))
                 remaining = [(pi, pr) for pi, pr in remaining if pi != hit[0]]
+                if n == 0:
+                    plan.append(hit[1].placement)
             slots = sum(scorer.slots(board, ci) for ci in range(len(board.models))) if complete else 0.0
             score = float(placed) + min(slot_cap, slots / 40.0) + volume / 10000.0
             entry = (score, pool_index, decision, complete)
@@ -688,6 +723,134 @@ class RuleAlphaAgent:
             best[2].placement.reason = "pool item search: " + best[2].placement.reason
             return best[1], best[2]
         return first[1], first[2]
+
+    def _pool_item_rolling(self, ordered: list, pool: list, deadline: float):
+        """The continuation search with the ladder's continuation kept
+        across steps.  The ladder is deterministic on a board, so the
+        poses it chose for the next items at the last step are its
+        decisions at this step as long as the board is the one it
+        expected: the plan is revalidated pose by pose (a validator call
+        each), extended by one decision to the horizon, and its first
+        pose is the ladder's own item without a ladder call.  Each soft
+        candidate is decided on the board, and the plan is replayed on
+        the board with the candidate in it; a pose the candidate spoiled
+        is decided again.  A step then costs about one ladder decision
+        and the soft candidates' own, whatever the horizon."""
+        import copy
+
+        from .room import RoomScorer, parse_classes
+
+        k = int(getattr(self.config, "pool_item_search_k", 3))
+        margin = float(getattr(self.config, "pool_item_search_margin", 0.5))
+        horizon = int(getattr(self.config, "pool_item_search_steps", 0) or 4)
+        scorer = getattr(self, "_slot_scorer", None)
+        if scorer is None:
+            classes = parse_classes(getattr(self.config, "room_selector_classes",
+                                            "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"))
+            scorer = self._slot_scorer = RoomScorer(self.config, classes, cell=0.05, tolerance=0.02)
+        slot_cap = float(getattr(self.config, "pool_item_search_slot_cap", 0.5))
+        in_pool = {int(pr.index): (pi, pr) for pi, pr in ordered}
+
+        def scratch():
+            board = layer1.Board(copy.deepcopy(self.board.containers), self.config)
+            board.soft_headroom_reserve = getattr(self.board, "soft_headroom_reserve", 0.0)
+            board.soft_headroom_reserve_by_container = dict(getattr(self.board, "soft_headroom_reserve_by_container", {}))
+            return board
+
+        def replay(board, decisions, skip_index=None):
+            """Apply the plan's poses to ``board`` in order, each through the
+            validator, a spoiled one decided again; returns (placed, volume,
+            kept decisions, complete)."""
+            placed, volume, kept, complete = 0, 0.0, [], True
+            for d in decisions:
+                p = d.placement
+                if p.profile.index == skip_index or p.profile.index not in in_pool:
+                    continue
+                if time.perf_counter() > deadline:
+                    complete = False
+                    break
+                ci = p.container_idx
+                ok, _why = layer1.validate(p.box, board.model(ci), board.container(ci), self.config)
+                if not ok:
+                    d = self._decide_one(board, p.profile)
+                    if d is None:
+                        continue
+                    p = d.placement
+                board.apply(p)
+                kept.append(d)
+                placed += 1
+                volume += float(np.prod(p.box.size))
+            return placed, volume, kept, complete
+
+        # the ladder's branch: the plan revalidated on this board, then
+        # extended to horizon + 1 poses by the ladder's own decisions
+        cache = getattr(self, "_pool_cache", None) or []
+        board = scratch()
+        placed, volume, plan, complete = replay(board, cache)
+        planned = {d.placement.profile.index for d in plan}
+        if complete:
+            rest = [(pi, pr) for pi, pr in ordered if pr.index not in planned]
+            while rest and len(plan) < horizon + 1:
+                hit = None
+                for pi, pr in rest:
+                    if time.perf_counter() > deadline:
+                        complete = False
+                        break
+                    d = self._decide_one(board, pr)
+                    if d is not None:
+                        hit = (pi, d)
+                        break
+                if hit is None:
+                    break
+                board.apply(hit[1].placement)
+                plan.append(hit[1])
+                planned.add(hit[1].placement.profile.index)
+                placed += 1
+                volume += float(np.prod(hit[1].placement.box.size))
+                rest = [(pi, pr) for pi, pr in rest if pi != hit[0]]
+        self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
+        if not plan:
+            self._pool_cache = []
+            return None
+        first = plan[0]
+        first_index = int(first.placement.profile.index)
+        results = []
+        if complete:
+            slots = sum(scorer.slots(board, ci) for ci in range(len(board.models)))
+            results.append((float(placed) + min(slot_cap, slots / 40.0) + volume / 10000.0, first_index, first, True))
+            # the soft candidates: each on the board, then the plan's first
+            # ``horizon`` poses replayed after it
+            soft = [(pi, pr) for pi, pr in ordered if pr.is_soft and pr.index not in planned][: max(0, k - 1)] \
+                if getattr(self.config, "pool_item_search_soft", True) else \
+                [(pi, pr) for pi, pr in ordered if pr.index not in planned][: max(0, k - 1)]
+            for pi, pr in soft:
+                if time.perf_counter() > deadline:
+                    break
+                d = self._decide_one(self.board, pr)
+                if d is None:
+                    continue
+                b2 = scratch()
+                b2.apply(d.placement)
+                p2, v2, _kept, ok = replay(b2, plan[:horizon], skip_index=pr.index)
+                if not ok:
+                    continue
+                slots = sum(scorer.slots(b2, ci) for ci in range(len(b2.models)))
+                v2 += float(np.prod(d.placement.box.size))
+                results.append((float(p2 + 1) + min(slot_cap, slots / 40.0) + v2 / 10000.0, int(pr.index), d, True))
+        if os.environ.get("ONLINE_DEBUG"):
+            print("[pool-item-rolling] plan %s %s" % (
+                [int(d.placement.profile.index) for d in plan], "" if complete else "cut"),
+                [(r[1], "S" if in_pool[r[1]][1].is_soft else "h", round(r[0], 2)) for r in results], flush=True)
+        best = max(results, key=lambda r: r[0]) if results else None
+        if best is not None and best[1] != first_index and best[0] > results[0][0] + margin:
+            self.pool_item_overrides = getattr(self, "pool_item_overrides", 0) + 1
+            best[2].placement.reason = "pool item search: " + best[2].placement.reason
+            # the plan stands: its poses are checked on the board with the
+            # candidate in it at the next step
+            self._pool_cache = list(plan)
+            return in_pool[best[1]][0], best[2]
+        self._pool_cache = list(plan[1:])
+        return in_pool[first_index][0], first
 
     def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:
         """Plan the visible pool with the row planner on a scratch copy of
