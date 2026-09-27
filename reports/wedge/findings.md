@@ -1679,9 +1679,16 @@ soft ceiling 25 / 24 / 43).  On the suite, 4 s of search a decision:
 
 The floor filter turns the trade into a gain: the count, the fill and
 the soft count up at the same load, with the priority loss the one
-cost left (the priority container's shelf and rows go to normal soft
-cargo before the priority cargo arrives).  This is the form on the
-physics B suite (`reports/bench/roll6s-core-b`).
+cost left.  This is the form on the physics B suite
+(`reports/bench/roll6s-core-b`).  Keeping normal soft candidates out
+of the priority container (`pool_item_search_soft_in_priority=false`)
+changes nothing about it (+1.71, priority -0.90 again): on the plain
+container the hard priority cargo v18 places on the tops of other
+items (1.21 a scene) and on the floor (0.62) comes down to 0.46 and
+0.33 while the shelf holds 2.5 soft items, so the loss is not the
+shelf or the priority container but the tops and floor the priority
+cargo found late in a v18 episode and does not find after the soft
+cargo went first.
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
