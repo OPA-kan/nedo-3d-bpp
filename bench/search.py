@@ -125,11 +125,18 @@ class ItemSearchAgent:
     survivors gained nothing on Task B (+0.12 items a scene); this is the
     order, which is what the planner has over the ladder."""
 
-    def __init__(self, scene, inner_arm, k: int = 4, log=None):
+    def __init__(self, scene, inner_arm, k: int = 4, log=None, horizon: int = 999, soft: bool = False):
         self.scene = scene
         self.inner_arm = inner_arm
         self.agent = inner_arm(scene)
         self.k = k
+        # the continuation's length in placements (999: the whole pool); a
+        # short horizon is what play time can afford, so its ceiling is
+        # measured here
+        self.horizon = int(horizon)
+        # candidates: the ladder's own item and the pool's soft items
+        # (where the full ceiling's gain was) instead of the first k
+        self.soft = bool(soft)
         self.log = log
         self._room = None
         self.decisions = 0
@@ -163,7 +170,7 @@ class ItemSearchAgent:
             return -1.0  # the ladder has no pose for this item now
         branch.apply_placement(decision.placement, 0)
         branch.pool.extend(rest)
-        branch.run(999)
+        branch.run(self.horizon)
         summary = branch.summary()
         # early in the episode every continuation places the whole pool, so
         # the tie is broken by the room the load keeps for the frequent
@@ -186,7 +193,12 @@ class ItemSearchAgent:
         config = self.agent.config
         profiles = [(i, cls.classify_item(int(item["index"]), item, config)) for i, item in enumerate(pool)]
         ordered = layer1.pool_order(profiles, config)
-        candidates = [int(pr.index) for _pi, pr in ordered[: self.k]]
+        if self.soft:
+            candidates = [int(ordered[0][1].index)] + [int(pr.index) for _pi, pr in ordered[1:] if pr.is_soft][: max(0, self.k - 1)]
+        else:
+            candidates = [int(pr.index) for _pi, pr in ordered[: self.k]]
+        if len(candidates) < 2:
+            return self.agent.policy(observation)
         scores = {idx: self._continuation(observation["container_list"], pool, idx) for idx in candidates}
         self.searched += 1
         best = max(scores, key=lambda i: scores[i])
