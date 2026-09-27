@@ -1663,11 +1663,29 @@ soft ceiling 25 / 24 / 43).  On the suite, 4 s of search a decision:
 
 | candidates | items | soft | priority | fill | com | max policy call |
 |---|---|---|---|---|---|---|
-| soft (k = 3, horizon 4) | +1.09 (30 better, 14 worse) | +3.64 | -0.89 | -0.18 | 0.000 | 6.12 s (v18 5.68) |
+| soft (k = 3, horizon 4), first form | +1.09 (30 better, 14 worse) | +3.64 | -0.89 | -0.18 | 0.000 | 6.12 s (v18 5.68) |
+| the ladder's next three (k = 4, horizon 4), first form | -0.75 (16 / 28) | +1.63 | +0.08 | -1.45 | -0.002 | 6.19 s |
+| the ladder's next three, head as policy finds it | -0.44 (16 / 22) | -0.25 | -0.35 | -0.68 | +0.001 | 5.93 s |
 
-The soft candidates lose 3-7 items on five c1 scenes at play time and
-gain 5-8 on c2: the ceiling's trade, less well made where the deadline
-cuts the search.
+The first form's head was not the ladder's decision: a cached pose
+stood in for the ladder although the pool order had a new arrival
+before it, or the pose had been decided on a board without the item
+placed since, and scratch boards carried `Board.placements` (the
+ladder reads them; policy's rebuilt board has none), so without any
+candidate the form placed 27 / 26 on b-c1-s0012 / b-c1-s0007 against
+v18's 30 / 27.  With the head found the way policy finds it (the
+cached decision stands in only for the plan's head and only when it
+was decided on this board; a pose kept through an insertion is decided
+again before it is played; the head search under policy's own
+deadlines) the form without candidates reproduces v18 (27 / 38 on
+b-c1-s0007 / b-c2-s0001; 28 against 30 on b-c1-s0012 from a 1 cm
+difference in a stack option pose late in the episode).
+
+With the ladder's next items as candidates the replay is not the
+ceiling's test: a hard candidate's branch replays the plan's poses
+(decided without it) where the ceiling's continuation decided them
+again, so the comparison is between a plan and the same plan with one
+item moved, and the ties it breaks are noise; -0.44 a scene.
 
 ## Executor status
 
