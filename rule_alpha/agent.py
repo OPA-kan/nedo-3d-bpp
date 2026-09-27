@@ -520,14 +520,22 @@ class RuleAlphaAgent:
         or None (the ladder goes on as usual)."""
         from .room import RoomScorer, fit_count
 
+        if str(getattr(self.config, "pool_item_search_mode", "fit")) == "continue":
+            return self._pool_item_continue(ordered, pool, deadline)
         k = int(getattr(self.config, "pool_item_search_k", 3))
         margin = float(getattr(self.config, "pool_item_search_margin", 0.5))
-        candidates = list(ordered[:k])
         hard = [(pi, pr) for pi, pr in ordered if not pr.is_soft]
-        if hard:
-            biggest = max(hard, key=lambda pp: pp[1].max_footprint)
-            if biggest not in candidates:
-                candidates.append(biggest)
+        if getattr(self.config, "pool_item_search_soft", False):
+            # the ceiling's gain was soft cargo placed earlier where the
+            # pool's continuation lost nothing (soft 3.98 -> 6.10 a scene of
+            # the +2.49): the ladder's own item, then the soft items
+            candidates = list(ordered[:1]) + [(pi, pr) for pi, pr in ordered[1:] if pr.is_soft][: max(0, k - 1)]
+        else:
+            candidates = list(ordered[:k])
+            if hard:
+                biggest = max(hard, key=lambda pp: pp[1].max_footprint)
+                if biggest not in candidates:
+                    candidates.append(biggest)
         scorer = getattr(self, "_room_scorer", None)
         if scorer is None:
             scorer = self._room_scorer = RoomScorer(self.config, [], cell=0.05, tolerance=0.02)
@@ -573,6 +581,11 @@ class RuleAlphaAgent:
             if best is None or score > best[0] + 1e-9:
                 best = (score, pool_index, decision)
         self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
+        if os.environ.get("ONLINE_DEBUG"):
+            print("[pool-item-search] candidates %s ladder %s best %s" % (
+                [(pr.index, "S" if pr.is_soft else "h") for _pi, pr in candidates],
+                None if first_decision is None else (first_decision[1].placement.profile.index, round(ladder_score, 2)),
+                None if best is None else (best[2].placement.profile.index, round(best[0], 2))), flush=True)
         if first_decision is None:
             return None
         if best[1] != first_decision[0] and best[0] > ladder_score + margin:
@@ -580,6 +593,97 @@ class RuleAlphaAgent:
             best[2].placement.reason = "pool item search: " + best[2].placement.reason
             return best[1], best[2]
         return first_decision
+
+    def _decide_one(self, board, profile):
+        """One item's decision on a board the way ``policy`` makes it for a
+        pool of one: the ladder, then the stack option (the last resort
+        left out: a decline in a trial costs nothing)."""
+        decision = self._timed(layer1.choose_for_item, board, profile, self.config, selector=self.selector)
+        if decision is None and self.stack_option is not None:
+            decision = self._timed(self.stack_option.propose, board, profile)
+        return decision
+
+    def _pool_item_continue(self, ordered: list, pool: list, deadline: float):
+        """The play-time form of the bench's item-choice ceiling
+        (``bench/search.py`` ItemSearchAgent, +2.49 items a scene on the
+        analytic B suite): each candidate item is placed on a scratch copy
+        of the board and the rest of the visible pool is continued by the
+        same policy (the ladder then the stack option, in the ladder's
+        order); the candidate whose continuation places the most goes, the
+        room the load keeps for the frequent footprints breaking the tie
+        (``room.RoomScorer.slots``), then the volume.  A continuation cut
+        by the deadline counts only when it is the ladder's own item (no
+        override then); the others are dropped."""
+        import copy
+
+        from .room import RoomScorer, parse_classes
+
+        k = int(getattr(self.config, "pool_item_search_k", 3))
+        margin = float(getattr(self.config, "pool_item_search_margin", 0.5))
+        if getattr(self.config, "pool_item_search_soft", False):
+            candidates = list(ordered[:1]) + [(pi, pr) for pi, pr in ordered[1:] if pr.is_soft][: max(0, k - 1)]
+        else:
+            candidates = list(ordered[:k])
+        scorer = getattr(self, "_slot_scorer", None)
+        if scorer is None:
+            classes = parse_classes(getattr(self.config, "room_selector_classes",
+                                            "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"))
+            scorer = self._slot_scorer = RoomScorer(self.config, classes, cell=0.05, tolerance=0.02)
+        slot_cap = float(getattr(self.config, "pool_item_search_slot_cap", 0.5))
+        results = []  # (score, pool_index, decision, complete)
+        first = None
+        for n, (pool_index, profile) in enumerate(candidates):
+            if n and time.perf_counter() > deadline:
+                break
+            decision = self._decide_one(self.board, profile)
+            if decision is None:
+                if n == 0:
+                    first = (None, pool_index, None, True)
+                continue
+            board = layer1.Board(copy.deepcopy(self.board.containers), self.config)
+            board.soft_headroom_reserve = getattr(self.board, "soft_headroom_reserve", 0.0)
+            board.soft_headroom_reserve_by_container = dict(getattr(self.board, "soft_headroom_reserve_by_container", {}))
+            board.apply(decision.placement)
+            placed, volume = 1, float(np.prod(decision.placement.box.size))
+            remaining = [(pi, pr) for pi, pr in ordered if pi != pool_index]
+            complete = True
+            while remaining:
+                hit = None
+                for pi, pr in remaining:
+                    if time.perf_counter() > deadline:
+                        complete = False
+                        break
+                    d2 = self._decide_one(board, pr)
+                    if d2 is not None:
+                        hit = (pi, d2)
+                        break
+                if hit is None:
+                    break
+                board.apply(hit[1].placement)
+                placed += 1
+                volume += float(np.prod(hit[1].placement.box.size))
+                remaining = [(pi, pr) for pi, pr in remaining if pi != hit[0]]
+            slots = sum(scorer.slots(board, ci) for ci in range(len(board.models))) if complete else 0.0
+            score = float(placed) + min(slot_cap, slots / 40.0) + volume / 10000.0
+            entry = (score, pool_index, decision, complete)
+            if n == 0:
+                first = entry
+            results.append(entry)
+        self.pool_item_searches = getattr(self, "pool_item_searches", 0) + 1
+        if os.environ.get("ONLINE_DEBUG"):
+            print("[pool-item-continue] %s" % [
+                (r[2].placement.profile.index, "S" if r[2].placement.profile.is_soft else "h",
+                 round(r[0], 2), "" if r[3] else "cut") for r in results], flush=True)
+        if first is None or first[2] is None:
+            return None
+        if not first[3]:
+            return first[1], first[2]
+        best = max((r for r in results if r[3]), key=lambda r: r[0])
+        if best[1] != first[1] and best[0] > first[0] + margin:
+            self.pool_item_overrides = getattr(self, "pool_item_overrides", 0) + 1
+            best[2].placement.reason = "pool item search: " + best[2].placement.reason
+            return best[1], best[2]
+        return first[1], first[2]
 
     def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:
         """Plan the visible pool with the row planner on a scratch copy of

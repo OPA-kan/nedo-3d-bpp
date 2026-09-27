@@ -1516,6 +1516,10 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    pool_item_search_soft: bool = False
+    """The candidates are the ladder's own item and the pool's soft items
+    (the ceiling's gain: soft cargo placed earlier where the continuation
+    lost nothing) instead of the first k items and the largest hard box."""
     pool_item_search_steps: int = 0
     """True continuation steps per candidate (the ladder placing the next
     pool items) before the rest is counted by the fit test; 0: the fit
@@ -1523,6 +1527,17 @@ class RuleAlphaConfig:
     at every margin: its overrides are right about half the time)."""
     pool_item_search_margin: float = 0.5
     pool_item_search_seconds: float = 3.5
+    pool_item_search_mode: str = "fit"
+    """``fit``: the one-step fit test above.  ``continue``: the bench
+    ceiling's own test at play time (agent._pool_item_continue): each
+    candidate is placed on a scratch board and the rest of the visible
+    pool is continued by the ladder and the stack option; the count
+    decides, the room left for the frequent footprints
+    (``room_selector_classes``, capped at ``pool_item_search_slot_cap``)
+    breaks the tie.  A continuation the deadline cuts is dropped, so late
+    in an episode (a ladder decision at 1-2 s) the search falls back to
+    the ladder's item by itself."""
+    pool_item_search_slot_cap: float = 0.5
 
     pool_planner: bool = False
     """Task B: the visible pool is planned with the row planner on a
