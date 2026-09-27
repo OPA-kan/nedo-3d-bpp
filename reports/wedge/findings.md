@@ -1629,17 +1629,25 @@ the episode (51 in the first three steps, 31-45 in every later group of
 three, 187 from step 21 on), and a search costs 11 s at the first step
 and 50-60 s from step 12 on (four candidates, ten decisions each).
 
-Read together: the soft candidates carry the gain, and a four-step
-horizon keeps most of it (+2.90 of +3.06 with soft candidates; +1.35 of
-+2.49 with the first four).  The soft search's item is almost always a
-tie on the count broken by the slots, which is v23's rule (soft cargo
-where it costs the hard stacks nothing) decided by a continuation
-instead of a surface test; it places 6-7 more soft items a scene at
-the same load, with one to two priority items a scene lost (the
-priority container's spare rows and the shelf go to soft cargo before
-the priority cargo arrives; c2 -2.6, c1 -1.4).  A priority weight in
-the score is the next ceiling; the play-time form is the soft search
-with a four-step horizon under the 10 s limit.
+Read together: a four-step horizon keeps most of a search's gain
+(+2.90 of +3.06 with soft candidates; +1.35 of +2.49 with the first
+four), and the two candidate sets gain differently.  By cargo class
+(placed a scene; H hard, P hard priority, S soft, SP soft priority):
+
+| | c1 / c1s (one container) | c2 / c2p (c0 the priority container) |
+|---|---|---|
+| v18 | H 18.96, P 1.96, S 1.42, SP 0.83 | H 30.2, P 3.58, S 4.17, SP 1.96 |
+| soft candidates, whole pool | H 16.88, P 0.29, S 6.29, SP 1.29 | H 30.0, P 2.38, S 10.67, SP 1.92 |
+| first four, four steps | H 18.33, P 2.29, S 1.67, SP 1.21 | H 30.7, P 4.00, S 6.08, SP 2.00 |
+
+The soft search's count is a trade: on the plain container 4.9 more
+soft items for 2.1 hard and 1.7 hard priority items (the soft cargo
+takes the floor edges and the shelf before the priority cargo arrives),
+the fill unchanged (+0.14).  The first-four search keeps the hard
+cargo, places 0.4 more priority items, 1.9 more soft items and 0.6 more
+soft priority items, the fill +1.1: fewer items, but items of every
+class.  The play-time form is the rolling search (below) with either
+candidate set; the priority-weighted ceilings are on Actions.
 
 ## Executor status
 

@@ -825,12 +825,14 @@ class RuleAlphaAgent:
         if complete:
             slots = sum(scorer.slots(board, ci) for ci in range(len(board.models)))
             results.append((float(placed) + min(slot_cap, slots / 40.0) + volume / 10000.0, first_index, first, True))
-            # the soft candidates: each on the board, then the plan's first
-            # ``horizon`` poses replayed after it
-            soft = [(pi, pr) for pi, pr in ordered if pr.is_soft and pr.index not in planned][: max(0, k - 1)] \
-                if getattr(self.config, "pool_item_search_soft", True) else \
-                [(pi, pr) for pi, pr in ordered if pr.index not in planned][: max(0, k - 1)]
-            for pi, pr in soft:
+            # the other candidates (the pool's soft items, or the next items
+            # of the ladder's order): each decided on the board, then the
+            # plan's poses, the candidate's own left out, replayed after it
+            if getattr(self.config, "pool_item_search_soft", True):
+                others = [(pi, pr) for pi, pr in ordered if pr.is_soft and pr.index != first_index][: max(0, k - 1)]
+            else:
+                others = [(pi, pr) for pi, pr in ordered if pr.index != first_index][: max(0, k - 1)]
+            for pi, pr in others:
                 if time.perf_counter() > deadline:
                     break
                 d = self._decide_one(self.board, pr)
@@ -838,7 +840,8 @@ class RuleAlphaAgent:
                     continue
                 b2 = scratch()
                 b2.apply(d.placement)
-                p2, v2, _kept, ok = replay(b2, plan[:horizon], skip_index=pr.index)
+                after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]
+                p2, v2, _kept, ok = replay(b2, after, skip_index=pr.index)
                 if not ok:
                     continue
                 slots = sum(scorer.slots(b2, ci) for ci in range(len(b2.models)))
