@@ -144,6 +144,7 @@ class EpisodeState:
         )
         return {
             "placed_count": metrics["placed_count"],
+            "priority_count": metrics.get("priority_count", 0),
             "fill_volume": metrics["fill_volume"],
             "com_z_ratio": metrics["com_z_above_floor_ratio"],
             "priority_covered": metrics["priority_covered"],

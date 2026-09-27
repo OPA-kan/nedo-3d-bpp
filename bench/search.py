@@ -125,7 +125,8 @@ class ItemSearchAgent:
     survivors gained nothing on Task B (+0.12 items a scene); this is the
     order, which is what the planner has over the ladder."""
 
-    def __init__(self, scene, inner_arm, k: int = 4, log=None, horizon: int = 999, soft: bool = False):
+    def __init__(self, scene, inner_arm, k: int = 4, log=None, horizon: int = 999, soft: bool = False,
+                 prio: float = 0.0):
         self.scene = scene
         self.inner_arm = inner_arm
         self.agent = inner_arm(scene)
@@ -137,6 +138,9 @@ class ItemSearchAgent:
         # candidates: the ladder's own item and the pool's soft items
         # (where the full ceiling's gain was) instead of the first k
         self.soft = bool(soft)
+        # the weight of a placed priority item on top of its count (the
+        # soft-candidate search lost 1.25 priority items a scene)
+        self.prio = float(prio)
         self.log = log
         self._room = None
         self.decisions = 0
@@ -180,7 +184,8 @@ class ItemSearchAgent:
 
             self._room = RoomScorer(self.agent.config, parse_classes("0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"))
         slots = sum(self._room.slots(branch.board, ci) for ci in range(len(branch.board.models)))
-        return float(summary["placed_count"]) + min(0.5, slots / 40.0) + float(summary["fill_volume"]) / 10000.0
+        prio = self.prio * float(summary.get("priority_count", 0)) if self.prio else 0.0
+        return float(summary["placed_count"]) + prio + min(0.5, slots / 40.0) + float(summary["fill_volume"]) / 10000.0
 
     def policy(self, observation):
         self.decisions += 1

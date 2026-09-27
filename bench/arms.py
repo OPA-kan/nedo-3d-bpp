@@ -281,7 +281,7 @@ class SearchArm(LadderArm):
 
 class ItemSearchArm(LadderArm):
     """Task B item-choice search (``bench/search.py`` ItemSearchAgent):
-    ``itemsearch:<k>[/h<horizon>][/soft]+<inner spec>``.  Analytic only."""
+    ``itemsearch:<k>[/h<horizon>][/soft][/prio<w>]+<inner spec>``.  Analytic only."""
 
     def __init__(self, spec: str):
         body, _at, overrides = spec.partition("@")
@@ -291,11 +291,14 @@ class ItemSearchArm(LadderArm):
         self.k = int(parts[0]) if parts and parts[0].isdigit() else 4
         self.horizon = 999
         self.soft = False
+        self.prio = 0.0
         for part in parts[1:]:
             if part.startswith("h"):
                 self.horizon = int(part[1:])
             elif part == "soft":
                 self.soft = True
+            elif part.startswith("prio"):
+                self.prio = float(part[4:] or 1.0)
         self.inner_spec = (rest or "ladder-stable") + ("@" + overrides if overrides and "@" not in (rest or "") else "")
         base = resolve_alias("ladder-stable") + ("," + overrides if overrides else "")
         super().__init__(base)
@@ -306,11 +309,11 @@ class ItemSearchArm(LadderArm):
         from .search import ItemSearchAgent
 
         return ItemSearchAgent(scene, self.inner, k=self.k, log=lambda line: print(line, flush=True),
-                               horizon=self.horizon, soft=self.soft)
+                               horizon=self.horizon, soft=self.soft, prio=self.prio)
 
     def describe(self) -> dict:
         return {"arm": self.spec, "family": "itemsearch", "k": self.k, "horizon": self.horizon,
-                "soft": self.soft, "inner": self.inner.describe(),
+                "soft": self.soft, "prio": self.prio, "inner": self.inner.describe(),
                 "config": self.config.to_dict()}
 
 

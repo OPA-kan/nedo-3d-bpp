@@ -647,7 +647,11 @@ class RuleAlphaAgent:
             placed, volume = 1, float(np.prod(decision.placement.box.size))
             remaining = [(pi, pr) for pi, pr in ordered if pi != pool_index]
             complete = True
-            while remaining:
+            # the continuation's length (pool_item_search_steps; 0: the
+            # whole pool): the bench's horizon-4 ceilings kept most of the
+            # full one's gain (soft candidates +2.9 against +3.1 a scene)
+            horizon = int(getattr(self.config, "pool_item_search_steps", 0) or 0) or len(remaining)
+            while remaining and placed - 1 < horizon:
                 hit = None
                 for pi, pr in remaining:
                     if time.perf_counter() > deadline:

@@ -1612,6 +1612,35 @@ are both measured; what is left is the ladder's speed (a decision is
 of 5.7 s) or a continuation cheaper than the ladder that still ranks
 like it.
 
+**The ceilings on the suite** (analytic, v18 inner, the candidate's
+continuation over the visible pool; `reports/bench/isearch-*-core-b`):
+
+| candidates, horizon | items | soft | priority | fill | com | scenes at or over 0.5 |
+|---|---|---|---|---|---|---|
+| first four of the ladder's order, the whole pool (`itemsearch:4`, 41 scenes, v18 29.85 there) | **+2.49** (30 better, 5 worse) | +2.00 | +0.42 | +2.24 | +0.009 | 25 -> 34 |
+| first four, four steps (`itemsearch:4/h4`, 48 scenes, v18 31.79) | +1.35 (35 / 8) | +1.31 | +0.56 | +1.12 | +0.007 | 31 -> 37 |
+| the ladder's item and two soft items, the whole pool (`itemsearch:3/soft`) | **+3.06** (37 / 6) | +5.92 | -1.25 | +0.14 | -0.002 | 31 -> 40 |
+| the same, four steps (`itemsearch:3/h4/soft`) | +2.90 (36 / 7) | +6.92 | -1.96 | -0.74 | -0.008 | 31 -> 39 |
+
+Where the full ceiling's 477 overrides (of 1,384 searches) come from: 269
+are ties on the count broken by the room the load keeps (the slot
+count), 208 are a count difference of one or more; they are spread over
+the episode (51 in the first three steps, 31-45 in every later group of
+three, 187 from step 21 on), and a search costs 11 s at the first step
+and 50-60 s from step 12 on (four candidates, ten decisions each).
+
+Read together: the soft candidates carry the gain, and a four-step
+horizon keeps most of it (+2.90 of +3.06 with soft candidates; +1.35 of
++2.49 with the first four).  The soft search's item is almost always a
+tie on the count broken by the slots, which is v23's rule (soft cargo
+where it costs the hard stacks nothing) decided by a continuation
+instead of a surface test; it places 6-7 more soft items a scene at
+the same load, with one to two priority items a scene lost (the
+priority container's spare rows and the shelf go to soft cargo before
+the priority cargo arrives; c2 -2.6, c1 -1.4).  A priority weight in
+the score is the next ceiling; the play-time form is the soft search
+with a four-step horizon under the 10 s limit.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
