@@ -1621,6 +1621,14 @@ continuation over the visible pool; `reports/bench/isearch-*-core-b`):
 | first four, four steps (`itemsearch:4/h4`, 48 scenes, v18 31.79) | +1.35 (35 / 8) | +1.31 | +0.56 | +1.12 | +0.007 | 31 -> 37 |
 | the ladder's item and two soft items, the whole pool (`itemsearch:3/soft`) | **+3.06** (37 / 6) | +5.92 | -1.25 | +0.14 | -0.002 | 31 -> 40 |
 | the same, four steps (`itemsearch:3/h4/soft`) | +2.90 (36 / 7) | +6.92 | -1.96 | -0.74 | -0.008 | 31 -> 39 |
+| soft candidates, a placed priority item counted twice (`itemsearch:3/soft/prio1`) | +3.08 (36 / 7) | +5.79 | -1.10 | +0.06 | -0.003 | 31 -> 40 |
+| the same, four steps (`itemsearch:3/h4/soft/prio1`) | +1.92 (31 / 13) | +5.85 | -1.31 | -1.65 | -0.012 | 31 -> 42 |
+
+The priority weight does not bring the priority cargo back (-1.10
+against -1.25): the loss is not in the pool the continuation sees, it
+is the priority cargo that arrives after the pool, to a shelf and rows
+the soft cargo took.  What keeps it is a rule about where a soft
+candidate may go, not a term in the score.
 
 Where the full ceiling's 477 overrides (of 1,384 searches) come from: 269
 are ties on the count broken by the room the load keeps (the slot
