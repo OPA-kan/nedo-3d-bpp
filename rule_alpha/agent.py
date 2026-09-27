@@ -935,6 +935,13 @@ class RuleAlphaAgent:
                 d = ladder(self.board, pr) or stack(self.board, pr)
                 if d is None:
                     continue
+                if pr.is_soft and not getattr(self.config, "pool_item_search_soft_floor", True) \
+                        and getattr(d.placement, "surface", "") == "floor":
+                    # a soft item on the floor early takes the floor from
+                    # the hard rows (the soft search lost 5-7 items on four
+                    # c1 scenes that way); the shelf and the tops are the
+                    # places where it costs the hard cargo nothing
+                    continue
                 b2 = scratch()
                 put(b2, d.placement)
                 after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]

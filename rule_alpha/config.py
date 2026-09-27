@@ -1544,6 +1544,9 @@ class RuleAlphaConfig:
     is the ladder's own item; the soft candidates replay the plan after
     themselves.  About one ladder decision and the candidates' own a
     step, whatever the horizon (``pool_item_search_steps``, 4 when 0)."""
+    pool_item_search_soft_floor: bool = True
+    """``rolling`` with soft candidates: a soft candidate whose own pose is
+    on the floor is skipped when False (the shelf and the tops only)."""
     pool_item_search_replay: bool = False
     """``continue`` mode: the other candidates do not run a continuation of
     their own; the ladder's continuation is replayed on the board with the

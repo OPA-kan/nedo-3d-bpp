@@ -1666,6 +1666,7 @@ soft ceiling 25 / 24 / 43).  On the suite, 4 s of search a decision:
 | soft (k = 3, horizon 4), first form | +1.09 (30 better, 14 worse) | +3.64 | -0.89 | -0.18 | 0.000 | 6.12 s (v18 5.68) |
 | the ladder's next three (k = 4, horizon 4), first form | -0.75 (16 / 28) | +1.63 | +0.08 | -1.45 | -0.002 | 6.19 s |
 | the ladder's next three, head as policy finds it | -0.44 (16 / 22) | -0.25 | -0.35 | -0.68 | +0.001 | 5.93 s |
+| soft (k = 3, horizon 4), head as policy finds it | +0.77 (28 / 13) | +2.23 | -1.44 | -0.53 | -0.008 | 6.29 s |
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
