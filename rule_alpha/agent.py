@@ -943,6 +943,12 @@ class RuleAlphaAgent:
                     # places where it costs the hard cargo nothing
                     continue
                 if pr.is_soft and not pr.is_prioritized \
+                        and not getattr(self.config, "pool_item_search_soft_shelf_over_priority", True) \
+                        and getattr(d.placement, "surface", "") == "shelf" \
+                        and any(p2.is_prioritized and not p2.is_soft for _i, p2 in ordered):
+                    # the shelf kept for the hard priority cargo in view
+                    continue
+                if pr.is_soft and not pr.is_prioritized \
                         and not getattr(self.config, "pool_item_search_soft_in_priority", True) \
                         and self.board.model(d.placement.container_idx).is_prioritized:
                     # the priority container's shelf and rows kept for the

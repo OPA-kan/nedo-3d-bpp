@@ -1547,6 +1547,9 @@ class RuleAlphaConfig:
     pool_item_search_soft_floor: bool = True
     """``rolling`` with soft candidates: a soft candidate whose own pose is
     on the floor is skipped when False (the shelf and the tops only)."""
+    pool_item_search_soft_shelf_over_priority: bool = True
+    """``rolling`` with soft candidates: a normal soft candidate on the
+    shelf is skipped when False while a hard priority item is in the pool."""
     pool_item_search_soft_in_priority: bool = True
     """``rolling`` with soft candidates: a normal soft candidate whose own
     pose is in a priority container is skipped when False."""
