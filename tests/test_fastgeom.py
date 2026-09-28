@@ -125,5 +125,25 @@ class ContactPatchTests(unittest.TestCase):
                         self.assertEqual(got, ref, (scene.name, idx, box, flags))
 
 
+
+
+class ContactFeatureTests(unittest.TestCase):
+    def test_wall_and_item_contact_agree_with_reference(self):
+        rng = random.Random(3)
+        for board, slow, scene in _boards():
+            for idx in range(len(board.containers)):
+                model = board.model(idx)
+                container = board.container(idx)
+                tops = [model.z_floor] + [float(p.box.maximum[2]) for p in board.placements[idx]]
+                for _ in range(300):
+                    size = (rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4))
+                    z = rng.choice(tops) + size[2] / 2.0 + rng.choice((0.0, 0.0, 0.02, -0.02, 0.1))
+                    box = AABB((rng.uniform(-0.9, 0.9), rng.uniform(-0.7, 0.7), z), size, "probe")
+                    self.assertEqual(layer1._wall_contact(box, model, container, slow),
+                                     layer1._wall_contact_reference(box, model, container, slow), (scene.name, box))
+                    self.assertEqual(layer1._item_contact(box, container, slow),
+                                     layer1._item_contact_reference(box, container, slow), (scene.name, box))
+
+
 if __name__ == "__main__":
     unittest.main()

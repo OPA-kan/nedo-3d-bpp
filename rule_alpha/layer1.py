@@ -1416,8 +1416,74 @@ def _wall_front_wanted(board: Board, container_idx: int, model: ContainerModel,
 # ---------------------------------------------------------------------------
 # Features
 # ---------------------------------------------------------------------------
+_PACKED_ARRAYS_CACHE: dict = {}
+
+
+def _packed_arrays_compute(container: dict):
+    boxes = [b for b, _s, _p in packed_aabbs_local(container)]
+    mins = np.array([b.minimum for b in boxes], dtype=np.float64).reshape(-1, 3)
+    maxs = np.array([b.maximum for b in boxes], dtype=np.float64).reshape(-1, 3)
+    return mins[:, 0], maxs[:, 0], mins[:, 1], maxs[:, 1], mins[:, 2], maxs[:, 2]
+
+
+def packed_arrays(container: dict):
+    """The packed items' extents as six arrays (x_min, x_max, y_min, y_max,
+    z_min, z_max), in ``packed_aabbs_local``'s order, cached with it."""
+    from ._reuse import cache_lookup
+
+    return cache_lookup(_PACKED_ARRAYS_CACHE, 32, container, _packed_arrays_compute)
+
+
+def _touching_items(box: AABB, container: dict):
+    """The packed items whose height range overlaps the box's by more than
+    2 cm (the ones the contact features look at), in packed order, with
+    their rectangles' numbers as floats."""
+    x_min, x_max, y_min, y_max, z_min, z_max = packed_arrays(container)
+    if x_min.shape[0] == 0:
+        return ()
+    cz, hz = float(box.center[2]), float(box.size[2]) / 2.0
+    z_overlap = np.minimum(z_max, cz + hz) - np.maximum(z_min, cz - hz)
+    idx = np.nonzero(z_overlap > 0.02)[0]
+    return [(float(x_min[i]), float(x_max[i]), float(y_min[i]), float(y_max[i])) for i in idx]
+
+
 def _wall_contact(box: AABB, model: ContainerModel, container: dict, config) -> float:
     """Perimeter length in contact with a container wall or a settled item."""
+    tol = config.settled_clearance * 1.6
+    rect = box_rect(box)
+    contact = 0.0
+    if abs(rect.x_min - model.floor_rect.x_min) <= tol:
+        contact += rect.y_max - rect.y_min
+    if abs(model.floor_rect.x_max - rect.x_max) <= tol:
+        contact += rect.y_max - rect.y_min
+    if abs(model.floor_rect.y_max - rect.y_max) <= tol:
+        contact += rect.x_max - rect.x_min
+    # the items at the box's height, in packed order (the sums run in the
+    # reference's order)
+    for px_min, px_max, py_min, py_max in _touching_items(box, container):
+        if abs(px_min - rect.x_max) <= tol or abs(rect.x_min - px_max) <= tol:
+            overlap = min(py_max, rect.y_max) - max(py_min, rect.y_min)
+            contact += max(0.0, overlap)
+        if abs(py_min - rect.y_max) <= tol or abs(rect.y_min - py_max) <= tol:
+            overlap = min(px_max, rect.x_max) - max(px_min, rect.x_min)
+            contact += max(0.0, overlap)
+    return contact
+
+
+def _item_contact(box: AABB, container: dict, config) -> float:
+    """Shared boundary length with already-settled items (walls excluded)."""
+    tol = config.settled_clearance * 1.6
+    rect = box_rect(box)
+    contact = 0.0
+    for px_min, px_max, py_min, py_max in _touching_items(box, container):
+        if abs(px_min - rect.x_max) <= tol or abs(rect.x_min - px_max) <= tol:
+            contact += max(0.0, min(py_max, rect.y_max) - max(py_min, rect.y_min))
+        if abs(py_min - rect.y_max) <= tol or abs(rect.y_min - py_max) <= tol:
+            contact += max(0.0, min(px_max, rect.x_max) - max(px_min, rect.x_min))
+    return contact
+
+
+def _wall_contact_reference(box: AABB, model: ContainerModel, container: dict, config) -> float:
     tol = config.settled_clearance * 1.6
     rect = box_rect(box)
     contact = 0.0
@@ -1443,8 +1509,7 @@ def _wall_contact(box: AABB, model: ContainerModel, container: dict, config) -> 
     return contact
 
 
-def _item_contact(box: AABB, container: dict, config) -> float:
-    """Shared boundary length with already-settled items (walls excluded)."""
+def _item_contact_reference(box: AABB, container: dict, config) -> float:
     tol = config.settled_clearance * 1.6
     rect = box_rect(box)
     contact = 0.0

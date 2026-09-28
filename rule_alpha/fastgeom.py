@@ -244,10 +244,9 @@ def action_center(box: AABB, model, container: dict, config):
 
 
 def _transport(cx, cy, cz, hx, hz, container, obs, sim_z):
-    """``transport_samples``' geometry without the AABBs: the sweep's z and
-    its sample centres (the y sweep from the opening, then the x sweep)."""
-    import math
-
+    """``transport_samples``' geometry without the AABBs: the sweep's z, its
+    start x, and the entry y; the sample centres come from ``_samples``
+    when an obstacle is at the sweep's height."""
     k = _constants()
     length = float(container["length"])
     width = float(container["width"])
@@ -274,18 +273,25 @@ def _transport(cx, cy, cz, hx, hz, container, obs, sim_z):
                 break
     maximum_start_z = height + buffer - thickness - hz - k["START"]
     transport_z = min(maximum_start_z, sim_z + effective_start_z)
-    step = k["STEP"]
+    return transport_z, start_x, entry_y
+
+
+def _samples(cx, cy, start_x, entry_y):
+    """The sweep's sample centres: the y sweep from the opening at the start
+    x, then the x sweep at the target y; the reference's ``entry +
+    (target - entry) * (i / steps)`` per sample, the same operations."""
+    import math
+
+    step = _constants()["STEP"]
     dist_y = abs(cy - entry_y)
     steps_y = max(int(math.ceil(dist_y / step)), 1)
     dist_x = abs(cx - start_x)
     steps_x = max(int(math.ceil(dist_x / step)), 1)
-    # the reference's ``entry + (target - entry) * (i / steps)`` per sample,
-    # the same operations elementwise
     frac_y = np.arange(steps_y + 1, dtype=np.float64) / float(steps_y)
     frac_x = np.arange(steps_x + 1, dtype=np.float64) / float(steps_x)
     xs = np.concatenate([np.full(steps_y + 1, start_x), start_x + (cx - start_x) * frac_x])
     ys = np.concatenate([entry_y + (cy - entry_y) * frac_y, np.full(steps_x + 1, cy)])
-    return transport_z, xs, ys
+    return xs, ys
 
 
 def validate(box: AABB, model, container: dict, config, action_center_fn, stability_fn):
@@ -306,7 +312,7 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
         return False, "settled-pose-outside"
     if not _inside(model, cx, cy, cmd_z, hx, hy, hz, float(config.inclusion_clearance), None):
         return False, "outside-container"
-    transport_z, xs, ys = _transport(cx, cy, cz, hx, hz, container, obs, sim_z)
+    transport_z, start_x, entry_y = _transport(cx, cy, cz, hx, hz, container, obs, sim_z)
     if not _inside(model, cx, cy, transport_z, hx, hy, hz, wall, 0.0):
         return False, "transport-pose-outside"
 
@@ -336,6 +342,7 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
     near = np.nonzero(z_gap < sweep - EPS)[0]
     if near.shape[0] == 0:
         return True, "ok"
+    xs, ys = _samples(cx, cy, start_x, entry_y)
     n = xs.shape[0]
     smin = np.empty((n, 3), dtype=np.float64)
     smax = np.empty((n, 3), dtype=np.float64)
