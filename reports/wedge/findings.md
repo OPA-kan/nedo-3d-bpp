@@ -1717,6 +1717,38 @@ analytic +1.60 is +0.77 on physics; the interval holds zero.  Not the
 several items a scene the route was taken for; v18 stays the
 submission of record.
 
+### The ladder made faster, with the same verdicts
+
+The item search's cost is the ladder's, and the ladder's was the
+validator's: 77,000 calls an episode at 0.47 ms, 70 % of a decision,
+spent outside the geometry (three ``inside`` calls of a few numpy
+operations each, the official ``transport_samples`` building an AABB
+per sweep sample, the AABB properties rebuilding two arrays a call).
+``fastgeom.validate`` now computes the same numbers from the box's
+centre and size as floats, over the container's planes cached as
+floats, the simulator's action centre and the sweep's height without
+AABBs, the obstacles in one pass, and the sweep's samples only when an
+obstacle is at the sweep's height (an obstacle whose gap in z alone
+reaches the clearance is never within it); the contact search and the
+contact features run over cached arrays with the sums in the
+reference's order.  ``tests/test_fastgeom.py`` checks every verdict,
+reason, action centre, contact rectangle and contact feature against
+the reference on random boxes and on the planner's own candidates.
+
+| | before | after |
+|---|---|---|
+| validate, a call | 0.47 ms | 0.10 ms |
+| a ladder decision, mid-episode (b-c1-s0005) | 0.6-1.1 s | 0.2-0.4 s |
+| the episode (23 items, single process) | 53 s | 33 s |
+
+On the analytic B suite (four processes at once, `scratchpad/fastv`
+against `v18base` run the same way) 13 of 48 episodes are identical
+step by step and the rest part at a stack option decision or where the
+slower run's deadline cut the ladder: 30.92 -> 31.88 items a scene
+under that load, which is the time tail's cost made visible.  The
+endgame is now the slow part: a stack option decision at 1.8-3.7 s
+once the ladder has nothing for any pool item.
+
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
 before it, or the pose had been decided on a board without the item
