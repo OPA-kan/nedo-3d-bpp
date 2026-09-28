@@ -1544,6 +1544,11 @@ class RuleAlphaConfig:
     is the ladder's own item; the soft candidates replay the plan after
     themselves.  About one ladder decision and the candidates' own a
     step, whatever the horizon (``pool_item_search_steps``, 4 when 0)."""
+    pool_item_search_branch: str = "replay"
+    """``rolling``: how a candidate's branch is continued after it.
+    ``replay``: the plan's poses through the validator (cheap, the poses
+    decided without the candidate).  ``decide``: the ladder's own decisions,
+    ``pool_item_search_steps`` of them (the bench ceiling's test)."""
     pool_item_search_soft_floor: bool = True
     """``rolling`` with soft candidates: a soft candidate whose own pose is
     on the floor is skipped when False (the shelf and the tops only)."""

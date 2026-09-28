@@ -976,10 +976,28 @@ class RuleAlphaAgent:
                     continue
                 b2 = scratch()
                 put(b2, d.placement)
-                after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]
-                p2, v2, _kept, ok = replay(b2, after, skip_index=pr.index)
-                if not ok:
-                    continue
+                if getattr(self.config, "pool_item_search_branch", "replay") == "decide":
+                    # the ceiling's own test: the ladder continues after the
+                    # candidate with its own decisions (horizon of them), not
+                    # the plan's poses replayed; costs horizon decisions a
+                    # candidate, affordable once a decision is cheap
+                    p2, v2, ok = 0, 0.0, True
+                    rest = [(qi, qr) for qi, qr in ordered if qr.index != pr.index]
+                    while rest and p2 < horizon:
+                        d2, ok = first_decision(b2, rest, None, set())
+                        if d2 is None:
+                            break
+                        put(b2, d2.placement)
+                        p2 += 1
+                        v2 += float(np.prod(d2.placement.box.size))
+                        rest = [(qi, qr) for qi, qr in rest if qr.index != d2.placement.profile.index]
+                    if not ok:
+                        continue
+                else:
+                    after = [x for x in plan if x.placement.profile.index != pr.index][:horizon]
+                    p2, v2, _kept, ok = replay(b2, after, skip_index=pr.index)
+                    if not ok:
+                        continue
                 slots = sum(scorer.slots(b2, ci) for ci in range(len(b2.models)))
                 v2 += float(np.prod(d.placement.box.size))
                 results.append((float(p2 + 1) + min(slot_cap, slots / 40.0) + v2 / 10000.0, int(pr.index), d, True))
