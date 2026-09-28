@@ -700,6 +700,10 @@ def action_center(box: AABB, model: ContainerModel, container: dict, config):
     modelled at 2 cm, and put tall wall-front items inside the small shelf's
     safety margin.
     """
+    if getattr(config, "fast_validate", False):
+        from . import fastgeom
+
+        return fastgeom.action_center(box, model, container, config)
     centre = np.asarray(simulator_action_center(box, container), dtype=np.float64)
     already_lifted = abs(float(centre[2]) - float(box.center[2])) > 1e-9
     if already_lifted:

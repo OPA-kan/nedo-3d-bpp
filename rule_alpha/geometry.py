@@ -486,12 +486,11 @@ class ContainerModel:
 
 
 def box_rect(box: AABB) -> Rect:
-    return Rect(
-        float(box.minimum[0]),
-        float(box.maximum[0]),
-        float(box.minimum[1]),
-        float(box.maximum[1]),
-    )
+    # the AABB's minimum/maximum properties rebuild two arrays a call; the
+    # same numbers from the centre and size directly
+    cx, cy = float(box.center[0]), float(box.center[1])
+    hx, hy = float(box.size[0]) / 2.0, float(box.size[1]) / 2.0
+    return Rect(cx - hx, cx + hx, cy - hy, cy + hy)
 
 
 def make_container_dict(

@@ -30,6 +30,8 @@ structure.
 from __future__ import annotations
 
 import math
+
+import numpy as np
 from dataclasses import dataclass
 
 from ._reuse import AABB, packed_aabbs_local, packed_dimensions, shelf_aabbs
@@ -53,8 +55,70 @@ class Stability:
         return self.contact_count > 0 and self.margin > 0.0
 
 
+class _Structure:
+    """The solid surfaces of a container as arrays, one set per structure
+    rule (which cargo carries load), built on first use and shared while
+    the container's packed items are the same objects."""
+
+    def __init__(self, container: dict):
+        self.container = container
+        self.sets: dict = {}
+
+    def arrays(self, priority_is_structure: bool, soft_is_structure: bool):
+        key = (bool(priority_is_structure), bool(soft_is_structure))
+        got = self.sets.get(key)
+        if got is None:
+            surfaces = _surfaces(self.container, key[0], key[1])
+            mins = np.array([s.minimum for s in surfaces], dtype=np.float64).reshape(-1, 3)
+            maxs = np.array([s.maximum for s in surfaces], dtype=np.float64).reshape(-1, 3)
+            got = self.sets[key] = (mins[:, 0], maxs[:, 0], mins[:, 1], maxs[:, 1], maxs[:, 2])
+        return got
+
+
+_STRUCTURE_CACHE: dict = {}
+
+
+def _surfaces(container: dict, priority_is_structure: bool, soft_is_structure: bool) -> list:
+    surfaces = [
+        AABB(
+            center=(0.0, 0.0, float(container["thickness"])
+                    + float(container.get("buffer", 0.0))),
+            size=(float(container["length"]), float(container["width"]), 0.0),
+            name="floor",
+        )
+    ]
+    surfaces.extend(shelf_aabbs(container))
+    for packed, is_soft, is_prioritized in packed_aabbs_local(container):
+        if (is_soft and not soft_is_structure) or (is_prioritized and not priority_is_structure):
+            continue  # deforms under load, so it is not structure
+        surfaces.append(packed)
+    return surfaces
+
+
 def contact_patches(box: AABB, container: dict, tolerance: float,
                     priority_is_structure: bool = False, soft_is_structure: bool = False) -> list[Rect]:
+    """``_contact_patches_reference`` over cached surface arrays: the same
+    rectangles in the same order, from the same numbers."""
+    from ._reuse import cache_lookup
+
+    structure = cache_lookup(_STRUCTURE_CACHE, 32, container, _Structure)
+    smin_x, smax_x, smin_y, smax_y, stop = structure.arrays(priority_is_structure, soft_is_structure)
+    cx, cy, cz = (float(v) for v in box.center)
+    hx, hy, hz = (float(v) / 2.0 for v in box.size)
+    bottom = cz - hz
+    idx = np.nonzero(np.abs(bottom - stop) <= tolerance)[0]
+    if idx.shape[0] == 0:
+        return []
+    x_min = np.maximum(cx - hx, smin_x[idx])
+    x_max = np.minimum(cx + hx, smax_x[idx])
+    y_min = np.maximum(cy - hy, smin_y[idx])
+    y_max = np.minimum(cy + hy, smax_y[idx])
+    keep = np.nonzero((x_max - x_min > 1e-9) & (y_max - y_min > 1e-9))[0]
+    return [Rect(float(x_min[k]), float(x_max[k]), float(y_min[k]), float(y_max[k])) for k in keep]
+
+
+def _contact_patches_reference(box: AABB, container: dict, tolerance: float,
+                               priority_is_structure: bool = False, soft_is_structure: bool = False) -> list[Rect]:
     """Rectangles where the underside of ``box`` meets something solid.
 
     Soft cargo deforms under load and by default never counts.  Priority

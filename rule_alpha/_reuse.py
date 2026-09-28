@@ -90,8 +90,12 @@ def cache_lookup(cache: dict, limit: int, container, compute):
     entry = cache.get(id(container))
     if entry is not None:
         held_container, held_packed, value = entry
-        if held_container is container and len(held_packed) == len(packed) and all(
-            a is b for a, b in zip(held_packed, packed)
+        # the board only appends to and pops from the list, so the same
+        # length with the same first and last dicts is the same list (the
+        # entry holds every dict, so none of these addresses can be reused)
+        n = len(packed)
+        if held_container is container and len(held_packed) == n and (
+            n == 0 or (held_packed[0] is packed[0] and held_packed[-1] is packed[-1])
         ):
             return value
     value = compute(container)

@@ -81,5 +81,49 @@ class FastValidateTests(unittest.TestCase):
         self.assertEqual((before, after), (0, 1))
 
 
+
+
+class FastActionCenterTests(unittest.TestCase):
+    def test_action_center_agrees_with_reference(self):
+        rng = random.Random(1)
+        for board, slow, scene in _boards():
+            fast = dataclasses.replace(slow, fast_validate=True)
+            for idx in range(len(board.containers)):
+                model = board.model(idx)
+                container = board.container(idx)
+                tops = [model.z_floor] + [float(s.maximum[2]) for s in model.shelves]
+                tops += [float(p.box.maximum[2]) for p in board.placements[idx]]
+                for _ in range(300):
+                    size = (rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4))
+                    z = rng.choice(tops) + size[2] / 2.0 + rng.choice((0.0, 0.0, 0.0, 0.004, -0.004, 0.03))
+                    box = AABB((rng.uniform(-0.9, 0.9), rng.uniform(-0.7, 0.7), z), size, "probe")
+                    ref = layer1.action_center(box, model, container, slow)
+                    got = layer1.action_center(box, model, container, fast)
+                    self.assertEqual([float(v) for v in ref], [float(v) for v in got], (scene.name, idx, box))
+
+
+
+
+class ContactPatchTests(unittest.TestCase):
+    def test_contact_patches_agree_with_reference(self):
+        from rule_alpha import stability
+
+        rng = random.Random(2)
+        for board, slow, scene in _boards():
+            for idx in range(len(board.containers)):
+                model = board.model(idx)
+                container = board.container(idx)
+                tops = [model.z_floor] + [float(s.maximum[2]) for s in model.shelves]
+                tops += [float(p.box.maximum[2]) for p in board.placements[idx]]
+                for _ in range(300):
+                    size = (rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4))
+                    z = rng.choice(tops) + size[2] / 2.0 + rng.choice((0.0, 0.0, 0.0, 0.004, -0.004, 0.03))
+                    box = AABB((rng.uniform(-0.9, 0.9), rng.uniform(-0.7, 0.7), z), size, "probe")
+                    for flags in ((False, False), (True, False), (True, True)):
+                        ref = stability._contact_patches_reference(box, container, slow.contact_tolerance, *flags)
+                        got = stability.contact_patches(box, container, slow.contact_tolerance, *flags)
+                        self.assertEqual(got, ref, (scene.name, idx, box, flags))
+
+
 if __name__ == "__main__":
     unittest.main()
