@@ -159,6 +159,15 @@ OVERRIDES = dict(
     # priority cargo carries load (only priority cargo may sit on it under
     # the cover rule): the priority container gets its second layer
     priority_is_structure=True,
+    # v26: every chosen pose is tried in a private pybullet world that
+    # mirrors the official placement test (rule_alpha/shadow.py: the same
+    # sweep and settle) before it is committed; a pose that would be
+    # rejected or fall is replaced by the next survivor, or the decision
+    # goes on.  Physics suites against v18: +0.44 / +0.85 / +0.56 items a
+    # scene on A / B / C, settle ends 4 -> 1 on B and C, the tail shorter.
+    # 0.2-0.5 s a check inside the 4.5 s budget; without pybullet the
+    # agent is v18.
+    shadow_check=True,
 )
 STACK_POLICY = "weights/stack"
 
