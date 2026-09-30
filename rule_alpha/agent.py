@@ -983,8 +983,13 @@ class RuleAlphaAgent:
                     # candidate, affordable once a decision is cheap
                     p2, v2, ok = 0, 0.0, True
                     rest = [(qi, qr) for qi, qr in ordered if qr.index != pr.index]
+                    # the items the ladder had nothing for on this board are
+                    # not tried again in the branch (a pose one more item
+                    # opens for them is rare; the failures are what makes a
+                    # late-episode decision cost seconds)
+                    branch_fails = set(fail0)
                     while rest and p2 < horizon:
-                        d2, ok = first_decision(b2, rest, None, set())
+                        d2, ok = first_decision(b2, rest, None, branch_fails)
                         if d2 is None:
                             break
                         put(b2, d2.placement)
