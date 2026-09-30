@@ -65,5 +65,41 @@ class ShadowSimTests(unittest.TestCase):
         self.assertLess(out["drift"], 0.01)
 
 
+
+@unittest.skipUnless(shadow.available(), "pybullet is not installed")
+class ShadowGateTests(unittest.TestCase):
+    def test_agent_checks_every_decision(self):
+        import dataclasses
+
+        from bench.arms import make_arm
+
+        scene = make_scene(2, "c1", "C", items_per_container=8)
+        arm = make_arm("ladder-stable")
+        arm.config = dataclasses.replace(arm.config, shadow_check=True)
+        containers = scene.rule_alpha_containers()
+        agent = arm(scene)
+        agent.get_init_states({"optimize": False, "lookahead_k": 1, "container_list": containers})
+        placed = 0
+        for item in scene.items[:4]:
+            obs = {"optimize": False, "lookahead_k": 1, "container_list": containers, "pool_list": [item]}
+            action = agent.policy(obs)
+            if action is None:
+                break
+            placed += 1
+            self.assertIsNotNone(agent.last_shadow)
+            self.assertIn(agent.last_shadow["outcome"], ("kept", "replaced", "kept-after-veto", "fallback-after-veto"))
+            # the placed box joins the world at its target pose (the
+            # analytic board's view; the settled pose is what the
+            # simulator would report)
+            pos = [float(v) for v in action["place_pos"]]
+            packed = dict(item, pos=pos, orn=list(shadow.p.getQuaternionFromEuler(shadow.ORNS[int(action["orientation"])])),
+                          orientation=int(action["orientation"]))
+            containers[int(action["container_idx"])]["packed_items"].append(packed)
+        self.assertGreaterEqual(placed, 3)
+        self.assertGreaterEqual(agent.shadow_stats["checks"], placed)
+        self.assertEqual(agent.shadow_stats["vetoes"], agent.shadow_stats["replaced"]
+                         + agent.shadow_stats.get("kept_soft", 0) + agent.shadow_stats.get("continued", 0))
+
+
 if __name__ == "__main__":
     unittest.main()
