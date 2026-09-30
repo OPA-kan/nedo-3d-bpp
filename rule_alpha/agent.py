@@ -660,10 +660,20 @@ class RuleAlphaAgent:
         # are the ones most worth checking (a skipped check at the end of
         # b-c2p-s0006 was the episode's settle end)
         end = started + budget
+        physics_resort = bool(getattr(self.config, "physics_resort", False)) and self._shadow_observation is not None
         if self._shadow_observation is not None and self._shadow is not None:
             end -= min(max(self._shadow_longest, 0.3), 1.0) + 0.05
+        if physics_resort:
+            end -= float(getattr(self.config, "physics_resort_seconds", 1.8))
         if self.config.last_resort_relax and self._can_start(end):
             action = self._last_resort(containers, ordered, end)
+            if action is not None:
+                return action
+
+        # the physics resort: what the analytic rules refuse but the
+        # simulator would accept (see the config)
+        if physics_resort:
+            action = self._physics_resort(ordered, pool, started + budget - 0.05)
             if action is not None:
                 return action
 
@@ -1429,6 +1439,84 @@ class RuleAlphaAgent:
             return fn(*args, **kwargs)
         finally:
             self._longest_call = max(getattr(self, "_longest_call", 0.0), time.perf_counter() - t0)
+
+    def _physics_resort(self, ordered: list, pool: list, deadline: float) -> dict | None:
+        """Every pose the geometry allows on the floor or a packed top, in
+        any container, lowest and best supported first, tried in the shadow
+        world until one stands (the sweep and the settle pass, no landing
+        over the hard limits away).  The analytic vetoes (tower rule,
+        support shares, headroom reserve, the extra transport clearance)
+        are not applied: the physics is the judge here.  The cover rule
+        is kept (it is the platform's placement score, not physics)."""
+        sim = self._shadow_sim()
+        if sim is None:
+            return None
+        from wedge_rl.stack import stack_candidates
+
+        from .planner import _placement
+
+        strict = self.config
+        cfg = dataclasses.replace(
+            strict,
+            settled_clearance=min(strict.settled_clearance, strict.last_resort_settled_clearance),
+            routing_any_container=True, stack_max_bottom=10.0, stack_soft_min_support=0.0,
+            stack_soft_standing=True,
+        )
+
+        def room() -> bool:
+            return time.perf_counter() + max(self._shadow_longest, 0.2) <= deadline
+
+        limit = int(getattr(strict, "physics_resort_candidates", 300))
+        tried = 0
+        for pool_index, profile in ordered:
+            if not room():
+                break
+            item = pool[pool_index]
+            for container_idx in layer1.routing_order(profile, self.board, cfg):
+                if not room():
+                    break
+                model = self.board.model(container_idx)
+                container = self.board.container(container_idx)
+                t0 = time.perf_counter()
+                try:
+                    cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
+                                             mass=float(item.get("mass", 0.0)), tower_min=None,
+                                             extra_clearance=0.0, z_top=None)
+                except Exception as exc:
+                    print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
+                    continue
+                self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                if not cands:
+                    continue
+                # the well supported low poses first: the load's height is
+                # priced, and a pose on a whole top is the one that stands
+                cands.sort(key=lambda c: (round(c.bottom, 2), -round(c.support_ratio, 2),
+                                          -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
+                for cand in cands:
+                    if not room():
+                        break
+                    placement = _placement(cand, len(cands), profile, container_idx, model)
+                    placement.archetype = "physics-resort"
+                    placement.reason = f"physics resort: {cand.bottom:.2f} m, support {cand.support_ratio:.2f}, among {len(cands)}"
+                    try:
+                        if not self._shadow_synced:
+                            sim.sync(self._shadow_observation.get("container_list", []))
+                            self._shadow_synced = True
+                        action = self._action(pool_index, placement)
+                        v = self._shadow_verdict(sim, action, item)
+                    except Exception as exc:
+                        print(f"[physics-resort] check failed: {exc!r}", flush=True)
+                        return None
+                    tried += 1
+                    if not self._shadow_hard(v):
+                        self.last_decision = layer1.Decision(placement=placement, candidate_counts={"physics-resort": len(cands)},
+                                                             veto_counts={}, considered=len(cands), ladder=[])
+                        self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "drift", "drift_xy", "angle_deg", "ok")},
+                                            "outcome": "physics-resort", "tried": tried}
+                        self.shadow_stats["resort"] = self.shadow_stats.get("resort", 0) + 1
+                        return action
+        self.shadow_stats["resort_tried"] = self.shadow_stats.get("resort_tried", 0) + tried
+        return None
 
     def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:
         """Two stages before a decline: every container with the strict

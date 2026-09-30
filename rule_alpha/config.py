@@ -1897,6 +1897,18 @@ class RuleAlphaConfig:
     veto: the survivors are tried, and without one the pose stands."""
     shadow_alternatives: int = 4
     """How many other survivors of the decision are tried after a veto."""
+    physics_resort: bool = False
+    """After the last resort and before a decline: every pose on the floor
+    or on a packed top the geometry allows (the stack option's candidate
+    generator with the tower rule, the extra clearance and the soft
+    headroom off, the relaxed clearance), lowest first, tried in the
+    shadow world until one stands.  Needs ``shadow_check``.  A decline
+    ends the episode; a pose the physics accepts does not."""
+    physics_resort_seconds: float = 1.8
+    """The window before the budget's end kept for the physics resort (the
+    last resort stops that much earlier); about four checks."""
+    physics_resort_candidates: int = 300
+    """Poses generated per container before ranking."""
     shadow_budget_share: float = 1.0
     """Checks run only while the slowest check so far fits before this
     share of the policy budget (the last resort stops early to leave that

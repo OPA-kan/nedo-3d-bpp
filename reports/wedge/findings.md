@@ -1966,6 +1966,39 @@ should see: two more episodes a suite that reach their end, and the
 soft and priority counts up.  Built as v26 (`shadow_check` on, the
 v18 configuration otherwise).
 
+A note on the bench's two evaluator fills.  The official app's
+evaluator runs with the validator's inclusion margin (-0.005: every
+corner 5 mm inside every plane, the floor included), so every box
+resting on the floor is "not inside" and the sample check's fill
+(`fill_evaluator_shipped`, 25.8 / 24.4 / 18.1 on the v26 A / B / C
+suites against 37.4 / 35.5 / 29.3 by volume) counts the raised boxes
+only: 21 exclusions on the v26 sample run, every one on the floor
+plane by 0-0.1 mm (soft boxes sink 7-15 mm).  The README says the
+platform's inclusion test for the fill is looser than the validator's,
+and the official fills (34-36) sit at the bench's volume figure, so
+the volume (or `fill_evaluator_tolerant`) is the platform's fill and
+the floor is not a lever.
+
+How v26 packs and where it stops (`scratchpad/pack_profile.py` over
+the three physics suites): every episode but one a suite ends on a
+decline with 3.8 / 3.9 / 4.3 m^3 of container volume free and 23 / 29
+/ 34 items left (A / B / C), of them 11 / 14 / 10 soft and 5-8 over
+0.08 m^3; the volume left is 1.7-2.2 m^3, under half the room.  On B
+the pool at the decline is 8.1 of 10 soft and the item the ladder
+gives up on is soft in 44 of 48 episodes: 26 % of the soft cargo is
+placed (226 of 874) against 45 % on C and the hard cargo's 60-70 %.
+On C the declined item is a hard box of 0.05-0.08 m^3 (smallest side
+0.24-0.27 m) in 32 of 48 episodes, with 4.3 m^3 free; the fraction
+placed is 0.45 and 11 episodes of 48 are over 0.5, where the platform
+zeroes the four non-fill components.  The load: A is 76 % the plan's
+poses; B and C are terraces (24-31 %), floor poses (22-23 %), the
+shelf gallery (14-18 %), the stack option (9-11 %); the last three
+placements of an episode are the stack option's in half the episodes.
+The cover rule does not refuse soft cargo on hard cargo, so what
+leaves the soft cargo out at the end is the analytic vetoes (tower
+rule, support shares, transport clearance, the reserve's ceiling) on
+tops the physics might well hold.  Hence the physics resort below.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
