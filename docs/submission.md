@@ -223,6 +223,23 @@ section "The shadow world").  Official sample: A 32.11 / 25 placed
 same); policy max 1.13 / 3.73 / 0.85 s (v18 1.46 / 4.22 / 1.70),
 optimize 28 s (`official-sample-abc-v26.json`).
 
+Twenty-seventh build (v27): v26 with the physics resort
+(`physics_resort`).  Before a decline, every pose the geometry allows
+on the floor or on a packed top in any container -- the stack option's
+candidate generator with the tower rule, the extra transport clearance,
+the support shares and the headroom reserve off, a 4 cm anchor lattice
+across every support, the cover rule kept -- is tried lowest and best
+supported first in the shadow world until one stands; a decline ends
+the episode, a pose the physics accepts does not.  With a Task B pool
+the resort may run 1.5 s past the 4.5 s budget (the limit is 10 s).
+Physics suites against v26: items A +0.65 (16 scenes up, none down), B
++1.00 (19 up, none down), C +0.96 (19 up, none down); soft B +0.98, C
++0.44; episodes over half the items B 30 -> 34, C 11 -> 17 of 48;
+topples unchanged; CoM +0.002-0.006 (findings section "The physics
+resort").  Official sample: A 32.11 / 25 placed (v26 the same), B
+27.28 / 25 (v26 25.99 / 25), C 23.14 / 23 (the same); policy max 0.93 /
+4.06 / 0.93 s, optimize 31 s (`official-sample-abc-v27.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
