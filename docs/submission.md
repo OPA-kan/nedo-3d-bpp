@@ -200,6 +200,29 @@ against v18 (Task A, the only task the reserve touches): items -0.85
 0.23 -> 0.19 (n.s.), episodes above the count threshold 45 -> 44 of 48,
 the soft count kept (analytic +0.04).
 
+Twenty-sixth build (v26): v18 with the shadow check (`shadow_check`;
+`rule_alpha/shadow.py`).  Every chosen pose is tried, before it is
+committed, in a private pybullet world the agent builds from the
+observation with the simulator's own container meshes, shelves and
+item dynamics, running the official placement test itself (the
+transport sweep at 0.01 m within 0.015 m of the packed items and
+shelves, then the warp and 300 settle steps with the 0.3 m / 45 deg
+limits); on two physics scenes the verdicts matched the official
+validator on 155/155 transport and 142/142 settle probes and the
+settled poses agreed within 0.4 mm.  A pose the test would reject, or
+one that lands over 0.10 m / 15 deg away, is replaced by the next
+survivor of the decision that passes, or the decision goes on to its
+next item and stage; a milder slide keeps the pose unless a survivor
+passes.  0.2-0.5 s a check inside the 4.5 s budget, the last resort
+leaving room for it; without pybullet the agent is v18.  Physics
+suites against v18: items A +0.44 (6 scenes up, 0 down), B +0.85, C
++0.56; soft B +0.52 (16 up, 0 down); priority B +0.17; settle ends 4
+-> 1 on B and on C; slowest call shorter on every suite (findings
+section "The shadow world").  Official sample: A 32.11 / 25 placed
+(v18 the same), B 25.99 / 25 (v18 23.06 / 25), C 23.14 / 23 (the
+same); policy max 1.13 / 3.73 / 0.85 s (v18 1.46 / 4.22 / 1.70),
+optimize 28 s (`official-sample-abc-v26.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
