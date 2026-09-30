@@ -673,7 +673,12 @@ class RuleAlphaAgent:
         # the physics resort: what the analytic rules refuse but the
         # simulator would accept (see the config)
         if physics_resort:
-            action = self._physics_resort(ordered, pool, started + budget - 0.05)
+            # with a pool (Task B, limit 10 s against A and C's 8 s) the
+            # resort may run past the budget by physics_resort_extra_seconds:
+            # the call that declines is the episode's last, and the stages
+            # before it have spent the budget on the pool
+            extra = float(getattr(self.config, "physics_resort_extra_seconds", 1.5)) if len(pool) > 1 else 0.0
+            action = self._physics_resort(ordered, pool, started + budget + extra - 0.05)
             if action is not None:
                 return action
 
@@ -1468,6 +1473,10 @@ class RuleAlphaAgent:
 
         limit = int(getattr(strict, "physics_resort_candidates", 300))
         tried = 0
+        # a Task B pool holds several items of one size (eight soft
+        # 0.65 x 0.35 x 0.23 boxes of ten at the end of b-c2-s0006): the
+        # candidates are the same for all of them
+        generated: dict[tuple, list] = {}
         # the soft cargo first: at the end of a Task B episode the pool is
         # mostly soft, the hard items in it have been refused by every
         # stage for a reason the physics is unlikely to overturn, and a
@@ -1482,25 +1491,31 @@ class RuleAlphaAgent:
                     break
                 model = self.board.model(container_idx)
                 container = self.board.container(container_idx)
-                t0 = time.perf_counter()
-                try:
-                    cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
-                                             mass=float(item.get("mass", 0.0)), tower_min=None,
-                                             extra_clearance=0.0, z_top=None,
-                                             dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)))
-                    # half the footprint over the support at least: the
-                    # shake test comes after the settle
-                    cands = [c for c in cands if c.on_floor or c.support_ratio >= 0.5]
-                except Exception as exc:
-                    print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
-                    continue
-                self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                key = (container_idx, round(float(item["length"]), 4), round(float(item["width"]), 4),
+                       round(float(item["height"]), 4), bool(profile.is_soft), bool(profile.is_prioritized))
+                if key in generated:
+                    cands = generated[key]
+                else:
+                    t0 = time.perf_counter()
+                    try:
+                        cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
+                                                 mass=float(item.get("mass", 0.0)), tower_min=None,
+                                                 extra_clearance=0.0, z_top=None,
+                                                 dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)))
+                        # half the footprint over the support at least: the
+                        # shake test comes after the settle
+                        cands = [c for c in cands if c.on_floor or c.support_ratio >= 0.5]
+                    except Exception as exc:
+                        print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
+                        cands = []
+                    self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                    # the well supported low poses first: the load's height
+                    # is priced, and a pose on a whole top is the one that stands
+                    cands.sort(key=lambda c: (round(c.bottom, 2), -round(c.support_ratio, 2),
+                                              -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
+                    generated[key] = cands
                 if not cands:
                     continue
-                # the well supported low poses first: the load's height is
-                # priced, and a pose on a whole top is the one that stands
-                cands.sort(key=lambda c: (round(c.bottom, 2), -round(c.support_ratio, 2),
-                                          -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
                 for cand in cands:
                     if not room():
                         break
