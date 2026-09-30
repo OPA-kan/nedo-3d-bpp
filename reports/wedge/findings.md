@@ -1851,6 +1851,70 @@ ceiling's test: a hard candidate's branch replays the plan's poses
 again, so the comparison is between a plan and the same plan with one
 item moved, and the ties it breaks are noise; -0.44 a scene.
 
+### The shadow world: the official placement test before the pose is committed
+
+The search's gap was the mirror's: poses every analytic validator
+accepts that the simulator's sweep rejects, and settles the analytic
+board does not model.  With the ladder's decision at 1-2 s of a 4.5 s
+budget, the freed time goes to the test itself.  `rule_alpha/shadow.py`
+builds the simulator's world in a private pybullet DIRECT client from
+the observation -- the container meshes from the simulator's own obj
+writers (vendored, so the agent imports no simulator module), the
+shelf and small shelf as boxes, the packed items at their reported
+poses with their reported dynamics -- and runs the simulator's own
+placement test for one pose: the spawn point with the resting and
+ceiling rules, the y then x sweep at 0.01 m with `getClosestPoints`
+within 0.015 m against the container's items and shelves, then the
+warp and 300 settle steps with the 0.3 m / 45 deg limits.  The world
+is rebuilt from the observation at every call (3 ms), so it never
+drifts from what the simulator reports.
+
+Agreement, measured by asking both worlds the same question at every
+step of the v18 agent on two physics B scenes (the chosen pose and
+three perturbed ones a step; `scratchpad/shadow_probe.py`):
+
+| | probes | agree |
+|---|---:|---:|
+| transport (official inclusion passed) | 155 | 155 |
+| settle (both transports passed) | 142 | 142 |
+| settled displacement, both passed | 130 | mean 0.1 mm, max 0.4 mm apart |
+| the official probe against the real step | 44 | 44 |
+
+The one disagreement of the first pass was the small shelf: the
+official sweep tests it (after the packed items and the main shelf;
+the walls it does not test, they only act in the settle), and the
+shadow reproduces the same hit at the same sweep position and distance
+once it does too.  A check costs 0.2-0.46 s at 16-23 packed items, the
+300 settle steps almost all of it.
+
+The chosen poses' own settle is a drop, not a slide: the ladder's
+lifted target lands 2-5 cm lower (median 0.020 m, max 0.063 m) with no
+sideways motion and no tilt (angle median 0, max 1.4 deg), so a drift
+veto must read the horizontal part and the angle, not the displacement.
+
+The gate (`shadow_check`): after every decision the chosen pose goes
+through the shadow; a pose the sweep or the settle would reject, or one
+that slides over `shadow_max_drift_xy` (0.02 m) or tilts over
+`shadow_max_angle_deg` (5), is replaced by the next of the decision's
+survivors that passes (up to `shadow_alternatives` = 4 tried, while the
+slowest check so far fits before 95 % of the budget); without one the
+ladder's pose stands, since a failed placement and a decline end the
+episode alike.  On b-c1-s0001 the gate keeps every one of v18's 21
+poses (0 vetoes, 4.8 s of checks over the episode, no call over 0.85 s
+before the last resort's own tail).  Physics B and C suites with the
+gate: `reports/bench/shadow-core-b`, `shadow-core` (Actions).
+
+### The wider ladder: a negative result
+
+With the validator 4.7x faster the ladder can afford more candidates.
+Denser anchors (`max_anchor_x` 26 -> 40, `max_anchor_y` 22 -> 34,
+`max_candidates_per_orientation` 220 -> 400, `shortlist_size` 100) on
+the analytic B suite against the same agent with the default width:
+placed -0.19 a scene (6 better, 8 worse), fill -0.36, priority +0.06,
+tail 5.66 s against 5.78 s.  The ladder is not candidate-starved; its
+losses are the mirror's and the order's, not the grid's.  Six
+orientations instead of three (`ladder_orientations` = 6): running.
+
 ## Executor status
 
 | region | plain PPO vs best hand rule | soft-taught PPO | soft-taught + look-ahead | physics acceptance | beam ceiling (6 streams) |
