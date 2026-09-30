@@ -1931,7 +1931,47 @@ check part of every decision site (`_emit`): a hard veto (sweep or
 settle rejection, or a landing over 0.10 m / 15 deg away) without a
 passing survivor lets the decision go on to its next item and next
 stage, the vetoed pose kept only as the answer before a decline; a
-soft veto without one keeps the pose as before.
+soft veto without one keeps the pose as before.  The last resort stops
+early enough to leave the check of its own pose room (a skipped check
+at the end of b-c2p-s0006 was that episode's settle end).  On the
+three B scenes where the first form kept a doomed pose: b-c2p-s0003
+32 -> 38, b-c1s-s0012 20 -> 24 (v18's count), b-c2p-s0006 34 -> 40.
+
+The second form on the three physics suites (Actions, budget 6;
+`reports/bench/shadow2-core-a`, `shadow2-core-b`, `shadow2-core`,
+`v18-vs-shadow2-*.txt`), against v18:
+
+| suite | placed | soft | priority | fill | CoM | settle ends | tail |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A (48) | 38.02 -> 38.46 (+0.44; 6 better, 0 worse) | 7.27 -> 7.52 (+0.25) | 4.40 -> 4.42 | 37.15 -> 37.44 (+0.29) | 0.338 -> 0.341 | 0 -> 0 | 3.58 -> 1.46 s |
+| B (48) | 31.54 -> 32.40 (+0.85; 9 better, 4 worse) | 4.19 -> 4.71 (+0.52; 16 better, 0 worse) | 4.17 -> 4.33 (+0.17; 6 better, 0 worse) | 35.00 -> 35.49 (+0.49) | 0.378 -> 0.378 | 4 -> 1 | 5.67 -> 5.06 s |
+| C (48) | 27.21 -> 27.77 (+0.56; 6 better, 1 worse) | 8.00 -> 8.10 | 3.15 -> 3.17 | 28.94 -> 29.33 (+0.39) | 0.344 -> 0.347 | 4 -> 1 | 3.35 -> 1.33 s |
+
+1847 / 1586 / 1347 checks on A / B / C, 0.30 / 0.24 / 0.25 s each on
+the runner, none skipped, no call over the budget; 1 / 17 / 11 vetoes,
+of which 1 / 7 / 3 replaced by a survivor, 0 / 8 / 4 continued to
+another item or stage, and the one remaining settle end a suite on B
+and C is the fallback (a pose the shadow saw fall at 1.1-1.6 m and
+90 deg, with nothing else found within the budget, so the answer
+before a decline).  Task A gains too (6 scenes up, none down): the
+planner's replayed poses that the settle would have rejected are
+replaced by the ladder's.  The soft count on B is up on 16 scenes and
+down on none: with the ladder's tail shorter (the check is cheaper
+than the calls it displaces at the end of the budget) the soft-first
+pass and the soft cargo's own decisions get their turn.  CoM is up by
+0.003 on A and C, the rescued items being the high ones.  With the
+platform's prices (1.7 points per 0.01 of CoM, the count above the
+threshold, fill by volume) the B and C suites are the ones the score
+should see: two more episodes a suite that reach their end, and the
+soft and priority counts up.  Built as v26 (`shadow_check` on, the
+v18 configuration otherwise).
+
+Six ladder orientations instead of three (`ladder_orientations` = 6,
+analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
+16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
+tail +0.05 s.  A wider choice, not a better one at the same load; the
+CoM cost prices about what the count gains.  Not adopted; a physics
+run behind the shadow is the next test if it is tried again.
 
 ### The wider ladder: a negative result
 
