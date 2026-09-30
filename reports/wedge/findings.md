@@ -1775,8 +1775,20 @@ family, every class up:
 | the whole pool (41 scenes) | +2.49 (30 / 5) | +2.00 | +0.42 | +2.24 | +0.009 |
 
 So the target for the play-time form is the horizon-3 ceiling, nine
-decisions a step for three candidates; what the rolling form under
-contention captured of it is a quarter.
+decisions a step for three candidates.  What the rolling form captures
+of it is a matter of time: with the search's deadline lifted (30 s) it
+placed 24 / 25 / 47 / 27 on b-c1-s0012 / b-c1s-s0006 / b-c2-s0001 /
+b-c1-s0007 against the ceiling's 24 / 21 / 43 / 28 and v18's 30 / 19 /
+38 / 27, at 17-30 s a call; at 4 s a decision on the suite:
+
+| processes at once | items | soft | priority | fill | com | max policy call |
+|---|---|---|---|---|---|---|
+| four | +0.54 (25 / 15) | +0.35 | -0.10 | +0.45 | +0.001 | 5.90 s |
+| two (`scratchpad/roll9d3b`) | **+1.04 (27 / 12)** | +0.88 | +0.10 | +0.50 | +0.005 | 5.86 s |
+
+Every class up, 38 of 48 episodes at or over the count threshold (v18
+31), and the max call at v18's level.  The physics B suite of this form
+is `reports/bench/roll9d3-core-b`.
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
