@@ -63,6 +63,9 @@ class RuleAlphaAgent:
         self._shadow = None
         self._shadow_failed = False
         self._shadow_longest = 0.0
+        self._shadow_observation = None
+        self._shadow_synced = False
+        self._shadow_fallback = None
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.last_shadow: dict | None = None
 
@@ -242,10 +245,14 @@ class RuleAlphaAgent:
         return [int(i) for i in order]
 
     def policy(self, observation: dict):
-        action = self._policy_inner(observation)
-        if action is not None and getattr(self.config, "shadow_check", False):
-            action = self._shadow_gate(observation, action)
-        return action
+        # the shadow check's per-call state: the world is synced from this
+        # observation before the first check, and the first hard-vetoed
+        # pose is what the call answers with when nothing else is found
+        self._shadow_observation = observation if getattr(self.config, "shadow_check", False) else None
+        self._shadow_synced = False
+        self._shadow_fallback = None
+        self.last_shadow = None
+        return self._policy_inner(observation)
 
     # -- the shadow check ----------------------------------------------------
     def _shadow_sim(self):
@@ -269,6 +276,8 @@ class RuleAlphaAgent:
         finally:
             spent = time.perf_counter() - t0
             self._shadow_longest = max(self._shadow_longest, spent)
+            # the stages' deadlines count the check with the decision
+            self._longest_call = max(getattr(self, "_longest_call", 0.0), spent)
             self.shadow_stats["checks"] += 1
             self.shadow_stats["seconds"] += spent
         out["ok"] = bool(out["transport_ok"] and out["settle_ok"]
@@ -276,13 +285,25 @@ class RuleAlphaAgent:
                          and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
         return out
 
-    def _shadow_gate(self, observation: dict, action: dict) -> dict:
-        """The chosen pose in the shadow world; on a veto, the decision's
-        other survivors in the ladder's order until one passes.  Whatever
-        happens the call answers with a pose: the ladder's own when nothing
-        better is known."""
+    def _shadow_hard(self, verdict: dict) -> bool:
+        return bool(not verdict["transport_ok"] or not verdict["settle_ok"]
+                    or verdict["drift_xy"] > float(getattr(self.config, "shadow_hard_drift_xy", 0.10))
+                    or verdict["angle_deg"] > float(getattr(self.config, "shadow_hard_angle_deg", 15.0)))
+
+    def _emit(self, pool_index: int, placement) -> dict | None:
+        """The action for a placement, through the shadow check when it is
+        on.  The chosen pose is tried in the shadow world; on a veto the
+        decision's other survivors are tried in the ladder's order.  A soft
+        veto (a slide under the hard limits) without an alternative keeps
+        the pose.  A hard veto (the sweep or the settle rejects it, or it
+        lands far away) without one answers None, so the caller goes on to
+        its next item or stage; the first such pose is kept as the call's
+        fallback (``_shadow_fallback``), played only before a decline."""
+        action = self._action(pool_index, placement)
+        observation = getattr(self, "_shadow_observation", None)
+        if observation is None:
+            return action
         sim = self._shadow_sim()
-        self.last_shadow = None
         if sim is None:
             return action
         started = float(getattr(self, "_policy_started", time.perf_counter()))
@@ -297,7 +318,9 @@ class RuleAlphaAgent:
         pool = observation.get("pool_list", [])
         item = pool[int(action["item_idx"])]
         try:
-            sim.sync(observation.get("container_list", []))
+            if not self._shadow_synced:
+                sim.sync(observation.get("container_list", []))
+                self._shadow_synced = True
             verdict = self._shadow_verdict(sim, action, item)
         except Exception as exc:
             self._shadow_failed, self._shadow = True, None
@@ -311,30 +334,37 @@ class RuleAlphaAgent:
         self.shadow_stats["vetoes"] += 1
         decision = self.last_decision
         tried = []
-        if decision is not None and decision.survivors and decision.placement is not None:
-            profile = decision.placement.profile
-            container_idx = int(decision.placement.container_idx)
+        if decision is not None and decision.survivors and decision.placement is placement:
+            profile = placement.profile
+            container_idx = int(placement.container_idx)
             limit = int(getattr(self.config, "shadow_alternatives", 4))
             for cand in decision.survivors:
                 if cand is decision.chosen or len(tried) >= limit or not room():
                     continue
                 try:
-                    placement = layer1.build_placement(cand, decision.placement.archetype, self.board,
-                                                       container_idx, profile, self.config)
-                    alt = self._action(int(action["item_idx"]), placement)
+                    alt_placement = layer1.build_placement(cand, placement.archetype, self.board,
+                                                           container_idx, profile, self.config)
+                    alt = self._action(pool_index, alt_placement)
                     v = self._shadow_verdict(sim, alt, item)
                 except Exception as exc:
                     print(f"[shadow] alternative failed: {exc!r}", flush=True)
                     break
                 tried.append({k: v[k] for k in ("transport_ok", "settle_ok", "drift_xy", "angle_deg", "ok")})
                 if v["ok"]:
-                    placement.reason = "shadow: " + placement.reason
-                    self.last_decision = dataclasses.replace(decision, placement=placement, chosen=cand)
+                    alt_placement.reason = "shadow: " + alt_placement.reason
+                    self.last_decision = dataclasses.replace(decision, placement=alt_placement, chosen=cand)
                     self.shadow_stats["replaced"] += 1
                     self.last_shadow = {"chosen": digest, "outcome": "replaced", "tried": tried}
                     return alt
-        self.last_shadow = {"chosen": digest, "outcome": "kept-after-veto", "tried": tried}
-        return action
+        if not self._shadow_hard(verdict):
+            self.shadow_stats["kept_soft"] = self.shadow_stats.get("kept_soft", 0) + 1
+            self.last_shadow = {"chosen": digest, "outcome": "kept-after-veto", "tried": tried}
+            return action
+        self.shadow_stats["continued"] = self.shadow_stats.get("continued", 0) + 1
+        if self._shadow_fallback is None:
+            self._shadow_fallback = (action, self.last_decision,
+                                     {"chosen": digest, "outcome": "fallback-after-veto", "tried": tried})
+        return None
 
     def _policy_inner(self, observation: dict):
         started = time.perf_counter()
@@ -388,7 +418,9 @@ class RuleAlphaAgent:
                 pool_index, decision = hit
                 self.last_decision = decision
                 self.plan_replayed += 1
-                return self._action(pool_index, decision.placement)
+                action = self._emit(pool_index, decision.placement)
+                if action is not None:
+                    return action
 
         # soft cargo where it costs the hard stacks nothing (Task B, and any
         # item off the plan): the pool order puts every soft item behind
@@ -460,7 +492,9 @@ class RuleAlphaAgent:
                 placement.archetype = "online-rows"
                 self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": 1},
                                                      veto_counts={}, considered=1, ladder=[])
-                return self._action(pool_index, placement)
+                action = self._emit(pool_index, placement)
+                if action is not None:
+                    return action
         elif name and (not self.plan_by_index or self.plan_source != "planner"):
             from .planner import _key, _placement
             from wedge_rl.stack import stack_candidates
@@ -551,14 +585,18 @@ class RuleAlphaAgent:
                 placement.archetype = "online-" + name
                 self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": count},
                                                      veto_counts={}, considered=count, ladder=[])
-                return self._action(pool_index, placement)
+                action = self._emit(pool_index, placement)
+                if action is not None:
+                    return action
             if best_overall is not None:
                 _score, pool_index, profile, (container_idx, model, cand, count) = best_overall
                 placement = _placement(cand, count, profile, container_idx, model)
                 placement.archetype = "online-" + name
                 self.last_decision = layer1.Decision(placement=placement, candidate_counts={"online": count},
                                                      veto_counts={}, considered=count, ladder=[])
-                return self._action(pool_index, placement)
+                action = self._emit(pool_index, placement)
+                if action is not None:
+                    return action
 
         # Task B: which of the visible items goes next (see the config's
         # ``pool_item_search``); the ladder's own item is tried first, so
@@ -570,7 +608,9 @@ class RuleAlphaAgent:
             if hit is not None:
                 pool_index, decision = hit
                 self.last_decision = decision
-                return self._action(pool_index, decision.placement)
+                action = self._emit(pool_index, decision.placement)
+                if action is not None:
+                    return action
         # the rolling search tried the ladder and the stack option on every
         # pool item within its deadline and found nothing: the loops below
         # would find the same nothing at the same cost
@@ -583,7 +623,9 @@ class RuleAlphaAgent:
                 decision = self.wedge_option.propose(self.board, profile)
                 if decision is not None:
                     self.last_decision = decision
-                    return self._action(pool_index, decision.placement)
+                    action = self._emit(pool_index, decision.placement)
+                    if action is not None:
+                        return action
 
         for n, (pool_index, profile) in enumerate(ordered if not exhausted else []):
             if n and not self._can_start(ladder_deadline):
@@ -593,7 +635,9 @@ class RuleAlphaAgent:
             if decision is None:
                 continue
             self.last_decision = decision
-            return self._action(pool_index, decision.placement)
+            action = self._emit(pool_index, decision.placement)
+            if action is not None:
+                return action
 
         # Layer 1 is finished.  The stack option is the learned Layer 2: it
         # places on the boxes the ladder left, under the tower rule.
@@ -604,15 +648,34 @@ class RuleAlphaAgent:
                 decision = self._timed(self.stack_option.propose, self.board, profile)
                 if decision is not None:
                     self.last_decision = decision
-                    return self._action(pool_index, decision.placement)
+                    action = self._emit(pool_index, decision.placement)
+                    if action is not None:
+                        return action
 
         # A decline ends the episode and scores no lower than a failed
         # attempt, so before declining try once with the margins relaxed to
         # just above the official validator's own.
-        if self.config.last_resort_relax and self._can_start(started + budget):
-            action = self._last_resort(containers, ordered, started + budget)
+        # the last resort runs to the budget's end; with the shadow on it
+        # leaves the slowest check so far's room, since its relaxed poses
+        # are the ones most worth checking (a skipped check at the end of
+        # b-c2p-s0006 was the episode's settle end)
+        end = started + budget
+        if self._shadow_observation is not None and self._shadow is not None:
+            end -= min(max(self._shadow_longest, 0.3), 1.0) + 0.05
+        if self.config.last_resort_relax and self._can_start(end):
+            action = self._last_resort(containers, ordered, end)
             if action is not None:
                 return action
+
+        # a pose the shadow vetoed and nothing replaced: a failed placement
+        # ends the episode the way a decline does, and the shadow can be wrong
+        fallback = getattr(self, "_shadow_fallback", None)
+        if fallback is not None:
+            action, decision, digest = fallback
+            self.last_decision = decision
+            self.last_shadow = digest
+            self.shadow_stats["fallback"] = self.shadow_stats.get("fallback", 0) + 1
+            return action
 
         # Nothing else, so say so rather than inventing a placement that
         # would fail validation.
@@ -1236,7 +1299,9 @@ class RuleAlphaAgent:
                     self.last_decision = layer1.Decision(placement=placement, candidate_counts={"soft-first": 1},
                                                          veto_counts={}, considered=1, ladder=[])
                     self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
-                    return self._action(pool_index, placement)
+                    action = self._emit(pool_index, placement)
+                    if action is not None:
+                        return action
         max_items = int(getattr(self.config, "soft_first_max_items", 0) or 0)
         for n, (pool_index, profile) in enumerate(soft_pairs):
             if not self._can_start(deadline) or (max_items and n >= max_items):
@@ -1255,7 +1320,9 @@ class RuleAlphaAgent:
                 placement.reason = "soft-first (floor gap): " + placement.reason
                 self.last_decision = decision
                 self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
-                return self._action(pool_index, placement)
+                action = self._emit(pool_index, placement)
+                if action is not None:
+                    return action
             free = placement.surface == "shelf"
             if not free:
                 # on soft cargo: the support under the box is soft
@@ -1275,7 +1342,9 @@ class RuleAlphaAgent:
             placement.reason = "soft-first: " + placement.reason
             self.last_decision = decision
             self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
-            return self._action(pool_index, placement)
+            action = self._emit(pool_index, placement)
+            if action is not None:
+                return action
         return None
 
     def _hard_box_fits_over(self, ordered: list, model, container: dict, container_idx: int, box) -> bool:
@@ -1409,7 +1478,9 @@ class RuleAlphaAgent:
                 decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
                 self.last_decision = decision
                 self.last_resort_used += 1
-                return self._action(pool_index, decision.placement)
+                action = self._emit(pool_index, decision.placement)
+                if action is not None:
+                    return action
         if self.stack_option is not None:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(deadline):
@@ -1422,7 +1493,9 @@ class RuleAlphaAgent:
                     decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
                     self.last_decision = decision
                     self.last_resort_used += 1
-                    return self._action(pool_index, decision.placement)
+                    action = self._emit(pool_index, decision.placement)
+                    if action is not None:
+                        return action
         return None
 
     def _action(self, pool_index: int, placement) -> dict:

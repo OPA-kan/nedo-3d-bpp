@@ -1888,11 +1888,19 @@ class RuleAlphaConfig:
     """A settle that moves the box sideways by more than this is a veto
     (the drop from the lifted target is expected and not counted)."""
     shadow_max_angle_deg: float = 5.0
+    shadow_hard_drift_xy: float = 0.10
+    shadow_hard_angle_deg: float = 15.0
+    """A pose the sweep or the settle rejects, or one that lands over these
+    limits away, is a hard veto: without a survivor that passes, the
+    decision goes on to the next item or stage (and the vetoed pose is
+    played only when nothing else is found).  A milder slide is a soft
+    veto: the survivors are tried, and without one the pose stands."""
     shadow_alternatives: int = 4
     """How many other survivors of the decision are tried after a veto."""
-    shadow_budget_share: float = 0.95
+    shadow_budget_share: float = 1.0
     """Checks run only while the slowest check so far fits before this
-    share of the policy budget."""
+    share of the policy budget (the last resort stops early to leave that
+    room)."""
 
     policy_budget_seconds: float = 6.0
     """Wall-clock budget for one ``policy`` call, inside the official limit
