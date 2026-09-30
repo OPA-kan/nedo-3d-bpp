@@ -1749,6 +1749,35 @@ under that load, which is the time tail's cost made visible.  The
 endgame is now the slow part: a stack option decision at 1.8-3.7 s
 once the ladder has nothing for any pool item.
 
+**The search again, with the faster ladder** (the rolling form, the
+ladder's next three items as candidates, each branch continued by the
+ladder's own decisions, `pool_item_search_branch=decide`; analytic B
+suite, four processes at once, 4 s of search a decision):
+
+| horizon | items | soft | priority | fill | com | max policy call |
+|---|---|---|---|---|---|---|
+| 4 | -0.27 (18 / 24) | -0.08 | -0.19 | -0.25 | +0.001 | 5.87 s |
+| 3 | +0.54 (25 / 15) | +0.35 | -0.10 | +0.45 | +0.001 | 5.90 s |
+
+Three candidates with four decisions each is twelve decisions a step;
+at 0.2-0.4 s each under four processes the search is cut before the
+last candidates on most mid-episode steps, and a cut search is the
+ladder's item.  Three decisions each fits and gains half an item a
+scene with every class kept.  The ceilings at the short horizons
+(`reports/bench/isearch-h2-core-b`, `-h3-`) are the best of the first-four
+family, every class up:
+
+| horizon (`itemsearch:4/h<n>`) | items | soft | priority | fill | com |
+|---|---|---|---|---|---|
+| 2 | +1.81 (31 / 11) | +1.77 | +0.48 | +1.67 | +0.007 |
+| 3 | **+2.15 (35 / 7)** | +2.02 | +0.52 | +1.67 | +0.012 |
+| 4 | +1.35 (35 / 8) | +1.31 | +0.56 | +1.12 | +0.007 |
+| the whole pool (41 scenes) | +2.49 (30 / 5) | +2.00 | +0.42 | +2.24 | +0.009 |
+
+So the target for the play-time form is the horizon-3 ceiling, nine
+decisions a step for three candidates; what the rolling form under
+contention captured of it is a quarter.
+
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
 before it, or the pose had been decided on a board without the item
