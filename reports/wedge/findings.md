@@ -1804,6 +1804,33 @@ not quite the ladder's decision on the board it is played on; the
 cache is now trusted only while every item is within
 `pool_item_search_drift` (1 cm) of its predicted place.
 
+**Two controls on physics** (`reports/bench/v18fast-core-b`,
+`roll9g-core-b`, against `v18-core-b`):
+
+| run | items | fill | shipped fill | priority | com | ends | max call |
+|---|---|---|---|---|---|---|---|
+| v18 with the faster validator, no search | -0.10 (5 / 39 same / 4) | -0.21 | -0.20 | +0.02 | -0.002 | settle 5, transport 1 | **6.20 s** (v18 7.79) |
+| the search, drift-aware | -0.10 (22 / 7 / 19) | -0.38 | -1.19 [-2.28, -0.10] | -0.29 | +0.001 | settle 3, transport 2 | 6.61 s |
+
+The faster ladder alone reproduces v18 on physics (30 of 48 episodes
+the same step by step, 39 with the same count; the rest part where the
+slower run's deadline cut the ladder, or at a stack option decision)
+and takes 1.6 s off the slowest call: that part is a keeper.  Its one
+transport-ended episode is the same pose the search's run ended on
+(b-c1s-s0012, item 14, a soft-edge pose at 0.985 m that every
+validator accepts and the simulator rejects): the mirror's gap, not
+the validator's.  The search does not hold on physics: twice now
+it is -0.1 to -0.2 items with the official evaluator's fill down by
+about one item's worth, so the items the search adds on the analytic
+board are ones the evaluator does not count on the settled one (edge
+and top poses that settle outside the inclusion margin), and its order
+meets the mirror's transport gap more often (2-3 episodes of 48 end on
+a transport rejection, v18 none).  The analytic +1.04 (ceiling +2.15)
+is real on the analytic board and not on the physics one, which is the
+board the platform scores.  Recorded as a negative result for the
+play-time search; the +1.04 remains as the measure of what the order
+is worth if the settling can be predicted better than the mirror does.
+
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival
 before it, or the pose had been decided on a board without the item
