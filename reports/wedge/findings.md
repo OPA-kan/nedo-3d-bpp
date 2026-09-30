@@ -1901,8 +1901,37 @@ slowest check so far fits before 95 % of the budget); without one the
 ladder's pose stands, since a failed placement and a decline end the
 episode alike.  On b-c1-s0001 the gate keeps every one of v18's 21
 poses (0 vetoes, 4.8 s of checks over the episode, no call over 0.85 s
-before the last resort's own tail).  Physics B and C suites with the
-gate: `reports/bench/shadow-core-b`, `shadow-core` (Actions).
+before the last resort's own tail).
+
+The physics suites with the gate (Actions, budget 6, four shards;
+`reports/bench/shadow-core-b`, `shadow-core`) against v18's:
+
+| suite | placed | soft | priority | fill | CoM | settle ends | transport ends |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| B (48) | 31.54 -> 32.15 (+0.60; 11 better, 4 worse) | 4.19 -> 4.67 (+0.48) | 4.17 -> 4.25 | 35.00 -> 35.31 (+0.31) | 0.378 -> 0.377 | 4 -> 2 | 0 -> 1 |
+| C (48) | 27.21 -> 27.63 (+0.42; 5 better, 1 worse) | 8.00 -> 8.08 | 3.15 -> 3.17 | 28.94 -> 29.21 (+0.27) | 0.344 -> 0.346 | 4 -> 2 | 0 |
+
+The gain is the episodes that no longer end: b-c2-s0005 +14 and
+b-c2-s0011 +11, c-c2-s0010 +11, where v18's chosen pose fell over on
+landing (the shadow's settle: 1.09 m and 0.41 m away at 92 and 28 deg
+on b-c2-s0005, 0.66 m at 91 deg on c-c2-s0002) and the next survivor
+landed in place.  1559 checks on B (13 vetoes, 6 replaced, 1 skipped
+for time), 1338 on C (9 vetoes, 3 replaced); 0.24 s a check on the
+runner, and the tail is not longer (B 5.67 -> 5.29 s).  The soft count
+is up 0.48 a scene on B because the two rescued episodes go on to their
+soft cargo.
+
+What the first form left on the table: the four remaining settle ends
+(two a suite) are hard vetoes the shadow saw (settle failures at
+0.72-1.09 m) with no survivor to try -- stack option and online
+planner decisions carry none -- so the pose was played and the
+episode ended; and b-c1s-s0012's transport end was a veto whose four
+alternatives all failed the sweep too.  The second form makes the
+check part of every decision site (`_emit`): a hard veto (sweep or
+settle rejection, or a landing over 0.10 m / 15 deg away) without a
+passing survivor lets the decision go on to its next item and next
+stage, the vetoed pose kept only as the answer before a decline; a
+soft veto without one keeps the pose as before.
 
 ### The wider ladder: a negative result
 
