@@ -1909,6 +1909,9 @@ class RuleAlphaConfig:
     last resort stops that much earlier); about four checks."""
     physics_resort_candidates: int = 300
     """Poses generated per container before ranking."""
+    physics_resort_anchor_step: float = 0.04
+    """Anchor lattice step (m) across every support for the resort's
+    candidates, besides the generator's flush anchors."""
     shadow_budget_share: float = 1.0
     """Checks run only while the slowest check so far fits before this
     share of the policy budget (the last resort stops early to leave that

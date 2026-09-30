@@ -314,13 +314,18 @@ def sample_future(rng, n: int, start_index: int = 100000) -> list[dict]:
 
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
-                     extra_clearance: float = 0.0, z_top: float | None = None) -> list[Candidate]:
+                     extra_clearance: float = 0.0, z_top: float | None = None,
+                     dense: float = 0.0) -> list[Candidate]:
     """Every legal pose on the floor or on a packed top, lowest first.
 
     ``tower_min``: smallest combined centre-of-mass margin (``Tower``) a
     pose may leave on the boxes it loads; ``extra_clearance``: how much
     further than the validator's clearance the anchors step away from
-    neighbours and the transport sweep must stay from packed boxes."""
+    neighbours and the transport sweep must stay from packed boxes.
+    ``dense``: with a step in metres, anchors every step across each
+    support's extent (and the floor's) besides the flush and stepped-in
+    ones, for the poses that stand a few centimetres off an edge because
+    the flush pose meets a neighbour (the physics resort's case)."""
     if getattr(cfg, "soft_is_structure", False) and not getattr(cfg, "stack_soft_is_structure", True):
         # soft cargo carries no load here (see the config): the validator
         # and the stability call below read the flag from ``cfg``
@@ -370,6 +375,14 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
             for b in packed:
                 xs.update((float(b.maximum[0]) + dx / 2.0 + gap, float(b.minimum[0]) - dx / 2.0 - gap))
                 ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap))
+            if dense > 0.0:
+                spans = [(float(b.minimum[0]), float(b.maximum[0]), float(b.minimum[1]), float(b.maximum[1])) for b in bases] \
+                    if bases else [(model.x_wall_min, rect.x_max, rect.y_min, rect.y_max)]
+                for x0, x1, y0, y1 in spans:
+                    # the box's centre anywhere its footprint keeps at
+                    # least half of itself over the support
+                    xs.update(np.arange(x0, x1 + 1e-9, dense).round(3).tolist())
+                    ys.update(np.arange(y0, y1 + 1e-9, dense).round(3).tolist())
             xs = {x for x in xs if x - dx / 2.0 >= model.x_wall_min and x + dx / 2.0 <= rect.x_max + 1e-9}
             ys = {y for y in ys if y - dy / 2.0 >= rect.y_min - 1e-9 and y + dy / 2.0 <= rect.y_max + 1e-9}
             if fast:

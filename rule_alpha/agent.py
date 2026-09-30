@@ -1468,7 +1468,12 @@ class RuleAlphaAgent:
 
         limit = int(getattr(strict, "physics_resort_candidates", 300))
         tried = 0
-        for pool_index, profile in ordered:
+        # the soft cargo first: at the end of a Task B episode the pool is
+        # mostly soft, the hard items in it have been refused by every
+        # stage for a reason the physics is unlikely to overturn, and a
+        # soft box fits where a hard one of its size would not stand
+        queue = sorted(ordered, key=lambda pp: 0 if pp[1].is_soft else 1)
+        for pool_index, profile in queue:
             if not room():
                 break
             item = pool[pool_index]
@@ -1481,7 +1486,11 @@ class RuleAlphaAgent:
                 try:
                     cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
                                              mass=float(item.get("mass", 0.0)), tower_min=None,
-                                             extra_clearance=0.0, z_top=None)
+                                             extra_clearance=0.0, z_top=None,
+                                             dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)))
+                    # half the footprint over the support at least: the
+                    # shake test comes after the settle
+                    cands = [c for c in cands if c.on_floor or c.support_ratio >= 0.5]
                 except Exception as exc:
                     print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
                     continue
