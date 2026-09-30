@@ -1787,8 +1787,22 @@ b-c1-s0007 against the ceiling's 24 / 21 / 43 / 28 and v18's 30 / 19 /
 | two (`scratchpad/roll9d3b`) | **+1.04 (27 / 12)** | +0.88 | +0.10 | +0.50 | +0.005 | 5.86 s |
 
 Every class up, 38 of 48 episodes at or over the count threshold (v18
-31), and the max call at v18's level.  The physics B suite of this form
-is `reports/bench/roll9d3-core-b`.
+31), and the max call at v18's level.
+
+On the physics B suite (`reports/bench/roll9d3-core-b`,
+`v18-vs-roll9d3-core-b.json`) the same form is -0.17 items [-1.60,
++1.29], fill -0.82, the shipped fill -1.36 (the one interval clear of
+zero), priority -0.21, com flat, the max call 6.56 s (v18 7.79), and
+three episodes end on a transport rejection by the simulator (v18
+none; the reference validator and both fast forms accept those three
+poses on the settled boards, so the mirror's known gap, met more often
+by the search's order).  The analytic +1.04 does not survive physics
+as run.  One reason is structural: the rolling form's cached head is
+the ladder's decision on the board the last step predicted, and on
+physics every settled board drifts a little from it, so the head is
+not quite the ladder's decision on the board it is played on; the
+cache is now trusted only while every item is within
+`pool_item_search_drift` (1 cm) of its predicted place.
 
 The first form's head was not the ladder's decision: a cached pose
 stood in for the ladder although the pool order had a new arrival

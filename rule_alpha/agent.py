@@ -877,6 +877,24 @@ class RuleAlphaAgent:
         # the ladder's branch: the head the way policy finds it, with the
         # cached decisions and failures standing in for the ladder calls
         cache = getattr(self, "_pool_cache", None) or {"plan": [], "fails": []}
+        # the cached decisions were made on the board the last step
+        # predicted; on physics the settled board drifts, and a decision
+        # on a board that is not this one is not the ladder's decision on
+        # this one.  With any item off its predicted place by more than
+        # the drift allowance, the cache stands as poses only.
+        drift = float(getattr(self.config, "pool_item_search_drift", 0.01))
+        expect = cache.get("expect")
+        if expect is not None and drift >= 0.0:
+            actual = {}
+            for ci, c in enumerate(self.board.containers):
+                for p in c.get("packed_items", []):
+                    actual[(ci, int(p.get("index", -1)))] = tuple(float(v) for v in p.get("pos", (0.0, 0.0, 0.0)))
+            moved = set(expect) != set(actual) or any(
+                max(abs(a - b) for a, b in zip(expect[k], actual[k])) > drift for k in expect)
+            if moved:
+                for d in cache["plan"]:
+                    d.via = "replay"
+                cache = {"plan": cache["plan"], "fails": [set() for _d in cache["plan"]]}
         plan_in = [d for d in cache["plan"] if d.placement.profile.index in in_pool]
         fails_in = [set(f) & set(in_pool) for f in cache["fails"]][:len(plan_in)] or [set()]
         # only the plan's head was decided on this board (the poses after
@@ -891,8 +909,14 @@ class RuleAlphaAgent:
                                         ladder_deadline=started + 0.6 * budget, option_deadline=started + 0.85 * budget)
         board = scratch()
         placed, volume, plan, fails = 0, 0.0, [], []
+        expect_next = None
         if head is not None:
             put(board, head.placement)
+            # where every item will be if the head settles where it was put
+            expect_next = {}
+            for ci, c in enumerate(board.containers):
+                for p in c.get("packed_items", []):
+                    expect_next[(ci, int(p.get("index", -1)))] = tuple(float(v) for v in p.get("pos", (0.0, 0.0, 0.0)))
             placed, volume, plan, fails = 1, float(np.prod(head.placement.box.size)), [head], [fail0]
             rest_plan = [d for d in plan_in if d.placement.profile.index != head.placement.profile.index]
             # the plan's poses were decided on the boards after its own
@@ -1021,9 +1045,9 @@ class RuleAlphaAgent:
             keep = [d for d in plan if d.placement.profile.index != best[1]]
             for d in keep:
                 d.via = "replay"
-            self._pool_cache = {"plan": keep, "fails": [set() for _d in keep]}
+            self._pool_cache = {"plan": keep, "fails": [set() for _d in keep], "expect": None}
             return in_pool[best[1]][0], best[2]
-        self._pool_cache = {"plan": list(plan[1:]), "fails": list(fails[1:])}
+        self._pool_cache = {"plan": list(plan[1:]), "fails": list(fails[1:]), "expect": expect_next}
         return in_pool[first_index][0], first
 
     def _pool_plan(self, containers: list, profiles: list, deadline: float) -> None:

@@ -1544,6 +1544,11 @@ class RuleAlphaConfig:
     is the ladder's own item; the soft candidates replay the plan after
     themselves.  About one ladder decision and the candidates' own a
     step, whatever the horizon (``pool_item_search_steps``, 4 when 0)."""
+    pool_item_search_drift: float = 0.01
+    """``rolling``: the cached decisions stand in for the ladder only while
+    every packed item is within this distance (m) of where the last step
+    expected it (on physics the settled board drifts); negative: never
+    checked."""
     pool_item_search_branch: str = "replay"
     """``rolling``: how a candidate's branch is continued after it.
     ``replay``: the plan's poses through the validator (cheap, the poses
