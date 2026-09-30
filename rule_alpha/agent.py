@@ -58,6 +58,13 @@ class RuleAlphaAgent:
         self.plan_replayed = 0
         self.last_resort_used = 0
         self._longest_call = 0.0
+        # the shadow check (config.shadow_check): a private pybullet world
+        # that tries the chosen pose the way the simulator will
+        self._shadow = None
+        self._shadow_failed = False
+        self._shadow_longest = 0.0
+        self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
+        self.last_shadow: dict | None = None
 
     def _resize_zones_for_what_is_left(self) -> None:
         """Re-sizes the reserved strips from the cargo still to come.
@@ -235,6 +242,101 @@ class RuleAlphaAgent:
         return [int(i) for i in order]
 
     def policy(self, observation: dict):
+        action = self._policy_inner(observation)
+        if action is not None and getattr(self.config, "shadow_check", False):
+            action = self._shadow_gate(observation, action)
+        return action
+
+    # -- the shadow check ----------------------------------------------------
+    def _shadow_sim(self):
+        if self._shadow is None and not self._shadow_failed:
+            try:
+                from . import shadow
+
+                if not shadow.available():
+                    raise RuntimeError("pybullet is not available")
+                self._shadow = shadow.ShadowSim()
+            except Exception as exc:  # the check is optional: without it the agent is v18
+                self._shadow_failed = True
+                print(f"[shadow] disabled: {exc!r}", flush=True)
+        return self._shadow
+
+    def _shadow_verdict(self, sim, action: dict, item: dict) -> dict:
+        t0 = time.perf_counter()
+        try:
+            out = sim.check(int(action["container_idx"]), item,
+                            tuple(float(v) for v in action["place_pos"]), int(action["orientation"]))
+        finally:
+            spent = time.perf_counter() - t0
+            self._shadow_longest = max(self._shadow_longest, spent)
+            self.shadow_stats["checks"] += 1
+            self.shadow_stats["seconds"] += spent
+        out["ok"] = bool(out["transport_ok"] and out["settle_ok"]
+                         and out["drift_xy"] <= float(getattr(self.config, "shadow_max_drift_xy", 0.02))
+                         and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
+        return out
+
+    def _shadow_gate(self, observation: dict, action: dict) -> dict:
+        """The chosen pose in the shadow world; on a veto, the decision's
+        other survivors in the ladder's order until one passes.  Whatever
+        happens the call answers with a pose: the ladder's own when nothing
+        better is known."""
+        sim = self._shadow_sim()
+        self.last_shadow = None
+        if sim is None:
+            return action
+        started = float(getattr(self, "_policy_started", time.perf_counter()))
+        deadline = started + float(getattr(self.config, "shadow_budget_share", 0.95)) * float(self.config.policy_budget_seconds)
+
+        def room() -> bool:
+            return time.perf_counter() + self._shadow_longest <= deadline
+
+        if not room():
+            self.shadow_stats["skipped"] += 1
+            return action
+        pool = observation.get("pool_list", [])
+        item = pool[int(action["item_idx"])]
+        try:
+            sim.sync(observation.get("container_list", []))
+            verdict = self._shadow_verdict(sim, action, item)
+        except Exception as exc:
+            self._shadow_failed, self._shadow = True, None
+            print(f"[shadow] disabled after an error: {exc!r}", flush=True)
+            return action
+        digest = {k: verdict[k] for k in ("transport_ok", "settle_ok", "drift", "drift_xy", "angle_deg", "ok")}
+        if verdict["ok"]:
+            self.shadow_stats["kept"] += 1
+            self.last_shadow = {"chosen": digest, "outcome": "kept"}
+            return action
+        self.shadow_stats["vetoes"] += 1
+        decision = self.last_decision
+        tried = []
+        if decision is not None and decision.survivors and decision.placement is not None:
+            profile = decision.placement.profile
+            container_idx = int(decision.placement.container_idx)
+            limit = int(getattr(self.config, "shadow_alternatives", 4))
+            for cand in decision.survivors:
+                if cand is decision.chosen or len(tried) >= limit or not room():
+                    continue
+                try:
+                    placement = layer1.build_placement(cand, decision.placement.archetype, self.board,
+                                                       container_idx, profile, self.config)
+                    alt = self._action(int(action["item_idx"]), placement)
+                    v = self._shadow_verdict(sim, alt, item)
+                except Exception as exc:
+                    print(f"[shadow] alternative failed: {exc!r}", flush=True)
+                    break
+                tried.append({k: v[k] for k in ("transport_ok", "settle_ok", "drift_xy", "angle_deg", "ok")})
+                if v["ok"]:
+                    placement.reason = "shadow: " + placement.reason
+                    self.last_decision = dataclasses.replace(decision, placement=placement, chosen=cand)
+                    self.shadow_stats["replaced"] += 1
+                    self.last_shadow = {"chosen": digest, "outcome": "replaced", "tried": tried}
+                    return alt
+        self.last_shadow = {"chosen": digest, "outcome": "kept-after-veto", "tried": tried}
+        return action
+
+    def _policy_inner(self, observation: dict):
         started = time.perf_counter()
         self._policy_started = started
         budget = float(self.config.policy_budget_seconds)

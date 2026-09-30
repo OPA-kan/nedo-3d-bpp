@@ -62,6 +62,7 @@ def _summary_row(record: dict) -> dict:
         "over_budget_steps": m["over_budget_steps"],
         "end_reason": m["end_reason"],
         "runtime_seconds": record["runtime_seconds"],
+        **({"shadow": m["shadow"]} if "shadow" in m else {}),
     }
 
 

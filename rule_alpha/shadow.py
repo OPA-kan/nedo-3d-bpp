@@ -352,7 +352,8 @@ class ShadowSim:
         target = (float(local_pos[0]) + offset_x, float(local_pos[1]), float(local_pos[2]))
         orn = p.getQuaternionFromEuler(ORNS[int(orientation_idx)])
         out = {"transport_ok": True, "settle_ok": True, "displacement": 0.0, "angle_deg": 0.0,
-               "settled_local": tuple(float(v) for v in local_pos), "drift": 0.0}
+               "settled_local": tuple(float(v) for v in local_pos), "drift": 0.0, "drift_xy": 0.0,
+               "transport_hit": None}
 
         # the box, spawned off the sweep's start
         length, width, height = entry["length"], entry["width"], entry["height"]
@@ -411,6 +412,9 @@ class ShadowSim:
                 out["settle_ok"] = not (displacement > self.displacement_threshold or angle > self.angle_threshold)
                 out["settled_local"] = (float(final_pos[0]) - offset_x, float(final_pos[1]), float(final_pos[2]))
                 out["drift"] = displacement
+                # the drop from the lifted target to the surface is expected
+                # (2-5 cm on the ladder's poses); a slide is not
+                out["drift_xy"] = float(math.hypot(final_pos[0] - target[0], final_pos[1] - target[1]))
                 client.restoreState(stateId=state)
         finally:
             client.removeState(state)

@@ -1876,6 +1876,24 @@ class RuleAlphaConfig:
     last_resort_tower_min: float = 0.015
     last_resort_extra_clearance: float = 0.002
 
+    # ------------------------------------------------------------------
+    # Shadow check: the chosen pose tried in a private pybullet world that
+    # mirrors the official placement test (rule_alpha.shadow) before it is
+    # committed; a pose the sweep or the settle would reject, or one that
+    # slides or tilts on landing, is replaced by the next survivor that
+    # passes.  Costs 0.2-0.5 s a check.
+    # ------------------------------------------------------------------
+    shadow_check: bool = False
+    shadow_max_drift_xy: float = 0.02
+    """A settle that moves the box sideways by more than this is a veto
+    (the drop from the lifted target is expected and not counted)."""
+    shadow_max_angle_deg: float = 5.0
+    shadow_alternatives: int = 4
+    """How many other survivors of the decision are tried after a veto."""
+    shadow_budget_share: float = 0.95
+    """Checks run only while the slowest check so far fits before this
+    share of the policy budget."""
+
     policy_budget_seconds: float = 6.0
     """Wall-clock budget for one ``policy`` call, inside the official limit
     of 8 s.  With a pool of several items (Task B) the ladder is asked
