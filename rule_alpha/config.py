@@ -1243,6 +1243,10 @@ class RuleAlphaConfig:
     # ------------------------------------------------------------------
     # Search limits
     # ------------------------------------------------------------------
+    ladder_orientations: int = 3
+    """Orientations the ladder tries per surface policy (``choose_for_item``'s
+    ``max_orientations``); a wider set costs candidates the faster validator
+    can afford."""
     max_candidates_per_orientation: int = 220
     max_anchor_x: int = 26
     max_anchor_y: int = 22

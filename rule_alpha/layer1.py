@@ -3772,7 +3772,9 @@ def build_placement(chosen: Candidate, chosen_archetype: str, board: Board,
 
 
 def choose_for_item(board: Board, profile: cls.ItemProfile, config,
-                    max_orientations: int = 3, selector=None) -> Decision | None:
+                    max_orientations: int | None = None, selector=None) -> Decision | None:
+    if max_orientations is None:
+        max_orientations = int(getattr(config, "ladder_orientations", 3) or 3)
     best: Decision | None = None
     for container_idx in routing_order(profile, board, config):
         model = board.model(container_idx)
