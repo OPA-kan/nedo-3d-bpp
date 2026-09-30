@@ -1999,6 +1999,49 @@ leaves the soft cargo out at the end is the analytic vetoes (tower
 rule, support shares, transport clearance, the reserve's ceiling) on
 tops the physics might well hold.  Hence the physics resort below.
 
+### The physics resort (v27)
+
+After the last resort and before a decline (`physics_resort`): every
+pose the geometry allows on the floor or on a packed top, in any
+container -- the stack option's candidate generator with the tower
+rule, the extra transport clearance, the support shares and the
+headroom reserve off, the relaxed clearance, the cover rule kept
+(it is the placement score's, not physics'), and a 4 cm anchor
+lattice across every support besides the flush anchors (the poses the
+scan found stood 4-8 cm off a support's edge because the flush pose
+met a neighbour; the generator's own anchors gave nothing) -- lowest
+and best supported first (half the footprint over the support at
+least), tried in the shadow world until one stands.  The soft cargo
+is tried first (it is what a Task B pool holds at the end), the
+candidates are generated once per size, and with a pool the resort
+may run 1.5 s past the budget (Task B's limit is 10 s).  Generation
+costs 0.3-0.9 s a container on the fast validate path; the first
+candidate passed in every resort placement of the local runs.
+
+Physics suites (Actions, budget 6; `reports/bench/presort-core-a`,
+`presort-core-b`, `presort-core`, `v26-vs-presort-*.txt`) against v26:
+
+| suite | placed | soft | priority | fill | CoM | episodes >= half | topples | tail |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| A | 38.46 -> 39.10 (+0.65; 16 better, 0 worse) | 7.52 -> 7.79 | 4.42 -> 4.46 | 37.44 -> 38.04 (+0.60) | 0.341 -> 0.346 | 45 -> 45 | 0.23 -> 0.21 | 1.46 -> 2.27 s |
+| B | 32.40 -> 33.40 (+1.00; 19 better, 0 worse) | 4.71 -> 5.69 (+0.98; 19 better, 0 worse) | 4.33 -> 4.44 | 35.49 -> 36.19 (+0.70) | 0.378 -> 0.380 | 30 -> 34 | 0.33 -> 0.38 | 5.06 -> 5.58 s |
+| C | 27.77 -> 28.73 (+0.96; 19 better, 0 worse) | 8.10 -> 8.54 (+0.44) | 3.17 -> 3.19 | 29.33 -> 30.15 (+0.82) | 0.347 -> 0.351 | 11 -> 17 | 0.19 -> 0.17 | 1.33 -> 1.97 s |
+
+27 / 52 / 29 resort placements on A / B / C, at a median bottom of
+0.55 m (11 / 11 / 2 above 0.9 m), the shake proxies unchanged, no
+episode ends on a physics failure on C (v26 one).  The B run here is
+the form before the size cache and the extra window (its resort
+reached the pool's soft items on 11 of 48 declining calls only);
+`presort2-core-b` measures the final form.  The remaining declines are
+items with no geometric pose at all: on b-c1-s0001 none of the ten
+pool items (nine soft, 0.65 x 0.35 x 0.23 and 0.6 x 0.3 x 0.25) has a
+candidate on the final board, and on c-c1-s0001 the 0.75 x 0.56 x
+0.27 box has no pose under the ceiling (terrain top 1.47 m of 1.57)
+nor on the 22 % of the floor that is free in strips.  What is left at
+the end is the load's porosity (fill 30-38 % with the terrain at the
+ceiling), which is the ladder's terraces and towers, not a placement
+the search misses.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,

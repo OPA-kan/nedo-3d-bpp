@@ -168,6 +168,15 @@ OVERRIDES = dict(
     # 0.2-0.5 s a check inside the 4.5 s budget; without pybullet the
     # agent is v18.
     shadow_check=True,
+    # v27: before a decline, every pose the geometry allows on the floor or
+    # on a packed top (a dense anchor lattice, the analytic vetoes off, the
+    # cover rule kept), lowest and best supported first, tried in the
+    # shadow world until one stands.  Physics suites against v26: items
+    # +0.65 / +1.00 / +0.96 a scene on A / B / C with no scene worse, the
+    # soft count +0.27 / +0.98 / +0.44, episodes over half the items 30 ->
+    # 34 (B) and 11 -> 17 (C), topples unchanged, CoM +0.002-0.006.  On a
+    # Task B pool the resort may run 1.5 s past the budget (limit 10 s).
+    physics_resort=True,
 )
 STACK_POLICY = "weights/stack"
 
