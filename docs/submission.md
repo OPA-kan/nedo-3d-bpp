@@ -287,6 +287,30 @@ on both) and left off here as a separate probe.  Official sample: A
 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (the same as v28); policy max
 and optimize in `official-sample-abc-v29.json`.
 
+Thirtieth build (v30): v29 with the count mode (`count_mode`;
+`rule_alpha/config.py`, the second pass of `_physics_resort`).  The
+platform scores every component but the fill as zero for an episode
+under a count threshold the fit puts near half the items, so the item
+that crosses it is worth about 56 points to its episode where any other
+is worth 0.3.  The v29 boards that end one to three items short (C 11
+of 48 episodes, B 9, A 3) still hold hundreds of poses the analytic
+validate and the shadow physics accept, every one of them on priority
+or soft cargo: the cover rule alone declines them.  While the containers
+hold fewer than ceil(items / 2) items (41 a container expected, the
+manifest's count on Task A), the physics resort runs once more with
+both cover vetoes off and soft tops as structure, lowest and
+best-supported pose first, the shadow judging; above the threshold the
+strict rules are back and the next decline ends the episode as before.
+Physics suites against v29 at the 4.5 s budget: items C +1.83 a scene
+(23 up, 2 down; episodes over half the items 22 -> 39), B +0.33 (38 ->
+45), A -0.15 (two-container run-to-run spread; 45 -> 47); priority
+boxes covered 0 -> 20 on C's 48 scenes and 0 -> 4 on B's, soft 0 -> 8
+on C; topples C 18 -> 18, B 11 -> 7; slowest call C 4.3 s, B 6.9 s (the
+resort's cap, as v29).  Official sample: A 32.11 / 25, B 27.28 / 25, C
+23.14 / 23 (the same as v29: the sample episodes are already over the
+threshold, so the mode never engages); policy max B 4.66 s, optimize
+20 s (`official-sample-abc-v30.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

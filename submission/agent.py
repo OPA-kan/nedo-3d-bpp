@@ -186,6 +186,18 @@ OVERRIDES = dict(
     # a scene (20 up, 7 down; episodes over half the items 17 -> 22), B
     # +0.17 (34 -> 38), A within 0.1.
     pocket_guard=True,
+    # v30: the count mode (rule_alpha/config.py).  The platform scores
+    # every component but the fill as zero for an episode under a count
+    # threshold near half the items, and the boards that end one to three
+    # items short still hold shadow-safe poses, all on priority or soft
+    # cargo, that the cover rule alone declines.  Under the threshold the
+    # physics resort runs once more with the cover vetoes off and soft
+    # tops as structure; above it the strict rules are back.  Physics
+    # suites against v29 at this budget: items C +1.83 a scene (23 up, 2
+    # down; episodes over half the items 22 -> 39), B +0.33 (38 -> 45), A
+    # -0.15 (noise on the two-container scenes; 45 -> 47); priority boxes
+    # covered 0 -> 20 on C's 48 scenes, soft 0 -> 8, 4 on B.
+    count_mode=True,
 )
 STACK_POLICY = "weights/stack"
 

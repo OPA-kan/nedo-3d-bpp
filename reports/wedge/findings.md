@@ -2241,8 +2241,31 @@ shadow judging.  Above the threshold the strict rules are back, so the
 next decline ends the episode as before.  The three one-short C scenes
 replayed: c-c1-s0004 20 -> 21 of 41 (one priority box covered),
 c-c1s-s0001 20 -> 22 (none), c-c1s-s0004 20 -> 21 (one); no topple,
-slowest call 2.3 s.  The physics suites at 4.5 s (`count-core`,
-`count-core-b`, `count-core-a`) are running.
+slowest call 2.3 s.
+
+The physics suites at 4.5 s (`count-core`, `count-core-b`,
+`count-core-a`) against the v29 runs (`pocket-core`, `pocket-core-b`,
+and `pocket3-core-a`, v29's final form with the guard off under a
+plan, which is v28 +0.27 items on A, 6 up and 1 down):
+
+| suite | placed | episodes >= half | count-mode placements | priority covered | soft covered | topples | fill | CoM | slowest call |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| C | 29.88 -> 31.71 (+1.83; 23 up, 2 down) | 22 -> 39 | 54 in 22 episodes | 0 -> 20 | 0 -> 8 | 18 -> 18 | +2.23 | +0.010 | 4.3 s |
+| B | 33.94 -> 34.27 (+0.33; 10 up, 2 down) | 38 -> 45 | 11 in 6 episodes | 0 -> 4 | 0 | 11 -> 7 | +0.33 | 0 | 6.9 s |
+| A | 39.10 -> 38.96 (-0.15; 2 up, 5 down) | 45 -> 47 | 3 in 2 episodes | 1 -> 3 | 0 | 10 -> 11 | +0.06 | +0.001 | 4.2 s |
+
+Seventeen more C episodes and seven more B episodes over the
+threshold, two on A; the single-container C scenes that were one to
+six short now end at 21 to 23 of 41, and the mode reached further
+than the one-short ones (c-c1s-s0003 15 -> 21 with five placements,
+c-c2-s0001 31 -> 42 with six).  The A scenes down 2 to 3 are
+two-container ones with no count-mode placement, the run-to-run
+spread of those scenes at this budget (the v29 final-form run itself
+is +3, +5 and +2 on three of them against v28's).  At the fitted
+prices the crossings are worth about +6.6 (C), +2.7 (B) and +0.8 (A)
+on the total, and the 24 covered priority boxes and 8 soft ones
+about -0.7 together; whether the threshold sits where the fit put it
+is what the official run of this build (v30) tells.
 
 ### The wider ladder: a negative result
 
