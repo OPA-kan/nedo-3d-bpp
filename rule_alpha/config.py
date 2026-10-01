@@ -1500,8 +1500,12 @@ class RuleAlphaConfig:
     chance each still arrives (a Dirichlet prior over the sample stream's
     hard classes updated with the items seen)."""
     pocket_guard_margin: float = 0.25
-    pocket_guard_seconds: float = 0.6
-    pocket_guard_k: int = 12
+    """Slots (about one big box each) the alternative must keep over the
+    ladder's pose."""
+    pocket_guard_seconds: float = 0.8
+    pocket_guard_candidates: int = 120
+    pocket_guard_anchor_step: float = 0.06
+    pocket_guard_min_support: float = 0.6
     pocket_guard_prior: float = 4.0
     pocket_guard_items_per_container: float = 41.0
     pocket_guard_min_probability: float = 0.5

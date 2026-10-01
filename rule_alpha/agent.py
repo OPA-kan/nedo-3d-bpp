@@ -37,11 +37,14 @@ class RuleAlphaAgent:
             from .room import RoomSelector
 
             selector = RoomSelector(self.config)
-        elif selector is None and getattr(self.config, "pocket_guard", False):
-            from .pocket import SoftPocketSelector
-
-            selector = SoftPocketSelector(self.config)
         self.selector = selector
+        # the pocket guard (config.pocket_guard): soft cargo keeps the room
+        # the hard cargo still to come will need (rule_alpha/pocket.py)
+        self.pocket = None
+        if getattr(self.config, "pocket_guard", False):
+            from .pocket import PocketGuard
+
+            self.pocket = PocketGuard(self.config)
         # optional learned option asked before the ladder: a placement in the
         # chamfer strip, or a pass (wedge_rl.option.WedgeOption)
         self.wedge_option = wedge_option
@@ -62,6 +65,7 @@ class RuleAlphaAgent:
         self.plan_replayed = 0
         self.last_resort_used = 0
         self._longest_call = 0.0
+        self._pool: list = []
         # the shadow check (config.shadow_check): a private pybullet world
         # that tries the chosen pose the way the simulator will
         self._shadow = None
@@ -386,10 +390,11 @@ class RuleAlphaAgent:
         self._longest_call = 0.0
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
+        self._pool = pool
         # the pocket guard's class frequencies: every item seen so far
-        if self.selector is not None and hasattr(self.selector, "observe"):
+        if self.pocket is not None:
             try:
-                self.selector.observe(pool, len(containers))
+                self.pocket.observe(pool, len(containers))
             except Exception as exc:
                 print(f"[pocket] observe failed: {exc!r}", flush=True)
         # rebuild from the observation so the plan always reflects the settled
@@ -648,7 +653,7 @@ class RuleAlphaAgent:
             if decision is None:
                 continue
             self.last_decision = decision
-            action = self._emit(pool_index, decision.placement)
+            action = self._emit(pool_index, self._pocket_guarded(pool, pool_index, profile, decision))
             if action is not None:
                 return action
 
@@ -1463,6 +1468,39 @@ class RuleAlphaAgent:
         finally:
             self._longest_call = max(getattr(self, "_longest_call", 0.0), time.perf_counter() - t0)
 
+    def _pocket_guarded(self, pool: list, pool_index: int, profile, decision):
+        """The ladder's placement for a soft item, or the pocket guard's
+        alternative when the ladder put the box on the floor where the
+        hard cargo still expected will need the room (rule_alpha/pocket.py).
+        The alternative goes through the same shadow check as any pose."""
+        placement = decision.placement
+        if (self.pocket is None or not getattr(profile, "is_soft", False) or placement.surface != "floor"
+                or pool is None):
+            return placement
+        started = float(getattr(self, "_policy_started", time.perf_counter()))
+        deadline = min(started + 0.85 * float(self.config.policy_budget_seconds),
+                       time.perf_counter() + float(getattr(self.config, "pocket_guard_seconds", 0.8)))
+        if time.perf_counter() >= deadline:
+            return placement
+        try:
+            item = pool[pool_index]
+            found = self.pocket.alternative(self.board, profile, float(item.get("mass", 0.0)),
+                                            int(placement.container_idx), placement.box, deadline)
+        except Exception as exc:
+            print(f"[pocket] alternative failed: {exc!r}", flush=True)
+            return placement
+        if found is None:
+            return placement
+        from .planner import _placement
+
+        cand, container_idx, chosen_score, best_score = found
+        alt = _placement(cand, 1, profile, int(container_idx), self.board.model(int(container_idx)))
+        alt.archetype = "pocket-soft"
+        alt.reason = (f"pocket guard: {best_score:.2f} slots kept against {chosen_score:.2f} "
+                      f"({'floor' if cand.on_floor else 'top'} at {cand.bottom:.2f} m); was {placement.archetype}")
+        self.last_decision = dataclasses.replace(decision, placement=alt)
+        return alt
+
     def _physics_resort(self, ordered: list, pool: list, deadline: float) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
         any container, lowest and best supported first, tried in the shadow
@@ -1617,7 +1655,7 @@ class RuleAlphaAgent:
                 decision.placement.reason = f"last-resort {label}: " + decision.placement.reason
                 self.last_decision = decision
                 self.last_resort_used += 1
-                action = self._emit(pool_index, decision.placement)
+                action = self._emit(pool_index, self._pocket_guarded(self._pool, pool_index, profile, decision))
                 if action is not None:
                     return action
         if self.stack_option is not None:

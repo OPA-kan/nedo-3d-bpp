@@ -1,34 +1,40 @@
-"""The pocket guard: soft cargo on the floor keeps the pockets the hard
-cargo still to come will need.
+"""The pocket guard: soft cargo keeps the room the hard cargo still to
+come will need.
 
 On the v28 end states of the Task C physics suite, 52 of the 87 small
 boxes on the floor -- every one of them soft -- stand where the biggest
 hard box left unplaced would otherwise have a floor pose (29 of 48
 episodes; 19 of 57 on Task B, 13 episodes); no small hard box does.  The
 ladder's soft archetypes put a soft box on a floor edge when it arrives
-early, with nothing to stand it on yet, and that edge is the pocket a
-0.65 x 0.45 or 0.75 x 0.56 box needs later.
+early, and that edge, or the sweep past it, is what a 0.65 x 0.45 or
+0.75 x 0.56 box needs later.  Traced on six C scenes: at 15 of 18 soft
+floor decisions another pose (a floor spot that does not block the
+sweep, or a hard top) keeps on average 1.9 more level, reachable slots
+for the big hard classes -- and the ladder's survivors never hold it,
+so re-ranking them changes nothing.
 
-``SoftPocketSelector`` is a ``layer1.choose_for_item`` selector that acts
-on soft items only, when the ladder's pick is a floor pose: among the
-survivors it takes the one after which the load keeps the most level,
-reachable floor slots for the hard classes still expected
-(``room.RoomScorer``), when that beats the ladder's pick by a margin.
-Which classes are expected, and how much each weighs, comes from
-``ClassFrequencies``: a Dirichlet prior over the sample stream's hard
-classes updated with every item seen, and the chance that a class still
-arrives before the stream ends (the remaining count from the sample's
-items per container, less what has been seen).  Late in the episode
-nothing is expected any more and the guard stands down.
+``PocketGuard.alternative`` is asked after the ladder has decided a
+floor pose for a soft item: it generates every pose the geometry allows
+(the stack option's candidates, flat only, half the footprint
+supported), scores each by the slots the load keeps for the hard
+classes still expected (``room.RoomScorer`` on a heightmap where soft
+tops are dead ground for hard cargo, since the cover rule forbids hard
+on soft), and returns the best when it beats the ladder's pose by a
+margin.  Which classes are expected, and how much each weighs, comes
+from ``ClassFrequencies``: a Dirichlet prior over the sample stream's
+hard classes updated with every item seen, and the chance that a class
+still arrives before the stream ends.  Late in the episode nothing is
+expected any more and the guard stands down.
 """
 
 from __future__ import annotations
 
-import math
+import dataclasses
 import time
 
 import numpy as np
 
+from ._reuse import AABB, packed_aabbs_local
 from .room import SKU_MIX, RoomScorer
 
 
@@ -86,33 +92,55 @@ class ClassFrequencies:
         return out
 
 
-class SoftPocketSelector:
-    """See the module docstring.  Returns ``(candidate, archetype)`` to
-    override the ladder's pick, or None."""
+SOFT_ALT = "pocket-alt"
+
+
+class SoftAwareScorer(RoomScorer):
+    """The room scorer with soft tops as dead ground: the cover rule
+    forbids hard cargo on soft, so a soft box's top is no level for the
+    hard classes.  A candidate box named ``pocket-alt`` is treated as
+    soft too."""
+
+    def heightmap(self, board, container_idx: int, extra: AABB | None = None):
+        model, xs, ys, height = super().heightmap(board, container_idx, extra)
+        container = board.container(container_idx)
+        boxes = [b for packed, (b, _s, _p) in zip(container.get("packed_items", []), packed_aabbs_local(container))
+                 if packed.get("is_soft")]
+        if extra is not None and getattr(extra, "name", "") == SOFT_ALT:
+            boxes.append(extra)
+        for b in boxes:
+            ix = (xs > float(b.minimum[0])) & (xs < float(b.maximum[0]))
+            iy = (ys > float(b.minimum[1])) & (ys < float(b.maximum[1]))
+            if ix.any() and iy.any():
+                height[np.ix_(iy, ix)] = np.inf
+        return model, xs, ys, height
+
+
+class PocketGuard:
+    """See the module docstring."""
 
     def __init__(self, config):
         self.config = config
         self.margin = float(getattr(config, "pocket_guard_margin", 0.25))
-        self.budget = float(getattr(config, "pocket_guard_seconds", 0.6))
+        self.budget = float(getattr(config, "pocket_guard_seconds", 0.8))
         self.min_probability = float(getattr(config, "pocket_guard_min_probability", 0.5))
         self.min_footprint = float(getattr(config, "pocket_guard_min_footprint", 0.2))
-        self.k = int(getattr(config, "pocket_guard_k", 12))
-        self.scorer = RoomScorer(config, [], cell=float(getattr(config, "room_selector_cell", 0.05)),
-                                 tolerance=float(getattr(config, "room_selector_tolerance", 0.02)))
+        self.max_candidates = int(getattr(config, "pocket_guard_candidates", 120))
+        self.anchor_step = float(getattr(config, "pocket_guard_anchor_step", 0.06))
+        self.min_support = float(getattr(config, "pocket_guard_min_support", 0.6))
+        self.scorer = SoftAwareScorer(config, [], cell=float(getattr(config, "room_selector_cell", 0.05)),
+                                      tolerance=float(getattr(config, "room_selector_tolerance", 0.02)))
         self.frequencies: ClassFrequencies | None = None
         self.calls = 0
         self.overrides = 0
         self.seconds = 0.0
 
-    def start(self, containers: int) -> None:
-        self.frequencies = ClassFrequencies(
-            prior_count=float(getattr(self.config, "pocket_guard_prior", 4.0)),
-            items_per_container=float(getattr(self.config, "pocket_guard_items_per_container", 41.0)),
-            containers=containers)
-
     def observe(self, pool: list, containers: int) -> None:
         if self.frequencies is None:
-            self.start(containers)
+            self.frequencies = ClassFrequencies(
+                prior_count=float(getattr(self.config, "pocket_guard_prior", 4.0)),
+                items_per_container=float(getattr(self.config, "pocket_guard_items_per_container", 41.0)),
+                containers=containers)
         self.frequencies.observe(pool)
 
     def classes(self) -> list[tuple[float, float, float, float]]:
@@ -120,38 +148,44 @@ class SoftPocketSelector:
         weighted by that chance."""
         if self.frequencies is None:
             return []
-        out = []
-        for l, w, h, p in self.frequencies.arrival_probabilities():
-            if l * w >= self.min_footprint and p >= self.min_probability:
-                out.append((l, w, h, p))
-        return out
+        return [(l, w, h, p) for l, w, h, p in self.frequencies.arrival_probabilities()
+                if l * w >= self.min_footprint and p >= self.min_probability]
 
-    def __call__(self, survivors, chosen, chosen_archetype, board, container_idx, profile):
-        if not getattr(profile, "is_soft", False) or chosen is None or chosen.surface != "floor":
-            return None
-        if len(survivors) < 2:
-            return None
+    def alternative(self, board, profile, mass: float, container_idx: int, chosen_box: AABB, deadline: float):
+        """The pose after which the load keeps the most slots for the
+        expected hard classes, as ``(stack candidate, container index,
+        chosen's slots, best's slots)``, or None when the ladder's pose is
+        within the margin of the best (or nothing is expected)."""
+        from wedge_rl.stack import stack_candidates
+
         classes = self.classes()
         if not classes:
             return None
         self.calls += 1
         t0 = time.perf_counter()
-        self.scorer.classes = classes
-        pool = list(survivors[: self.k])
-        if chosen not in pool:
-            pool.append(chosen)
-        scores = []
-        for c in pool:
-            if time.perf_counter() - t0 > self.budget and c is not chosen:
-                scores.append(-math.inf)
-                continue
-            scores.append(self.scorer.slots(board, container_idx, extra=c.box))
-        self.seconds += time.perf_counter() - t0
-        i_chosen = next(i for i, c in enumerate(pool) if c is chosen)
-        best = int(np.argmax(scores))
-        if best == i_chosen or scores[best] <= scores[i_chosen] + self.margin:
+        try:
+            self.scorer.classes = classes
+            chosen_score = self.scorer.slots(board, container_idx, extra=dataclasses.replace(chosen_box, name=SOFT_ALT))
+            cfg = dataclasses.replace(self.config, stack_soft_min_support=0.0, stack_soft_standing=False)
+            best = None
+            for ci in range(len(board.containers)):
+                if time.perf_counter() > deadline:
+                    break
+                cands = stack_candidates(board.model(ci), board.container(ci), cfg, profile,
+                                         max_candidates=self.max_candidates, mass=float(mass), tower_min=None,
+                                         extra_clearance=0.0, z_top=None, dense=self.anchor_step)
+                cands = [c for c in cands if c.on_floor or c.support_ratio >= self.min_support]
+                for c in cands:
+                    if time.perf_counter() > deadline:
+                        break
+                    s = self.scorer.slots(board, ci, extra=dataclasses.replace(c.box, name=SOFT_ALT))
+                    # ties go to the lower pose, then the ladder's own container
+                    key = (round(s, 3), -round(c.bottom, 3), 1 if ci == container_idx else 0)
+                    if best is None or key > best[0]:
+                        best = (key, c, ci, s)
+        finally:
+            self.seconds += time.perf_counter() - t0
+        if best is None or best[3] <= chosen_score + self.margin:
             return None
         self.overrides += 1
-        pick = pool[best]
-        label = sorted(pick.archetypes)[0] if pick.archetypes else chosen_archetype
-        return pick, f"pocket/{label}"
+        return best[1], best[2], chosen_score, best[3]
