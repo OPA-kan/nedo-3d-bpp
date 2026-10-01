@@ -11,6 +11,7 @@ is the honest behaviour for something that has no Layer 2.
 from __future__ import annotations
 
 import dataclasses
+import math
 import os
 import time
 
@@ -77,6 +78,8 @@ class RuleAlphaAgent:
         self._shadow_observation = None
         self._shadow_synced = False
         self._shadow_fallback = None
+        # the manifest's size (Task A), for the count mode's threshold
+        self._manifest_total: int | None = None
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.last_shadow: dict | None = None
 
@@ -162,6 +165,7 @@ class RuleAlphaAgent:
     def optimize(self, item_list: list):
         started = time.perf_counter()
         profiles = self._prepare_manifest(item_list)
+        self._manifest_total = len(item_list) if item_list else None
         if self.pocket is not None:
             # Task A: the pocket guard counts the classes still to come
             # from the manifest instead of estimating them
@@ -732,6 +736,14 @@ class RuleAlphaAgent:
             action = self._physics_resort(ordered, pool, started + budget + extra - 0.05)
             if action is not None:
                 return action
+            # the count mode: under the platform's count threshold every
+            # component but the fill is zero, so a pose on priority or soft
+            # cargo (the cover rule's refusals) beats the decline that ends
+            # the episode (see config.count_mode)
+            if self._under_count(containers):
+                action = self._physics_resort(ordered, pool, started + budget + extra - 0.05, cover=True)
+                if action is not None:
+                    return action
 
         # a pose the shadow vetoed and nothing replaced: a failed placement
         # ends the episode the way a decline does, and the shadow can be wrong
@@ -1534,14 +1546,36 @@ class RuleAlphaAgent:
         self.last_decision = dataclasses.replace(decision, placement=alt)
         return alt
 
-    def _physics_resort(self, ordered: list, pool: list, deadline: float) -> dict | None:
+    def _count_threshold(self) -> int | None:
+        """The count under which the platform zeroes every component but
+        the fill (config.count_mode): half the items, rounded up, plus the
+        margin; the manifest's count on Task A, the expected count
+        otherwise."""
+        if not getattr(self.config, "count_mode", False):
+            return None
+        containers = len(self.board.models) if self.board is not None and self.board.models else 1
+        total = self._manifest_total
+        if not total:
+            total = float(getattr(self.config, "count_mode_items_per_container", 41.0)) * containers
+        return int(math.ceil(float(total) / 2.0)) + int(getattr(self.config, "count_mode_margin", 0))
+
+    def _under_count(self, containers: list) -> bool:
+        threshold = self._count_threshold()
+        if threshold is None:
+            return False
+        placed = sum(len(c.get("packed_items", [])) for c in containers)
+        return placed < threshold
+
+    def _physics_resort(self, ordered: list, pool: list, deadline: float, cover: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
         any container, lowest and best supported first, tried in the shadow
         world until one stands (the sweep and the settle pass, no landing
         over the hard limits away).  The analytic vetoes (tower rule,
         support shares, headroom reserve, the extra transport clearance)
         are not applied: the physics is the judge here.  The cover rule
-        is kept (it is the platform's placement score, not physics)."""
+        is kept (it is the platform's placement score, not physics),
+        except in the count pass (``cover``, config.count_mode), which
+        also lets soft tops carry load."""
         sim = self._shadow_sim()
         if sim is None:
             return None
@@ -1556,6 +1590,10 @@ class RuleAlphaAgent:
             routing_any_container=True, stack_max_bottom=10.0, stack_soft_min_support=0.0,
             stack_soft_standing=True,
         )
+        if cover:
+            cfg = dataclasses.replace(cfg, allow_cover_other_attribute=True, soft_is_structure=True,
+                                      stack_soft_is_structure=True)
+        label = "count-mode" if cover else "physics-resort"
 
         def room(generating: bool = False) -> bool:
             # a candidate generation is not interruptible (0.3-0.9 s a
@@ -1618,8 +1656,8 @@ class RuleAlphaAgent:
                     if not room():
                         break
                     placement = _placement(cand, len(cands), profile, container_idx, model)
-                    placement.archetype = "physics-resort"
-                    placement.reason = f"physics resort: {cand.bottom:.2f} m, support {cand.support_ratio:.2f}, among {len(cands)}"
+                    placement.archetype = label
+                    placement.reason = f"{label}: {cand.bottom:.2f} m, support {cand.support_ratio:.2f}, among {len(cands)}"
                     try:
                         if not self._shadow_synced:
                             sim.sync(self._shadow_observation.get("container_list", []))
@@ -1631,13 +1669,15 @@ class RuleAlphaAgent:
                         return None
                     tried += 1
                     if not self._shadow_hard(v):
-                        self.last_decision = layer1.Decision(placement=placement, candidate_counts={"physics-resort": len(cands)},
+                        self.last_decision = layer1.Decision(placement=placement, candidate_counts={label: len(cands)},
                                                              veto_counts={}, considered=len(cands), ladder=[])
                         self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in v},
-                                            "outcome": "physics-resort", "tried": tried}
-                        self.shadow_stats["resort"] = self.shadow_stats.get("resort", 0) + 1
+                                            "outcome": label, "tried": tried}
+                        key = "count_mode" if cover else "resort"
+                        self.shadow_stats[key] = self.shadow_stats.get(key, 0) + 1
                         return action
-        self.shadow_stats["resort_tried"] = self.shadow_stats.get("resort_tried", 0) + tried
+        key = "count_mode_tried" if cover else "resort_tried"
+        self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
         return None
 
     def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:

@@ -1513,6 +1513,30 @@ class RuleAlphaConfig:
     """Only hard classes with a flat footprint of at least this area (m^2)
     are protected: 0.55 x 0.40 (0.22) and up."""
 
+    count_mode: bool = False
+    """The platform scores every component but the fill as zero for an
+    episode that places fewer than a certain number of items (the fit
+    puts it at half of them; see reports/wedge/findings.md), so the item
+    that crosses that count is worth the four components (about 56
+    points for the episode) against the fill's 0.3 for any other item.
+    On the boards that end one to three items short (C 11 of 48, B 9 of
+    48 episodes at 4.5 s), the only room left is on top of priority or
+    soft cargo: the analytic validate and the shadow physics accept
+    hundreds of poses there (c-c1-s0004: 38 analytic, 40 of 40 shadow,
+    all on the priority box), and the cover rule alone declines them.
+    With ``count_mode`` the physics resort runs a second pass with the
+    cover rule off (``allow_cover_other_attribute``) and soft tops as
+    structure while the containers hold fewer than the threshold:
+    ``ceil(count_mode_items_per_container * containers / 2)`` +
+    ``count_mode_margin`` (the manifest's count on Task A).  A covered
+    priority or soft box costs a share of the placement or soft score
+    (weights 0.14 each), the crossing earns the whole of all four."""
+    count_mode_items_per_container: float = 41.0
+    count_mode_margin: int = 0
+    allow_cover_other_attribute: bool = False
+    """Set by the count pass only: the candidate generator skips both
+    cover vetoes (other attribute, priority)."""
+
     room_selector: bool = False
     """Among the ladder's first ``room_selector_k`` survivors, the one
     after which the load keeps the most level, reachable slots for the

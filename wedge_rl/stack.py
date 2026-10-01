@@ -398,7 +398,9 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 ok, _why = layer1.validate(box, model, container, cfg)
                 if not ok:
                     continue
-                if getattr(cfg, "no_cover_other_attribute", False):
+                if getattr(cfg, "allow_cover_other_attribute", False):
+                    pass  # the count pass: the physics is the only judge
+                elif getattr(cfg, "no_cover_other_attribute", False):
                     if covers_other_attribute(box, container, bool(getattr(profile, "is_soft", False)),
                                               bool(getattr(profile, "is_prioritized", False))):
                         continue
