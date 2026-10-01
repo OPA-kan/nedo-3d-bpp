@@ -2197,6 +2197,53 @@ tail +0.05 s.  A wider choice, not a better one at the same load; the
 CoM cost prices about what the count gains.  Not adopted; a physics
 run behind the shadow is the next test if it is tried again.
 
+### The episodes under the count threshold, and the count mode
+
+The platform's four non-fill components are worth about 56 points to
+an episode that crosses the count threshold (the fitted weights times
+the conditional values: cog 88, stability 100, placement 66, soft 43)
+and nothing to one that does not; any other item is worth about 0.3
+fill points.  So the episodes just under the threshold are where the
+score is.  On the v29 physics runs at 4.5 s (`pocket-core`,
+`pocket-core-b`, `pocket2-core-a`), the episodes under half the items
+and how many items short of the threshold they end:
+
+| suite | under half | items short (count of episodes) | within 3 | worth if all crossed |
+|---|---:|---|---:|---:|
+| C | 26 of 48 | 1: 6, 2: 2, 3: 3, 4: 3, 5: 4, 6: 2, 7: 3, 10: 3 | 11 | +12.8 on C, +4.3 overall |
+| B | 10 of 48 | 1: 7, 2: 2, 10: 1 | 9 | +10.5 on B, +3.5 overall |
+| A | 4 of 48 | 1: 2, 2: 1, 4: 1 | 3 | +3.5 on A, +1.2 overall |
+
+What stops them is not the room.  The skylines of the under-half C
+boards (`scratchpad/terrain_probe.py`, 2 cm grid) have 62 % of the
+container's height as air above the load (51 % on the over-half ones),
+93 % of the floor area with 0.25 m or more of clearance, and a level
+patch of 0.42 m^2 on average, more than a 0.65 x 0.45 box needs; the
+voids under the skyline are 8 %.  And the declined item has poses: on
+the final board of c-c1-s0004 (20 of 41, a hard 0.65 x 0.45 x 0.25
+next) a 4 cm scan with the arm's own config finds 38 analytic-ok poses
+and the shadow physics passes 40 of the 40 lowest it is given (drift
+0, angle 0), every one of them on the priority box at 0.29 m; on
+c-c1s-s0001 (a soft 0.6 x 0.3 x 0.25 next) 40 of 40 on a priority box
+with a soft one; on b-c1-s0003 every one of the ten pool items has 36
+to 40 shadow-ok poses, all on priority cargo.  The cover rule
+(`no_cover_other_attribute`, the placement and soft scores) is the
+only veto left on these boards, and a covered priority box costs a
+share of a 0.14-weight component where the decline forfeits all four.
+
+The count mode (`count_mode`): after the physics resort declines, and
+while the containers hold fewer than ceil(items / 2) +
+`count_mode_margin` items (41 a container expected, the manifest's
+count on Task A), the resort runs again with both cover vetoes off
+(`allow_cover_other_attribute`, read by the candidate generator) and
+soft tops as structure, lowest and best-supported pose first, the
+shadow judging.  Above the threshold the strict rules are back, so the
+next decline ends the episode as before.  The three one-short C scenes
+replayed: c-c1-s0004 20 -> 21 of 41 (one priority box covered),
+c-c1s-s0001 20 -> 22 (none), c-c1s-s0004 20 -> 21 (one); no topple,
+slowest call 2.3 s.  The physics suites at 4.5 s (`count-core`,
+`count-core-b`, `count-core-a`) are running.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.
