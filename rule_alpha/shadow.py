@@ -230,6 +230,12 @@ class ShadowSim:
         # 0 turns it off.
         self.rest_steps = int(rest_steps)
         self.rest_velocity = float(rest_velocity)
+        # the shake (check(..., shake=True)): the bench's proxy settings
+        self.shake_tilt = 0.3
+        self.shake_steps = 60
+        self.shake_settle_steps = 120
+        self.shake_max_shift = 0.05
+        self.shake_max_angle = 30.0
         self.settle_steps_used = 0
         self._key = None
         self._containers: list[dict] = []   # per container: geometry and body ids
@@ -345,7 +351,7 @@ class ShadowSim:
 
     # -- the placement test --------------------------------------------------
     def check(self, container_idx: int, item: dict, local_pos, orientation_idx: int,
-              transport: bool = True, settle: bool = True) -> dict:
+              transport: bool = True, settle: bool = True, shake: bool = False) -> dict:
         """The simulator's transport sweep and settle for ``item`` (a pool
         item dict) at ``local_pos`` (the container's frame) with the
         orientation index.  Returns a dict: ``transport_ok``, ``settle_ok``,
@@ -442,6 +448,8 @@ class ShadowSim:
                 # the drop from the lifted target to the surface is expected
                 # (2-5 cm on the ladder's poses); a slide is not
                 out["drift_xy"] = float(math.hypot(final_pos[0] - target[0], final_pos[1] - target[1]))
+                if shake and out["settle_ok"]:
+                    out["shake"] = self._shake(body, final_pos, final_orn)
                 client.restoreState(stateId=state)
         finally:
             client.removeState(state)
@@ -449,6 +457,44 @@ class ShadowSim:
         self.checks += 1
         self.seconds += _time.perf_counter() - t0
         return out
+
+    def _shake(self, body: int, pos, orn) -> dict:
+        """The bench's stability proxy on the settled load with the new
+        box in it: gravity tilted by ``shake_tilt`` of g in four directions
+        for ``shake_steps`` steps each, then a settle; what moved by more
+        than ``shake_max_shift`` or tipped by more than ``shake_max_angle``
+        -- the new box or any packed one -- fails it.  The official test
+        is undisclosed; this is the bench's stand-in, so a pass is no
+        promise, but a fail is a box that falls over under a small
+        lateral acceleration."""
+        client = self.client
+        g = 9.8
+        lateral = self.shake_tilt * g
+        bodies = [body] + list(self._item_ids)
+        before = {b: client.getBasePositionAndOrientation(b) for b in bodies}
+        try:
+            for gravity in ((lateral, 0, -g), (-lateral, 0, -g), (0, lateral, -g), (0, -lateral, -g)):
+                client.setGravity(*gravity)
+                for _ in range(self.shake_steps):
+                    client.stepSimulation()
+            client.setGravity(0, 0, -g)
+            for _ in range(self.shake_settle_steps):
+                client.stepSimulation()
+            worst_shift, worst_angle, moved = 0.0, 0.0, []
+            for b in bodies:
+                p0, o0 = before[b]
+                p1, o1 = client.getBasePositionAndOrientation(b)
+                shift = float(np.linalg.norm(np.asarray(p1) - np.asarray(p0)))
+                dot = min(1.0, abs(sum(a * c for a, c in zip(o0, o1))))
+                angle = math.degrees(2.0 * math.acos(dot))
+                worst_shift = max(worst_shift, shift)
+                worst_angle = max(worst_angle, angle)
+                if shift > self.shake_max_shift or angle > self.shake_max_angle:
+                    moved.append(int(b))
+        finally:
+            client.setGravity(0, 0, -g)
+        return {"ok": not moved, "max_shift": worst_shift, "max_angle_deg": worst_angle,
+                "moved": moved, "new_box_moved": int(body) in moved}
 
     def _move(self, body: int, orn, start, target, obstacles) -> tuple[bool, tuple, dict | None]:
         """The simulator's ``_move_item``: the box is warped along the

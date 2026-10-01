@@ -286,11 +286,26 @@ class RuleAlphaAgent:
                 print(f"[shadow] disabled: {exc!r}", flush=True)
         return self._shadow
 
+    def _shadow_wants_shake(self, action: dict, item: dict) -> bool:
+        """The shake is for the poses that topple: high ones and standing
+        ones (config.shadow_shake)."""
+        if not getattr(self.config, "shadow_shake", False):
+            return False
+        from .shadow import get_half_ext
+
+        half = get_half_ext([float(item["length"]), float(item["width"]), float(item["height"])],
+                            int(action["orientation"]))
+        bottom = float(action["place_pos"][2]) - half[2]
+        standing = half[2] > min(half) + 1e-6
+        return bottom >= float(getattr(self.config, "shadow_shake_min_bottom", 0.5)) or (
+            standing and bool(getattr(self.config, "shadow_shake_standing", True)))
+
     def _shadow_verdict(self, sim, action: dict, item: dict) -> dict:
         t0 = time.perf_counter()
         try:
             out = sim.check(int(action["container_idx"]), item,
-                            tuple(float(v) for v in action["place_pos"]), int(action["orientation"]))
+                            tuple(float(v) for v in action["place_pos"]), int(action["orientation"]),
+                            shake=self._shadow_wants_shake(action, item))
         finally:
             spent = time.perf_counter() - t0
             self._shadow_longest = max(self._shadow_longest, spent)
@@ -298,13 +313,19 @@ class RuleAlphaAgent:
             self._longest_call = max(getattr(self, "_longest_call", 0.0), spent)
             self.shadow_stats["checks"] += 1
             self.shadow_stats["seconds"] += spent
-        out["ok"] = bool(out["transport_ok"] and out["settle_ok"]
+        shake = out.get("shake")
+        out["shake_ok"] = bool(shake["ok"]) if shake else True
+        if shake:
+            self.shadow_stats["shaken"] = self.shadow_stats.get("shaken", 0) + 1
+            if not shake["ok"]:
+                self.shadow_stats["shake_vetoes"] = self.shadow_stats.get("shake_vetoes", 0) + 1
+        out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"]
                          and out["drift_xy"] <= float(getattr(self.config, "shadow_max_drift_xy", 0.02))
                          and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
         return out
 
     def _shadow_hard(self, verdict: dict) -> bool:
-        return bool(not verdict["transport_ok"] or not verdict["settle_ok"]
+        return bool(not verdict["transport_ok"] or not verdict["settle_ok"] or not verdict.get("shake_ok", True)
                     or verdict["drift_xy"] > float(getattr(self.config, "shadow_hard_drift_xy", 0.10))
                     or verdict["angle_deg"] > float(getattr(self.config, "shadow_hard_angle_deg", 15.0)))
 
@@ -344,7 +365,7 @@ class RuleAlphaAgent:
             self._shadow_failed, self._shadow = True, None
             print(f"[shadow] disabled after an error: {exc!r}", flush=True)
             return action
-        digest = {k: verdict[k] for k in ("transport_ok", "settle_ok", "drift", "drift_xy", "angle_deg", "ok")}
+        digest = {k: verdict[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in verdict}
         if verdict["ok"]:
             self.shadow_stats["kept"] += 1
             self.last_shadow = {"chosen": digest, "outcome": "kept"}
@@ -1607,7 +1628,7 @@ class RuleAlphaAgent:
                     if not self._shadow_hard(v):
                         self.last_decision = layer1.Decision(placement=placement, candidate_counts={"physics-resort": len(cands)},
                                                              veto_counts={}, considered=len(cands), ladder=[])
-                        self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "drift", "drift_xy", "angle_deg", "ok")},
+                        self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in verdict},
                                             "outcome": "physics-resort", "tried": tried}
                         self.shadow_stats["resort"] = self.shadow_stats.get("resort", 0) + 1
                         return action

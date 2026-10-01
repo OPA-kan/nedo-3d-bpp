@@ -1918,6 +1918,15 @@ class RuleAlphaConfig:
     veto: the survivors are tried, and without one the pose stands."""
     shadow_alternatives: int = 4
     """How many other survivors of the decision are tried after a veto."""
+    shadow_shake: bool = False
+    """After a passing settle, a pose whose bottom is at or above
+    shadow_shake_min_bottom, or a standing one, is shaken in the shadow
+    world (the bench's proxy: gravity tilted 0.3 g four ways, 60 steps
+    each, then a settle); when any box moves over 5 cm or tips over 30 deg
+    the pose is a hard veto.  Costs about a settle's worth a check."""
+    shadow_shake_min_bottom: float = 0.5
+    shadow_shake_standing: bool = True
+
     physics_resort: bool = False
     """After the last resort and before a decline: every pose on the floor
     or on a packed top the geometry allows (the stack option's candidate
