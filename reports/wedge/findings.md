@@ -2164,9 +2164,31 @@ ones (c-c2-s0001 -7, c-c2-s0012 -6, c-c2p-s0010 -5) where the guard
 sends a soft box into the other container and the load there changes.
 C's topples double (18 against 8 toppled boxes, 4 of them soft; the
 stack option's and the terraces', since more items stack higher); the
-platform has never priced the bench's topples.  A loses 0.44 with only
-two guarded placements, against a baseline at 6 s: the A run at 4.5 s
-and the guard with the manifest's class counts are measured next.
+platform has never priced the bench's topples.  A's -0.44 was the
+budget: v28 itself is -0.27 at 4.5 s against its 6 s run
+(`v28g-core-a`), and at the same budget the guard with the manifest's
+class counts is +0.10 (6 better, 2 worse; `pocket2-core-a`).  The one
+scene down by 8 (a-c2p-s0012) had a soft box moved off its floor spot
+at the second step, which broke the plan's replay (25 planned poses
+replayed against 5), so under a Task A plan the guard stays off.
+
+The shadow shake (`shadow_shake`), on top of the guard: after a
+passing settle, a pose whose bottom is at or above 0.5 m, or a
+standing one, is shaken in the shadow world the way the bench's proxy
+shakes the load (gravity tilted 0.3 g four ways, 60 steps each, then
+a settle), and a tip over 30 deg of any box, or a slide over 10 cm of
+the new one, is a hard veto (hard boxes slide 5-10 cm on each other
+under the tilt in the proxy too, so a slide counts for the new box
+only).  Physics at the 4.5 s budget (`shake-core`, `shake-core-b`)
+against the guard alone: C +0.15 items (12 better, 10 worse), episodes
+over half the items 22 -> 24, topples 0.38 -> 0.06, CoM +0.004,
+slowest call 4.7 s; B -0.40 (13 better, 15 worse), priority -0.13,
+topples 0.23 -> 0.06, CoM -0.006, 532 of 1563 shaken poses vetoed.
+Against v28, C with the guard and the shake is +1.29 items, 17 -> 24
+episodes over half, topples 0.17 -> 0.06.  v29 is the guard alone;
+the shake is the next probe, since whether the platform's stability
+test prices what the proxy prices is what one official run of it
+would tell.
 
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
