@@ -2101,6 +2101,19 @@ submission's budget it is a loss.  Not built; the search stays a
 measurement until the platform's time allows 6 s calls (its slowest
 v26 call ran at the budget, 4.56 s, so it does not).
 
+v27's official result: 44.46 (v26 44.20): fill +0.33, placement
++1.1, soft +0.55, the fraction placed 0.5752 -> 0.5816, stability
++0.09, cog -0.42.  Its slowest call ran 6.56 s: a Task B call where
+a candidate generation (0.3-0.9 s, not interruptible) started just
+before the resort's deadline.  So a generation now starts only when
+the slowest so far plus a check fit before the deadline, and the Task
+B window past the budget is 2.5 s instead of 1.5 (with the guard at
+1.5 s a second container's generation no longer fitted: -0.7 items a
+scene, `v28g-core-b`).  v28's final form at the 4.5 s budget
+(`v28g25-core-b`, `v28g-core`): B +1.38 items over v26 (28 better, 0
+worse), soft +1.25, priority +0.17, slowest call 6.84 s; C identical
+to v27 with the slowest call 5.6 -> 4.0 s.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,

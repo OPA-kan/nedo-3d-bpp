@@ -253,7 +253,15 @@ episodes over half the items B 30 -> 34, C 11 -> 17.  Official sample:
 A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (v27 the same); policy max
 0.99 / 4.89 / 0.87 s (the B call past the 4.5 s budget is the resort's
 window, under the 10 s limit), optimize 25 s
-(`official-sample-abc-v28.json`).
+(`official-sample-abc-v28.json`).  After v27's official run (its
+slowest call 6.56 s: a candidate generation started just before the
+resort's deadline) a generation starts only when the slowest so far
+and a check fit before the deadline, and the Task B window past the
+budget is 2.5 s (at 1.5 s the guard cost 0.7 items a scene on B).
+Physics B at the 4.5 s budget against v26: items +1.38 (28 scenes up,
+none down), soft +1.25, priority +0.17, slowest call 6.84 s (limit
+10 s); C against v27: identical, slowest call 4.0 s.  Official sample
+unchanged, policy max 1.42 / 4.60 / 1.27 s.
 
 ## Known limits
 
