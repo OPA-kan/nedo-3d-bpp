@@ -1492,6 +1492,23 @@ class RuleAlphaConfig:
     (two classes at 1 % and 4 %); 22.8 points of the fraction placed
     were soft cargo left in the pool."""
 
+    pocket_guard: bool = False
+    """Soft cargo on the floor keeps the pockets the big hard classes still
+    expected will need (rule_alpha/pocket.py): a selector on soft items
+    whose ladder pick is a floor pose, taking the survivor after which the
+    load keeps the most floor slots for those classes, weighted by the
+    chance each still arrives (a Dirichlet prior over the sample stream's
+    hard classes updated with the items seen)."""
+    pocket_guard_margin: float = 0.25
+    pocket_guard_seconds: float = 0.6
+    pocket_guard_k: int = 12
+    pocket_guard_prior: float = 4.0
+    pocket_guard_items_per_container: float = 41.0
+    pocket_guard_min_probability: float = 0.5
+    pocket_guard_min_footprint: float = 0.2
+    """Only hard classes with a flat footprint of at least this area (m^2)
+    are protected: 0.55 x 0.40 (0.22) and up."""
+
     room_selector: bool = False
     """Among the ladder's first ``room_selector_k`` survivors, the one
     after which the load keeps the most level, reachable slots for the

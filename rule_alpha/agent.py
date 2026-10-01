@@ -37,6 +37,10 @@ class RuleAlphaAgent:
             from .room import RoomSelector
 
             selector = RoomSelector(self.config)
+        elif selector is None and getattr(self.config, "pocket_guard", False):
+            from .pocket import SoftPocketSelector
+
+            selector = SoftPocketSelector(self.config)
         self.selector = selector
         # optional learned option asked before the ladder: a placement in the
         # chamfer strip, or a pass (wedge_rl.option.WedgeOption)
@@ -382,6 +386,12 @@ class RuleAlphaAgent:
         self._longest_call = 0.0
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
+        # the pocket guard's class frequencies: every item seen so far
+        if self.selector is not None and hasattr(self.selector, "observe"):
+            try:
+                self.selector.observe(pool, len(containers))
+            except Exception as exc:
+                print(f"[pocket] observe failed: {exc!r}", flush=True)
         # rebuild from the observation so the plan always reflects the settled
         # truth the simulator reports, not what rule-alpha hoped for
         self.board = layer1.Board(containers, self.config)
