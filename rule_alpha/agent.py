@@ -1505,6 +1505,11 @@ class RuleAlphaAgent:
         if (self.pocket is None or not getattr(profile, "is_soft", False) or placement.surface != "floor"
                 or pool is None):
             return placement
+        if self.plan_by_index:
+            # Task A with a plan: the planner has laid the rooms out, and a
+            # soft box moved off its floor spot broke a-c2p-s0012's plan
+            # at the second step (45 -> 37 items)
+            return placement
         started = float(getattr(self, "_policy_started", time.perf_counter()))
         deadline = min(started + 0.85 * float(self.config.policy_budget_seconds),
                        time.perf_counter() + float(getattr(self.config, "pocket_guard_seconds", 0.8)))
