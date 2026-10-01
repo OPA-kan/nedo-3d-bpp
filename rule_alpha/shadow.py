@@ -234,7 +234,7 @@ class ShadowSim:
         self.shake_tilt = 0.3
         self.shake_steps = 60
         self.shake_settle_steps = 120
-        self.shake_max_shift = 0.05
+        self.shake_max_shift = 0.10
         self.shake_max_angle = 30.0
         self.settle_steps_used = 0
         self._key = None
@@ -489,7 +489,11 @@ class ShadowSim:
                 angle = math.degrees(2.0 * math.acos(dot))
                 worst_shift = max(worst_shift, shift)
                 worst_angle = max(worst_angle, angle)
-                if shift > self.shake_max_shift or angle > self.shake_max_angle:
+                # hard boxes slide on each other by 5-10 cm under the tilt
+                # (box-on-box friction 0.4 x 0.4 against the 0.3 g), as
+                # they do in the bench's proxy, so a slide counts for the
+                # new box only; a tip counts for every box
+                if angle > self.shake_max_angle or (b == body and shift > self.shake_max_shift):
                     moved.append(int(b))
         finally:
             client.setGravity(0, 0, -g)
