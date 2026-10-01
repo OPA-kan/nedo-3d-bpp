@@ -1702,10 +1702,19 @@ class RuleAlphaAgent:
                         cands = passing
                     except Exception as exc:
                         print(f"[physics-resort] sweep prefilter failed: {exc!r}", flush=True)
+                # the poses come in groups (the same cover class, the same
+                # level, the same support share): when three of a group in
+                # a row fail the settle the rest of it is skipped, since
+                # they fail alike (c-c1-s0003: the 85 lowest poses, all on
+                # the same hard tops, all tipped; the 88 after them stood)
+                failed: dict[tuple, int] = {}
                 for cand in cands:
                     if not room():
                         break
                     cover = covering.get(id(cand), False)
+                    group = (cover, round(cand.bottom, 1), round(cand.support_ratio, 1))
+                    if count and failed.get(group, 0) >= 3:
+                        continue
                     label = "count-mode" if cover else "physics-resort"
                     placement = _placement(cand, len(cands), profile, container_idx, model)
                     placement.archetype = label
@@ -1720,6 +1729,10 @@ class RuleAlphaAgent:
                         print(f"[physics-resort] check failed: {exc!r}", flush=True)
                         return None
                     tried += 1
+                    if self._shadow_hard(v):
+                        failed[group] = failed.get(group, 0) + 1
+                    else:
+                        failed[group] = 0
                     if not self._shadow_hard(v):
                         self.last_decision = layer1.Decision(placement=placement, candidate_counts={label: len(cands)},
                                                              veto_counts={}, considered=len(cands), ladder=[])
