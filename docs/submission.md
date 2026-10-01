@@ -263,6 +263,30 @@ none down), soft +1.25, priority +0.17, slowest call 6.84 s (limit
 10 s); C against v27: identical, slowest call 4.0 s.  Official sample
 unchanged, policy max 1.42 / 4.60 / 1.27 s.
 
+Twenty-ninth build (v29): v28 with the pocket guard (`pocket_guard`;
+`rule_alpha/pocket.py`).  On the v28 end states, 52 of the 87 small
+boxes on the floor of the Task C suite -- every one of them soft --
+stood where the biggest hard box left unplaced would otherwise have
+had a floor pose.  After the ladder decides a floor pose for a soft
+item, the guard generates every pose the geometry allows (the stack
+option's candidates, flat, half supported) and takes the one after
+which the load keeps the most level, reachable slots for the big hard
+classes still expected (soft tops counted as dead ground for hard
+cargo), when it beats the ladder's pose by a quarter of a slot.  The
+classes and their weights: a Dirichlet prior over the sample stream's
+hard classes updated with every item seen, and the chance each still
+arrives in the items expected to remain; on Task A the manifest's
+counts, and the guard stays off under a plan.  0.75 s a guarded
+decision.  Physics suites against v28 at the 4.5 s budget: items C
++1.15 a scene (20 up, 7 down; episodes over half the items 17 -> 22),
+B +0.17 (34 -> 38), A +0.10 (6 up, 2 down; the plan-off form makes it
+v28's); C's topples 0.17 -> 0.38 (the extra items stack higher).  A
+shadow shake that vetoes high or standing poses which topple under a
+0.3 g tilt is built and measured (C +0.15 more, B -0.40, topples 0.06
+on both) and left off here as a separate probe.  Official sample: A
+32.11 / 25, B 27.28 / 25, C 23.14 / 23 (the same as v28); policy max
+and optimize in `official-sample-abc-v29.json`.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
