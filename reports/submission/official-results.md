@@ -18,6 +18,9 @@
 | v24 (7f2edae: v18 plus v23's soft cargo as structure and soft first when free, the cover veto's tolerance fixed, the stack option's soft support share online) | 31.78 | 40.59 | 46.43 | 24.05 | 37.9 | 0.5447 | 139.0 | 7.03 |
 | v25 (e1ff972: v18's loads with the soft headroom reserve at 0.9 of the soft volume; the cover veto's tolerance fix in) | 35.10 | 50.59 | 58.47 | 29.3 | 20.6 | 0.5585 | 139.0 | 5.58 |
 | v26 (0759666: v18 plus the shadow check -- every chosen pose tried in a private pybullet world running the official sweep and settle, replaced by the next survivor or the next stage on a veto) | 35.85 | 53.37 | 62.55 | 38.45 | 25.35 | 0.5752 | 97.6 | 4.56 |
+| v27 (10ba6d9: v26 plus the physics resort -- before a decline, every pose the geometry allows, tried in the shadow world until one stands) | 36.18 | 52.95 | 62.64 | 39.55 | 25.9 | 0.5816 | 138.5 | 6.56 |
+
+v27's total was 44.46 (v26 44.20): fill +0.33, placement +1.1, soft +0.55, the fraction placed 0.5752 -> 0.5816, stability +0.09, against cog -0.42; the bench had +0.65 / +1.00 / +0.96 items a scene on A / B / C with no scene worse.  The slowest policy call 6.56 s (a Task B call: the resort's window past the 4.5 s budget plus a candidate generation started just before its deadline; the limit is 10 s on B, 8 s on A and C), optimize 138.5 s (the dry-run hits its 140 s cap, since the shadow and the resort run inside it too; v26 97.6 s).
 
 v26's total was 44.20, the best so far (v18 43.05): fill +1.03, placement +2.85, soft +5.5, the fraction placed +2.3 points (0.5752), against cog -1.46 and stability -0.14; the slowest policy call 4.56 s (budget 4.5 s: the platform now runs about at the bench's speed), optimize 97.6 s.  The bench had v26 at +0.44 / +0.85 / +0.56 items a scene on A / B / C with the two settle-ended episodes a suite rescued, and the platform paid for the count and the soft cargo as the prices said it would; the cog cost is the rescued items' height.
 
