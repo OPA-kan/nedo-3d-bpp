@@ -663,7 +663,12 @@ class RuleAlphaAgent:
         physics_resort = bool(getattr(self.config, "physics_resort", False)) and self._shadow_observation is not None
         if self._shadow_observation is not None and self._shadow is not None:
             end -= min(max(self._shadow_longest, 0.3), 1.0) + 0.05
-        if physics_resort:
+        if physics_resort and len(pool) <= 1:
+            # one item (Tasks A and C): the resort's window comes out of
+            # the budget.  With a pool (Task B) it runs past the budget
+            # instead (physics_resort_extra_seconds): shortening the stages
+            # cost b-c2p-s0011 a soft-edge decision at 3.7 s and the seven
+            # items after it
             end -= float(getattr(self.config, "physics_resort_seconds", 1.8))
         if self.config.last_resort_relax and self._can_start(end):
             action = self._last_resort(containers, ordered, end)
