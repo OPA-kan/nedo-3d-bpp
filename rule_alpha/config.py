@@ -1909,11 +1909,14 @@ class RuleAlphaConfig:
     last resort stops that much earlier); about four checks."""
     physics_resort_candidates: int = 300
     """Poses generated per container before ranking."""
-    physics_resort_extra_seconds: float = 1.5
+    physics_resort_extra_seconds: float = 2.5
     """With a pool of several items (Task B, whose limit is 10 s against
     8 s) the resort may run this long past the policy budget: the stages
     before it spend the budget on the pool, and the declining call is the
-    episode's last."""
+    episode's last.  2.5 s with the generation guard (a generation starts
+    only when it fits): at 1.5 s the guard cost 0.7 items a scene on the
+    physics B suite, since a second container's generation no longer
+    fitted; the slowest call is then budget + 2.5 s + one check."""
     physics_resort_anchor_step: float = 0.04
     """Anchor lattice step (m) across every support for the resort's
     candidates, besides the generator's flush anchors."""
