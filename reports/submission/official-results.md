@@ -17,6 +17,9 @@
 | v19 (b8d99c1: v18 with the soft headroom reserve sized for half the soft volume) | 34.82 | 50.32 | 58.50 | 30.05 | 20.2 | 0.5558 | 139.7 | 5.88 |
 | v24 (7f2edae: v18 plus v23's soft cargo as structure and soft first when free, the cover veto's tolerance fixed, the stack option's soft support share online) | 31.78 | 40.59 | 46.43 | 24.05 | 37.9 | 0.5447 | 139.0 | 7.03 |
 | v25 (e1ff972: v18's loads with the soft headroom reserve at 0.9 of the soft volume; the cover veto's tolerance fix in) | 35.10 | 50.59 | 58.47 | 29.3 | 20.6 | 0.5585 | 139.0 | 5.58 |
+| v26 (0759666: v18 plus the shadow check -- every chosen pose tried in a private pybullet world running the official sweep and settle, replaced by the next survivor or the next stage on a veto) | 35.85 | 53.37 | 62.55 | 38.45 | 25.35 | 0.5752 | 97.6 | 4.56 |
+
+v26's total was 44.20, the best so far (v18 43.05): fill +1.03, placement +2.85, soft +5.5, the fraction placed +2.3 points (0.5752), against cog -1.46 and stability -0.14; the slowest policy call 4.56 s (budget 4.5 s: the platform now runs about at the bench's speed), optimize 97.6 s.  The bench had v26 at +0.44 / +0.85 / +0.56 items a scene on A / B / C with the two settle-ended episodes a suite rescued, and the platform paid for the count and the soft cargo as the prices said it would; the cog cost is the rescued items' height.
 
 v25's total was 40.53, 2.52 below v18 and within 0.09 of v19 -- the
 reserve moved the other way (0.9 against v19's 0.5) and landed on the
