@@ -2114,6 +2114,60 @@ scene, `v28g-core-b`).  v28's final form at the 4.5 s budget
 worse), soft +1.25, priority +0.17, slowest call 6.84 s; C identical
 to v27 with the slowest call 5.6 -> 4.0 s.
 
+### The pocket guard: soft cargo keeps the room the hard cargo needs
+
+Where the room goes, measured on the v28 end states.  The loads are
+not porous: boxes fill 33 / 45 / 51 % of the usable box on C / B / A,
+the terrain's mean is 39 / 52 / 57 % of the height and the voids under
+it are 10-14 % of the volume under it; what is left is a terrain with
+20-34 % of its columns at the ceiling and the rest low and in pieces
+the leftover boxes do not fit.  A probe that removes each small floor
+box of a final load in turn and asks whether the biggest hard box left
+unplaced then has a floor pose: 52 of the 87 small floor boxes on C
+(29 of 48 episodes) and 19 of 57 on B (13 episodes) -- every one of
+them soft; no small hard box blocks anything.  The ladder's soft
+archetypes put a soft box on a floor edge when it arrives early, and
+that edge, or the sweep past it, is what a 0.65 x 0.45 or 0.75 x 0.56
+box needs later.  Re-ranking the ladder's survivors cannot help: at a
+soft floor decision the survivors are the same corner shifted by a
+centimetre or two (traced on two C scenes).  Generating poses instead
+(the stack option's candidates, flat, half supported, any top or floor
+spot) and scoring each by the level, reachable slots the load keeps
+for the big hard classes (`room.RoomScorer`, soft tops as dead ground
+since the cover rule forbids hard on soft): at 15 of 18 soft floor
+decisions on six C scenes another pose keeps 1.9 slots more on average
+-- a floor spot that does not block the sweep (2.03 -> 8.29 on
+c-c2-s0001) or a hard top.
+
+`pocket_guard` (`rule_alpha/pocket.py`): after the ladder decides a
+floor pose for a soft item, the guard takes the best such pose when it
+keeps 0.25 slots more.  Which classes count, and how much, is a
+Dirichlet prior over the sample stream's hard classes (4 pseudo-items)
+updated with every item seen, and the chance each class still arrives
+in the items expected to remain (41 a container less the seen); on
+Task A the manifest counts them instead.  Late in the episode nothing
+is expected and the guard stands down.  0.75 s a guarded decision.
+
+Physics (Actions, the 4.5 s budget, `pocket-core`, `pocket-core-b`,
+`pocket-core-a`) against v28 at the same budget:
+
+| suite | placed | soft | priority | fill | CoM | episodes >= half | topples | guarded placements |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C | 28.73 -> 29.88 (+1.15; 20 better, 7 worse) | +0.29 | +0.17 | +1.21 | 0.351 -> 0.357 | 17 -> 22 | 0.17 -> 0.38 | 103 (34 on tops, 69 at other floor spots) |
+| B | 33.77 -> 33.94 (+0.17; 11 better, 5 worse) | -0.08 | -0.02 | +0.21 | 0.381 -> 0.382 | 34 -> 38 | 0.33 -> 0.23 | 27 |
+| A (against the 6 s run) | 39.10 -> 38.67 (-0.44; 1 better, 7 worse) | -0.23 | -0.02 | -0.27 | 0.346 -> 0.346 | 45 -> 44 | 0.21 -> 0.21 | 2 |
+
+The count on C is the largest move the bench has seen on that task
+since the planner: +1.15 a scene, five more episodes over the
+threshold, with the scenes that lose being the two-normal-container
+ones (c-c2-s0001 -7, c-c2-s0012 -6, c-c2p-s0010 -5) where the guard
+sends a soft box into the other container and the load there changes.
+C's topples double (18 against 8 toppled boxes, 4 of them soft; the
+stack option's and the terraces', since more items stack higher); the
+platform has never priced the bench's topples.  A loses 0.44 with only
+two guarded placements, against a baseline at 6 s: the A run at 4.5 s
+and the guard with the manifest's class counts are measured next.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
