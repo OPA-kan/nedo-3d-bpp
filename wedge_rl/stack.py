@@ -284,6 +284,42 @@ def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_priorit
     return False
 
 
+def skyline(container: dict, model, step: float = 0.04):
+    """The load's top height on a grid over the floor: ``(xs, ys, tops)``."""
+    rect = model.floor_rect
+    xs = rect.x_min + np.arange(int((rect.x_max - rect.x_min) / step) + 1) * step
+    ys = rect.y_min + np.arange(int((rect.y_max - rect.y_min) / step) + 1) * step
+    tops = np.full((len(xs), len(ys)), float(model.z_floor))
+    for packed, _soft, _prio in packed_aabbs_local(container):
+        ix = (xs >= float(packed.minimum[0]) - 1e-9) & (xs <= float(packed.maximum[0]) + 1e-9)
+        iy = (ys >= float(packed.minimum[1]) - 1e-9) & (ys <= float(packed.maximum[1]) + 1e-9)
+        tops[np.ix_(ix, iy)] = np.maximum(tops[np.ix_(ix, iy)], float(packed.maximum[2]))
+    return xs, ys, tops
+
+
+def shade_area(box: AABB, sky, z_ceiling: float, clearance: float = 0.2) -> float:
+    """Floor area (m^2) deeper into the container than ``box`` (larger y:
+    the simulator's sweep enters at the low-y side and runs along y at the
+    target's own x before it turns), within the box's x range, whose
+    skyline is lower than the box's top and still has ``clearance`` under
+    the ceiling: the slots this pose would wall off from the sweep.  On
+    the Task C boards that end under the count threshold, 60 of 60
+    whole-top poses that would stand were sweep-blocked (c-c1-s0003)."""
+    xs, ys, tops = sky
+    if len(xs) < 2 or len(ys) < 2:
+        return 0.0
+    step_x = float(xs[1] - xs[0])
+    step_y = float(ys[1] - ys[0])
+    ix = (xs >= float(box.minimum[0]) - 1e-9) & (xs <= float(box.maximum[0]) + 1e-9)
+    iy = ys > float(box.maximum[1]) + 1e-9
+    if not ix.any() or not iy.any():
+        return 0.0
+    deeper = tops[np.ix_(ix, iy)]
+    top = float(box.maximum[2])
+    shaded = (deeper < top - 0.02) & (z_ceiling - deeper >= clearance)
+    return float(shaded.sum()) * step_x * step_y
+
+
 def covers_priority(box: AABB, container: dict) -> bool:
     """True when the box would sit above a prioritized item (which has to
     stay reachable), whether or not it rests on it."""

@@ -1543,6 +1543,14 @@ class RuleAlphaConfig:
     were out of time, not out of poses: on c-c2-s0004 both containers
     had 20 of 20 shadow-ok poses and the count pass never started."""
     count_mode_extra_seconds_pool: float = 3.0
+    resort_shade_step: float = 0.0
+    """The physics resort (and the count pass) orders its poses by how
+    much deeper floor they wall off from the simulator's sweep (the
+    terrain behind the pose, in its x range, lower than its top and still
+    with 0.2 m of headroom), in steps of this many m^2, before their
+    height.  0 turns it off.  The resort's door-side placements on
+    c-c1-s0006 (two boxes at 1.1 m by the door) blocked every later
+    item."""
     allow_cover_other_attribute: bool = False
     """Set by the count pass only: the candidate generator skips both
     cover vetoes (other attribute, priority)."""

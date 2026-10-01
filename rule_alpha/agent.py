@@ -1582,7 +1582,7 @@ class RuleAlphaAgent:
         sim = self._shadow_sim()
         if sim is None:
             return None
-        from wedge_rl.stack import covers_other_attribute, stack_candidates
+        from wedge_rl.stack import covers_other_attribute, shade_area, skyline, stack_candidates
 
         from .planner import _placement
 
@@ -1663,12 +1663,25 @@ class RuleAlphaAgent:
                         for c in cands:
                             covering[id(c)] = bool(covers_other_attribute(
                                 c.box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
+                    # a pose that walls off deeper slots from the sweep
+                    # (shade_area: lower terrain behind it, still with
+                    # headroom) goes after the ones that do not, in steps
+                    # of resort_shade_step m^2: on the Task C boards under
+                    # the threshold the whole-top poses that would stand
+                    # are nearly all sweep-blocked
+                    shade_step = float(getattr(strict, "resort_shade_step", 0.0))
+                    shade: dict[int, int] = {}
+                    if shade_step > 0.0:
+                        sky = skyline(container, model)
+                        for c in cands:
+                            shade[id(c)] = int(shade_area(c.box, sky, float(model.z_ceiling)) / shade_step)
                     # under the threshold the whole-top poses go before the
                     # partial ones at any height: the partial ones fail
                     # the settle far more often (c-c1-s0003: the fifteen
                     # lowest poses tried, all partial, none stood)
                     cands.sort(key=lambda c: (covering.get(id(c), False),
                                               bool(count and not c.on_floor and c.support_ratio < 0.95),
+                                              shade.get(id(c), 0),
                                               round(c.bottom, 2), -round(c.support_ratio, 2),
                                               -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
                     generated[key] = cands
