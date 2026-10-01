@@ -2042,6 +2042,35 @@ the end is the load's porosity (fill 30-38 % with the terrain at the
 ceiling), which is the ladder's terraces and towers, not a placement
 the search misses.
 
+The final form of the resort on physics B (`reports/bench/presort2-core-b`,
+the size cache and the 1.5 s window past the budget): +1.04 items a
+scene over v26 (27 better, 2 worse), soft +1.19 (27 better, 1 worse),
+priority +0.15, fill +0.76, CoM +0.002, episodes over half the items
+30 -> 35, no settle end (v26 one), topples 0.33 -> 0.29; 77 resort
+placements.  The two scenes down: b-c2p-s0011 -7, where the stages'
+deadlines, shortened by the resort's reserve, cut the soft-edge
+decision v26 made at 3.7 s and the resort had nothing for that item;
+so with a pool the stages keep their deadlines and the resort uses
+its window past the budget alone (`presort3-core-b` measures it).
+
+v26's official result: 44.20, the best so far (v18 43.05) -- fill
++1.03, placement +2.85, soft +5.5, the fraction placed 0.5526 ->
+0.5752, against cog -1.46 and stability -0.14; the slowest call 4.56 s
+at the 4.5 s budget, so the platform now runs at about the bench's
+speed.  The prices held: the count and the soft cargo were paid, the
+rescued items' height cost on cog.
+
+The settle shortened (`ShadowSim.rest_steps`): the shadow's 300 settle
+steps are the check's cost, and a box at rest stays at rest, so the
+settle stops once the box's linear velocity has been under 1 mm/s and
+its angular velocity under 0.01 rad/s for 20 consecutive steps.
+Against the full 300 steps at every placement of three B and three C
+scenes (168 probes): the settled pose within 0.8 mm (mean 0.06-0.09
+mm, p95 0.27 mm) and 0.04 deg, the steps 74-78 at the median (p90
+278-295: a few boxes, soft ones, creep), the time 0.31 -> 0.15 s and
+0.25 -> 0.12 s a check.  A falling box never rests, so a settle
+failure still runs the course.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
