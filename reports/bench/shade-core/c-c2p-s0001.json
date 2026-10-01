@@ -1,0 +1,2961 @@
+{
+ "scene": "c-c2p-s0001",
+ "scene_spec": {
+  "name": "c-c2p-s0001",
+  "seed": 1,
+  "layout": "c2p",
+  "task": "C",
+  "look_ahead": 1,
+  "optimize": false,
+  "item_count": 82,
+  "notes": ""
+ },
+ "arm": {
+  "arm": "stack:reports/wedge/ppo-stack-c1-s0-tower@offline_dry_run=true,last_resort_relax=true,no_cover_other_attribute=true,priority_cargo_first=true,offline_planner=rows,plan_variants=after-hard,plan_layouts=1,priority_is_structure=true,reserve_headroom_for_soft=true,soft_headroom_volume_share=0.75,soft_headroom_slack=0.05,plan_min_support=0.0,plan_standing=true,plan_replay_clearance=0.026,plan_replay_nudge=0.0,conservative_transport=false,count_first=true,plan_score_weights=1;0.5;0.5;3,plan_normal_in_priority_container=true,plan_priority_deep_first=true,cover_veto_ignores_shelf=true,soft_headroom_per_container=true,shadow_check=true,physics_resort=true,policy_budget_seconds=4.5,pocket_guard=true,count_mode=true,resort_shade_step=0.1",
+  "family": "stack",
+  "model": "reports/wedge/ppo-stack-c1-s0-tower",
+  "model_sha": "bac906e27212",
+  "wedge_model": "",
+  "wedge_sha": "",
+  "lookahead": null,
+  "config": {
+   "inclusion_clearance": 0.016,
+   "floor_action_lift": 0.02,
+   "settled_wall_clearance": 0.006,
+   "transport_clearance": 0.0,
+   "settled_clearance": 0.026,
+   "contact_tolerance": 0.006,
+   "min_support_ratio": 0.6,
+   "com_margin": 0.03,
+   "elongation_tau": 1.8,
+   "tipping_normal": 1.5,
+   "tipping_wall_preferred": 2.0,
+   "tipping_wall_strong": 3.0,
+   "max_freestanding_ratio": 2.0,
+   "ground_before_growth": false,
+   "prefilter_dead_candidates": true,
+   "layer2_anchor_clamp": 0.005,
+   "wedge_keeps_its_overhang": false,
+   "seal_counts_what_is_left": true,
+   "seal_boxes_worth": 2,
+   "seal_ranks_terraces": false,
+   "seal_check_all_surfaces": false,
+   "back_reachability_guard": true,
+   "back_guard_band": 0.7,
+   "back_guard_slack": 0.05,
+   "layer2_clamps_anchors": true,
+   "grid_always_from_packed": false,
+   "pool_order_demotes_elongated": false,
+   "pool_order_breaks_on_mass": false,
+   "shelf_skip_needs_column": true,
+   "shelf_column_fraction": 0.5,
+   "last_resort_all_poses": false,
+   "floor_prefers_flat": false,
+   "floor_paving_tolerance": 0.02,
+   "floor_paving_order": false,
+   "wall_front_order_quota": 0,
+   "plateau_veto_has_fallback": true,
+   "shelf_veto_has_fallback": false,
+   "shelf_fallback_min_fraction": 0.6,
+   "terrace_keeps_level": false,
+   "plateau_gain_bucket": 0.02,
+   "row_tiling": true,
+   "row_min_useful_width": 0.35,
+   "min_floor_footprint_fraction": 0.6,
+   "shelf_min_support_fraction": 0.9,
+   "max_shelf_tipping_ratio": 2.2,
+   "back_band_fraction": 0.42,
+   "edge_band_fraction": 0.26,
+   "corridor_width_fraction": 0.46,
+   "corridor_depth_fraction": 0.34,
+   "layer2_enabled": true,
+   "layer2_family_quota": 12,
+   "max_orientations_layer2": 3,
+   "layer2_max_level_step": 0.45,
+   "shelf_takes_hard": true,
+   "shelf_own_anchors": true,
+   "shelf_residual_key": true,
+   "shelf_depth_bucket": 0.05,
+   "typed_floor_right_front": true,
+   "front_shortlist_quota": 4,
+   "front_stays_low": true,
+   "front_release_back_share_of_headroom": 0.45,
+   "front_release_back_height": 0.6,
+   "front_release_back_share": 0.5,
+   "front_height_slack": 0.05,
+   "hard_avoids_front": false,
+   "hard_front_band": 0.35,
+   "typed_cap_enabled": false,
+   "typed_cap_min_height": 0.3,
+   "layer2_free_depth": 2,
+   "plateau_support_min_area": 0.25,
+   "plateau_support_footprint_multiple": 0.0,
+   "support_coverage_at_any_depth": false,
+   "perch_min_coverage": 0.5,
+   "plateau_support_coverage": 0.7,
+   "layer2_max_layers": 5,
+   "typed_front_right_slack": 0.25,
+   "wedge_approach_band": 0.3,
+   "wedge_approach_max_height": 0.45,
+   "wedge_top_must_advance": true,
+   "wedge_bottleneck_is_local": true,
+   "wedge_bridge_strip": 0.25,
+   "hole_fill_enabled": true,
+   "hole_fill_min_area": 0.05,
+   "hole_fill_min_enclosure": 0.5,
+   "hole_fill_max_rect_share": 0.2,
+   "hole_fill_min_coverage": 0.55,
+   "hole_fill_min_headroom": 0.1,
+   "front_wedge_enabled": true,
+   "front_wedge_band": 0.55,
+   "front_wedge_min_drop": 0.08,
+   "front_wedge_max_steps": 6,
+   "front_wedge_poses": 2,
+   "last_resort_enabled": true,
+   "last_resort_max_rects": 8,
+   "last_resort_rects_per_region": 4,
+   "hole_fill_rects_per_region": 5,
+   "hole_fill_max_holes": 8,
+   "hole_fill_tier_tolerance": 0.01,
+   "bridge_keeps_floor": true,
+   "bridge_max_sealed_floor": 0.06,
+   "compact_raised": true,
+   "compact_sideways_always": true,
+   "layer2_bridge_level_tolerance": 0.06,
+   "plateau_merge_min_gain": 0.02,
+   "corridor_release_fill": 0.62,
+   "back_first_slack": 0.1,
+   "back_first_hole_tolerance": 0.012,
+   "stranded_veto_area": 0.12,
+   "reach_probe_heights": [
+    0.0,
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+   ],
+   "sealed_veto_area": 0.3,
+   "foundation_large_quantile": 0.6,
+   "foundation_small_quantile": 0.4,
+   "compaction_min_gain": 0.008,
+   "compaction_iterations": 7,
+   "perimeter_prefers_depth": true,
+   "frontier_prefers_lying": true,
+   "small_hard_fit_guard": true,
+   "wall_front_band": 0.1,
+   "wall_front_target_ratio": 0.5,
+   "wall_front_min_height": 0.25,
+   "wall_front_max_height_shelf_fraction": 0.5,
+   "tall_perimeter_max_footprint_fraction": 0.18,
+   "tall_perimeter_min_height": 0.3,
+   "wall_front_strip_fraction": 0.22,
+   "wall_front_max_footprint_fraction": 0.13,
+   "wall_front_depth_target": 0.85,
+   "wedge_overhang_fraction": 0.4,
+   "wedge_step_max_footprint_fraction": 0.13,
+   "wedge_step_max_height": 0.35,
+   "wedge_min_step_gain": 0.03,
+   "wedge_step_probe_width": 0.4,
+   "wedge_step_probe_height": 0.2,
+   "wedge_cap_ladder_depth": 1,
+   "wedge_weight_step": 1.0,
+   "wedge_weight_cap": 0.6,
+   "wedge_weight_area": 0.6,
+   "wedge_weight_fill": 0.9,
+   "wedge_weight_bottleneck": 0.6,
+   "wedge_min_step_count": 3,
+   "wedge_min_step_share": 0.1,
+   "wedge_reserve_threshold": 0.25,
+   "slope_pocket_margin": 0.004,
+   "slope_pocket_min_penetration": 0.06,
+   "slope_pocket_min_share": 0.5,
+   "grid_cell": 0.02,
+   "candidate_grid_cell": 0.04,
+   "max_new_interior_hole": 0.06,
+   "plateau_height_tolerance": 0.03,
+   "priority_container_hard_budget": 0.45,
+   "ladder_orientations": 3,
+   "max_candidates_per_orientation": 220,
+   "max_anchor_x": 26,
+   "max_anchor_y": 22,
+   "shortlist_size": 60,
+   "anchor_slack": 0.0005,
+   "anchor_clamp": true,
+   "fast_validate": true,
+   "compaction_keeps_support": true,
+   "settle_sink_allowance": 0.02,
+   "key_quantum": 0.005,
+   "residual_rect_shortlist": 24,
+   "zone_guard_fraction": 0.15,
+   "frontier_item_contact_weight": 2.0,
+   "count_all_shelves_as_relief": true,
+   "zones_shrink_with_demand": false,
+   "zone_reference_share": 0.25,
+   "layer1_only": true,
+   "allow_slope_infill_on_items": true,
+   "offline_dry_run": true,
+   "last_resort_relax": true,
+   "reserve_headroom_for_soft": true,
+   "soft_headroom_slack": 0.05,
+   "soft_headroom_volume_factor": 0.0,
+   "soft_headroom_volume_share": 0.75,
+   "offline_planner": "rows",
+   "plan_band": 0.22,
+   "priority_is_structure": true,
+   "plan_variants": "after-hard",
+   "plan_min_support": 0.0,
+   "plan_min_support_soft": 0.8,
+   "plan_standing": true,
+   "plan_standing_max_bottom": 10.0,
+   "soft_is_structure": false,
+   "stack_soft_is_structure": true,
+   "stack_max_bottom": 10.0,
+   "stack_soft_standing": true,
+   "stack_soft_min_support": 0.0,
+   "soft_first_when_free": false,
+   "pocket_guard": true,
+   "pocket_guard_margin": 0.25,
+   "pocket_guard_seconds": 0.8,
+   "pocket_guard_candidates": 120,
+   "pocket_guard_anchor_step": 0.06,
+   "pocket_guard_min_support": 0.6,
+   "pocket_guard_prior": 4.0,
+   "pocket_guard_items_per_container": 41.0,
+   "pocket_guard_min_probability": 0.5,
+   "pocket_guard_min_footprint": 0.2,
+   "count_mode": true,
+   "count_mode_items_per_container": 41.0,
+   "count_mode_margin": 0,
+   "count_mode_extra_seconds": 1.0,
+   "count_mode_extra_seconds_pool": 3.0,
+   "resort_shade_step": 0.1,
+   "allow_cover_other_attribute": false,
+   "room_selector": false,
+   "room_selector_k": 6,
+   "room_selector_margin": 0.25,
+   "room_selector_seconds": 1.0,
+   "room_selector_cell": 0.05,
+   "room_selector_tolerance": 0.02,
+   "room_selector_classes": "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5",
+   "pool_item_search": false,
+   "pool_item_search_k": 3,
+   "pool_item_search_soft": false,
+   "pool_item_search_steps": 0,
+   "pool_item_search_margin": 0.5,
+   "pool_item_search_seconds": 3.5,
+   "pool_item_search_mode": "fit",
+   "pool_item_search_slot_cap": 0.5,
+   "pool_item_search_drift": 0.01,
+   "pool_item_search_branch": "replay",
+   "pool_item_search_soft_floor": true,
+   "pool_item_search_soft_shelf_over_priority": true,
+   "pool_item_search_soft_in_priority": true,
+   "pool_item_search_replay": false,
+   "pool_planner": false,
+   "pool_planner_rows": "auto",
+   "rollout_selector": false,
+   "rollout_selector_k": 6,
+   "rollout_selector_futures": 4,
+   "rollout_selector_length": 12,
+   "rollout_selector_margin": 0.5,
+   "rollout_selector_seconds": 1.2,
+   "rollout_selector_seed": 7,
+   "online_tower_rule": false,
+   "soft_first_mode": "free",
+   "soft_first_budget_share": 1.0,
+   "soft_first_max_items": 0,
+   "soft_first_min_hard_height": 0.24,
+   "online_layer_band": 0.25,
+   "online_front_strip": 0.45,
+   "online_layer_support": 0.85,
+   "online_standing_max_height": 10.0,
+   "online_pool_best": false,
+   "online_row_depths": "0.56,0.45,0.4",
+   "online_rows_hard_only": true,
+   "online_row_order": "lowest",
+   "online_planner": "",
+   "plan_standing_rows": false,
+   "plan_standing_rows_max_height": 10.0,
+   "plan_soft_own_rows": false,
+   "plan_layout_variants": "",
+   "plan_layout_layers": false,
+   "cover_veto_ignores_shelf": true,
+   "soft_headroom_per_container": true,
+   "plan_priority_deep_first": true,
+   "plan_normal_in_priority_container": true,
+   "plan_size_orders": "",
+   "plan_soft_count_first": false,
+   "count_first": true,
+   "plan_score_weights": "1;0.5;0.5;3",
+   "plan_layouts": 1,
+   "plan_dry_run_first_with_shelf": false,
+   "plan_min_seconds": 15.0,
+   "conservative_transport": false,
+   "plan_replay_clearance": 0.026,
+   "plan_replay_nudge": 0.0,
+   "plan_replay": true,
+   "priority_cargo_first": true,
+   "no_cover_other_attribute": true,
+   "last_resort_any_container": true,
+   "routing_any_container": false,
+   "last_resort_settled_clearance": 0.016,
+   "last_resort_com_margin": 0.01,
+   "last_resort_tower_min": 0.015,
+   "last_resort_extra_clearance": 0.002,
+   "shadow_check": true,
+   "shadow_max_drift_xy": 0.02,
+   "shadow_max_angle_deg": 5.0,
+   "shadow_hard_drift_xy": 0.1,
+   "shadow_hard_angle_deg": 15.0,
+   "shadow_alternatives": 4,
+   "shadow_shake": false,
+   "shadow_shake_min_bottom": 0.5,
+   "shadow_shake_standing": true,
+   "physics_resort": true,
+   "physics_resort_seconds": 1.8,
+   "physics_resort_candidates": 300,
+   "physics_resort_extra_seconds": 2.5,
+   "physics_resort_anchor_step": 0.04,
+   "shadow_budget_share": 1.0,
+   "policy_budget_seconds": 4.5,
+   "offline_budget_seconds": 150.0
+  }
+ },
+ "runtime_seconds": 36.67,
+ "order": null,
+ "metrics": {
+  "placed_count": 43,
+  "total_items": 82,
+  "placed_fraction": 0.524390243902439,
+  "placed_volume_m3": 2.55765,
+  "fill_volume": 31.75163398043693,
+  "fill_evaluator_shipped": 18.97320430987479,
+  "fill_evaluator_tolerant": 27.3864283039874,
+  "com_z": 0.6199585152835173,
+  "com_z_above_floor_ratio": 0.3518262440021711,
+  "per_container_count": {
+   "0": 17,
+   "1": 26
+  },
+  "priority_count": 5,
+  "priority_covered": 0,
+  "priority_misrouted": 0,
+  "soft_count": 16,
+  "soft_covered": 0,
+  "contact_covered": 0,
+  "contact_covered_pairs": [],
+  "shake_mean_shift": 0.024459585170427078,
+  "shake_max_shift": 0.10405253255316135,
+  "shake_topples": 0,
+  "shake_toppled_items": [],
+  "shake_peak_kinetic_energy": 18.065094119172038,
+  "policy_time_max": 2.133,
+  "policy_time_mean": 0.5419886363636364,
+  "over_budget_steps": 0,
+  "optimize_seconds": 0.0,
+  "end_reason": "declined",
+  "attempted": 43,
+  "shadow": {
+   "checks": 43,
+   "vetoes": 0,
+   "replaced": 0,
+   "kept": 42,
+   "skipped": 0,
+   "seconds": 5.889,
+   "resort": 1,
+   "resort_tried": 0
+  }
+ },
+ "steps": [
+  {
+   "step": 0,
+   "event": "step",
+   "item_index": 0,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.6685,
+    0.4685,
+    0.18
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0799,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020118432013652706,
+     "drift_xy": 0.0020043522107133275,
+     "angle_deg": 0.04774642943328828,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 51,
+   "survivors": 21,
+   "pos_local": [
+    0.6685,
+    0.4685,
+    0.16
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 1,
+   "event": "step",
+   "item_index": 1,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 5,
+   "place_pos": [
+    -0.8435,
+    0.4435,
+    1.046
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0426,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.05690859760112835,
+     "drift_xy": 5.333691396034449e-06,
+     "angle_deg": 0.0020450992458495806,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 16,
+   "survivors": 8,
+   "pos_local": [
+    -0.8435,
+    0.4435,
+    0.995
+   ],
+   "size": [
+    0.2,
+    0.45,
+    0.3
+   ]
+  },
+  {
+   "step": 2,
+   "event": "step",
+   "item_index": 2,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.719,
+    0.344,
+    0.405
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1109,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0001103845091354711,
+     "drift_xy": 0.00010608556306428657,
+     "angle_deg": 0.005417407393369123,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 98,
+   "survivors": 20,
+   "pos_local": [
+    0.719,
+    0.344,
+    0.405
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 3,
+   "event": "step",
+   "item_index": 3,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.2459,
+    0.2935,
+    0.195
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1059,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020188000867190338,
+     "drift_xy": 0.002628842172211403,
+     "angle_deg": 0.03538426927738255,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 41,
+   "survivors": 4,
+   "pos_local": [
+    -0.2459,
+    0.2935,
+    0.175
+   ],
+   "size": [
+    0.56,
+    0.75,
+    0.27
+   ]
+  },
+  {
+   "step": 4,
+   "event": "step",
+   "item_index": 4,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    -0.2588,
+    0.4935,
+    1.031
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0776,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.05101992826381869,
+     "drift_xy": 3.5599751044372724e-06,
+     "angle_deg": 0.0018352559110421647,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "fallback",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 103,
+   "survivors": 12,
+   "pos_local": [
+    -0.2588,
+    0.4935,
+    0.98
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 5,
+   "event": "step",
+   "item_index": 5,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2088,
+    0.5785,
+    0.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.7225,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.031503394258394254,
+     "drift_xy": 0.0002358564170442606,
+     "angle_deg": 0.07723104388721777,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 40,
+   "survivors": 2,
+   "pos_local": [
+    -0.2088,
+    0.5785,
+    0.225
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 6,
+   "event": "step",
+   "item_index": 6,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.2677,
+    0.5935,
+    1.061
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.0889,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.05690847316172692,
+     "drift_xy": 1.6074466703477032e-06,
+     "angle_deg": 0.0006145889459119534,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 113,
+   "survivors": 12,
+   "pos_local": [
+    0.2677,
+    0.5935,
+    1.01
+   ],
+   "size": [
+    0.45,
+    0.2,
+    0.3
+   ]
+  },
+  {
+   "step": 7,
+   "event": "step",
+   "item_index": 7,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.4637,
+    0.4435,
+    0.435
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1542,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 3.8202678248325224e-05,
+     "drift_xy": 2.810275157752972e-05,
+     "angle_deg": 0.0012049731868635921,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "wedge-step",
+   "role": "wedge-step",
+   "surface": "item",
+   "layer": 0,
+   "considered": 103,
+   "survivors": 28,
+   "pos_local": [
+    -0.4637,
+    0.4435,
+    0.435
+   ],
+   "size": [
+    0.65,
+    0.45,
+    0.25
+   ]
+  },
+  {
+   "step": 8,
+   "event": "step",
+   "item_index": 8,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.2553,
+    -0.008,
+    0.43
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1786,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00015837914630872422,
+     "drift_xy": 0.00015215381185662645,
+     "angle_deg": 0.0020244850935708563,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "wedge-step",
+   "role": "wedge-step",
+   "surface": "item",
+   "layer": 0,
+   "considered": 77,
+   "survivors": 20,
+   "pos_local": [
+    -0.2553,
+    -0.008,
+    0.43
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 9,
+   "event": "step",
+   "item_index": 9,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 5,
+   "place_pos": [
+    0.6342,
+    0.3685,
+    1.086
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1365,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.06252391648477618,
+     "drift_xy": 0.0,
+     "angle_deg": 0.0,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 94,
+   "survivors": 12,
+   "pos_local": [
+    0.6342,
+    0.3685,
+    1.035
+   ],
+   "size": [
+    0.23,
+    0.65,
+    0.35
+   ]
+  },
+  {
+   "step": 10,
+   "event": "step",
+   "item_index": 10,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.669,
+    0.549,
+    0.73
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2236,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0004337858538763581,
+     "drift_xy": 0.0004194591344700518,
+     "angle_deg": 0.009786567441534078,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 78,
+   "survivors": 9,
+   "pos_local": [
+    0.669,
+    0.549,
+    0.73
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 11,
+   "event": "step",
+   "item_index": 11,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 2,
+   "place_pos": [
+    -0.369,
+    0.019,
+    0.85
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.1867,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.005522480402266853,
+     "drift_xy": 0.00029295890857112796,
+     "angle_deg": 0.018872089175949933,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "soft-edge",
+   "role": "last-resort",
+   "surface": "item",
+   "layer": 1,
+   "considered": 60,
+   "survivors": 3,
+   "pos_local": [
+    -0.369,
+    0.019,
+    0.85
+   ],
+   "size": [
+    0.25,
+    0.3,
+    0.6
+   ]
+  },
+  {
+   "step": 12,
+   "event": "step",
+   "item_index": 12,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 5,
+   "place_pos": [
+    0.2436,
+    0.387,
+    0.26
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2927,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020177455297111232,
+     "drift_xy": 0.0025201639888341124,
+     "angle_deg": 0.035764437922092,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "hole-fill",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 42,
+   "survivors": 7,
+   "pos_local": [
+    0.2436,
+    0.387,
+    0.24
+   ],
+   "size": [
+    0.24,
+    0.55,
+    0.4
+   ]
+  },
+  {
+   "step": 13,
+   "event": "step",
+   "item_index": 13,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 5,
+   "place_pos": [
+    -0.8235,
+    -0.4326,
+    1.096
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.3391,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.05101924820461034,
+     "drift_xy": 4.820012371539653e-06,
+     "angle_deg": 0.0014770116285637137,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 34,
+   "survivors": 2,
+   "pos_local": [
+    -0.8235,
+    -0.4326,
+    1.045
+   ],
+   "size": [
+    0.24,
+    0.55,
+    0.4
+   ]
+  },
+  {
+   "step": 14,
+   "event": "step",
+   "item_index": 14,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.619,
+    0.1781,
+    0.755
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2765,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0006246221759863354,
+     "drift_xy": 0.0005606354579346643,
+     "angle_deg": 0.033230346555478706,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 8,
+   "survivors": 1,
+   "pos_local": [
+    0.619,
+    0.1781,
+    0.755
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 15,
+   "event": "step",
+   "item_index": 15,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.7435,
+    -0.434,
+    1.365
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2456,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 5.9523262880593324e-05,
+     "drift_xy": 5.293880732373748e-05,
+     "angle_deg": 0.004073210098122623,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 18,
+   "survivors": 1,
+   "pos_local": [
+    -0.7435,
+    -0.434,
+    1.365
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 16,
+   "event": "step",
+   "item_index": 16,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.669,
+    0.549,
+    1.1301
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4257,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0005592441997924533,
+     "drift_xy": 0.0004759949668457735,
+     "angle_deg": 0.05345793543161432,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 4,
+   "considered": 18,
+   "survivors": 1,
+   "pos_local": [
+    0.669,
+    0.549,
+    1.1301
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 17,
+   "event": "step",
+   "item_index": 17,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2588,
+    0.147,
+    1.111
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2228,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.051019427549740204,
+     "drift_xy": 0.0,
+     "angle_deg": 0.0,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "fallback",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 220,
+   "survivors": 4,
+   "pos_local": [
+    -0.2588,
+    0.147,
+    1.06
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 18,
+   "event": "step",
+   "item_index": 18,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.4677,
+    0.5785,
+    0.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.1508,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.03152149687130612,
+     "drift_xy": 0.0001552304827752906,
+     "angle_deg": 0.05086211973262779,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 10,
+   "survivors": 10,
+   "pos_local": [
+    0.4677,
+    0.5785,
+    0.225
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 19,
+   "event": "step",
+   "item_index": 19,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.5688,
+    -0.148,
+    0.34
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2552,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.02010619674821544,
+     "drift_xy": 0.001869206249112027,
+     "angle_deg": 0.009942530741913744,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "last-resort",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 18,
+   "survivors": 1,
+   "pos_local": [
+    0.5688,
+    -0.148,
+    0.32
+   ],
+   "size": [
+    0.75,
+    0.27,
+    0.56
+   ]
+  },
+  {
+   "step": 20,
+   "event": "step",
+   "item_index": 20,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2338,
+    0.3117,
+    0.22
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.0831,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.025525142513317396,
+     "drift_xy": 4.8413249928886166e-05,
+     "angle_deg": 0.01984784857318137,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 6,
+   "survivors": 2,
+   "pos_local": [
+    -0.2338,
+    0.3117,
+    0.2
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 21,
+   "event": "step",
+   "item_index": 21,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.6674,
+    -0.1763,
+    0.72
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2553,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0001547641639520547,
+     "drift_xy": 0.00015342088729066632,
+     "angle_deg": 0.0013040575676803027,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 18,
+   "survivors": 3,
+   "pos_local": [
+    0.6674,
+    -0.1763,
+    0.72
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 22,
+   "event": "step",
+   "item_index": 22,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.5432,
+    0.1889,
+    1.18
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6011,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.008458938509754819,
+     "drift_xy": 0.00029092762083475596,
+     "angle_deg": 0.21446303246100815,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 72,
+   "survivors": 1,
+   "pos_local": [
+    0.5432,
+    0.1889,
+    1.18
+   ],
+   "size": [
+    0.5,
+    0.4,
+    0.4
+   ]
+  },
+  {
+   "step": 23,
+   "event": "step",
+   "item_index": 23,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.3927,
+    0.3117,
+    0.22
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.2003,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.026755165838466693,
+     "drift_xy": 0.0004588036637377816,
+     "angle_deg": 0.17749369545776247,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 6,
+   "survivors": 2,
+   "pos_local": [
+    0.3927,
+    0.3117,
+    0.2
+   ],
+   "size": [
+    0.6,
+    0.25,
+    0.3
+   ]
+  },
+  {
+   "step": 24,
+   "event": "step",
+   "item_index": 24,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2089,
+    0.045,
+    0.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.1323,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.034613315926591975,
+     "drift_xy": 0.0033212481896762115,
+     "angle_deg": 1.1129767974807454,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 6,
+   "survivors": 2,
+   "pos_local": [
+    -0.2089,
+    0.045,
+    0.225
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 25,
+   "event": "step",
+   "item_index": 25,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.669,
+    -0.2311,
+    1.04
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2382,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0003150665583593681,
+     "drift_xy": 0.0003143434327964527,
+     "angle_deg": 0.0026382362726787957,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.669,
+    -0.2311,
+    1.04
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 26,
+   "event": "step",
+   "item_index": 26,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.4677,
+    0.045,
+    0.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.055,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.03158765066115942,
+     "drift_xy": 8.735427003005095e-05,
+     "angle_deg": 0.03691030499084997,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 6,
+   "survivors": 2,
+   "pos_local": [
+    0.4677,
+    0.045,
+    0.225
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 27,
+   "event": "step",
+   "item_index": 27,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.6188,
+    -0.4415,
+    0.285
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2663,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.02006632282283558,
+     "drift_xy": 0.0014408455512833751,
+     "angle_deg": 0.003797689595624996,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "last-resort",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 6,
+   "survivors": 4,
+   "pos_local": [
+    0.6188,
+    -0.4415,
+    0.265
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 28,
+   "event": "step",
+   "item_index": 28,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.669,
+    -0.3111,
+    1.36
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2484,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00031145342633519984,
+     "drift_xy": 0.0003035534519460101,
+     "angle_deg": 0.009923316004841422,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 4,
+   "considered": 2,
+   "survivors": 1,
+   "pos_local": [
+    0.669,
+    -0.3111,
+    1.36
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 29,
+   "event": "step",
+   "item_index": 29,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2089,
+    -0.2115,
+    0.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.0763,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.03369201835620624,
+     "drift_xy": 0.0010346229136029904,
+     "angle_deg": 0.34000129886926056,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "pocket-soft",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2089,
+    -0.2115,
+    0.225
+   ],
+   "size": [
+    0.65,
+    0.23,
+    0.35
+   ]
+  },
+  {
+   "step": 30,
+   "event": "step",
+   "item_index": 30,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.2528,
+    -0.4358,
+    0.18
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2731,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020019735120824004,
+     "drift_xy": 5.8407959009617424e-05,
+     "angle_deg": 0.004612717700870914,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "hole-fill",
+   "role": "hole-fill",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    -0.2528,
+    -0.4358,
+    0.16
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 31,
+   "event": "step",
+   "item_index": 31,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.453,
+    -0.4495,
+    0.48
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6293,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.011379778074017254,
+     "drift_xy": 0.004803681904307908,
+     "angle_deg": 1.4401349629712215,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 14,
+   "survivors": 1,
+   "pos_local": [
+    -0.453,
+    -0.4495,
+    0.48
+   ],
+   "size": [
+    0.5,
+    0.4,
+    0.4
+   ]
+  },
+  {
+   "step": 32,
+   "event": "step",
+   "item_index": 32,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 2,
+   "place_pos": [
+    0.8085,
+    -0.3214,
+    0.395
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4376,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020027686405920998,
+     "drift_xy": 0.0007658877714697638,
+     "angle_deg": 0.004314904773634337,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "tall-perimeter",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 19,
+   "survivors": 13,
+   "pos_local": [
+    0.8085,
+    -0.3214,
+    0.375
+   ],
+   "size": [
+    0.25,
+    0.45,
+    0.65
+   ]
+  },
+  {
+   "step": 33,
+   "event": "step",
+   "item_index": 33,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 5,
+   "place_pos": [
+    -0.8085,
+    -0.3245,
+    1.136
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4906,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.05101982423623673,
+     "drift_xy": 1.0379834747853722e-05,
+     "angle_deg": 0.0026635855016765237,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 18,
+   "survivors": 12,
+   "pos_local": [
+    -0.8085,
+    -0.3245,
+    1.085
+   ],
+   "size": [
+    0.25,
+    0.65,
+    0.45
+   ]
+  },
+  {
+   "step": 34,
+   "event": "step",
+   "item_index": 34,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 2,
+   "place_pos": [
+    -0.0374,
+    -0.0326,
+    0.875
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6073,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00014708318746172027,
+     "drift_xy": 9.598998537091913e-05,
+     "angle_deg": 0.011484733844912508,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 5,
+   "survivors": 1,
+   "pos_local": [
+    -0.0374,
+    -0.0326,
+    0.875
+   ],
+   "size": [
+    0.25,
+    0.45,
+    0.65
+   ]
+  },
+  {
+   "step": 35,
+   "event": "step",
+   "item_index": 35,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    -0.2088,
+    -0.4953,
+    0.295
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.5628,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020296832600509664,
+     "drift_xy": 0.0033726066688722404,
+     "angle_deg": 0.0041473107462251906,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 41,
+   "survivors": 1,
+   "pos_local": [
+    -0.2088,
+    -0.4953,
+    0.275
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 36,
+   "event": "step",
+   "item_index": 36,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    0.0367,
+    0.0167,
+    1.32
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.2983,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0006991256481301121,
+     "drift_xy": 0.0006498574901197229,
+     "angle_deg": 0.03073370233377539,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 2,
+   "survivors": 1,
+   "pos_local": [
+    0.0367,
+    0.0167,
+    1.32
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 37,
+   "event": "step",
+   "item_index": 37,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 4,
+   "place_pos": [
+    -0.0124,
+    -0.4239,
+    0.58
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8176,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.013185822876649949,
+     "drift_xy": 0.010467806028345248,
+     "angle_deg": 2.029435775564974,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 11,
+   "survivors": 1,
+   "pos_local": [
+    -0.0124,
+    -0.4239,
+    0.58
+   ],
+   "size": [
+    0.3,
+    0.25,
+    0.6
+   ]
+  },
+  {
+   "step": 38,
+   "event": "step",
+   "item_index": 38,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 2,
+   "place_pos": [
+    0.41,
+    -0.42,
+    0.395
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4595,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.02006433793088594,
+     "drift_xy": 0.001425508686706541,
+     "angle_deg": 0.013410021739935841,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "hole-fill",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 2,
+   "survivors": 1,
+   "pos_local": [
+    0.41,
+    -0.42,
+    0.375
+   ],
+   "size": [
+    0.25,
+    0.45,
+    0.65
+   ]
+  },
+  {
+   "step": 39,
+   "event": "step",
+   "item_index": 39,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 1,
+   "place_pos": [
+    0.609,
+    -0.3714,
+    0.925
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4115,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 8.336660023946202e-05,
+     "drift_xy": 8.06729624637958e-05,
+     "angle_deg": 0.0013132060059404876,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "plateau-merge",
+   "role": "bridge",
+   "surface": "item",
+   "layer": 2,
+   "considered": 10,
+   "survivors": 9,
+   "pos_local": [
+    0.609,
+    -0.3714,
+    0.925
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 40,
+   "event": "step",
+   "item_index": 40,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 4,
+   "place_pos": [
+    0.3494,
+    -0.516,
+    0.715
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8896,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.009835674241646554,
+     "drift_xy": 0.006315870303807855,
+     "angle_deg": 1.666030477012418,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 5,
+   "survivors": 1,
+   "pos_local": [
+    0.3494,
+    -0.516,
+    0.715
+   ],
+   "size": [
+    0.3,
+    0.2,
+    0.45
+   ]
+  },
+  {
+   "step": 41,
+   "event": "step",
+   "item_index": 41,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 4,
+   "place_pos": [
+    0.691,
+    -0.5069,
+    0.815
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.8798,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.015127158488165945,
+     "drift_xy": 0.008650278614269171,
+     "angle_deg": 1.5860795321672818,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 8,
+   "survivors": 0,
+   "pos_local": [
+    0.691,
+    -0.5069,
+    0.815
+   ],
+   "size": [
+    0.35,
+    0.23,
+    0.65
+   ]
+  },
+  {
+   "step": 42,
+   "event": "step",
+   "item_index": 42,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 0,
+   "place_pos": [
+    0.609,
+    -0.3978,
+    1.275
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.4849,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 2.395707958079575e-05,
+     "drift_xy": 1.399746040267518e-05,
+     "angle_deg": 0.0009381974048852819,
+     "ok": true
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 1,
+   "survivors": 1,
+   "pos_local": [
+    0.609,
+    -0.3978,
+    1.275
+   ],
+   "size": [
+    0.65,
+    0.45,
+    0.25
+   ]
+  },
+  {
+   "step": 43,
+   "event": "declined",
+   "policy_seconds": 2.133
+  }
+ ],
+ "final_items": [
+  {
+   "index": 4,
+   "container": 0,
+   "pos": [
+    -0.2588,
+    0.4935,
+    0.98
+   ],
+   "orn": [
+    -0.0,
+    1e-05,
+    -0.0,
+    1.0
+   ]
+  },
+  {
+   "index": 5,
+   "container": 0,
+   "pos": [
+    -0.2088,
+    0.5787,
+    0.2133
+   ],
+   "orn": [
+    0.70663,
+    0.0,
+    -0.0,
+    0.70758
+   ]
+  },
+  {
+   "index": 6,
+   "container": 0,
+   "pos": [
+    0.2677,
+    0.5936,
+    1.0039
+   ],
+   "orn": [
+    0.70683,
+    -4e-05,
+    -0.0,
+    0.70739
+   ]
+  },
+  {
+   "index": 9,
+   "container": 0,
+   "pos": [
+    0.6342,
+    0.3685,
+    1.0232
+   ],
+   "orn": [
+    0.5,
+    0.5,
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "index": 17,
+   "container": 0,
+   "pos": [
+    -0.2588,
+    0.147,
+    1.06
+   ],
+   "orn": [
+    0.70711,
+    -0.0,
+    -0.0,
+    0.70711
+   ]
+  },
+  {
+   "index": 18,
+   "container": 0,
+   "pos": [
+    0.4676,
+    0.5783,
+    0.2132
+   ],
+   "orn": [
+    0.70746,
+    -3e-05,
+    3e-05,
+    0.70675
+   ]
+  },
+  {
+   "index": 20,
+   "container": 0,
+   "pos": [
+    -0.2339,
+    0.3116,
+    0.1943
+   ],
+   "orn": [
+    0.70731,
+    -5e-05,
+    4e-05,
+    0.7069
+   ]
+  },
+  {
+   "index": 23,
+   "container": 0,
+   "pos": [
+    0.3931,
+    0.3114,
+    0.1932
+   ],
+   "orn": [
+    0.70708,
+    0.00129,
+    -0.00122,
+    0.70713
+   ]
+  },
+  {
+   "index": 24,
+   "container": 0,
+   "pos": [
+    -0.2088,
+    0.0414,
+    0.2114
+   ],
+   "orn": [
+    0.71496,
+    -0.00156,
+    0.0014,
+    0.69916
+   ]
+  },
+  {
+   "index": 26,
+   "container": 0,
+   "pos": [
+    0.4678,
+    0.05,
+    0.2116
+   ],
+   "orn": [
+    0.69595,
+    0.00045,
+    -0.00086,
+    0.71809
+   ]
+  },
+  {
+   "index": 29,
+   "container": 0,
+   "pos": [
+    -0.209,
+    -0.2135,
+    0.2111
+   ],
+   "orn": [
+    0.71212,
+    -0.00045,
+    0.00014,
+    0.70206
+   ]
+  },
+  {
+   "index": 32,
+   "container": 0,
+   "pos": [
+    0.8088,
+    -0.3215,
+    0.375
+   ],
+   "orn": [
+    -0.00024,
+    0.70713,
+    0.00025,
+    0.70709
+   ]
+  },
+  {
+   "index": 33,
+   "container": 0,
+   "pos": [
+    -0.8085,
+    -0.3245,
+    1.085
+   ],
+   "orn": [
+    0.50008,
+    0.49992,
+    0.49993,
+    0.50007
+   ]
+  },
+  {
+   "index": 35,
+   "container": 0,
+   "pos": [
+    -0.211,
+    -0.4978,
+    0.275
+   ],
+   "orn": [
+    0.70711,
+    1e-05,
+    1e-05,
+    0.7071
+   ]
+  },
+  {
+   "index": 38,
+   "container": 0,
+   "pos": [
+    0.4111,
+    -0.4212,
+    0.375
+   ],
+   "orn": [
+    0.00021,
+    0.70708,
+    -0.0002,
+    0.70713
+   ]
+  },
+  {
+   "index": 39,
+   "container": 0,
+   "pos": [
+    0.6094,
+    -0.3712,
+    0.925
+   ],
+   "orn": [
+    0.70711,
+    9e-05,
+    9e-05,
+    0.7071
+   ]
+  },
+  {
+   "index": 42,
+   "container": 0,
+   "pos": [
+    0.6091,
+    -0.3978,
+    1.275
+   ],
+   "orn": [
+    -0.0,
+    -0.0,
+    0.00017,
+    1.0
+   ]
+  },
+  {
+   "index": 0,
+   "container": 1,
+   "pos": [
+    3.1638,
+    0.4644,
+    0.1598
+   ],
+   "orn": [
+    0.00017,
+    -0.00038,
+    -0.01506,
+    0.99989
+   ]
+  },
+  {
+   "index": 1,
+   "container": 1,
+   "pos": [
+    1.6563,
+    0.4434,
+    0.9889
+   ],
+   "orn": [
+    0.49988,
+    0.4994,
+    0.50052,
+    0.5002
+   ]
+  },
+  {
+   "index": 2,
+   "container": 1,
+   "pos": [
+    3.2131,
+    0.3323,
+    0.4047
+   ],
+   "orn": [
+    -0.00026,
+    -0.00048,
+    0.70125,
+    0.71291
+   ]
+  },
+  {
+   "index": 3,
+   "container": 1,
+   "pos": [
+    2.2515,
+    0.2918,
+    0.175
+   ],
+   "orn": [
+    6e-05,
+    4e-05,
+    0.70851,
+    0.7057
+   ]
+  },
+  {
+   "index": 7,
+   "container": 1,
+   "pos": [
+    2.0355,
+    0.444,
+    0.4349
+   ],
+   "orn": [
+    -7e-05,
+    3e-05,
+    0.00043,
+    1.0
+   ]
+  },
+  {
+   "index": 8,
+   "container": 1,
+   "pos": [
+    2.2456,
+    -0.0092,
+    0.4299
+   ],
+   "orn": [
+    0.0,
+    0.00022,
+    0.00098,
+    1.0
+   ]
+  },
+  {
+   "index": 10,
+   "container": 1,
+   "pos": [
+    3.1724,
+    0.5459,
+    0.7296
+   ],
+   "orn": [
+    0.7072,
+    -0.00479,
+    -0.00427,
+    0.70699
+   ]
+  },
+  {
+   "index": 11,
+   "container": 1,
+   "pos": [
+    2.1275,
+    0.0202,
+    0.8439
+   ],
+   "orn": [
+    -0.00411,
+    0.7048,
+    0.00137,
+    0.70939
+   ]
+  },
+  {
+   "index": 12,
+   "container": 1,
+   "pos": [
+    2.7438,
+    0.3895,
+    0.24
+   ],
+   "orn": [
+    0.49985,
+    0.50016,
+    0.50015,
+    0.49984
+   ]
+  },
+  {
+   "index": 13,
+   "container": 1,
+   "pos": [
+    1.676,
+    -0.4325,
+    1.045
+   ],
+   "orn": [
+    0.50016,
+    0.49986,
+    0.49984,
+    0.50014
+   ]
+  },
+  {
+   "index": 14,
+   "container": 1,
+   "pos": [
+    3.1113,
+    0.1701,
+    0.7545
+   ],
+   "orn": [
+    0.7072,
+    -0.00478,
+    -0.0041,
+    0.70698
+   ]
+  },
+  {
+   "index": 15,
+   "container": 1,
+   "pos": [
+    1.7562,
+    -0.434,
+    1.365
+   ],
+   "orn": [
+    2e-05,
+    3e-05,
+    0.70715,
+    0.70706
+   ]
+  },
+  {
+   "index": 16,
+   "container": 1,
+   "pos": [
+    3.1701,
+    0.5478,
+    1.1296
+   ],
+   "orn": [
+    0.7072,
+    -0.00449,
+    -0.00401,
+    0.70699
+   ]
+  },
+  {
+   "index": 19,
+   "container": 1,
+   "pos": [
+    3.0705,
+    -0.1467,
+    0.32
+   ],
+   "orn": [
+    0.70713,
+    -0.00083,
+    -0.00083,
+    0.70708
+   ]
+  },
+  {
+   "index": 21,
+   "container": 1,
+   "pos": [
+    3.1678,
+    -0.1747,
+    0.7199
+   ],
+   "orn": [
+    0.00012,
+    0.0,
+    0.00088,
+    1.0
+   ]
+  },
+  {
+   "index": 22,
+   "container": 1,
+   "pos": [
+    3.0363,
+    0.1861,
+    1.1712
+   ],
+   "orn": [
+    -0.00492,
+    0.00031,
+    -0.00646,
+    0.99997
+   ]
+  },
+  {
+   "index": 25,
+   "container": 1,
+   "pos": [
+    3.1708,
+    -0.229,
+    1.0399
+   ],
+   "orn": [
+    0.70722,
+    -0.00091,
+    -0.00091,
+    0.70699
+   ]
+  },
+  {
+   "index": 27,
+   "container": 1,
+   "pos": [
+    3.1191,
+    -0.4428,
+    0.265
+   ],
+   "orn": [
+    0.70711,
+    5e-05,
+    4e-05,
+    0.7071
+   ]
+  },
+  {
+   "index": 28,
+   "container": 1,
+   "pos": [
+    3.1721,
+    -0.3082,
+    1.3599
+   ],
+   "orn": [
+    0.00012,
+    0.0,
+    -0.002,
+    1.0
+   ]
+  },
+  {
+   "index": 30,
+   "container": 1,
+   "pos": [
+    2.247,
+    -0.4387,
+    0.16
+   ],
+   "orn": [
+    2e-05,
+    -1e-05,
+    0.00086,
+    1.0
+   ]
+  },
+  {
+   "index": 31,
+   "container": 1,
+   "pos": [
+    2.0413,
+    -0.4493,
+    0.4692
+   ],
+   "orn": [
+    -0.0006,
+    -0.01449,
+    0.00068,
+    0.99989
+   ]
+  },
+  {
+   "index": 34,
+   "container": 1,
+   "pos": [
+    2.4632,
+    -0.0337,
+    0.8748
+   ],
+   "orn": [
+    0.0007,
+    0.70729,
+    -0.0007,
+    0.70693
+   ]
+  },
+  {
+   "index": 36,
+   "container": 1,
+   "pos": [
+    2.5379,
+    0.0162,
+    1.3197
+   ],
+   "orn": [
+    0.00018,
+    0.00018,
+    0.70696,
+    0.70726
+   ]
+  },
+  {
+   "index": 37,
+   "container": 1,
+   "pos": [
+    2.4984,
+    -0.4234,
+    0.5719
+   ],
+   "orn": [
+    -0.49134,
+    0.50943,
+    0.5085,
+    0.4904
+   ]
+  },
+  {
+   "index": 40,
+   "container": 1,
+   "pos": [
+    2.8441,
+    -0.5204,
+    0.7071
+   ],
+   "orn": [
+    -0.50083,
+    0.48879,
+    0.4991,
+    0.51103
+   ]
+  },
+  {
+   "index": 41,
+   "container": 1,
+   "pos": [
+    3.191,
+    -0.5174,
+    0.8022
+   ],
+   "orn": [
+    -0.49181,
+    0.49164,
+    0.50814,
+    0.50813
+   ]
+  }
+ ],
+ "log_tail": "transport item 0\nplace item 0\ntransport item 1\nplace item 1\ntransport item 2\nplace item 2\ntransport item 3\nplace item 3\ntransport item 4\nplace item 4\ntransport item 5\nplace item 5\ntransport item 6\nplace item 6\ntransport item 7\nplace item 7\ntransport item 8\nplace item 8\ntransport item 9\nplace item 9\ntransport item 10\nplace item 10\ntransport item 11\nplace item 11\ntransport item 12\nplace item 12\ntransport item 13\nplace item 13\ntransport item 14\nplace item 14\ntransport item 15\nplace item 15\ntransport item 16\nplace item 16\ntransport item 17\nplace item 17\ntransport item 18\nplace item 18\ntransport item 19\nplace item 19\ntransport item 20\nplace item 20\ntransport item 21\nplace item 21\ntransport item 22\nplace item 22\ntransport item 23\nplace item 23\ntransport item 24\nplace item 24\ntransport item 25\nplace item 25\ntransport item 26\nplace item 26\ntransport item 27\nplace item 27\ntransport item 28\nplace item 28\ntransport item 29\nplace item 29\ntransport item 30\nplace item 30\ntransport item 31\nplace item 31\ntransport item 32\nplace item 32\ntransport item 33\nplace item 33\ntransport item 34\nplace item 34\ntransport item 35\nplace item 35\ntransport item 36\nplace item 36\ntransport item 37\nplace item 37\ntransport item 38\nplace item 38\ntransport item 39\nplace item 39\ntransport item 40\nplace item 40\ntransport item 41\nplace item 41\ntransport item 42\nplace item 42\nclose env.\n"
+}
