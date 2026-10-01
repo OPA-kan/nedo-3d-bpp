@@ -2301,6 +2301,7 @@ which replayed c-c1-s0006 18 -> 20 but was level on the suite
 |---|---:|---:|---:|---:|---:|---:|
 | C (`count4-core`) | 31.71 -> 32.10 (+0.40; 8 up, 3 down) | 39 -> 43 | 20 -> 22 | 8 -> 5 | 18 -> 19 | 4.9 s |
 | B (`count4-core-b`) | 34.27 -> 34.71 (+0.44; 11 up, 2 down) | 45 -> 48 | 4 -> 6 | 0 | 7 -> 16 | 6.8 s |
+| A (`count4-core-a`) | 38.96 -> 39.19 (+0.23; 6 up, 1 down) | 47 -> 47 | 3 -> 3 | 0 | | 1.9 s |
 
 What is left under the threshold on C (5 of 48) is of two kinds: the
 next item is a 0.75 x 0.56 x 0.27 box and no container has a whole top

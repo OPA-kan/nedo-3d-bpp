@@ -330,8 +330,8 @@ dropped (it never skipped a pose and spent the window: C 42 -> 36
 episodes over the threshold).  Physics suites against v30 at the 4.5 s
 budget (`count4-core`, `count4-core-b`): items C +0.40 a scene (8 up, 3
 down; episodes over half the items 39 -> 43), B +0.44 (11 up, 2 down;
-45 -> 48 of 48); priority boxes covered C 20 -> 22, B 4 -> 6, soft C 8
--> 5; topples C 18 -> 19, B 7 -> 16 (the extra items stack higher);
+45 -> 48 of 48), A +0.23 (6 up, 1 down; 47 of 48; `count4-core-a`);
+priority boxes covered C 20 -> 22, B 4 -> 6, soft C 8 -> 5; topples C 18 -> 19, B 7 -> 16 (the extra items stack higher);
 slowest call C 4.9 s, B 6.8 s.  Ordering the resort's poses by the
 deeper floor they wall off from the sweep (`resort_shade_step`) was
 level on the suite (`shade2-core`) and stays off.  Official sample: A
