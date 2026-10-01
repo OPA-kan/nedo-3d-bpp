@@ -197,6 +197,13 @@ OVERRIDES = dict(
     # down; episodes over half the items 22 -> 39), B +0.33 (38 -> 45), A
     # -0.15 (noise on the two-container scenes; 45 -> 47); priority boxes
     # covered 0 -> 20 on C's 48 scenes, soft 0 -> 8, 4 on B.
+    # v31: the count pass is one resort pass (the poses that cover
+    # nothing first, the pool's smallest item first, whole-top poses
+    # before partial ones, a pose group dropped after three settle
+    # failures in a row, a settle stopped once the box has fallen or
+    # tipped) with count_mode_extra_seconds past the budget under the
+    # threshold.  Physics suites against v30 at this budget: C +0.40
+    # items (episodes over half 39 -> 43), B +0.44 (45 -> 48).
     count_mode=True,
 )
 STACK_POLICY = "weights/stack"

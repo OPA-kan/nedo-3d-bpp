@@ -2267,6 +2267,48 @@ on the total, and the 24 covered priority boxes and 8 soft ones
 about -0.7 together; whether the threshold sits where the fit put it
 is what the official run of this build (v30) tells.
 
+The bottom quarter after v30.  C still had 9 episodes under the
+threshold, B 3, A 1.  Two causes.  Time: on c-c2-s0004 both containers
+held 20 of 20 shadow-ok poses for the next item and the count pass
+never started (the normal resort pass had spent the window on its own
+generation and checks); on b-c1-s0004 every one of the ten pool items
+had 20 of 20 shadow-ok poses, same story.  The sweep: on the boards
+with time left, the whole-top poses that would stand were nearly all
+blocked in the simulator's transport sweep (c-c1-s0003 60 of 60,
+c-c2p-s0010 23 of 23, c-c2p-s0002 20 of 24), by boxes the resort had
+set by the door at height (c-c1-s0006: two at 1.1 m), and on
+c-c1-s0003 the 85 lowest reachable poses, all partial on the same hard
+tops, tipped in the shadow while the 88 after them stood.
+
+The count pass as one resort pass (v31): the covering poses generated
+in the same pass under the threshold, the poses that cover nothing
+first, whole-top before partial, a pose group (cover class, level,
+support share) dropped after three settle failures in a row, the
+pool's smallest item first, a settle stopped once the box has fallen
+or tipped past the validator's limits, and 1.0 s (A, C) or 3.0 s (B)
+past the budget while under the threshold.  Two things measured and
+dropped: a sweep-only shadow prefilter over the candidates (it never
+skipped a pose and a passing sweep costs tens of milliseconds, so it
+spent the window before the first settle: `count3-core` 42 -> 36
+episodes over the threshold against `count2-core`, `count3-core-b` 47
+-> 42), and ordering the poses by the deeper floor they wall off from
+the sweep (`resort_shade_step`; `shade_area` in wedge_rl/stack.py),
+which replayed c-c1-s0006 18 -> 20 but was level on the suite
+(`shade2-core` against `count4-core`: placed +0.00, episodes 43 ->
+42).  Physics at 4.5 s against v30:
+
+| suite | placed | episodes >= half | priority covered | soft covered | topples | slowest call |
+|---|---:|---:|---:|---:|---:|---:|
+| C (`count4-core`) | 31.71 -> 32.10 (+0.40; 8 up, 3 down) | 39 -> 43 | 20 -> 22 | 8 -> 5 | 18 -> 19 | 4.9 s |
+| B (`count4-core-b`) | 34.27 -> 34.71 (+0.44; 11 up, 2 down) | 45 -> 48 | 4 -> 6 | 0 | 7 -> 16 | 6.8 s |
+
+What is left under the threshold on C (5 of 48) is of two kinds: the
+next item is a 0.75 x 0.56 x 0.27 box and no container has a whole top
+for it (c-c2-s0009, c-c2p-s0010: the pocket guard's problem, keeping a
+slot for the big class), or the door is walled (c-c1-s0006).  On A the
+one episode under (a-c1s-s0002, 20 of 41) has no reachable pose for
+anything.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.
