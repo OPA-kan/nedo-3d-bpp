@@ -63,6 +63,9 @@ class RuleAlphaAgent:
         self._shadow = None
         self._shadow_failed = False
         self._shadow_longest = 0.0
+        # the slowest candidate generation of the physics resort so far
+        # (its first one is let through: 0.3 s is the typical cost)
+        self._resort_gen_longest = 0.3
         self._shadow_observation = None
         self._shadow_synced = False
         self._shadow_fallback = None
@@ -1473,8 +1476,13 @@ class RuleAlphaAgent:
             stack_soft_standing=True,
         )
 
-        def room() -> bool:
-            return time.perf_counter() + max(self._shadow_longest, 0.2) <= deadline
+        def room(generating: bool = False) -> bool:
+            # a candidate generation is not interruptible (0.3-0.9 s a
+            # container), so one is started only when the slowest so far
+            # and a check both fit: the platform's slowest v27 call ran
+            # 0.6 s past the resort's deadline on a generation
+            need = max(self._shadow_longest, 0.2) + (self._resort_gen_longest if generating else 0.0)
+            return time.perf_counter() + need <= deadline
 
         limit = int(getattr(strict, "physics_resort_candidates", 300))
         tried = 0
@@ -1501,6 +1509,8 @@ class RuleAlphaAgent:
                 if key in generated:
                     cands = generated[key]
                 else:
+                    if not room(generating=True):
+                        break
                     t0 = time.perf_counter()
                     try:
                         cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
@@ -1513,7 +1523,9 @@ class RuleAlphaAgent:
                     except Exception as exc:
                         print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
                         cands = []
-                    self._longest_call = max(self._longest_call, time.perf_counter() - t0)
+                    spent = time.perf_counter() - t0
+                    self._longest_call = max(self._longest_call, spent)
+                    self._resort_gen_longest = max(self._resort_gen_longest, spent)
                     # the well supported low poses first: the load's height
                     # is priced, and a pose on a whole top is the one that stands
                     cands.sort(key=lambda c: (round(c.bottom, 2), -round(c.support_ratio, 2),
