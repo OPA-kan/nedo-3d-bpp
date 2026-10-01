@@ -425,6 +425,17 @@ class ShadowSim:
                 for _ in range(self.settle_steps):
                     client.stepSimulation()
                     used += 1
+                    if used % 20 == 0:
+                        # a box that has already fallen or tipped past the
+                        # validator's limits fails whatever follows: stop
+                        # (a failing settle otherwise runs the whole 300
+                        # steps, 0.2-0.6 s, and the count pass tries dozens)
+                        cur_pos, cur_orn = client.getBasePositionAndOrientation(body)
+                        if float(np.linalg.norm(np.asarray(cur_pos) - np.asarray(target))) > self.displacement_threshold:
+                            break
+                        cur_dot = min(1.0, abs(sum(a * b for a, b in zip(orn, cur_orn))))
+                        if 2.0 * math.acos(cur_dot) > self.angle_threshold:
+                            break
                     if self.rest_steps > 0:
                         lin, ang = client.getBaseVelocity(body)
                         if (abs(lin[0]) < v_lin and abs(lin[1]) < v_lin and abs(lin[2]) < v_lin

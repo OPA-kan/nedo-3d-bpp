@@ -1663,11 +1663,45 @@ class RuleAlphaAgent:
                         for c in cands:
                             covering[id(c)] = bool(covers_other_attribute(
                                 c.box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
-                    cands.sort(key=lambda c: (covering.get(id(c), False), round(c.bottom, 2), -round(c.support_ratio, 2),
+                    # under the threshold the whole-top poses go before the
+                    # partial ones at any height: the partial ones fail
+                    # the settle far more often (c-c1-s0003: the fifteen
+                    # lowest poses tried, all partial, none stood)
+                    cands.sort(key=lambda c: (covering.get(id(c), False),
+                                              bool(count and not c.on_floor and c.support_ratio < 0.95),
+                                              round(c.bottom, 2), -round(c.support_ratio, 2),
                                               -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
                     generated[key] = cands
                 if not cands:
                     continue
+                if count and len(cands) > 1:
+                    # the sweep alone first: a blocked path fails in a
+                    # millisecond or two, a settle takes 0.1-0.6 s, and on
+                    # a crowded board most of the low poses are blocked
+                    # (c-c1-s0003: the first 300 of 400 lowest poses, 102
+                    # of the 400 stand)
+                    try:
+                        if not self._shadow_synced:
+                            sim.sync(self._shadow_observation.get("container_list", []))
+                            self._shadow_synced = True
+                        passing = []
+                        skipped = 0
+                        for cand in cands:
+                            if time.perf_counter() + 0.05 > deadline:
+                                break
+                            placement = _placement(cand, len(cands), profile, container_idx, model)
+                            action = self._action(pool_index, placement)
+                            v = sim.check(int(action["container_idx"]), item,
+                                          tuple(float(x) for x in action["place_pos"]), int(action["orientation"]),
+                                          transport=True, settle=False)
+                            if v["transport_ok"]:
+                                passing.append(cand)
+                            else:
+                                skipped += 1
+                        self.shadow_stats["sweep_skipped"] = self.shadow_stats.get("sweep_skipped", 0) + skipped
+                        cands = passing
+                    except Exception as exc:
+                        print(f"[physics-resort] sweep prefilter failed: {exc!r}", flush=True)
                 for cand in cands:
                     if not room():
                         break
