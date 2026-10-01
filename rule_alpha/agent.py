@@ -1628,7 +1628,7 @@ class RuleAlphaAgent:
                     if not self._shadow_hard(v):
                         self.last_decision = layer1.Decision(placement=placement, candidate_counts={"physics-resort": len(cands)},
                                                              veto_counts={}, considered=len(cands), ladder=[])
-                        self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in verdict},
+                        self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in v},
                                             "outcome": "physics-resort", "tried": tried}
                         self.shadow_stats["resort"] = self.shadow_stats.get("resort", 0) + 1
                         return action
