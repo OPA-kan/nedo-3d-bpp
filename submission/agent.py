@@ -177,6 +177,15 @@ OVERRIDES = dict(
     # 34 (B) and 11 -> 17 (C), topples unchanged, CoM +0.002-0.006.  On a
     # Task B pool the resort may run 1.5 s past the budget (limit 10 s).
     physics_resort=True,
+    # v29: the pocket guard -- a soft box the ladder would put on the floor
+    # goes instead where the load keeps the most room (level, reachable
+    # slots) for the big hard classes still expected, a Dirichlet prior
+    # over the sample stream's classes updated with the items seen (the
+    # manifest's counts on Task A, where the guard stays off under a plan).
+    # Physics suites against v28 at the submission's budget: items C +1.15
+    # a scene (20 up, 7 down; episodes over half the items 17 -> 22), B
+    # +0.17 (34 -> 38), A within 0.1.
+    pocket_guard=True,
 )
 STACK_POLICY = "weights/stack"
 
