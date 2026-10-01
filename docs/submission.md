@@ -240,6 +240,21 @@ resort").  Official sample: A 32.11 / 25 placed (v26 the same), B
 27.28 / 25 (v26 25.99 / 25), C 23.14 / 23 (the same); policy max 0.93 /
 4.06 / 0.93 s, optimize 31 s (`official-sample-abc-v27.json`).
 
+Twenty-eighth build (v28): v27 with two time changes.  With a Task B
+pool the stages before the physics resort keep their deadlines and the
+resort uses its 1.5 s past the budget alone (the reserve had cut a
+soft-edge decision at 3.7 s on b-c2p-s0011 and the seven items after
+it); and the shadow's settle stops once the box has rested 20 steps
+(the pose within 0.8 mm of the full 300 steps on 168 probes, 0.10-0.15
+s a check instead of 0.25-0.3).  Physics suites against v26: items A
++0.65 (16 up, 0 down; identical to v27), B +1.23 (26 up, 0 down; v27
++1.00), C +0.96 (identical to v27); soft B +1.15; priority B +0.17;
+episodes over half the items B 30 -> 34, C 11 -> 17.  Official sample:
+A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (v27 the same); policy max
+0.99 / 4.89 / 0.87 s (the B call past the 4.5 s budget is the resort's
+window, under the 10 s limit), optimize 25 s
+(`official-sample-abc-v28.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

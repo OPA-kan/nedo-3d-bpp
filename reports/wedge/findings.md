@@ -2071,6 +2071,25 @@ mm, p95 0.27 mm) and 0.04 deg, the steps 74-78 at the median (p90
 0.25 -> 0.12 s a check.  A falling box never rests, so a settle
 failure still runs the course.
 
+With the shortened settle on the three suites (`presort4-core-a`,
+`presort4-core-b`, `presort4-core`): A and C identical to the full
+settle's runs scene by scene (0.16 and 0.10 s a check), B +1.23 over
+v26 (26 better, 0 worse; `presort3-core-b`, the full settle with the
+same deadlines, +1.15 with 25 better, 0 worse), topples 0.21 / 0.42 /
+0.17.  v28 is v27 with the two time changes.
+
+The rolling item search again, on v28 (`presort-roll9g-core-b`: the
+roll9g settings, horizon 3, four candidates, 4 s of a 6 s budget):
+against v28 on physics B, items +0.52 (24 better, 18 worse, from -6
+to +11 a scene), soft +0.23, fill +0.39, CoM +0.005, topples 0.42 ->
+0.19, no settle end, and the episodes over half the items 34 -> 42 of
+48.  The search's physics losses of before (transport ends, the
+evaluator's fill down) are gone with the gate and the resort behind
+it; what remains is the order's own variance.  The threshold count is
+the number the platform prices most, so this is the v29 candidate,
+to be measured at the submission's budget (4.5 s, the search's share
+scaled) before it is built.
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
