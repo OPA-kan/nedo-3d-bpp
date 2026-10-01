@@ -733,17 +733,18 @@ class RuleAlphaAgent:
             # the call that declines is the episode's last, and the stages
             # before it have spent the budget on the pool
             extra = float(getattr(self.config, "physics_resort_extra_seconds", 1.5)) if len(pool) > 1 else 0.0
-            action = self._physics_resort(ordered, pool, started + budget + extra - 0.05)
-            if action is not None:
-                return action
             # the count mode: under the platform's count threshold every
             # component but the fill is zero, so a pose on priority or soft
             # cargo (the cover rule's refusals) beats the decline that ends
-            # the episode (see config.count_mode)
-            if self._under_count(containers):
-                action = self._physics_resort(ordered, pool, started + budget + extra - 0.05, cover=True)
-                if action is not None:
-                    return action
+            # the episode (see config.count_mode); the one pass tries the
+            # poses that cover nothing first, and gets more time
+            under = self._under_count(containers)
+            if under:
+                extra = max(extra, float(getattr(
+                    self.config, "count_mode_extra_seconds_pool" if len(pool) > 1 else "count_mode_extra_seconds", 1.0)))
+            action = self._physics_resort(ordered, pool, started + budget + extra - 0.05, count=under)
+            if action is not None:
+                return action
 
         # a pose the shadow vetoed and nothing replaced: a failed placement
         # ends the episode the way a decline does, and the shadow can be wrong
@@ -1566,7 +1567,7 @@ class RuleAlphaAgent:
         placed = sum(len(c.get("packed_items", [])) for c in containers)
         return placed < threshold
 
-    def _physics_resort(self, ordered: list, pool: list, deadline: float, cover: bool = False) -> dict | None:
+    def _physics_resort(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
         any container, lowest and best supported first, tried in the shadow
         world until one stands (the sweep and the settle pass, no landing
@@ -1574,12 +1575,14 @@ class RuleAlphaAgent:
         support shares, headroom reserve, the extra transport clearance)
         are not applied: the physics is the judge here.  The cover rule
         is kept (it is the platform's placement score, not physics),
-        except in the count pass (``cover``, config.count_mode), which
-        also lets soft tops carry load."""
+        except under the count threshold (``count``, config.count_mode):
+        then the covering poses are generated too, soft tops carry load,
+        the poses that cover nothing are tried first and the pool's
+        smallest item goes first."""
         sim = self._shadow_sim()
         if sim is None:
             return None
-        from wedge_rl.stack import stack_candidates
+        from wedge_rl.stack import covers_other_attribute, stack_candidates
 
         from .planner import _placement
 
@@ -1590,10 +1593,9 @@ class RuleAlphaAgent:
             routing_any_container=True, stack_max_bottom=10.0, stack_soft_min_support=0.0,
             stack_soft_standing=True,
         )
-        if cover:
+        if count:
             cfg = dataclasses.replace(cfg, allow_cover_other_attribute=True, soft_is_structure=True,
                                       stack_soft_is_structure=True)
-        label = "count-mode" if cover else "physics-resort"
 
         def room(generating: bool = False) -> bool:
             # a candidate generation is not interruptible (0.3-0.9 s a
@@ -1613,7 +1615,14 @@ class RuleAlphaAgent:
         # mostly soft, the hard items in it have been refused by every
         # stage for a reason the physics is unlikely to overturn, and a
         # soft box fits where a hard one of its size would not stand
-        queue = sorted(ordered, key=lambda pp: 0 if pp[1].is_soft else 1)
+        if count:
+            # any item counts the same towards the threshold: the smallest
+            # is the likeliest to stand somewhere
+            queue = sorted(ordered, key=lambda pp: (float(pool[pp[0]]["length"]) * float(pool[pp[0]]["width"])
+                                                    * float(pool[pp[0]]["height"]), 0 if pp[1].is_soft else 1))
+        else:
+            queue = sorted(ordered, key=lambda pp: 0 if pp[1].is_soft else 1)
+        covering: dict[int, bool] = {}
         for pool_index, profile in queue:
             if not room():
                 break
@@ -1647,7 +1656,14 @@ class RuleAlphaAgent:
                     self._resort_gen_longest = max(self._resort_gen_longest, spent)
                     # the well supported low poses first: the load's height
                     # is priced, and a pose on a whole top is the one that stands
-                    cands.sort(key=lambda c: (round(c.bottom, 2), -round(c.support_ratio, 2),
+                    if count:
+                        # under the threshold: the poses that cover nothing
+                        # first (a covered box costs a share of the
+                        # placement or soft score), then the covering ones
+                        for c in cands:
+                            covering[id(c)] = bool(covers_other_attribute(
+                                c.box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
+                    cands.sort(key=lambda c: (covering.get(id(c), False), round(c.bottom, 2), -round(c.support_ratio, 2),
                                               -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
                     generated[key] = cands
                 if not cands:
@@ -1655,6 +1671,8 @@ class RuleAlphaAgent:
                 for cand in cands:
                     if not room():
                         break
+                    cover = covering.get(id(cand), False)
+                    label = "count-mode" if cover else "physics-resort"
                     placement = _placement(cand, len(cands), profile, container_idx, model)
                     placement.archetype = label
                     placement.reason = f"{label}: {cand.bottom:.2f} m, support {cand.support_ratio:.2f}, among {len(cands)}"
@@ -1676,7 +1694,7 @@ class RuleAlphaAgent:
                         key = "count_mode" if cover else "resort"
                         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + 1
                         return action
-        key = "count_mode_tried" if cover else "resort_tried"
+        key = "count_mode_tried" if count else "resort_tried"
         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
         return None
 

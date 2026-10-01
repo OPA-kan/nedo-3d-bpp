@@ -1533,6 +1533,16 @@ class RuleAlphaConfig:
     (weights 0.14 each), the crossing earns the whole of all four."""
     count_mode_items_per_container: float = 41.0
     count_mode_margin: int = 0
+    count_mode_extra_seconds: float = 1.0
+    """Under the threshold the resort (one pass: the poses that cover
+    nothing first, then the covering ones, lowest and best supported
+    first; the pool smallest item first) may run this far past the
+    budget on Tasks A and C (limit 8 s; the platform runs about 1.2x
+    slower than the bench's runners), ``count_mode_extra_seconds_pool``
+    on Task B (limit 10 s).  The v30 boards still under the threshold
+    were out of time, not out of poses: on c-c2-s0004 both containers
+    had 20 of 20 shadow-ok poses and the count pass never started."""
+    count_mode_extra_seconds_pool: float = 3.0
     allow_cover_other_attribute: bool = False
     """Set by the count pass only: the candidate generator skips both
     cover vetoes (other attribute, priority)."""
