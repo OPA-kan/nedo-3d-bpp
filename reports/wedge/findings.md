@@ -2090,6 +2090,17 @@ the number the platform prices most, so this is the v29 candidate,
 to be measured at the submission's budget (4.5 s, the search's share
 scaled) before it is built.
 
+Measured (`v28b45-core-b`: v28 at the 4.5 s budget, items +0.06 over
+its 6 s run, so the gate and the resort do not need the time;
+`roll9g45-core-b`: the search with 3 s of the 4.5 s): against v28 at
+the same budget the search is -0.60 items (16 better, 21 worse, two
+priority-container scenes -19 and -12), priority -0.40, soft -0.50,
+fill -0.44, the threshold count 34 -> 35.  At 6 s it was +0.52 with
+42 over the threshold: the search's gain is the budget's, and at the
+submission's budget it is a loss.  Not built; the search stays a
+measurement until the platform's time allows 6 s calls (its slowest
+v26 call ran at the budget, 4.56 s, so it does not).
+
 Six ladder orientations instead of three (`ladder_orientations` = 6,
 analytic B, `reports/bench/orient6-core-b`): placed +0.38 a scene but
 16 scenes better and 16 worse, priority +0.19, fill +0.40, CoM +0.004,
