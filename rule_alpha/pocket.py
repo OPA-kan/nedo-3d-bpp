@@ -57,6 +57,20 @@ class ClassFrequencies:
         self.seen: set[int] = set()
         self.seen_count = 0
         self.expected_total = float(items_per_container) * max(1, int(containers))
+        # Task A: the manifest is known, so the classes still to come are
+        # counted, not estimated (set by ``manifest``)
+        self.manifest: dict[tuple, int] | None = None
+        self.seen_by_class: dict[tuple, int] = {}
+
+    def set_manifest(self, items: list) -> None:
+        counts: dict[tuple, int] = {}
+        for item in items:
+            if bool(item.get("is_soft", False)):
+                continue
+            key = self._key(item["length"], item["width"], item["height"])
+            counts[key] = counts.get(key, 0) + 1
+        self.manifest = counts
+        self.expected_total = float(len(items))
 
     @staticmethod
     def _key(l: float, w: float, h: float) -> tuple:
@@ -73,6 +87,7 @@ class ClassFrequencies:
                 continue
             key = self._key(item["length"], item["width"], item["height"])
             self.counts[key] = self.counts.get(key, 0.0) + 1.0
+            self.seen_by_class[key] = self.seen_by_class.get(key, 0) + 1
 
     @property
     def remaining(self) -> float:
@@ -82,6 +97,11 @@ class ClassFrequencies:
         """(l, w, h, P(at least one more of this class arrives)) per hard
         class, where the per-item probability is the class's posterior
         share of all items seen (soft ones included in the denominator)."""
+        if self.manifest is not None:
+            # a class still arrives when the manifest holds more of it
+            # than has been seen
+            return [(l, w, h, 1.0 if n - self.seen_by_class.get((l, w, h), 0) > 0 else 0.0)
+                    for (l, w, h), n in self.manifest.items()]
         total_items = float(self.seen_count) + sum(self.counts.values())
         remaining = self.remaining
         out = []
@@ -135,13 +155,20 @@ class PocketGuard:
         self.overrides = 0
         self.seconds = 0.0
 
-    def observe(self, pool: list, containers: int) -> None:
+    def _ensure(self, containers: int) -> ClassFrequencies:
         if self.frequencies is None:
             self.frequencies = ClassFrequencies(
                 prior_count=float(getattr(self.config, "pocket_guard_prior", 4.0)),
                 items_per_container=float(getattr(self.config, "pocket_guard_items_per_container", 41.0)),
                 containers=containers)
-        self.frequencies.observe(pool)
+        return self.frequencies
+
+    def set_manifest(self, items: list, containers: int) -> None:
+        """Task A: the whole stream is known."""
+        self._ensure(containers).set_manifest(items)
+
+    def observe(self, pool: list, containers: int) -> None:
+        self._ensure(containers).observe(pool)
 
     def classes(self) -> list[tuple[float, float, float, float]]:
         """The hard classes with a large footprint still likely to arrive,

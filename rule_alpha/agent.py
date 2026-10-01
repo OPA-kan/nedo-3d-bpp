@@ -162,6 +162,13 @@ class RuleAlphaAgent:
     def optimize(self, item_list: list):
         started = time.perf_counter()
         profiles = self._prepare_manifest(item_list)
+        if self.pocket is not None:
+            # Task A: the pocket guard counts the classes still to come
+            # from the manifest instead of estimating them
+            try:
+                self.pocket.set_manifest(item_list, len(self.board.models) if self.board is not None else 1)
+            except Exception as exc:
+                print(f"[pocket] manifest failed: {exc!r}", flush=True)
         reference = None
         if self.board is not None and self.board.models:
             reference = next(
