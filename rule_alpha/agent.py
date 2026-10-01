@@ -1687,34 +1687,6 @@ class RuleAlphaAgent:
                     generated[key] = cands
                 if not cands:
                     continue
-                if count and len(cands) > 1:
-                    # the sweep alone first: a blocked path fails in a
-                    # millisecond or two, a settle takes 0.1-0.6 s, and on
-                    # a crowded board most of the low poses are blocked
-                    # (c-c1-s0003: the first 300 of 400 lowest poses, 102
-                    # of the 400 stand)
-                    try:
-                        if not self._shadow_synced:
-                            sim.sync(self._shadow_observation.get("container_list", []))
-                            self._shadow_synced = True
-                        passing = []
-                        skipped = 0
-                        for cand in cands:
-                            if time.perf_counter() + 0.05 > deadline:
-                                break
-                            placement = _placement(cand, len(cands), profile, container_idx, model)
-                            action = self._action(pool_index, placement)
-                            v = sim.check(int(action["container_idx"]), item,
-                                          tuple(float(x) for x in action["place_pos"]), int(action["orientation"]),
-                                          transport=True, settle=False)
-                            if v["transport_ok"]:
-                                passing.append(cand)
-                            else:
-                                skipped += 1
-                        self.shadow_stats["sweep_skipped"] = self.shadow_stats.get("sweep_skipped", 0) + skipped
-                        cands = passing
-                    except Exception as exc:
-                        print(f"[physics-resort] sweep prefilter failed: {exc!r}", flush=True)
                 # the poses come in groups (the same cover class, the same
                 # level, the same support share): when three of a group in
                 # a row fail the settle the rest of it is skipped, since
