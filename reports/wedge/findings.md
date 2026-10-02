@@ -2310,6 +2310,58 @@ slot for the big class), or the door is walled (c-c1-s0006).  On A the
 one episode under (a-c1s-s0002, 20 of 41) has no reachable pose for
 anything.
 
+### The count threshold revisited, and the continuous reading
+
+Against the bench's crossing counts, the official stability score has
+not moved since v18 whatever crossed: v18 -> v29 took the bench
+episodes over half the items from 83 to 105 of 144 (over 0.55: 59 ->
+74, over 0.6: 33 -> 43) and the official stability went 62.69 ->
+62.69, cog 54.83 -> 53.22.  A threshold anywhere in 0.5-0.6 would have
+moved it 7-15 points; one above 0.65 would leave too few episodes
+counted for a 62.7 mean.  So the threshold the README names is low
+enough that nearly every episode counts, cog and stability are
+continuous measures of the load (the v12 and v18 jumps came with the
+lower, flatter loads those builds made; the v19 and v25 drops with
+taller ones), and the soft and placement scores are the shares of the
+soft and priority cargo placed (uncovered, in the right container),
+as the v5 run first suggested.  Priced per item from the fitted
+weights, a soft box placed is worth about 14 / soft_total points to
+its episode (0.9 on the suites), a priority box 14 / priority_total
+(2.9), a hard box its fill (0.2-0.4), a covered priority or soft box
+minus one share; 0.01 of centre-of-mass ratio about 1.7 points of the
+total.  `scratchpad/cmp_dirs.py` prints that pricing.  Under it the
+count mode is a wash (C +5.9 points over 23 episodes against the
+covers, B +8.7 over 8, A -4), and the v30 official run tells which
+reading holds: 26 more bench episodes over a half, none over 0.55.
+
+Where the shares are low (v31): A places 46 % of its soft and 66 % of
+its priority cargo with the whole manifest in hand; B 34 % / 72 %; C
+52 % / 58 %.  On C and B the soft share tracks the stream's progress
+(a decline ends the episode); on B the pool holds 6.9 soft boxes a
+scene when it ends (about 6 points), on A the order plays the soft
+cargo last and the dry-run's plan carries 2 of 15 of it
+(a-c1s-s0001).  Probes on the v31 base, priced on each suite's third:
+
+| probe | suite | placed | soft share | priority share | fill | CoM | priced |
+|---|---|---:|---:|---:|---:|---:|---:|
+| soft/priority ahead of the hard tail, after the plan (0.2 / 0.1) | A | -0.7 / -0.4 | +0.01 / -0.01 | +0.04 / 0 | -0.6 / -0.3 | -0.003 / 0 | +0.30 / -0.06 |
+| the same inside the dry-run (0.35) + proportional plan score | A | -3.4 | -0.10 | +0.21 | +0.1 | +0.024 | -0.82 |
+| proportional plan score alone (1;0.49;0.5;0) | A | -0.4 | +0.01 | -0.01 | -0.6 | -0.004 | +0.15 |
+| planner variant `first` (priority before everything) | A | -1.4 | -0.02 | +0.13 | -1.8 | -0.011 | +0.93 |
+| `first` + proportional score | A | -1.3 | -0.01 | +0.13 | -1.9 | -0.011 | +1.00 |
+| soft_first_when_free | B | +0.7 | +0.08 | -0.15 | +0.1 | -0.004 | -0.13 |
+| soft_first_when_free | C | -0.3 | 0 | -0.01 | -0.2 | -0.004 | +0.17 |
+| count pass before every decline (two replays) | B, C | +1 each | +1 box | one more covered | | | -1.7 a scene |
+
+The planner's `first` variant (`pfirst-core-a`) is the one candidate:
+priority placed 0.66 -> 0.78 a share, loads lower by 0.011, for 1.8
+fill points; under the threshold reading it would be a loss (placed
+-1.4), under the continuous one +0.9 on the total.  Soft-first on B
+placed 1.1 more soft boxes a scene but took the priority container's
+shelf (b-c2p-s0003 and s0006 -11 items, priority 0.72 -> 0.57); a
+variant that leaves that container alone
+(`soft_first_skip_priority_container`) is running.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.
