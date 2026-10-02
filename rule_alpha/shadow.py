@@ -455,6 +455,22 @@ class ShadowSim:
                 out["angle_deg"] = math.degrees(angle)
                 out["settle_ok"] = not (displacement > self.displacement_threshold or angle > self.angle_threshold)
                 out["settled_local"] = (float(final_pos[0]) - offset_x, float(final_pos[1]), float(final_pos[2]))
+                # the inclusion test on the settled box (the validator's
+                # is_included; the sweep has no walls, so a pose pushed to
+                # the wall by a settle slide is only caught here)
+                try:
+                    rot = np.asarray(p.getMatrixFromQuaternion(final_orn), dtype=float).reshape(3, 3)
+                    ext = np.abs(rot) @ np.asarray([lwh[0] / 2.0, lwh[1] / 2.0, lwh[2] / 2.0])
+                    fx, fy, fz = (float(v) for v in final_pos)
+                    m = 0.005
+                    out["included"] = bool(
+                        fx - ext[0] >= offset_x - length / 2.0 + thickness - m
+                        and fx + ext[0] <= offset_x + length / 2.0 - thickness + m
+                        and fy - ext[1] >= -width / 2.0 + thickness - m
+                        and fy + ext[1] <= width / 2.0 - thickness + m
+                        and fz + ext[2] <= height + buffer - thickness + m)
+                except Exception:
+                    out["included"] = True
                 out["drift"] = displacement
                 # the drop from the lifted target to the surface is expected
                 # (2-5 cm on the ladder's poses); a slide is not

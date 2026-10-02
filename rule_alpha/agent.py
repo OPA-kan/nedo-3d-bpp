@@ -350,13 +350,14 @@ class RuleAlphaAgent:
             self.shadow_stats["shaken"] = self.shadow_stats.get("shaken", 0) + 1
             if not shake["ok"]:
                 self.shadow_stats["shake_vetoes"] = self.shadow_stats.get("shake_vetoes", 0) + 1
-        out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"]
+        out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"] and out.get("included", True)
                          and out["drift_xy"] <= float(getattr(self.config, "shadow_max_drift_xy", 0.02))
                          and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
         return out
 
     def _shadow_hard(self, verdict: dict) -> bool:
         return bool(not verdict["transport_ok"] or not verdict["settle_ok"] or not verdict.get("shake_ok", True)
+                    or not verdict.get("included", True)
                     or verdict["drift_xy"] > float(getattr(self.config, "shadow_hard_drift_xy", 0.10))
                     or verdict["angle_deg"] > float(getattr(self.config, "shadow_hard_angle_deg", 15.0)))
 
@@ -416,6 +417,12 @@ class RuleAlphaAgent:
         shaded = self._shade_of(placement)
         digest["shade"] = round(shaded, 3)
         shade_limit = float(getattr(self.config, "shade_veto_area", 0.0))
+        if getattr(self, "_manifest", None):
+            # Task A: the plan's rows are already back to front, and the
+            # veto broke the replay (a-c2-s0011: planned poses 51 -> 28,
+            # items 57 -> 53; under the dry-run's order 57 -> 51 with no
+            # soft item placed)
+            shade_limit = 0.0
         shade_veto = shade_limit > 0.0 and shaded > shade_limit
         if verdict["ok"] and not shade_veto:
             self.shadow_stats["kept"] += 1
@@ -1602,7 +1609,11 @@ class RuleAlphaAgent:
         alt.archetype = "pocket-soft"
         alt.reason = (f"pocket guard: {best_score:.2f} slots kept against {chosen_score:.2f} "
                       f"({'floor' if cand.on_floor else 'top'} at {cand.bottom:.2f} m); was {placement.archetype}")
-        self.last_decision = dataclasses.replace(decision, placement=alt)
+        # the ladder's survivors belong to the ladder's container, not
+        # necessarily the guard's: the shadow gate must not build its
+        # alternatives from them (b-c2p-s0005 ended on an inclusion
+        # failure from one built in the wrong container)
+        self.last_decision = dataclasses.replace(decision, placement=alt, survivors=[], chosen=None)
         return alt
 
     def _count_threshold(self) -> int | None:
