@@ -1393,6 +1393,13 @@ class RuleAlphaAgent:
                 break
             for container_idx in layer1.routing_order(profile, self.board, self.config):
                 model = self.board.model(container_idx)
+                if (getattr(self.config, "soft_first_skip_priority_container", False)
+                        and model.is_prioritized and not profile.is_prioritized):
+                    # the priority container's shelf is the priority
+                    # cargo's gallery: soft-first on the B suite took it
+                    # (b-c2p-s0003 and s0006 -11 items, priority placed
+                    # 0.72 -> 0.57 a share)
+                    continue
                 t0 = time.perf_counter()
                 box, orientation = online_shelf_pose(self.board, container_idx, profile, self.config)
                 self._longest_call = max(self._longest_call, time.perf_counter() - t0)

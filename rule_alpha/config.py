@@ -1693,6 +1693,9 @@ class RuleAlphaConfig:
     support; the simulator warps the box 8 cm up and lets it fall)."""
 
     soft_first_mode: str = "free"
+    soft_first_skip_priority_container: bool = False
+    """soft_first_when_free leaves the priority container's shelf and
+    tops to the priority cargo."""
     """What makes a soft item's pose cost the hard cargo nothing.  "free":
     a shelf, soft cargo under it, or a top too high for another hard box
     (v23; on the platform the soft score doubled, +18, but the load's
