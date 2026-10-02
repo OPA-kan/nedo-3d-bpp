@@ -1540,6 +1540,20 @@ class RuleAlphaConfig:
     half, five over 0.55, one over 0.6, and the non-fill components
     flat) reads as a higher one, and the v30 run (26 more over a half,
     none over 0.55) decides it."""
+    count_mode_always: bool = False
+    """The count pass before every decline, not only under the threshold.
+    A decline ends the episode, and under the platform's continuous
+    reading of the scores (the v18 -> v29 official runs: 22 more bench
+    episodes over half the items and the stability flat) what a decline
+    forfeits is the rest of the stream: each soft item placed uncovered
+    is worth about 1/soft_total of 14 points to its episode, each
+    priority item 1/priority_total of 14, a hard box its fill (0.2-0.4);
+    a covered priority or soft box costs about one of those shares.  On
+    Task A the rest of the stream is known: the pass runs when its value
+    (``count_mode_min_value`` points, soft 0.9 a box, priority 2.9, hard
+    0.3 by the bench's shares) beats a cover; on B and C the rest is
+    about 20 items of which a third soft, so it always does."""
+    count_mode_min_value: float = 2.0
     count_mode_extra_seconds: float = 1.0
     """Under the threshold the resort (one pass: the poses that cover
     nothing first, then the covering ones, lowest and best supported
@@ -1865,6 +1879,14 @@ class RuleAlphaConfig:
     fraction placed (0.503 / 0.500 / 0.493 / 0.488 -> cog 40.9 / 36.4 /
     37.2 / 32.3), so the count decides most of the score."""
 
+    plan_valuable_before_tail: float = 0.0
+    """Task A: the soft and priority items that the order would play
+    after the last share (this fraction) of the hard items are moved
+    ahead of that hard tail.  A decline ends the episode, the hard tail
+    is where the declines happen (a-c1s-s0001: the 22nd hard box
+    declined with every one of the 15 soft and 4 priority items still
+    to come, 0 of 15 soft placed), and a soft or priority item placed is
+    worth 3-10 times a hard box's fill.  0 turns it off."""
     plan_score_weights: str = "1,0.5,0.5,0"
     """How the planner's plan and the ladder's dry-run plan are compared:
     weights of the fill (volume over the containers' volume), the share of

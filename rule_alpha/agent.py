@@ -166,6 +166,7 @@ class RuleAlphaAgent:
         started = time.perf_counter()
         profiles = self._prepare_manifest(item_list)
         self._manifest_total = len(item_list) if item_list else None
+        self._manifest = {int(i["index"]): i for i in item_list} if item_list else None
         if self.pocket is not None:
             # Task A: the pocket guard counts the classes still to come
             # from the manifest instead of estimating them
@@ -264,7 +265,23 @@ class RuleAlphaAgent:
             order, self.plan = planned
             self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
             self.plan_source = "planner"
-        return [int(i) for i in order]
+        order = [int(i) for i in order]
+        share = float(getattr(self.config, "plan_valuable_before_tail", 0.0))
+        if share > 0.0 and len(order) > 2:
+            # the soft and priority items ahead of the hard tail (see the config)
+            def valuable(i):
+                it = by_index.get(int(i), {})
+                return bool(it.get("is_soft")) or bool(it.get("is_prioritized"))
+            hard = [i for i in order if not valuable(i)]
+            keep = len(hard) - int(round(len(hard) * share))
+            tail = set(hard[max(0, keep):])
+            if tail:
+                first = min(order.index(i) for i in tail)
+                moved = [i for i in order[first:] if i not in tail]
+                order = order[:first] + moved + [i for i in order[first:] if i in tail]
+                print(f"[optimize] {len(moved)} soft/priority items moved ahead of the last {len(tail)} hard items", flush=True)
+        self._order = order
+        return list(self._order)
 
     def policy(self, observation: dict):
         # the shadow check's per-call state: the world is synced from this
@@ -1566,7 +1583,27 @@ class RuleAlphaAgent:
         if threshold is None:
             return False
         placed = sum(len(c.get("packed_items", [])) for c in containers)
-        return placed < threshold
+        if placed < threshold:
+            return True
+        if not getattr(self.config, "count_mode_always", False):
+            return False
+        # over the threshold: the pass runs for what a decline would forfeit
+        order = getattr(self, "_order", None)
+        manifest = getattr(self, "_manifest", None)
+        pool = getattr(self, "_pool", None) or []
+        if not order or not manifest or len(pool) != 1:
+            return True  # Tasks B and C: the rest of the stream is unknown and worth it
+        try:
+            here = order.index(int(pool[0]["index"]))
+        except (ValueError, KeyError, TypeError):
+            return True
+        value = 0.0
+        for idx in order[here + 1:]:
+            item = manifest.get(int(idx))
+            if item is None:
+                continue
+            value += 0.9 if item.get("is_soft") else (2.9 if item.get("is_prioritized") else 0.3)
+        return value >= float(getattr(self.config, "count_mode_min_value", 2.0))
 
     def _physics_resort(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
