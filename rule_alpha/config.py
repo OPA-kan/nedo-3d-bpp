@@ -1533,6 +1533,12 @@ class RuleAlphaConfig:
     (weights 0.14 each), the crossing earns the whole of all four."""
     count_mode_items_per_container: float = 41.0
     count_mode_margin: int = 0
+    count_mode_strict: bool = False
+    """The threshold as strictly more than the share (floor + 1): 42 of
+    82 instead of 41, 21 of 41 either way.  The README says "a certain
+    number or more"; whether 41 of 82 counts is unknown, and the
+    two-container suites end exactly there often (v31: C 3 episodes, B
+    1), so one more box on those is cheap insurance."""
     count_mode_fraction: float = 0.5
     """The share of the items the threshold is taken at (ceil of the
     share times the expected count, plus the margin).  The fit put it

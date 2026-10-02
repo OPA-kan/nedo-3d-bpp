@@ -1593,7 +1593,13 @@ class RuleAlphaAgent:
         if not total:
             total = float(getattr(self.config, "count_mode_items_per_container", 41.0)) * containers
         share = float(getattr(self.config, "count_mode_fraction", 0.5))
-        return int(math.ceil(float(total) * share - 1e-9)) + int(getattr(self.config, "count_mode_margin", 0))
+        if getattr(self.config, "count_mode_strict", False):
+            # strictly more than the share: 42 of 82 where the ceiling
+            # gives 41 (21 of 41 either way)
+            base = int(math.floor(float(total) * share + 1e-9)) + 1
+        else:
+            base = int(math.ceil(float(total) * share - 1e-9))
+        return base + int(getattr(self.config, "count_mode_margin", 0))
 
     def _under_count(self, containers: list) -> bool:
         threshold = self._count_threshold()

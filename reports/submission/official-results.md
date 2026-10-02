@@ -22,6 +22,22 @@
 | v28 first form (34fd515: v27 with the Task B stages keeping their deadlines and the shortened settle; before the generation guard and the 2.5 s window) | 36.18 | 53.02 | 62.63 | 39.55 | 25.9 | 0.5816 | 139.4 | 6.34 |
 | v28 (b844039 line: v27 with the stages' deadlines kept on B, the shortened settle, the generation guard, the 2.5 s window) | | | | | | | | |
 | v29 (af20376: v28 plus the pocket guard -- a soft item's floor pose keeps the slots the expected big hard classes need) | 36.29 | 53.22 | 62.69 | 39.75 | 28.3 | 0.5848 | 138.2 | 7.37 |
+| v31 (00339ce: v29 plus the count mode as one resort pass -- under the count threshold, poses on priority or soft cargo before a decline) | 37.90 | 63.55 | 75.22 | 46.85 | 36.35 | 0.6104 | 115.0 | 7.19 |
+
+v31's total was 52.45 (v29 44.93, +7.5, the largest step since the
+planner): fill +1.6, cog +10.3, stability +12.5, placement +7.1, soft
++8.05, the fraction placed 0.5848 -> 0.6104.  Every non-fill component
+jumped together, which is the count threshold's signature: the count
+mode took the bench's episodes over half the items from 105 to 138 of
+144, and the platform paid for the crossings (about 30 points of the
+four components per crossing share, against the fit's 56: the
+platform's streams cross less often than the suite's, or the
+conditional values are lower).  So the threshold reading stands, and
+the "continuous reading" drawn from v18 -> v29's flat stability (the
+section "The count threshold revisited" in reports/wedge/findings.md)
+was wrong about the threshold, though its per-item prices still apply
+to the episodes that count.  The slowest policy call 7.19 s (a Task B
+call inside the count pass's window; limit 10 s), optimize 115 s.
 
 v29's total was 44.93 (v28 44.47): soft +2.4 (25.9 -> 28.3, the
 guard's soft items placed where the hard cargo did not need the floor),
