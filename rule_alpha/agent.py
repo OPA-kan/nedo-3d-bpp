@@ -1475,7 +1475,10 @@ class RuleAlphaAgent:
                 action = self._emit(pool_index, placement)
                 if action is not None:
                     return action
-            free = placement.surface == "shelf"
+            # "tops": no shelf gallery (it took the priority cargo's room on
+            # the B suite), only a top on soft cargo or one too high for
+            # any hard box
+            free = placement.surface == "shelf" and mode != "tops"
             if not free:
                 # on soft cargo: the support under the box is soft
                 for packed, (b, so, _pr) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
