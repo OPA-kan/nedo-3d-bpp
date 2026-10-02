@@ -1533,6 +1533,13 @@ class RuleAlphaConfig:
     (weights 0.14 each), the crossing earns the whole of all four."""
     count_mode_items_per_container: float = 41.0
     count_mode_margin: int = 0
+    count_mode_fraction: float = 0.5
+    """The share of the items the threshold is taken at (ceil of the
+    share times the expected count, plus the margin).  The fit put it
+    near a half; the v29 official run (nine more bench episodes over a
+    half, five over 0.55, one over 0.6, and the non-fill components
+    flat) reads as a higher one, and the v30 run (26 more over a half,
+    none over 0.55) decides it."""
     count_mode_extra_seconds: float = 1.0
     """Under the threshold the resort (one pass: the poses that cover
     nothing first, then the covering ones, lowest and best supported

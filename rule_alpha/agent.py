@@ -1558,7 +1558,8 @@ class RuleAlphaAgent:
         total = self._manifest_total
         if not total:
             total = float(getattr(self.config, "count_mode_items_per_container", 41.0)) * containers
-        return int(math.ceil(float(total) / 2.0)) + int(getattr(self.config, "count_mode_margin", 0))
+        share = float(getattr(self.config, "count_mode_fraction", 0.5))
+        return int(math.ceil(float(total) * share - 1e-9)) + int(getattr(self.config, "count_mode_margin", 0))
 
     def _under_count(self, containers: list) -> bool:
         threshold = self._count_threshold()
