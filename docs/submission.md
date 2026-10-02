@@ -415,8 +415,12 @@ A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (as v32; the planner's plan
 won the race on the sample's A already); policy max B 5.08 s, optimize
 29 s (`official-sample-abc-v34.json`).  (A first v34 built on the v33
 form, before v33's official result came in, had the sample's A at
-33.46 / 28 like v33: the shade settings move the sample's A episode
-although the veto is off under a manifest, which is being traced.)
+33.46 / 28 like v33: the shade settings moved the sample's A episode
+although the veto is off under a manifest, because the dry-run's
+scratch agent had no manifest and built A's plans under the Task C
+rules -- the leak that v33's official loss came through, fixed
+afterwards: the scratch carries the manifest now, and both settings
+play the same 25 items on the sample's A.)
 
 ## Known limits
 

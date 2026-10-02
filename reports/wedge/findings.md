@@ -2425,6 +2425,43 @@ scenes at 19 of 41 this run where the dry-run's plan won the optimize
 race, 24 and 23 where the planner's did -- the race, not the veto,
 which is off there).
 
+### v33 on the platform: the veto reached Task A through the dry-run
+
+v33 scored 51.93 against v32's 52.71: placement -4.15, soft -0.95,
+fill -0.27, cog and stability flat.  The veto was meant to run on Task
+C alone (off under a Task A manifest, off with a Task B pool), and the
+first reading put the whole loss on C, where the suite had said the
+opposite.  The sample check said something else: the sample's A
+episode ends at 25 items with the veto settings off and at 28 with
+them on, twice each, with the veto supposedly inert there.  Traced
+(`scripts/sample_a_trace.py`): both runs play the dry-run's plan (the
+planner's holds fewer entries than the threshold), and the two plans
+differ from the 26th item on -- with the settings on the dry-run's
+order carries three soft boxes next (14, 2, 7, all placed), without
+them two hard boxes that fail.  The dry-run runs the ladder on a
+scratch agent (`scratch_copy`), and the scratch had no manifest: it
+ran the Task C rules, the veto and the resort's shade order included,
+so v33's Task A plans were built under the veto while the replay was
+not.  The suite had seen it without naming it: the v33 and v32 A arms
+(`v33-core-a` against `strictfirst-core-a`, the same settings but the
+shade) differed by soft -0.88 a scene, priority -0.37 and two crossings
+(48 -> 46), which at the platform's prices is the size of the official
+move.  So v33's loss is Task A's, through the dry-run, and the veto's
+effect on the platform's C streams is still unmeasured.  The scratch
+now carries its parent's manifest (the same exemptions, the same count
+threshold from the manifest's total); on the sample's A episode both
+settings then play the same 25 items.  The time side on C is not it:
+at a 3.5 s limit (a machine a quarter slower than the runners;
+`v32-core-slow`, `v33-core-slow`) the veto is worth what it was at 4.5
+s -- placed +2.06 a scene (28 up, 6 down), 41 -> 48 of 48 episodes
+over the threshold, fill +1.8, priority covered 24 -> 12, soft covered
+11 -> 4, topples 18 -> 11, CoM +0.011, the slowest call +0.7 s -- and
+the v32 arm itself loses only 0.13 items a scene at the shorter limit.
+So the veto on Task C, with the dry-run leak closed, is the next
+single change after v34.  `v34-core-a` (the v32 A arm with the planner
+preferred) against `prefplan-core-a` (the v33 A arm with it) measures
+the leak with the race removed.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run

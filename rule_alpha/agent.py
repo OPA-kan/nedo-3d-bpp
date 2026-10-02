@@ -160,6 +160,14 @@ class RuleAlphaAgent:
                                  wedge_option=self.wedge_option, stack_option=self.stack_option)
         scratch.get_init_states({"container_list": containers})
         scratch._prepare_manifest(item_list)
+        # the scratch is a Task A agent like its parent: without the
+        # manifest the dry-run ran the Task C rules (the sweep-shade veto
+        # and the resort's shade order, exempt under a manifest) and its
+        # plans differed from the parent's replay rules (v33: the sample's
+        # A episode 25 -> 28 items, the suite soft -0.9 a scene with two
+        # crossings lost, on a veto that was meant to leave A alone)
+        scratch._manifest = {int(i["index"]): i for i in item_list} if item_list else None
+        scratch._manifest_total = len(item_list) if item_list else None
         return scratch
 
     def _valuable_before_tail(self, order: list, item_list: list) -> list:

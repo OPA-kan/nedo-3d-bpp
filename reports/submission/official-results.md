@@ -36,13 +36,18 @@ on its C suite (`v33-core` against the v32 form: +2.0 items a scene,
 43 -> 48 of 48 episodes over the threshold, priority boxes covered 22
 -> 12, no layout worse), and the platform repeats identical decisions
 to the digit (v27 and v28's first form), so this is the veto's own
-effect on the platform's streams, not noise.  What differs there is
-the time: the veto's alternatives and the skyline cost the suite's
-slowest C call +1.2 s a scene (4.1 -> 5.3 s at the 4.5 s budget), and
-the platform is slower than the runners; `v33-core-slow` and
-`v32-core-slow` (the two C arms at a 3.5 s limit) test whether the
-gain survives a slower machine.  The veto is off again in v34, which
-stands on the v32 form.  The slowest call 7.19 s, optimize 116.6 s.
+effect on the platform's streams, not noise.  Traced afterwards
+(`reports/wedge/findings.md`, "v33 on the platform"): the veto reached
+Task A after all.  The dry-run that builds A's plans runs on a scratch
+agent without the manifest, so it ran under the Task C rules -- the
+veto and the resort's shade order -- while the replay did not; the
+sample's A episode differs by three items between the settings, and
+the suite's v33 and v32 A arms differ by soft -0.88 a scene, priority
+-0.37 and two crossings of 48, which at the platform's prices is this
+move.  So the loss is Task A's, and the veto's effect on the
+platform's C streams is unmeasured; the scratch carries the manifest
+now.  The veto is off again in v34, which stands on the v32 form.
+The slowest call 7.19 s, optimize 116.6 s.
 
 v32's total was 52.71 (v31 52.45, +0.26): placement +1.65 (the
 priority-first planner variant on Task A: its priority share 0.66 ->
