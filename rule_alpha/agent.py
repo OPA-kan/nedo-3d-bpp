@@ -1778,6 +1778,9 @@ class RuleAlphaAgent:
                     # the threshold the whole-top poses that would stand
                     # are nearly all sweep-blocked
                     shade_step = float(getattr(strict, "resort_shade_step", 0.0))
+                    if getattr(self, "_manifest", None) or (len(pool) > 1 and not getattr(strict, "shade_veto_with_pool", False)):
+                        shade_step = 0.0  # the same tasks the gate's veto leaves alone
+
                     shade: dict[int, int] = {}
                     if shade_step > 0.0:
                         sky = skyline(container, model)

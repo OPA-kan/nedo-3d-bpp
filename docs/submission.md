@@ -359,6 +359,33 @@ total).  Official sample: A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (as
 v31); policy max B 4.50 s, optimize 20 s
 (`official-sample-abc-v32.json`).
 
+Thirty-third build (v33): v32 with the sweep-shade veto on Task C
+(`shade_veto_area` = 0.15 m^2, `resort_shade_step` = 0.1;
+`wedge_rl.stack.shade_area`).  The seven C episodes still at or under
+the count threshold after v32 all had standing poses for the next box
+that the simulator's transport sweep could not reach, behind stacks
+the ladder had built at the door; the shadow gate now vetoes a pose
+that walls off more than 0.15 m^2 of lower floor with headroom behind
+it (the decision's other survivors first, the next stage otherwise,
+the pose itself before a decline), and the resort orders its poses by
+the same measure.  Off under a Task A manifest (it broke the plan
+replay) and with a Task B pool (it cost four crossings).  Two gate
+faults fixed on the way: an alternative built from the ladder's
+survivors after the pocket guard had moved the placement to the other
+container (an inclusion failure on b-c2p-s0005), and a settled-pose
+inclusion veto that refused planned poses the platform accepts
+(telemetry now).  Physics suites at 4.5 s (`v33-core`, `v33-core-b`,
+`v33-core-a`) against the v32 form: C placed +2.0 a scene (27 up, 4
+down), every episode over the threshold (43 -> 48 of 48), fill +1.8,
+priority boxes covered 22 -> 12, topples 21 -> 9, CoM +0.012, slowest
+call 5.3 s; B level (48 of 48 over, -0.17 items); A as v32's form (its
+run-to-run spread comes from the optimize race between the dry-run and
+the planner on the shelf layouts: a-c1s-s0006 and s0007 end at 19 of
+41 when the dry-run's plan wins, 24 and 23 under the planner's).
+Official sample: A 33.46 / 28, B 27.28 / 25, C 26.44 / 25 (v32: 32.11
+/ 25, 27.28 / 25, 23.14 / 23); policy max B 4.87 s, optimize 25 s
+(`official-sample-abc-v33.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

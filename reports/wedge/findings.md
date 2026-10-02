@@ -2412,9 +2412,18 @@ built its alternative from the ladder's survivors after the pocket
 guard had moved the placement to the other container (the guard now
 clears the survivors), and the shadow had no inclusion test of its own
 (it has one now, on the settled box).  With the fixes b-c2p-s0005
-replays 45 -> 50.  The suites with the fixed gate (`sveto2-core`,
-`sveto2-core-b`, `sveto2-core-a`) decide v33: C and B with the veto at
-0.15, A without.
+replays 45 -> 50.  With the fixed gate (`sveto2-core-b`) B still lost
+four crossings (48 -> 44: the veto fired on 2246 of 4298 checks and
+reshuffled the loads, soft share +0.11 for fill -0.9), so the veto is
+Task C's alone; a settled-pose inclusion veto added at the same time
+refused 70 planned poses on A that the platform accepts (the validator
+tests the commanded pose) and went back to telemetry.  v33's suites
+(`v33-core`, `v33-core-b`, `v33-core-a`): C +2.0 items a scene against
+the v32 form, 48 of 48 over the threshold, fill +1.8, priority covered
+22 -> 12, topples 21 -> 9, CoM +0.012; B level; A as v32 (two shelf
+scenes at 19 of 41 this run where the dry-run's plan won the optimize
+race, 24 and 23 where the planner's did -- the race, not the veto,
+which is off there).
 
 ### The wider ladder: a negative result
 
