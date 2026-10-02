@@ -360,6 +360,20 @@ class RuleAlphaAgent:
                     or verdict["drift_xy"] > float(getattr(self.config, "shadow_hard_drift_xy", 0.10))
                     or verdict["angle_deg"] > float(getattr(self.config, "shadow_hard_angle_deg", 15.0)))
 
+    def _shade_of(self, placement) -> float:
+        """The floor area a pose walls off from the sweep (wedge_rl.stack.shade_area)."""
+        if float(getattr(self.config, "shade_veto_area", 0.0)) <= 0.0:
+            return 0.0
+        try:
+            from wedge_rl.stack import shade_area, skyline
+
+            ci = int(placement.container_idx)
+            model = self.board.model(ci)
+            return float(shade_area(placement.box, skyline(self.board.container(ci), model), float(model.z_ceiling)))
+        except Exception as exc:
+            print(f"[shade] failed: {exc!r}", flush=True)
+            return 0.0
+
     def _emit(self, pool_index: int, placement) -> dict | None:
         """The action for a placement, through the shadow check when it is
         on.  The chosen pose is tried in the shadow world; on a veto the
@@ -397,10 +411,18 @@ class RuleAlphaAgent:
             print(f"[shadow] disabled after an error: {exc!r}", flush=True)
             return action
         digest = {k: verdict[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in verdict}
-        if verdict["ok"]:
+        # the sweep-shade veto (config.shade_veto_area): a pose that walls
+        # off lower floor behind it from the simulator's sweep
+        shaded = self._shade_of(placement)
+        digest["shade"] = round(shaded, 3)
+        shade_limit = float(getattr(self.config, "shade_veto_area", 0.0))
+        shade_veto = shade_limit > 0.0 and shaded > shade_limit
+        if verdict["ok"] and not shade_veto:
             self.shadow_stats["kept"] += 1
             self.last_shadow = {"chosen": digest, "outcome": "kept"}
             return action
+        if shade_veto:
+            self.shadow_stats["shade_vetoes"] = self.shadow_stats.get("shade_vetoes", 0) + 1
         self.shadow_stats["vetoes"] += 1
         decision = self.last_decision
         tried = []
@@ -414,6 +436,8 @@ class RuleAlphaAgent:
                 try:
                     alt_placement = layer1.build_placement(cand, placement.archetype, self.board,
                                                            container_idx, profile, self.config)
+                    if shade_limit > 0.0 and self._shade_of(alt_placement) > shade_limit:
+                        continue
                     alt = self._action(pool_index, alt_placement)
                     v = self._shadow_verdict(sim, alt, item)
                 except Exception as exc:
@@ -426,7 +450,7 @@ class RuleAlphaAgent:
                     self.shadow_stats["replaced"] += 1
                     self.last_shadow = {"chosen": digest, "outcome": "replaced", "tried": tried}
                     return alt
-        if not self._shadow_hard(verdict):
+        if not self._shadow_hard(verdict) and not shade_veto:
             self.shadow_stats["kept_soft"] = self.shadow_stats.get("kept_soft", 0) + 1
             self.last_shadow = {"chosen": digest, "outcome": "kept-after-veto", "tried": tried}
             return action

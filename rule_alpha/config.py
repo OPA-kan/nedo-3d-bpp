@@ -1573,6 +1573,16 @@ class RuleAlphaConfig:
     were out of time, not out of poses: on c-c2-s0004 both containers
     had 20 of 20 shadow-ok poses and the count pass never started."""
     count_mode_extra_seconds_pool: float = 3.0
+    shade_veto_area: float = 0.0
+    """The shadow gate vetoes a pose that walls off more than this floor
+    area (m^2) of lower terrain with headroom behind it from the
+    simulator's sweep (``wedge_rl.stack.shade_area``), trying the
+    decision's other survivors first, the next stage otherwise, the pose
+    itself before a decline.  On the seven Task C boards still at or
+    under the count threshold after v32, every whole-top pose for the
+    next box was sweep-blocked by door-side stacks the ladder built
+    (soft-edge, terrace-extension, shelf-space-saving, wedge-step at y
+    = -0.6 with tops at 0.6-1.1 m).  0 turns it off."""
     resort_shade_step: float = 0.0
     """The physics resort (and the count pass) orders its poses by how
     much deeper floor they wall off from the simulator's sweep (the
