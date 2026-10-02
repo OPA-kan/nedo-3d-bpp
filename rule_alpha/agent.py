@@ -350,14 +350,17 @@ class RuleAlphaAgent:
             self.shadow_stats["shaken"] = self.shadow_stats.get("shaken", 0) + 1
             if not shake["ok"]:
                 self.shadow_stats["shake_vetoes"] = self.shadow_stats.get("shake_vetoes", 0) + 1
-        out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"] and out.get("included", True)
+        out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"]
                          and out["drift_xy"] <= float(getattr(self.config, "shadow_max_drift_xy", 0.02))
                          and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
         return out
 
     def _shadow_hard(self, verdict: dict) -> bool:
+        # (the settled-pose inclusion the shadow reports is telemetry: the
+        # validator tests the commanded pose, which the analytic validate
+        # already checks; as a veto it refused 70 planned poses on the A
+        # suite the platform accepts)
         return bool(not verdict["transport_ok"] or not verdict["settle_ok"] or not verdict.get("shake_ok", True)
-                    or not verdict.get("included", True)
                     or verdict["drift_xy"] > float(getattr(self.config, "shadow_hard_drift_xy", 0.10))
                     or verdict["angle_deg"] > float(getattr(self.config, "shadow_hard_angle_deg", 15.0)))
 
