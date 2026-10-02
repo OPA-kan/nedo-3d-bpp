@@ -1533,6 +1533,9 @@ class RuleAlphaConfig:
     (weights 0.14 each), the crossing earns the whole of all four."""
     count_mode_items_per_container: float = 41.0
     count_mode_margin: int = 0
+    count_mode_min_support: float = 0.5
+    """The resort's smallest support share for a pose under the
+    threshold (0.5 above it); the shadow's settle judges the rest."""
     count_mode_strict: bool = False
     """The threshold as strictly more than the share (floor + 1): 42 of
     82 instead of 41, 21 of 41 either way.  The README says "a certain

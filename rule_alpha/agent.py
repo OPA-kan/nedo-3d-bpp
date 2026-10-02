@@ -1708,7 +1708,12 @@ class RuleAlphaAgent:
                                                  dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)))
                         # half the footprint over the support at least: the
                         # shake test comes after the settle
-                        cands = [c for c in cands if c.on_floor or c.support_ratio >= 0.5]
+                        # (under the threshold the physics judges the
+                        # partial supports too: on c-c2-s0009 the next
+                        # box, a 0.75 x 0.56, had 6 of 22 part-supported
+                        # poses standing in the shadow and none at a half)
+                        min_support = float(getattr(strict, "count_mode_min_support", 0.5)) if count else 0.5
+                        cands = [c for c in cands if c.on_floor or c.support_ratio >= min_support]
                     except Exception as exc:
                         print(f"[physics-resort] candidates failed: {exc!r}", flush=True)
                         cands = []
