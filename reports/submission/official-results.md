@@ -21,6 +21,20 @@
 | v27 (10ba6d9: v26 plus the physics resort -- before a decline, every pose the geometry allows, tried in the shadow world until one stands) | 36.18 | 52.95 | 62.64 | 39.55 | 25.9 | 0.5816 | 138.5 | 6.56 |
 | v28 first form (34fd515: v27 with the Task B stages keeping their deadlines and the shortened settle; before the generation guard and the 2.5 s window) | 36.18 | 53.02 | 62.63 | 39.55 | 25.9 | 0.5816 | 139.4 | 6.34 |
 | v28 (b844039 line: v27 with the stages' deadlines kept on B, the shortened settle, the generation guard, the 2.5 s window) | | | | | | | | |
+| v29 (af20376: v28 plus the pocket guard -- a soft item's floor pose keeps the slots the expected big hard classes need) | 36.29 | 53.22 | 62.69 | 39.75 | 28.3 | 0.5848 | 138.2 | 7.37 |
+
+v29's total was 44.93 (v28 44.47): soft +2.4 (25.9 -> 28.3, the
+guard's soft items placed where the hard cargo did not need the floor),
+fill +0.11, cog +0.2, stability +0.06, placement +0.2, the fraction
+placed 0.5816 -> 0.5848.  The bench had the guard at +1.15 items a scene
+on C with five more episodes over the count threshold, which at the
+fitted prices would have been worth about +2; the platform's fraction
+moved a third of a point and the gain came through the soft score, so
+either the platform's Task C streams cross the threshold less often
+than the suite's or the threshold's value is smaller than the fit says.
+The slowest policy call 7.37 s (v28 6.34: the guard's 0.75 s on a Task
+B call inside the resort's window; the limit there is 10 s), optimize
+138.2 s.
 
 v28's final form scored 44.47 (components not yet recorded; the first form 44.46), the same placements again on the platform's tasks within the noise.  v28's first form (submitted before the generation guard) scored the same 44.46 as v27 to the digit: the same fill and fraction placed (the same placements on the platform's tasks: the B window and the shortened settle changed no decision there), cog +0.07 and stability -0.004 as the shake's noise; the slowest call 6.34 s (v27 6.56), optimize 139.4 s.
 
