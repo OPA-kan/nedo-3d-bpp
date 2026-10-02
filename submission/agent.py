@@ -34,7 +34,11 @@ PLAN_LAYOUTS = 1
 # v12's 38.21 with more items placed): its contact-from-above test finds
 # what the mixed and last orders put under other cargo.  v15 is v12's
 # order again.
-PLAN_VARIANTS = "after-hard"
+# v32: the "first" variant (the priority cargo before everything on
+# every layout) planned alongside: on the Task A physics suite the
+# priority cargo placed 0.66 -> 0.78 a share, the loads 0.01 lower, for
+# 1.8 fill points, every episode over the count threshold (48 of 48).
+PLAN_VARIANTS = "first;after-hard"
 PLAN_STANDING = True
 REPLAY_CLEARANCE = 0.026
 REPLAY_NUDGE = 0.0
@@ -205,6 +209,11 @@ OVERRIDES = dict(
     # threshold.  Physics suites against v30 at this budget: C +0.40
     # items (episodes over half 39 -> 43), B +0.44 (45 -> 48).
     count_mode=True,
+    # v32: the threshold as strictly more than half (42 of 82; the
+    # two-container suites end at exactly half often: C 6, B 2 of 48),
+    # and under the threshold the resort's support floor at a quarter,
+    # the shadow judging (c-c1s-s0003 20 -> 21, c-c2-s0006 40 -> 41).
+    count_mode_strict=True, count_mode_min_support=0.25,
 )
 STACK_POLICY = "weights/stack"
 

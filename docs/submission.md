@@ -336,7 +336,28 @@ slowest call C 4.9 s, B 6.8 s.  Ordering the resort's poses by the
 deeper floor they wall off from the sweep (`resort_shade_step`) was
 level on the suite (`shade2-core`) and stays off.  Official sample: A
 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (as v30); policy max B 4.61 s,
-optimize 21 s (`official-sample-abc-v31.json`).
+optimize 21 s (`official-sample-abc-v31.json`).  Official result 52.45
+(v29 44.93): fill +1.6, cog +10.3, stability +12.5, placement +7.1,
+soft +8.05, the fraction placed 0.5848 -> 0.6104 -- the count
+threshold's signature, every non-fill component up together.
+
+Thirty-second build (v32): v31 with the threshold taken as strictly
+more than half (`count_mode_strict`: 42 of 82, 21 of 41 either way;
+the two-container suites ended at exactly half often, C 6 and B 2 of
+48, and whether that counts is unknown), the resort's support floor at
+a quarter under the threshold (`count_mode_min_support`; the shadow's
+settle judges the rest), and the planner's `first` order variant on
+Task A (the priority cargo before everything on every layout, planned
+alongside `after-hard`; `rule_alpha/planner.py`).  Physics suites at
+4.5 s against v31: C placed +0.06 a scene, episodes strictly over half
+37 -> 41 of 48 (at or over: 43 -> 43), priority covered 22 -> 22, soft
+5 -> 11 (`strictms-core`); B +0.08, strictly over half 46 -> 48
+(`strict-core-b`); A -1.5 items and -1.8 fill, priority placed 0.66 ->
+0.78 a share, loads 0.010 lower, 48 of 48 over the threshold either
+way (`strictfirst-core-a`; at the fitted prices about +0.9 on the
+total).  Official sample: A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (as
+v31); policy max B 4.50 s, optimize 20 s
+(`official-sample-abc-v32.json`).
 
 ## Known limits
 

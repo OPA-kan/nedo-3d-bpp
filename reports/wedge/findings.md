@@ -2353,6 +2353,17 @@ cargo last and the dry-run's plan carries 2 of 15 of it
 | soft_first_when_free | C | -0.3 | 0 | -0.01 | -0.2 | -0.004 | +0.17 |
 | count pass before every decline (two replays) | B, C | +1 each | +1 box | one more covered | | | -1.7 a scene |
 
+v31's official result settled it the other way: 52.45 against v29's
+44.93, with cog +10.3, stability +12.5, placement +7.1 and soft +8.05
+together -- the threshold's signature, not a load-quality move.  So the
+threshold is where the fit put it (why v18 -> v29's crossings did not
+move the platform's stability is unexplained; perhaps its streams
+cross less often than the suite's), and the per-item prices above
+apply to the episodes that count.  v32 therefore keeps every crossing
+first: the threshold taken strictly (42 of 82), a support floor of a
+quarter under it, and the `first` planner variant on A, which loses no
+crossing (48 of 48) while it raises the priority share.
+
 The planner's `first` variant (`pfirst-core-a`) is the one candidate:
 priority placed 0.66 -> 0.78 a share, loads lower by 0.011, for 1.8
 fill points; under the threshold reading it would be a loss (placed
