@@ -214,6 +214,15 @@ OVERRIDES = dict(
     # and under the threshold the resort's support floor at a quarter,
     # the shadow judging (c-c1s-s0003 20 -> 21, c-c2-s0006 40 -> 41).
     count_mode_strict=True, count_mode_min_support=0.25,
+    # v33: the sweep-shade veto on Task C (rule_alpha/config.py): a pose
+    # that walls off more than 0.15 m^2 of lower floor behind it from the
+    # simulator's sweep is replaced or passed on.  The seven C episodes
+    # still at or under the threshold after v32 were all sweep-blocked
+    # by the ladder's door-side stacks; with the veto the C suite has
+    # 47-48 of 48 over the threshold, +1.4 items and +1.2 fill a scene,
+    # priority boxes covered 22 -> 11, topples 21 -> 15, CoM +0.010.
+    # Off on A (it broke the plan replay) and B (it cost crossings).
+    shade_veto_area=0.15, resort_shade_step=0.1,
 )
 STACK_POLICY = "weights/stack"
 

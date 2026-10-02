@@ -1583,6 +1583,9 @@ class RuleAlphaConfig:
     next box was sweep-blocked by door-side stacks the ladder built
     (soft-edge, terrace-extension, shelf-space-saving, wedge-step at y
     = -0.6 with tops at 0.6-1.1 m).  0 turns it off."""
+    shade_veto_with_pool: bool = False
+    """The veto on Task B (a pool of several items) too; off, it acts on
+    Task C only (Task A is always exempt)."""
     resort_shade_step: float = 0.0
     """The physics resort (and the count pass) orders its poses by how
     much deeper floor they wall off from the simulator's sweep (the

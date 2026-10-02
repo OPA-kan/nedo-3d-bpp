@@ -426,6 +426,10 @@ class RuleAlphaAgent:
             # items 57 -> 53; under the dry-run's order 57 -> 51 with no
             # soft item placed)
             shade_limit = 0.0
+        elif len(pool) > 1 and not getattr(self.config, "shade_veto_with_pool", False):
+            # Task B: the veto fired on half the decisions (2246 of 4298
+            # checks) and cost four episodes their crossing (48 -> 44)
+            shade_limit = 0.0
         shade_veto = shade_limit > 0.0 and shaded > shade_limit
         if verdict["ok"] and not shade_veto:
             self.shadow_stats["kept"] += 1
