@@ -411,9 +411,12 @@ placed -0.19, 48 of 48 over the threshold both times -- the suite's
 noise), the soft-first "tops" rule on B cost soft -0.17 a scene
 (`softtops-core-b`), and the shadow shake on C cost 0.92 items and
 three crossings for 0.9 s of tail (`shake33-core`).  Official sample:
-A 33.46 / 28, B 27.28 / 25, C 26.44 / 25 (as v33; the planner's plan
-won the race on the sample's A already); policy max B 4.72 s, optimize
-25 s (`official-sample-abc-v34.json`).
+A 32.11 / 25, B 27.28 / 25, C 23.14 / 23 (as v32; the planner's plan
+won the race on the sample's A already); policy max B 5.08 s, optimize
+29 s (`official-sample-abc-v34.json`).  (A first v34 built on the v33
+form, before v33's official result came in, had the sample's A at
+33.46 / 28 like v33: the shade settings move the sample's A episode
+although the veto is off under a manifest, which is being traced.)
 
 ## Known limits
 
