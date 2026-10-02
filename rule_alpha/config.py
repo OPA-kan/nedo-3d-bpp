@@ -1509,6 +1509,11 @@ class RuleAlphaConfig:
     pocket_guard_prior: float = 4.0
     pocket_guard_items_per_container: float = 41.0
     pocket_guard_min_probability: float = 0.5
+    pocket_guard_hard: bool = False
+    """The guard for the small hard cargo too (a footprint under
+    pocket_guard_min_footprint, not priority): a small hard box on the
+    floor in the middle of a big class's slot costs that slot the same
+    way a soft one does, except that its top is a level."""
     pocket_guard_min_footprint: float = 0.2
     """Only hard classes with a flat footprint of at least this area (m^2)
     are protected: 0.55 x 0.40 (0.22) and up."""
@@ -1904,6 +1909,14 @@ class RuleAlphaConfig:
     fraction placed (0.503 / 0.500 / 0.493 / 0.488 -> cog 40.9 / 36.4 /
     37.2 / 32.3), so the count decides most of the score."""
 
+    plan_prefer_planner: bool = False
+    """Task A: the row planner's plan is used whenever it exists; the
+    ladder's dry-run plan only when the planner produced none.  On the
+    A suite the dry-run's plan won the plan score on 52 of 384 episodes
+    (count-weighted: it packs 7 fill points more) and those episodes
+    then placed 6.6 fewer soft boxes and 2 fewer priority boxes, 0.8
+    fewer items, with the centre of mass 0.08 higher (a-c1s-s0006: 19
+    of 41 against 24)."""
     plan_valuable_before_tail: float = 0.0
     """Task A: the soft and priority items that the order would play
     after the last share (this fraction) of the hard items are moved

@@ -178,7 +178,8 @@ class PocketGuard:
         return [(l, w, h, p) for l, w, h, p in self.frequencies.arrival_probabilities()
                 if l * w >= self.min_footprint and p >= self.min_probability]
 
-    def alternative(self, board, profile, mass: float, container_idx: int, chosen_box: AABB, deadline: float):
+    def alternative(self, board, profile, mass: float, container_idx: int, chosen_box: AABB, deadline: float,
+                    soft: bool = True):
         """The pose after which the load keeps the most slots for the
         expected hard classes, as ``(stack candidate, container index,
         chosen's slots, best's slots)``, or None when the ladder's pose is
@@ -192,7 +193,10 @@ class PocketGuard:
         t0 = time.perf_counter()
         try:
             self.scorer.classes = classes
-            chosen_score = self.scorer.slots(board, container_idx, extra=dataclasses.replace(chosen_box, name=SOFT_ALT))
+            # a soft box is dead ground for the hard classes; a hard one is
+            # a level like any packed top
+            alt_name = SOFT_ALT if soft else "pocket-hard"
+            chosen_score = self.scorer.slots(board, container_idx, extra=dataclasses.replace(chosen_box, name=alt_name))
             cfg = dataclasses.replace(self.config, stack_soft_min_support=0.0, stack_soft_standing=False)
             best = None
             for ci in range(len(board.containers)):
@@ -205,7 +209,7 @@ class PocketGuard:
                 for c in cands:
                     if time.perf_counter() > deadline:
                         break
-                    s = self.scorer.slots(board, ci, extra=dataclasses.replace(c.box, name=SOFT_ALT))
+                    s = self.scorer.slots(board, ci, extra=dataclasses.replace(c.box, name=alt_name))
                     # ties go to the lower pose, then the ladder's own container
                     key = (round(s, 3), -round(c.bottom, 3), 1 if ci == container_idx else 0)
                     if best is None or key > best[0]:

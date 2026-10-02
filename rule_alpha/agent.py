@@ -283,7 +283,8 @@ class RuleAlphaAgent:
                 dry = run_dry_run()
         if dry is not None:
             dry_order, dry_plan = dry
-            if planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9:
+            prefer = bool(getattr(self.config, "plan_prefer_planner", False)) and planned is not None and planned[1]
+            if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
         if planned is not None:
@@ -1587,7 +1588,11 @@ class RuleAlphaAgent:
         hard cargo still expected will need the room (rule_alpha/pocket.py).
         The alternative goes through the same shadow check as any pose."""
         placement = decision.placement
-        if (self.pocket is None or not getattr(profile, "is_soft", False) or placement.surface != "floor"
+        soft = bool(getattr(profile, "is_soft", False))
+        small_hard = (bool(getattr(self.config, "pocket_guard_hard", False)) and not soft
+                      and not bool(getattr(profile, "is_prioritized", False))
+                      and float(getattr(profile, "max_footprint", 1.0)) < float(getattr(self.config, "pocket_guard_min_footprint", 0.2)))
+        if (self.pocket is None or not (soft or small_hard) or placement.surface != "floor"
                 or pool is None):
             return placement
         if self.plan_by_index:
@@ -1603,7 +1608,7 @@ class RuleAlphaAgent:
         try:
             item = pool[pool_index]
             found = self.pocket.alternative(self.board, profile, float(item.get("mass", 0.0)),
-                                            int(placement.container_idx), placement.box, deadline)
+                                            int(placement.container_idx), placement.box, deadline, soft=soft)
         except Exception as exc:
             print(f"[pocket] alternative failed: {exc!r}", flush=True)
             return placement
@@ -1613,7 +1618,7 @@ class RuleAlphaAgent:
 
         cand, container_idx, chosen_score, best_score = found
         alt = _placement(cand, 1, profile, int(container_idx), self.board.model(int(container_idx)))
-        alt.archetype = "pocket-soft"
+        alt.archetype = "pocket-soft" if soft else "pocket-hard"
         alt.reason = (f"pocket guard: {best_score:.2f} slots kept against {chosen_score:.2f} "
                       f"({'floor' if cand.on_floor else 'top'} at {cand.bottom:.2f} m); was {placement.archetype}")
         # the ladder's survivors belong to the ladder's container, not
