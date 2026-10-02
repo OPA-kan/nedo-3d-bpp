@@ -2373,6 +2373,49 @@ shelf (b-c2p-s0003 and s0006 -11 items, priority 0.72 -> 0.57); a
 variant that leaves that container alone
 (`soft_first_skip_priority_container`) is running.
 
+### The door-side walls: the sweep-shade veto
+
+After v32 seven Task C episodes of 48 still ended at or under the
+count threshold (c-c1-s0006 18 of 41, c-c2-s0009 33 of 82,
+c-c2p-s0010 36, c-c2-s0002 39, c-c2-s0010 40, c-c2-s0012 and
+c-c2p-s0009 at 41).  On every one of them the next box (a 0.65 x 0.45
+x 0.25 or a 0.75 x 0.56 x 0.27) had whole-top poses that would stand
+in both containers, and every one was blocked in the simulator's
+transport sweep by a single body: stacks the ladder had built at the
+door (soft-edge, terrace-extension, shelf-space-saving, wedge-step
+poses at y = -0.6 with tops at 0.6-1.1 m).  The count mode cannot
+reach past a wall.
+
+`shade_veto_area`: the shadow gate computes, for the chosen pose, the
+floor area deeper into the container than the box, within its x range,
+whose skyline is lower than the box's top and still has 0.2 m under the
+ceiling (`wedge_rl.stack.shade_area`, the slots the pose would wall
+off), and above the limit vetoes the pose like a settle failure: the
+decision's other survivors first, the next stage otherwise, the pose
+itself before a decline.  Under a Task A manifest it stays off (the
+plan's rows are back to front already and the veto broke the replay:
+a-c2-s0011 57 -> 53 items).  Replays at 0.15 m^2: every one of the
+seven crossed (18 -> 23, 33 -> 43, 36 -> 47, 39 -> 45, 40 -> 42, 41 ->
+48, 41 -> 49), with fill +5 to +9 and the centre of mass 0.02-0.05
+higher.  Physics suites at 4.5 s against the v32 form:
+
+| suite | placed | episodes over half | fill | CoM | soft / priority share | priority covered | topples |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| C, 0.15 (`sveto-core`) | +1.79 (26 up, 4 down) | 43 -> 48 of 48 | +1.58 | +0.011 | +0.03 / +0.02 | 22 -> 8 | 21 -> 9 |
+| C, 0.3 (`sveto3-core`) | +0.90 | 43 -> 46 | +0.76 | +0.004 | +0.02 / +0.01 | 22 -> 17 | 21 -> 23 |
+| B, 0.15 (`sveto-core-b`) | +1.00 | 48 -> 47 | -0.27 | -0.002 | +0.12 / 0.00 | 9 -> 5 | 13 -> 13 |
+| A, 0.15 (`sveto-core-a`, with `first`) | +1.69 | 48 -> 47 | +3.01 | +0.026 | -0.05 / -0.03 | 2 -> 2 | 9 -> 6 |
+
+Two faults the B run exposed, both fixed: an episode ended on the
+platform's inclusion test (b-c2p-s0005, 45 -> 33) because the gate
+built its alternative from the ladder's survivors after the pocket
+guard had moved the placement to the other container (the guard now
+clears the survivors), and the shadow had no inclusion test of its own
+(it has one now, on the settled box).  With the fixes b-c2p-s0005
+replays 45 -> 50.  The suites with the fixed gate (`sveto2-core`,
+`sveto2-core-b`, `sveto2-core-a`) decide v33: C and B with the veto at
+0.15, A without.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.
