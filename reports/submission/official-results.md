@@ -23,6 +23,19 @@
 | v28 (b844039 line: v27 with the stages' deadlines kept on B, the shortened settle, the generation guard, the 2.5 s window) | | | | | | | | |
 | v29 (af20376: v28 plus the pocket guard -- a soft item's floor pose keeps the slots the expected big hard classes need) | 36.29 | 53.22 | 62.69 | 39.75 | 28.3 | 0.5848 | 138.2 | 7.37 |
 | v31 (00339ce: v29 plus the count mode as one resort pass -- under the count threshold, poses on priority or soft cargo before a decline) | 37.90 | 63.55 | 75.22 | 46.85 | 36.35 | 0.6104 | 115.0 | 7.19 |
+| v32 (efa94ef: v31 with the threshold taken strictly, the support floor under it, the priority-first planner variant on A) | 38.08 | 63.31 | 75.16 | 48.5 | 36.6 | 0.6148 | 112.9 | 7.14 |
+
+v32's total was 52.71 (v31 52.45, +0.26): placement +1.65 (the
+priority-first planner variant on Task A: its priority share 0.66 ->
+0.78 on the bench), fill +0.18, soft +0.25, against cog -0.24 and
+stability -0.05; the fraction placed 0.6104 -> 0.6148.  The components
+sum to the total's move at the fitted weights (+0.24 +0.05 +0.04
+-0.05 -0.01).  The strict threshold (42 of 82) moved nothing the
+components can see: either the platform counts an episode at exactly
+half, or its streams do not end there.  The bench had predicted
++0.9 to +2.4; the priority share paid a quarter of its price and the
+crossings nothing, so the platform's Task A streams sit less often at
+the margin than the suite's.  The slowest call 7.14 s, optimize 112.9 s.
 
 v31's total was 52.45 (v29 44.93, +7.5, the largest step since the
 planner): fill +1.6, cog +10.3, stability +12.5, placement +7.1, soft
