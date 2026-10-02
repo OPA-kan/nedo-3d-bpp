@@ -384,9 +384,13 @@ the planner on the shelf layouts: a-c1s-s0006 and s0007 end at 19 of
 41 when the dry-run's plan wins, 24 and 23 under the planner's).
 Official sample: A 33.46 / 28, B 27.28 / 25, C 26.44 / 25 (v32: 32.11
 / 25, 27.28 / 25, 23.14 / 23); policy max B 4.87 s, optimize 25 s
-(`official-sample-abc-v33.json`).
+(`official-sample-abc-v33.json`).  Official result 51.93 (v32 52.71):
+placement -4.15, soft -0.95, fill -0.27, the fraction placed 0.6148 ->
+0.6113, cog and stability flat -- the opposite of the suite, on the
+only task the veto runs on; the veto is off again from v34
+(`reports/submission/official-results.md`).
 
-Thirty-fourth build (v34): v33 with `plan_prefer_planner` -- Task A
+Thirty-fourth build (v34): v32's form with `plan_prefer_planner` -- Task A
 plays the row planner's plan whenever it exists; the ladder's dry-run
 plan only when the planner made none or its plan has fewer entries
 than the count threshold.  Which plan won the optimize race (the

@@ -24,6 +24,25 @@
 | v29 (af20376: v28 plus the pocket guard -- a soft item's floor pose keeps the slots the expected big hard classes need) | 36.29 | 53.22 | 62.69 | 39.75 | 28.3 | 0.5848 | 138.2 | 7.37 |
 | v31 (00339ce: v29 plus the count mode as one resort pass -- under the count threshold, poses on priority or soft cargo before a decline) | 37.90 | 63.55 | 75.22 | 46.85 | 36.35 | 0.6104 | 115.0 | 7.19 |
 | v32 (efa94ef: v31 with the threshold taken strictly, the support floor under it, the priority-first planner variant on A) | 38.08 | 63.31 | 75.16 | 48.5 | 36.6 | 0.6148 | 112.9 | 7.14 |
+| v33 (1f5d1ac: v32 with the sweep-shade veto on Task C) | 37.81 | 63.39 | 75.21 | 44.35 | 35.65 | 0.6113 | 116.6 | 7.19 |
+
+v33's total was 51.93 (v32 52.71, -0.78): placement -4.15 and soft
+-0.95, fill -0.27, the fraction placed 0.6148 -> 0.6113, against cog
++0.08 and stability +0.05.  The veto runs only on Task C (off under a
+Task A manifest and with a Task B pool), so the whole move is C's:
+about -12 placement and -3 soft points inside that task, and about
+one item in a hundred fewer placed there.  The bench had the opposite
+on its C suite (`v33-core` against the v32 form: +2.0 items a scene,
+43 -> 48 of 48 episodes over the threshold, priority boxes covered 22
+-> 12, no layout worse), and the platform repeats identical decisions
+to the digit (v27 and v28's first form), so this is the veto's own
+effect on the platform's streams, not noise.  What differs there is
+the time: the veto's alternatives and the skyline cost the suite's
+slowest C call +1.2 s a scene (4.1 -> 5.3 s at the 4.5 s budget), and
+the platform is slower than the runners; `v33-core-slow` and
+`v32-core-slow` (the two C arms at a 3.5 s limit) test whether the
+gain survives a slower machine.  The veto is off again in v34, which
+stands on the v32 form.  The slowest call 7.19 s, optimize 116.6 s.
 
 v32's total was 52.71 (v31 52.45, +0.26): placement +1.65 (the
 priority-first planner variant on Task A: its priority share 0.66 ->
