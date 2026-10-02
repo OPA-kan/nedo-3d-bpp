@@ -404,7 +404,13 @@ at 4.5 s (`prefplan-core-a` against `v33-core-a`): soft +1.35 a scene
 8 -- the figures of the run where the planner's plan won by itself.
 The count guard keeps the one crossing the plain preference lost
 (a-c1s-s0010: the planner's plan 17 of 41 against the dry-run's 22,
-replayed to the dry-run's 22 again).  Three probes on the same base
+replayed to the dry-run's 22 again).  The v34 arm itself on the A
+suite (`v34-core-a` against the v32 arm `strictfirst-core-a`): placed
++0.15 a scene, soft +0.42 (6 up, 0 down), priority +0.04, fill -0.25,
+48 of 48 over the threshold; against the v33 arm with the preference
+(`prefplan-core-a`, whose dry-run ran under the veto) placed +0.10 and
+48 against 47 -- with the planner preferred the dry-run's leak had
+little left to move.  Three probes on the same base
 not taken: the pocket guard for small hard floor picks never fired on
 the C suite (`pockethard-core`, a second sample of the v33 C form:
 placed -0.19, 48 of 48 over the threshold both times -- the suite's
