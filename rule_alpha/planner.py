@@ -79,6 +79,13 @@ def planning_order(profiles: list, config, has_priority_container: bool, priorit
     if has_priority_container and getattr(config, "priority_cargo_first", False):
         hard = [p for p in hard if p.is_prioritized] + [p for p in hard if not p.is_prioritized]
         return [p.index for p in hard] + [p.index for p in soft]
+    if priority == "first":
+        # the priority cargo before everything on every layout: on a
+        # normal container nothing may rest on it, so it goes where the
+        # rows start (the back), and a priority box placed is worth
+        # about three soft boxes or ten hard boxes' fill
+        return ([p.index for p in hard if p.is_prioritized] + [p.index for p in hard if not p.is_prioritized]
+                + [p.index for p in soft if p.is_prioritized] + [p.index for p in soft if not p.is_prioritized])
     if priority == "after-hard":
         return ([p.index for p in hard if not p.is_prioritized] + [p.index for p in hard if p.is_prioritized]
                 + [p.index for p in soft if not p.is_prioritized] + [p.index for p in soft if p.is_prioritized])
