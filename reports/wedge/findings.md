@@ -2461,6 +2461,17 @@ for any hard box; `softtops-core-b` against `v33-core-b`): soft -0.17
 a scene (4 up, 9 down), priority -0.08, priority covered 8 -> 11, fill
 +0.05.  Negative; B's soft rule stays off.
 
+`shadow_shake` on the v33 C arm (`shake33-core`; the tilted-gravity
+shake in the shadow for poses with the bottom at 0.5 m or standing,
+vetoing a pose under which any box shifts 0.1 m or tips 30 degrees):
+2386 poses shaken, 462 vetoed, and the suite lost 0.92 items a scene
+(6 up, 18 down), three crossings (48 -> 45 of 48), fill -0.67, with the
+slowest call 0.9 s later and topples 9 -> 8.  On the v29 base the
+shake was level (placed +0.15, topples 8 against 7); with the count
+mode's one pass and the shade veto in the same window, its cost in
+time and in refused poses is now count, and count is what the
+threshold prices.  Not adopted.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.

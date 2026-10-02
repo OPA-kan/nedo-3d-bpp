@@ -386,6 +386,31 @@ Official sample: A 33.46 / 28, B 27.28 / 25, C 26.44 / 25 (v32: 32.11
 / 25, 27.28 / 25, 23.14 / 23); policy max B 4.87 s, optimize 25 s
 (`official-sample-abc-v33.json`).
 
+Thirty-fourth build (v34): v33 with `plan_prefer_planner` -- Task A
+plays the row planner's plan whenever it exists; the ladder's dry-run
+plan only when the planner made none or its plan has fewer entries
+than the count threshold.  Which plan won the optimize race (the
+planner first, the dry-run with what is left of the budget, the higher
+plan score plays) depended on how far the dry-run got in the time, so
+on the machine: two runs of the v33 form on the A suite differed by
+soft +0.9 and fill -1.0 a scene on the thirteen scenes where the plans
+differed, and the platform is slower than the runners.  Physics suite
+at 4.5 s (`prefplan-core-a` against `v33-core-a`): soft +1.35 a scene
+(12 up, 1 down), priority +0.42, fill -1.64, CoM -0.019, topples 6 ->
+8 -- the figures of the run where the planner's plan won by itself.
+The count guard keeps the one crossing the plain preference lost
+(a-c1s-s0010: the planner's plan 17 of 41 against the dry-run's 22,
+replayed to the dry-run's 22 again).  Three probes on the same base
+not taken: the pocket guard for small hard floor picks never fired on
+the C suite (`pockethard-core`, a second sample of the v33 C form:
+placed -0.19, 48 of 48 over the threshold both times -- the suite's
+noise), the soft-first "tops" rule on B cost soft -0.17 a scene
+(`softtops-core-b`), and the shadow shake on C cost 0.92 items and
+three crossings for 0.9 s of tail (`shake33-core`).  Official sample:
+A 33.46 / 28, B 27.28 / 25, C 26.44 / 25 (as v33; the planner's plan
+won the race on the sample's A already); policy max B 4.72 s, optimize
+25 s (`official-sample-abc-v34.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
