@@ -2425,6 +2425,42 @@ scenes at 19 of 41 this run where the dry-run's plan won the optimize
 race, 24 and 23 where the planner's did -- the race, not the veto,
 which is off there).
 
+### After v33: the optimize race, and two probes that did nothing
+
+Task A's optimize runs the row planner and then the ladder's dry-run
+with what is left of the budget, and the plan with the higher score
+(fill, soft share, priority share, count) plays.  Two runs of the same
+arm on the A suite (`v33-core-a`, `strictfirst-core-a`) differed by
+soft +0.9 a scene and fill -1.0 on the thirteen scenes where a
+different plan won; what wins depends on how far the dry-run gets in
+the time, which differs by machine.  `plan_prefer_planner`: the
+planner's plan whenever it exists.  On the suite (`prefplan-core-a`
+against `v33-core-a`) soft +1.35 a scene (12 scenes up, 1 down),
+priority +0.42, fill -1.64, CoM -0.019, topples 6 -> 8 -- the same
+figures as the run where the planner's plan won the race by itself,
+and now the same on every machine.  One crossing lost (46 -> 47 of 48
+against 48): a-c1s-s0010, where the planner's plan holds 17 of 41 (the
+planner done in 16 s, the shelf scene's rows short) against the
+dry-run's 22, and the plain preference played it to 20 placed against
+22.  The preference now stops at the count threshold: a planner plan
+with fewer entries than the threshold yields to a dry-run plan that
+reaches it, and s0010 replays to the dry-run's 22 again.
+
+`pocket_guard_hard` (the pocket guard for small hard floor picks, v33
+C arm, `pockethard-core`): the guard never fired on 48 episodes (no
+"pocket-hard" alternative in any record) -- the ladder rarely puts a
+hard box under 0.2 m^2 on the floor by itself.  The run is therefore
+a second sample of the v33 C arm, and gives the suite's run-to-run
+noise: placed -0.19 a scene (4 up, 5 down, c-c2-s0005 -7, c-c2-s0008
++4), fill -0.14, CoM -0.002, 48 of 48 over the threshold both times.
+A Task C change under 0.2 items a scene is inside that noise.
+
+`soft_first_mode=tops` (Task B, the soft-first rule without the shelf
+gallery: a soft box goes first only onto soft cargo or a top too high
+for any hard box; `softtops-core-b` against `v33-core-b`): soft -0.17
+a scene (4 up, 9 down), priority -0.08, priority covered 8 -> 11, fill
++0.05.  Negative; B's soft rule stays off.
+
 ### The wider ladder: a negative result
 
 With the validator 4.7x faster the ladder can afford more candidates.

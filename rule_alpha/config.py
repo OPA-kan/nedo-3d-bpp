@@ -1916,7 +1916,14 @@ class RuleAlphaConfig:
     (count-weighted: it packs 7 fill points more) and those episodes
     then placed 6.6 fewer soft boxes and 2 fewer priority boxes, 0.8
     fewer items, with the centre of mass 0.08 higher (a-c1s-s0006: 19
-    of 41 against 24)."""
+    of 41 against 24).  On the suite (`prefplan-core-a` against
+    `v33-core-a`): soft +1.35 a scene, priority +0.42, fill -1.6, CoM
+    -0.019, the same values as the run where the planner's plan won the
+    race by itself.  The preference stops at the count threshold: a
+    planner plan with fewer entries than the threshold yields to a
+    dry-run plan that reaches it (a-c1s-s0010: the planner's 17 of 41
+    against the dry-run's 22; 20 placed against 22, the one crossing the
+    plain preference lost)."""
     plan_valuable_before_tail: float = 0.0
     """Task A: the soft and priority items that the order would play
     after the last share (this fraction) of the hard items are moved

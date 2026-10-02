@@ -284,6 +284,13 @@ class RuleAlphaAgent:
         if dry is not None:
             dry_order, dry_plan = dry
             prefer = bool(getattr(self.config, "plan_prefer_planner", False)) and planned is not None and planned[1]
+            if prefer:
+                # the preference stops at the count threshold: a planner
+                # plan under it (a-c1s-s0010: 17 of 41, the planner done
+                # in 16 s) yields to a dry-run plan with more items
+                threshold = self._count_threshold()
+                if threshold is not None and len(planned[1]) < threshold < len(dry_plan) + 1:
+                    prefer = False
             if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
