@@ -223,6 +223,17 @@ OVERRIDES = dict(
     # priority boxes covered 22 -> 11, topples 21 -> 15, CoM +0.010.
     # Off on A (it broke the plan replay) and B (it cost crossings).
     shade_veto_area=0.15, resort_shade_step=0.1,
+    # v34: Task A plays the row planner's plan whenever it exists
+    # (rule_alpha/config.py); the ladder's dry-run plan only when the
+    # planner made none or its plan is under the count threshold.  Which
+    # plan won the optimize race depended on how far the dry-run got in
+    # the budget, so on the machine: the A suite's two samples of the
+    # v33 form differed by soft +0.9 and fill -1.0 a scene on the
+    # thirteen scenes where the plans differed.  With the preference
+    # (`prefplan-core-a` against `v33-core-a`): soft +1.35 a scene,
+    # priority +0.42, fill -1.6, CoM -0.019, 47-48 of 48 over the
+    # threshold.
+    plan_prefer_planner=True,
 )
 STACK_POLICY = "weights/stack"
 
