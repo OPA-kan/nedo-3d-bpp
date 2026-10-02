@@ -162,6 +162,30 @@ class RuleAlphaAgent:
         scratch._prepare_manifest(item_list)
         return scratch
 
+    def _valuable_before_tail(self, order: list, item_list: list) -> list:
+        """config.plan_valuable_before_tail: the soft and priority items
+        that the constructive order would play after the last share of
+        the hard items go ahead of that hard tail.  Applied to the order
+        the dry-run simulates, so the plan it builds has the soft items
+        placed where they fit and the hard tail in what is left (applied
+        after the plan instead, the hard tail lost its spots: valtail02
+        placed -0.7 a scene)."""
+        share = float(getattr(self.config, "plan_valuable_before_tail", 0.0))
+        order = [int(i) for i in order]
+        if share <= 0.0 or len(order) < 3:
+            return order
+        attrs = {int(it["index"]): (bool(it.get("is_soft")) or bool(it.get("is_prioritized"))) for it in item_list}
+        hard = [i for i in order if not attrs.get(i, False)]
+        keep = len(hard) - int(round(len(hard) * share))
+        tail = set(hard[max(0, keep):])
+        if not tail:
+            return order
+        first = min(order.index(i) for i in tail)
+        moved = [i for i in order[first:] if i not in tail]
+        if moved:
+            print(f"[optimize] {len(moved)} soft/priority items ahead of the last {len(tail)} hard items", flush=True)
+        return order[:first] + moved + [i for i in order[first:] if i in tail]
+
     def optimize(self, item_list: list):
         started = time.perf_counter()
         profiles = self._prepare_manifest(item_list)
@@ -186,6 +210,7 @@ class RuleAlphaAgent:
             by_index = {p.index: p for p in profiles}
             first = [i for i in order if by_index[i].is_prioritized]
             order = first + [i for i in order if not by_index[i].is_prioritized]
+        order = self._valuable_before_tail(order, item_list)
         self.plan = []
         self.plan_by_index = {}
         self.plan_source = ""
@@ -265,22 +290,7 @@ class RuleAlphaAgent:
             order, self.plan = planned
             self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
             self.plan_source = "planner"
-        order = [int(i) for i in order]
-        share = float(getattr(self.config, "plan_valuable_before_tail", 0.0))
-        if share > 0.0 and len(order) > 2:
-            # the soft and priority items ahead of the hard tail (see the config)
-            def valuable(i):
-                it = by_index.get(int(i), {})
-                return bool(it.get("is_soft")) or bool(it.get("is_prioritized"))
-            hard = [i for i in order if not valuable(i)]
-            keep = len(hard) - int(round(len(hard) * share))
-            tail = set(hard[max(0, keep):])
-            if tail:
-                first = min(order.index(i) for i in tail)
-                moved = [i for i in order[first:] if i not in tail]
-                order = order[:first] + moved + [i for i in order[first:] if i in tail]
-                print(f"[optimize] {len(moved)} soft/priority items moved ahead of the last {len(tail)} hard items", flush=True)
-        self._order = order
+        self._order = [int(i) for i in order]
         return list(self._order)
 
     def policy(self, observation: dict):
