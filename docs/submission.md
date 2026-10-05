@@ -446,6 +446,22 @@ priority boxes covered halved, topples 18 -> 11.  Official sample: A
 4.37 s, C 3.65 s, optimize 30 s (`official-sample-abc-v36.json`).  The
 Task A plan search (`plan_search`, measured +0.47 on the suite) stays
 off: its base is the planner preference the platform rejected.
+Official result 52.51 (v32 52.71): placement -0.7, soft -0.4, the rest
+flat, and the optimize time 136.7 s against v32's 112.9 -- shared with
+v34 (136.5), the other build whose scratch agent counted against the
+manifest's total (`reports/submission/official-results.md`).
+
+Thirty-seventh build (v37): v36 with the dry-run's scratch agent
+keeping the Task A exemptions but counting against 41 items a
+container as it did up to v33 (`scratch_manifest_total` off): v32 plus
+the sweep-shade veto on Task C, and nothing else.  The manifest's
+total as the scratch's threshold sends the dry-run into its count pass
+on manifests larger than the sample's (a two-container 110-item probe:
+optimize 113 s -> 149 s, `reports/bench/manifest-probe-a.txt`), which
+is where v34's and v36's extra 24 s and their placement and soft dips
+came from.  Official sample: A 32.11 / 25, B 27.28 / 25 (v32's), C
+26.44 / 25 (the veto's); policy max B 4.93 s, optimize 21 s (v32's 20 s;
+`official-sample-abc-v37.json`).
 
 ## Known limits
 
