@@ -2462,6 +2462,57 @@ single change after v34.  `v34-core-a` (the v32 A arm with the planner
 preferred) against `prefplan-core-a` (the v33 A arm with it) measures
 the leak with the race removed.
 
+### The spare optimize time: a search over Task A's plans
+
+Every Task A episode ends on a decline with about 40 % of the items
+unplaced, and the count is the plan's count: the dry-run defers the
+items it declines to the tail, and the online ladder declines them
+again on the real board.  The optimize budget is 150 s (the platform
+allows 180) and a single-container manifest used 25-35 s of it; a
+planner plan costs 3-4 s, a dry-run 12-20 s on 41 items, 60-100 s on
+82.  What the spare time can buy
+(`reports/bench/plan-search-explore.txt`, six c1/c1s scenes, the v34
+arm): the dry-run over different orders gives very different plans,
+and priced at the official weights (fill 28.7 a unit of volume share,
+soft 14.1 and priority 14.3 a unit of share, counted only when the
+plan holds the threshold plus one) the order the agent plays is rarely
+the best one.
+
+| scene | plan played (v34) | best variant | value |
+|---|---|---|---:|
+| a-c1-s0001 | planner 26 items, 5 of 15 soft (28.2) | soft after a quarter of the hard boxes: 23 items, 14 soft, 5 of 5 priority | 36.0 |
+| a-c1-s0005 | planner 31, 7 soft (27.8) | count-always: 31 items, 5 soft (30.9); soft at half: 22, 8 soft (30.7) | 30.9 |
+| a-c1s-s0002 | planner 27, 7 soft (26.9) | the planner's | 26.9 |
+| a-c1s-s0010 | dry-run 22, 2 soft (18.4) | small hard first: 23 items, 3 soft, 4 of 5 priority | 23.9 |
+| a-c1-s0011 | planner 30, 6 soft (27.8) | soft after a quarter: 23 items, 13 soft | 35.7 |
+| a-c1s-s0006 | planner 22, 9 soft (24.8) | soft interleaved: 22 items, 4 soft, 3 of 3 priority | 27.7 |
+
+The constructive order plays the soft cargo last, after the hard
+boxes have taken the room, so the dry-run's plan carries 2-4 of 15
+soft boxes; moved in after the first quarter of the hard boxes the
+same ladder places 13-14 of 15, for seven fewer hard boxes, and a soft
+box is worth about three hard boxes' fill at the platform's prices.
+Soft first outright (15 of 15 soft, 17 items) loses the gate, and
+random orders of the hard boxes are all worse than the constructive
+one (26-28 items against 30).  Averaged over the six scenes the best
+candidate is worth 4.5 value points an episode more than the plan
+played, about +1.5 on the total if the replays hold.
+
+`plan_search` (rule_alpha/offline.py `order_variant`): after the
+planner and the base dry-run, the variants in `plan_search_orders` run
+while the budget lasts (the expected best first; a run that may not
+finish is not started), every plan is priced by `plan_value_weights`
+with the gate at the threshold plus `plan_value_margin` items, and the
+best plays.  Probe: a-c1-s0001 picks soft-at-25 (23 items, 14 soft) in
+111 s, a-c1s-s0006 count-always in 109 s, a-c2-s0012 keeps the
+planner's plan (49 items, 12 of 22 soft; the base dry-run's 57 items
+hold few soft) in 147 s.  Two things the suite has to settle: the
+replay margin (the planner's 22-item plan on a-c1s-s0006 replayed to
+24 with 9 soft, and a margin of 2 gated it out for a 24-item plan with
+4 soft), and whether the many-soft plans replay as well as the
+hard-first ones (`psearch-core-a` at margin 2, `psearch1-core-a` at
+margin 1, against `v34-core-a`).
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run

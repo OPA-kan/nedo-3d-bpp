@@ -1,0 +1,71 @@
+# Task A plan-search exploration (v34 arm): dry-run plans over variant orders, priced at the official weights
+# value = 28.7 x volume share + [plan holds >= threshold+1 items] x (14.1 x soft share + 14.3 x priority share)
+
+== a-c1-s0001: 41 items, soft 15, prio 5; suite placed 27
+  base               value 29.47 plan 30 soft  4 prio  5 vol 1.86  14.5s {'front-wedge': 3, 'hole-fill': 1, 'max-footprint': 3, 'minimum-hole': 2, 'physics-resort': 1, 'shelf-space-saving': 1, 'stack-rl': 6, 'terrace-extension': 12, 'wedge-step': 1}
+  small-hard-first   value 27.29 plan 26 soft  4 prio  5 vol 1.50  17.0s {'fallback': 1, 'hole-fill': 1, 'max-footprint': 2, 'minimum-hole': 4, 'physics-resort': 2, 'priority-edge': 2, 'shelf-space-saving': 1, 'sp-cluster': 1, 'stack-rl': 2, 'terrace-extension': 8, 'wedge-step': 2}
+  soft-at-25         value 35.99 plan 23 soft 14 prio  5 vol 1.39  18.1s {'fallback': 1, 'max-footprint': 2, 'physics-resort': 6, 'pocket-soft': 2, 'priority-edge': 2, 'shelf-space-saving': 1, 'soft-edge': 2, 'stack-rl': 3, 'terrace-extension': 4}
+  soft-at-50         value 29.68 plan 22 soft  7 prio  5 vol 1.43  15.7s {'fallback': 1, 'max-footprint': 3, 'physics-resort': 1, 'priority-edge': 2, 'shelf-space-saving': 1, 'soft-edge': 1, 'sp-cluster': 2, 'stack-rl': 3, 'terrace-extension': 8}
+  soft-at-65         value 29.19 plan 24 soft  6 prio  5 vol 1.51  16.4s {'fallback': 1, 'hole-fill': 1, 'max-footprint': 3, 'minimum-hole': 1, 'physics-resort': 2, 'priority-edge': 2, 'shelf-space-saving': 1, 'sp-cluster': 1, 'stack-rl': 3, 'terrace-extension': 8, 'wedge-step': 1}
+  soft-at-80         value 25.48 plan 23 soft  2 prio  5 vol 1.51  14.3s {'fallback': 1, 'hole-fill': 1, 'max-footprint': 3, 'minimum-hole': 1, 'priority-edge': 2, 'shelf-space-saving': 1, 'stack-rl': 3, 'terrace-extension': 10, 'wedge-step': 1}
+  soft-split         value 32.05 plan 24 soft  9 prio  5 vol 1.51  15.0s {'fallback': 1, 'max-footprint': 3, 'physics-resort': 4, 'priority-edge': 2, 'shelf-space-saving': 1, 'soft-edge': 1, 'sp-cluster': 2, 'stack-rl': 3, 'terrace-extension': 7}
+  soft-interleaved   value 26.09 plan 22 soft  3 prio  5 vol 1.46  13.9s {'fallback': 1, 'hole-fill': 1, 'max-footprint': 3, 'priority-edge': 2, 'shelf-space-saving': 1, 'sp-cluster': 2, 'stack-rl': 4, 'terrace-extension': 8}
+  base+count-always  value 30.89 plan 31 soft  5 prio  5 vol 1.93  14.0s {'count-mode': 2, 'front-wedge': 3, 'hole-fill': 1, 'max-footprint': 3, 'minimum-hole': 2, 'shelf-space-saving': 1, 'stack-rl': 6, 'terrace-extension': 12, 'wedge-step': 1}
+== a-c1-s0005: 41 items, soft 15, prio 4; suite placed 26
+  base               value 29.50 plan 30 soft  4 prio  4 vol 1.86  13.9s {'front-wedge': 3, 'max-footprint': 3, 'minimum-hole': 3, 'physics-resort': 1, 'shelf-space-saving': 1, 'stack-rl': 5, 'terrace-extension': 13, 'wedge-step': 1}
+  small-hard-first   value 21.99 plan 26 soft  2 prio  3 vol 1.53  12.2s {'fallback': 1, 'hole-fill': 1, 'max-footprint': 2, 'minimum-hole': 4, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 1, 'terrace-extension': 12, 'wedge-step': 2}
+  soft-at-25         value  8.03 plan 21 soft 13 prio  4 vol 1.31  17.2s {'fallback': 1, 'max-footprint': 2, 'physics-resort': 3, 'pocket-soft': 5, 'priority-edge': 1, 'shelf-space-saving': 2, 'soft-edge': 2, 'stack-rl': 1, 'terrace-extension': 4}
+  soft-at-50         value 30.65 plan 22 soft  8 prio  4 vol 1.44  16.8s {'count-mode': 2, 'fallback': 1, 'max-footprint': 3, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'sp-cluster': 2, 'stack-rl': 3, 'terrace-extension': 8}
+  soft-at-65         value 24.42 plan 23 soft  5 prio  3 vol 1.46  16.2s {'fallback': 1, 'max-footprint': 3, 'minimum-hole': 1, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 4, 'terrace-extension': 10, 'wedge-step': 1}
+  soft-at-80         value 22.82 plan 24 soft  3 prio  3 vol 1.51  15.7s {'fallback': 1, 'max-footprint': 3, 'minimum-hole': 1, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 12, 'wedge-step': 1}
+  soft-split         value 29.87 plan 22 soft  7 prio  4 vol 1.46  16.4s {'count-mode': 2, 'fallback': 1, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'sp-cluster': 2, 'stack-rl': 2, 'terrace-extension': 8}
+  soft-interleaved   value 29.55 plan 25 soft  6 prio  4 vol 1.56  17.0s {'fallback': 1, 'max-footprint': 3, 'minimum-hole': 1, 'physics-resort': 3, 'pocket-soft': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 3, 'terrace-extension': 10, 'wedge-step': 1}
+  base+count-always  value 30.92 plan 31 soft  5 prio  4 vol 1.94  13.8s {'count-mode': 1, 'front-wedge': 3, 'max-footprint': 3, 'minimum-hole': 3, 'physics-resort': 1, 'shelf-space-saving': 1, 'stack-rl': 5, 'terrace-extension': 13, 'wedge-step': 1}
+== a-c1s-s0002: 41 items, soft 15, prio 4; suite placed 22
+  base               value 23.18 plan 26 soft  1 prio  3 vol 1.98  12.5s {'max-footprint': 7, 'physics-resort': 2, 'shelf-space-saving': 5, 'stack-rl': 3, 'terrace-extension': 7, 'wedge-step': 2}
+  small-hard-first   value 25.09 plan 23 soft  2 prio  4 vol 1.53  14.0s {'fallback': 3, 'max-footprint': 4, 'minimum-hole': 1, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 4, 'terrace-extension': 5, 'wedge-step': 3}
+  soft-at-25         value  8.60 plan 21 soft 11 prio  4 vol 1.48  22.7s {'count-mode': 1, 'fallback': 3, 'max-footprint': 2, 'physics-resort': 6, 'pocket-soft': 2, 'priority-edge': 1, 'shelf-space-saving': 2, 'soft-edge': 1, 'terrace-extension': 2, 'wedge-step': 1}
+  soft-at-50         value  7.98 plan 18 soft  3 prio  4 vol 1.37  21.5s {'fallback': 3, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-at-65         value  8.22 plan 18 soft  1 prio  4 vol 1.41  20.3s {'fallback': 3, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-at-80         value  8.22 plan 18 soft  1 prio  4 vol 1.41  20.6s {'fallback': 3, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-split         value  7.98 plan 18 soft  3 prio  4 vol 1.37  21.4s {'fallback': 3, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-interleaved   value  8.52 plan 19 soft  2 prio  4 vol 1.46  19.1s {'fallback': 3, 'max-footprint': 3, 'physics-resort': 1, 'plateau-merge': 1, 'priority-edge': 1, 'shelf-space-saving': 2, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  base+count-always  value 23.18 plan 26 soft  1 prio  3 vol 1.98  11.7s {'max-footprint': 7, 'physics-resort': 2, 'shelf-space-saving': 5, 'stack-rl': 3, 'terrace-extension': 7, 'wedge-step': 2}
+== a-c1s-s0010: 41 items, soft 10, prio 5; suite placed 22
+  base               value 18.42 plan 22 soft  2 prio  2 vol 1.70  12.3s {'front-wedge': 1, 'max-footprint': 5, 'physics-resort': 2, 'shelf-space-saving': 5, 'stack-rl': 2, 'terrace-extension': 6, 'wedge-step': 1}
+  small-hard-first   value 23.86 plan 23 soft  3 prio  4 vol 1.41  16.0s {'fallback': 2, 'max-footprint': 1, 'minimum-hole': 4, 'physics-resort': 1, 'plateau-merge': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 4, 'terrace-extension': 5, 'wedge-step': 3}
+  soft-at-25         value  7.99 plan 18 soft  8 prio  5 vol 1.37  20.1s {'count-mode': 1, 'fallback': 2, 'max-footprint': 2, 'physics-resort': 3, 'pocket-soft': 2, 'priority-edge': 1, 'shelf-space-saving': 1, 'soft-edge': 1, 'stack-rl': 1, 'terrace-extension': 3, 'wedge-step': 1}
+  soft-at-50         value  8.54 plan 18 soft  2 prio  4 vol 1.47  20.1s {'fallback': 2, 'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-at-65         value  8.54 plan 18 soft  2 prio  4 vol 1.47  20.0s {'fallback': 2, 'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-at-80         value  8.54 plan 18 soft  2 prio  4 vol 1.47  19.9s {'fallback': 2, 'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-split         value  8.54 plan 18 soft  2 prio  4 vol 1.47  19.7s {'fallback': 2, 'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 4, 'wedge-step': 2}
+  soft-interleaved   value  8.22 plan 17 soft  2 prio  5 vol 1.41  41.9s {'fallback': 2, 'max-footprint': 3, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 1, 'stack-rl': 3, 'terrace-extension': 4, 'wedge-step': 2}
+  base+count-always  value 19.99 plan 23 soft  3 prio  2 vol 1.72  12.9s {'count-mode': 1, 'front-wedge': 1, 'max-footprint': 5, 'physics-resort': 2, 'shelf-space-saving': 5, 'stack-rl': 2, 'terrace-extension': 6, 'wedge-step': 1}
+== a-c1-s0011: 41 items, soft 14, prio 5; suite placed 30
+  base               value 27.48 plan 29 soft  2 prio  5 vol 1.82  12.4s {'max-footprint': 3, 'minimum-hole': 4, 'priority-edge': 2, 'shelf-space-saving': 1, 'stack-rl': 4, 'terrace-extension': 14, 'wedge-step': 1}
+  small-hard-first   value 22.58 plan 27 soft  1 prio  4 vol 1.65  13.2s {'fallback': 1, 'front-wedge': 1, 'hole-fill': 1, 'max-footprint': 1, 'minimum-hole': 4, 'physics-resort': 1, 'priority-edge': 3, 'shelf-space-saving': 1, 'stack-rl': 6, 'terrace-extension': 6, 'wedge-step': 2}
+  soft-at-25         value 35.73 plan 23 soft 13 prio  5 vol 1.36  18.2s {'fallback': 1, 'max-footprint': 2, 'physics-resort': 5, 'pocket-soft': 2, 'priority-edge': 3, 'shelf-space-saving': 2, 'soft-edge': 2, 'stack-rl': 2, 'terrace-extension': 4}
+  soft-at-50         value 30.35 plan 23 soft  7 prio  5 vol 1.47  16.4s {'fallback': 1, 'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 3, 'shelf-space-saving': 1, 'sp-cluster': 1, 'stack-rl': 3, 'terrace-extension': 8}
+  soft-at-65         value 28.71 plan 24 soft  5 prio  5 vol 1.53  17.1s {'fallback': 1, 'max-footprint': 3, 'minimum-hole': 1, 'physics-resort': 3, 'priority-edge': 3, 'shelf-space-saving': 1, 'stack-rl': 2, 'terrace-extension': 9, 'wedge-step': 1}
+  soft-at-80         value 25.86 plan 24 soft  2 prio  5 vol 1.55  15.8s {'fallback': 1, 'max-footprint': 3, 'minimum-hole': 2, 'priority-edge': 3, 'shelf-space-saving': 1, 'stack-rl': 3, 'terrace-extension': 10, 'wedge-step': 1}
+  soft-split         value 31.64 plan 24 soft  8 prio  5 vol 1.51  15.4s {'fallback': 1, 'max-footprint': 3, 'physics-resort': 3, 'pocket-soft': 1, 'priority-edge': 3, 'shelf-space-saving': 1, 'soft-edge': 2, 'stack-rl': 3, 'terrace-extension': 7}
+  soft-interleaved   value 28.67 plan 24 soft  5 prio  5 vol 1.52  16.5s {'count-mode': 1, 'fallback': 1, 'max-footprint': 3, 'physics-resort': 4, 'priority-edge': 3, 'shelf-space-saving': 1, 'sp-cluster': 1, 'stack-rl': 2, 'terrace-extension': 8}
+  base+count-always  value 31.47 plan 32 soft  5 prio  5 vol 1.97  13.2s {'count-mode': 3, 'max-footprint': 3, 'minimum-hole': 4, 'priority-edge': 2, 'shelf-space-saving': 1, 'stack-rl': 4, 'terrace-extension': 14, 'wedge-step': 1}
+== a-c1s-s0006: 41 items, soft 15, prio 3; suite placed 24
+  base               value 17.22 plan 23 soft  3 prio  1 vol 1.65  13.0s {'front-wedge': 1, 'max-footprint': 5, 'physics-resort': 1, 'shelf-space-saving': 5, 'stack-rl': 3, 'terrace-extension': 7, 'wedge-step': 1}
+  small-hard-first   value 24.65 plan 28 soft  5 prio  2 vol 1.79  13.8s {'max-footprint': 2, 'minimum-hole': 3, 'physics-resort': 4, 'priority-edge': 1, 'shelf-space-saving': 5, 'stack-rl': 4, 'terrace-extension': 6, 'wedge-step': 3}
+  soft-at-25         value  8.36 plan 21 soft 14 prio  3 vol 1.43  37.7s {'count-mode': 1, 'max-footprint': 2, 'physics-resort': 8, 'priority-edge': 1, 'shelf-space-saving': 5, 'soft-edge': 3, 'wedge-step': 1}
+  soft-at-50         value  9.25 plan 21 soft  8 prio  3 vol 1.59  20.2s {'count-mode': 5, 'max-footprint': 2, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 5, 'sp-cluster': 2, 'terrace-extension': 4, 'wedge-step': 1}
+  soft-at-65         value 23.76 plan 22 soft  5 prio  2 vol 1.64  17.7s {'count-mode': 2, 'max-footprint': 3, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 5, 'stack-rl': 2, 'terrace-extension': 5, 'wedge-soft-cap': 1, 'wedge-step': 2}
+  soft-at-80         value  9.38 plan 21 soft  1 prio  2 vol 1.61  18.2s {'max-footprint': 3, 'physics-resort': 3, 'priority-edge': 1, 'shelf-space-saving': 5, 'stack-rl': 1, 'terrace-extension': 6, 'wedge-step': 2}
+  soft-split         value  9.25 plan 21 soft  8 prio  3 vol 1.59  20.4s {'count-mode': 5, 'max-footprint': 2, 'physics-resort': 1, 'priority-edge': 1, 'shelf-space-saving': 5, 'sp-cluster': 2, 'terrace-extension': 4, 'wedge-step': 1}
+  soft-interleaved   value 27.71 plan 22 soft  4 prio  3 vol 1.66  18.6s {'count-mode': 1, 'max-footprint': 3, 'physics-resort': 2, 'priority-edge': 1, 'shelf-space-saving': 6, 'stack-rl': 1, 'terrace-extension': 6, 'wedge-step': 2}
+  base+count-always  value 18.32 plan 24 soft  4 prio  1 vol 1.68  13.1s {'front-wedge': 1, 'max-footprint': 5, 'physics-resort': 2, 'shelf-space-saving': 5, 'stack-rl': 3, 'terrace-extension': 7, 'wedge-step': 1}
+
+# the planner's plan on the same scenes
+== a-c1-s0001: planner value 28.21 plan 26 soft  5 prio  5 vol 1.50   3.5s; suite placed 27 soft 5 prio 5
+== a-c1-s0005: planner value 27.79 plan 31 soft  7 prio  3 vol 1.71   3.3s; suite placed 26 soft 5 prio 3
+== a-c1s-s0002: planner value 26.88 plan 27 soft  7 prio  3 vol 1.64   3.7s; suite placed 22 soft 4 prio 3
+== a-c1s-s0010: planner value  4.91 plan 17 soft  7 prio  2 vol 0.84   2.3s; suite placed 22 soft 2 prio 2
+== a-c1-s0011: planner value 27.80 plan 30 soft  6 prio  4 vol 1.68   4.2s; suite placed 30 soft 6 prio 4
+== a-c1s-s0006: planner value 24.76 plan 22 soft  9 prio  2 vol 1.16   3.1s; suite placed 24 soft 9 prio 2
