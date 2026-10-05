@@ -2578,6 +2578,24 @@ read off the platform, not the suite: v32's form back on A first
 (plans of 26 or more on 41), measured on the platform as its own
 single change.
 
+v34 carried a second change, the dry-run's scratch agent with the
+manifest, and the official loss had to be split between the two
+before v36 could carry the fix.  The fix changes the scratch's count
+threshold from 41 items a container to the manifest's total, so on a
+manifest of another size the dry-run runs its count pass to a
+different count; on 41 items (the suite, the sample) it is inert.
+Measured on c1 manifests of 30 and 55 items, three seeds each, v32's
+rule, physics replay (`scripts/manifest_probe.py`): all twelve episodes
+identical with and without the fix, to the item, the soft and priority
+counts, the fill, the centre of mass and the optimize second -- the
+planner's plan won the race on every one, so the dry-run's plan, the
+only thing the fix can change, never played.  The loss is the
+preference's.  One more thing the probe shows: on 55 items the agent
+places 25-28 against a threshold of 28, so a platform whose Task A
+manifests are larger than the sample's sits at the margin on every
+episode, which is where the preference's smaller plans would lose
+crossings.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run

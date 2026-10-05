@@ -42,9 +42,11 @@ suite's (the same reading as v29's and v32's notes, from the other
 side).  Optimize 136.5 s (v32 112.9: the preference keeps the dry-run
 running for the count guard), the slowest call 7.25 s.  Two changes
 went in together (the preference and the scratch's manifest); the
-second is inert on a 41-item manifest, which the sample's A is, and the
-platform's A episodes are taken to be.  v36 goes back to v32's form on
-Task A.
+second is inert on a 41-item manifest, which the sample's A is, and
+measured on 30- and 55-item manifests (three seeds each, v32's rule,
+physics) it changed nothing in twelve of twelve episodes, the planner's
+plan winning the race on every one.  v36 goes back to v32's form on
+Task A and keeps the fix.
 
 v33's total was 51.93 (v32 52.71, -0.78): placement -4.15 and soft
 -0.95, fill -0.27, the fraction placed 0.6148 -> 0.6113, against cog
