@@ -343,7 +343,11 @@ class RuleAlphaAgent:
             valued.sort(key=lambda c: (c[0], c[1]), reverse=True)
             self.plan_search_log = [{"plan": label, "value": round(value, 2), "items": n} for value, n, label, _o, _p in valued]
             value, _n, label, order, self.plan = valued[0]
-            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
+            # the planner's plan replays through planner.replay (entries
+            # with a centre, keyed by item); a dry-run plan, the variants
+            # included, through the step-keyed replay of the ladder's own
+            # poses, which plan_by_index must stay empty for
+            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan} if label == "planner" else {}
             self.plan_source = label if label in ("planner", "dry-run") else f"search:{label}"
             self._order = [int(i) for i in order]
             return list(self._order)
