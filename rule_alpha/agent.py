@@ -167,8 +167,9 @@ class RuleAlphaAgent:
         # plans differed from the parent's replay rules (v33: the sample's
         # A episode 25 -> 28 items, the suite soft -0.9 a scene with two
         # crossings lost, on a veto that was meant to leave A alone)
-        scratch._manifest = {int(i["index"]): i for i in item_list} if item_list else None
-        scratch._manifest_total = len(item_list) if item_list else None
+        if getattr(self.config, "scratch_manifest", True):
+            scratch._manifest = {int(i["index"]): i for i in item_list} if item_list else None
+            scratch._manifest_total = len(item_list) if item_list else None
         return scratch
 
     def _plan_value(self, plan: list, item_list: list, capacity: float) -> float:

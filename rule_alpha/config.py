@@ -1940,6 +1940,13 @@ class RuleAlphaConfig:
     official score has a component for each; the fill is the one whose
     definition is known, so the other two count half."""
 
+    scratch_manifest: bool = True
+    """The dry-run's scratch agent carries its parent's manifest (the
+    Task A exemptions and the count threshold from the manifest's
+    total).  Off, the scratch runs as v32/v33 did: Task C rules and a
+    threshold of 41 items a container -- the switch exists to measure
+    the difference on manifests of other sizes, where the two
+    thresholds differ."""
     plan_search: bool = False
     """Task A: after the planner and the ladder's dry-run, the spare
     optimize time runs the dry-run again over the orders in
