@@ -223,10 +223,14 @@ OVERRIDES = dict(
     # priority boxes covered 22 -> 11, topples 21 -> 15, CoM +0.010.
     # Off on A (it broke the plan replay) and B (it cost crossings).
     # Official result 51.93 against v32's 52.71 (placement -4.15, soft
-    # -0.95, the fraction placed -0.0035, the rest flat): the platform
-    # paid the opposite of the suite, so the veto is off again and v34
-    # stands on the v32 form.
-    shade_veto_area=0.0, resort_shade_step=0.0,
+    # -0.95, the fraction placed -0.0035, the rest flat).  Traced: the
+    # dry-run's scratch agent had no manifest and built Task A's plans
+    # under the veto (reports/wedge/findings.md, "v33 on the platform");
+    # the scratch carries the manifest now, so the veto is Task C's
+    # alone, and v36 turns it on again (at a 3.5 s limit it still buys
+    # C +2.06 items a scene and 41 -> 48 of 48 episodes over the
+    # threshold).
+    shade_veto_area=0.15, resort_shade_step=0.1,
     # v34: Task A plays the row planner's plan whenever it exists
     # (rule_alpha/config.py); the ladder's dry-run plan only when the
     # planner made none or its plan is under the count threshold.  Which
@@ -237,7 +241,11 @@ OVERRIDES = dict(
     # (`prefplan-core-a` against `v33-core-a`): soft +1.35 a scene,
     # priority +0.42, fill -1.6, CoM -0.019, 47-48 of 48 over the
     # threshold.
-    plan_prefer_planner=True,
+    # v34's official result (50.65 against v32's 52.71: the four non-fill
+    # components down with the count) said the platform's Task A
+    # episodes sit closer to the threshold than the suite's, and the
+    # planner's smaller plans fell under it; v36 plays v32's rule again.
+    plan_prefer_planner=False,
 )
 STACK_POLICY = "weights/stack"
 
