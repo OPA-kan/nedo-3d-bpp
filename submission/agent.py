@@ -246,6 +246,14 @@ OVERRIDES = dict(
     # episodes sit closer to the threshold than the suite's, and the
     # planner's smaller plans fell under it; v36 plays v32's rule again.
     plan_prefer_planner=False,
+    # v37: the dry-run's scratch keeps the Task A exemptions (the veto
+    # stays Task C's) but counts against 41 items a container as it did
+    # up to v33, not the manifest's total: the two builds with the total
+    # (v34, v36) took 24 s longer on the platform's longest Task A
+    # optimize and lost placement and soft against v32 (the count pass
+    # running to a higher count on the platform's larger manifests:
+    # a two-container 110-item probe took 149 s against 113).
+    scratch_manifest_total=False,
 )
 STACK_POLICY = "weights/stack"
 

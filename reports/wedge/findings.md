@@ -2596,6 +2596,27 @@ manifests are larger than the sample's sits at the margin on every
 episode, which is where the preference's smaller plans would lose
 crossings.
 
+v36 (v32's rule on A, the veto on C, the scratch with the manifest)
+then scored 52.51, level with v32 (placement -0.7, soft -0.4, the rest
+flat), where the suite had the veto worth +2.0 items a scene on C.
+The figure that moved was the optimize time: 136.7 s against v32's
+112.9 and v33's 116.6, and v34's 136.5 -- the two builds with the
+manifest in the scratch took 24 s longer on the platform's longest
+Task A optimize.  The manifest sets the dry-run's count threshold
+from the manifest's total instead of 41 a container, and on a
+two-container manifest of 110 items (threshold 56 against 42) the
+probe reproduces it: seed 1's optimize 113 s -> 149 s with the
+manifest's total (the plan the same, the planner's), seed 2 level.
+The single-container probes never showed it because the ladder
+declines above both thresholds there.  So on the platform's Task A
+manifests, which are larger than the sample's 41, the dry-run runs its
+count pass to a higher count -- the cover-allowed physics resort
+before every decline: 24 s more, and plans with covered boxes when
+they win the race, the placement and soft dips of v36 and a share of
+v34's loss.  v37 keeps the scratch's Task A exemptions (the veto stays
+C's) and goes back to the 41-based threshold
+(`scratch_manifest_total` off): v32 plus the veto on C alone.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run
