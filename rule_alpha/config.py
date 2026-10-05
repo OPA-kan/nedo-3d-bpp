@@ -1951,11 +1951,20 @@ class RuleAlphaConfig:
     beat the plan the agent was playing by 3-8 value points an episode
     (a-c1-s0001: the base dry-run 30 items with 4 of 15 soft, value
     29.5; soft-at-25 23 items with 14 soft, value 36.0)."""
-    plan_search_orders: str = "soft-at-25;soft-split;soft-at-50;count-always;small-hard-first;soft-interleaved"
+    plan_search_orders: str = "soft-at-25;soft-at-50"
     """The variants in the order they are tried (the expected best
     first: on a slow machine only the first few run).  ``count-always``
     is the base order with the scratch running the count pass before
-    every decline."""
+    every decline.  On the A suite (`psearch1-core-a` against
+    `v34-core-a`, every variant on) only the soft-position variants
+    paid: soft-at-25 won 10 episodes for +10 points an episode at the
+    platform's prices (soft 5-7 -> 13-15 of 15, the load as low or
+    lower), soft-at-50 one for +9; small-hard-first, soft-split and
+    count-always won 6 between them and lost 13-33 points each -- plans
+    with 0-2 soft boxes and the load 0.1 higher, chosen because their
+    count passed the gate while the planner's did not.  The value has
+    no term for the load's height, so the hard-heavy variants stay out
+    of the list."""
     plan_value_weights: str = "28.7;14.1;14.3"
     """The official prices a plan is valued at: fill (points per unit
     of volume share: 0.287 x 100), the soft share (14.1 per unit) and
@@ -1963,11 +1972,15 @@ class RuleAlphaConfig:
     weight).  The count has no price of its own beyond the gate: the
     soft and priority parts count only when the plan holds at least the
     count threshold plus ``plan_value_margin`` items."""
-    plan_value_margin: int = 2
+    plan_value_margin: int = 1
     """Items above the count threshold a plan must hold before its soft
     and priority shares count in its value: the replay loses a few
     planned poses (a-c1-s0001: a 30-item plan placed 27), and an
-    episode under the threshold forfeits the four non-fill components."""
+    episode under the threshold forfeits the four non-fill components.
+    At 2 the planner's 22-item plans on 41 items were gated out for
+    hard-only dry-run plans that replayed to 19 (five crossings lost of
+    48, `psearch-core-a`); at 1 the soft-at-25 plans of 22-23 items
+    replayed to 21-23 and kept every crossing but one."""
 
     plan_layouts: int = 1
     """How many of the row-depth layouts the search ranks the planner

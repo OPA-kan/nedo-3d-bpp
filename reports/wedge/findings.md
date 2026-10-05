@@ -2513,6 +2513,32 @@ replay margin (the planner's 22-item plan on a-c1s-s0006 replayed to
 hard-first ones (`psearch-core-a` at margin 2, `psearch1-core-a` at
 margin 1, against `v34-core-a`).
 
+The suite answered both.  Priced per episode at the platform's
+weights with a load term (0.287 a fill point, 14.1 and 14.3 a unit of
+soft and priority share, the gate at the threshold, and -1.7 points
+per 0.01 of the centre-of-mass ratio), by the plan the search chose
+(`reports/bench/v34-vs-psearch-core-a.txt`):
+
+| variant chosen | episodes (margin 1) | priced vs v34 | without the load term | what it did |
+|---|---:|---:|---:|---|
+| soft-at-25 | 10 | +100 | +100 | soft 5-7 -> 13-15 of 15, 4-7 fewer hard boxes, the load as low or lower, replay loss 0.8 a plan |
+| soft-at-50 | 1 | +9 | +14 | soft 8 -> 11 |
+| small-hard-first | 3 | -81 | -23 | soft 5 -> 0, the load 0.10 higher |
+| count-always | 2 | -13 | +4 | soft 5 -> 3, the load 0.10 higher |
+| soft-split | 1 | -27 | -20 | 23 planned, 19 placed, under the threshold |
+| planner (unchanged) | 31 | -2 | -2 | |
+
+So the gain is the soft position and nothing else: the hard-heavy
+variants win the gate with their count and lose at the prices, having
+no soft and a taller load, which the value does not see.  At margin 2
+the planner's 22-item plans were gated out for 23-item dry-run plans
+that replayed to 19 (five crossings lost of 48, -0.77 on the total);
+at margin 1 one crossing was lost and the suite came out level (+0.04)
+only because the hard-heavy variants ate the soft ones' gain.  The
+list is now the soft positions alone (`soft-at-25;soft-at-50`, margin
+1; `psearch2-core-a` adds soft-at-35), expected at about +2 points an
+episode on A, +0.7 on the total.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run
