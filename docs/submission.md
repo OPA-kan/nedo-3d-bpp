@@ -426,7 +426,26 @@ although the veto is off under a manifest, because the dry-run's
 scratch agent had no manifest and built A's plans under the Task C
 rules -- the leak that v33's official loss came through, fixed
 afterwards: the scratch carries the manifest now, and both settings
-play the same 25 items on the sample's A.)
+play the same 25 items on the sample's A.)  Official result 50.65
+(v32 52.71): soft +2.2, against fill -1.72, cog -3.10, stability
+-3.99, placement -2.55 and the fraction placed 0.6148 -> 0.6023 -- the
+platform's Task A episodes crossed the threshold less often under the
+planner's smaller plans, where the suite had 48 of 48
+(`reports/submission/official-results.md`).
+
+Thirty-sixth build (v36): v32's rule on Task A again (the planner
+preference off) and the sweep-shade veto on Task C (`shade_veto_area`
+= 0.15, `resort_shade_step` = 0.1) with the dry-run's scratch agent
+carrying the manifest, so the veto no longer reaches Task A's plans
+(v33's loss).  The veto's measure on C stands at both limits: at 4.5 s
++2.0 items a scene and 43 -> 48 of 48 over the threshold (`v33-core`),
+at 3.5 s +2.06 and 41 -> 48 (`v33-core-slow` against `v32-core-slow`),
+priority boxes covered halved, topples 18 -> 11.  Official sample: A
+32.11 / 25 (v32's, the fix inert on a 41-item manifest), B 27.28 / 25
+(v32's), C 26.44 / 25 (v33's veto value; v32 23.14 / 23); policy max B
+4.37 s, C 3.65 s, optimize 30 s (`official-sample-abc-v36.json`).  The
+Task A plan search (`plan_search`, measured +0.47 on the suite) stays
+off: its base is the planner preference the platform rejected.
 
 ## Known limits
 
