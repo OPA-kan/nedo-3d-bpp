@@ -310,47 +310,7 @@ class RuleAlphaAgent:
                 t0 = time.perf_counter()
                 dry = run_dry_run()
                 dry_seconds = time.perf_counter() - t0
-        if dry is not None and getattr(self.config, "plan_search", False):
-            # the plan search (config.plan_search): the dry-run again over
-            # the variant orders while the budget lasts, every plan priced
-            # at the official weights, the best one plays
-            from .offline import dry_run_order, order_variant
-
-            soft_of = {int(i["index"]): bool(i.get("is_soft")) for i in item_list}
-            prio_of = {int(i["index"]): bool(i.get("is_prioritized")) for i in item_list}
-            candidates = []
-            if planned is not None and planned[1]:
-                candidates.append(("planner", planned[0], planned[1]))
-            candidates.append(("dry-run", dry[0], dry[1]))
-            longest = max(dry_seconds, 1.0)
-            names = [n for n in re.split(r"[;|]", str(getattr(self.config, "plan_search_orders", ""))) if n]
-            for name in names:
-                # a run that may not finish is not started: the slowest
-                # dry-run so far, with a margin, is the estimate
-                if time.perf_counter() + 1.3 * longest + 2.0 >= deadline:
-                    break
-                overrides = {"count_mode_always": True, "count_mode_min_value": 0.0} if name == "count-always" else None
-                variant = order_variant(name, order, lambda i: soft_of.get(int(i), False), lambda i: prio_of.get(int(i), False))
-                t0 = time.perf_counter()
-                try:
-                    v_order, v_plan = dry_run_order(self, item_list, variant, deadline, overrides=overrides)
-                except Exception as exc:
-                    print(f"[plan-search] {name} failed: {exc!r}", flush=True)
-                    continue
-                longest = max(longest, time.perf_counter() - t0)
-                candidates.append((name, v_order, v_plan))
-            valued = [(self._plan_value(plan, item_list, capacity), len(plan), label, o, plan) for label, o, plan in candidates]
-            valued.sort(key=lambda c: (c[0], c[1]), reverse=True)
-            self.plan_search_log = [{"plan": label, "value": round(value, 2), "items": n} for value, n, label, _o, _p in valued]
-            value, _n, label, order, self.plan = valued[0]
-            # the planner's plan replays through planner.replay (entries
-            # with a centre, keyed by item); a dry-run plan, the variants
-            # included, through the step-keyed replay of the ladder's own
-            # poses, which plan_by_index must stay empty for
-            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan} if label == "planner" else {}
-            self.plan_source = label if label in ("planner", "dry-run") else f"search:{label}"
-            self._order = [int(i) for i in order]
-            return list(self._order)
+        base_order = order
         if dry is not None:
             dry_order, dry_plan = dry
             prefer = bool(getattr(self.config, "plan_prefer_planner", False)) and planned is not None and planned[1]
@@ -368,6 +328,54 @@ class RuleAlphaAgent:
             order, self.plan = planned
             self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
             self.plan_source = "planner"
+        if dry is not None and self.plan and getattr(self.config, "plan_search", False):
+            # the plan search (config.plan_search): the dry-run again over
+            # the variant orders while the budget lasts, every plan priced
+            # at the official weights; a variant replaces the plan chosen
+            # above only when it is worth more and holds the count gate
+            # (the base choice keeps its own rules: a planner plan at the
+            # threshold replays to a count or two more, a dry-run plan
+            # that beat it on value alone replayed to 24 items with no
+            # priority box and the load 0.1 higher, -31 on a-c1-s0002)
+            from .offline import dry_run_order, order_variant
+
+            soft_of = {int(i["index"]): bool(i.get("is_soft")) for i in item_list}
+            prio_of = {int(i["index"]): bool(i.get("is_prioritized")) for i in item_list}
+            threshold = self._count_threshold()
+            gate = (threshold or 0) + int(getattr(self.config, "plan_value_margin", 2))
+            base_label = self.plan_source
+            best = (self._plan_value(self.plan, item_list, capacity), len(self.plan), base_label, order, self.plan)
+            log = [best]
+            longest = max(dry_seconds, 1.0)
+            names = [n for n in re.split(r"[;|]", str(getattr(self.config, "plan_search_orders", ""))) if n]
+            for name in names:
+                # a run that may not finish is not started: the slowest
+                # dry-run so far, with a margin, is the estimate
+                if time.perf_counter() + 1.3 * longest + 2.0 >= deadline:
+                    break
+                overrides = {"count_mode_always": True, "count_mode_min_value": 0.0} if name == "count-always" else None
+                variant = order_variant(name, base_order, lambda i: soft_of.get(int(i), False), lambda i: prio_of.get(int(i), False))
+                t0 = time.perf_counter()
+                try:
+                    v_order, v_plan = dry_run_order(self, item_list, variant, deadline, overrides=overrides)
+                except Exception as exc:
+                    print(f"[plan-search] {name} failed: {exc!r}", flush=True)
+                    continue
+                longest = max(longest, time.perf_counter() - t0)
+                entry = (self._plan_value(v_plan, item_list, capacity), len(v_plan), name, v_order, v_plan)
+                log.append(entry)
+                if len(v_plan) >= gate and (entry[0], entry[1]) > (best[0], best[1]):
+                    best = entry
+            log.sort(key=lambda c: (c[0], c[1]), reverse=True)
+            self.plan_search_log = [{"plan": label, "value": round(value, 2), "items": n} for value, n, label, _o, _p in log]
+            value, _n, label, order, self.plan = best
+            if label != base_label:
+                # a dry-run plan, the variants included, replays through
+                # the step-keyed replay of the ladder's own poses, for which
+                # plan_by_index must stay empty (planner.replay reads the
+                # planner's entries)
+                self.plan_by_index = {}
+                self.plan_source = f"search:{label}"
         self._order = [int(i) for i in order]
         return list(self._order)
 

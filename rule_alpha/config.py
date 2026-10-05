@@ -1972,15 +1972,17 @@ class RuleAlphaConfig:
     weight).  The count has no price of its own beyond the gate: the
     soft and priority parts count only when the plan holds at least the
     count threshold plus ``plan_value_margin`` items."""
-    plan_value_margin: int = 1
-    """Items above the count threshold a plan must hold before its soft
-    and priority shares count in its value: the replay loses a few
-    planned poses (a-c1-s0001: a 30-item plan placed 27), and an
-    episode under the threshold forfeits the four non-fill components.
-    At 2 the planner's 22-item plans on 41 items were gated out for
-    hard-only dry-run plans that replayed to 19 (five crossings lost of
-    48, `psearch-core-a`); at 1 the soft-at-25 plans of 22-23 items
-    replayed to 21-23 and kept every crossing but one."""
+    plan_value_margin: int = 2
+    """Items above the count threshold a variant's plan must hold to
+    replace the base choice (and for a plan's soft and priority shares
+    to count in its value): the replay loses a few planned poses
+    (soft-at-25 plans of 22-23 items replayed to 20-23), and an episode
+    under the threshold forfeits the four non-fill components.  The
+    base choice (the planner's plan, or the dry-run's under the
+    plan_prefer_planner rule) is not subject to it: a planner plan at
+    the threshold replays to a count or two more, and the dry-run plans
+    that displaced such planner plans on value alone cost 30 points
+    each (`psearch2-core-a`: a-c1-s0002, s0009, s0012)."""
 
     plan_layouts: int = 1
     """How many of the row-depth layouts the search ranks the planner

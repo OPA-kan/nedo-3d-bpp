@@ -2539,6 +2539,23 @@ list is now the soft positions alone (`soft-at-25;soft-at-50`, margin
 1; `psearch2-core-a` adds soft-at-35), expected at about +2 points an
 episode on A, +0.7 on the total.
 
+With the soft positions alone (`psearch2-core-a`): soft +1.63 a scene
+(share 0.45 -> 0.53), priority level, placed -1.3, CoM +0.009, 47 of
+48 over the threshold, priced -0.02 on the total -- level again, and
+again for a reason the per-episode table shows.  soft-at-25 won nine
+episodes for +96; but the base dry-run plan beat the planner's on
+value in four (a-c1-s0002, s0009, s0012, c1s-s0010) for -99: there the
+planner's plan sat at the threshold (21 of 41), the gate priced its
+soft and priority at nothing, and the dry-run's 24-item plan with no
+priority box and the load 0.1 higher took the episode, where under
+v34's rule the planner's 21 replayed to 22 and counted.  And one
+soft-at-50 plan of 22 replayed to 20 (-26).  So two rules: the base
+choice keeps v34's logic (the planner's plan unless it is under the
+threshold and the dry-run's is not), and a variant replaces it only
+when it is worth more *and* holds the threshold plus two.  On the
+`psearch2` record those rules would have kept six soft-at-25 wins
+(+64) and none of the losses: about +1.3 an episode on A.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run
