@@ -1947,6 +1947,16 @@ class RuleAlphaConfig:
     threshold of 41 items a container -- the switch exists to measure
     the difference on manifests of other sizes, where the two
     thresholds differ."""
+    scratch_manifest_total: bool = True
+    """With the manifest in the scratch, its count threshold comes from
+    the manifest's total; off, the scratch keeps the Task A exemptions
+    but counts against 41 items a container as the dry-run did up to
+    v33.  The two builds whose scratch had the total (v34, v36) took
+    24 s longer on the platform's longest Task A optimize and lost
+    placement and soft against v32; the platform's manifests are
+    larger than the sample's 41, and there the manifest's threshold
+    sends the dry-run into its count pass (covered boxes, time) where
+    the 41-based one does not."""
     plan_search: bool = False
     """Task A: after the planner and the ladder's dry-run, the spare
     optimize time runs the dry-run again over the orders in

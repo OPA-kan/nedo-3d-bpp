@@ -26,6 +26,29 @@
 | v32 (efa94ef: v31 with the threshold taken strictly, the support floor under it, the priority-first planner variant on A) | 38.08 | 63.31 | 75.16 | 48.5 | 36.6 | 0.6148 | 112.9 | 7.14 |
 | v33 (1f5d1ac: v32 with the sweep-shade veto on Task C) | 37.81 | 63.39 | 75.21 | 44.35 | 35.65 | 0.6113 | 116.6 | 7.19 |
 | v34 (4b7e046: v32 with the planner's plan preferred on Task A, and the dry-run's scratch agent carrying the manifest) | 36.36 | 60.21 | 71.17 | 45.95 | 38.8 | 0.6023 | 136.5 | 7.25 |
+| v36 (1ca72af: v32's rule on Task A, the sweep-shade veto on Task C, the scratch agent carrying the manifest) | 37.96 | 63.23 | 75.19 | 47.8 | 36.2 | 0.6140 | 136.7 | 7.20 |
+
+v36's total was 52.51 (v32 52.71, -0.20): placement -0.7, soft -0.4,
+fill -0.12, cog -0.08, stability +0.03, the fraction placed 0.6148 ->
+0.6140.  Level, where the suite had the veto worth +2.0 items a scene
+on Task C with 43 -> 48 of 48 episodes over the threshold and the
+priority boxes covered halved -- none of which reached the total.  The
+one figure that moved is the optimize time, 136.7 s against v32's
+112.9 and v33's 116.6, and v34 had the same 136.5: the two builds that
+carry the scratch agent's manifest take 24 s longer on Task A's
+longest episode, the two without it do not.  The manifest changes the
+dry-run's count threshold from 41 items a container to the manifest's
+total, so on a manifest larger than 41 a container the dry-run runs
+its count pass (the cover-allowed physics resort before every decline)
+to a higher count: more time, plans with covered boxes.  On 30- and
+55-item single-container manifests the probe saw no difference, the
+ladder declining above either threshold; the platform's Task A
+manifests are evidently larger or two-container, where the thresholds
+part.  So v36's level result is the veto's gain on C (unknown size)
+against the threshold change's cost on A (placement and soft down,
+the covered boxes' signature), and v37 separates them: the scratch
+keeps the Task A exemptions and goes back to the 41-based threshold.
+The slowest call 7.20 s.
 
 v34's total was 50.65 (v32 52.71, -2.06): soft +2.2 as the planner's
 plans were meant to bring, against fill -1.72, cog -3.10, stability

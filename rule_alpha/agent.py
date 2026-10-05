@@ -169,7 +169,10 @@ class RuleAlphaAgent:
         # crossings lost, on a veto that was meant to leave A alone)
         if getattr(self.config, "scratch_manifest", True):
             scratch._manifest = {int(i["index"]): i for i in item_list} if item_list else None
-            scratch._manifest_total = len(item_list) if item_list else None
+            # the count threshold from the manifest's total, or (off) the
+            # 41-a-container one the dry-run ran with up to v33
+            if getattr(self.config, "scratch_manifest_total", True):
+                scratch._manifest_total = len(item_list) if item_list else None
         return scratch
 
     def _plan_value(self, plan: list, item_list: list, capacity: float) -> float:
