@@ -2462,6 +2462,55 @@ single change after v34.  `v34-core-a` (the v32 A arm with the planner
 preferred) against `prefplan-core-a` (the v33 A arm with it) measures
 the leak with the race removed.
 
+### What the top of the leaderboard is made of, and a layer packer that was not it
+
+The leaderboard's top sits in the seventies.  The official evaluator
+snapshot scores only the fill (the item volume inside over the
+container's volume) and the count; the other four components are
+described in the README, whose example feedback is the one hard data
+point: a run that placed every item (`num_placed_items` 1.0) with
+fill 15.3 scored cog 66.8, stability 72.1, placement 80 and soft 100.
+At the weights, 70+ needs either nearly every item placed (fill at
+the manifest's 50-56 %, placement and soft near 100) or the special
+cargo complete on a low, stable load.  The items of a bench A manifest
+sum to 50-56 % of the container and a level-layer shelf packing with
+no rules fits 36-41 of 41 (`scripts/layers_probe.py`'s first form),
+so the first reading was tried: `rule_alpha/layers.py`, an offline
+packer building the load as rows from the back wall, every row
+stacked to the ceiling, poses through the planner's pose check.
+
+It does not beat the ladder: 20-25 of 41 against the dry-run's 25-30,
+and the reasons are the simulator's carry-in rules, which the raw
+geometry ignored.  The simulator carries an item in at its own height
+(no lift) when its top lands within 0.098 m under the mid-height plane
+(0.805 m) or the ceiling, or its bottom within 0.05 m above the
+mid-height shelf level, and the item then scrapes the box it lands on
+(130 of 135 third-level poses failed the sweep); the small shelf's
+plate at mid-height along the left wall stops any column under its
+edge at two boxes; a standing box in a column keeps every wider box
+off it.  A column of 0.25 m boxes holds two flat ones, then needs a
+standing one or a 0.27 one to clear the band, and reaches four or
+five boxes where the geometry promised six.  The ladder's count is
+already what those rules allow of a greedy pack; a packer that beats
+it needs a search over column compositions against the bands, which
+is a project, not a change.  The module stays as an experiment
+(`offline_planner=layers`, off).
+
+The second reading fits the data better.  The cog score reads as
+100 x (1 - the mass-weighted centre of mass over the container's
+height) on the counted episodes: the suites' CoM ratio averaged over
+the three tasks gives 63.6 for v32's form against the official 63.31,
+and 63.2 for v36's against 63.23.  So a point of cog is 0.01 of CoM
+ratio, 0.22 on the total, and a two-layer load (ratio 0.2) is worth
+about +3; count beyond the threshold is worth its fill alone (0.3 a
+box); and the special cargo's shares, at 14 a unit each, are the
+lever: soft 0.45 -> 0.9 and priority 0.75 -> 0.95 across the tasks
+is +8 to +10.  The plan search's soft-at-25 plans (23 items, 14 of 15
+soft, 5 of 5 priority, the load as low or lower) are that lever on
+Task A, held back only by the count margin the platform showed in
+v34; Task B's pool (6.9 soft boxes left a scene) and Task C's
+priority cargo are the same lever where the stream allows.
+
 ### The spare optimize time: a search over Task A's plans
 
 Every Task A episode ends on a decline with about 40 % of the items

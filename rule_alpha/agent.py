@@ -288,7 +288,12 @@ class RuleAlphaAgent:
             # the headroom reserve belongs to the planner's plan (see
             # _soft_headroom_reserve); it is set while planning
             self.plan_source = "planner"
-            result = plan_packing(self, item_list, deadline)
+            if str(getattr(self.config, "offline_planner", "")) == "layers":
+                from .layers import pack_layers
+
+                result = pack_layers(self, item_list, deadline)
+            else:
+                result = plan_packing(self, item_list, deadline)
             self.plan_source = ""
             return result
 
