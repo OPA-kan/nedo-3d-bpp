@@ -1940,6 +1940,35 @@ class RuleAlphaConfig:
     official score has a component for each; the fill is the one whose
     definition is known, so the other two count half."""
 
+    plan_search: bool = False
+    """Task A: after the planner and the ladder's dry-run, the spare
+    optimize time runs the dry-run again over the orders in
+    ``plan_search_orders`` (rule_alpha.offline.order_variant), and the
+    plan with the highest value (``plan_value_weights``, the official
+    prices with the count gate) plays.  The optimize budget is 150 s and
+    a single-container manifest uses 25-35 s of it: a planner plan takes
+    3-4 s, a dry-run 12-20 s.  On six c1/c1s scenes the best variant
+    beat the plan the agent was playing by 3-8 value points an episode
+    (a-c1-s0001: the base dry-run 30 items with 4 of 15 soft, value
+    29.5; soft-at-25 23 items with 14 soft, value 36.0)."""
+    plan_search_orders: str = "soft-at-25;soft-split;soft-at-50;count-always;small-hard-first;soft-interleaved"
+    """The variants in the order they are tried (the expected best
+    first: on a slow machine only the first few run).  ``count-always``
+    is the base order with the scratch running the count pass before
+    every decline."""
+    plan_value_weights: str = "28.7;14.1;14.3"
+    """The official prices a plan is valued at: fill (points per unit
+    of volume share: 0.287 x 100), the soft share (14.1 per unit) and
+    the priority share (14.3 per unit, the placement component's
+    weight).  The count has no price of its own beyond the gate: the
+    soft and priority parts count only when the plan holds at least the
+    count threshold plus ``plan_value_margin`` items."""
+    plan_value_margin: int = 2
+    """Items above the count threshold a plan must hold before its soft
+    and priority shares count in its value: the replay loses a few
+    planned poses (a-c1-s0001: a 30-item plan placed 27), and an
+    episode under the threshold forfeits the four non-fill components."""
+
     plan_layouts: int = 1
     """How many of the row-depth layouts the search ranks the planner
     packs in full (each a plan of its own; the best by the plan score is

@@ -21,16 +21,57 @@ import time
 from . import layer1
 
 
+def order_variant(name: str, order: list[int], is_soft, is_prioritized) -> list[int]:
+    """The order a plan-search variant hands the dry-run (config.plan_search_orders).
+
+    The constructive order plays the soft cargo last, after the hard
+    boxes have taken the room, and the dry-run's plan then carries 2-4 of
+    15 soft boxes; a soft box placed is worth about three hard boxes'
+    fill on the platform.  ``soft-at-NN`` moves the soft cargo in after
+    the first NN percent of the normal hard boxes (the priority hard
+    boxes stay first); ``soft-split`` puts half of it at the middle and
+    the rest at the end; ``soft-interleaved`` one soft box after every
+    third hard box past the first third; ``small-hard-first`` reverses
+    the normal hard boxes (smallest footprint first); ``base`` and
+    ``count-always`` leave the order alone (the latter changes the
+    scratch's rules instead).  On a-c1-s0001 the base plan held 30 items
+    with 4 soft, soft-at-25 23 items with 14 soft."""
+    soft = [i for i in order if is_soft(i)]
+    hard = [i for i in order if not is_soft(i)]
+    prio_hard = [i for i in hard if is_prioritized(i)]
+    rest = [i for i in hard if not is_prioritized(i)]
+    if name.startswith("soft-at-"):
+        share = float(name[len("soft-at-"):]) / 100.0
+        k = int(round(len(rest) * share))
+        return prio_hard + rest[:k] + soft + rest[k:]
+    if name == "soft-split":
+        k, h = len(rest) // 2, len(soft) // 2
+        return prio_hard + rest[:k] + soft[:h] + rest[k:] + soft[h:]
+    if name == "soft-interleaved":
+        k = len(rest) // 3
+        out, queue = prio_hard + rest[:k], list(soft)
+        for j, i in enumerate(rest[k:]):
+            out.append(i)
+            if j % 3 == 2 and queue:
+                out.append(queue.pop(0))
+        return out + queue
+    if name == "small-hard-first":
+        return prio_hard + list(reversed(rest)) + soft
+    return list(order)
+
+
 def dry_run_order(agent, item_list: list[dict], order: list[int], deadline: float,
-                  log=None) -> tuple[list[int], list[dict]]:
+                  log=None, overrides: dict | None = None) -> tuple[list[int], list[dict]]:
     """Returns ``(order, plan)``: the items the core placed in the order it
     placed them, then the items not reached before ``deadline`` in their
-    given order, then the deferred (declined) items."""
+    given order, then the deferred (declined) items.  ``overrides`` are
+    config fields the scratch agent runs with (the plan search's
+    count-always variant)."""
     by_index = {int(item["index"]): item for item in item_list}
     containers = copy.deepcopy(agent.board.containers)
     for container in containers:
         container.setdefault("packed_items", [])
-    scratch = agent.scratch_copy(containers, item_list)
+    scratch = agent.scratch_copy(containers, item_list, overrides=overrides)
     board = layer1.Board(containers, agent.config)
 
     placed: list[int] = []

@@ -13,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 import math
 import os
+import re
 import time
 
 import numpy as np
@@ -150,12 +151,12 @@ class RuleAlphaAgent:
             self.board.set_foundation_demand(profiles, self.config)
         return profiles
 
-    def scratch_copy(self, containers: list, item_list: list) -> "RuleAlphaAgent":
+    def scratch_copy(self, containers: list, item_list: list, overrides: dict | None = None) -> "RuleAlphaAgent":
         """The same agent -- config, selector, options -- on its own board,
         for dry-runs that must not disturb this one's state."""
         # strict margins in the dry-run: a relaxed pose must never enter the
         # plan mid-order, where a failure would forfeit everything behind it
-        config = dataclasses.replace(self.config, last_resort_relax=False)
+        config = dataclasses.replace(self.config, last_resort_relax=False, **(overrides or {}))
         scratch = RuleAlphaAgent(config=config, selector=self.selector,
                                  wedge_option=self.wedge_option, stack_option=self.stack_option)
         scratch.get_init_states({"container_list": containers})
@@ -169,6 +170,23 @@ class RuleAlphaAgent:
         scratch._manifest = {int(i["index"]): i for i in item_list} if item_list else None
         scratch._manifest_total = len(item_list) if item_list else None
         return scratch
+
+    def _plan_value(self, plan: list, item_list: list, capacity: float) -> float:
+        """A plan priced at the official weights (config.plan_value_weights):
+        the fill share, and -- only when the plan holds the count threshold
+        plus ``plan_value_margin`` items -- the soft and priority shares."""
+        weights = [float(w) for w in re.split(r"[,;]", str(getattr(self.config, "plan_value_weights", "28.7;14.1;14.3"))) if w]
+        weights = (weights + [0.0, 0.0, 0.0])[:3]
+        by_index = {int(i["index"]): i for i in item_list}
+        items = [by_index[int(e["index"])] for e in plan if int(e["index"]) in by_index]
+        volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in items)
+        soft_total = sum(1 for i in item_list if i.get("is_soft")) or 1
+        prio_total = sum(1 for i in item_list if i.get("is_prioritized")) or 1
+        threshold = self._count_threshold()
+        gate = 1.0 if threshold is None or len(items) >= threshold + int(getattr(self.config, "plan_value_margin", 2)) else 0.0
+        return (weights[0] * volume / max(capacity, 1e-9)
+                + gate * (weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
+                          + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total))
 
     def _valuable_before_tail(self, order: list, item_list: list) -> list:
         """config.plan_valuable_before_tail: the soft and priority items
@@ -276,6 +294,7 @@ class RuleAlphaAgent:
             return dry_run_order(self, item_list, order, deadline)
 
         dry = None
+        dry_seconds = 0.0
         if dry_run_first:
             dry = run_dry_run()
             if use_planner and time.perf_counter() < deadline - float(getattr(self.config, "plan_min_seconds", 15.0)):
@@ -288,7 +307,46 @@ class RuleAlphaAgent:
                 # the plan that scores higher (fill, soft placed, priority
                 # placed) decides.  On a slow machine the dry-run is cut
                 # short and the planner's full plan wins by itself
+                t0 = time.perf_counter()
                 dry = run_dry_run()
+                dry_seconds = time.perf_counter() - t0
+        if dry is not None and getattr(self.config, "plan_search", False):
+            # the plan search (config.plan_search): the dry-run again over
+            # the variant orders while the budget lasts, every plan priced
+            # at the official weights, the best one plays
+            from .offline import dry_run_order, order_variant
+
+            soft_of = {int(i["index"]): bool(i.get("is_soft")) for i in item_list}
+            prio_of = {int(i["index"]): bool(i.get("is_prioritized")) for i in item_list}
+            candidates = []
+            if planned is not None and planned[1]:
+                candidates.append(("planner", planned[0], planned[1]))
+            candidates.append(("dry-run", dry[0], dry[1]))
+            longest = max(dry_seconds, 1.0)
+            names = [n for n in re.split(r"[;|]", str(getattr(self.config, "plan_search_orders", ""))) if n]
+            for name in names:
+                # a run that may not finish is not started: the slowest
+                # dry-run so far, with a margin, is the estimate
+                if time.perf_counter() + 1.3 * longest + 2.0 >= deadline:
+                    break
+                overrides = {"count_mode_always": True, "count_mode_min_value": 0.0} if name == "count-always" else None
+                variant = order_variant(name, order, lambda i: soft_of.get(int(i), False), lambda i: prio_of.get(int(i), False))
+                t0 = time.perf_counter()
+                try:
+                    v_order, v_plan = dry_run_order(self, item_list, variant, deadline, overrides=overrides)
+                except Exception as exc:
+                    print(f"[plan-search] {name} failed: {exc!r}", flush=True)
+                    continue
+                longest = max(longest, time.perf_counter() - t0)
+                candidates.append((name, v_order, v_plan))
+            valued = [(self._plan_value(plan, item_list, capacity), len(plan), label, o, plan) for label, o, plan in candidates]
+            valued.sort(key=lambda c: (c[0], c[1]), reverse=True)
+            self.plan_search_log = [{"plan": label, "value": round(value, 2), "items": n} for value, n, label, _o, _p in valued]
+            value, _n, label, order, self.plan = valued[0]
+            self.plan_by_index = {int(entry["index"]): entry for entry in self.plan}
+            self.plan_source = label if label in ("planner", "dry-run") else f"search:{label}"
+            self._order = [int(i) for i in order]
+            return list(self._order)
         if dry is not None:
             dry_order, dry_plan = dry
             prefer = bool(getattr(self.config, "plan_prefer_planner", False)) and planned is not None and planned[1]
