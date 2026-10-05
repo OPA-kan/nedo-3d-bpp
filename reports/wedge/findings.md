@@ -2556,6 +2556,28 @@ when it is worth more *and* holds the threshold plus two.  On the
 `psearch2` record those rules would have kept six soft-at-25 wins
 (+64) and none of the losses: about +1.3 an episode on A.
 
+With those rules (`psearch3-core-a`, soft-at-25/35/50, margin 2):
+soft +1.04 a scene (share 0.45 -> 0.52), priority +0.15, placed
+-0.58, fill -0.09, CoM level, 48 of 48 over the threshold, priced
++0.47 on the total; soft-at-25 played six episodes, soft-at-35 one,
+the planner's plan forty.  The suite's answer is positive.  The
+platform's answer to the base it stands on is not: v34 (the planner's
+plan preferred, the search's base rule) scored 50.65 against v32's
+52.71, with fill, cog, stability and placement down together and the
+fraction placed 0.6148 -> 0.6023 -- the threshold's signature, where
+the suite had 48 of 48.  The planner's plans hold 22-27 items on 41
+and the dry-run's 26-31; the platform's Task A episodes evidently sit
+closer to the threshold than the suite's (its streams or its slower
+replay), and smaller plans lose crossings there that the suite never
+shows.  The soft-at-25 plans are smaller still (22-24).  So the plan
+search is held: it stands on a base the platform rejected, and its
+gain is a trade of count for soft that the platform prices against
+us at the margin.  What it needs before another try is a count margin
+read off the platform, not the suite: v32's form back on A first
+(v36), then the search with its gate set well above the threshold
+(plans of 26 or more on 41), measured on the platform as its own
+single change.
+
 ### After v33: the optimize race, and two probes that did nothing
 
 Task A's optimize runs the row planner and then the ladder's dry-run

@@ -25,6 +25,26 @@
 | v31 (00339ce: v29 plus the count mode as one resort pass -- under the count threshold, poses on priority or soft cargo before a decline) | 37.90 | 63.55 | 75.22 | 46.85 | 36.35 | 0.6104 | 115.0 | 7.19 |
 | v32 (efa94ef: v31 with the threshold taken strictly, the support floor under it, the priority-first planner variant on A) | 38.08 | 63.31 | 75.16 | 48.5 | 36.6 | 0.6148 | 112.9 | 7.14 |
 | v33 (1f5d1ac: v32 with the sweep-shade veto on Task C) | 37.81 | 63.39 | 75.21 | 44.35 | 35.65 | 0.6113 | 116.6 | 7.19 |
+| v34 (4b7e046: v32 with the planner's plan preferred on Task A, and the dry-run's scratch agent carrying the manifest) | 36.36 | 60.21 | 71.17 | 45.95 | 38.8 | 0.6023 | 136.5 | 7.25 |
+
+v34's total was 50.65 (v32 52.71, -2.06): soft +2.2 as the planner's
+plans were meant to bring, against fill -1.72, cog -3.10, stability
+-3.99, placement -2.55 and the fraction placed 0.6148 -> 0.6023 -- the
+four non-fill components down together with the count, the threshold's
+signature in reverse: the platform's Task A episodes crossed it less
+often.  The bench had the v34 arm level on count with v32's (37.8
+items a scene, 48 of 48 over the threshold, `v34-core-a`) and the
+preference worth soft +0.42; on the platform the planner's plans,
+which hold fewer items than the dry-run's (22-27 against 26-31 on 41),
+fell under the threshold where the dry-run's did not -- the platform's
+streams, or its slower replay, sit closer to the margin than the
+suite's (the same reading as v29's and v32's notes, from the other
+side).  Optimize 136.5 s (v32 112.9: the preference keeps the dry-run
+running for the count guard), the slowest call 7.25 s.  Two changes
+went in together (the preference and the scratch's manifest); the
+second is inert on a 41-item manifest, which the sample's A is, and the
+platform's A episodes are taken to be.  v36 goes back to v32's form on
+Task A.
 
 v33's total was 51.93 (v32 52.71, -0.78): placement -4.15 and soft
 -0.95, fill -0.27, the fraction placed 0.6148 -> 0.6113, against cog
