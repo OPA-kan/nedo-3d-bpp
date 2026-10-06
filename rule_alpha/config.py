@@ -2168,6 +2168,15 @@ class RuleAlphaConfig:
     physics_resort_anchor_step: float = 0.04
     """Anchor lattice step (m) across every support for the resort's
     candidates, besides the generator's flush anchors."""
+    physics_resort_generation_deadline: bool = True
+    """The resort's candidate generation stops at the resort's deadline
+    less one shadow check, returning the poses found so far (the lowest
+    supports first).  The generation was the one uninterruptible call:
+    on the hard suites a floor of twenty soft boxes in three containers
+    gave it 113,000 poses to validate in one policy call (c-hard-s0018:
+    11.2 s in a 4.5 s budget, b-hard-s0018 14.3 s), past the platform's
+    8 s.  On the sample suites the generation takes 0.3-0.9 s a container
+    and never reaches the deadline, so the switch is inert there."""
     shadow_budget_share: float = 1.0
     """Checks run only while the slowest check so far fits before this
     share of the policy budget (the last resort stops early to leave that

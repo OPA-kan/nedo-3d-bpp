@@ -361,7 +361,7 @@ def sample_future(rng, n: int, start_index: int = 100000) -> list[dict]:
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
                      extra_clearance: float = 0.0, z_top: float | None = None,
-                     dense: float = 0.0) -> list[Candidate]:
+                     dense: float = 0.0, deadline: float | None = None) -> list[Candidate]:
     """Every legal pose on the floor or on a packed top, lowest first.
 
     ``tower_min``: smallest combined centre-of-mass margin (``Tower``) a
@@ -371,7 +371,13 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     ``dense``: with a step in metres, anchors every step across each
     support's extent (and the floor's) besides the flush and stepped-in
     ones, for the poses that stand a few centimetres off an edge because
-    the flush pose meets a neighbour (the physics resort's case)."""
+    the flush pose meets a neighbour (the physics resort's case).
+    ``deadline``: a ``time.perf_counter`` value past which the generation
+    stops and returns what it has (lowest supports and the first
+    orientations first): on a three-container floor of twenty soft boxes
+    the dense anchors made 113,000 poses to validate in one policy call
+    (c-hard-s0018, 11-12 s where the platform allows 8)."""
+    import time as _time
     if getattr(cfg, "soft_is_structure", False) and not getattr(cfg, "stack_soft_is_structure", True):
         # soft cargo carries no load here (see the config): the validator
         # and the stability call below read the flag from ``cfg``
@@ -402,11 +408,16 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     max_bottom = float(getattr(cfg, "stack_max_bottom", 10.0))
     soft_standing = bool(getattr(cfg, "stack_soft_standing", True))
     soft_min_support = float(getattr(cfg, "stack_soft_min_support", 0.0)) if is_soft else 0.0
+    out_of_time = False
     for o in profile.orientations:
+        if out_of_time:
+            break
         dx, dy, dz = o.dx, o.dy, o.dz
         if is_soft and not soft_standing and dz > max(dx, dy) + 1e-6:
             continue  # a soft box on end fell over under the shake
         for bottom, on_floor, bases in supports:
+            if out_of_time:
+                break
             if bottom + dz > z_top - wall or bottom > max_bottom + 1e-9:
                 continue
             # under the main shelf nothing may rise above it; the prefilter
@@ -435,7 +446,10 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 pairs = prefilter(model, cfg, container, dx, dy, dz, bottom, xs, ys, on_floor)
             else:
                 pairs = [(x, y) for x in sorted(xs) for y in sorted(ys)]
-            for x, y in pairs:
+            for n_pair, (x, y) in enumerate(pairs):
+                if deadline is not None and n_pair % 64 == 0 and _time.perf_counter() > deadline:
+                    out_of_time = True
+                    break
                 key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
                 if key in seen:
                     continue

@@ -1881,10 +1881,18 @@ class RuleAlphaAgent:
                         break
                     t0 = time.perf_counter()
                     try:
+                        # the generation stops at the resort's deadline
+                        # (config.physics_resort_generation_deadline): on a
+                        # three-container soft carpet the dense anchors
+                        # made 113,000 poses to validate (c-hard-s0018,
+                        # 11-12 s in one call where the platform allows 8)
+                        gen_deadline = deadline - max(self._shadow_longest, 0.2) \
+                            if getattr(strict, "physics_resort_generation_deadline", True) else None
                         cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
                                                  mass=float(item.get("mass", 0.0)), tower_min=None,
                                                  extra_clearance=0.0, z_top=None,
-                                                 dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)))
+                                                 dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)),
+                                                 deadline=gen_deadline)
                         # half the footprint over the support at least: the
                         # shake test comes after the settle
                         # (under the threshold the physics judges the
