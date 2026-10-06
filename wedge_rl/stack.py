@@ -253,8 +253,11 @@ def shelf_between(shelves, lower: AABB, upper: AABB) -> bool:
     return False
 
 
+COVER_CONTACT_TOLERANCE = None  # set from config.cover_contact_tolerance by the agent
+
+
 def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_prioritized: bool,
-                           shelves=None) -> bool:
+                           shelves=None, tolerance=None) -> bool:
     """True when the box would sit anywhere above a packed item whose
     attribute the box does not share: non-priority above priority, or
     non-soft above soft.  The rule penalises exactly that (same attribute
@@ -270,11 +273,18 @@ def covers_other_attribute(box: AABB, container: dict, is_soft: bool, is_priorit
     couple of centimetres) higher is exactly what the box lands on -- the
     old test (a top at or below the bottom, to the micron) let those
     through, and the platform's contact test found every one of them."""
+    if tolerance is None:
+        tolerance = COVER_CONTACT_TOLERANCE
     for packed, (b, _soft, _prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
         p_soft, p_prio = bool(packed.get("is_soft", False)), bool(packed.get("is_prioritized", False))
         if not ((p_prio and not is_prioritized) or (p_soft and not is_soft)):
             continue
         if float(b.minimum[2]) >= float(box.minimum[2]) - 1e-6:
+            continue
+        if tolerance is not None and float(b.maximum[2]) < float(box.minimum[2]) - float(tolerance):
+            # the platform reads contact from above: an item this far
+            # below the box's bottom, with air between, is not touched
+            # (config.cover_contact_tolerance)
             continue
         if (min(box.maximum[0], b.maximum[0]) - max(box.minimum[0], b.minimum[0]) > 1e-9
                 and min(box.maximum[1], b.maximum[1]) - max(box.minimum[1], b.minimum[1]) > 1e-9):

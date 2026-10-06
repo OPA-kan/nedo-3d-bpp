@@ -1947,6 +1947,16 @@ class RuleAlphaConfig:
     threshold of 41 items a container -- the switch exists to measure
     the difference on manifests of other sizes, where the two
     thresholds differ."""
+    cover_contact_tolerance: float = -1.0
+    """The cover rule reads the platform's placement rule, which penalises
+    a priority or soft item that another attribute *touches from above*.
+    The rule here vetoes a pose anywhere above such an item, whatever
+    the air between (a settled soft box beside the support can be a
+    couple of centimetres higher than planned).  At 0 or more, an item
+    whose top is further than this below the box's bottom is not
+    covered: 0.05 keeps the squashed-soft cases and frees the bridging
+    poses (a hard box resting on hard neighbours over a pocketed soft
+    box).  Negative: the old rule."""
     resort_soft_structure: bool = False
     """The physics resort lets soft tops carry soft cargo over the count
     threshold too (under it the count pass does already).  A Task B

@@ -29,6 +29,12 @@ class RuleAlphaAgent:
     def __init__(self, module_path: str = "", config=None, selector=None, wedge_option=None,
                  stack_option=None):
         self.config = config or DEFAULT_CONFIG
+        # the cover rule's contact tolerance (config.cover_contact_tolerance)
+        # lives on the stack module: its callers do not all carry a config
+        from wedge_rl import stack as _stack
+
+        tol = float(getattr(self.config, "cover_contact_tolerance", -1.0))
+        _stack.COVER_CONTACT_TOLERANCE = tol if tol >= 0.0 else None
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
         if selector is None and getattr(self.config, "rollout_selector", False):
