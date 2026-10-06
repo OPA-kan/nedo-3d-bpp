@@ -2512,8 +2512,21 @@ cargo that could bridge no longer lands on the special cargo's
 neighbours), more on A (the plans put hard boxes over the soft
 pockets and the settle closes the gap), and one episode collapsed on
 each suite -- a bridging box's support, by the size of the drops.
-Not adopted as is; a B/C-only form with the collapses understood is
-the follow-up.
+Not adopted as is.  The collapses, traced: no physics failure at all
+(no platform rejection, no topple); the ladder chose differently once
+the rule opened poses -- b-c2-s0003 put a soft box in an sp-cluster
+pose over a priority box with air between instead of a floor pocket,
+c-c2p-s0001 a priority box on top of a stack at 1.22 m instead of the
+floor -- and the loads then ran out of room 5-13 items earlier.  The
+stages' rankings were tuned under the strict rule and over-value what
+the contact reading lets through.  So the reading was tried in the
+physics resort alone (`resort_cover_tolerance` 0.05, the stages
+strict): B placed +0.25, fill +0.32, topples 16 -> 12, contact-covered
+14 -> 11, 48 of 48 (`rcover05-core-b`); C placed -0.58, soft -0.21,
+two crossings lost, topples 13 -> 17 (`rcover05-core`).  Noise on B,
+a loss on C: the bridging poses the resort finds on the two-container
+C scenes seal the room the count pass needs.  The switch stays off;
+the cover rule's slack is not where the points are.
 
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
