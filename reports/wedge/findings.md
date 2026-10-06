@@ -2714,7 +2714,27 @@ rows stack the soft gallery two deep); hard A 26 -> 26 crossings, soft
 share +0.022, placed -0.19 (`softcap07b-hard-a`).  With the gate at
 0.35 (`softgate35-*`): sample C changes on 9 scenes of 48 and loses
 0.33 items a scene (c-c2-s0005 -8, c-c2-s0011 -6; -0.03 priced), hard
-C 16 -> 17 crossings, placed +1.04, no forced pose, slowest call 5.5 s.
+C 16 -> 17 crossings, placed +1.04, no forced pose, slowest call 5.5 s;
+sample B changes on 6 scenes, -0.27 items (b-c2-s0011 -9; -0.01
+priced), 48 of 48; hard B 17 -> 19 (s0023, s0025, s0041 gained, s0047
+lost), placed +1.85, topples 19 -> 12, no forced pose, slowest call
+7.4 s.  The forms side by side, against v38:
+
+| form | hard C | hard B | sample C | sample B |
+|---|---|---|---|---|
+| uncapped | 16 -> 19, 7 forced poses | 17 -> 19 | +0.44, topples 13 -> 22 | |
+| cap 0.7, everywhere | 16 -> 18 | 17 -> 20 | +0.04, 48 -> 46 | |
+| cap 0.7, the ladder's | 16 -> 17 | 17 -> 20, +3.48 | +0.31, 48 -> 47 | -0.08, 48 -> 47 |
+| cap 0.7 and the 0.35 gate | 16 -> 17, +1.04 | 17 -> 19, +1.85 | -0.33, 48 -> 48 | -0.27, 48 -> 48 |
+
+The gated form is the one that keeps every sample crossing: what it
+costs there is a third of an item a scene on the two-container scenes
+(-0.03 and -0.01 priced), what it brings on the carpets is a crossing
+on C and two on B of 43-44, with the loads lower and fewer topples.
+v39 carries it (`soft_is_structure`, `soft_structure_max_top` 0.7,
+`soft_structure_floor_share` 0.35) with the generation deadline; the
+ungated cap's Task A gain (soft +0.40 a scene) is left for a build of
+its own.
 
 **The count pass before every decline** (`count_mode_always`, the
 cover-allowed resort whatever the 41-based estimate says;
