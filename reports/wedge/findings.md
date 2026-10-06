@@ -2604,13 +2604,18 @@ the declined item): two families.
   stops there (c-hard-s0034 declines at 73 of 258 with the pass off
   since 62, s0033 at 69 of 144, s0042 at 51 of 105).
 
-Two more things the suites show.  The policy time grows with the
-containers: the slowest call is 4.1 s on one container, 9.3 s on two,
-12.2 s on three on C (22 and 9 steps over the 4.5 s budget), 14.3 s on
-B with a pool of 3 and three containers (127 steps over budget on 33
-scenes, at every pool size from 3 to 20) -- against the platform's
-limit of 8 s on A and C and 10 s on B at 1.2x the runners' speed, a
-three-container case on the platform would lose steps.  And two B
+Two more things the suites show.  The policy time: the steps over
+the 4.5 s budget (C 31, B 127, A 5) are the physics resort's and the
+count pass's designed extra seconds (p99 5.3 s on C, 6.0 s on B), and
+B's slowest calls (14.3, 11.6, 10.8 s) are the terminal declines that
+run the count pass over every pool item -- harmless, the episode ends
+there anyway.  But two placing calls on C took 9.3 s (c-hard-s0013,
+two containers) and 12.2 s (c-hard-s0018, three): soft-edge decisions
+on soft carpets that went through the shade veto's fallback
+(`fallback-after-veto`), the C arm's only path B does not have (B's
+slowest placing call is 3.7 s), and at 1.2x the runners' speed both
+are past the platform's 8 s.  The veto's fallback on a floor of
+twenty soft boxes in two or three containers needs a cap.  And two B
 scenes end in a transport failure (b-hard-s0001, s0036), the first
 on any suite since the sweep mirror: both on the 0.80 x 0.60 x 0.50
 box in a scaled container.
