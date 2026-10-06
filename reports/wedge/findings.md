@@ -2614,8 +2614,16 @@ two containers) and 12.2 s (c-hard-s0018, three): soft-edge decisions
 on soft carpets that went through the shade veto's fallback
 (`fallback-after-veto`), the C arm's only path B does not have (B's
 slowest placing call is 3.7 s), and at 1.2x the runners' speed both
-are past the platform's 8 s.  The veto's fallback on a floor of
-twenty soft boxes in two or three containers needs a cap.  And two B
+are past the platform's 8 s.  Profiled (`scripts/profile_scene.py`,
+every policy call under cProfile, the slowest kept): the time is the
+physics resort's candidate generation, `stack_candidates` with the
+dense anchors over a floor of twenty soft boxes -- 113,000 poses
+validated in four generations of one call, each generation
+uninterruptible (the resort's guard only decides whether to *start*
+one).  `physics_resort_generation_deadline`: the generation stops at
+the resort's deadline less one shadow check and returns the poses it
+has (the lowest supports first).  c-hard-s0018 replayed locally: the
+slowest call 11.2 s -> 5.0 s, the same 59 items.  And two B
 scenes end in a transport failure, the first on any suite since the
 sweep mirror: b-hard-s0001 committed the 0.80 x 0.60 x 0.50 box to a
 pose its own shadow had failed (`transport_ok` false, no alternative;
