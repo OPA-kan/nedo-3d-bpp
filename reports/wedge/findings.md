@@ -2673,8 +2673,24 @@ at 0.8-1.5 m.  The slowest call also grew (16.3 s on c-hard-s0018,
 17.1 s on b-hard-s0018, the three-container small-first scenes).  So
 the height cap: `soft_structure_max_top`, a soft box carries load only
 when its top is at or below it (0.7 m: two or three soft layers, the
-carpet's relief, no column into the band the settle fails); running on
-the same three suites (`softcap07-*`).
+carpet's relief, no column into the band the settle fails).  With the
+cap everywhere, the count pass included (`softcap07-hard`,
+`softcap07-hard-b`, `softcap07-core`):
+
+| suite | over the threshold | placed a scene | CoM (pts on the scenes both cross) | topples | forced poses | slowest call |
+|---|---:|---:|---:|---:|---:|---:|
+| hard C | 16 -> 18 of 43 (none lost) | +1.17 | -0.019 (+0.41) | 17 -> 10 | 0 | 12.2 -> 6.0 s |
+| hard B | 17 -> 20 of 44 (two lost) | +1.79 | -0.007 (+0.15) | 18 -> 10 | 2 | 14.3 -> 12.6 s |
+| sample C | 48 -> 46 | +0.04 | -0.005 | 13 -> 15 | 0 | 3.3 -> 2.7 s |
+
+The cap keeps the carpet's relief (c-hard-s0014 and s0018 cross, B
+gains five) without the forced poses, and lowers the loads; but the
+sample C suite lost two crossings, c-c2p-s0001 41 -> 32 and c-c2-s0005
+-6: the cap also held the count pass, whose soft pile above 0.7 m is
+where those two episodes' count comes from (above, "The episodes under
+the count threshold").  So the cap is the ladder's alone: the resort
+and the count pass run uncapped, their poses judged one by one by the
+shadow (`softcap07b-*`, with the generation deadline below).
 
 **The count pass before every decline** (`count_mode_always`, the
 cover-allowed resort whatever the 41-based estimate says;
