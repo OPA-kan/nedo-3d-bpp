@@ -466,6 +466,20 @@ level to the digit, the optimize time back at v32's; the veto is
 worth nothing on the platform's Task C streams
 (`reports/submission/official-results.md`).
 
+Thirty-eighth build (v38): v37 with `resort_soft_structure` -- the
+physics resort lets soft tops carry soft cargo over the count
+threshold too (under it the count pass did already; the cover rule
+stays, so nothing hard goes on soft).  Task B ended with 6.9 soft
+boxes a scene in the pool and its soft share at 0.34 against 0.57 of
+the items placed; the 0.2 m soft boxes are the one class that threads
+the simulator's transport bands seven high.  B suite against the v32
+form (`softres-core-b`): soft +1.40 a scene (27 up, 2 down; share
+0.34 -> 0.41), placed +1.60, fill +1.25, CoM +0.005, topples 12 -> 16,
+48 of 48 over the threshold; C (`softres-core`): placed +0.31, soft
++0.15, topples 9 -> 13.  Official sample: A 32.11 / 25, B 27.28 / 25,
+C 26.44 / 25 (as v37: the sample's streams leave no soft in the pool);
+policy max B 4.60 s, optimize 21 s (`official-sample-abc-v38.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
