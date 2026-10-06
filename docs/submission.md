@@ -461,7 +461,10 @@ optimize 113 s -> 149 s, `reports/bench/manifest-probe-a.txt`), which
 is where v34's and v36's extra 24 s and their placement and soft dips
 came from.  Official sample: A 32.11 / 25, B 27.28 / 25 (v32's), C
 26.44 / 25 (the veto's); policy max B 4.93 s, optimize 21 s (v32's 20 s;
-`official-sample-abc-v37.json`).
+`official-sample-abc-v37.json`).  Official result 52.69 (v32 52.71):
+level to the digit, the optimize time back at v32's; the veto is
+worth nothing on the platform's Task C streams
+(`reports/submission/official-results.md`).
 
 ## Known limits
 

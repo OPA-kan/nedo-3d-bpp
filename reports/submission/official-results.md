@@ -27,6 +27,19 @@
 | v33 (1f5d1ac: v32 with the sweep-shade veto on Task C) | 37.81 | 63.39 | 75.21 | 44.35 | 35.65 | 0.6113 | 116.6 | 7.19 |
 | v34 (4b7e046: v32 with the planner's plan preferred on Task A, and the dry-run's scratch agent carrying the manifest) | 36.36 | 60.21 | 71.17 | 45.95 | 38.8 | 0.6023 | 136.5 | 7.25 |
 | v36 (1ca72af: v32's rule on Task A, the sweep-shade veto on Task C, the scratch agent carrying the manifest) | 37.96 | 63.23 | 75.19 | 47.8 | 36.2 | 0.6140 | 136.7 | 7.20 |
+| v37 (9e40ed2: v32 plus the sweep-shade veto on Task C alone, the scratch with the Task A exemptions and the 41-based threshold) | 38.01 | 63.27 | 75.26 | 48.25 | 36.75 | 0.6141 | 113.2 | 7.18 |
+
+v37's total was 52.69 (v32 52.71, -0.02): soft +0.15, stability +0.10,
+placement -0.25, fill -0.07, cog -0.04, the fraction placed 0.6148 ->
+0.6141 -- level to the digit, and the optimize time back at 113.2 s
+(v32 112.9): the 24 s of v34 and v36 were the scratch's manifest
+threshold, as read.  So the sweep-shade veto, alone, is worth nothing
+on the platform's Task C streams, where the suite had it at +2.0 items
+a scene, +1.8 fill and five more episodes of 48 over the threshold:
+neither the fill nor the four components moved, so the platform's C
+episodes are not the suite's door-walled ones.  The veto stays on (it
+costs nothing) and the suite's C scenes are not a measure of the
+platform's C on this.  The slowest call 7.18 s.
 
 v36's total was 52.51 (v32 52.71, -0.20): placement -0.7, soft -0.4,
 fill -0.12, cog -0.08, stability +0.03, the fraction placed 0.6148 ->
