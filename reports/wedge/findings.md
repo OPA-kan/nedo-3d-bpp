@@ -2485,6 +2485,35 @@ of CoM ratio) about +0.4 on the total from B and +0.1 from C.  The
 four more topples a suite are the risk; v33's C went from 21 topples
 to 9 with the platform's stability flat, so the proxy's price there
 is small or nil.  v38 carries it as its one change on the v37 form.
+On the A suite the same switch is placed +0.40, soft +0.38, fill +0.28
+(`softres-core-a` against `strictfirst-core-a`), 48 of 48; the
+bench's contact test (`contact_covered`, pybullet contact points from
+above by another attribute) counts 10 -> 14 covered items on B and 26
+-> 27 on C under it, a watch item.
+
+### The cover rule as contact from above: a probe
+
+The platform's placement rule penalises a priority or soft item that
+another attribute touches from above; the agent's cover rule vetoes a
+pose anywhere above such an item, whatever the air between (a settled
+soft box can stand a couple of centimetres higher than planned).
+`cover_contact_tolerance` 0.05: an item whose top is more than 5 cm
+under the box's bottom is not covered, so a hard box resting on hard
+neighbours over a pocketed soft box is a legal pose.  On the v38 form:
+
+| suite | placed | fill | soft / priority | contact-covered | over the threshold |
+|---|---:|---:|---:|---:|---:|
+| A (`cover05-core-a` vs `softres-core-a`) | +0.08 | +0.58 | -0.06 / -0.02 | 3 -> 8 | 48 -> 46 |
+| B (`cover05-core-b` vs `softres-core-b`) | +0.23 | +0.36 | +0.02 / -0.08 | 14 -> 9 | 48 -> 47 (b-c2-s0003 -13) |
+| C (`cover05-core` vs `softres-core`) | +0.15 | +0.30 | 0 / +0.10 | 27 -> 16 | 48 -> 47 (c-c2p-s0001 -5) |
+
+A little fill everywhere, fewer real contacts on B and C (the hard
+cargo that could bridge no longer lands on the special cargo's
+neighbours), more on A (the plans put hard boxes over the soft
+pockets and the settle closes the gap), and one episode collapsed on
+each suite -- a bridging box's support, by the size of the drops.
+Not adopted as is; a B/C-only form with the collapses understood is
+the follow-up.
 
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
