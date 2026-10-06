@@ -125,6 +125,8 @@ class _Fill:
             return False
         if lock is not None and rank != lock:
             return False  # nothing goes on soft or priority cargo but its own kind
+        if rank in (1, 2) and level < float(getattr(self.config, "layers_special_min_level", 0.5)) - 1e-9:
+            return False  # the special cargo takes the upper levels
         if level + dz > model.z_ceiling - (self.config.inclusion_clearance + self.config.anchor_slack) + 1e-9:
             return False
         return self.band_ok(model, level, dz)
@@ -306,7 +308,7 @@ class _Fill:
         rect = model.floor_rect
         gap = self.config.settled_clearance + self.config.anchor_slack
         y_back = rect.y_max
-        self.ranks = {0}
+        self.ranks = {0, 1, 2}
         for depth in depths:
             if time.perf_counter() >= deadline or not self.items:
                 break
@@ -316,10 +318,9 @@ class _Fill:
             if front >= y_back - 1e-9:
                 break
             y_back = front - gap
-        self.ranks = {0, 1, 2}
-        self.tops({1}, deadline)
-        self.tops({2}, deadline)
-        self.tops({0}, deadline)
+        cap = min(deadline, time.perf_counter() + float(getattr(self.config, "layers_tops_seconds", 8.0)))
+        self.tops({1, 2}, cap)
+        self.tops({0}, cap)
         return len(self.planned)
 
 
