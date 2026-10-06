@@ -254,6 +254,12 @@ OVERRIDES = dict(
     # running to a higher count on the platform's larger manifests:
     # a two-container 110-item probe took 149 s against 113).
     scratch_manifest_total=False,
+    # v38: the physics resort lets soft tops carry soft cargo over the
+    # count threshold too (rule_alpha/config.py).  Task B ended with 6.9
+    # soft boxes a scene in the pool; on the B suite soft +1.40 a scene
+    # (27 up, 2 down; share 0.34 -> 0.41), placed +1.60, fill +1.25,
+    # topples 12 -> 16, 48 of 48 over the threshold; C placed +0.31.
+    resort_soft_structure=True,
 )
 STACK_POLICY = "weights/stack"
 

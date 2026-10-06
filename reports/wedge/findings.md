@@ -2462,6 +2462,30 @@ single change after v34.  `v34-core-a` (the v32 A arm with the planner
 preferred) against `prefplan-core-a` (the v33 A arm with it) measures
 the leak with the race removed.
 
+### Soft cargo on soft tops over the threshold (v38)
+
+Task B ends with 6.9 soft boxes a scene in the pool and its soft share
+at 0.34 against 0.57 of the items placed.  Under the count threshold
+the resort's count pass lets soft tops carry soft cargo; over it the
+resort runs with the normal support rule (soft and priority tops are
+not support), the hard tops are taken, and the soft boxes have no
+pose -- a decline.  The small 0.2 m soft boxes are also the one class
+that threads the transport bands (tops 0.24, 0.44, 0.64, 0.84, 1.04,
+1.24, 1.44: seven high).  `resort_soft_structure`: the resort treats
+soft tops as structure for soft cargo over the threshold too, the
+cover rule kept (nothing hard goes on soft, which was v24's topples).
+
+| suite | placed | soft | soft share | fill | CoM | topples | priority covered | over the threshold |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| B (`softres-core-b` vs `v33-core-b`) | +1.60 (24 up, 3 down) | +1.40 (27 up, 2 down) | 0.34 -> 0.41 | +1.25 | +0.005 | 12 -> 16 | 8 -> 11 | 48 -> 48 |
+| C (`softres-core` vs `v33-core`) | +0.31 | +0.15 | 0.55 -> 0.56 | +0.29 | -0.001 | 9 -> 13 | 12 -> 9 | 48 -> 48 |
+
+At the platform's prices (soft 14.1 a unit of share, cog 0.22 a point
+of CoM ratio) about +0.4 on the total from B and +0.1 from C.  The
+four more topples a suite are the risk; v33's C went from 21 topples
+to 9 with the platform's stability flat, so the proxy's price there
+is small or nil.  v38 carries it as its one change on the v37 form.
+
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
 The leaderboard's top sits in the seventies.  The official evaluator
