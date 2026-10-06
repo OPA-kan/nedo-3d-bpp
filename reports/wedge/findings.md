@@ -2706,6 +2706,16 @@ only once soft boxes on its floor cover that share of it (the sample's
 floors carry 0-0.3 of soft at any time, the carpets 0.5-0.8 by the
 floor map above).
 
+The ladder-only cap on the other suites: sample B placed -0.08, soft
+-0.31, priority +0.10, one crossing lost (b-c2-s0001 -6;
+`softcap07b-core-b`); sample A placed +0.17, soft +0.40 a scene (share
+0.448 -> 0.482), topples 8 -> 6, 48 of 48 (`softcap07b-core-a`: the
+rows stack the soft gallery two deep); hard A 26 -> 26 crossings, soft
+share +0.022, placed -0.19 (`softcap07b-hard-a`).  With the gate at
+0.35 (`softgate35-*`): sample C changes on 9 scenes of 48 and loses
+0.33 items a scene (c-c2-s0005 -8, c-c2-s0011 -6; -0.03 priced), hard
+C 16 -> 17 crossings, placed +1.04, no forced pose, slowest call 5.5 s.
+
 **The count pass before every decline** (`count_mode_always`, the
 cover-allowed resort whatever the 41-based estimate says;
 `countalways-hard` against `v38-hard`, `countalways-core` against
