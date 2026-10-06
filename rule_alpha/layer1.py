@@ -4119,6 +4119,66 @@ def pool_order(pairs, config):
     return sorted(pairs, key=key)
 
 
+def floor_free_rects(board: "Board", config) -> list[Rect]:
+    """The empty rectangles on every container's floor, biggest first
+    (layer2.free_rectangles at the floor level)."""
+    out: list[Rect] = []
+    for container_idx in range(len(board.models)):
+        model = board.model(container_idx)
+        grid = board.grid(container_idx)
+        for rect, level_z in l2.free_rectangles(grid, model, config):
+            if abs(level_z - model.z_floor) < 1e-6:
+                out.append(rect)
+    return out
+
+
+def pool_order_fit(pairs, config, board: "Board"):
+    """Task B: the visible item that best fills a floor rectangle that
+    exists now goes first.
+
+    ``pool_order`` tries the hard cargo smallest first (``count_first``),
+    and on the hard B suite the floors ended 22-35 % free in strips 0.1-0.3
+    m wide with 30-170 items still in the stream and none of a pool of
+    twenty with a pose (reports/wedge/findings.md, "The hard suites"):
+    small boxes scattered over open floor leave the strips, and the big
+    boxes that come later have no rectangle.  Here each item's waste is
+    the smallest free floor rectangle its flattest orientations fit in
+    (with the settled clearance on both sides) less its footprint: a
+    small box whose best rectangle is a strip wastes little and goes
+    first, a small box on open floor wastes a lot and waits for the big
+    box the floor still takes.  Items with no floor rectangle keep the
+    size order after those with one; the class buckets are
+    ``pool_order``'s."""
+    rects = floor_free_rects(board, config)
+    gap = config.settled_clearance
+    bucket = {cls.NORMAL_HARD: 0, cls.PRIORITY: 2,
+              cls.SOFT_PRIORITY: 3, cls.SOFT: 4}
+
+    def waste(profile) -> float | None:
+        best = None
+        flattest = min(o.dz for o in profile.orientations)
+        for o in profile.orientations:
+            if o.dz > flattest + config.hole_fill_tier_tolerance:
+                continue
+            for rect in rects:
+                if l2.fits_with_clearance(rect.x_max - rect.x_min, rect.y_max - rect.y_min, o.dx, o.dy, gap):
+                    w = rect.area - o.dx * o.dy
+                    if best is None or w < best:
+                        best = w
+        return best
+
+    def key(pair):
+        position, profile = pair
+        rank = bucket[profile.cargo_class]
+        footprint = round(profile.max_footprint, 6)
+        w = waste(profile)
+        if w is None:
+            return (rank, 1, 0.0, footprint if getattr(config, "count_first", False) else -footprint, position)
+        return (rank, 0, round(w, 4), -footprint, position)
+
+    return sorted(pairs, key=key)
+
+
 def constructive_order(profiles: list[cls.ItemProfile], config,
                        model: ContainerModel | None = None) -> list[int]:
     """Rule-based stream order for Layer 1.

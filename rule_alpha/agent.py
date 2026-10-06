@@ -613,6 +613,11 @@ class RuleAlphaAgent:
             profiles.append((pool_index, profile))
 
         ordered = layer1.pool_order(profiles, self.config)
+        if len(profiles) > 1 and str(getattr(self.config, "pool_order_mode", "size")) == "fit":
+            try:
+                ordered = layer1.pool_order_fit(profiles, self.config, self.board)
+            except Exception as exc:
+                print(f"[pool-order] fit order failed: {exc!r}", flush=True)
         reserve = self._soft_headroom_reserve(containers)
         self.board.soft_headroom_reserve = reserve
         self.board.soft_headroom_reserve_by_container = {

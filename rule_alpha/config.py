@@ -318,6 +318,16 @@ class RuleAlphaConfig:
 
     The second of the three.  Same default and same reason."""
 
+    pool_order_mode: str = "size"
+    """Task B, which visible item the ladder tries first.  ``size``:
+    ``pool_order`` (the class buckets, then the footprint, smallest first
+    under ``count_first``).  ``fit``: ``pool_order_fit``, the item whose
+    flattest footprint wastes the least of a free floor rectangle that
+    exists now goes first (small boxes into the strips, big boxes while
+    the floor still has their rectangle); items with no floor rectangle
+    follow in the size order.  On the hard B suite the floors ended 22-35
+    % free in strips with none of a pool of twenty placeable."""
+
     shelf_skip_needs_column: bool = True
     """Exclude an item from the floor map only if it stands over a shelf.
 
