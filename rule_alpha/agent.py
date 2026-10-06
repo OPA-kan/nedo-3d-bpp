@@ -1779,6 +1779,25 @@ class RuleAlphaAgent:
         return value >= float(getattr(self.config, "count_mode_min_value", 2.0))
 
     def _physics_resort(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
+        """The resort under its own cover tolerance (config.resort_cover_tolerance):
+        the contact reading of the cover rule for the poses tried before a
+        decline only, where any pose that stands is worth having, while the
+        ladder's stages keep the strict rule their rankings were tuned with
+        (the tolerance in the stages opened soft and priority poses the
+        rankings over-valued: b-c2-s0003 45 -> 32 items)."""
+        from wedge_rl import stack as _stack
+
+        tol = float(getattr(self.config, "resort_cover_tolerance", -1.0))
+        if tol < 0.0:
+            return self._physics_resort_inner(ordered, pool, deadline, count)
+        saved = _stack.COVER_CONTACT_TOLERANCE
+        _stack.COVER_CONTACT_TOLERANCE = tol
+        try:
+            return self._physics_resort_inner(ordered, pool, deadline, count)
+        finally:
+            _stack.COVER_CONTACT_TOLERANCE = saved
+
+    def _physics_resort_inner(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
         any container, lowest and best supported first, tried in the shadow
         world until one stands (the sweep and the settle pass, no landing

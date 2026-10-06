@@ -1957,6 +1957,14 @@ class RuleAlphaConfig:
     covered: 0.05 keeps the squashed-soft cases and frees the bridging
     poses (a hard box resting on hard neighbours over a pocketed soft
     box).  Negative: the old rule."""
+    resort_cover_tolerance: float = -1.0
+    """``cover_contact_tolerance`` for the physics resort alone: the
+    bridging poses (a hard box on hard neighbours over a pocketed soft
+    box, with this much air) are tried before a decline, while the
+    ladder's stages keep the strict rule.  With the tolerance in the
+    stages too the rankings took soft and priority poses they over-value
+    (sp-cluster, a priority box high on a stack) and three episodes lost
+    4-13 items.  Negative: off."""
     resort_soft_structure: bool = False
     """The physics resort lets soft tops carry soft cargo over the count
     threshold too (under it the count pass does already).  A Task B
