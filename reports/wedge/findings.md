@@ -2616,9 +2616,15 @@ on soft carpets that went through the shade veto's fallback
 slowest placing call is 3.7 s), and at 1.2x the runners' speed both
 are past the platform's 8 s.  The veto's fallback on a floor of
 twenty soft boxes in two or three containers needs a cap.  And two B
-scenes end in a transport failure (b-hard-s0001, s0036), the first
-on any suite since the sweep mirror: both on the 0.80 x 0.60 x 0.50
-box in a scaled container.
+scenes end in a transport failure, the first on any suite since the
+sweep mirror: b-hard-s0001 committed the 0.80 x 0.60 x 0.50 box to a
+pose its own shadow had failed (`transport_ok` false, no alternative;
+a decline would have ended the episode the same way), and
+b-hard-s0013 a standing 0.55 x 0.40 x 0.24 box the shadow passed and
+the validator stopped against its neighbour at a distance of 3e-5 m
+-- the settled positions differ between the shadow and the official
+world by that much, and a pose with no clearance to its neighbour
+along the sweep is a coin toss.
 
 What this says about the platform's 52: if its cases carry more than
 41 items a container or open with the soft cargo, the arm is under the
