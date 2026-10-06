@@ -2641,6 +2641,36 @@ estimate); row depths and room classes from the stream seen rather
 than the sample's SKUs; and the per-container cost of the search
 capped so three containers fit in 8 s.
 
+**Soft columns** (`soft_is_structure` in the ladder's support model,
+the v38 arms otherwise; `softstruct-hard`, `softstruct-hard-b`,
+`softstruct-core` against `v38-hard`, `v38-hard-b`, `softres-core`):
+
+| suite | over the threshold | placed a scene | fill | topples | episodes ended on a forced pose |
+|---|---:|---:|---:|---:|---:|
+| hard C | 16 -> 19 of 43 | +1.75 | +1.4 | 20 -> 25 | 0 -> 7 (settle) |
+| hard B | 17 -> 19 of 44 | +1.85 | +1.5 | 27 -> 34 | 0 -> 2 (settle) |
+| sample C | 48 -> 48 | +0.44 | +0.42 | 13 -> 22 | 0 -> 0 |
+
+Where the carpet was, the columns pay: c-hard-s0007 38 -> 59 (over
+the threshold of 53), s0031 34 -> 52 (48), s0014 47 -> 64 (51), s0041
+55 -> 72 (59), s0013 37 -> 50, b-hard-s0041 26 -> 52, s0025 41 -> 63
+(51), s0024 23 -> 35 (32); soft-first on C 4 -> 7 of 10.  Where it
+was not, the columns cost: the ladder now ranks a pose on a soft top
+with the hard ones, builds soft columns three and four high, and when
+the shadow fails such a pose (the settle: a soft support sinks) and
+nothing else is found, the forced pose ends the episode -- c-hard-s0028
+at 28 against 51, s0017 at 47 against 61, s0038 28 against 35,
+b-hard-s0014 45 against 56; every failed pose a soft box on a soft top
+at 0.8-1.5 m.  The slowest call also grew (16.3 s on c-hard-s0018,
+17.1 s on b-hard-s0018, the three-container small-first scenes).  So
+the height cap: `soft_structure_max_top`, a soft box carries load only
+when its top is at or below it (0.7 m: two or three soft layers, the
+carpet's relief, no column into the band the settle fails); running on
+the same three suites (`softcap07-*`).
+
+**The count pass before every decline** (`count_mode_always`;
+`countalways-hard`, `countalways-core`): running.
+
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
 The leaderboard's top sits in the seventies.  The official evaluator
