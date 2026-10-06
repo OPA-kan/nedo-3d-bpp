@@ -2668,8 +2668,20 @@ when its top is at or below it (0.7 m: two or three soft layers, the
 carpet's relief, no column into the band the settle fails); running on
 the same three suites (`softcap07-*`).
 
-**The count pass before every decline** (`count_mode_always`;
-`countalways-hard`, `countalways-core`): running.
+**The count pass before every decline** (`count_mode_always`, the
+cover-allowed resort whatever the 41-based estimate says;
+`countalways-hard` against `v38-hard`, `countalways-core` against
+`softres-core`): on the hard C suite crossings 16 -> 17 (s0033 and
+s0038 gained, s0023 lost), placed -0.12 a scene -- the pass running
+past the estimate is not what the hard scenes lack; the floor is.
+On the scenes both arms cross it costs what it always costs,
+contact-covered boxes 22 -> 54 and CoM +0.021 (-0.46 points) for fill
++2.3.  On the sample C suite placed +2.31 a scene (36 up, 4 down),
+fill +2.7, soft +0.75, priority +0.35, against priority covered 9 ->
+34, soft covered 4 -> 29, CoM +0.015 and one crossing lost (c-c2-s0011
+-9): -0.08 net under the continuous pricing.  Not adopted; the
+estimate's error at 55-70 items a container is real but the pass is
+not the remedy.
 
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
