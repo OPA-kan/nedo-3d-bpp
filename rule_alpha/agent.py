@@ -1791,16 +1791,24 @@ class RuleAlphaAgent:
         (the tolerance in the stages opened soft and priority poses the
         rankings over-valued: b-c2-s0003 45 -> 32 items)."""
         from wedge_rl import stack as _stack
+        from . import stability as _stability
 
         tol = float(getattr(self.config, "resort_cover_tolerance", -1.0))
-        if tol < 0.0:
-            return self._physics_resort_inner(ordered, pool, deadline, count)
         saved = _stack.COVER_CONTACT_TOLERANCE
-        _stack.COVER_CONTACT_TOLERANCE = tol
+        if tol >= 0.0:
+            _stack.COVER_CONTACT_TOLERANCE = tol
+        # the height cap on soft cargo as structure is the ladder's (its
+        # rankings build soft columns the settle fails); the resort's
+        # poses the shadow judges one by one, and the count pass's soft
+        # pile is where the count comes from (c-c2p-s0001: 41 -> 32 with
+        # the cap in the resort, under the threshold)
+        saved_cap = _stability.SOFT_STRUCTURE_MAX_TOP
+        _stability.SOFT_STRUCTURE_MAX_TOP = None
         try:
             return self._physics_resort_inner(ordered, pool, deadline, count)
         finally:
             _stack.COVER_CONTACT_TOLERANCE = saved
+            _stability.SOFT_STRUCTURE_MAX_TOP = saved_cap
 
     def _physics_resort_inner(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in
