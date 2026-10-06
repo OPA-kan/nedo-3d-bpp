@@ -69,6 +69,21 @@ PRIORITY_CONTAINER_ROOM = True
 # priority cargo and the hard volume the soft galleries displace at
 # three times the soft score's +18.  Off: v18's loads again.
 SOFT_STRUCTURE = False
+# v39: soft cargo carries soft cargo in the ladder's support model again,
+# but only as the soft columns a soft carpet needs: a soft box counts as
+# structure when its top is at or below 0.7 m (soft_structure_max_top)
+# and once soft boxes on the container's floor cover 35 % of it
+# (soft_structure_floor_share); the resort and the count pass run
+# ungated, the shadow judging their poses.  The soft-first pass of v23
+# stays off.  Hard suites (reports/wedge/findings.md, "The hard
+# suites"): on soft-first and small-first streams the v38 arm laid the
+# soft cargo over 64-79 % of the floor and ended at a fill of 0.2-0.3
+# with the hard cargo without a pose; with the columns hard C 16 -> 17
+# of 43 feasible scenes over the threshold (+1.04 items a scene, no
+# forced pose, the slowest call 12.2 -> 5.5 s), hard B 17 -> 19 (+1.85,
+# topples 19 -> 12); the sample suites keep 48 of 48 crossings on B and
+# C and lose a third of an item a scene on the two-container scenes.
+SOFT_COLUMNS = True
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -133,7 +148,7 @@ OVERRIDES = dict(
     plan_standing=PLAN_STANDING, plan_standing_max_bottom=PLAN_STANDING_MAX_BOTTOM,
     plan_normal_in_priority_container=PRIORITY_CONTAINER_ROOM, plan_priority_deep_first=PRIORITY_CONTAINER_ROOM,
     cover_veto_ignores_shelf=PRIORITY_CONTAINER_ROOM, soft_headroom_per_container=PRIORITY_CONTAINER_ROOM,
-    soft_is_structure=SOFT_STRUCTURE, soft_first_when_free=SOFT_STRUCTURE,
+    soft_is_structure=SOFT_COLUMNS, soft_first_when_free=SOFT_STRUCTURE,
     stack_soft_min_support=STACK_SOFT_MIN_SUPPORT,
     # the two "safety fixes" of v9 (a tolerant re-check with a 2 cm nudge
     # at replay, the conservative transport model) cost 2.4 points on the
@@ -260,6 +275,14 @@ OVERRIDES = dict(
     # (27 up, 2 down; share 0.34 -> 0.41), placed +1.60, fill +1.25,
     # topples 12 -> 16, 48 of 48 over the threshold; C placed +0.31.
     resort_soft_structure=True,
+    # v39: the soft columns (SOFT_COLUMNS above): the height cap and the
+    # floor-share gate on soft cargo as structure in the ladder.  With it
+    # the physics resort's candidate generation stops at the resort's
+    # deadline (physics_resort_generation_deadline, on by default): on a
+    # three-container floor of twenty soft boxes one generation had
+    # 113,000 poses to validate, 11-12 s in one call against the
+    # platform's 8 s; inert on the sample's streams.
+    soft_structure_max_top=0.7, soft_structure_floor_share=0.35,
 )
 STACK_POLICY = "weights/stack"
 
