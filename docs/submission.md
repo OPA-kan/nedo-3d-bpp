@@ -485,6 +485,26 @@ act on in the platform's episodes, which the hard suites read as
 sitting under the threshold (`reports/wedge/findings.md`, "The hard
 suites").
 
+Thirty-ninth build (v39): v38 with the soft columns -- soft cargo
+carries soft cargo in the ladder's support model (`soft_is_structure`)
+under a height cap of 0.7 m (`soft_structure_max_top`) and only once
+soft boxes cover 35 % of the container's floor
+(`soft_structure_floor_share`); the resort and the count pass run
+ungated.  Built for the hard suites' soft carpet: on soft-first and
+small-first streams v38 laid the soft cargo over 64-79 % of the floor
+and ended at a fill of 0.2-0.3 with the hard cargo without a pose.
+Hard C 16 -> 17 of 43 feasible scenes over the threshold (+1.04 items
+a scene, no forced pose), hard B 17 -> 19 (+1.85, topples 19 -> 12);
+sample B and C keep 48 of 48 and lose a third of an item a scene on
+the two-container scenes (-0.01 / -0.03 priced); A untouched by the
+gate on the sample.  With it the physics resort's candidate generation
+stops at the resort's deadline (one call on a three-container soft
+carpet had 113,000 poses to validate: 11-12 s against the platform's
+8 s; inert on the sample).  Official sample: A 32.11 / 25, B 27.28 /
+25, C 26.44 / 25 (as v38 to the digit: the sample's floors never reach
+the gate); policy max B 4.53 s, C 3.92 s, optimize 25 s
+(`official-sample-abc-v39.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
