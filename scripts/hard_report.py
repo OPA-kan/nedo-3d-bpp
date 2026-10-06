@@ -75,3 +75,14 @@ if len(sys.argv) > 2:
     print(f"== paired {sys.argv[2]} - {sys.argv[1]} on {len(common)}: over {sum(a[s]['over'] for s in common)} -> {sum(b[s]['over'] for s in common)}, "
           f"placed {sum(b[s]['placed'] - a[s]['placed'] for s in common)/len(common):+.2f}, soft share {sum(b[s]['soft'] - a[s]['soft'] for s in common)/len(common):+.3f}, "
           f"prio share {sum(b[s]['prio'] - a[s]['prio'] for s in common)/len(common):+.3f}, value {sum(value(b[s]) - value(a[s]) for s in common)/len(common):+.2f}")
+    # the quality after the threshold: on the scenes both arms cross, the four priced components
+    both = [s for s in common if a[s]["over"] and b[s]["over"]]
+    if both:
+        n = len(both)
+        print(f"   over the threshold in both ({n} scenes): soft share {sum(b[s]['soft'] - a[s]['soft'] for s in both)/n:+.3f} ({14.1 * sum(b[s]['soft'] - a[s]['soft'] for s in both)/n:+.2f} pts), "
+              f"prio share {sum(b[s]['prio'] - a[s]['prio'] for s in both)/n:+.3f} ({14.3 * sum(b[s]['prio'] - a[s]['prio'] for s in both)/n:+.2f} pts), "
+              f"CoM {sum(b[s]['com'] - a[s]['com'] for s in both)/n:+.4f} ({-21.9 * sum(b[s]['com'] - a[s]['com'] for s in both)/n:+.2f} pts), "
+              f"fill {sum(b[s]['fill'] - a[s]['fill'] for s in both)/n:+.2f} ({0.287 * sum(b[s]['fill'] - a[s]['fill'] for s in both)/n:+.2f} pts), "
+              f"topples {sum(a[s]['topples'] for s in both)} -> {sum(b[s]['topples'] for s in both)}, contact-covered {sum(a[s]['contact'] for s in both)} -> {sum(b[s]['contact'] for s in both)}")
+        gained = [s for s in common if b[s]["over"] and not a[s]["over"]]; lost = [s for s in common if a[s]["over"] and not b[s]["over"]]
+        print(f"   crossings gained {gained}, lost {lost}")
