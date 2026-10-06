@@ -40,6 +40,7 @@ class RuleAlphaAgent:
 
         cap = float(getattr(self.config, "soft_structure_max_top", -1.0))
         _stability.SOFT_STRUCTURE_MAX_TOP = cap if cap >= 0.0 else None
+        _stability.SOFT_STRUCTURE_FLOOR_SHARE = float(getattr(self.config, "soft_structure_floor_share", 0.0))
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
         if selector is None and getattr(self.config, "rollout_selector", False):
@@ -1803,12 +1804,15 @@ class RuleAlphaAgent:
         # pile is where the count comes from (c-c2p-s0001: 41 -> 32 with
         # the cap in the resort, under the threshold)
         saved_cap = _stability.SOFT_STRUCTURE_MAX_TOP
+        saved_share = _stability.SOFT_STRUCTURE_FLOOR_SHARE
         _stability.SOFT_STRUCTURE_MAX_TOP = None
+        _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
         try:
             return self._physics_resort_inner(ordered, pool, deadline, count)
         finally:
             _stack.COVER_CONTACT_TOLERANCE = saved
             _stability.SOFT_STRUCTURE_MAX_TOP = saved_cap
+            _stability.SOFT_STRUCTURE_FLOOR_SHARE = saved_share
 
     def _physics_resort_inner(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """Every pose the geometry allows on the floor or a packed top, in

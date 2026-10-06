@@ -2690,7 +2690,21 @@ sample C suite lost two crossings, c-c2p-s0001 41 -> 32 and c-c2-s0005
 where those two episodes' count comes from (above, "The episodes under
 the count threshold").  So the cap is the ladder's alone: the resort
 and the count pass run uncapped, their poses judged one by one by the
-shadow (`softcap07b-*`, with the generation deadline below).
+shadow (`softcap07b-*`, with the generation deadline below): hard C
+16 -> 17 crossings (s0014 gained), placed +0.54, one forced pose
+(c-hard-s0002, 71 -> 62), slowest call 7.7 s; hard B 17 -> 20 (s0018,
+s0023, s0025, s0041 gained, s0047 lost), placed +3.48, priority share
++0.026, slowest call 7.0 s; sample C placed +0.31, CoM -0.003, topples
+13 -> 14, and c-c2p-s0001 51 -> 42 again.  That scene loses 7-9 items
+under every form of the rule (uncapped 44, capped 42, ladder-only 42),
+c-c2-s0005 3-6 and c-c2-s0002 3: on the sample's interleaved streams
+the ladder's soft-on-soft poses take the two-container scenes' room,
+whatever the cap.  The gains are the carpets' and the losses the
+sample's, so the rule is made the stream's:
+`soft_structure_floor_share`, soft cargo carries load in a container
+only once soft boxes on its floor cover that share of it (the sample's
+floors carry 0-0.3 of soft at any time, the carpets 0.5-0.8 by the
+floor map above).
 
 **The count pass before every decline** (`count_mode_always`, the
 cover-allowed resort whatever the 41-based estimate says;

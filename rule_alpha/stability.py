@@ -65,7 +65,7 @@ class _Structure:
         self.sets: dict = {}
 
     def arrays(self, priority_is_structure: bool, soft_is_structure: bool):
-        key = (bool(priority_is_structure), bool(soft_is_structure), SOFT_STRUCTURE_MAX_TOP)
+        key = (bool(priority_is_structure), bool(soft_is_structure), SOFT_STRUCTURE_MAX_TOP, SOFT_STRUCTURE_FLOOR_SHARE)
         got = self.sets.get(key)
         if got is None:
             surfaces = _surfaces(self.container, key[0], key[1])
@@ -87,9 +87,39 @@ crossings) and the poses the shadow failed were all on soft tops at
 pose, c-hard-s0028 at 28 of the 51 the hard-only rule placed)."""
 
 
+SOFT_STRUCTURE_FLOOR_SHARE: float = 0.0
+"""With ``soft_is_structure``, soft cargo carries load in a container only
+once soft boxes on its floor cover this share of the floor (0: from the
+start).  The agent sets it from ``config.soft_structure_floor_share``.
+The soft carpet is the case for soft columns; on the sample's streams
+(soft a third, interleaved) the ladder's soft-on-soft poses cost the
+two-container scenes 3-9 items (c-c2p-s0001 51 -> 42)."""
+
+
 def _soft_carries(packed) -> bool:
     cap = SOFT_STRUCTURE_MAX_TOP
     return cap is None or float(packed.maximum[2]) <= cap
+
+
+def soft_floor_share(container: dict) -> float:
+    """The share of the floor (without the chamfer) under soft boxes resting
+    on it."""
+    t = float(container["thickness"])
+    floor_z = t + float(container.get("buffer", 0.0))
+    area = max(1e-9, (float(container["length"]) - float(container.get("cut_x", 0.0)) - 2 * t)
+               * (float(container["width"]) - 2 * t))
+    covered = 0.0
+    for packed, is_soft, _p in packed_aabbs_local(container):
+        if is_soft and float(packed.minimum[2]) <= floor_z + 0.06:
+            covered += float(packed.maximum[0] - packed.minimum[0]) * float(packed.maximum[1] - packed.minimum[1])
+    return covered / area
+
+
+def _soft_structure_here(container: dict, soft_is_structure: bool) -> bool:
+    if not soft_is_structure:
+        return False
+    share = SOFT_STRUCTURE_FLOOR_SHARE
+    return share <= 0.0 or soft_floor_share(container) >= share
 
 
 def _surfaces(container: dict, priority_is_structure: bool, soft_is_structure: bool) -> list:
@@ -102,6 +132,7 @@ def _surfaces(container: dict, priority_is_structure: bool, soft_is_structure: b
         )
     ]
     surfaces.extend(shelf_aabbs(container))
+    soft_is_structure = _soft_structure_here(container, soft_is_structure)
     for packed, is_soft, is_prioritized in packed_aabbs_local(container):
         if (is_soft and not (soft_is_structure and _soft_carries(packed))) \
                 or (is_prioritized and not priority_is_structure):
@@ -153,6 +184,7 @@ def _contact_patches_reference(box: AABB, container: dict, tolerance: float,
         )
     ]
     surfaces.extend(shelf_aabbs(container))
+    soft_is_structure = _soft_structure_here(container, soft_is_structure)
     for packed, is_soft, is_prioritized in packed_aabbs_local(container):
         if (is_soft and not (soft_is_structure and _soft_carries(packed))) \
                 or (is_prioritized and not priority_is_structure):

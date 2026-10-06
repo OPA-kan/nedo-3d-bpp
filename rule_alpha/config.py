@@ -1468,6 +1468,17 @@ class RuleAlphaConfig:
     -> 25 (the sample suite 13 -> 22).  A cap keeps the columns to the
     two or three layers the carpet needs."""
 
+    soft_structure_floor_share: float = 0.0
+    """With ``soft_is_structure``, soft cargo carries load in a container
+    only once the soft boxes on its floor cover this share of the floor
+    (0: from the first item).  The soft carpet is the case for soft
+    columns (hard C soft-first scenes: +13 to +21 items); on the sample's
+    streams (soft a third, interleaved) the ladder's soft-on-soft poses
+    cost the two-container scenes 3-9 items (c-c2p-s0001 51 -> 42,
+    c-c2-s0005 51 -> 45, with or without the height cap).  The share
+    makes the rule the stream's: the sample's floors carry 0-0.3 of soft
+    at any time, the carpets 0.5-0.8."""
+
     stack_soft_is_structure: bool = True
     """Off, the stack option judges its poses with soft cargo carrying no
     load whatever ``soft_is_structure`` says.  On the Task C physics suite
