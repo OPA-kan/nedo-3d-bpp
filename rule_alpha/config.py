@@ -1947,6 +1947,17 @@ class RuleAlphaConfig:
     threshold of 41 items a container -- the switch exists to measure
     the difference on manifests of other sizes, where the two
     thresholds differ."""
+    resort_soft_structure: bool = False
+    """The physics resort lets soft tops carry soft cargo over the count
+    threshold too (under it the count pass does already).  A Task B
+    episode ends with 6.9 soft boxes a scene in the pool and the soft
+    share at 0.34 against 0.57 of the items placed: over the threshold
+    the resort finds no pose for them, since soft tops are not support
+    and the hard tops are taken.  A soft box is worth 14.1 / soft_total
+    of its episode (about 0.9) and the small 0.2 m soft boxes are the
+    one class that threads the transport bands (tops 0.24, 0.44, 0.64,
+    0.84, 1.04, 1.24, 1.44: seven high).  The cover rule stays, so
+    nothing hard goes on soft (v24's topples)."""
     scratch_manifest_total: bool = True
     """With the manifest in the scratch, its count threshold comes from
     the manifest's total; off, the scratch keeps the Task A exemptions

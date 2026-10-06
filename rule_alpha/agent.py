@@ -1801,6 +1801,11 @@ class RuleAlphaAgent:
         if count:
             cfg = dataclasses.replace(cfg, allow_cover_other_attribute=True, soft_is_structure=True,
                                       stack_soft_is_structure=True)
+        elif getattr(strict, "resort_soft_structure", False):
+            # over the threshold too, soft tops carry soft cargo in the
+            # resort (config.resort_soft_structure): the cover rule stays,
+            # so only soft goes on soft, and the shadow judges the stack
+            cfg = dataclasses.replace(cfg, soft_is_structure=True, stack_soft_is_structure=True)
 
         def room(generating: bool = False) -> bool:
             # a candidate generation is not interruptible (0.3-0.9 s a
