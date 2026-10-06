@@ -2736,6 +2736,35 @@ v39 carries it (`soft_is_structure`, `soft_structure_max_top` 0.7,
 ungated cap's Task A gain (soft +0.40 a scene) is left for a build of
 its own.
 
+**Task B's pool against Task C's stream.**  On the hard suites, the
+same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
+items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
+the suite's B average hides the pool sizes.  B's episodes end with 30
+to 170 items still in the stream, every item of the pool without a
+pose (b-hard-s0036: 28 of 175 placed, 127 in the stream, none of the
+20 visible placeable), and the agent does use the pool's depth (65 %
+of its choices at the fifth visible item or deeper on the sample's
+pool of ten): the room ends, not the choice.
+
+**The pool order by fit** (`pool_order_mode` = fit: the visible item
+whose flattest footprint wastes the least of a free floor rectangle
+that exists now goes first, small boxes into the strips and big boxes
+while the floor has their rectangle; items with no floor rectangle in
+the size order after; `poolfit-hard-b`, `poolfit-core-b` against the
+v39 arms): negative on both suites.  Sample B placed -0.96 a scene (17
+up, 23 down; b-c2p-s0011 -18), soft -0.52, priority -0.29, 48 -> 46
+crossings, -0.81 priced; hard B 19 -> 14 crossings (six lost, one
+gained), placed -1.52, and the loss sits on the pools of 10 and 20
+(5 -> 2 and 7 -> 5 crossings) while the pool of 3 gained one.  The
+order sends the big boxes to the open floor first (their waste there
+is the least), and the ladder's rows and terraces, built from the
+small cargo it would have taken first, never form; the soft cargo
+waits longer still.  Not adopted; the switch stays at `size`.  What
+the B end states say stands: the pool's choice is not what binds, the
+room is, and a pool strategy has to make room (rows of one depth from
+the pool's items) rather than pick the item for the room that is
+left.
+
 **The count pass before every decline** (`count_mode_always`, the
 cover-allowed resort whatever the 41-based estimate says;
 `countalways-hard` against `v38-hard`, `countalways-core` against
