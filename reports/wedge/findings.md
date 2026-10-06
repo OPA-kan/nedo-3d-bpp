@@ -2528,6 +2528,108 @@ a loss on C: the bridging poses the resort finds on the two-container
 C scenes seal the room the count pass needs.  The switch stays off;
 the cover rule's slack is not where the points are.
 
+### The hard suites: situations the sample does not show, and where the v38 arm breaks
+
+The C suite did not predict the platform twice (v33, v37), and the
+README says the platform's cases differ from the sample in the
+containers, the counts, the mix and the order.  `bench/scenes.py`'s
+`make_hard_scene` draws a situation from a seed: one to three
+containers scaled from the ULDs (length 0.85-1.25x, width 0.85-1.15x,
+height 0.85-1.2x, the chamfer 0.7-1.3x, a shelf at p = 0.4, a priority
+container at p = 0.4), 28 / 41 / 55 / 70 items a sample-ULD volume
+(31 to 258 items a scene), the soft share 10-60 %, the priority rate
+0-30 %, the mix the sample's, big-heavy (with a 0.80 x 0.60 x 0.50
+22 kg box), small (with a 0.35 x 0.25 x 0.15 box) or extra (both and a
+0.40 x 0.40 x 0.60 soft box), the stream in random, big-first,
+small-first, soft-first or soft-last order, and a Task B pool of 3, 5,
+10 or 20.  Suites `hard`, `hard-b`, `hard-a`: 48 seeds each.  The
+official env ends the episode at the first item that is not placed,
+so a scene's threshold is reachable only if the stream's first
+threshold-many items fit (with a pool of p, the smallest threshold-many
+of the first thr + p - 1): `scripts/hard_report.py` regenerates the
+scene from the seed and marks the five scenes a suite (big mix,
+big-first or random order) where they do not fit at 65 % of the
+container's volume.  On the other 43 the v38 arms (`v38-hard`,
+`v38-hard-b`, `v38-hard-a`, 4.5 s budget):
+
+| suite | over the threshold | placed share | soft / priority share | fill | value a scene | slowest call |
+|---|---:|---:|---:|---:|---:|---:|
+| C | 16 of 43 | 0.49 | 0.55 / 0.58 | 34.2 | 29 | 12.2 s |
+| B | 17 of 44 | 0.49 | 0.45 / 0.62 | 34.0 | 28 | 14.3 s |
+| A | 26 of 43 | 0.53 | 0.35 / 0.83 | 35.3 | 39 | 5.2 s |
+
+The sample suites cross on 48 of 48.  What decides it is the count a
+container: at 28 items a sample-ULD volume the arm crosses 6 of 7 on
+C (7 of 7 on B), at 41 9 of 21, at 55 1 of 12, at 70 0 of 8 -- the
+sample's 41 is the second-easiest of the four, and above it the fill
+the threshold needs (the first threshold-many items' volume over the
+container's) is 0.3-0.5 against the 0.35-0.45 the arm packs before it
+declines.  By the order: big-first 0 of 7 (five infeasible), random 6
+of 15, small-first 3 of 9, soft-first 4 of 10, soft-last 3 of 7; by
+the mix: big 1 of 12, extra 1 of 9, sample 10 of 18, small 4 of 9.
+The containers' number, the shelves, the priority container and the
+priority rate change little.  Task A crosses ten more than C because
+the manifest sets the count and the rows plan the floor; it still
+loses 17 of 43.
+
+The end states, floor by floor (`scripts/hard_floor_map.py`: the
+floor's occupancy without the chamfer, the largest empty rectangle,
+the declined item): two families.
+
+* **The soft carpet.**  On the eleven C scenes in soft-first or
+  small-first order (the sample's three smallest boxes are soft, so
+  small-first is soft-first), soft boxes cover 64-79 % of the floor
+  when the episode ends at a fill of 0.19-0.30, with 20-29 soft boxes
+  on the floor and the hard cargo that follows without a pose (the
+  cover rule keeps it off soft, soft is not support): c-hard-s0013
+  ends at 37 of 61 (fill 0.19, 77 % of one floor soft), s0017 at 61 of
+  86, s0041 at 55 of 59.  The pocket guard was built for the sample's
+  one soft box in three arriving among hard ones; a stream that opens
+  with thirty soft boxes needs them in columns or in the upper band,
+  which the ladder's support model forbids (`soft_is_structure` off:
+  soft on soft is "no-support").  Task A does not have the family (the
+  rows put the soft cargo on top of the hard stack): a-hard-s0013
+  places 47, s0034 103 against C's 37 and 73.
+* **The fragmented floor.**  On the rest the floor is 22-35 % free at
+  the end, in strips 0.1-0.3 m wide between rows and along the walls
+  (the largest empty rectangle fits the declined item on 3 of 27
+  scenes), as on the sample suite at v18 (above, "Where Task C
+  stops"), but at the hard suite's counts the strips are the
+  threshold: c-hard-s0033 ends at 69 of 73 with a quarter of each of
+  three floors free, s0042 at 51 of 53, s0048 at 20 of 21.  The row
+  depths (0.56, 0.45, 0.40), the room classes and the count-mode
+  estimate (41 items a container, the threshold at 21) are the
+  sample's numbers; with 55 or 70 items a container the arm takes
+  itself over the threshold at 21 a container and the count pass
+  stops there (c-hard-s0034 declines at 73 of 258 with the pass off
+  since 62, s0033 at 69 of 144, s0042 at 51 of 105).
+
+Two more things the suites show.  The policy time grows with the
+containers: the slowest call is 4.1 s on one container, 9.3 s on two,
+12.2 s on three on C (22 and 9 steps over the 4.5 s budget), 14.3 s on
+B with a pool of 3 and three containers (127 steps over budget on 33
+scenes, at every pool size from 3 to 20) -- against the platform's
+limit of 8 s on A and C and 10 s on B at 1.2x the runners' speed, a
+three-container case on the platform would lose steps.  And two B
+scenes end in a transport failure (b-hard-s0001, s0036), the first
+on any suite since the sweep mirror: both on the 0.80 x 0.60 x 0.50
+box in a scaled container.
+
+What this says about the platform's 52: if its cases carry more than
+41 items a container or open with the soft cargo, the arm is under the
+threshold on a share of them, and the scores stuck at 52-53 from v32
+to v38 while the sample suite crossed 48 of 48 are consistent with
+that.  The first stream-independent fixes, in the order of their
+expected worth: soft columns (`soft_is_structure` in the ladder, the
+pocket guard extended to the share of the floor soft may take),
+measured on `hard`/`hard-b` and on the sample suites for the
+regression (running: `softstruct-hard`, `softstruct-hard-b`,
+`softstruct-core`); a count-mode estimate that does not stop at the
+sample's 21 (the count pass while the floor is not full, whatever the
+estimate); row depths and room classes from the stream seen rather
+than the sample's SKUs; and the per-container cost of the search
+capped so three containers fit in 8 s.
+
 ### What the top of the leaderboard is made of, and a layer packer that was not it
 
 The leaderboard's top sits in the seventies.  The official evaluator

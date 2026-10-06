@@ -37,6 +37,18 @@ C では manifest が渡らないので、同じ規則でも結果は変わり�
 
 既配置荷物ありの初期状態は未対応です（生成には物理で settle した合法配置が要り、別途作ります）。
 
+### hard suite（`hard`, `hard-b`, `hard-a`）
+
+sample に無い状況を seed から引く suite です（`make_hard_scene`）。コンテナ 1〜3 台（ULD を
+長さ 0.85〜1.25 倍・幅 0.85〜1.15 倍・高さ 0.85〜1.2 倍・面取り 0.7〜1.3 倍に伸縮、棚 p=0.4、
+priority 専用 p=0.4）、荷物数は sample-ULD 体積あたり 28/41/55/70 個、soft 比率 10〜60 %、
+priority 率 0〜30 %、SKU 構成は sample / big（0.80×0.60×0.50、22 kg）/ small（0.35×0.25×0.15）/
+extra（両方＋0.40×0.40×0.60 soft）、荷物列は random / big-first / small-first / soft-first /
+soft-last、B の pool は 3/5/10/20。48 seed ずつ。公式 env は置けない荷物が出た時点で終わるので、
+到達可能な閾値かどうかは荷物列の先頭 thr 個の体積で決まります。`scripts/hard_report.py <dir>`
+が seed からシーンを再生成してその判定（体積 65 % で可否）と状況別の閾値到達率を出し、
+`scripts/hard_floor_map.py <dir>` が終端の床占有（soft の絨毯、空き矩形、拒否荷物）を出します。
+
 ## 2. 終端量（`bench/metrics.py`）
 
 すべて PyBullet の settle 後の状態から読みます。計画側の意図は使いません。
