@@ -1456,6 +1456,18 @@ class RuleAlphaConfig:
     ten in the pool, every pose on them "no-support".  The cover veto
     keeps hard cargo off it."""
 
+    soft_structure_max_top: float = -1.0
+    """With ``soft_is_structure``, a soft box carries load only when its
+    top is at or below this height (m, container frame; negative: any
+    height).  The hard suites (findings, "The hard suites"): soft as
+    structure in the ladder relieved the soft carpet (C placed +1.75 a
+    scene, 16 -> 19 crossings; B +1.85, 17 -> 19; the sample C suite
+    +0.44) and built soft columns three and four high whose poses the
+    shadow failed at 0.8-1.5 m -- seven C episodes ended on a forced
+    pose, c-hard-s0028 at 28 against 51, and the shake topples rose 20
+    -> 25 (the sample suite 13 -> 22).  A cap keeps the columns to the
+    two or three layers the carpet needs."""
+
     stack_soft_is_structure: bool = True
     """Off, the stack option judges its poses with soft cargo carrying no
     load whatever ``soft_is_structure`` says.  On the Task C physics suite

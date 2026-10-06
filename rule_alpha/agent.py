@@ -35,6 +35,11 @@ class RuleAlphaAgent:
 
         tol = float(getattr(self.config, "cover_contact_tolerance", -1.0))
         _stack.COVER_CONTACT_TOLERANCE = tol if tol >= 0.0 else None
+        # the height cap on soft cargo as structure, likewise on its module
+        from . import stability as _stability
+
+        cap = float(getattr(self.config, "soft_structure_max_top", -1.0))
+        _stability.SOFT_STRUCTURE_MAX_TOP = cap if cap >= 0.0 else None
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
         if selector is None and getattr(self.config, "rollout_selector", False):

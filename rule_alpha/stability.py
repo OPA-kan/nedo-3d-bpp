@@ -65,7 +65,7 @@ class _Structure:
         self.sets: dict = {}
 
     def arrays(self, priority_is_structure: bool, soft_is_structure: bool):
-        key = (bool(priority_is_structure), bool(soft_is_structure))
+        key = (bool(priority_is_structure), bool(soft_is_structure), SOFT_STRUCTURE_MAX_TOP)
         got = self.sets.get(key)
         if got is None:
             surfaces = _surfaces(self.container, key[0], key[1])
@@ -76,6 +76,20 @@ class _Structure:
 
 
 _STRUCTURE_CACHE: dict = {}
+
+SOFT_STRUCTURE_MAX_TOP: float | None = None
+"""With ``soft_is_structure``, a soft box carries load only when its top is
+at or below this height (m, container frame; None: any height).  The agent
+sets it from ``config.soft_structure_max_top``.  On the hard suites soft
+columns relieved the soft carpet (C +1.75 items a scene, three more
+crossings) and the poses the shadow failed were all on soft tops at
+0.8-1.5 m, columns three and four high (seven episodes ended on a forced
+pose, c-hard-s0028 at 28 of the 51 the hard-only rule placed)."""
+
+
+def _soft_carries(packed) -> bool:
+    cap = SOFT_STRUCTURE_MAX_TOP
+    return cap is None or float(packed.maximum[2]) <= cap
 
 
 def _surfaces(container: dict, priority_is_structure: bool, soft_is_structure: bool) -> list:
@@ -89,7 +103,8 @@ def _surfaces(container: dict, priority_is_structure: bool, soft_is_structure: b
     ]
     surfaces.extend(shelf_aabbs(container))
     for packed, is_soft, is_prioritized in packed_aabbs_local(container):
-        if (is_soft and not soft_is_structure) or (is_prioritized and not priority_is_structure):
+        if (is_soft and not (soft_is_structure and _soft_carries(packed))) \
+                or (is_prioritized and not priority_is_structure):
             continue  # deforms under load, so it is not structure
         surfaces.append(packed)
     return surfaces
@@ -139,7 +154,8 @@ def _contact_patches_reference(box: AABB, container: dict, tolerance: float,
     ]
     surfaces.extend(shelf_aabbs(container))
     for packed, is_soft, is_prioritized in packed_aabbs_local(container):
-        if (is_soft and not soft_is_structure) or (is_prioritized and not priority_is_structure):
+        if (is_soft and not (soft_is_structure and _soft_carries(packed))) \
+                or (is_prioritized and not priority_is_structure):
             continue  # deforms under load, so it is not structure
         surfaces.append(packed)
 
