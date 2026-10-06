@@ -479,6 +479,11 @@ form (`softres-core-b`): soft +1.40 a scene (27 up, 2 down; share
 +0.15, topples 9 -> 13.  Official sample: A 32.11 / 25, B 27.28 / 25,
 C 26.44 / 25 (as v37: the sample's streams leave no soft in the pool);
 policy max B 4.60 s, optimize 21 s (`official-sample-abc-v38.json`).
+Official result 52.54 (v37 52.69): level, a hair under (placement
+-0.45, soft -0.30); the soft pass over the threshold has nothing to
+act on in the platform's episodes, which the hard suites read as
+sitting under the threshold (`reports/wedge/findings.md`, "The hard
+suites").
 
 ## Known limits
 

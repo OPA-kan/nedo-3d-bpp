@@ -28,6 +28,23 @@
 | v34 (4b7e046: v32 with the planner's plan preferred on Task A, and the dry-run's scratch agent carrying the manifest) | 36.36 | 60.21 | 71.17 | 45.95 | 38.8 | 0.6023 | 136.5 | 7.25 |
 | v36 (1ca72af: v32's rule on Task A, the sweep-shade veto on Task C, the scratch agent carrying the manifest) | 37.96 | 63.23 | 75.19 | 47.8 | 36.2 | 0.6140 | 136.7 | 7.20 |
 | v37 (9e40ed2: v32 plus the sweep-shade veto on Task C alone, the scratch with the Task A exemptions and the 41-based threshold) | 38.01 | 63.27 | 75.26 | 48.25 | 36.75 | 0.6141 | 113.2 | 7.18 |
+| v38 (162e110: v37 plus soft cargo on soft tops in the physics resort over the threshold) | 37.95 | 63.26 | 75.15 | 47.8 | 36.45 | 0.6140 | 116.0 | 7.21 |
+
+v38's total was 52.54 (v37 52.69, -0.15): placement -0.45, soft -0.30,
+stability -0.11, fill -0.06, cog -0.01, the fraction placed 0.6141 ->
+0.6140 -- level, a hair under, where the B suite had the soft-on-soft
+resort worth soft +1.40 a scene (the soft share 0.34 -> 0.41) and
+placed +1.60, and the C suite +0.31.  The resort's soft pass runs only
+in episodes over the count threshold, so on the platform either those
+episodes have no soft cargo left in the pool when the hard cargo runs
+out, or there are few of them: the hard suites (findings, "The hard
+suites") have the v38 arm under the threshold on 27 of 43 feasible C
+scenes and 27 of 44 B scenes once the count a container, the mix or
+the order leave the sample's, and a platform whose B and C episodes
+sit there would show exactly this -- six builds from v32 to v38 moving
+the suites and not the total.  The slowest call 7.21 s, optimize
+116.0 s.  The switch stays (it costs nothing on the sample's streams);
+the next builds go after the count.
 
 v37's total was 52.69 (v32 52.71, -0.02): soft +0.15, stability +0.10,
 placement -0.25, fill -0.07, cog -0.04, the fraction placed 0.6148 ->
