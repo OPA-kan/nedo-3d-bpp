@@ -2820,6 +2820,19 @@ that survives the early misses (the plan's hard rows re-anchored on
 the board as it stands, or the soft gallery of each container played
 right after that container's rows).
 
+**Task B without the cap and the gate** (the v39 B arm with soft as
+structure uncapped and ungated, the form that opened Task A's gallery;
+`softnocap-core-b` against `softgate35-core-b`): placed +0.40, soft
++0.08 a scene (share 0.402 -> 0.404), fill +0.22, topples 19 -> 27,
+48 of 48, the gaps unchanged (median 4.8 -> 4.7 cm).  The online
+ladder does not build a soft gallery on its own when the support
+model allows it: its soft archetypes put a soft box on an edge, a
+shelf or a top as the item arrives, one at a time, and the pool order
+plays the soft cargo after the hard.  A second soft layer on B needs
+a rule that builds it (the soft cargo in the pool stacked on the soft
+already placed once the hard rows are done), not a support model that
+permits it.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
