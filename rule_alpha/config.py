@@ -1867,6 +1867,21 @@ class RuleAlphaConfig:
     the rest of its depth: on a-c1-s0003 the plan had 8 of 17 soft items
     with a third of the height unused."""
 
+    plan_soft_structure_variants: str = ""
+    """Task A: soft cargo as structure in the planner as a variant axis
+    ("off,on": the plan with the soft gallery one layer deep, then the
+    plan with it two deep, soft on soft with no height cap and no floor
+    gate), the plans compared by the plan score as the other variants
+    are, and a two-deep plan eligible only when it holds the count
+    threshold plus ``plan_value_margin`` items.  A suite (v39 form,
+    `asoft-nocap-core-a`, `asoft-both-core-a`): the two-deep plans
+    place 1.5-1.9 items more a scene with the soft share 0.45 -> 0.59-
+    0.63 (+0.8-0.9 on the total from A's third); hard A suite
+    (`asoft-both-hard-a`): on the larger manifests they trade hard
+    cargo for soft and lose crossings (a-hard-s0041 74 -> 57 of 59,
+    s0034 103 -> 63), -0.20.  Empty: the configured
+    ``soft_is_structure`` alone."""
+
     plan_layout_variants: str = ""
     """Layout scorings the planner tries as variants, each against the
     whole budget like the priority orders: "floor" (the floor layer's

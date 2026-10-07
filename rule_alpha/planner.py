@@ -499,8 +499,23 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # search gains 9 items on a shelf-container scene and loses 3-5 on the
     # two-container ones, so both are planned and the plan score chooses
     modes = [m for m in re.split(r"[,+|]", str(getattr(config, "plan_layout_variants", "") or "")) if m] or [None]
-    variants = [(o, li, s, m) for li in range(layouts) for m in modes for s in sizes for o in orders]
+    # soft cargo as structure as a variant too ("off,on": the plan with
+    # the soft gallery one layer deep first, then two deep): on the A
+    # suite the two-deep plans hold 1.9 items and 0.18 of the soft share
+    # more, on the hard A suite's larger manifests they trade the hard
+    # cargo for soft and lose crossings (a-hard-s0041 74 -> 57 of 59), so
+    # the two-deep plan plays only when it holds the count threshold plus
+    # plan_value_margin and scores higher
+    softs = [s for s in re.split(r"[,+|]", str(getattr(config, "plan_soft_structure_variants", "") or "")) if s] or [None]
+    variants = [(o, li, s, m, ss) for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
+    threshold = None
+    if softs != [None]:
+        try:
+            threshold = agent._count_threshold()
+        except Exception:
+            threshold = None
+    gate = (threshold or 0) + int(getattr(config, "plan_value_margin", 2)) if threshold else 0
     # Every variant gets the whole of what is left of the budget, one after
     # the other, and a variant the deadline cuts short counts only when no
     # variant finished.  v7 gave each of three layouts a third of the
@@ -512,7 +527,9 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     best_partial = None
     started = time.perf_counter()
     longest = 0.0
-    for variant, layout_index, size_order, mode in variants:
+    from . import stability as _stability
+
+    for variant, layout_index, size_order, mode, soft_structure in variants:
         now = time.perf_counter()
         if best is not None and now + longest * 1.2 >= deadline:
             break
@@ -522,21 +539,36 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
             changes["count_first"] = size_order == "small"
         if mode is not None:
             changes["plan_layout_layers"] = mode == "layers"
+        saved_cap = _stability.SOFT_STRUCTURE_MAX_TOP
+        saved_share = _stability.SOFT_STRUCTURE_FLOOR_SHARE
+        if soft_structure is not None:
+            on = soft_structure == "on"
+            changes["soft_is_structure"] = on
+            if on:
+                # the gallery two deep whatever the online caps say
+                _stability.SOFT_STRUCTURE_MAX_TOP = None
+                _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
         if changes:
             agent.config = dataclasses.replace(config, **changes)
         try:
             order, plan = _plan_once(agent, item_list, deadline, variant, log, layout_index=layout_index)
         finally:
             agent.config = config
+            _stability.SOFT_STRUCTURE_MAX_TOP = saved_cap
+            _stability.SOFT_STRUCTURE_FLOOR_SHARE = saved_share
         complete = time.perf_counter() < deadline
         longest = max(longest, time.perf_counter() - t0)
         volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
         score = scorer(plan) if scorer is not None else volume
+        if soft_structure == "on" and gate and len(plan) < gate:
+            # a two-deep plan under the gate forfeits the four components
+            # on the platform: it does not play
+            score = -float("inf")
         if log:
             by_index = {int(i["index"]): i for i in item_list}
             n_soft = sum(1 for e in plan if by_index[int(e["index"])].get("is_soft"))
             n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
-            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}/mode {mode}: {len(plan)} planned "
+            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}/mode {mode}/soft {soft_structure}: {len(plan)} planned "
                 f"(soft {n_soft}, priority {n_prio}), {volume:.3f} m^3, "
                 f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
         entry = ((score, len(plan)), order, plan)
