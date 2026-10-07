@@ -544,6 +544,15 @@ class RuleAlphaConfig:
     on footprint; the floor strips of the hard B suite are, by cells, mostly
     such runs along y beside ``max-footprint`` poses."""
 
+    useful_width_from_stream: bool = False
+    """Set the width under which free floor counts as dead
+    (``Board.min_useful_width``, read by the row-tiling term and the
+    overhang-shadow veto) from the stream rather than the fallback: the
+    narrowest hard box of the visible pool (Task B) or of every item seen
+    so far (Task C), plus the settled clearance on both sides.  The
+    fallback 0.35 m understates the sample's SKUs (0.40 m + clearances),
+    so strips no box could use were counted as usable floor."""
+
     overhang_shadow_area: float = 0.0
     """Veto a raised placement (terrace, bridge, stack) whose footprint
     reaches past its support over more than this much usable free floor,

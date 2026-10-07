@@ -612,6 +612,24 @@ class RuleAlphaAgent:
             profile = cls.classify_item(int(item["index"]), item, self.config)
             profiles.append((pool_index, profile))
 
+        if getattr(self.config, "useful_width_from_stream", False):
+            # the narrowest hard box the stream has shown (the pool on B,
+            # every item seen so far on C) with its clearances, as the
+            # width under which free floor is dead; the fallback 0.35 m
+            # understates it on the sample's SKUs (0.40 m + clearances)
+            widths = [
+                min(o.dx for o in p.orientations)
+                for _i, p in profiles
+                if p.cargo_class == cls.NORMAL_HARD and not p.is_elongated and p.orientations
+            ]
+            if widths:
+                seen = float(getattr(self, "_min_hard_width_seen", float("inf")))
+                seen = min(widths) if len(profiles) > 1 else min(seen, min(widths))
+                self._min_hard_width_seen = seen
+            seen = float(getattr(self, "_min_hard_width_seen", float("inf")))
+            if seen < float("inf"):
+                self.board.min_useful_width = seen + 2.0 * self.config.settled_clearance
+
         ordered = layer1.pool_order(profiles, self.config)
         if len(profiles) > 1 and str(getattr(self.config, "pool_order_mode", "size")) == "fit":
             try:

@@ -243,6 +243,16 @@ class StackOption:
                                      extra_clearance=extra_clearance, z_top=z_top)
             if not cands:
                 continue
+            shadow_limit = float(getattr(self.config, "overhang_shadow_area", 0.0))
+            if shadow_limit > 0.0:
+                # the ladder's rule (layer1.apply_vetoes): a raised pose may
+                # not shadow usable free floor beyond its support
+                cands = [
+                    c for c in cands
+                    if c.on_floor or layer1.overhang_shadow(c.box, board, container_idx) <= shadow_limit
+                ]
+                if not cands:
+                    continue
             seen = self.calls.get(container_idx, 0)
             remaining = max(0.0, (self.horizon - seen) / self.horizon)
             self.calls[container_idx] = seen + 1
