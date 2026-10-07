@@ -61,6 +61,7 @@ A_HOLE_FILL = "hole-fill"
 A_TYPED_CAP = "typed-cap"
 A_LAST_RESORT = "last-resort"
 A_FRONT_WEDGE = "front-wedge"
+A_RESIDUAL = "residual"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -84,6 +85,7 @@ ALL_ARCHETYPES = (
     A_TYPED_CAP,
     A_LAST_RESORT,
     A_FRONT_WEDGE,
+    A_RESIDUAL,
 )
 
 
@@ -2162,6 +2164,17 @@ def _key_last_resort(c):
     )
 
 
+def _key_residual(c):
+    # the residual rung: lowest level first, then flat, then the biggest
+    # footprint, then the back -- pack out before building up
+    return (
+        round(float(c.box.minimum[2]), 2),
+        c.orientation.dz,
+        -c.features["footprint"],
+        -c.features["y_back"],
+    )
+
+
 def _key_typed_cap(c):
     # cap the highest terrain first -- that is the space nothing else can use
     # -- and sit flat on it rather than perched
@@ -2214,6 +2227,7 @@ ARCHETYPE_KEYS = {
     A_TYPED_CAP: _key_typed_cap,
     A_LAST_RESORT: _key_last_resort,
     A_FRONT_WEDGE: _key_front_wedge,
+    A_RESIDUAL: _key_residual,
 }
 
 
@@ -2224,6 +2238,10 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
         return tags
     if candidate.role == cls.ROLE_SLOPE_INFILL:
         tags.add(A_SLOPE_INFILL)
+        return tags
+    if candidate.role == l2.ROLE_RESIDUAL:
+        # its own rung after the floor rungs (config.residual_anchors)
+        tags.add(A_RESIDUAL)
         return tags
     if (
         candidate.role == l2.ROLE_HOLE_FILL
@@ -2368,6 +2386,10 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE,
             A_BACK_CORNER, A_TYPED_CAP,
         ])
+    if getattr(config, "residual_anchors", False):
+        # the empty rectangles of every level, after the floor rungs and
+        # before the growth rungs: pack out before building up
+        ladder.append(A_RESIDUAL)
     ladder.extend(growth)
     ladder.append(A_MAX_FOOTPRINT)
     ladder.append(A_LAST_RESORT)
@@ -2881,7 +2903,7 @@ def generate_residual_candidates(board: "Board", profile: cls.ItemProfile,
                         container_idx=container_idx,
                         surface="floor" if on_floor else "item",
                         surface_name="residual",
-                        role=cls.ROLE_NONE if on_floor else l2.ROLE_TERRACE,
+                        role=l2.ROLE_RESIDUAL,
                         family=l2.FAMILY_FLOOR if on_floor else l2.FAMILY_TERRACE,
                     )
                 )

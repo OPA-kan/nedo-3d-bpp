@@ -71,6 +71,7 @@ ROLE_WEDGE_BRIDGE = "wedge-bridge"
 ROLE_HOLE_FILL = "hole-fill"
 ROLE_TYPED_CAP = "typed-cap"
 ROLE_LAST_RESORT = "last-resort"
+ROLE_RESIDUAL = "residual"
 ROLE_FRONT_WEDGE = "front-wedge"
 
 
@@ -605,7 +606,7 @@ __all__ = [
     "FAMILY_TYPED_CAP",
     "FAMILY_WEDGE_BRIDGE", "Hole",
     "ROLE_BRIDGE", "ROLE_FRONT_WEDGE", "ROLE_HOLE_FILL",
-    "ROLE_LAST_RESORT", "ROLE_TERRACE",
+    "ROLE_LAST_RESORT", "ROLE_RESIDUAL", "ROLE_TERRACE",
     "ROLE_TYPED_CAP",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
     "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
