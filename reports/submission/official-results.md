@@ -29,6 +29,20 @@
 | v36 (1ca72af: v32's rule on Task A, the sweep-shade veto on Task C, the scratch agent carrying the manifest) | 37.96 | 63.23 | 75.19 | 47.8 | 36.2 | 0.6140 | 136.7 | 7.20 |
 | v37 (9e40ed2: v32 plus the sweep-shade veto on Task C alone, the scratch with the Task A exemptions and the 41-based threshold) | 38.01 | 63.27 | 75.26 | 48.25 | 36.75 | 0.6141 | 113.2 | 7.18 |
 | v38 (162e110: v37 plus soft cargo on soft tops in the physics resort over the threshold) | 37.95 | 63.26 | 75.15 | 47.8 | 36.45 | 0.6140 | 116.0 | 7.21 |
+| v39 (ea96b79: v38 plus the soft columns in the ladder -- soft as structure under a 0.7 m cap once soft covers 35 % of a floor -- and the resort's generation deadline) | 38.05 | 63.20 | 75.15 | 48.6 | 36.75 | 0.6153 | 113.1 | 7.33 |
+
+v39's total was 52.71 (v38 52.54, +0.17; v32 52.71, level): placement
++0.8, soft +0.30, fill +0.10, cog -0.06, stability flat, the fraction
+placed 0.6140 -> 0.6153, the highest of any build (v32 0.6148) -- a
+few more items placed over the platform's cases, with the placement
+and soft components that come with them, and nothing lost.  The
+columns are gated on a floor 35 % under soft cargo, which the sample's
+streams never reach; the platform's did, somewhere, by a little.
+The optimize time 113.1 s (v38 116.0), the slowest call 7.33 s (v38
+7.21: the Task B pool's count pass, inside the 10 s limit).  Three
+builds (v37, v38, v39) within 0.2 of v32 say the platform's cases
+have no soft carpet to speak of and sit where they sit for the floor's
+sake: the row depths and the strips (findings, "The hard suites").
 
 v38's total was 52.54 (v37 52.69, -0.15): placement -0.45, soft -0.30,
 stability -0.11, fill -0.06, cog -0.01, the fraction placed 0.6141 ->

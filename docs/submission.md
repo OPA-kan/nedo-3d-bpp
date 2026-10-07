@@ -503,7 +503,10 @@ carpet had 113,000 poses to validate: 11-12 s against the platform's
 8 s; inert on the sample).  Official sample: A 32.11 / 25, B 27.28 /
 25, C 26.44 / 25 (as v38 to the digit: the sample's floors never reach
 the gate); policy max B 4.53 s, C 3.92 s, optimize 25 s
-(`official-sample-abc-v39.json`).
+(`official-sample-abc-v39.json`).  Official result 52.71 (v38 52.54,
++0.17; level with v32): placement +0.8, soft +0.30, the fraction
+placed 0.6140 -> 0.6153, the highest of any build; nothing lost
+(`reports/submission/official-results.md`).
 
 ## Known limits
 
