@@ -2794,8 +2794,26 @@ the online stack option's switch), and its soft rows must be laid out
 on their own lines (`plan_soft_own_rows`): on the hard rows' lines the
 two-deep plan of 61 replays 44 poses (51 placed, 13 soft), on its own
 56 placed with 19 soft (59 with 22 with the stack option's soft
-support on).  The variant carries both; the suites run as
-`v40b-core-a`, `v40b-hard-a`.
+support on).  The variant carries both (`v40b-core-a`,
+`v40b-hard-a`): sample A placed +0.81, soft share +0.147, topples 8
+-> 9, 48 of 48, priced +0.66 (the single containers +0.47 of it, the
+two-container scenes +0.19); hard A placed -2.00, crossings 26 -> 22,
+priced -0.18 -- level on the single-container scenes (-0.06 items),
+-2.9 and -3.6 items a scene on two and three containers.  Traced on
+a-hard-s0041 (74 -> 43): the plan's early hard poses miss as before
+(overlaps after the ladder's improvisations), the two-deep soft
+gallery of the first container then has no supports where planned
+and the ladder improvises soft onto the floor until it declines --
+with the second container's 33 rows still in the order behind the
+soft block, so the episode ends with that container empty.  The
+settled-height replay (`plan_replay_drop`) does nothing for it (the
+misses are overlaps, not floats); playing every container's hard rows
+before any soft gallery (`plan_soft_after_hard_rows`) brings s0041 to
+70 and s0019 to 53 (v39 74 and 62) but takes the soft gallery's gain
+back (a-c2-s0005 52 with 15 soft against 56 with 19).  So the
+two-deep variant is kept to single-container manifests
+(`plan_soft_structure_max_containers` 1): `v40c-core-a`,
+`v40c-hard-a`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
