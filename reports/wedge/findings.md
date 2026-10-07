@@ -2894,6 +2894,54 @@ clearances) between the box and the next obstacle is refused or
 shifted to close it, so that the floor's residual stays usable --
 measured by `gap_strip_share`.
 
+**Where the floor strips come from** (`scripts/strip_shadow.py`,
+`scripts/floor_ascii.py`, the v39 records).  Before writing that rule
+the strips were attributed.  On the end states the floor is 28-31 %
+free, and 66-76 % of that free floor lies in runs narrower than 0.30
+m along one axis or the other.  Two mechanisms, about half each:
+
+1. *Shadows of overhangs.*  37 % (hard C) to 50 % (sample C) of the
+   strip cells lie under a raised box whose footprint reaches past
+   its support over floor nothing stands on -- terrace-extension
+   (35-44 % of those cells), the stack option (19-27 %), the shelf
+   cargo over the floor beside the shelf (9-17 %).  b-hard-s0003
+   (B, big mix, 16 of 50 placed) is the type: the second item of the
+   episode, 0.65 x 0.45 x 0.25, went on top of the first, 0.55 x 0.40
+   x 0.24, as a terrace with a 5 cm overhang on two sides, while 2.9
+   m^2 of floor stood empty (the growth rungs sit above the floor
+   rungs, `ground_before_growth` = false); from then on every floor
+   box taller than 0.24 m stops a clearance short of that overhang,
+   7.6 cm short of the first box, and the 7.6 cm x 0.65 m strip in
+   front of it is dead.  The fourth item, a 0.65 x 0.25 x 0.45
+   standing box, did exactly that: its flush anchor at the first
+   box's edge existed and failed the validator (`overlaps-packed-item`
+   -- with the overhang), and the four surviving candidates of that
+   footprint all stood at the same place.
+2. *Gaps the grid cannot see.*  `row_waste` -- the strand term that
+   prices the floor a pose leaves in runs narrower than the narrowest
+   box still to come -- measured only the runs across the container
+   in the box's own rows; a box that stopped short of its neighbour
+   along the length cost nothing (by cells, the floor strips of the
+   hard B suite are mostly such runs beside `max-footprint` poses).
+   And it reads a 4 cm grid whose clearance stamps swallow any gap
+   under about 8 cm, where the gap KPI puts the 3-8 cm band.
+
+Three switches, measured on the v39 arms (`sliver-*` both,
+`shadow-*` the veto alone, `near-*` the waste alone):
+`row_waste_axes=xyn` (the runs along both axes, plus the exact
+near-neighbour slivers from the packed boxes, `layer1.sliver_waste`:
+on each side the gap to the nearest floor box or wall, counted when
+it is wider than the planned clearance and narrower than the smallest
+useful width), and `overhang_shadow_area=0.01` (a raised pose whose
+footprint covers more than 0.01 m^2 of usable free floor beyond its
+support is refused, `shadows-free-floor`; floor already dead -- runs
+narrower than the useful width along either axis, `Board.dead_floor`
+-- does not count, so a bridge over a dead gap stands, and the wedge
+steps over the slope pocket are exempt).  On b-hard-s0003 the veto
+alone puts the second item on the floor and the scene goes 16 -> 17
+placed, fill 34.3 -> 37.5; the waste alone changes nothing there (the
+standing box had no flush candidate to prefer).
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
