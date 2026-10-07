@@ -2812,6 +2812,84 @@ def generate_last_resort_candidates(board: "Board", profile: cls.ItemProfile,
     return flat + standing
 
 
+def generate_residual_candidates(board: "Board", profile: cls.ItemProfile,
+                                 container_idx: int, config) -> list[Candidate]:
+    """Anchors from the residual space, as ordinary candidates
+    (config.residual_anchors).
+
+    The ladder's anchors are derived from the edges of what is packed (and
+    capped at ``max_anchor_x`` x ``max_anchor_y``, outermost and backmost
+    first), and on a fuller board they stop landing where a box still fits:
+    of the poses the physics resort found after the ladder and the stack
+    option had nothing, 75 % had no ladder anchor of their orientation
+    within 5 cm (`scripts/recall_probe.py`, nine C scenes), 69 % of them on
+    item tops.  The last resort reads the empty rectangles of every level
+    (`layer2.free_rectangles`) and puts the box in their corners, but it is
+    generated only when every other generator came back empty, and ranked
+    on its own bottom rung.  This generates the same poses, every call, as
+    candidates of the ordinary kinds: on the floor with no role (the floor
+    rungs rank them with the rest), on a hard top as a terrace (the terrace
+    rung), flat orientations and, with ``residual_anchors_standing``, the
+    standing ones too."""
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    grid = board.grid(container_idx)
+    gap = config.settled_clearance
+    standing = bool(getattr(config, "residual_anchors_standing", True))
+    candidates: list[Candidate] = []
+    seen = set()
+    for rect, level_z in l2.free_rectangles(grid, model, config):
+        width = rect.x_max - rect.x_min
+        depth = rect.y_max - rect.y_min
+        fitting = [
+            o for o in profile.orientations
+            if l2.fits_with_clearance(width, depth, o.dx, o.dy, gap)
+            and level_z + o.dz <= model.z_ceiling
+        ]
+        if not fitting:
+            continue
+        flattest = min(o.dz for o in fitting)
+        if not standing:
+            fitting = [o for o in fitting if o.dz <= flattest + config.hole_fill_tier_tolerance]
+        on_floor = abs(level_z - model.z_floor) <= config.contact_tolerance
+        for orientation in sorted(fitting, key=lambda o: (o.dz, -o.footprint)):
+            dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+            left, right = rect.x_min + dx / 2.0 + gap, rect.x_max - dx / 2.0 - gap
+            front, back = rect.y_min + dy / 2.0 + gap, rect.y_max - dy / 2.0 - gap
+            if right < left or back < front:
+                continue
+            for x, y in (
+                (right, back), (left, back), (right, front), (left, front),
+                (0.5 * (left + right), back),
+                (0.5 * (left + right), 0.5 * (front + back)),
+            ):
+                key = (round(x, 4), round(y, 4), round(level_z, 4), orientation.index)
+                if key in seen:
+                    continue
+                seen.add(key)
+                box = AABB((float(x), float(y), float(level_z) + dz / 2.0), (dx, dy, dz), "candidate")
+                ok, _why = validate(box, model, container, config)
+                if not ok:
+                    continue
+                if not on_floor and config.layer2_max_layers > 0:
+                    level = stack_level(box, container, l2.ROLE_TERRACE, config, model)
+                    if level > config.layer2_max_layers:
+                        continue
+                candidates.append(
+                    Candidate(
+                        box=box, profile=profile, orientation=orientation,
+                        container_idx=container_idx,
+                        surface="floor" if on_floor else "item",
+                        surface_name="residual",
+                        role=cls.ROLE_NONE if on_floor else l2.ROLE_TERRACE,
+                        family=l2.FAMILY_FLOOR if on_floor else l2.FAMILY_TERRACE,
+                    )
+                )
+                if len(candidates) >= config.max_candidates_per_orientation:
+                    return candidates
+    return candidates
+
+
 def _last_resort_pass(board: "Board", profile: cls.ItemProfile,
                       container_idx: int, config, escalate: bool
                       ) -> list[Candidate]:
@@ -3834,6 +3912,10 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         pool.extend(
             generate_front_wedge_candidates(board, profile, container_idx, config)
         )
+        if getattr(config, "residual_anchors", False):
+            pool.extend(
+                generate_residual_candidates(board, profile, container_idx, config)
+            )
         if not pool:
             pool.extend(
                 generate_last_resort_candidates(

@@ -943,6 +943,22 @@ class RuleAlphaConfig:
     last_resort_max_rects: int = 8
     """Empty rectangles offered to the last resort, largest first."""
 
+    residual_anchors: bool = False
+    """The empty rectangles of every level (the last resort's geometry) as
+    ordinary ladder candidates on every call, not only when every other
+    generator came back empty (layer1.generate_residual_candidates): on
+    the floor with no role, on a hard top as a terrace.  The candidate
+    recall probe (`scripts/recall_probe.py`, nine C scenes of the v39 arm):
+    of 32 poses the physics resort found after the ladder and the stack
+    option had nothing, 24 had no ladder anchor of their orientation within
+    5 cm, 19 of those on item tops; the ladder's anchors come from the
+    packed edges, capped at 26 x 22 outermost and backmost first."""
+
+    residual_anchors_standing: bool = True
+    """The residual anchors include the standing orientations (the resort's
+    poses were mostly boxes on end: 0.65 x 0.45 x 0.25 and 0.55 x 0.40 x
+    0.24 standing)."""
+
     last_resort_rects_per_region: int = 4
     """How many rectangles to peel off one empty region before moving on."""
 
