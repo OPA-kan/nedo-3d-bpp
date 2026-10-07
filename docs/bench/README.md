@@ -51,6 +51,16 @@ soft-last、B の pool は 3/5/10/20。48 seed ずつ。公式 env は置けな�
 
 ## 2. 終端量（`bench/metrics.py`）
 
+### 隙間の KPI（`bench/gaps.py`）
+
+各荷物について、同じ高さ（鉛直に 5 cm 以上重なる）で隣り合う荷物との面の距離を四方向に取り、
+`gap_mean_cm`・`gap_median_cm`・`gap_tight_share`（3 cm 未満: agent が計画する
+clearance 2.6 cm の帯）・`gap_strip_share`（10 cm 以上: 床の断片化の帯）・
+`vertical_gap_mean_cm`（積まれた荷物の下の空き）を record の `metrics` に入れます。
+壁との距離は数えません。過去の record には `scripts/gap_kpi.py <dir>...` が同じ量を出します。
+v39 の sample suite では隣接間隔の中央値が A 2.7 cm・B 4.8 cm・C 4.1 cm、
+10 cm 以上の帯が隣接関係の 24〜37 % で、隙間の長さの 85 % 以上を占めます。
+
 すべて PyBullet の settle 後の状態から読みます。計画側の意図は使いません。
 
 | 量 | 意味 |

@@ -172,6 +172,12 @@ def run_episode(scene, arm, max_steps: int = 400, policy_budget: float = 8.0,
     })
     if getattr(agent, "shadow_stats", None) and agent.shadow_stats.get("checks"):
         metrics["shadow"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.shadow_stats.items()}
+    # the gaps between neighbouring boxes (bench/gaps.py): the planned
+    # clearance band and the strips
+    with contextlib.suppress(Exception):
+        from .gaps import gap_metrics
+
+        metrics.update(gap_metrics(steps))
     record = {
         "scene": scene.name,
         "scene_spec": {k: v for k, v in scene.to_dict().items() if k not in ("items", "containers")},
