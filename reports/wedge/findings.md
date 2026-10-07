@@ -2779,7 +2779,23 @@ two-deep plan is made a planner variant beside the one-deep plan
 (`plan_soft_structure_variants` = off,on: both planned, compared by
 the plan score, the two-deep one eligible only at the count threshold
 plus `plan_value_margin`), with the stack option's soft support off
-on A: `v40cand-core-a`, `v40cand-hard-a`.
+on A.  The first runs of it (`a-stackoff-core-a`, `a-stackoff-hard-a`)
+were inert on the axis -- the list arrived as the one variant "off;on",
+the arm spec's ";" not being a separator the planner split on -- and
+so measured the v39 A form with the stack option's soft support off:
+level on both suites (sample -0.03, hard -0.00).  Which also showed
+that `plan_variants` = "first;after-hard" has been one variant,
+"first;after-hard", since the arm specs took that form: neither
+order, the size-mixed default.  Two more things the local runs
+settled (a-c2-s0005, v39 53 placed with 13 soft): the two-deep
+variant must keep soft structure in `stack_candidates` (the planner's
+candidate generator drops it when `stack_soft_is_structure` is off,
+the online stack option's switch), and its soft rows must be laid out
+on their own lines (`plan_soft_own_rows`): on the hard rows' lines the
+two-deep plan of 61 replays 44 poses (51 placed, 13 soft), on its own
+56 placed with 19 soft (59 with 22 with the stack option's soft
+support on).  The variant carries both; the suites run as
+`v40b-core-a`, `v40b-hard-a`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
