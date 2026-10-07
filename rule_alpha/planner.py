@@ -600,7 +600,24 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         if time.perf_counter() >= deadline:
             break
     chosen = best if best is not None else best_partial
-    return chosen[1], chosen[2]
+    order, plan = chosen[1], chosen[2]
+    if getattr(config, "plan_soft_after_hard_rows", False) and plan:
+        # every container's hard rows before any soft gallery: a decline
+        # ends the episode, and with the two-deep soft gallery of the
+        # first container played before the second container's rows,
+        # a soft block that misses its supports ends the episode with
+        # the second container empty (a-hard-s0041: 74 -> 43, the
+        # second container 33 -> 0)
+        by_index = {int(i["index"]): i for i in item_list}
+        planned = [int(e["index"]) for e in sorted(plan, key=lambda e: e["step"])]
+        planned_set = set(planned)
+        hard = [i for i in planned if not by_index.get(i, {}).get("is_soft")]
+        soft = [i for i in planned if by_index.get(i, {}).get("is_soft")]
+        step_of = {idx: k + 1 for k, idx in enumerate(hard + soft)}
+        for e in plan:
+            e["step"] = step_of[int(e["index"])]
+        order = hard + soft + [i for i in order if i not in planned_set]
+    return order, plan
 
 
 def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log=None,

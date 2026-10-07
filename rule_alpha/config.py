@@ -1887,6 +1887,15 @@ class RuleAlphaConfig:
     containers (0: any).  Hard A suite (`v40b-hard-a`): level on one
     container, -2.9 and -3.6 items a scene on two and three."""
 
+    plan_soft_after_hard_rows: bool = False
+    """Task A: the planner's order plays every container's hard rows
+    before any soft gallery (the plan's steps renumbered the same way).
+    A decline ends the episode; with the first container's two-deep
+    soft gallery played before the second container's rows, a soft
+    block that misses its supports (the hard rows under it improvised
+    after early misses) ends the episode with the second container
+    empty: a-hard-s0041 74 -> 43 placed, the second container 33 -> 0."""
+
     plan_replay_drop: float = 0.0
     """At replay, a planned pose that floats above the board as it
     settled is also tried at the height it comes to rest at, when that
