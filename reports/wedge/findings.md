@@ -2764,10 +2764,22 @@ priority they add (the big priority boxes have no row of their depth
 whatever the order).  The cost is the topples, 8 -> 13-14: soft boxes
 flat on soft at 0.9-1.3 m, five of them the online stack option's
 poses (`stack-rl`), the rest the plan's.  Two forms to take them back
-are running: the stack option with soft as no structure
-(`stack_soft_is_structure` off, the plan's rows keep theirs), and a
-cap at 1.0 m; `asoft-both-hard-a` measures the form on the hard A
-suite.
+were measured: the stack option with soft as no structure
+(`stack_soft_is_structure` off, the plan's rows keep theirs;
+`asoft-both-nostack-core-a`): placed +0.69, soft share +0.109,
+topples 8 -> 9, 48 of 48, priced +0.52; a cap at 1.0 m
+(`asoft-both-cap10-core-a`): +0.31, soft +0.091, topples 8 -> 8, one
+crossing lost, +0.35.  And the uncapped form on the hard A suite
+(`asoft-both-hard-a` against `v38-hard-a`): placed -1.27, crossings
+26 -> 24, priced -0.20 -- on the larger manifests the planner's
+two-deep soft rows trade the hard cargo for soft and lose the
+threshold (a-hard-s0041 74 -> 57 of 59 with soft 10 -> 30, s0019 62
+-> 44 of 64, s0034 103 -> 63 with the optimize cut at 149 s).  So the
+two-deep plan is made a planner variant beside the one-deep plan
+(`plan_soft_structure_variants` = off,on: both planned, compared by
+the plan score, the two-deep one eligible only at the count threshold
+plus `plan_value_margin`), with the stack option's soft support off
+on A: `v40cand-core-a`, `v40cand-hard-a`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
