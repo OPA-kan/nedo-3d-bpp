@@ -243,6 +243,7 @@ class Board:
         self._plateau_labels: list = [None for _ in self.containers]
         self._back_height: list = [None for _ in self.containers]
         self._holes: list = [None for _ in self.containers]
+        self._dead_floor: list = [None for _ in self.containers]
         # manifest-derived: what the outstanding frontier cargo still needs.
         # The manifest is handed to optimize(), so reading it is information the
         # policy legitimately has -- not a peek at future arrivals.
@@ -441,6 +442,7 @@ class Board:
         self._plateau_labels = [None for _ in self.containers]
         self._back_height = [None for _ in self.containers]
         self._holes = [None for _ in self.containers]
+        self._dead_floor = [None for _ in self.containers]
         self.foundation_pending.pop(placement.profile.index, None)
 
     def undo_last(self, idx: int) -> None:
@@ -456,7 +458,18 @@ class Board:
         self._plateau_labels = [None for _ in self.containers]
         self._back_height = [None for _ in self.containers]
         self._holes = [None for _ in self.containers]
+        self._dead_floor = [None for _ in self.containers]
 
+    def dead_floor(self, idx: int) -> np.ndarray:
+        """Free floor cells no box still to come can use: cells whose free
+        run is narrower than ``min_useful_width`` along either axis.
+        Cached per board state; the overhang-shadow veto reads it so that
+        an overhang above a dead strip costs nothing."""
+        cached = self._dead_floor[idx]
+        if cached is None:
+            cached = dead_floor_mask(self.grid(idx), self.min_useful_width)
+            self._dead_floor[idx] = cached
+        return cached
 
     # -- reachability and frontier demand --------------------------------
     def plateau_stats(self, idx: int) -> dict:
@@ -1581,7 +1594,8 @@ def _has_backing(box: AABB, model: ContainerModel, container: dict, config) -> b
     return False
 
 
-def row_waste(grid, rect: Rect, extra_mask, min_width: float) -> float:
+def row_waste(grid, rect: Rect, extra_mask, min_width: float,
+              axes: str = "x") -> float:
     """Free floor this placement would strand in its own row, in m^2.
 
     A row of the container is a fixed width, and what tiles it is a *sequence*
@@ -1595,27 +1609,129 @@ def row_waste(grid, rect: Rect, extra_mask, min_width: float) -> float:
     So measure it: after this box goes down, how much of the free floor beside
     it lies in runs narrower than the narrowest thing still to come.  That area
     is not free space, it is waste, and it should be priced as waste.
+
+    ``axes`` says which runs are measured: ``"x"`` the runs across the
+    container (along x, one per y-row the box covers), the original term;
+    ``"xy"`` also the runs along y (one per x-column the box covers).  The
+    first alone cannot see a box that stops 7 cm short of its neighbour
+    across the width: on the hard B suite the floor strips were, by cells,
+    mostly runs along y bounded by a ``max-footprint`` floor pose and its
+    neighbour or the wall (floor_strips, findings "The hard suites").
     """
     band = grid.rect_mask(rect)
     free = grid.usable & ~grid.occupied & ~extra_mask
-    rows = np.nonzero(band.any(axis=0))[0]
-    if rows.size == 0:
-        return 0.0
     need = max(1, int(math.ceil(min_width / grid.cell)))
     waste_cells = 0
-    for iy in rows:
-        column = free[:, iy]
+
+    def _runs(line) -> int:
+        cells = 0
         run = 0
-        for value in column:
+        for value in line:
             if value:
                 run += 1
                 continue
             if 0 < run < need:
-                waste_cells += run
+                cells += run
             run = 0
         if 0 < run < need:
-            waste_cells += run
+            cells += run
+        return cells
+
+    rows = np.nonzero(band.any(axis=0))[0]
+    if rows.size == 0:
+        return 0.0
+    for iy in rows:
+        waste_cells += _runs(free[:, iy])
+    if "y" in axes:
+        for ix in np.nonzero(band.any(axis=1))[0]:
+            waste_cells += _runs(free[ix, :])
     return float(waste_cells) * grid.cell_area
+
+
+def _narrow_runs(line, need: int) -> np.ndarray:
+    """Mask of the free cells of ``line`` lying in runs shorter than ``need``."""
+    out = np.zeros(line.shape[0], dtype=bool)
+    run = 0
+    for i, value in enumerate(line):
+        if value:
+            run += 1
+            continue
+        if 0 < run < need:
+            out[i - run:i] = True
+        run = 0
+    if 0 < run < need:
+        out[line.shape[0] - run:] = True
+    return out
+
+
+def dead_floor_mask(grid, min_width: float) -> np.ndarray:
+    """Free floor cells in a run narrower than ``min_width`` along x or
+    along y: nothing still to come can stand on them."""
+    free = grid.usable & ~grid.occupied
+    need = max(1, int(math.ceil(min_width / grid.cell)))
+    dead = np.zeros_like(free)
+    for iy in range(free.shape[1]):
+        dead[:, iy] |= _narrow_runs(free[:, iy], need)
+    for ix in range(free.shape[0]):
+        dead[ix, :] |= _narrow_runs(free[ix, :], need)
+    return dead & free
+
+
+def overhang_shadow(box: AABB, board: "Board", container_idx: int) -> float:
+    """Usable free floor under a raised box, in m^2.
+
+    A terrace or stack that reaches past its support over floor nothing
+    stands on yet takes that floor from every later box taller than the
+    support: on the hard B suite 37-48 % of the floor's dead strips lay
+    under such an overhang (strip_shadow, findings "The hard suites").
+    Floor already dead (``Board.dead_floor``) does not count."""
+    grid = board.grid(container_idx)
+    mask = grid.rect_mask(box_rect(box))
+    free = grid.usable & ~grid.occupied & ~board.dead_floor(container_idx)
+    return float((mask & free).sum()) * grid.cell_area
+
+
+def sliver_waste(box: AABB, model: ContainerModel, container: dict,
+                 min_width: float, clearance: float, tolerance: float = 0.01) -> float:
+    """Floor a floor pose leaves between itself and its nearest neighbour
+    on each side, in m^2, when that gap is wider than the planned
+    clearance and narrower than ``min_width``.
+
+    The grid term (``row_waste``) sees a gap only once it spans a cell
+    after the clearance stamps, 8 cm at the 4 cm cell: the 3-8 cm slivers
+    the gap KPI counts (bench/gaps.py) are invisible to it.  Measured from
+    the packed boxes resting on the floor and the walls, exactly."""
+    bottom = float(box.minimum[2])
+    x0, x1 = float(box.minimum[0]), float(box.maximum[0])
+    y0, y1 = float(box.minimum[1]), float(box.maximum[1])
+    rect = model.floor_rect
+    # nearest obstacle per side: (gap, overlap length along the other axis)
+    sides = {
+        "x-": (x0 - rect.x_min, y1 - y0), "x+": (rect.x_max - x1, y1 - y0),
+        "y-": (y0 - rect.y_min, x1 - x0), "y+": (rect.y_max - y1, x1 - x0),
+    }
+    for packed, _soft, _prio in packed_aabbs_local(container):
+        if float(packed.minimum[2]) > bottom + 0.06:
+            continue  # not on the floor beside this box
+        px0, px1 = float(packed.minimum[0]), float(packed.maximum[0])
+        py0, py1 = float(packed.minimum[1]), float(packed.maximum[1])
+        oy = min(y1, py1) - max(y0, py0)
+        ox = min(x1, px1) - max(x0, px0)
+        if oy > 0.02:
+            if px1 <= x0 + 1e-6 and x0 - px1 < sides["x-"][0]:
+                sides["x-"] = (x0 - px1, oy)
+            if px0 >= x1 - 1e-6 and px0 - x1 < sides["x+"][0]:
+                sides["x+"] = (px0 - x1, oy)
+        if ox > 0.02:
+            if py1 <= y0 + 1e-6 and y0 - py1 < sides["y-"][0]:
+                sides["y-"] = (y0 - py1, ox)
+            if py0 >= y1 - 1e-6 and py0 - y1 < sides["y+"][0]:
+                sides["y+"] = (py0 - y1, ox)
+    waste = 0.0
+    for gap, length in sides.values():
+        if clearance + tolerance < gap < min_width:
+            waste += gap * length
+    return waste
 
 
 def level_residual(grid, box: AABB, config) -> float:
@@ -1892,10 +2008,17 @@ def compute_features(candidate: Candidate, board: Board, config,
     else:
         features["neighbour_height_step"] = 0.0
 
+    axes = getattr(config, "row_waste_axes", "x")
     features["row_waste"] = (
-        row_waste(grid, rect, mask, board.min_useful_width)
+        row_waste(grid, rect, mask, board.min_useful_width, axes)
         if config.row_tiling and candidate.surface == "floor" else 0.0
     )
+    if config.row_tiling and candidate.surface == "floor" and "n" in axes:
+        # the near-neighbour slivers the grid cannot see
+        features["row_waste"] += sliver_waste(
+            box, model, container, board.min_useful_width,
+            config.settled_clearance + config.anchor_slack,
+        )
 
     # what this placement costs the way in.  ``reachable_before`` is a property
     # of the board, so it is cached per step rather than recomputed per
@@ -3057,6 +3180,28 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     survivors = kept
     if not survivors:
         return [], counts
+
+    # 0b. a raised box may not shadow usable free floor: an overhang past
+    #     the support over floor nothing stands on yet takes that floor from
+    #     every later box taller than the support.  Wedge steps overhang the
+    #     slope pocket by design and are exempt; when the floor under the
+    #     overhang is occupied or already dead the overhang costs nothing
+    #     and stands.  No fallback: the floor itself is the alternative.
+    shadow_limit = float(getattr(config, "overhang_shadow_area", 0.0))
+    if shadow_limit > 0.0:
+        kept = []
+        for candidate in survivors:
+            if (
+                candidate.surface == "item"
+                and candidate.role not in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL)
+                and overhang_shadow(candidate.box, board, container_idx) > shadow_limit
+            ):
+                drop(candidate, "shadows-free-floor")
+            else:
+                kept.append(candidate)
+        survivors = kept
+        if not survivors:
+            return [], counts
 
     # 1. the way in, priced instead of scheduled.  The old rule protected the
     #    corridor until floor coverage passed a fixed threshold and then let go

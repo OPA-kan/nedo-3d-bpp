@@ -532,6 +532,30 @@ class RuleAlphaConfig:
     identical footprints, so every footprint-ranked key scored them equal and
     the tie fell to depth -- to a term that cannot see which row tiles."""
 
+    row_waste_axes: str = "x"
+    """Which strand runs ``row_tiling`` prices: ``"x"`` the runs across the
+    container in the box's own rows (the original term), ``"xy"`` also the
+    runs along the length in the box's own columns, and an ``"n"`` in the
+    string adds the near-neighbour slivers measured from the packed boxes
+    (``layer1.sliver_waste``), which the 4 cm grid cannot see below 8 cm.
+
+    With ``"x"`` alone a floor pose that stops 7 cm short of its neighbour
+    across the width costs nothing, and such poses tie with the flush ones
+    on footprint; the floor strips of the hard B suite are, by cells, mostly
+    such runs along y beside ``max-footprint`` poses."""
+
+    overhang_shadow_area: float = 0.0
+    """Veto a raised placement (terrace, bridge, stack) whose footprint
+    reaches past its support over more than this much usable free floor,
+    in m^2 (``layer1.overhang_shadow``); 0 turns the veto off.
+
+    On the hard B suite 37-48 % of the floor's dead strips lay under such
+    an overhang: the second item of b-hard-s0003 went on top of the first
+    with a 5 cm overhang on two sides while 2.9 m^2 of floor stood empty,
+    and the strip in front of the first box was dead from then on.  Floor
+    that is already dead (runs narrower than the narrowest box still to
+    come) does not count, so a bridge over a dead gap stands."""
+
     row_min_useful_width: float = 0.35
     """Fallback for the narrowest run of free floor still worth having.
 
