@@ -1882,6 +1882,21 @@ class RuleAlphaConfig:
     s0034 103 -> 63), -0.20.  Empty: the configured
     ``soft_is_structure`` alone."""
 
+    plan_soft_structure_max_containers: int = 0
+    """The two-deep variant above only on manifests of at most this many
+    containers (0: any).  Hard A suite (`v40b-hard-a`): level on one
+    container, -2.9 and -3.6 items a scene on two and three."""
+
+    plan_replay_drop: float = 0.0
+    """At replay, a planned pose that floats above the board as it
+    settled is also tried at the height it comes to rest at, when that
+    is at most this far (m) below the planned height (0: the planned
+    height alone).  A soft box under load settles lower than planned,
+    and the pose planned on its top misses the contact tolerance: on
+    a-hard-s0041 the two-deep plan replayed 19 of 53 poses and the
+    episode ended in the soft block, the second container's rows never
+    reached (74 -> 43 placed)."""
+
     plan_layout_variants: str = ""
     """Layout scorings the planner tries as variants, each against the
     whole budget like the priority orders: "floor" (the floor layer's

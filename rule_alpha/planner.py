@@ -511,6 +511,13 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # run as the one variant "first;after-hard" -- neither order, the
     # size-mixed default -- since the arm specs took that form)
     softs = [s for s in re.split(r"[,+|;]", str(getattr(config, "plan_soft_structure_variants", "") or "")) if s] or [None]
+    # the two-deep variant on manifests of at most this many containers
+    # (hard A suite: level on one container, -2.9 and -3.6 items a scene
+    # on two and three, where the two-deep plan replays 19 of 53 poses)
+    max_containers = int(getattr(config, "plan_soft_structure_max_containers", 0) or 0)
+    n_containers = len(agent.board.models) if getattr(agent, "board", None) is not None and agent.board.models else 1
+    if max_containers and n_containers > max_containers:
+        softs = [s for s in softs if s != "on"] or [None]
     variants = [(o, li, s, m, ss) for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     threshold = None
@@ -739,13 +746,35 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
                                             transport_clearance=config.settled_clearance)
         nudge = float(getattr(config, "plan_replay_nudge", 0.02))
         shifts = sorted({0.0, nudge / 2.0, -nudge / 2.0, nudge, -nudge}, key=abs)
+        # the planned height, and the height the box comes to rest at on
+        # the board as it settled (config.plan_replay_drop): a soft box
+        # under load settles a centimetre or two lower than planned, and
+        # the pose planned on its top then floats above the contact
+        # tolerance and misses -- on a-hard-s0041 the two-deep plan
+        # replayed 19 of 53 poses that way and the episode ended in the
+        # soft block before the second container's rows were reached
+        drop = float(getattr(config, "plan_replay_drop", 0.0))
+        size = tuple(entry["size"])
+        planned_z = float(entry["center"][2])
+        heights = [planned_z]
+        if drop > 0.0:
+            rest = _drop_height(container, model, float(entry["center"][0]), float(entry["center"][1]),
+                                float(size[0]), float(size[1]), float(size[2])) + float(size[2]) / 2.0
+            if rest < planned_z - 1e-4 and planned_z - rest <= drop:
+                heights.append(rest)
         box = None
         for dy in shifts:
             for dx in shifts:
-                centre = (float(entry["center"][0]) + dx, float(entry["center"][1]) + dy, float(entry["center"][2]))
-                candidate = AABB(centre, tuple(entry["size"]), ARCHETYPE)
-                ok, why = layer1.validate(candidate, model, container, replay_config)
-                if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
+                candidate = None
+                for z in heights:
+                    centre = (float(entry["center"][0]) + dx, float(entry["center"][1]) + dy, z)
+                    candidate = AABB(centre, size, ARCHETYPE)
+                    ok, why = layer1.validate(candidate, model, container, replay_config)
+                    if ok:
+                        break
+                if not ok:
+                    continue
+                if getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
                         candidate, container, bool(profile.is_soft), bool(profile.is_prioritized),
                         shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
                     ok = False
