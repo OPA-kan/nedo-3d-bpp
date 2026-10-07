@@ -84,6 +84,8 @@ SOFT_STRUCTURE = False
 # topples 19 -> 12); the sample suites keep 48 of 48 crossings on B and
 # C and lose a third of an item a scene on the two-container scenes.
 SOFT_COLUMNS = True
+# v40: Task A's soft gallery two deep (Agent.optimize below).
+TASK_A_SOFT_GALLERY = True
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -303,11 +305,34 @@ class Agent(RuleAlphaAgent):
     def optimize(self, item_list: list):
         """Task A (the only task that calls this): the stack option's soft
         support share is the offline value.  The option reads its own copy
-        of the config, so both are replaced."""
-        self.config = dataclasses.replace(self.config, stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+        of the config, so both are replaced.
+
+        v40: Task A's soft gallery two deep.  The planner plans the
+        manifest twice, with the soft rows one layer deep (v39) and two
+        deep (soft on soft on their own row lines, no height cap and no
+        floor gate), and the two-deep plan plays when it scores higher and
+        holds the count threshold plus two; on single-container manifests
+        only (on two and three containers the two-deep plan's replay
+        cascades after early misses and the second container's rows are
+        never reached: hard A suite -2.9 and -3.6 items a scene).  The
+        online phase of Task A runs uncapped so the plan replays, with the
+        stack option's soft support off (its soft-on-soft poses at 0.9-1.3
+        m were the topples).  A suite against v39: placed +0.50, soft
+        share 0.45 -> 0.53, 48 of 48, +0.42 on the total from A's third;
+        hard A suite level (26 -> 26 crossings).  Tasks B and C keep
+        v39's capped, gated columns (optimize is not called there)."""
+        task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+        if TASK_A_SOFT_GALLERY:
+            task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
+                          stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
+                          plan_soft_structure_max_containers=1)
+            from rule_alpha import stability as _stability
+
+            _stability.SOFT_STRUCTURE_MAX_TOP = None
+            _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
+        self.config = dataclasses.replace(self.config, **task_a)
         if self.stack_option is not None:
-            self.stack_option.config = dataclasses.replace(
-                self.stack_option.config, stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+            self.stack_option.config = dataclasses.replace(self.stack_option.config, **task_a)
         return super().optimize(item_list)
 
     def policy(self, observation: dict):
