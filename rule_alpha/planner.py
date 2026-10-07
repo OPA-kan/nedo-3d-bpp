@@ -554,6 +554,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
                 # drops soft structure when stack_soft_is_structure is off
                 # (the online stack option's switch), so it is on here
                 changes["stack_soft_is_structure"] = True
+                # the soft rows laid out over the hard stack's top on their
+                # own lines: with the hard rows' lines the two-deep plan
+                # replays 44 of 61 poses on a-c2-s0005 (51 placed, 13
+                # soft), with its own 56-59 placed and 19-22 soft
+                changes["plan_soft_own_rows"] = True
                 _stability.SOFT_STRUCTURE_MAX_TOP = None
                 _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
         if changes:
