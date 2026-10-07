@@ -508,6 +508,29 @@ the gate); policy max B 4.53 s, C 3.92 s, optimize 25 s
 placed 0.6140 -> 0.6153, the highest of any build; nothing lost
 (`reports/submission/official-results.md`).
 
+Fortieth build (v40): v39 with Task A's soft gallery two deep.  The
+planner plans the manifest twice, with the soft rows one layer deep
+(v39) and two deep (soft on soft on their own row lines,
+`plan_soft_structure_variants` = off;on, `plan_soft_own_rows` for the
+two-deep plan), and the two-deep plan plays when it scores higher and
+holds the count threshold plus two -- on single-container manifests
+only (`plan_soft_structure_max_containers` 1: on two and three
+containers the two-deep plan's replay cascades after early misses and
+the second container's rows are never reached, hard A suite -2.9 and
+-3.6 items a scene).  Task A's online phase runs with the soft
+structure uncapped so the plan replays, and the stack option's soft
+support off (its soft-on-soft poses at 0.9-1.3 m were the topples);
+Tasks B and C keep v39's capped, gated columns.  A suite against v39
+(`v40c-core-a`): placed +0.50, soft share 0.45 -> 0.53, priority
++0.013, 48 of 48, +0.42 on the total from A's third; hard A
+(`v40c-hard-a`) level (26 -> 26 crossings, -0.01).  The A suite's
+planner plans only 5-9 of 15 soft boxes with one gallery layer, the
+rest in the order's tail (`reports/wedge/findings.md`, "Task A's
+special cargo").  Official sample: A 32.11 / 25 (the dry-run's plan
+wins the race on task 000 as before), B 27.28 / 25, C 26.44 / 25 (as
+v39); optimize 46 s (v39 25 s: the second planner pass), policy max A
+1.60 s, B 4.71 s (`official-sample-abc-v40.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

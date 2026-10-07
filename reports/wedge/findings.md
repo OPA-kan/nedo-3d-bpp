@@ -2812,8 +2812,13 @@ before any soft gallery (`plan_soft_after_hard_rows`) brings s0041 to
 70 and s0019 to 53 (v39 74 and 62) but takes the soft gallery's gain
 back (a-c2-s0005 52 with 15 soft against 56 with 19).  So the
 two-deep variant is kept to single-container manifests
-(`plan_soft_structure_max_containers` 1): `v40c-core-a`,
-`v40c-hard-a`.
+(`plan_soft_structure_max_containers` 1; `v40c-core-a`,
+`v40c-hard-a`): sample A placed +0.50, soft share +0.078, priority
++0.013, topples 8 -> 12, 48 of 48, priced +0.42; hard A level (26 ->
+26, -0.01).  v40 carries it; the two-container form waits on a replay
+that survives the early misses (the plan's hard rows re-anchored on
+the board as it stands, or the soft gallery of each container played
+right after that container's rows).
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
