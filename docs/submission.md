@@ -529,7 +529,12 @@ rest in the order's tail (`reports/wedge/findings.md`, "Task A's
 special cargo").  Official sample: A 32.11 / 25 (the dry-run's plan
 wins the race on task 000 as before), B 27.28 / 25, C 26.44 / 25 (as
 v39); optimize 46 s (v39 25 s: the second planner pass), policy max A
-1.60 s, B 4.71 s (`official-sample-abc-v40.json`).
+1.60 s, B 4.71 s (`official-sample-abc-v40.json`).  Official result
+52.58 (v39 52.71, -0.13): placement -1.0, fill -0.20, soft -0.05, the
+fraction placed 0.6153 -> 0.6121, optimize 120.5 s (the second planner
+pass ran: the platform's Task A manifests are single containers of
+80-110 items, and the two-deep plan cost a priority box there for no
+soft).  Not kept (`reports/submission/official-results.md`).
 
 ## Known limits
 

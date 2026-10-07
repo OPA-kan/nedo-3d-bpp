@@ -30,6 +30,23 @@
 | v37 (9e40ed2: v32 plus the sweep-shade veto on Task C alone, the scratch with the Task A exemptions and the 41-based threshold) | 38.01 | 63.27 | 75.26 | 48.25 | 36.75 | 0.6141 | 113.2 | 7.18 |
 | v38 (162e110: v37 plus soft cargo on soft tops in the physics resort over the threshold) | 37.95 | 63.26 | 75.15 | 47.8 | 36.45 | 0.6140 | 116.0 | 7.21 |
 | v39 (ea96b79: v38 plus the soft columns in the ladder -- soft as structure under a 0.7 m cap once soft covers 35 % of a floor -- and the resort's generation deadline) | 38.05 | 63.20 | 75.15 | 48.6 | 36.75 | 0.6153 | 113.1 | 7.33 |
+| v40 (1274210: v39 plus Task A's soft gallery two deep as a planner variant on single-container manifests, gated at the threshold plus two) | 37.85 | 63.53 | 75.19 | 47.6 | 36.7 | 0.6121 | 120.5 | 7.53 |
+
+v40's total was 52.58 (v39 52.71, -0.13): placement -1.0, fill -0.20,
+soft -0.05, cog +0.32, stability +0.04, the fraction placed 0.6153 ->
+0.6121, the optimize time 113.1 -> 120.5 s.  The seven seconds are the
+second planner pass, which runs only on single-container manifests:
+so the platform's Task A manifests are single containers, and the
+two-deep plan played on at least one of them -- for a priority box
+and a little fill, and no soft (36.7 against 36.75), where the A
+suite had it at soft share +0.078 and priority +0.013.  The
+platform's A episodes are nearer their threshold than the suite's
+(v34 said the same), and the two-deep plan's 2-4 items fewer are what
+the gate's "threshold plus two" does not cover once the replay loses
+its two or three.  The form goes back to v39's on A; what the
+platform did confirm is the shape of its Task A cases: one container,
+a manifest whose optimize takes 113 s (the sample's 41 items take
+25 s), so 80-110 items in one container.
 
 v39's total was 52.71 (v38 52.54, +0.17; v32 52.71, level): placement
 +0.8, soft +0.30, fill +0.10, cog -0.06, stability flat, the fraction
