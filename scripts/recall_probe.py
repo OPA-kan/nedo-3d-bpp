@@ -2,18 +2,20 @@
 
 For every decision the physics resort or the count pass made (the ladder
 and the stack option found nothing), the pose that stood is compared
-with what the ladder generated for that item:
+with every anchor pose the ladder put through the analytic validator in
+that call (``layer1.generate_candidates`` validates each anchor pose
+before it becomes a candidate, so the anchors are read off the
+validator's calls, by the box name "candidate"):
 
-* ``no-orientation``: the ladder generated no candidate in that orientation;
-* ``no-position``: it did, but none within 5 cm (xy) and 5 cm (z) of the pose;
-* ``vetoed:<reason>``: a candidate within 5 cm failed the analytic validator
-  with that reason;
-* ``survived``: a candidate within 5 cm passed the validator (lost in the
-  ranking, or to the shadow check).
+* ``no-anchor``: no anchor pose in that orientation within 5 cm (xy) and
+  5 cm (z) of the pose -- the generator never offered the place;
+* ``vetoed:<reason>``: an anchor pose within 5 cm failed the validator
+  with that reason (and none passed);
+* ``survived``: an anchor pose within 5 cm passed the validator and became
+  a candidate (lost in the ranking, or to the shadow check).
 
-The ladder's generation and validation are captured by wrapping
-``layer1.generate_candidates`` and ``layer1.validate``; the resort's pose
-is the step's.  One line of JSON per resort decision, and a summary."""
+``no-orientation`` is the case with no anchor pose of that orientation at
+all.  One line of JSON per resort decision, and a summary."""
 import collections
 import json
 import pathlib
@@ -29,31 +31,18 @@ import rule_alpha.layer1 as layer1  # noqa: E402
 RADIUS_XY = 0.05
 RADIUS_Z = 0.05
 
-generated: list = []      # candidates generated in the current policy call
-verdicts: dict = {}       # box key -> validator reason in the current call
-_orig_generate = layer1.generate_candidates
+anchors: list = []        # (container index, center, size, verdict) in the current policy call
 _orig_validate = layer1.validate
-
-
-def _key(center, size):
-    return tuple(round(float(v), 3) for v in center) + tuple(round(float(v), 3) for v in size)
-
-
-def generate_candidates(*args, **kwargs):
-    out = _orig_generate(*args, **kwargs)
-    generated.extend(out)
-    return out
 
 
 def validate(box, model, container, config):
     ok, why = _orig_validate(box, model, container, config)
-    k = _key(box.center, box.size)
-    if k not in verdicts or ok:
-        verdicts[k] = "ok" if ok else why
+    if getattr(box, "name", "") == "candidate":
+        anchors.append((int(container.get("index", 0)), tuple(float(v) for v in box.center),
+                        tuple(float(v) for v in box.size), "ok" if ok else why))
     return ok, why
 
 
-layer1.generate_candidates = generate_candidates
 layer1.validate = validate
 
 records: list = []
@@ -67,8 +56,7 @@ class Wrapped:
         return getattr(self.agent, name)
 
     def policy(self, observation):
-        generated.clear()
-        verdicts.clear()
+        anchors.clear()
         t0 = time.perf_counter()
         action = self.agent.policy(observation)
         decision = getattr(self.agent, "last_decision", None)
@@ -78,29 +66,29 @@ class Wrapped:
             box = placement.box
             cx, cy, cz = (float(v) for v in box.center)
             sx, sy, sz = (float(v) for v in box.size)
-            same = [c for c in generated
-                    if int(c.container_idx) == int(placement.container_idx)
-                    and all(abs(float(a) - b) < 1e-3 for a, b in zip(c.box.size, (sx, sy, sz)))]
+            ci = int(placement.container_idx)
+            mine = [a for a in anchors if a[0] == ci]
+            same = [a for a in mine if all(abs(p - q) < 1e-3 for p, q in zip(a[2], (sx, sy, sz)))]
             kind = "no-orientation"
             nearest = None
             if same:
-                def dist(c):
-                    x, y, z = (float(v) for v in c.box.center)
-                    return max(abs(x - cx), abs(y - cy)), abs(z - cz)
-                same.sort(key=lambda c: dist(c))
-                near = [c for c in same if dist(c)[0] <= RADIUS_XY and dist(c)[1] <= RADIUS_Z]
+                def dist(a):
+                    x, y, z = a[1]
+                    return (max(abs(x - cx), abs(y - cy)), abs(z - cz))
+                same.sort(key=dist)
+                nearest = [round(v, 3) for v in dist(same[0])]
+                near = [a for a in same if dist(a)[0] <= RADIUS_XY and dist(a)[1] <= RADIUS_Z]
                 if not near:
-                    kind = "no-position"
-                    nearest = dist(same[0])
+                    kind = "no-anchor"
                 else:
-                    reasons = [verdicts.get(_key(c.box.center, c.box.size), "unvalidated") for c in near]
-                    if "ok" in reasons:
-                        kind = "survived"
-                    else:
-                        kind = "vetoed:" + collections.Counter(reasons).most_common(1)[0][0]
-            records.append({"archetype": arch, "kind": kind, "generated": len(generated),
-                            "same_orientation": len(same), "nearest": nearest,
+                    reasons = [a[3] for a in near]
+                    kind = "survived" if "ok" in reasons else "vetoed:" + collections.Counter(reasons).most_common(1)[0][0]
+            sizes = sorted({tuple(round(v, 2) for v in a[2]) for a in mine})
+            records.append({"archetype": arch, "kind": kind, "anchors": len(mine), "same_orientation": len(same),
+                            "nearest": nearest, "size": [round(sx, 2), round(sy, 2), round(sz, 2)],
+                            "anchor_sizes": sizes, "surface": getattr(placement, "surface", None),
                             "bottom": round(cz - sz / 2, 3), "soft": bool(placement.profile.is_soft),
+                            "verdicts": dict(collections.Counter(a[3] for a in mine).most_common(4)),
                             "seconds": round(time.perf_counter() - t0, 2)})
         return action
 
@@ -129,6 +117,10 @@ def main():
     print(f"== {len(rows)} resort decisions over {len(sys.argv) - 3} scenes")
     for k, n in kinds.most_common():
         print(f"   {k}: {n} ({n / max(len(rows), 1) * 100:.0f}%)")
+    verdicts = collections.Counter()
+    for r in rows:
+        verdicts.update(r["verdicts"])
+    print("   the ladder's anchor verdicts in those calls:", dict(verdicts.most_common(6)))
 
 
 if __name__ == "__main__":
