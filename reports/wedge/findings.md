@@ -2736,6 +2736,39 @@ v39 carries it (`soft_is_structure`, `soft_structure_max_top` 0.7,
 ungated cap's Task A gain (soft +0.40 a scene) is left for a build of
 its own.
 
+**Task A's special cargo (after v39).**  v39's official 52.71 with a
+cog of 63.2 that the suites' centre of mass reproduces to 0.3 says
+the platform counts nearly every episode of these builds; the gap to
+the leaderboard's 71 is then the special cargo's shares (soft 36.75
+and placement 48.6 against the 90-95 a 71 needs: 14 of the 18.7
+points), not the count.  On the A suite the planner plans 5-9 of 15
+soft boxes (one gallery layer, bottoms 0.84-1.26 m); the rest sit in
+the order's tail and the ladder never reaches them.  Priority: on the
+single containers the chosen plan carries the priority hard boxes
+after the normal ones and the 0.75 x 0.56 priority boxes end
+unplanned (a-c1-s0009 three of seven, a-c1s-s0010 three of five).
+Four config variants on the A suite against the v39 A form
+(`softres-core-a`), priced at the official weights over A's third:
+
+| variant | placed | soft share | priority share | CoM | topples | crossings | priced |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| soft as structure uncapped, no gate (`asoft-nocap-core-a`) | +1.50 | 0.448 -> 0.588 | +0.032 | +0.010 | 8 -> 14 | 48 | +0.80 |
+| soft rows with their own layout (`asoft-ownrows-core-a`) | -0.60 | -0.020 | -0.049 | +0.006 | 8 -> 6 | 45 | -0.34 |
+| priority-first plans only (`aprio-first-core-a`) | -1.31 | -0.049 | +0.034 | +0.008 | 8 -> 9 | 47 | -0.16 |
+| uncapped and own rows (`asoft-both-core-a`) | +1.92 | 0.448 -> 0.628 | +0.012 | +0.016 | 8 -> 13 | 48 | +0.89 |
+
+The soft gallery two deep is the lever (+0.8 to +0.9 on the total from
+A alone, the soft share 0.45 -> 0.63); the own-rows layout pays only
+on top of it; priority-first plans cost more soft and count than the
+priority they add (the big priority boxes have no row of their depth
+whatever the order).  The cost is the topples, 8 -> 13-14: soft boxes
+flat on soft at 0.9-1.3 m, five of them the online stack option's
+poses (`stack-rl`), the rest the plan's.  Two forms to take them back
+are running: the stack option with soft as no structure
+(`stack_soft_is_structure` off, the plan's rows keep theirs), and a
+cap at 1.0 m; `asoft-both-hard-a` measures the form on the hard A
+suite.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
