@@ -506,7 +506,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # cargo for soft and lose crossings (a-hard-s0041 74 -> 57 of 59), so
     # the two-deep plan plays only when it holds the count threshold plus
     # plan_value_margin and scores higher
-    softs = [s for s in re.split(r"[,+|]", str(getattr(config, "plan_soft_structure_variants", "") or "")) if s] or [None]
+    # ";" too: an arm spec's overrides are comma-separated, so the list
+    # arrives as "off;on" (plan_variants, split on "," and "+" alone, has
+    # run as the one variant "first;after-hard" -- neither order, the
+    # size-mixed default -- since the arm specs took that form)
+    softs = [s for s in re.split(r"[,+|;]", str(getattr(config, "plan_soft_structure_variants", "") or "")) if s] or [None]
     variants = [(o, li, s, m, ss) for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     threshold = None
@@ -545,7 +549,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
             on = soft_structure == "on"
             changes["soft_is_structure"] = on
             if on:
-                # the gallery two deep whatever the online caps say
+                # the gallery two deep whatever the online caps say; the
+                # planner's candidates come from stack_candidates, which
+                # drops soft structure when stack_soft_is_structure is off
+                # (the online stack option's switch), so it is on here
+                changes["stack_soft_is_structure"] = True
                 _stability.SOFT_STRUCTURE_MAX_TOP = None
                 _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
         if changes:
