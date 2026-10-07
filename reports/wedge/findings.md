@@ -2833,6 +2833,39 @@ a rule that builds it (the soft cargo in the pool stacked on the soft
 already placed once the hard rows are done), not a support model that
 permits it.
 
+**The ladder's candidate recall** (`scripts/recall_probe.py`: for every
+pose the physics resort or the count pass placed after the ladder and
+the stack option had nothing, every anchor pose the ladder put through
+the validator in that call, read off the validator's calls, against the
+pose).  Nine C scenes of the v39 arm, 32 resort decisions:
+
+| the nearest ladder anchor of the pose's orientation | decisions |
+|---|---:|
+| none within 5 cm (xy and z): the place was never offered | 24 (75 %) |
+| within 5 cm and it passed the validator (lost in the ranking or to the shadow) | 3 |
+| within 5 cm and vetoed (overlaps 2, no support 1) | 3 |
+| no anchor of that orientation at all | 2 |
+
+22 of the 32 poses stand on item tops (19 of them never offered), 10
+on the floor (5 never offered); the poses are mostly boxes on end
+(0.65 x 0.45 x 0.25 and 0.55 x 0.40 x 0.24 standing, 0.75 x 0.56 x
+0.27 standing).  The ladder's calls put 2,000-11,000 anchor poses
+through the validator, 162,000 of them refused as overlaps and 42,000
+as outside the settled bounds: the anchors come from the packed
+edges (four x and four y values a box), capped at 26 x 22 outermost
+and backmost first, and on a fuller board they land on what is packed,
+not on what is free.  From the fourteenth item of c-c1-s0001 on, the
+generator returned zero candidates on every call (ten orientation
+passes a call, all of their anchors refused), and the terraces, the
+stack option and the resort placed the rest.  So the good pose is not
+in the candidate set: a search over these candidates, however deep,
+cannot find it, and the resort's 4 cm lattice finds it at the end at
+its own cost.  `residual_anchors` (layer1.generate_residual_candidates):
+the empty rectangles of every level, the last resort's geometry, as
+ordinary candidates on every call -- floor poses with no role, poses on
+hard tops as terraces, standing orientations included -- ranked with
+the rest.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
