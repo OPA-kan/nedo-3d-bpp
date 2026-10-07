@@ -2862,9 +2862,37 @@ in the candidate set: a search over these candidates, however deep,
 cannot find it, and the resort's 4 cm lattice finds it at the end at
 its own cost.  `residual_anchors` (layer1.generate_residual_candidates):
 the empty rectangles of every level, the last resort's geometry, as
-ordinary candidates on every call -- floor poses with no role, poses on
-hard tops as terraces, standing orientations included -- ranked with
-the rest.
+candidates on every call, standing orientations included.  Two forms.
+As ordinary floor and terrace candidates ranked with the rest (four
+local scenes): worse, the residual poses win rungs they should not
+(c-c1-s0001 21 against 25, c-c2-s0003 38 against 43).  As a rung of
+their own after the floor rungs and before the growth rungs
+(`A_RESIDUAL`, lowest level, flattest, biggest footprint, back first;
+`residual-core`, `residual-hard`, `residual-core-b`, `residual-hard-b`
+against the v39 arms):
+
+| suite | placed | crossings | priced | gaps |
+|---|---:|---:|---:|---|
+| sample C | +0.27 | 48 -> 48 | -0.24 (priority covered 12 -> 21, topples 13 -> 19) | strips 0.35 -> 0.35 |
+| hard C | -0.38 | 17 -> 17 | -0.52 | |
+| sample B | -0.38 | 48 -> 46 | +0.04 | strips 0.37 -> 0.38 |
+| hard B | -1.27 | 19 -> 17 | -2.27 | |
+
+Not adopted (the switch stays off).  What it says: the poses the
+resort finds are not good poses offered late, they are last poses --
+a box on end on whatever top is left -- and offering them earlier
+builds worse loads; and the empty rectangles the generator reads are
+the strips themselves, 0.1-0.3 m wide where the smallest hard box
+needs 0.29 m with its clearances, so the residual rung has little to
+offer on the floor and the gap bands do not move.  The strips are
+made at placement time, by rows of unequal depth and by boxes set a
+clearance from a neighbour with a sliver left to the next; a generator
+that reads the leftovers cannot unmake them.  The next form is a rule
+at placement: a floor pose that leaves a sliver (wider than the
+clearance, narrower than the smallest expected class with its
+clearances) between the box and the next obstacle is refused or
+shifted to close it, so that the floor's residual stays usable --
+measured by `gap_strip_share`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
