@@ -51,7 +51,12 @@ def predict(d: str) -> dict:
             "soft_of_placed": soft_ok / max(m["soft_count"], 1), "prio_of_placed": prio_ok / max(m["priority_count"], 1),
             "cog": 100.0 * (1.0 - m.get("com_z_above_floor_ratio", 0.0)),
             "topples": m.get("shake_topples", 0), "contact_covered": m.get("contact_covered", 0),
-            "shake_max": m.get("shake_max_shift", 0.0),
+            "shake_max": m.get("shake_max_shift", 0.0), "shake_mean": m.get("shake_mean_shift", 0.0),
+            # stability readings: the shake's displacements against the
+            # validator's 0.3 m threshold, and the share that did not topple
+            "stab_max": 100.0 * max(0.0, 1.0 - m.get("shake_max_shift", 0.0) / 0.3),
+            "stab_mean": 100.0 * max(0.0, 1.0 - m.get("shake_mean_shift", 0.0) / 0.3),
+            "stab_topple": 100.0 * (1.0 - m.get("shake_topples", 0) / max(m["placed_count"], 1)),
         })
     if not rows:
         return {}
@@ -67,18 +72,22 @@ def predict(d: str) -> dict:
         "prio_of_placed": float(np.mean([r["prio_of_placed"] for r in c])),
         "topples_per_episode": float(np.mean([r["topples"] for r in c])),
         "shake_max": float(np.mean([r["shake_max"] for r in c])),
+        "shake_mean": float(np.mean([r["shake_mean"] for r in c])),
+        "stab_max": float(np.mean([r["stab_max"] if r["counted"] else 0.0 for r in rows])),
+        "stab_mean": float(np.mean([r["stab_mean"] if r["counted"] else 0.0 for r in rows])),
+        "stab_topple": float(np.mean([r["stab_topple"] if r["counted"] else 0.0 for r in rows])),
     }
     return out
 
 
 def main():
-    print("| dir | n | counted | fraction | fill | soft H1 | placement H1 | cog H1 | soft ok of placed | prio ok of placed | topples/ep | shake max |")
-    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    print("| dir | n | counted | fraction | fill | soft H1 | placement H1 | cog H1 | soft ok of placed | prio ok of placed | topples/ep | shake max | shake mean | stab(max) | stab(mean) | stab(topple) |")
+    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for d in sys.argv[1:]:
         p = predict(d)
         if not p:
             continue
-        print(f"| {p['dir']} | {p['episodes']} | {p['counted']} | {p['fraction']:.3f} | {p['fill']:.2f} | {p['soft_h1']:.1f} | {p['prio_h1']:.1f} | {p['cog_h1']:.1f} | {p['soft_of_placed']:.3f} | {p['prio_of_placed']:.3f} | {p['topples_per_episode']:.2f} | {p['shake_max']:.3f} |")
+        print(f"| {p['dir']} | {p['episodes']} | {p['counted']} | {p['fraction']:.3f} | {p['fill']:.2f} | {p['soft_h1']:.1f} | {p['prio_h1']:.1f} | {p['cog_h1']:.1f} | {p['soft_of_placed']:.3f} | {p['prio_of_placed']:.3f} | {p['topples_per_episode']:.2f} | {p['shake_max']:.3f} | {p['shake_mean']:.3f} | {p['stab_max']:.1f} | {p['stab_mean']:.1f} | {p['stab_topple']:.1f} |")
 
 
 if __name__ == "__main__":
