@@ -2942,6 +2942,37 @@ alone puts the second item on the floor and the scene goes 16 -> 17
 placed, fill 34.3 -> 37.5; the waste alone changes nothing there (the
 standing box had no flush candidate to prefer).
 
+Measured on the suites (`near-*` the waste term alone, `shadow-hard-b`
+the veto alone, `sliver-*` both; `useful_width_from_stream` tried on
+the veto's lost scenes locally):
+
+| suite | waste alone | veto alone | both |
+|---|---|---|---|
+| sample B | placed +0.06, 48 -> 47, +0.04 priced | (pending: `ovshadow-core-b`) | placed -0.12, 48 -> 48, +0.05 |
+| hard B | 19 -> 20 crossings, placed +0.06, value +1.06 | 19 -> 17, placed -0.98, value -2.37 | 19 -> 14, placed -2.12, value -5.70 |
+| sample C | placed +0.21, fill +0.14, 48 -> 47, +0.18 priced | | placed +0.40, 48 -> 46, +0.29 |
+| hard C | 17 -> 17, placed -0.06, value -0.14 | | 17 -> 18, placed -0.58, value +0.44 |
+| sample A | placed +0.42, fill +1.6, prio share 0.79 -> 0.65, soft 0.48 -> 0.43, -1.38 priced | | the same, -1.10 |
+
+The veto loses the big-mix scenes: b-hard-s0004 (big, three
+containers) 53 -> 42 placed, the terraces refused and the big boxes
+with no second home, b-hard-s0019 64 -> 61; it gains where the
+shadow was the whole story (b-hard-s0048 16 -> 21, b-hard-s0025
+57 -> 66).  Setting the useful width from the stream (the narrowest
+hard box of the pool plus its clearances, 0.45 m on the sample's SKUs
+against the 0.35 m fallback) does not change that (s0004 41, s0019
+60); the veto is the wrong instrument where the floor's rectangles
+are already too small for the mix and the terrace is the only pose,
+and a rule that knows the difference is the "future hard capacity"
+proposal (the room scorer), not a veto.  Off.  The waste term alone
+is small and one-sided enough to keep for B and C (v41); on A it
+decides the planner's dry-run race against the priority rows and
+stays at the original term.  Neither moves the gap KPI: sample B
+strips 0.37 -> 0.37, sample C 0.35 -> 0.36, hard B 0.34 -> 0.33 --
+the strips are the overhang shadows and the rows of unequal depth,
+and the placement rule that prices a pose's own slivers cannot reach
+them.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
