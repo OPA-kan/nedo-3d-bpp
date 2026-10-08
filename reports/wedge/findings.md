@@ -2948,7 +2948,7 @@ the veto's lost scenes locally):
 
 | suite | waste alone | veto alone | both |
 |---|---|---|---|
-| sample B | placed +0.06, 48 -> 47, +0.04 priced | (pending: `ovshadow-core-b`) | placed -0.12, 48 -> 48, +0.05 |
+| sample B | placed +0.06, 48 -> 47, +0.04 priced | placed -0.10, prio -0.19, 48 -> 47, +0.13 (CoM) | placed -0.12, 48 -> 48, +0.05 |
 | hard B | 19 -> 20 crossings, placed +0.06, value +1.06 | 19 -> 17, placed -0.98, value -2.37 | 19 -> 14, placed -2.12, value -5.70 |
 | sample C | placed +0.21, fill +0.14, 48 -> 47, +0.18 priced | | placed +0.40, 48 -> 46, +0.29 |
 | hard C | 17 -> 17, placed -0.06, value -0.14 | | 17 -> 18, placed -0.58, value +0.44 |
@@ -2972,6 +2972,51 @@ strips 0.37 -> 0.37, sample C 0.35 -> 0.36, hard B 0.34 -> 0.33 --
 the strips are the overhang shadows and the rows of unequal depth,
 and the placement rule that prices a pose's own slivers cannot reach
 them.
+
+**Grow or ground, as an arbiter** (`grow_ground_arbiter`,
+`room.arbitrate_growth`): the veto's replacement -- a growth pick
+(terrace, plateau merge, wedge bridge) that shadows usable free floor
+is put beside the floor rungs' own pick, both scored by the level,
+reachable slots the load keeps for the stream's hard classes
+(`RoomScorer.slots`, the classes from the manifest on A, the pool on
+B, every item seen on C), and the floor pose goes when it keeps more
+by a margin.  Inert: b-hard-s0003 16, s0004 53, s0048 16, c-c1-s0001
+22, all as v39.  Two reasons, read off the decisions
+(`scratchpad/arb_probe.py`, `veto_probe.py`, `pool_probe.py`):
+
+1. *There is no floor pick to arbitrate.*  On b-hard-s0048 (a 1.85 x
+   1.58 floor, 0.75 x 0.56 boxes) the second item's 73 floor poses
+   were all dropped before the shortlist: the corridor rule holds the
+   way in until the floor is 62 % covered, the back row covers half
+   the floor, and the second row crosses the corridor everywhere, so
+   the corridor can never be released by the floor alone -- while the
+   terraces and the shelf stand, no fallback fires.  With the corridor
+   yielding (`corridor_yields_to_floor`: the veto holds only while the
+   item has a floor pose off the corridor) 14 floor poses reach the
+   vetoes and die there instead: 8 to the reserved soft and priority
+   zones, 4 to the sealing price, 2 to the wall-front strip.  On the
+   hard suites' smaller containers the reservations -- corridor, the
+   two typed zones, the wall-front strip, sized as fractions of the
+   sample's ULD -- cover the whole second row, and a plain hard box
+   has no floor at all; the terrace is the only pose, and the growth
+   rungs are not the ladder's choice but its only option.
+2. *Where both exist the slot measure keeps the terrace.*  On
+   b-hard-s0003's second item the load keeps 1.38 slots after the
+   terrace and 0.63 after the floor pose: a floor pose spends a
+   footprint of the open floor's windows, a terrace spends only its
+   shadow, and a measure of room kept will always spend the floor
+   last -- the same reading as the room selector's (above).  The
+   arbiter needs a measure of what a pose *wastes*, not of what it
+   keeps; and a terrace's waste is its shadow while a floor pose's is
+   its slivers, which is the veto's arithmetic that lost the big-mix
+   scenes.
+
+The corridor yield alone (`cyield-*` against the v39 arms): sample B
+placed +0.29 (+0.09 priced), sample C -0.23 (-0.04, 48 -> 47), hard C
+17 -> 14 crossings (value -3.13), hard B 19 -> 18 (placed -1.19,
+topples 12 -> 22).  The corridor held is what keeps the way in: a box
+in the way in early costs the sweep of everything behind it.  Not
+adopted.  Both switches stay off.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
