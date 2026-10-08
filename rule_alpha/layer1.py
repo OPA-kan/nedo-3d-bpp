@@ -3216,7 +3216,11 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     #    strands the whole column; late on it releases the corridor by itself,
     #    because there is nothing left behind to strand.  No threshold has to
     #    name the moment.
-    if coverage < config.corridor_release_fill:
+    corridor_hold = (
+        floor_pose_outside_corridor(survivors, config)
+        if getattr(config, "corridor_yields_to_floor", False) else True
+    )
+    if coverage < config.corridor_release_fill and corridor_hold:
         kept = []
         for candidate in survivors:
             if (
@@ -3910,8 +3914,34 @@ def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) ->
     return out
 
 
+def floor_pose_outside_corridor(pool: list, config) -> bool:
+    """Is there a floor candidate the corridor rule would let stand: off the
+    corridor, and not a low-footprint pose the other cheap veto refuses?
+    When there is none the corridor is all the floor this item has, and
+    holding it (``corridor_yields_to_floor``) starves the floor: on the
+    hard suites' smaller containers the back row covers half the floor
+    and the second row crosses the corridor everywhere, so every floor
+    pose was refused while terraces and the shelf stood, and the floor
+    never reached the release coverage (b-hard-s0048: 16 of 40 placed
+    with the floor half free)."""
+    for c in pool:
+        if c.surface != "floor" or c.role == l2.ROLE_LAST_RESORT:
+            continue
+        if c.features.get("corridor_overlap", 0.0) > 1e-4:
+            continue
+        if (
+            c.role == cls.ROLE_NONE
+            and not (c.profile.is_elongated and not c.profile.is_soft)
+            and c.features["footprint"]
+            < config.min_floor_footprint_fraction * c.profile.max_footprint - 1e-9
+        ):
+            continue
+        return True
+    return False
+
+
 def _certainly_vetoed(candidate: Candidate, board: Board, container_idx: int,
-                      coverage: float, config) -> bool:
+                      coverage: float, config, corridor_hold: bool = True) -> bool:
     """Would this candidate be refused for a reason already known?
 
     Only the two cheap floor vetoes, and only in the form they take *before*
@@ -3930,7 +3960,8 @@ def _certainly_vetoed(candidate: Candidate, board: Board, container_idx: int,
     ):
         return True
     if (
-        coverage < config.corridor_release_fill
+        corridor_hold
+        and coverage < config.corridor_release_fill
         and candidate.role != l2.ROLE_LAST_RESORT
         and candidate.features["corridor_overlap"] > 1e-4
     ):
@@ -4133,9 +4164,13 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         # already-chosen few are thrown away.
         if config.prefilter_dead_candidates:
             coverage_now = board.grid(container_idx).coverage()
+            corridor_hold = (
+                floor_pose_outside_corridor(pool, config)
+                if getattr(config, "corridor_yields_to_floor", False) else True
+            )
             alive = [
                 c for c in pool
-                if not _certainly_vetoed(c, board, container_idx, coverage_now, config)
+                if not _certainly_vetoed(c, board, container_idx, coverage_now, config, corridor_hold)
             ]
             if alive:
                 pool = alive

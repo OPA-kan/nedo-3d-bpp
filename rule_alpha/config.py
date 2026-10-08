@@ -1081,6 +1081,16 @@ class RuleAlphaConfig:
     anybody, while this crude threshold is what actually keeps the opening
     clear early.  Set it to 0.0 to run on the price alone."""
 
+    corridor_yields_to_floor: bool = False
+    """The corridor veto holds only while this item has a floor pose off
+    the corridor (``layer1.floor_pose_outside_corridor``).  On the hard
+    suites' smaller containers the back row covers half the floor and
+    the second row crosses the corridor everywhere, so every floor pose
+    was refused -- before the shortlist, with terraces and the shelf
+    still standing, so no fallback fired -- and the floor never reached
+    the release coverage: b-hard-s0048 ended at 16 of 40 with the floor
+    half free."""
+
     # ------------------------------------------------------------------
     # Back-first foundation, and reachability priced above coverage
     # ------------------------------------------------------------------
