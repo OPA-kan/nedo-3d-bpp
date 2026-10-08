@@ -376,6 +376,14 @@ class Board:
         sp_area = sum(
             p.max_footprint for p in profiles if p.cargo_class == cls.SOFT_PRIORITY
         )
+        return self.set_zone_areas(total, soft_area, priority_area, sp_area, config)
+
+    def set_zone_areas(self, total: float, soft_area: float, priority_area: float,
+                       sp_area: float, config) -> dict:
+        """Size the reserved edge strips from footprint areas by class: the
+        declared manifest's (``set_zone_demand``) or, on Tasks B and C, the
+        stream's estimate (the agent's ``zones_from_stream``)."""
+        total = total or 1.0
         reference = max(1e-6, config.zone_reference_share)
         has_priority_uld = self.has_priority_container()
 

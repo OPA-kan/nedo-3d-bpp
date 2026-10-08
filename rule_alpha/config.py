@@ -1430,6 +1430,19 @@ class RuleAlphaConfig:
     it does need.  Off by default; the argument still stands and the mechanism
     is here for a manifest where the strips genuinely outlive their demand."""
 
+    zones_from_stream: bool = False
+    """Tasks B and C: size the reserved edge strips from the stream's
+    typed share by footprint (every item seen so far behind a prior of
+    the sample's shares, ``RuleAlphaAgent._zones_from_stream``), as Task
+    A sizes them from the manifest.  Without it the strips stand at full
+    width on B and C whatever the stream shows: on the hard suites'
+    smaller containers the reservations (corridor, the two typed strips,
+    the wall-front strip) cover the whole second row and a plain hard
+    box has no floor (findings, "Grow or ground")."""
+
+    zones_from_stream_prior: float = 20.0
+    """Weight of the sample's shares in that estimate, in items."""
+
     zone_reference_share: float = 0.25
     """Share of the declared stream (by footprint) at which a reserved edge
     strip reaches full width.  Below that it shrinks proportionally; a class

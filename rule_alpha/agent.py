@@ -149,6 +149,41 @@ class RuleAlphaAgent:
         self.board = layer1.Board(containers, self.config)
         return True
 
+    def _zones_from_stream(self, profiles) -> dict:
+        """Tasks B and C: the reserved edge strips sized from the stream's
+        typed share by footprint -- every item seen so far (the pool on B,
+        each item as it shows on C) behind a prior of the sample's shares
+        weighted as ``zones_from_stream_prior`` items -- the way Task A
+        sizes them from the manifest (``Board.set_zone_demand``).  Without
+        a manifest the strips stood at full width whatever the stream:
+        the priority strip for a stream with no priority cargo, the soft
+        strip for a stream of hard boxes."""
+        sums = getattr(self, "_zone_area_sums", None)
+        if sums is None:
+            prior_items = float(getattr(self.config, "zones_from_stream_prior", 20.0))
+            prior_area = prior_items * 0.25  # the sample's mean footprint
+            # the sample's shares by footprint: soft 0.26, priority 0.10,
+            # soft-priority 0.03
+            sums = self._zone_area_sums = {
+                "total": prior_area, "soft": 0.26 * prior_area,
+                "priority": 0.10 * prior_area, "sp": 0.03 * prior_area, "seen": set(),
+            }
+        for _pool_index, profile in profiles:
+            if profile.index in sums["seen"]:
+                continue
+            sums["seen"].add(profile.index)
+            area = float(profile.max_footprint)
+            sums["total"] += area
+            if profile.cargo_class == cls.SOFT:
+                sums["soft"] += area
+            elif profile.cargo_class == cls.PRIORITY:
+                sums["priority"] += area
+            elif profile.cargo_class == cls.SOFT_PRIORITY:
+                sums["sp"] += area
+        return self.board.set_zone_areas(
+            sums["total"], sums["soft"], sums["priority"], sums["sp"], self.config
+        )
+
     def _room_classes(self, profiles) -> list:
         """The hard classes the stream has shown, for the grow-or-ground
         arbiter: the manifest's on Task A, the visible pool's on B, every
@@ -661,6 +696,11 @@ class RuleAlphaAgent:
 
         if getattr(self.config, "grow_ground_arbiter", ""):
             self.board.room_classes = self._room_classes(profiles)
+        if getattr(self.config, "zones_from_stream", False) and not self.profiles:
+            try:
+                self.zone_scales = self._zones_from_stream(profiles)
+            except Exception as exc:
+                print(f"[zones] stream sizing failed: {exc!r}", flush=True)
 
         ordered = layer1.pool_order(profiles, self.config)
         if len(profiles) > 1 and str(getattr(self.config, "pool_order_mode", "size")) == "fit":
