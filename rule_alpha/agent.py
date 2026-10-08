@@ -180,8 +180,15 @@ class RuleAlphaAgent:
                 sums["priority"] += area
             elif profile.cargo_class == cls.SOFT_PRIORITY:
                 sums["sp"] += area
+        # the shares, scaled to the stream's expected size: the shelf
+        # relief ``set_zone_areas`` subtracts is an absolute area, as it
+        # is against Task A's whole manifest
+        containers = len(self.board.models) if self.board is not None else 1
+        expected = float(getattr(self.config, "pocket_guard_items_per_container", 41.0)) * containers * 0.25
+        scale = max(sums["total"], expected) / sums["total"]
         return self.board.set_zone_areas(
-            sums["total"], sums["soft"], sums["priority"], sums["sp"], self.config
+            sums["total"] * scale, sums["soft"] * scale, sums["priority"] * scale,
+            sums["sp"] * scale, self.config,
         )
 
     def _room_classes(self, profiles) -> list:
