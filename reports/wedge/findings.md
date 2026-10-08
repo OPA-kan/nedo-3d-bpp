@@ -3023,6 +3023,37 @@ topples 12 -> 22).  The corridor held is what keeps the way in: a box
 in the way in early costs the sweep of everything behind it.  Not
 adopted.  Both switches stay off.
 
+**The typed strips sized from the stream** (`zones_from_stream`,
+`RuleAlphaAgent._zones_from_stream`): on B and C the soft and
+priority strips stood at full width whatever the stream, where Task A
+sizes them from the manifest (`Board.set_zone_demand`); here the
+footprint by class of every item seen (the pool on B, each item on C)
+behind a prior of the sample's shares (20 items) is scaled to the
+expected stream and put through the same arithmetic each step.  On
+the sample's streams this is itself a change: the priority share by
+footprint is 0.08-0.15 against the 0.25 reference, so the priority
+strip runs at 0.3-0.6 of its width and the soft strip, after the
+shelf relief, at 0.3-0.6 on the shelf layouts (b-c1-s0001 25 -> 29
+placed locally).  The suites (`zstream-*` against the v39 arms):
+
+| suite | placed | crossings | priced |
+|---|---:|---:|---:|
+| sample C | -0.02 | 48 -> 46 | -0.02 |
+| sample B | -0.67 (fill -0.97) | 48 -> 46 | -0.11 |
+| hard C | -0.33 | 17 -> 18 | +0.51 |
+| hard B | +0.58 | 19 -> 18 | -0.72 |
+
+Fails the ship rule on both sample suites.  The full-width strips are
+not only a reservation: they are where the ladder's typed rungs
+(soft-edge, priority-edge, the sp cluster) put their cargo, and a
+narrower strip scatters it -- the hard count does not rise enough to
+pay for the typed rows it breaks.  Not adopted.  With this the
+floor-recall line has six forms measured (the residual rung, the
+sliver term, the overhang veto, the arbiter, the corridor yield, the
+strips from the stream) and none that clears the sample suites: the
+sample's floors are as full as the ladder's rules allow, and what the
+hard suites lose to the reservations is not what the platform loses.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
