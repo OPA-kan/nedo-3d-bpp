@@ -91,9 +91,9 @@ SOFT_COLUMNS = True
 # single containers of 80-110 items): the two-deep plan cost a priority
 # box there for no soft.  Off from v41.
 TASK_A_SOFT_GALLERY = False
-# v41: the row-tiling term along both axes with the near-neighbour
-# slivers, Tasks B and C (OVERRIDES: row_waste_axes; the optimize
-# override keeps the original term for A).
+# v41 (not kept, see OVERRIDES): the row-tiling term along both axes
+# with the near-neighbour slivers on Tasks B and C; official 50.32
+# against v39's 52.71, one episode under the count threshold.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -293,16 +293,14 @@ OVERRIDES = dict(
     # 113,000 poses to validate, 11-12 s in one call against the
     # platform's 8 s; inert on the sample's streams.
     soft_structure_max_top=0.7, soft_structure_floor_share=0.35,
-    # v41: the row-tiling term prices the floor a pose strands along both
-    # axes and the exact near-neighbour slivers (row_waste_axes; the
-    # original term read only the runs across the container, on a 4 cm
-    # grid blind under 8 cm).  Tasks B and C only (Agent.optimize resets
-    # it for A, where it cost priority share): sample C placed +0.21 a
-    # scene (+0.18 priced), sample B +0.06 (+0.04), hard B 19 -> 20
-    # crossings, hard C level (-0.14).  The overhang-shadow veto measured
-    # beside it (a raised pose may not shadow usable free floor) lost
-    # hard B crossings in every form and stays off.
-    row_waste_axes="xyn",
+    # v41 (not kept): the row-tiling term along both axes with the exact
+    # near-neighbour slivers (row_waste_axes=xyn) on Tasks B and C.  The
+    # suites: sample C placed +0.21 a scene, sample B +0.06, but 48 -> 47
+    # crossings on each; the platform: 50.32 against v39's 52.71, one
+    # episode in about sixteen under the count threshold (cog -3.7,
+    # stability -4.3, placement -3.4).  A crossing lost on a sample
+    # suite is disqualifying whatever the mean.  Off from v42: the
+    # original term ("x") on every task.
 )
 STACK_POLICY = "weights/stack"
 
@@ -339,11 +337,7 @@ class Agent(RuleAlphaAgent):
         share 0.45 -> 0.53, 48 of 48, +0.42 on the total from A's third;
         hard A suite level (26 -> 26 crossings).  Tasks B and C keep
         v39's capped, gated columns (optimize is not called there)."""
-        task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A,
-                      # v41: the two-axis row-tiling term is for B and C;
-                      # in the planner's dry-run race it cost A's priority
-                      # share (A suite prio share 0.79 -> 0.65, -1.38 priced)
-                      row_waste_axes="x")
+        task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",

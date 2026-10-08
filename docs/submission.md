@@ -554,7 +554,15 @@ stays off; neither moves the gap KPI (`reports/wedge/findings.md`,
 "Where the floor strips come from").  Official sample: A 32.11 / 25
 (as v39), B 27.18 / 25 (v39 27.28), C 26.64 / 24 (v39 26.44 / 25);
 policy max B 6.37 s (v39 4.53 s: a resort call over the budget), C
-4.05 s, optimize 35 s (`official-sample-abc-v41.json`).
+4.05 s, optimize 35 s (`official-sample-abc-v41.json`).  Official
+result 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
+placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
+0.6034 -- one episode in about sixteen under the count threshold that
+v39 had over it.  The suites had shown the sign (48 -> 47 crossings
+on sample B and on sample C, each) and the mean gain was taken over
+it; from here a form that loses a crossing on either sample suite
+does not ship.  Not kept: v42 returns to v39's term
+(`reports/submission/official-results.md`).
 
 ## Known limits
 

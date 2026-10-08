@@ -31,6 +31,24 @@
 | v38 (162e110: v37 plus soft cargo on soft tops in the physics resort over the threshold) | 37.95 | 63.26 | 75.15 | 47.8 | 36.45 | 0.6140 | 116.0 | 7.21 |
 | v39 (ea96b79: v38 plus the soft columns in the ladder -- soft as structure under a 0.7 m cap once soft covers 35 % of a floor -- and the resort's generation deadline) | 38.05 | 63.20 | 75.15 | 48.6 | 36.75 | 0.6153 | 113.1 | 7.33 |
 | v40 (1274210: v39 plus Task A's soft gallery two deep as a planner variant on single-container manifests, gated at the threshold plus two) | 37.85 | 63.53 | 75.19 | 47.6 | 36.7 | 0.6121 | 120.5 | 7.53 |
+| v41 (4feda5c: v39 plus the row-tiling term along both axes with the near-neighbour slivers on Tasks B and C) | 37.04 | 59.51 | 70.87 | 45.2 | 37.4 | 0.6034 | 114.3 | 7.21 |
+
+v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
+placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
+0.6034.  The shape is the count threshold's: cog, stability and
+placement fell 5.7-7 % together where the fraction placed fell 1.9 %,
+which is one episode in about sixteen scoring zero on the four
+non-fill components -- an episode that crossed the threshold under
+v39 and did not under v41.  The suites had said so: the waste term
+alone was placed +0.06 / +0.21 a scene on sample B / C but 48 -> 47
+crossings on each, and that one lost crossing was waved through as
+noise against the small mean gain.  It is not noise on the platform:
+a crossing lost is the whole of four components for that episode,
+and the pricing in `cmp_dirs` (a third of each suite's mean) does not
+weigh it as the platform does.  The rule from here: a form that loses
+a crossing on either sample suite does not ship, whatever its mean.
+Off from v42 (`submission/agent.py`: `row_waste_axes` back to the
+original term on every task).
 
 v40's total was 52.58 (v39 52.71, -0.13): placement -1.0, fill -0.20,
 soft -0.05, cog +0.32, stability +0.04, the fraction placed 0.6153 ->

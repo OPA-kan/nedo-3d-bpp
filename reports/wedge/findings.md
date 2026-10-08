@@ -2965,9 +2965,14 @@ against the 0.35 m fallback) does not change that (s0004 41, s0019
 are already too small for the mix and the terrace is the only pose,
 and a rule that knows the difference is the "future hard capacity"
 proposal (the room scorer), not a veto.  Off.  The waste term alone
-is small and one-sided enough to keep for B and C (v41); on A it
+was shipped for B and C as v41 on its mean; the platform scored it
+50.32 against v39's 52.71 -- one episode in about sixteen under the
+count threshold (cog -3.7, stability -4.3, placement -3.4 together,
+the fraction placed -1.9 %), the 48 -> 47 crossings the sample suites
+had shown on B and on C.  Off from v42; a form that loses a crossing
+on either sample suite does not ship, whatever its mean.  On A it
 decides the planner's dry-run race against the priority rows and
-stays at the original term.  Neither moves the gap KPI: sample B
+stays at the original term in any case.  Neither moves the gap KPI: sample B
 strips 0.37 -> 0.37, sample C 0.35 -> 0.36, hard B 0.34 -> 0.33 --
 the strips are the overhang shadows and the rows of unequal depth,
 and the placement rule that prices a pose's own slivers cannot reach
