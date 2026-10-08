@@ -10,7 +10,8 @@ One row per episode in the CSVs; the margin is placed minus the count threshold 
 - end reasons: {'declined': 48}
 - the item that stopped it: {'soft': 4, 'hard': 37, 'hard+prio': 7}; its dims: {'0.65x0.45x0.25': 19, '0.75x0.56x0.27': 14, '0.55x0.40x0.24': 11, '0.60x0.30x0.25': 3, '0.50x0.40x0.40': 1}
 - it fits the largest free floor rectangle flat in 3 episodes (on some face 18); some pool item does flat in 3 (some face 18)
-- floor free 0.291 (strips 0.721 of it), free volume above the height map 0.439, highest top 0.950 of the inner height
+- floor free 0.291 (strips 0.721 of it), free volume above the height map 0.439 of the container, highest top 0.950 of the inner height
+- that free volume: under a headroom no box fits 0.028, over level patches too small for a 0.40 x 0.55 footprint 0.405, over a usable level patch 0.006
 - soft placed / seen 492 / 496, priority 186 / 193; covered soft 7, priority 12; topples 13
 - gap median 5.08 cm, strip share 0.359
 
@@ -55,7 +56,8 @@ One row per episode in the CSVs; the margin is placed minus the count threshold 
 - end reasons: {'declined': 48}
 - the item that stopped it: {'soft': 43, 'hard': 3, 'hard+prio': 1, 'soft+prio': 1}; its dims: {'0.65x0.35x0.23': 22, '0.50x0.40x0.40': 19, '0.60x0.30x0.25': 3, '0.75x0.56x0.27': 3, '0.65x0.45x0.25': 1}
 - it fits the largest free floor rectangle flat in 1 episodes (on some face 14); some pool item does flat in 3 (some face 21)
-- floor free 0.265 (strips 0.781 of it), free volume above the height map 0.420, highest top 0.952 of the inner height
+- floor free 0.265 (strips 0.781 of it), free volume above the height map 0.420 of the container, highest top 0.952 of the inner height
+- that free volume: under a headroom no box fits 0.029, over level patches too small for a 0.40 x 0.55 footprint 0.376, over a usable level patch 0.014
 - soft placed / seen 371 / 652, priority 225 / 244; covered soft 0, priority 9; topples 19
 - gap median 5.91 cm, strip share 0.364
 
@@ -89,7 +91,8 @@ One row per episode in the CSVs; the margin is placed minus the count threshold 
 - end reasons: {'declined': 48}
 - the item that stopped it: {'soft': 10, 'hard': 37, 'hard+prio': 1}; its dims: {'0.55x0.40x0.24': 19, '0.65x0.45x0.25': 15, '0.65x0.35x0.23': 7, '0.75x0.56x0.27': 4, '0.60x0.30x0.25': 2, '0.45x0.30x0.20': 1}
 - it fits the largest free floor rectangle flat in 1 episodes (on some face 8); some pool item does flat in 1 (some face 8)
-- floor free 0.163 (strips 0.869 of it), free volume above the height map 0.434, highest top 0.913 of the inner height
+- floor free 0.163 (strips 0.869 of it), free volume above the height map 0.434 of the container, highest top 0.913 of the inner height
+- that free volume: under a headroom no box fits 0.024, over level patches too small for a 0.40 x 0.55 footprint 0.395, over a usable level patch 0.015
 - soft placed / seen 389 / 399, priority 258 / 259; covered soft 1, priority 3; topples 6
 - gap median 3.01 cm, strip share 0.234
 
@@ -115,7 +118,8 @@ One row per episode in the CSVs; the margin is placed minus the count threshold 
 - end reasons: {'declined': 48}
 - the item that stopped it: {'hard+prio': 1, 'hard': 36, 'soft': 11}; its dims: {'0.55x0.40x0.24': 12, '0.75x0.56x0.27': 10, '0.80x0.60x0.50': 8, '0.65x0.45x0.25': 7, '0.50x0.40x0.40': 4, '0.65x0.35x0.23': 3}
 - it fits the largest free floor rectangle flat in 2 episodes (on some face 11); some pool item does flat in 2 (some face 11)
-- floor free 0.271 (strips 0.708 of it), free volume above the height map 0.494, highest top 0.936 of the inner height
+- floor free 0.271 (strips 0.708 of it), free volume above the height map 0.494 of the container, highest top 0.936 of the inner height
+- that free volume: under a headroom no box fits 0.023, over level patches too small for a 0.40 x 0.55 footprint 0.442, over a usable level patch 0.029
 - soft placed / seen 787 / 798, priority 226 / 227; covered soft 14, priority 19; topples 25
 - gap median 3.73 cm, strip share 0.303
 
@@ -143,7 +147,8 @@ One row per episode in the CSVs; the margin is placed minus the count threshold 
 - end reasons: {'transport': 1, 'declined': 47}
 - the item that stopped it: {'hard': 17, 'soft': 28, 'hard+prio': 3}; its dims: {'0.65x0.35x0.23': 16, '0.80x0.60x0.50': 10, '0.60x0.40x0.40': 8, '0.75x0.56x0.27': 7, '0.50x0.40x0.40': 4, '0.65x0.45x0.25': 2}
 - it fits the largest free floor rectangle flat in 5 episodes (on some face 14); some pool item does flat in 7 (some face 20)
-- floor free 0.269 (strips 0.722 of it), free volume above the height map 0.487, highest top 0.941 of the inner height
+- floor free 0.269 (strips 0.722 of it), free volume above the height map 0.487 of the container, highest top 0.941 of the inner height
+- that free volume: under a headroom no box fits 0.026, over level patches too small for a 0.40 x 0.55 footprint 0.429, over a usable level patch 0.032
 - soft placed / seen 683 / 917, priority 257 / 270; covered soft 8, priority 11; topples 21
 - gap median 4.82 cm, strip share 0.337
 

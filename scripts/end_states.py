@@ -113,9 +113,36 @@ def floor_and_volume(scene, steps):
         strip = _narrow(free, need) & free
         rect = _largest_rect(free)
         inner_h = H - t
-        free_vol = float(np.clip(inner_h - height[real], 0.0, None).sum()) * CELL * CELL
+        head = np.clip(inner_h - height, 0.0, None)
+        free_vol = float(head[real].sum()) * CELL * CELL
         cap = float(real.sum()) * CELL * CELL * inner_h
+        # where the free volume is: under a headroom no box fits (less than
+        # the lowest box, 0.23 m, plus the clearances), or over a level
+        # patch too small for the smallest hard footprint (0.40 x 0.55 with
+        # the clearances, tops within 2 cm), or usable
+        low = real & (head < 0.23 + 0.03)
+        usable = np.zeros_like(real)
+        levels = np.round(height / 0.02).astype(int)
+        nxw, nyw = int(round(0.43 / CELL)), int(round(0.58 / CELL))
+        for level in np.unique(levels[real & ~low]):
+            on = real & ~low & (np.abs(levels - level) <= 1)
+            s = np.zeros((on.shape[0] + 1, on.shape[1] + 1), dtype=np.int32)
+            s[1:, 1:] = np.cumsum(np.cumsum(on.astype(np.int32), axis=0), axis=1)
+            for a, b in ((nxw, nyw), (nyw, nxw)):
+                if a > on.shape[0] or b > on.shape[1]:
+                    continue
+                tot = s[a:, b:] - s[:-a, b:] - s[a:, :-b] + s[:-a, :-b]
+                ok = tot == a * b
+                ii, jj = np.nonzero(ok)
+                for i, j in zip(ii, jj):
+                    usable[i:i + a, j:j + b] = True
+        vol_low = float(head[low].sum()) * CELL * CELL
+        vol_usable = float(head[usable].sum()) * CELL * CELL
+        vol_pieces = max(0.0, free_vol - vol_low - vol_usable)
         rows.append({
+            "vol_low_share": vol_low / max(cap, 1e-9),
+            "vol_usable_share": vol_usable / max(cap, 1e-9),
+            "vol_pieces_share": vol_pieces / max(cap, 1e-9),
             "floor_free": float(free.sum()) / max(float(real.sum()), 1.0),
             "strip_share": float(strip.sum()) / max(float(free.sum()), 1.0),
             "largest_rect": f"{max(rect):.2f}x{min(rect):.2f}",
@@ -178,6 +205,9 @@ def episode_row(record):
         "strip_share": round(float(np.mean([f["strip_share"] for f in floors])), 3) if floors else 0.0,
         "largest_rect": biggest["largest_rect"] if biggest else "",
         "free_volume_share": round(float(np.mean([f["free_volume_share"] for f in floors])), 3) if floors else 0.0,
+        "vol_low_share": round(float(np.mean([f["vol_low_share"] for f in floors])), 3) if floors else 0.0,
+        "vol_pieces_share": round(float(np.mean([f["vol_pieces_share"] for f in floors])), 3) if floors else 0.0,
+        "vol_usable_share": round(float(np.mean([f["vol_usable_share"] for f in floors])), 3) if floors else 0.0,
         "top_max_share": round(float(max(f["top_max"] / f["height_inner"] for f in floors)), 3) if floors else 0.0,
         "gap_median_cm": gaps.get("gap_median_cm", 0.0), "gap_strip_share": gaps.get("gap_strip_share", 0.0),
         "archetypes": " ".join(f"{k}:{v}" for k, v in sorted(
@@ -198,7 +228,8 @@ def summarise(name, rows):
     nxt = __import__("collections").Counter(r["next_class"] for r in rows)
     lines.append(f"- the item that stopped it: {dict(nxt)}; its dims: {dict(__import__('collections').Counter(r['next_dims'] for r in rows).most_common(6))}")
     lines.append(f"- it fits the largest free floor rectangle flat in {sum(1 for r in rows if r['next_fits_floor'])} episodes (on some face {sum(1 for r in rows if r['next_fits_any_face'])}); some pool item does flat in {sum(1 for r in rows if r['pool_any_fits_floor'])} (some face {sum(1 for r in rows if r['pool_any_fits_any_face'])})")
-    lines.append(f"- floor free {np.mean([r['floor_free'] for r in rows]):.3f} (strips {np.mean([r['strip_share'] for r in rows]):.3f} of it), free volume above the height map {np.mean([r['free_volume_share'] for r in rows]):.3f}, highest top {np.mean([r['top_max_share'] for r in rows]):.3f} of the inner height")
+    lines.append(f"- floor free {np.mean([r['floor_free'] for r in rows]):.3f} (strips {np.mean([r['strip_share'] for r in rows]):.3f} of it), free volume above the height map {np.mean([r['free_volume_share'] for r in rows]):.3f} of the container, highest top {np.mean([r['top_max_share'] for r in rows]):.3f} of the inner height")
+    lines.append(f"- that free volume: under a headroom no box fits {np.mean([r['vol_low_share'] for r in rows]):.3f}, over level patches too small for a 0.40 x 0.55 footprint {np.mean([r['vol_pieces_share'] for r in rows]):.3f}, over a usable level patch {np.mean([r['vol_usable_share'] for r in rows]):.3f}")
     lines.append(f"- soft placed / seen {sum(r['soft_placed'] for r in rows)} / {sum(r['soft_seen'] for r in rows)}, priority {sum(r['prio_placed'] for r in rows)} / {sum(r['prio_seen'] for r in rows)}; covered soft {sum(r['soft_covered'] for r in rows)}, priority {sum(r['prio_covered'] for r in rows)}; topples {sum(r['topples'] for r in rows)}")
     lines.append(f"- gap median {np.mean([r['gap_median_cm'] for r in rows]):.2f} cm, strip share {np.mean([r['gap_strip_share'] for r in rows]):.3f}")
     close = sorted((r for r in rows if -3 <= r["margin"] <= 2), key=lambda r: r["margin"])

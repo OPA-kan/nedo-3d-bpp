@@ -3054,6 +3054,53 @@ strips from the stream) and none that clears the sample suites: the
 sample's floors are as full as the ladder's rules allow, and what the
 hard suites lose to the reservations is not what the platform loses.
 
+**The end states as data** (`scripts/end_states.py`,
+`reports/bench/end-states-v39/`: one row per episode of the v39 arm on
+the five suites, the summary in `summary.md`).  What the rows say:
+
+| suite | margin median | within 0..+2 | at 0 | stopped by | free volume | of it: low headroom / small patches / usable |
+|---|---:|---:|---:|---|---:|---|
+| sample C | +1 | 30 / 48 | 9 | hard 44, soft 4 (0.65x0.45 19, 0.75x0.56 14, 0.55x0.40 11) | 0.44 | 0.03 / 0.41 / 0.01 |
+| sample B | +4 | 19 / 48 | 7 | soft 44, hard 4 (the pool all soft; soft placed 371 of 652 seen) | 0.42 | 0.03 / 0.38 / 0.01 |
+| sample A | +6 | 11 / 48 | 2 | hard 38, soft 10 | 0.43 | 0.02 / 0.40 / 0.02 |
+| hard C | -4 | 7 / 48 | 3 | hard 37, soft 11 | 0.49 | 0.02 / 0.44 / 0.03 |
+| hard B | -4 | 5 / 48 | 2 | soft 28, hard 20 | 0.49 | 0.03 / 0.43 / 0.03 |
+
+1. *The margins.*  Sample C ends a median of one item over the count
+   threshold: 30 of 48 episodes within two items of it, nine on it
+   exactly.  That is the whole of v41's -2.4 points (one episode in
+   sixteen under it), and it is where the platform's C episodes stand
+   too (the official sample's three are +4, +3, +3).  Every change is
+   first a change to these nine.
+2. *What stops C is geometry, not the rules.*  At the declining call
+   the validator refuses every anchor pose of every orientation --
+   on c-c1-s0002 11,000 verdicts, all `overlaps-packed-item`,
+   `settled-pose-outside` or `outside-container`, not one `no-support`
+   -- and the physics resort's lattice finds nothing either.  The
+   stopping item fits the largest free floor rectangle flat in 3 of
+   48 episodes (on some face in 18).  There is no recall to gain at
+   the end: the load is full for a 0.65 x 0.45 box.
+3. *And yet 44 % of the container is empty.*  Of that free volume
+   (2.5-D, above the height map), 0.03 lies under a headroom no box
+   fits and 0.01 over a level patch a 0.40 x 0.55 footprint fits;
+   0.41 -- nearly all of it -- lies over level patches too small for
+   that footprint: tops within 2 cm of each other that do not make
+   a 0.43 x 0.58 window, and floor in strips.  The highest top
+   stands at 0.95 of the inner height.  The load is a mosaic of
+   columns of unequal height; the volume is lost between them, not
+   under the ceiling and not on the floor.
+4. *B stops on soft.*  44 of 48 sample B episodes end with a pool of
+   soft boxes (0.65 x 0.35 x 0.23, 0.50 x 0.40 x 0.40) and no pose
+   for any of them, with 43 % of the soft cargo seen unplaced; the
+   hard cargo is not what runs out.
+
+The next instrument, from 3: the levelness of the load as it is
+built -- the share of the top surface in level patches at least a
+footprint wide, measured per step -- and the placement rules read
+against it: which archetypes break a level patch, and whether a
+pose that extends a level patch at the same height can be preferred
+without losing the nine margin-zero episodes.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
