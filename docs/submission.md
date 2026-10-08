@@ -536,6 +536,26 @@ pass ran: the platform's Task A manifests are single containers of
 80-110 items, and the two-deep plan cost a priority box there for no
 soft).  Not kept (`reports/submission/official-results.md`).
 
+Forty-first build (v41): v39 with the row-tiling term along both axes
+and the exact near-neighbour slivers (`row_waste_axes` = xyn) on Tasks
+B and C; Task A keeps the original term (the optimize override), the
+two-deep gallery of v40 off.  The term prices the floor a floor pose
+strands in runs narrower than the narrowest useful width; the original
+read only the runs across the container in the box's own rows, on a 4
+cm grid whose clearance stamps hide any gap under 8 cm.  Measured
+alone against v39 (`near-*`): sample C placed +0.21 a scene (+0.18
+priced), sample B +0.06 (+0.04), hard B 19 -> 20 crossings, hard C
+level (-0.14); on A it decides the planner's dry-run race against the
+priority rows (prio share 0.79 -> 0.65, -1.38 priced), hence B and C
+only.  The overhang-shadow veto measured beside it (a raised pose may
+not shadow usable free floor, `overhang_shadow_area`) lost hard B
+crossings in every form (19 -> 17 alone, 19 -> 14 with the term) and
+stays off; neither moves the gap KPI (`reports/wedge/findings.md`,
+"Where the floor strips come from").  Official sample: A 32.11 / 25
+(as v39), B 27.18 / 25 (v39 27.28), C 26.64 / 24 (v39 26.44 / 25);
+policy max B 6.37 s (v39 4.53 s: a resort call over the budget), C
+4.05 s, optimize 35 s (`official-sample-abc-v41.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
