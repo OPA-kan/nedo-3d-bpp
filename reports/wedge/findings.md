@@ -3194,6 +3194,83 @@ Task A, held back only by the count margin the platform showed in
 v34; Task B's pool (6.9 soft boxes left a scene) and Task C's
 priority cargo are the same lever where the stream allows.
 
+### What the platform's four components measure, read off seventeen builds
+
+The public evaluator reports only the fill and the count; the other
+four are described in the simulator README ("評価指標") and read here
+against every build with an official result (v18 to v41) and the
+suite records of the same form (`scripts/platform_predict.py`; the
+build-to-record mapping in the agent's table below is approximate
+where a build's change touched one task only).  Hypothesis H1: the
+soft score is the share of the stream's soft items placed and not
+under cargo of another attribute; the placement score the share of
+the stream's priority items placed, not under cargo of another
+attribute and in the priority container when one exists; the cog
+score 100 x (1 - the mass-weighted centre of mass over the height);
+all three over the counted episodes (zero under the count threshold),
+and the denominators the whole stream, placed or not.
+
+| build | official soft / H1 | official placement / H1 | official cog / H1 | official stability | stability / cog |
+|---|---:|---:|---:|---:|---:|
+| v18 | 19.85 / 21.1 | 35.6 / 35.9 | 54.83 / 36.4 | 62.69 | 1.143 |
+| v24 | 37.9 / 37.8 | 24.05 / 41.1 | 40.59 / 48.0 | 46.43 | 1.144 |
+| v26 | 25.35 / 22.8 | 38.45 / 37.9 | 53.37 / 37.7 | 62.55 | 1.172 |
+| v29 | 28.3 / 30.5 | 39.75 / 45.3 | 53.22 / 44.0 | 62.69 | 1.178 |
+| v31 | 36.35 / 39.2 | 46.85 / 57.0 | 63.55 / 57.2 | 75.22 | 1.184 |
+| v32 | 36.6 / 40.7 | 48.5 / 63.0 | 63.31 / 60.5 | 75.16 | 1.187 |
+| v36 | 36.2 / 44.1 | 47.8 / 67.4 | 63.23 / 63.2 | 75.19 | 1.189 |
+| v39 | 36.75 / 46.6 | 48.6 / 68.1 | 63.20 / 62.9 | 75.15 | 1.189 |
+| v40 | 36.7 / 49.2 | 47.6 / 68.5 | 63.53 / 62.9 | 75.19 | 1.184 |
+| v41 | 37.4 / 46.0 | 45.2 / 67.0 | 59.51 / 62.2 | 70.87 | 1.191 |
+
+What holds:
+
+1. *cog is exactly H1 once every episode is counted.*  From v36 on
+   the suites' 100 x (1 - CoM ratio) over counted episodes is within
+   0.3 of the official figure (63.2 / 63.23, 62.9 / 63.20); before
+   v31 the suites counted far fewer episodes than the platform did
+   (v18: 9 of 48 on C) and under-read it by 10-18.  A point of cog is
+   0.01 of CoM ratio, 0.22 on the total.
+2. *stability is a constant per counted episode.*  Official stability
+   over official cog is 1.14-1.19 on every build from v18 to v41,
+   whatever the load: stability is (counted share) x 75, as cog is
+   (counted share) x 63.  The README's example run (every item placed,
+   fill 15.3) read 72.1.  None of our shake readings tracks it (the
+   v39 suites: 52.9 from the maximum displacement, 89.7 from the
+   mean, 99.2 from the topples) and none needs to: it has not moved
+   with any load change we made, only with the count threshold.
+3. *soft and placement are H1 in structure and 10 and 20 points
+   under it in level.*  The two builds that moved the official soft
+   score moved it as H1 says: soft first (v24) +17 official against
+   +16 H1, the count mode (v31) +8 against +9; and the early builds
+   sit on H1 (v18 19.85 / 21.1, v26 25.35 / 22.8, v29 28.3 / 30.5).
+   From v32 on the official soft stands at 36-37 and placement at
+   45-49 while the suites' H1 rose from 40 / 63 to 49 / 68: every
+   suite gain since v33 (the shade veto's C count, the resort's soft
+   on soft on B, the two-deep gallery on A) came with a count the
+   platform did not reproduce, and the platform's typed items are
+   placed properly at a lower rate than the sample's at the same
+   count fraction (0.61): its streams or its containers differ from
+   the sample's -- more typed cargo late in the stream, a priority
+   container with misrouting, or both; the sample cannot say which.
+4. *So all four components scale with the count.*  cog and
+   stability are the counted share times a constant; soft and
+   placement are shares of the whole stream, so a decline at 60 % of
+   it caps them near 60 whatever the load does with what it sees.
+   The leaderboard's 71 is then not a special-cargo score beside a
+   count like ours: at soft and placement near 90, nine of ten typed
+   items of the stream stand placed and uncovered, which is nine of
+   ten items of the stream, and a fill near the manifests' 50-56 %.
+   The gap to the top is the count -- the 44 % of the container the
+   end states leave empty ("The end states as data") -- and the
+   special-cargo lever this document named earlier is that count
+   seen through two of its components.
+
+The ship rule follows from 2 and 4 with the weights: an episode
+under the threshold loses 0.219 x 63 + 0.210 x 75 + its soft and
+placement, about 2.4 points of the total per sixteen episodes, which
+is what v41 paid.
+
 ### The spare optimize time: a search over Task A's plans
 
 Every Task A episode ends on a decline with about 40 % of the items
