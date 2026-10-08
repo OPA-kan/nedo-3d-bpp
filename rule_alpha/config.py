@@ -544,6 +544,25 @@ class RuleAlphaConfig:
     on footprint; the floor strips of the hard B suite are, by cells, mostly
     such runs along y beside ``max-footprint`` poses."""
 
+    grow_ground_arbiter: str = ""
+    """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
+    growth pick (terrace, plateau merge, wedge bridge) that shadows
+    usable free floor past its support against the floor rungs' own
+    pick, and the floor pose goes when the load keeps more level,
+    reachable slots for the stream's classes after it (by
+    ``grow_ground_margin``); ``both`` puts every growth pick to the
+    question and a floor pick against the growth rungs' pick too.  Empty:
+    off.  The classes are the hard boxes the stream has shown
+    (``Board.room_classes``, set by the agent), else
+    ``room_selector_classes``."""
+
+    grow_ground_margin: float = 0.25
+    """Slots the alternative must keep over the ladder's pick."""
+
+    grow_ground_shadow: float = 0.01
+    """Usable free floor under the growth pick's overhang, in m^2, from
+    which the ``shadow`` mode asks the question."""
+
     useful_width_from_stream: bool = False
     """Set the width under which free floor counts as dead
     (``Board.min_useful_width``, read by the row-tiling term and the

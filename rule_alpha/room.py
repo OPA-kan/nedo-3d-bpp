@@ -202,6 +202,64 @@ class RoomSelector:
         return pick, f"room/{label}"
 
 
+_ARBITER_SCORERS: dict = {}
+
+
+def arbitrate_growth(chosen, chosen_archetype, survivors, ladder, board, container_idx, config):
+    """Grow or ground: when the ladder's pick is a growth rung (a terrace,
+    a plateau merge, a wedge bridge), the floor rungs' own pick is scored
+    beside it by the level, reachable slots the load keeps for the
+    stream's classes (``RoomScorer.slots``), and the floor pose goes when
+    it keeps more by ``grow_ground_margin``.  With ``grow_ground_arbiter``
+    = shadow only a growth pick that shadows usable free floor past its
+    support (``layer1.overhang_shadow`` over ``grow_ground_shadow``) is
+    put to the question; with ``both`` every growth pick is, and a floor
+    pick is put against the growth rungs' pick too.
+
+    The veto on such overhangs lost the big-mix scenes, where the floor's
+    rectangles are already too small for the mix and the terrace is the
+    only pose: a terrace's cost (the floor it shadows) and a floor pose's
+    cost (the terrace it forgoes, the floor rectangle it breaks) have to
+    be counted in one unit, and the slots are that unit.  Returns
+    ``(candidate, archetype)`` or None."""
+    from . import layer1 as l1
+
+    mode = str(getattr(config, "grow_ground_arbiter", "") or "")
+    if not mode:
+        return None
+    growth = l1.GROWTH_ARCHETYPES
+    if chosen_archetype in growth:
+        if mode != "both" and l1.overhang_shadow(chosen.box, board, container_idx) <= float(
+            getattr(config, "grow_ground_shadow", 0.01)
+        ):
+            return None
+        floor = [c for c in survivors if c.surface == "floor"]
+        alt, alt_name = l1.ladder_pick(floor, ladder, config, set(ladder) - growth)
+    elif mode == "both" and chosen.surface == "floor":
+        raised = [c for c in survivors if c.surface == "item"]
+        alt, alt_name = l1.ladder_pick(raised, ladder, config, growth)
+    else:
+        return None
+    if alt is None or alt is chosen:
+        return None
+    classes = list(getattr(board, "room_classes", None) or [])
+    if not classes:
+        classes = parse_classes(getattr(config, "room_selector_classes",
+                                        "0.65x0.45x0.25:1,0.75x0.56x0.27:0.7,0.55x0.40x0.24:0.5"))
+    key = (float(getattr(config, "room_selector_cell", 0.05)),
+           float(getattr(config, "room_selector_tolerance", 0.02)), tuple(classes))
+    scorer = _ARBITER_SCORERS.get(key)
+    if scorer is None:
+        if len(_ARBITER_SCORERS) > 64:
+            _ARBITER_SCORERS.clear()
+        scorer = _ARBITER_SCORERS[key] = RoomScorer(config, classes, cell=key[0], tolerance=key[1])
+    s_chosen = scorer.slots(board, container_idx, extra=chosen.box)
+    s_alt = scorer.slots(board, container_idx, extra=alt.box)
+    if s_alt > s_chosen + float(getattr(config, "grow_ground_margin", 0.25)):
+        return alt, alt_name
+    return None
+
+
 # the official SKU mix (bench.scenes.SKUS: length, width, height, soft, weight)
 SKU_MIX = [
     (0.55, 0.40, 0.24, False, 13), (0.65, 0.45, 0.25, False, 11), (0.75, 0.56, 0.27, False, 4),

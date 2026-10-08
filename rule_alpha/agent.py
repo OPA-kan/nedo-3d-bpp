@@ -149,6 +149,35 @@ class RuleAlphaAgent:
         self.board = layer1.Board(containers, self.config)
         return True
 
+    def _room_classes(self, profiles) -> list:
+        """The hard classes the stream has shown, for the grow-or-ground
+        arbiter: the manifest's on Task A, the visible pool's on B, every
+        item seen so far on C; the six most frequent, weighted by count."""
+        import collections
+
+        counter = getattr(self, "_room_class_counts", None)
+        if counter is None:
+            counter = self._room_class_counts = collections.Counter()
+        if self.profiles:
+            source = list(self.profiles.values())
+        else:
+            source = [p for _i, p in profiles]
+        if len(source) > 1:
+            counter = collections.Counter()
+        for p in source:
+            if p.cargo_class != cls.NORMAL_HARD or p.is_elongated:
+                continue
+            item = p.item
+            dims = (round(float(item["length"]), 3), round(float(item["width"]), 3),
+                    round(float(item["height"]), 3))
+            counter[dims] += 1
+        if len(source) <= 1:
+            self._room_class_counts = counter
+        if not counter:
+            return []
+        total = float(sum(counter.values()))
+        return [(l, w, h, n / total) for (l, w, h), n in counter.most_common(6)]
+
     def _prepare_manifest(self, item_list: list) -> list:
         """What the whole manifest tells the agent before the stream starts:
         the profiles, and the zone and foundation demand on the board."""
@@ -629,6 +658,9 @@ class RuleAlphaAgent:
             seen = float(getattr(self, "_min_hard_width_seen", float("inf")))
             if seen < float("inf"):
                 self.board.min_useful_width = seen + 2.0 * self.config.settled_clearance
+
+        if getattr(self.config, "grow_ground_arbiter", ""):
+            self.board.room_classes = self._room_classes(profiles)
 
         ordered = layer1.pool_order(profiles, self.config)
         if len(profiles) > 1 and str(getattr(self.config, "pool_order_mode", "size")) == "fit":

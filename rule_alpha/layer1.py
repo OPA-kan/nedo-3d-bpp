@@ -255,6 +255,9 @@ class Board:
         # it per decision, see RuleAlphaAgent._soft_headroom_reserve)
         self.soft_headroom_reserve: float = 0.0
         self.min_useful_width: float = config.row_min_useful_width
+        # the hard classes the stream has shown, (l, w, h, weight), for the
+        # grow-or-ground arbiter's room measure (set by the agent)
+        self.room_classes: list = []
         # the flattest pose in the hard manifest, in metres.  The official
         # scorer counts an item only if every corner clears every plane by
         # `inclusion_margin` (-0.005), and the container floor is one of those
@@ -4228,45 +4231,21 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             pool_for_archetype = [c for c in survivors if name in c.archetypes]
             if not pool_for_archetype:
                 continue
-            # inside every archetype, a candidate that leaves the opening alone
-            # beats one that does not
-            key_fn = ARCHETYPE_KEYS[name]
-            if name == A_SHELF_SAVING and not config.shelf_residual_key:
-                key_fn = lambda c: (  # noqa: E731
-                    c.features["footprint"], -c.features["y_back"],
-                    c.orientation.tipping_ratio,
-                )
-            if name == A_SHELF_SAVING and config.shelf_residual_key:
-                bucket = config.shelf_depth_bucket
-                key_fn = lambda c: _key_shelf_saving(c, bucket)  # noqa: E731
-            if name in (A_TERRACE, A_BRIDGE) and (
-                config.terrace_keeps_level or config.seal_ranks_terraces
-            ):
-                bucket = config.plateau_gain_bucket if config.terrace_keeps_level else 0.0
-                seal_first = config.seal_ranks_terraces
-                key_fn = (
-                    (lambda c: _key_terrace(c, bucket, seal_first))
-                    if name == A_TERRACE
-                    else (lambda c: _key_bridge(c, bucket))
-                )
-            if name == A_TALL_PERIMETER:
-                depth_first = config.perimeter_prefers_depth
-                key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
-            pool_for_archetype.sort(
-                key=_stable_key(
-                    lambda c: (
-                        c.features.get("corridor_overlap", 0.0) > 1e-4,
-                        *key_fn(c),
-                    ),
-                    config,
-                )
-            )
-            chosen = pool_for_archetype[0]
+            chosen = rung_pick(name, pool_for_archetype, config)
             chosen_archetype = name
             break
         if chosen is None:
             chosen = survivors[0]
             chosen_archetype = "fallback"
+
+        if getattr(config, "grow_ground_arbiter", ""):
+            from .room import arbitrate_growth
+
+            override = arbitrate_growth(
+                chosen, chosen_archetype, survivors, ladder, board, container_idx, config
+            )
+            if override is not None:
+                chosen, chosen_archetype = override
 
         if selector is not None:
             # a learned or otherwise external selector sees exactly what the
@@ -4295,6 +4274,60 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         best = decision
         break
     return best
+
+
+GROWTH_ARCHETYPES = frozenset({A_TERRACE, A_BRIDGE, A_WEDGE_BRIDGE})
+
+
+def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
+    """The best candidate of one rung: its key, with the opening-sparing
+    tie-break in front (a candidate that leaves the opening alone beats
+    one that does not), sorted stably."""
+    key_fn = ARCHETYPE_KEYS[name]
+    if name == A_SHELF_SAVING and not config.shelf_residual_key:
+        key_fn = lambda c: (  # noqa: E731
+            c.features["footprint"], -c.features["y_back"],
+            c.orientation.tipping_ratio,
+        )
+    if name == A_SHELF_SAVING and config.shelf_residual_key:
+        bucket = config.shelf_depth_bucket
+        key_fn = lambda c: _key_shelf_saving(c, bucket)  # noqa: E731
+    if name in (A_TERRACE, A_BRIDGE) and (
+        config.terrace_keeps_level or config.seal_ranks_terraces
+    ):
+        bucket = config.plateau_gain_bucket if config.terrace_keeps_level else 0.0
+        seal_first = config.seal_ranks_terraces
+        key_fn = (
+            (lambda c: _key_terrace(c, bucket, seal_first))
+            if name == A_TERRACE
+            else (lambda c: _key_bridge(c, bucket))
+        )
+    if name == A_TALL_PERIMETER:
+        depth_first = config.perimeter_prefers_depth
+        key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
+    ordered = sorted(
+        pool_for_archetype,
+        key=_stable_key(
+            lambda c: (
+                c.features.get("corridor_overlap", 0.0) > 1e-4,
+                *key_fn(c),
+            ),
+            config,
+        ),
+    )
+    return ordered[0]
+
+
+def ladder_pick(survivors: list, ladder: list, config, names) -> tuple:
+    """The ladder's pick restricted to the rungs in ``names``: the first
+    such rung with a candidate, and its best candidate."""
+    for name in ladder:
+        if name not in names:
+            continue
+        pool_for_archetype = [c for c in survivors if name in c.archetypes]
+        if pool_for_archetype:
+            return rung_pick(name, pool_for_archetype, config), name
+    return None, None
 
 
 def _round(value):
