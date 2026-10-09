@@ -3195,6 +3195,74 @@ few (an arbiter like the room selector's, with the waste as its
 measure), which costs about 35 ms a candidate on the 2 cm grid.
 Shipped as v42 on B and C.
 
+*The instrument as an arbiter* (`surface_arbiter`, `rule_alpha/surface.py`;
+`surf-core`, `surf-core-b` against the level_key records; levelness in
+`reports/bench/levelness-surf.md`).  The first four candidates of the
+rung the ladder chose, in the rung's own order, are each stamped on a
+2 cm heightmap and the usable surface after each is read (the window
+of the smallest hard class, gaps up to 5 cm between tops at one height
+bridged, a soft top carrying nothing), with the pose's own footprint
+credited back -- without the credit a standing pose won by closing
+less floor, and on B c1 seed 2 the arbiter put a flat 0.45 x 0.65 box
+up on end; the candidate after which the most is kept replaces the
+pick when it keeps 0.05 m^2 more.  The rung's archetype stands; the
+room selector of v18, which re-ranked every rung's survivors, had lost
+the ladder's structure.  About 1 ms a candidate.
+
+| suite | placed | fill | soft share | priority share | crossings | overrides / 48 ep. | priced |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| sample C | -0.42 (9 up, 13 down) | -0.28 | 0.562 -> 0.548 | 0.615 -> 0.609 | 48 -> 47 | 64 | -0.08 |
+| sample B | -0.13 (15 up, 13 down) | -0.03 | 0.423 -> 0.425 | 0.728 -> 0.756 | 48 -> 48 | 61 | +0.25 |
+
+Not adopted.  The usable surface over the episode is where it was
+(C 1.08 / 0.82 / 0.52 / 0.18 / 0.05 against 1.08 / 0.80 / 0.51 /
+0.17 / 0.05; B 1.08 / 0.83 / 0.54 / 0.19 / 0.06 against 1.08 / 0.81
+/ 0.54 / 0.18 / 0.07): with 1.3 overrides an episode the arbiter
+touches too few decisions to move the curve, because the rung the
+ladder chose mostly holds one candidate or four that close the same
+surface.  Two readings of the losses.  Half of the changed C episodes
+hold no override at all (c-c2-s0005, -8, diverges at a pocket-guard
+pick with the arbiter never having fired): the pocket guard and the
+count pass run against a time budget, so a change that costs a few
+milliseconds moves their picks on the two-container scenes, and the
+suite comparisons carry that noise on every form.  Where the arbiter
+did fire and lost (c-c1-s0007, the crossing lost, 22 -> 20; c-c1-s0012,
+25 -> 21), it rotated a terrace to sit exactly on the box below (the
+pose that closes nothing by the window) where the terrace key had
+offset it to grow the plateau, and it moved a 0.40 x 0.55 floor pose
+to the spot the next 0.75 x 0.56 box needed flat, which then went up
+on end: a single window reads the surface for the smallest class and
+is blind to the largest.  A multi-class measure (the room selector's
+classes) would see the second; the first is the archetype's own
+intent, and an arbiter inside the rung cannot know it.  The choice
+within a rung is not where the levelness is decided; the ladder's
+order of archetypes and the rungs' leading terms are.
+
+**Where the standing poses stand** (`scripts/standing_map.py`,
+`reports/bench/standing-v42.md`; the v42 records).  Every placement
+by pose (flat / standing) and place (against the back wall, against a
+side wall, beside a top of its own height within 3 cm, free), with the
+instrument's waste.  The standing poses at the back wall carry the
+largest share of the waste on every task: 0.27 on C (293 placements,
+0.062 m^2 each), 0.35 on B (218, 0.095), 0.48 on A (210, 0.203, the
+plan's standing rows).  The single biggest cell on C and B is the
+shelf-space-saving rung's soft boxes standing at the back end of the
+shelf (C 114 placements, 0.099, 17 % of the waste; B 99, 0.156,
+26 %) -- the shelf plate counts as a level for the smallest hard class
+and a standing soft column closes it; whether that is waste depends on
+whether hard cargo would ever use the shelf (`shelf_takes_hard` says
+it may).  After the shelf: standing terraces at the back wall (C 27 at
+0.116, B 37 at 0.080) and standing max-footprint poses along the side
+wall (C 24 at 0.094, B 38 at 0.104).  A standing pose beside a top of
+its own height wastes little (C 0.030, B 0.012): the practice
+document's "standing at the back, flat at the front" holds in the
+instrument only when the standing boxes make a level row.  The floor
+rung stands a box only when no flat pose survived, so a veto on the
+standing poses would be a veto with the count as its cost; the form
+that fits the data is a row rule -- a standing pose at the back wall
+only beside a standing top of its own height, or as the first of a
+row the stream can continue.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
