@@ -564,6 +564,26 @@ it; from here a form that loses a crossing on either sample suite
 does not ship.  Not kept: v42 returns to v39's term
 (`reports/submission/official-results.md`).
 
+Forty-second build (v42): v39 with the levelness tie-break
+(`level_key`) on Tasks B and C.  Among the poses a floor or terrace
+rung's leading terms rank equal (the footprint and the row waste on
+max-footprint and back-corner, the plateau on the terrace and the
+bridge), the one whose top sits nearest its neighbours' tops goes
+(the mean height step to the neighbouring tops, bucketed at 3 cm; the
+ladder computed it for every candidate and no key read it).  From the
+levelness instrument (`scripts/levelness.py`): the usable surface of
+the load -- level patches a footprint wide with headroom -- is half
+gone by the middle of every episode, and the waster is the pose that
+does not match its neighbours' height.  Suites against v39: sample C
+placed +0.44, fill +0.29, soft and priority shares up, 48 of 48;
+sample B placed +0.60, fill +0.45, soft share 0.40 -> 0.42, 48 of 48;
+sample A placed +1.06 but priority share 0.79 -> 0.66 and 48 -> 47,
+so A keeps the original keys (the optimize override).  The term is a
+tie-break only: the usable-surface curve does not move.  Official
+sample: A 32.11 / 25 (as v39), B 29.59 / 26 (v39 27.28 / 25), C 26.44
+/ 25 (as v39); policy max B 4.81 s, C 3.64 s, optimize 25 s
+(`official-sample-abc-v42.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
