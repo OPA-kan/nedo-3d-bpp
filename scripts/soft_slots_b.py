@@ -100,6 +100,10 @@ class Load:
             support = np.zeros((self.nx, self.ny), dtype=bool)
             if kind == "floor":
                 support |= self.usable
+            # the chamfer wall at the box's bottom: nothing may stand left
+            # of the slope's limit at that height
+            x_limit = float(self.model.x_limit_at_height(z + 1e-3))
+            wall_ok = self.xx >= x_limit + CLEAR / 2.0
             for m, top, _b in self.shelves:
                 if abs(top - z) <= TOL:
                     support |= m
@@ -111,7 +115,7 @@ class Load:
                 # anything occupying (z, z + need) blocks the column
                 blocks = m & (top > z + 1e-3) & (bottom < z + need - 1e-3)
                 free &= ~blocks
-            ok = support & free
+            ok = support & free & wall_ok
             if ok.sum() < nxw * nyw:
                 continue
             s = np.zeros((self.nx + 1, self.ny + 1), dtype=np.int32)
@@ -181,7 +185,80 @@ def episode(record):
     }
 
 
+def validate_end_slots(record) -> list:
+    """At the end state, the analytic validator's verdict on a pose in
+    each end-pool soft item's slot (the load rebuilt from the steps'
+    settled poses, the record's own arm config).  Returns
+    ``[(kind, verdict, dims)]``."""
+    import collections
+
+    import rule_alpha.layer1 as layer1
+    from bench.arms import config_from_spec, resolve_alias
+
+    spec = record["scene_spec"]
+    scene = _scene(spec)
+    items = scene.items
+    look = int(spec.get("look_ahead", 10) or 10)
+    steps = [s for s in record["steps"] if s.get("event") == "step" and "pos_local" in s]
+    arm = record.get("arm", {}).get("arm", "ladder")
+    body = arm.split("@", 1)
+    base = resolve_alias("ladder-stable") if body[0].startswith(("stack", "wedge")) else body[0]
+    config = config_from_spec(base + ("@" + body[1] if len(body) > 1 else ""))
+    containers = []
+    for c in scene.containers:
+        d = dict(c)
+        d["packed_items"] = []
+        containers.append(d)
+    for s in steps:
+        it = items[s["item_index"]]
+        containers[s["container_idx"]]["packed_items"].append({
+            "index": s["item_index"], "pos": list(s["pos_local"]), "dims": list(s["size"]),
+            "is_soft": bool(it.get("is_soft")), "is_prioritized": bool(it.get("is_prioritized")),
+            "length": it["length"], "width": it["width"], "height": it["height"], "mass": it.get("mass", 1.0),
+        })
+    loads = [Load(c) for c in containers]
+    for s in steps:
+        loads[s["container_idx"]].add(s["pos_local"], s["size"])
+    models = [ContainerModel(c, config) for c in containers]
+    placed = {s["item_index"] for s in steps}
+    pool = [i for i in range(len(items)) if i not in placed][:look]
+    out = []
+    for i in pool:
+        it = items[i]
+        if not it.get("is_soft"):
+            continue
+        d = sorted((it["length"], it["width"], it["height"]), reverse=True)
+        verdict = None
+        for ci, ld in enumerate(loads):
+            found = ld.slot_pose((d[0], d[1], d[2]))
+            if not found:
+                continue
+            kind, centre, dims = found
+            from rule_alpha._reuse import AABB
+            ok, why = layer1.validate(AABB(centre, dims, "probe"), models[ci], containers[ci], config)
+            verdict = (kind, "ok" if ok else why, f"{d[0]:.2f}x{d[1]:.2f}x{d[2]:.2f}")
+            break
+        out.append(verdict or ("none", "no-slot", f"{d[0]:.2f}x{d[1]:.2f}x{d[2]:.2f}"))
+    return out
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[2] == "--validate":
+        import collections
+
+        counts = collections.Counter()
+        by_dims = collections.Counter()
+        for f in sorted(glob.glob(str(pathlib.Path(sys.argv[1]) / "[abc]-*.json"))):
+            for kind, verdict, dims in validate_end_slots(json.load(open(f))):
+                counts[(kind, verdict)] += 1
+                by_dims[(dims, kind, verdict)] += 1
+        print("end-pool soft items by slot kind and the validator's verdict on a pose in the slot:")
+        for (kind, verdict), n in counts.most_common():
+            print(f"  {n:4d}  {kind:6s} {verdict}")
+        print("by dims:")
+        for (dims, kind, verdict), n in by_dims.most_common(16):
+            print(f"  {n:4d}  {dims} {kind} {verdict}")
+        return
     rows = [episode(json.load(open(f))) for f in sorted(glob.glob(str(pathlib.Path(sys.argv[1]) / "[abc]-*.json")))]
     print("| scene | placed | soft placed / total | steps with soft in pool | with a slot | hard placed instead | pool soft at end | slot: floor / shelf / top / none |")
     print("|---|---:|---:|---:|---:|---:|---:|---|")
