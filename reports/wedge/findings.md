@@ -3263,6 +3263,41 @@ that fits the data is a row rule -- a standing pose at the back wall
 only beside a standing top of its own height, or as the first of a
 row the stream can continue.
 
+*The row rule measured* (`standing_row_rule`, `layer1._standing_off_row`,
+veto `standing-off-row` with a fallback; `row-core`, `row-core-b`
+against the level_key records; `reports/bench/levelness-row.md`).  A
+box on end against the back wall, on the floor or on a top, stands
+only beside a top within 3 cm of its own or in a corner (a side wall
+or the chamfer foot); elsewhere along the back wall it is refused and
+the ladder goes on, and the refused poses return only when nothing
+else survived.  Wedge steps, slope infill, the wall front and the
+shelf are exempt.
+
+| suite | placed | fill | soft share | priority share | crossings | priced |
+|---|---:|---:|---:|---:|---:|---:|
+| sample C | -0.33 (10 up, 11 down) | -0.35 | 0.562 -> 0.547 | 0.615 -> 0.605 | 48 -> 46 | -0.13 |
+| sample B | -1.08 (11 up, 21 down) | -1.03 | 0.423 -> 0.391 | 0.728 -> 0.704 | 48 -> 47 | -0.32 |
+
+Not adopted.  The rule fires (on C c1 seed 7, 45 of 59 standing poses
+at the back wall refused in one episode) and the standing poses at the
+back wall fall on B from 218 to 183 in 48 episodes, their share of the
+waste from 0.35 to 0.30; the usable surface over the episode does not
+move (B 1.08 / 0.79 / 0.52 / 0.18 / 0.07 against 1.08 / 0.81 / 0.54 /
+0.18 / 0.07, C 0.80 / 0.50 / 0.20 / 0.06 against 0.80 / 0.51 / 0.17 /
+0.05) and the count falls.  Where it lost (C c1 seed 12, 25 -> 21, the
+divergence at the third item): the ladder had started a row of two
+standing terraces mid-span along the back wall and filled the corner
+second, which the rule forbids, so the corner went first, the row grew
+along the depth instead of the width and the 0.65 x 0.45 box that had
+stood at the back wall on the chamfer side went to the shelf.  The
+rows the ladder builds are not built from the corner outward, and a
+rule that says where a row may start cannot see the row the next
+three items would have made.  Third negative on the levelness line
+after `level_key` (neutral) and the surface arbiter: the surface is
+decided by the ladder's order of archetypes and the rungs' leading
+terms, and a tie-break, an arbiter within the rung and a veto on the
+pose each leave the curve where it was.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
