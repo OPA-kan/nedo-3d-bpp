@@ -3137,12 +3137,39 @@ soft cargo and on tops no hard or priority box in the pool could
 use, never on a shelf -- a smaller gain, measured against the three
 crossings first.
 
-The next instrument, from 3: the levelness of the load as it is
-built -- the share of the top surface in level patches at least a
-footprint wide, measured per step -- and the placement rules read
-against it: which archetypes break a level patch, and whether a
-pose that extends a level patch at the same height can be preferred
-without losing the nine margin-zero episodes.
+**The levelness of the load as it is built** (`scripts/levelness.py`,
+`reports/bench/levelness-v39.md`).  After every placement the load is
+rebuilt on a 2 cm grid and the *usable surface* measured: the cells
+of the top surface (floor, shelf plates, hard tops; a soft top
+carries nothing) in a level patch -- tops within 2 cm -- holding a
+0.40 x 0.55 window with 3 cm of clearance and 0.27 m free above it,
+the surface the smallest hard class could still stand on.  A
+placement's *waste* is the usable surface it closes beyond its own
+footprint on the patch it stands on, less the top it offers back.
+
+The usable surface over the floor area, at the start / a quarter /
+half / three quarters / the end of the episode: sample C 1.08 / 0.80
+/ 0.51 / 0.17 / 0.05, sample B 1.08 / 0.82 / 0.53 / 0.17 / 0.07,
+sample A 1.08 / 0.82 / 0.48 / 0.13 / 0.05.  Half of it is gone by the
+middle of the episode and five sixths by three quarters, on every
+task alike: the load closes its own surface long before it runs out
+of items.  By archetype on sample C (placements, mean waste in m^2
+flat / standing, share of the suite's waste): max-footprint 244,
+0.049 / 0.072, 20 %; shelf-space-saving 235 (97 % standing), 0.050,
+17 %; terrace-extension 289, 0.019 / 0.060, 12 %; stack-rl 223,
+0.036, 12 %; wedge-step 70, 0.077, 8 %; soft-edge 62, 0.082, 7 %;
+priority-edge 25, 0.034 / 0.173, 4 %.  On sample A the plan's
+placements carry 88 % of the waste, 0.015 flat against 0.163
+standing.  Two readings: a standing pose wastes two to ten times a
+flat one wherever it occurs (it is the pose that does not match its
+neighbours' height), and a floor box gives nothing back -- net loss
+0.167 m^2 a placement on C -- because a single top (0.55 x 0.40) is
+narrower than the window; the second level exists only where
+neighbouring tops meet within 2 cm.  The ladder computes the
+height step to the neighbouring tops for every candidate
+(``neighbour_height_step`` in ``compute_features``) and no key reads
+it.  The first rule from the instrument is that term as a tie-break
+in the floor and terrace keys (``level_key``), behind the ship rule.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4

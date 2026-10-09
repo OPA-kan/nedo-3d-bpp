@@ -59,12 +59,14 @@ class Load:
                  & (self.yy >= float(s.minimum[1])) & (self.yy <= float(s.maximum[1])))
             self.shelves.append((m, float(s.maximum[2]), float(s.minimum[2])))
         self.boxes = []  # (mask, bottom, top)
+        self.soft = []   # per box: a soft top carries no hard cargo (the cover rule)
 
-    def add(self, pos, size):
+    def add(self, pos, size, soft: bool = False):
         x, y, z = pos
         sx, sy, sz = size
         m = ((self.xx >= x - sx / 2) & (self.xx <= x + sx / 2) & (self.yy >= y - sy / 2) & (self.yy <= y + sy / 2))
         self.boxes.append((m, z - sz / 2, z + sz / 2))
+        self.soft.append(bool(soft))
 
     def _local_ceiling(self, z: float) -> np.ndarray:
         ceil = np.full((self.nx, self.ny), self.z_ceiling)
@@ -77,9 +79,49 @@ class Load:
         out = {round(self.z_floor, 2): "floor"}
         for _m, top, _b in self.shelves:
             out.setdefault(round(top, 2), "shelf")
-        for _m, _b, top in self.boxes:
-            out.setdefault(round(top, 2), "top")
+        for (_m, _b, top), soft in zip(self.boxes, self.soft):
+            if not soft:
+                out.setdefault(round(top, 2), "top")
         return out
+
+    def usable_mask(self, footprint=(0.40, 0.55), height: float = 0.24) -> np.ndarray:
+        """Cells of the top surface that lie in a level patch (tops within
+        2 cm, the floor, a shelf plate) holding a window of ``footprint``
+        plus 3 cm of clearance, with ``height`` plus 3 cm free above it
+        under the local ceiling: the surface a box of that class could
+        still stand on, in either orientation of the window."""
+        w, l = sorted(footprint)
+        need = height + CLEAR
+        nxw, nyw = int(round((l + CLEAR) / CELL)), int(round((w + CLEAR) / CELL))
+        usable = np.zeros((self.nx, self.ny), dtype=bool)
+        for z, kind in sorted(self.levels().items()):
+            if z + need > self.z_ceiling + 1e-9:
+                continue
+            support = np.zeros((self.nx, self.ny), dtype=bool)
+            if kind == "floor":
+                support |= self.usable
+            for m, top, _b in self.shelves:
+                if abs(top - z) <= TOL:
+                    support |= m
+            for (m, _b, top), soft in zip(self.boxes, self.soft):
+                if abs(top - z) <= TOL and not soft:
+                    support |= m
+            free = self._local_ceiling(z) >= z + need - 1e-9
+            for m, bottom, top in self.boxes:
+                free &= ~(m & (top > z + 1e-3) & (bottom < z + need - 1e-3))
+            ok = support & free & (self.xx >= float(self.model.x_limit_at_height(z + 1e-3)) + CLEAR / 2.0)
+            if ok.sum() < nxw * nyw:
+                continue
+            s = np.zeros((self.nx + 1, self.ny + 1), dtype=np.int32)
+            s[1:, 1:] = np.cumsum(np.cumsum(ok.astype(np.int32), axis=0), axis=1)
+            for a, b in ((nxw, nyw), (nyw, nxw)):
+                if a > self.nx or b > self.ny:
+                    continue
+                tot = s[a:, b:] - s[:-a, b:] - s[a:, :-b] + s[:-a, :-b]
+                ii, jj = np.nonzero(tot == a * b)
+                for i, j in zip(ii, jj):
+                    usable[i:i + a, j:j + b] = True
+        return usable
 
     def slot(self, dims, hard_tops_only: bool = False):
         """The kind of level the item has a slot on ('floor', 'shelf',
