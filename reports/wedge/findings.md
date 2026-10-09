@@ -3114,6 +3114,29 @@ the slots are gone.  The order is the lever on B, as the soft-first
 pass was (v24: soft +17 official), and the price to watch is the
 count in the marginal episodes (v24 lost a fifth of its crossings).
 
+*The soft-first pass on the v39 base* (`soft_first_when_free` with
+the priority container's shelf left alone, `sfree-core-b`; the same
+with the pass held to 30 % of the budget, `sfree30-core-b`; against
+`softgate35-core-b`):
+
+| form | placed | soft share | priority share | crossings | H1 soft | H1 placement | H1 cog |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| v39 | 35.96 | 0.402 | 0.732 | 48 | 40.2 | 69.3 | 61.0 |
+| soft first | +0.52 | 0.452 | 0.583 | 45 | 42.0 | 53.9 | 56.3 |
+| soft first, 30 % budget | +0.65 | 0.462 | 0.592 | 45 | 43.8 | 55.5 | 57.7 |
+
+Three crossings lost (b-c2p-s0003 -7, b-c2p-s0011 -6 and -8,
+b-c1s-s0008 -4) and the priority share down 0.14: the pass takes the
+shelf and the tops the priority cargo would have had on every layout
+with a shelf, not only the priority container's, and on the marginal
+episodes the soft boxes it puts down early are what the hard count
+ends up short of.  Under H1 the soft gain (+2 to +4) is a fifth of
+the placement loss (-14), before the crossings.  Not adopted.  What
+would be left of the idea is a pass that puts soft cargo only on
+soft cargo and on tops no hard or priority box in the pool could
+use, never on a shelf -- a smaller gain, measured against the three
+crossings first.
+
 The next instrument, from 3: the levelness of the load as it is
 built -- the share of the top surface in level patches at least a
 footprint wide, measured per step -- and the placement rules read
