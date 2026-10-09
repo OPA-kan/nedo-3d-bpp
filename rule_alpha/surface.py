@@ -15,9 +15,12 @@ decide.
 ``arbitrate_surface`` is the instrument as an arbiter: the first few
 candidates of the rung the ladder chose, in the rung's own order, are
 each stamped on a 2 cm heightmap of the container and the usable
-surface after each is measured (``SurfaceScorer``); the candidate after
-which the most usable surface remains replaces the rung's pick when it
-keeps more by ``surface_arbiter_margin`` square metres.  The rung's
+surface after each is measured (``SurfaceScorer``), with the surface
+the pose's own footprint stood on credited back (the instrument's
+waste, reversed: a flat box on a level patch costs nothing for the
+cells under it, so a standing pose cannot win by closing less floor);
+the candidate after which the most is kept replaces the rung's pick
+when it keeps more by ``surface_arbiter_margin`` square metres.  The rung's
 choice of archetype stands, as does its order among near-equal
 surfaces; only a pick that closes a window's worth more than its
 neighbour in the same rung is replaced.  (The room selector of
@@ -213,11 +216,25 @@ class SurfaceScorer:
             load.add(box, soft)
         return load
 
-    def area(self, load: _Load, box: AABB | None = None, soft: bool = False) -> float:
+    def mask(self, load: _Load, box: AABB | None = None, soft: bool = False) -> np.ndarray:
         extra = None
         if box is not None:
             extra = (load.mask(box), float(box.minimum[2]), float(box.maximum[2]), bool(soft))
-        return float(load.usable(self.footprint, self.height, extra, self.gap_cells).sum()) * load.cell * load.cell
+        return load.usable(self.footprint, self.height, extra, self.gap_cells)
+
+    def area(self, load: _Load, box: AABB | None = None, soft: bool = False) -> float:
+        return float(self.mask(load, box, soft).sum()) * load.cell * load.cell
+
+    def kept(self, load: _Load, base: np.ndarray, box: AABB, soft: bool = False) -> float:
+        """The usable surface after the box, plus the usable surface its
+        own footprint stood on: the instrument's waste, with its sign
+        reversed.  A flat box on a level patch is charged nothing for the
+        cells under it, so a standing pose does not win by closing less
+        floor; what counts is the surface closed beyond the footprint and
+        the surface the top offers back."""
+        after = self.mask(load, box, soft)
+        credit = load.mask(box) & base
+        return (float(after.sum()) + float(credit.sum())) * load.cell * load.cell
 
 
 _SCORERS: dict = {}
@@ -253,12 +270,13 @@ def arbitrate_surface(chosen, chosen_archetype: str, ordered: list, board, conta
     budget = float(getattr(config, "surface_arbiter_seconds", 0.4))
     load = scorer.load(board, container_idx)
     soft = bool(chosen.profile.is_soft)
+    base = scorer.mask(load)
     areas = []
     for c in pool:
         if c is not chosen and time.perf_counter() - t0 > budget:
             areas.append(-1.0)
             continue
-        areas.append(scorer.area(load, c.box, soft))
+        areas.append(scorer.kept(load, base, c.box, soft))
     scorer.seconds += time.perf_counter() - t0
     i_chosen = next(i for i, c in enumerate(pool) if c is chosen)
     best = int(np.argmax(areas))
