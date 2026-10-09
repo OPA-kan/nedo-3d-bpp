@@ -3160,6 +3160,50 @@ def _seal_is_worth_refusing(candidate: Candidate, board: Board,
     )
 
 
+def _standing_off_row(candidate: Candidate, board: Board, container_idx: int, config) -> bool:
+    """A standing pose (its height not the item's smallest dimension)
+    against the back wall, on the floor or on a top, that neither
+    continues a row (a top within ``standing_row_tolerance`` of its own
+    within ``standing_row_reach`` of its footprint) nor starts one (a
+    side wall or the chamfer foot within ``standing_row_band``).  Wedge
+    steps, slope infill and the wall front are structural and exempt;
+    the shelf is the soft gallery and exempt."""
+    if candidate.surface not in ("floor", "item"):
+        return False
+    if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL, cls.ROLE_WALL_FRONT):
+        return False
+    item = candidate.profile.item
+    smallest = min(float(item["length"]), float(item["width"]), float(item["height"]))
+    if candidate.orientation.dz <= smallest + 1e-6:
+        return False
+    model = board.model(container_idx)
+    rect = model.floor_rect
+    band = float(getattr(config, "standing_row_band", 0.06))
+    box = candidate.box
+    if float(box.maximum[1]) < rect.y_max - band:
+        return False
+    # a corner starts a row
+    bottom = float(box.minimum[2])
+    if float(box.maximum[0]) >= rect.x_max - band:
+        return False
+    if float(box.minimum[0]) <= float(model.x_limit_at_height(bottom + 1e-3)) + band:
+        return False
+    # a top of its own height beside it continues one
+    grid = board.grid(container_idx)
+    reach = max(1, int(round(float(getattr(config, "standing_row_reach", 0.06)) / grid.cell)))
+    mask = grid.rect_mask(box_rect(box))
+    ring = mask
+    for _ in range(reach):
+        ring = _dilate(ring)
+    ring = ring & ~mask & grid.occupied
+    if ring.any():
+        top = float(box.maximum[2])
+        tol = float(getattr(config, "standing_row_tolerance", 0.03))
+        if (np.abs(grid.height[ring] - top) <= tol).any():
+            return False
+    return True
+
+
 def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                  config) -> tuple[list[Candidate], dict]:
     model = board.model(container_idx)
@@ -3211,6 +3255,32 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             else:
                 kept.append(candidate)
         survivors = kept
+        if not survivors:
+            return [], counts
+
+    # 0c. standing poses at the back wall form rows (config.standing_row_rule):
+    #     a box on end against the back wall stands only beside a top within
+    #     standing_row_tolerance of its own (the row it continues) or in a
+    #     corner (the row it starts); anywhere else along the back wall it
+    #     is refused, and the ladder goes on to the terraces and the side
+    #     wall.  The standing map (findings, "Where the standing poses
+    #     stand") charged the lone standing poses at the back wall the
+    #     largest share of the usable surface lost on every task, and a
+    #     standing pose beside a top of its own height almost nothing.
+    #     With a fallback: the floor rung stands a box only when no flat
+    #     pose survived, so an empty survivor list would cost the count.
+    if getattr(config, "standing_row_rule", False):
+        kept = []
+        off_row = []
+        for candidate in survivors:
+            if _standing_off_row(candidate, board, container_idx, config):
+                drop(candidate, "standing-off-row")
+                off_row.append(candidate)
+            else:
+                kept.append(candidate)
+        survivors = kept
+        if not survivors and getattr(config, "standing_row_fallback", True) and off_row:
+            survivors = off_row
         if not survivors:
             return [], counts
 

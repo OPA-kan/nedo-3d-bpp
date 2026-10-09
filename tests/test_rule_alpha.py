@@ -2289,3 +2289,100 @@ class SurfaceArbiterTest(unittest.TestCase):
         self.assertIsNone(surface.arbitrate_surface(
             standing, layer1.A_MAX_FOOTPRINT, [standing, flat], board, 0, one
         ))
+
+
+class StandingRowRuleTest(unittest.TestCase):
+    """Standing poses at the back wall form rows (``standing_row_rule``):
+    a lone box on end along the back wall is refused, one beside a top
+    of its own height or in a corner stands, and a flat pose is never
+    the rule's business."""
+
+    ON = dataclasses.replace(DEFAULT_CONFIG, standing_row_rule=True)
+
+    def _board(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.Board([container], DEFAULT_CONFIG)
+
+    def _profile(self, index):
+        return cls.classify_item(
+            index,
+            {"index": index, "length": 0.55, "width": 0.40, "height": 0.24,
+             "mass": 10.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+    def _orientation(self, profile, dz):
+        return next(o for o in profile.orientations if abs(o.dz - dz) < 1e-6)
+
+    def _candidate(self, board, x, y_back, orientation, index=9):
+        z = board.model(0).z_floor
+        dims = (orientation.dx, orientation.dy, orientation.dz)
+        box = AABB((x, y_back - dims[1] / 2.0, z + dims[2] / 2.0), dims, "candidate")
+        return layer1.Candidate(
+            box=box, profile=self._profile(index), orientation=orientation,
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_TALL_PERIMETER,
+        )
+
+    def _place(self, board, x, y_back, orientation):
+        z = board.model(0).z_floor
+        dims = (orientation.dx, orientation.dy, orientation.dz)
+        box = AABB((x, y_back - dims[1] / 2.0, z + dims[2] / 2.0), dims, "packed")
+        profile = self._profile(0)
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=orientation,
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE,
+                                     DEFAULT_CONFIG),
+        ))
+
+    def test_a_lone_standing_pose_at_the_back_wall_is_off_the_row(self):
+        board = self._board()
+        rect = board.model(0).floor_rect
+        profile = self._profile(9)
+        standing = self._orientation(profile, 0.40)
+        flat = self._orientation(profile, 0.24)
+        mid = self._candidate(board, 0.20, rect.y_max, standing)
+        self.assertTrue(layer1._standing_off_row(mid, board, 0, self.ON))
+        # flat: never the rule's business
+        self.assertFalse(layer1._standing_off_row(
+            self._candidate(board, 0.20, rect.y_max, flat), board, 0, self.ON))
+        # a corner starts a row
+        corner = self._candidate(board, rect.x_max - standing.dx / 2.0, rect.y_max, standing)
+        self.assertFalse(layer1._standing_off_row(corner, board, 0, self.ON))
+        # away from the back wall: not the rule's business
+        front = self._candidate(board, 0.20, rect.y_max - 0.30, standing)
+        self.assertFalse(layer1._standing_off_row(front, board, 0, self.ON))
+
+    def test_a_standing_pose_beside_a_top_of_its_own_height_continues_the_row(self):
+        board = self._board()
+        rect = board.model(0).floor_rect
+        profile = self._profile(9)
+        standing = self._orientation(profile, 0.40)
+        flat = self._orientation(profile, 0.24)
+        self._place(board, 0.20 - standing.dx - 0.03, rect.y_max, standing)
+        beside = self._candidate(board, 0.20, rect.y_max, standing)
+        self.assertFalse(layer1._standing_off_row(beside, board, 0, self.ON))
+        # beside a flat top of another height: still off the row
+        board2 = self._board()
+        self._place(board2, 0.20 - flat.dx - 0.03, rect.y_max, flat)
+        self.assertTrue(layer1._standing_off_row(beside, board2, 0, self.ON))
+
+    def test_the_veto_counts_and_falls_back(self):
+        board = self._board()
+        rect = board.model(0).floor_rect
+        profile = self._profile(9)
+        standing = self._orientation(profile, 0.40)
+        mid = self._candidate(board, 0.20, rect.y_max, standing)
+        layer1.compute_features(mid, board, self.ON, with_grid=True)
+        kept, counts = layer1.apply_vetoes([mid], board, 0, self.ON)
+        self.assertEqual(counts.get("standing-off-row", 0), 1)
+        self.assertEqual(len(kept), 1, "the fallback returns the refused pose when nothing else survived")
+        no_fallback = dataclasses.replace(self.ON, standing_row_fallback=False)
+        kept, counts = layer1.apply_vetoes([mid], board, 0, no_fallback)
+        self.assertEqual(len(kept), 0)
+        off = dataclasses.replace(DEFAULT_CONFIG, standing_row_rule=False)
+        kept, counts = layer1.apply_vetoes([mid], board, 0, off)
+        self.assertEqual(counts.get("standing-off-row", 0), 0)

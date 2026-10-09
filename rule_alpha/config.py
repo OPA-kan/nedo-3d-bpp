@@ -587,6 +587,29 @@ class RuleAlphaConfig:
     """Gaps between tops at one height up to this wide, in metres, are
     part of one patch (the settled clearance is 2.6 cm; a box spans it)."""
 
+    standing_row_rule: bool = False
+    """Standing poses at the back wall form rows (``layer1._standing_off_row``,
+    veto ``standing-off-row``): a box on end against the back wall, on
+    the floor or on a top, stands only beside a top within
+    ``standing_row_tolerance`` of its own (within ``standing_row_reach``
+    of its footprint) or in a corner (a side wall or the chamfer foot
+    within ``standing_row_band``).  Elsewhere along the back wall it is
+    refused and the ladder goes on to the terraces and the side wall.
+    The standing map charged the lone standing poses at the back wall
+    the largest share of the usable surface lost on every task (C 0.27,
+    B 0.35, A 0.48) and a standing pose beside a top of its own height
+    almost nothing; the practice document's "standing at the back"
+    holds when the standing boxes make a level row.  Structural roles
+    (wedge step, slope infill, wall front) and the shelf are exempt.
+    With ``standing_row_fallback`` the refused poses return when
+    nothing else survived: the floor rung stands a box only when no
+    flat pose did."""
+
+    standing_row_band: float = 0.06
+    standing_row_tolerance: float = 0.03
+    standing_row_reach: float = 0.06
+    standing_row_fallback: bool = True
+
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
     growth pick (terrace, plateau merge, wedge bridge) that shadows
