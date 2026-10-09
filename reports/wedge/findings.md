@@ -3094,6 +3094,26 @@ the five suites, the summary in `summary.md`).  What the rows say:
    for any of them, with 43 % of the soft cargo seen unplaced; the
    hard cargo is not what runs out.
 
+*Task B's soft stop, verified* (`scripts/soft_slots_b.py`,
+`scripts/soft_slot_verify.py`).  At the 48 declines the pools hold 281
+soft boxes.  A geometric slot -- a level patch the flat footprint fits
+with 3 cm, the height plus 3 cm free above it, the chamfer's limit at
+that height respected -- exists for 114 of them (on the shelf 61, on
+a top 52, on the floor 1); a pose in each slot put through the
+analytic validator passes for 4.  The rest: the transport sweep hits
+a packed box or the small shelf on the way in (46), the pose stands
+outside the walls' clearance on the shelf (36), or the slot is a
+clearance too tight (28).  So B's stop is geometry too: the load as
+built has no legal pose for a 0.65 x 0.35 x 0.23 or 0.50 x 0.40 x
+0.40 soft box, and the half of the free volume over small patches is
+as closed to the soft cargo as to the hard.  What B has that C does
+not is the pool: a soft item sat in it with a geometric slot in 1635
+of its 1722 steps, and a hard item was placed in 1322 of those -- the
+soft cargo is placed last by the pool order, and when its turn comes
+the slots are gone.  The order is the lever on B, as the soft-first
+pass was (v24: soft +17 official), and the price to watch is the
+count in the marginal episodes (v24 lost a fifth of its crossings).
+
 The next instrument, from 3: the levelness of the load as it is
 built -- the share of the top surface in level patches at least a
 footprint wide, measured per step -- and the placement rules read
