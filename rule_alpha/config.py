@@ -558,6 +558,35 @@ class RuleAlphaConfig:
 
     level_key_bucket: float = 0.03
 
+    surface_arbiter: bool = False
+    """The levelness instrument as an arbiter (``surface.arbitrate_surface``):
+    the first ``surface_arbiter_k`` candidates of the rung the ladder
+    chose, in the rung's own order, are each stamped on a 2 cm heightmap
+    and the usable surface after each is read (level patches holding the
+    ``surface_arbiter_window`` footprint with 3 cm of clearance and its
+    height free above, soft tops carrying nothing); the candidate after
+    which the most remains replaces the rung's pick when it keeps more by
+    ``surface_arbiter_margin`` m^2.  Only the rungs in
+    ``surface_arbiter_rungs`` are arbitrated; the rung's choice of
+    archetype stands.  The instrument read the usable surface halved by
+    the middle of every episode and ``level_key``, a tie-break, left the
+    curve where it was: the rungs' leading terms decide, so the measure
+    has to sit beside them."""
+
+    surface_arbiter_k: int = 4
+    surface_arbiter_margin: float = 0.05
+    """Usable surface the alternative must keep over the pick, in m^2 (a
+    0.43 x 0.58 window is 0.25)."""
+    surface_arbiter_seconds: float = 0.4
+    surface_arbiter_cell: float = 0.02
+    surface_arbiter_window: str = "0.40x0.55x0.24"
+    """``lxwxh`` of the class whose window the surface is read for: the
+    smallest hard class of the sample's mix."""
+    surface_arbiter_rungs: str = "max-footprint,back-corner,terrace-extension,plateau-merge"
+    surface_arbiter_gap: float = 0.05
+    """Gaps between tops at one height up to this wide, in metres, are
+    part of one patch (the settled clearance is 2.6 cm; a box spans it)."""
+
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
     growth pick (terrace, plateau merge, wedge bridge) that shadows

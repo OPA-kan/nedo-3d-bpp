@@ -4270,11 +4270,13 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         ladder = archetype_ladder(profile, board, container_idx, config)
         chosen = None
         chosen_archetype = None
+        rung_ordered = None
         for name in ladder:
             pool_for_archetype = [c for c in survivors if name in c.archetypes]
             if not pool_for_archetype:
                 continue
-            chosen = rung_pick(name, pool_for_archetype, config)
+            rung_ordered = rung_order(name, pool_for_archetype, config)
+            chosen = rung_ordered[0]
             chosen_archetype = name
             break
         if chosen is None:
@@ -4286,6 +4288,21 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
 
             override = arbitrate_growth(
                 chosen, chosen_archetype, survivors, ladder, board, container_idx, config
+            )
+            if override is not None:
+                chosen, chosen_archetype = override
+                rung_ordered = None
+
+        if (
+            getattr(config, "surface_arbiter", False)
+            and rung_ordered is not None
+            and len(rung_ordered) > 1
+            and chosen_archetype in _surface_arbiter_rungs(config)
+        ):
+            from .surface import arbitrate_surface
+
+            override = arbitrate_surface(
+                chosen, chosen_archetype, rung_ordered, board, container_idx, config
             )
             if override is not None:
                 chosen, chosen_archetype = override
@@ -4335,8 +4352,26 @@ def _with_level(key_fn, position: int, bucket: float):
     return key
 
 
+_SURFACE_RUNGS_CACHE: dict = {}
+
+
+def _surface_arbiter_rungs(config) -> frozenset:
+    spec = str(getattr(config, "surface_arbiter_rungs", "") or "")
+    out = _SURFACE_RUNGS_CACHE.get(spec)
+    if out is None:
+        out = _SURFACE_RUNGS_CACHE[spec] = frozenset(
+            s.strip() for s in spec.replace(";", ",").split(",") if s.strip()
+        )
+    return out
+
+
 def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
-    """The best candidate of one rung: its key, with the opening-sparing
+    """The best candidate of one rung (``rung_order`` first)."""
+    return rung_order(name, pool_for_archetype, config)[0]
+
+
+def rung_order(name: str, pool_for_archetype: list, config) -> list:
+    """One rung's candidates in its order: its key, with the opening-sparing
     tie-break in front (a candidate that leaves the opening alone beats
     one that does not), sorted stably."""
     key_fn = ARCHETYPE_KEYS[name]
@@ -4368,7 +4403,7 @@ def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
         # and the second level forms a patch a footprint wide
         key_fn = _with_level(key_fn, _LEVEL_KEY_POSITION[name],
                              float(getattr(config, "level_key_bucket", 0.03)))
-    ordered = sorted(
+    return sorted(
         pool_for_archetype,
         key=_stable_key(
             lambda c: (
@@ -4378,7 +4413,6 @@ def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
             config,
         ),
     )
-    return ordered[0]
 
 
 def ladder_pick(survivors: list, ladder: list, config, names) -> tuple:

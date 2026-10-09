@@ -2195,3 +2195,97 @@ class LastResortTest(unittest.TestCase):
         kept, counts = layer1.apply_vetoes([rescue], board, 0, DEFAULT_CONFIG)
         self.assertEqual(counts.get("reserved-zone", 0), 0)
         self.assertEqual(len(kept), 1, f"vetoed by {counts}")
+
+
+class SurfaceArbiterTest(unittest.TestCase):
+    """The usable-surface arbiter (``rule_alpha.surface``): the instrument
+    at decision time.  Its measure has to prefer the pose that keeps a
+    footprint's window of level surface, and the arbiter has to replace
+    the rung's pick only by the margin, inside the rung's own order."""
+
+    def _board(self):
+        container = make_container_dict(index=0, **ULD)
+        return layer1.Board([container], DEFAULT_CONFIG)
+
+    def _profile(self, index, dims, soft=False):
+        return cls.classify_item(
+            index,
+            {"index": index, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 10.0, "is_soft": soft, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+    def _place(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = self._profile(0, dims)
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE,
+                                     DEFAULT_CONFIG),
+        ))
+
+    def _candidate(self, x, y, bottom, dims, index=9):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "candidate")
+        profile = self._profile(index, dims)
+        return layer1.Candidate(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE,
+        )
+
+    def test_a_matching_top_keeps_more_surface_than_a_standing_pose(self):
+        from rule_alpha import surface
+
+        board = self._board()
+        z = board.model(0).z_floor
+        # a row of two boxes 0.30 high at the back; the next box beside them
+        self._place(board, 0.40, 0.30, z, (0.55, 0.40, 0.30))
+        self._place(board, 0.40, -0.12, z, (0.55, 0.40, 0.30))
+        scorer = surface.SurfaceScorer(DEFAULT_CONFIG)
+        load = scorer.load(board, 0)
+        flat = AABB((0.40, -0.54, z + 0.15), (0.55, 0.40, 0.30), "flat")
+        standing = AABB((0.40, -0.54, z + 0.275), (0.55, 0.40, 0.55), "standing")
+        a_flat = scorer.area(load, flat)
+        a_standing = scorer.area(load, standing)
+        self.assertGreater(
+            a_flat, a_standing + 0.2,
+            f"flat {a_flat:.3f} standing {a_standing:.3f}: three matching tops "
+            "make a 0.55 x 1.26 patch, the standing pose makes none",
+        )
+        # a soft top carries nothing, so the soft box offers no surface back
+        a_soft = scorer.area(load, flat, soft=True)
+        self.assertLess(a_soft, a_flat - 0.2, f"soft {a_soft:.3f} hard {a_flat:.3f}")
+
+    def test_the_arbiter_replaces_the_pick_only_by_the_margin(self):
+        from rule_alpha import surface
+
+        board = self._board()
+        z = board.model(0).z_floor
+        self._place(board, 0.40, 0.30, z, (0.55, 0.40, 0.30))
+        self._place(board, 0.40, -0.12, z, (0.55, 0.40, 0.30))
+        standing = self._candidate(0.40, -0.54, z, (0.55, 0.40, 0.55), index=9)
+        flat = self._candidate(0.40, -0.54, z, (0.55, 0.40, 0.30), index=10)
+        config = dataclasses.replace(DEFAULT_CONFIG, surface_arbiter=True)
+        picked = surface.arbitrate_surface(
+            standing, layer1.A_MAX_FOOTPRINT, [standing, flat], board, 0, config
+        )
+        self.assertIsNotNone(picked)
+        self.assertIs(picked[0], flat)
+        self.assertEqual(picked[1], f"surface/{layer1.A_MAX_FOOTPRINT}")
+        # the pick already keeps the most: nothing to replace
+        self.assertIsNone(surface.arbitrate_surface(
+            flat, layer1.A_MAX_FOOTPRINT, [flat, standing], board, 0, config
+        ))
+        # a margin wider than the difference holds the rung's pick
+        wide = dataclasses.replace(config, surface_arbiter_margin=10.0)
+        self.assertIsNone(surface.arbitrate_surface(
+            standing, layer1.A_MAX_FOOTPRINT, [standing, flat], board, 0, wide
+        ))
+        # candidates past surface_arbiter_k are not read
+        one = dataclasses.replace(config, surface_arbiter_k=1)
+        self.assertIsNone(surface.arbitrate_surface(
+            standing, layer1.A_MAX_FOOTPRINT, [standing, flat], board, 0, one
+        ))
