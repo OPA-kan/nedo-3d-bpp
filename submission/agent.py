@@ -94,6 +94,7 @@ TASK_A_SOFT_GALLERY = False
 # v41 (not kept, see OVERRIDES): the row-tiling term along both axes
 # with the near-neighbour slivers on Tasks B and C; official 50.32
 # against v39's 52.71, one episode under the count threshold.
+# v42: the levelness tie-break (level_key) on Tasks B and C (OVERRIDES).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -301,6 +302,15 @@ OVERRIDES = dict(
     # stability -4.3, placement -3.4).  A crossing lost on a sample
     # suite is disqualifying whatever the mean.  Off from v42: the
     # original term ("x") on every task.
+    # v42: the levelness tie-break (level_key): among the poses a floor or
+    # terrace rung's leading terms rank equal, the one whose top sits
+    # nearest its neighbours' tops.  Tasks B and C (Agent.optimize resets
+    # it for A, where it reaches the planner's dry-run race and costs the
+    # priority rows: A suite priority share 0.79 -> 0.66, 48 -> 47).
+    # Sample C placed +0.44, fill +0.29, soft and priority shares up, 48
+    # of 48; sample B placed +0.60, fill +0.45, soft share +0.02, 48 of
+    # 48 (reports/wedge/findings.md, "The levelness of the load").
+    level_key=True,
 )
 STACK_POLICY = "weights/stack"
 
@@ -337,7 +347,10 @@ class Agent(RuleAlphaAgent):
         share 0.45 -> 0.53, 48 of 48, +0.42 on the total from A's third;
         hard A suite level (26 -> 26 crossings).  Tasks B and C keep
         v39's capped, gated columns (optimize is not called there)."""
-        task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A)
+        task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A,
+                      # v42: the levelness tie-break is for B and C; in the
+                      # planner's dry-run race it cost A's priority rows
+                      level_key=False)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",

@@ -3171,6 +3171,30 @@ height step to the neighbouring tops for every candidate
 it.  The first rule from the instrument is that term as a tie-break
 in the floor and terrace keys (``level_key``), behind the ship rule.
 
+*level_key measured* (`level-core`, `level-core-b`, `level-core-a`
+against the v39 arms; `reports/bench/levelness-level.md`):
+
+| suite | placed | fill | soft share | priority share | crossings | H1 soft | H1 placement | priced |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| sample C | +0.44 (7 up, 5 down) | +0.29 | 0.555 -> 0.562 | 0.602 -> 0.615 | 48 -> 48 | 54.7 -> 55.6 | 56.7 -> 58.7 | 0.00 |
+| sample B | +0.60 (12 up, 6 down) | +0.45 | 0.402 -> 0.423 | 0.732 -> 0.728 | 48 -> 48 | 40.2 -> 42.1 | 69.3 -> 68.9 | +0.13 |
+| sample A | +1.06 (22 up, 6 down) | +1.85 | 0.448 -> 0.440 | 0.794 -> 0.663 | 48 -> 47 | 44.8 -> 44.0 | 78.3 -> 64.7 | -1.23 |
+
+On B and C every component but the CoM moves the right way and no
+crossing is lost; on A the term reaches the planner's dry-run race
+(as the two-axis term did), the priority rows lose and a-c2-s0011
+goes under the threshold, so A keeps the original keys.  The
+instrument says the term is a tie-break and no more: the usable
+surface over the episode is unchanged (C 1.08 / 0.80 / 0.51 / 0.17 /
+0.05 as before) and so is every archetype's waste -- the rungs'
+leading terms decide, and ``neighbour_height_step`` reads 0 for a
+pose with no occupied neighbour as for one that matches them.  The
+rule that would move the curve is the instrument itself at decision
+time: the usable surface the pose closes, on the shortlist's first
+few (an arbiter like the room selector's, with the waste as its
+measure), which costs about 35 ms a candidate on the 2 cm grid.
+Shipped as v42 on B and C.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
