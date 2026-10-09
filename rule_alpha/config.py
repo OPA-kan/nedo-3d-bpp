@@ -544,6 +544,20 @@ class RuleAlphaConfig:
     on footprint; the floor strips of the hard B suite are, by cells, mostly
     such runs along y beside ``max-footprint`` poses."""
 
+    level_key: bool = False
+    """The levelness tie-break in the floor and terrace rungs
+    (``layer1.rung_pick``): after the rung's leading terms (the
+    footprint and the row waste on max-footprint and back-corner, the
+    plateau on the terrace and the bridge), the mean height step from
+    the pose's top to the tops it neighbours (``neighbour_height_step``,
+    bucketed at ``level_key_bucket``), smallest first.  The levelness
+    instrument (findings, "The levelness of the load as it is built")
+    read the usable surface at half the episode as half the floor area
+    and a standing or mismatched pose as the waster; the step was
+    computed for every candidate and read by no key."""
+
+    level_key_bucket: float = 0.03
+
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
     growth pick (terrace, plateau merge, wedge bridge) that shadows

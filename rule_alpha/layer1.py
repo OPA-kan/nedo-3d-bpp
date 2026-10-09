@@ -4321,6 +4321,19 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
 
 GROWTH_ARCHETYPES = frozenset({A_TERRACE, A_BRIDGE, A_WEDGE_BRIDGE})
 
+# where the levelness term goes in each rung's key (config.level_key):
+# after the footprint and the row waste on the floor rungs, after the
+# plateau on the terrace
+_LEVEL_KEY_POSITION = {A_MAX_FOOTPRINT: 2, A_BACK_CORNER: 2, A_TERRACE: 1, A_BRIDGE: 1}
+
+
+def _with_level(key_fn, position: int, bucket: float):
+    def key(c):
+        base = tuple(key_fn(c))
+        level = _bucket(float(c.features.get("neighbour_height_step", 0.0)), bucket)
+        return base[:position] + (level,) + base[position:]
+    return key
+
 
 def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
     """The best candidate of one rung: its key, with the opening-sparing
@@ -4348,6 +4361,13 @@ def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
     if name == A_TALL_PERIMETER:
         depth_first = config.perimeter_prefers_depth
         key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
+    if getattr(config, "level_key", False) and name in _LEVEL_KEY_POSITION:
+        # the levelness tie-break: among poses the rung's leading terms
+        # rank equal, the one whose top sits nearest its neighbours' tops
+        # (bucketed at level_key_bucket), so that neighbouring tops meet
+        # and the second level forms a patch a footprint wide
+        key_fn = _with_level(key_fn, _LEVEL_KEY_POSITION[name],
+                             float(getattr(config, "level_key_bucket", 0.03)))
     ordered = sorted(
         pool_for_archetype,
         key=_stable_key(
