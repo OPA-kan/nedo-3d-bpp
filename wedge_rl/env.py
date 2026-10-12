@@ -15,6 +15,7 @@ static stability, shelf clearance) is rule-alpha's analytic ``validate``.
 
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass
 
@@ -27,6 +28,11 @@ from rule_alpha.geometry import ContainerModel
 
 PASS = -1
 CELL = 0.04
+# the levelling features (WEDGE_RL_LEVEL_FEATURES=1 at import, for training
+# a policy that reads them): whether the pose's top meets a higher
+# neighbouring top, and how far it misses one.  A policy's weights say
+# whether it expects them (the option reads the shape).
+LEVEL_FEATURES = bool(os.environ.get("WEDGE_RL_LEVEL_FEATURES"))
 
 
 @dataclass
@@ -43,6 +49,8 @@ class Candidate:
     gain: float
     support_ratio: float
     margin: float
+    level_delta: float = 1.0
+    levels: bool = False
 
     def features(self, env) -> np.ndarray:
         """Read through the env: ``model``, ``x_max_play``, ``z_top`` and
@@ -58,10 +66,11 @@ class Candidate:
             1.0 if self.on_floor else 0.0,
             float(self.box.maximum[2] - m.z_floor) / max(env.z_top - m.z_floor, 1e-9),
             env.reach_of(self.box),
-        ], dtype=np.float32)
+        ] + ([1.0 if self.levels else 0.0, min(float(self.level_delta), 0.3) / 0.3]
+             if getattr(env, "level_features", LEVEL_FEATURES) else []), dtype=np.float32)
 
 
-FEATURE_SIZE = 12
+FEATURE_SIZE = 12 + (2 if LEVEL_FEATURES else 0)
 
 
 # ---------------------------------------------------------------------------

@@ -213,6 +213,17 @@ class StackOption:
             self._policies[key] = policy
         return self._policies[key]
 
+    def _expects_level_features(self, policy) -> bool:
+        """Whether the policy's candidate layer was trained with the two
+        levelling features (its input is the embedding plus 14, not 12)."""
+        try:
+            if self.numpy:
+                p = policy.p
+                return int(p["cand_fc.0.weight"].shape[1]) - int(p["state_fc.weight"].shape[0]) >= 14
+            return int(policy.cand_fc[0].in_features) - int(policy.state_fc.out_features) >= 14
+        except Exception:
+            return False
+
     def _logits(self, policy, obs: dict, feats: np.ndarray) -> np.ndarray:
         if self.numpy:
             return np.asarray(policy.logits(policy.embed(obs), feats), dtype=np.float32)
@@ -258,6 +269,7 @@ class StackOption:
             self.calls[container_idx] = seen + 1
             obs = stack_observation(model, container, nx, ny, stack_profile(model, nx), item, remaining)
             region = _StackRegion(model)
+            region.level_features = self._expects_level_features(policy)
             feats = np.stack([c.features(region) for c in cands])
             logits = self._logits(policy, obs, feats)
             # the last logit is PASS; an episode cannot pass, so take the best pose
@@ -327,6 +339,7 @@ class _StackRegion:
         self.model = model
         self.x_max_play = model.x_wall_max
         self.z_top = model.z_ceiling
+        self.level_features = False
 
     def reach_of(self, box):
         from .stack import stack_reach

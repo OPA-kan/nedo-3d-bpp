@@ -1869,6 +1869,12 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    stack_level_candidates: bool = False
+    """The stack option's candidate cap keeps the levelling poses first
+    (``wedge_rl.stack.level_reading``: the pose's top meets a higher
+    neighbouring top within 3 cm, within 6 cm of the footprint); the
+    policy's features carry the reading when its weights expect them."""
+
     level_anchors: bool = False
     """The levelling anchors in the Layer 2 generator (``layer2.level_anchors``):
     on a hard top, poses flush beside a higher neighbouring hard top whose

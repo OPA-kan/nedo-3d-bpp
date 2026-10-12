@@ -358,6 +358,29 @@ def sample_future(rng, n: int, start_index: int = 100000) -> list[dict]:
     return out
 
 
+LEVEL_REACH = 0.06
+LEVEL_TOLERANCE = 0.03
+
+
+def level_reading(box: AABB, packed: list, bottom: float) -> tuple[float, bool]:
+    """``(delta, levels)``: how far the box's top misses the nearest higher
+    neighbouring top (a packed box rising above the support by more than
+    5 cm, within ``LEVEL_REACH`` of the footprint), and whether it meets one
+    within ``LEVEL_TOLERANCE``.  No such neighbour: (1.0, False)."""
+    top = float(box.maximum[2])
+    x0, x1 = float(box.minimum[0]) - LEVEL_REACH, float(box.maximum[0]) + LEVEL_REACH
+    y0, y1 = float(box.minimum[1]) - LEVEL_REACH, float(box.maximum[1]) + LEVEL_REACH
+    best = 1.0
+    for b in packed:
+        bt = float(b.maximum[2])
+        if bt <= bottom + 0.05:
+            continue
+        if float(b.maximum[0]) < x0 or float(b.minimum[0]) > x1 or float(b.maximum[1]) < y0 or float(b.minimum[1]) > y1:
+            continue
+        best = min(best, abs(bt - top))
+    return best, best <= LEVEL_TOLERANCE
+
+
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
                      extra_clearance: float = 0.0, z_top: float | None = None,
@@ -493,8 +516,11 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                     margin=float(st.margin) if np.isfinite(st.margin) else 0.0,
                 )
                 c.tower_margin = tw
+                c.level_delta, c.levels = level_reading(box, packed, bottom)
                 out.append(c)
-    out.sort(key=lambda c: (round(c.bottom, 3), -round(float(c.box.center[1]), 3),
+    level_first = bool(getattr(cfg, "stack_level_candidates", False))
+    out.sort(key=lambda c: (round(c.bottom, 3), (not c.levels) if level_first else False,
+                            -round(float(c.box.center[1]), 3),
                             round(float(c.box.center[0]), 3), -round(c.gain, 6)))
     # the floor alone can fill the cap; keep a share of every support level
     # so the tops (the point of this region) are always on offer
@@ -586,6 +612,12 @@ class StackEnv:
         self.placed = []
         self._cands = None
         self._profile = stack_profile(m, self.nx)
+        from .env import LEVEL_FEATURES
+        self.level_features = LEVEL_FEATURES
+        if LEVEL_FEATURES:
+            # the policy learns the levelling poses only when the candidate
+            # cap keeps them
+            self.config = dataclasses.replace(self.config, stack_level_candidates=True)
 
     @classmethod
     def from_container(cls, container: dict, model: ContainerModel, config, **kw) -> "StackEnv":

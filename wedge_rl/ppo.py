@@ -336,7 +336,18 @@ def train(out_dir: pathlib.Path, env_factory, iterations: int = 100, episodes_pe
     env = env_factory()
     policy = Policy(env.nx, env.ny)
     if init is not None and pathlib.Path(init).exists():
-        policy.load_state_dict(torch.load(init))
+        state = torch.load(init)
+        own = policy.state_dict()
+        w = "cand_fc.0.weight"
+        if w in state and state[w].shape != own[w].shape and state[w].shape[0] == own[w].shape[0]:
+            # a policy trained without the levelling features: its columns
+            # kept, the new ones start at zero (the features are read, not yet
+            # weighed)
+            padded = torch.zeros_like(own[w])
+            n = min(state[w].shape[1], own[w].shape[1])
+            padded[:, :n] = state[w][:, :n]
+            state[w] = padded
+        policy.load_state_dict(state)
     out_dir.mkdir(parents=True, exist_ok=True)
     if teacher and pretrain_epochs > 0:
         bc = pretrain(policy, teacher, epochs=pretrain_epochs, log=log, tau=teacher_tau)

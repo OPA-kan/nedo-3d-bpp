@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       region:
-        description: Region to learn (wedge or shelf)
+        description: Region to learn (wedge, shelf or stack)
         type: string
         default: wedge
       layout:
@@ -36,6 +36,14 @@ on:
         default: 0
       init_run_id:
         description: Run id of a previous Wedge PPO run whose policy to start from (optional)
+        type: string
+        default: ""
+      init_path:
+        description: Path in the repository of a policy.pt to start from (optional; e.g. reports/wedge/ppo-stack-c1-s0-tower/policy.pt)
+        type: string
+        default: ""
+      level_features:
+        description: "1" to train with the two levelling features (WEDGE_RL_LEVEL_FEATURES)
         type: string
         default: ""
       init_artifact:
@@ -66,6 +74,8 @@ env:
   TEACHER_RUN_ID: ${{ inputs.teacher_run_id || '' }}
   TEACHER_WEIGHT: ${{ inputs.teacher_weight || '0.5' }}
   PRETRAIN_EPOCHS: ${{ inputs.pretrain_epochs || '10' }}
+  INIT_PATH: ${{ inputs.init_path || '' }}
+  WEDGE_RL_LEVEL_FEATURES: ${{ inputs.level_features || '' }}
 
 permissions:
   contents: read
@@ -112,6 +122,9 @@ jobs:
       - name: Train
         run: |
           init=""
+          if [ -n "$INIT_PATH" ]; then
+            init="--init $INIT_PATH"
+          fi
           if [ -n "$INIT_RUN_ID" ]; then
             # the artifact keeps its run's directory layout (runs/<name>/policy.pt)
             init_pt=$(find init -name policy.pt | head -1)
