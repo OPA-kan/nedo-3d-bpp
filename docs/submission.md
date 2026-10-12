@@ -609,6 +609,35 @@ Official platform: 55.24 (v39 52.71, +2.53; fill 39.18, cog 65.08,
 stability 79.28, placement 49.55, soft 42.2, placed fraction 0.637,
 policy 7.27 s) -- the best so far (`reports/submission/official-results.md`).
 
+Forty-fourth build (v44): v43 with the rescue stages redesigned on
+Tasks B and C, and the stack option's candidate generation under the
+option's deadline on every task.  The near misses of the hard suites
+(`scripts/last_call_probe.py`) stopped in two ways: legal poses the
+generators never offered (the resort's dense generator anchors each
+pose on one top and refuses a footprint that spans a neighbour a few
+centimetres taller), and surfaces walled off from the simulator's
+sweep by the rescue's own standing boxes at the door side (74-87 % of
+v43's rescue placements stood in the front 0.45 m).  Three changes:
+the grid rescue (`grid_rescue=0.05`, `grid_rescue_seconds=1.0`) scans
+a 5 cm grid of poses resting on the highest top under the footprint
+through the validator at the decline and tries the passing ones in
+the shadow; the rescue stages try the deeper poses first
+(`rescue_deep_first`, bands of 0.25 m along the sweep's axis); and
+the poses that wall off 0.2 m^2 or more of usable surface behind them
+go to a second pass run only when nothing else stood
+(`rescue_seal_area=0.2`).  Suites against v43: sample C placed +1.27
+(24 up, 10 down), fill +1.1, 48 of 48; sample B +0.21, 48 of 48; hard
+C 21 -> 25 crossings, hard2 C 32 -> 39 (the sample band 28 -> 35),
+B flat; the continuous pricing on C reads -0.22 (more covers, the
+load 0.008 higher), the count +1.27 a scene with every crossing kept.
+`stack_deadline`: on a board of 55 small boxes the stack option's
+generation took 10 s of a 16 s call against the platform's 8 s limit
+(hard2 s0070, s0091); with the deadline the suite's slowest call is
+5.4 s, crossings unchanged.  A keeps v43's rescue (the optimize
+override) and takes the deadline.  Official sample: A 32.11 / 25, B
+29.59 / 26, C 24.95 / 24 (all as v43); policy max B 5.30 s, C 4.03 s,
+optimize 28 s (`official-sample-abc-v44.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
