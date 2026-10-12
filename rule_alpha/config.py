@@ -811,6 +811,33 @@ class RuleAlphaConfig:
     grid_rescue_tries: int = 12
     """Shadow checks the grid rescue may spend in one call."""
 
+    grid_rescue_seconds: float = 0.0
+    """Seconds the grid rescue may take past the resort's deadline (the
+    resort usually leaves it none), the call capped at the policy budget
+    plus ``grid_rescue_cap``; 0 keeps the resort's deadline."""
+
+    grid_rescue_cap: float = 2.0
+
+    rescue_deep_first: bool = False
+    """The rescue stages (the physics resort, the count pass, the grid
+    rescue) try the deeper poses first, in bands of ``rescue_depth_band``
+    metres along y (the sweep's axis), and only then the lowest.  The
+    lowest-first order fills the door side: on the v43 records 74-87 % of
+    the rescue placements stand in the front 0.45 m, 58-69 % of them on
+    end, and 30-41 of 48 episodes a suite end within four steps of a
+    standing rescue pose at the door -- c-hard-s0048's four standing
+    boxes at 1.46 m walled a 0.6 x 0.8 m plateau at 0.85 m off from the
+    sweep with 0.7 m of headroom over it."""
+
+    rescue_depth_band: float = 0.25
+
+    rescue_seal_area: float = 0.0
+    """Square metres of usable surface behind a pose (``stack.shade_area``:
+    deeper along y in the pose's x range, lower than its top, with 0.2 m
+    of headroom) above which the rescue stages hold the pose back to a
+    second pass, run only when no other pose stood; 0 is off.  Read with
+    a pool too (the shade ordering is not)."""
+
     hard_shelf_first: bool = False
     """Hard cargo asks the shelf *before* the floor rungs, not after them.
 

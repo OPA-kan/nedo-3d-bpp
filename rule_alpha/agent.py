@@ -2112,7 +2112,14 @@ class RuleAlphaAgent:
         else:
             queue = sorted(ordered, key=lambda pp: 0 if pp[1].is_soft else 1)
         covering: dict[int, bool] = {}
-        for pool_index, profile in queue:
+        sealed: dict[int, float] = {}
+        seal_area = float(getattr(strict, "rescue_seal_area", 0.0) or 0.0)
+        deep_first = bool(getattr(strict, "rescue_deep_first", False))
+        # with a sealing area set, two passes: the poses that wall off less
+        # than that much usable surface behind them first, over every item
+        # and container, and the sealing ones only when none of those stood
+        for stage in ((0, 1) if seal_area > 0.0 else (0,)):
+          for pool_index, profile in queue:
             if not room():
                 break
             item = pool[pool_index]
@@ -2176,19 +2183,37 @@ class RuleAlphaAgent:
                         shade_step = 0.0  # the same tasks the gate's veto leaves alone
 
                     shade: dict[int, int] = {}
-                    if shade_step > 0.0:
+                    # the sealing pass (config.rescue_seal_area) reads the
+                    # same measure, with a pool and under a manifest too
+                    if shade_step > 0.0 or (seal_area > 0.0 and not getattr(self, "_manifest", None)):
                         sky = skyline(container, model)
                         for c in cands:
-                            shade[id(c)] = int(shade_area(c.box, sky, float(model.z_ceiling)) / shade_step)
+                            area = shade_area(c.box, sky, float(model.z_ceiling))
+                            sealed[id(c)] = area
+                            if shade_step > 0.0:
+                                shade[id(c)] = int(area / shade_step)
                     # under the threshold the whole-top poses go before the
                     # partial ones at any height: the partial ones fail
                     # the settle far more often (c-c1-s0003: the fifteen
                     # lowest poses tried, all partial, none stood)
-                    cands.sort(key=lambda c: (covering.get(id(c), False),
-                                              bool(count and not c.on_floor and c.support_ratio < 0.95),
-                                              shade.get(id(c), 0),
-                                              round(c.bottom, 2), -round(c.support_ratio, 2),
-                                              -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
+                    if deep_first:
+                        # the deeper poses first (bands of rescue_depth_band
+                        # along y, the sweep's axis), then the lowest: the
+                        # lowest-first order fills the door side and walls
+                        # off the deeper surfaces from the sweep
+                        band = float(getattr(strict, "rescue_depth_band", 0.25))
+                        cands.sort(key=lambda c: (covering.get(id(c), False),
+                                                  bool(count and not c.on_floor and c.support_ratio < 0.95),
+                                                  shade.get(id(c), 0),
+                                                  -int((float(c.box.center[1]) - float(model.floor_rect.y_min)) / band),
+                                                  round(c.bottom, 2), -round(c.support_ratio, 2),
+                                                  -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
+                    else:
+                        cands.sort(key=lambda c: (covering.get(id(c), False),
+                                                  bool(count and not c.on_floor and c.support_ratio < 0.95),
+                                                  shade.get(id(c), 0),
+                                                  round(c.bottom, 2), -round(c.support_ratio, 2),
+                                                  -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
                     generated[key] = cands
                 if not cands:
                     continue
@@ -2201,6 +2226,8 @@ class RuleAlphaAgent:
                 for cand in cands:
                     if not room():
                         break
+                    if seal_area > 0.0 and (sealed.get(id(cand), 0.0) >= seal_area) != (stage == 1):
+                        continue
                     cover = covering.get(id(cand), False)
                     group = (cover, round(cand.bottom, 1), round(cand.support_ratio, 1))
                     if count and failed.get(group, 0) >= 3:
@@ -2247,7 +2274,7 @@ class RuleAlphaAgent:
         sim = self._shadow_sim()
         if sim is None:
             return None
-        from wedge_rl.stack import covers_other_attribute
+        from wedge_rl.stack import covers_other_attribute, skyline
 
         from . import fastgeom
         from .planner import _placement
@@ -2263,6 +2290,13 @@ class RuleAlphaAgent:
         min_support = float(getattr(strict, "count_mode_min_support", 0.5)) if count else 0.5
         tries_limit = int(getattr(strict, "grid_rescue_tries", 12))
         need = max(self._shadow_longest, 0.2)
+        # a window of its own past the resort's deadline, capped so the call
+        # stays well under the platform's limit (8 s on A and C)
+        own = float(getattr(strict, "grid_rescue_seconds", 0.0) or 0.0)
+        if own > 0.0:
+            started = float(getattr(self, "_policy_started", time.perf_counter()))
+            cap = started + float(strict.policy_budget_seconds) + float(getattr(strict, "grid_rescue_cap", 2.0))
+            deadline = min(max(deadline, time.perf_counter() + own), cap)
 
         def room() -> bool:
             return time.perf_counter() + need <= deadline
@@ -2287,46 +2321,72 @@ class RuleAlphaAgent:
                 omin, omax = obs["all_min"][n_sh:], obs["all_max"][n_sh:]
                 rect = model.floor_rect
                 poses = []
+                # the skyline on the grid: a pose's resting height is the
+                # highest top under its footprint, its support the share
+                # of the footprint at that height, both read off the grid
+                # before the validator is asked (the per-pose validator is
+                # ~0.1 ms; the grid holds thousands of poses)
+                xs, ys, tops = skyline(container, model, step=cell)
+                z_floor = float(model.z_floor)
+                ceiling = float(model.z_ceiling) - float(getattr(cfg, "settled_wall_clearance", 0.0))
                 for orientation in profile.orientations:
+                    if not room():
+                        break
                     dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
-                    if dx > rect.x_max - rect.x_min or dy > rect.y_max - rect.y_min:
+                    wx, wy = max(1, int(round(dx / cell))), max(1, int(round(dy / cell)))
+                    if wx > len(xs) or wy > len(ys):
                         continue
-                    x = rect.x_min + dx / 2.0
-                    while x <= rect.x_max - dx / 2.0 + 1e-9:
+                    # the sliding maximum over the footprint window
+                    m = tops
+                    for _shift in range(1, wx):
+                        m = np.maximum(m[:-1, :], m[1:, :])
+                    for shift in range(1, wy):
+                        m = np.maximum(m[:, :-1], m[:, 1:])
+                    rest = m  # (len(xs) - wx + 1, len(ys) - wy + 1): the resting height per window origin
+                    at = (rest + dz <= ceiling + 1e-9)
+                    if not at.any():
+                        continue
+                    for i, j in zip(*np.nonzero(at)):
                         if not room():
                             break
-                        y = rect.y_min + dy / 2.0
-                        while y <= rect.y_max - dy / 2.0 + 1e-9:
-                            box = layer1.AABB((x, y, model.z_floor + dz / 2.0), (dx, dy, dz), "candidate")
-                            box = fastgeom.lift_to_tops(box, container, cfg)
-                            ok, _why = layer1.validate(box, model, container, cfg)
-                            if ok:
-                                bottom = float(box.minimum[2])
-                                on_floor = abs(bottom - model.z_floor) <= 1e-6
-                                if on_floor or omin.shape[0] == 0:
-                                    support = 1.0
-                                else:
-                                    # the share of the footprint over tops at the bottom
-                                    under = np.abs(omax[:, 2] - bottom) <= fastgeom.CONTACT_TOLERANCE
-                                    ox = np.clip(np.minimum(omax[under, 0], x + dx / 2.0) - np.maximum(omin[under, 0], x - dx / 2.0), 0.0, None)
-                                    oy = np.clip(np.minimum(omax[under, 1], y + dy / 2.0) - np.maximum(omin[under, 1], y - dy / 2.0), 0.0, None)
-                                    support = min(1.0, float((ox * oy).sum()) / max(dx * dy, 1e-9))
-                                if on_floor or support >= min_support:
-                                    cover = bool(covers_other_attribute(box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
-                                    if cover and not allow_cover:
-                                        y += cell
-                                        continue
-                                    pose = _Pose()
-                                    pose.orientation, pose.on_floor, pose.box, pose.bottom = orientation.index, on_floor, box, bottom
-                                    pose.support_ratio, pose.gain, pose.margin = support, dx * dy * dz, 0.0
-                                    poses.append((cover, round(bottom, 2), -round(support, 2), -round(y, 3), round(x, 3), pose))
-                            y += cell
-                        x += cell
+                        bottom = float(rest[i, j])
+                        window = tops[i:i + wx, j:j + wy]
+                        on_floor = bottom <= z_floor + 1e-6
+                        support = 1.0 if on_floor else float(np.mean(np.abs(window - bottom) <= fastgeom.CONTACT_TOLERANCE))
+                        if not on_floor and support < min_support:
+                            continue
+                        x = float(xs[i]) + dx / 2.0
+                        y = float(ys[j]) + dy / 2.0
+                        if x + dx / 2.0 > rect.x_max + 1e-6 or y + dy / 2.0 > rect.y_max + 1e-6:
+                            continue
+                        box = layer1.AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "candidate")
+                        ok, _why = layer1.validate(box, model, container, cfg)
+                        if not ok:
+                            continue
+                        cover = bool(covers_other_attribute(box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
+                        if cover and not allow_cover:
+                            continue
+                        pose = _Pose()
+                        pose.orientation, pose.on_floor, pose.box, pose.bottom = orientation.index, on_floor, box, bottom
+                        pose.support_ratio, pose.gain, pose.margin = support, dx * dy * dz, 0.0
+                        poses.append((cover, round(bottom, 2), -round(support, 2), -round(y, 3), round(x, 3), pose))
                 if not poses:
                     continue
-                poses.sort(key=lambda t: t[:5])
+                seal_area = float(getattr(strict, "rescue_seal_area", 0.0) or 0.0)
+                if seal_area > 0.0:
+                    from wedge_rl.stack import shade_area, skyline
+
+                    sky = skyline(container, model)
+                    for t in poses:
+                        t[5].margin = shade_area(t[5].box, sky, float(model.z_ceiling))
+                if getattr(strict, "rescue_deep_first", False):
+                    band = float(getattr(strict, "rescue_depth_band", 0.25))
+                    poses.sort(key=lambda t: (t[0], -int((float(t[5].box.center[1]) - float(rect.y_min)) / band), t[1], t[2], t[3], t[4]))
+                else:
+                    poses.sort(key=lambda t: t[:5])
                 failed: dict[tuple, int] = {}
-                for cover, _b, _s, _y, _x, pose in poses:
+                ordered_poses = ([t for t in poses if t[5].margin < seal_area] + [t for t in poses if t[5].margin >= seal_area]) if seal_area > 0.0 else poses
+                for cover, _b, _s, _y, _x, pose in ordered_poses:
                     if not room() or tried >= tries_limit:
                         break
                     group = (cover, round(pose.bottom, 1), round(pose.support_ratio, 1))
