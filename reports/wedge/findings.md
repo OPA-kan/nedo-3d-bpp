@@ -3516,16 +3516,18 @@ a pose is decided by what the agent does after it, not by the pose's
 own features: a preference-learned selector over the ladder's
 survivors, DPO included, has nothing to learn from here.
 
-**The pairs on B** (the first 24 of 48 scenes, 370 decisions, 1002
-alternatives): the same shape.  An alternative beats the ladder at
-45 % of the decisions by 2.2 items, ties at 47 %; the pieces proxy
-agrees at 0.54 (rank correlation +0.13); the logistic model reads AUC
-0.68 at the majority's accuracy, and its heaviest weight is the phase
-variable itself (a state feature: the ladder's pick is beaten more
-often in the high phase, whatever the alternative), not a difference
-between the poses.  Its gated selector at p > 0.5 takes 103 pairs at
-+0.50 a pair with 8 crossings gained to 4 lost -- the opposite sign to
-C's, which is what a selector with nothing to learn looks like.
+**The pairs on B** (48 scenes, 809 decisions, 2202 alternatives): the
+same shape.  An alternative beats the ladder at 44 % of the decisions
+by 2.5 items, ties at 45 %, every alternative worse at 11 %; the
+pieces proxy agrees at 0.54 (rank correlation +0.12); the logistic
+model reads AUC 0.65 under the majority's accuracy (0.72 against
+0.73), and its heaviest weight is the phase variable itself (a state
+feature: the ladder's pick is beaten more often in the high phase,
+whatever the alternative), not a difference between the poses.  Its
+gated selector at p > 0.5 takes 129 pairs at -0.26 a pair (8
+crossings lost, 13 gained); on the first half of the scenes the same
+selector had read +0.50, which is what a selector with nothing to
+learn looks like.
 
 **What the pairs do say, by rung.**  Read as the ladder's rung against
 the alternative's rung, one transition is positive on both suites:
