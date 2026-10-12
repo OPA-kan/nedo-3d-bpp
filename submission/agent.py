@@ -95,6 +95,9 @@ TASK_A_SOFT_GALLERY = False
 # with the near-neighbour slivers on Tasks B and C; official 50.32
 # against v39's 52.71, one episode under the count threshold.
 # v42: the levelness tie-break (level_key) on Tasks B and C (OVERRIDES).
+# v43: the phase switch (phase_switch) on Tasks B and C (OVERRIDES): the
+# count pass's covers in the low phase of the load whatever the fixed
+# count threshold says.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -311,6 +314,19 @@ OVERRIDES = dict(
     # of 48; sample B placed +0.60, fill +0.45, soft share +0.02, 48 of
     # 48 (reports/wedge/findings.md, "The levelness of the load").
     level_key=True,
+    # v43: the phase switch.  The rules change inside the episode where a
+    # container's usable surface (level patches a 0.40 x 0.55 footprint
+    # fits, over the floor area) falls under 0.2: above it the ladder's
+    # structure places, below it most placements come from the search
+    # over poses the ladder's rules refuse (findings, "The phase
+    # change").  In that low phase the count pass's covers are taken
+    # whatever the fixed threshold (41 a container) says; the resort
+    # stays after the ladder (the resort first cost a crossing).  Sample
+    # C placed +2.27 (33 up, 6 down), fill +2.6, 48 of 48; sample B
+    # +2.73 (37 up, 2 down), fill +2.2, 48 of 48; priority covered
+    # 10 -> 28 and 11 -> 40, the load 0.013 higher.  Tasks B and C
+    # (Agent.optimize resets it for A, whose threshold is the manifest's).
+    phase_switch=True, phase_switch_resort_first=False, phase_switch_cover=True,
 )
 STACK_POLICY = "weights/stack"
 
@@ -350,7 +366,10 @@ class Agent(RuleAlphaAgent):
         task_a = dict(stack_soft_min_support=STACK_SOFT_MIN_SUPPORT_TASK_A,
                       # v42: the levelness tie-break is for B and C; in the
                       # planner's dry-run race it cost A's priority rows
-                      level_key=False)
+                      level_key=False,
+                      # v43: the phase switch is for B and C; A's count
+                      # threshold is the manifest's, not a guess
+                      phase_switch=False)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
