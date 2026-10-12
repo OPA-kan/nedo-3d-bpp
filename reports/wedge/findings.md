@@ -3541,7 +3541,21 @@ both suites (C 174 pairs +0.60, B 104 +0.29), but with no feature
 difference that separates the better from the worse (the alternative
 is the same orientation at another x in most of them); that one is not
 a rule.  The shelf one is: `hard_shelf_first` puts the shelf rung just
-before the floor rungs of the hard ladder, measured as `hshelf-*`.
+before the floor rungs of the hard ladder, measured as `hshelf-*`
+against `phase2-*` (the v43 form).  Dead on both suites: C -0.58 a
+scene (18 up, 19 down), crossings 48 -> 43, margin-0 episodes 4 -> 1
+but five episodes fell under the threshold; B -1.12 (15 up, 28 down),
+crossings 48 -> 46, soft -0.27 and priority -0.25 a scene.  The pairs
+were labelled by the analytic continuation (the ladder alone, no
+physics resort, no count pass), and in the real pipeline the shelf is
+what the resort and the count pass fill late with the soft and the
+small cargo; taken by the first hard items it is not there for them.
+Two lessons.  The pairs' labels are off-policy for the shipped agent,
+which closes the preference-learning question from the other side as
+well: the alternative that places more under the ladder's own
+continuation is not the one that places more under the agent's, so a
+selector trained on them would be trained on the wrong outcome.  And
+the shelf rung stays last.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
