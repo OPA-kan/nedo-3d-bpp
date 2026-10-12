@@ -459,7 +459,12 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 if not ok:
                     continue
                 if getattr(cfg, "allow_cover_other_attribute", False):
-                    pass  # the count pass: the physics is the only judge
+                    # the count pass: the physics is the only judge -- except
+                    # over priority cargo when the pass keeps that cover
+                    # (config.count_cover_priority off: a covered priority
+                    # box costs the placement score what the count earns)
+                    if not getattr(cfg, "count_cover_priority", True) and covers_priority(box, container):
+                        continue
                 elif getattr(cfg, "no_cover_other_attribute", False):
                     if covers_other_attribute(box, container, bool(getattr(profile, "is_soft", False)),
                                               bool(getattr(profile, "is_prioritized", False))):

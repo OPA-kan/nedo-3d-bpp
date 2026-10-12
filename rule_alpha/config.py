@@ -646,6 +646,12 @@ class RuleAlphaConfig:
     phase_switch_window: str = "0.40x0.55x0.24"
     phase_switch_resort_first: bool = True
     phase_switch_seconds: float = 1.5
+    count_cover_priority: bool = True
+    """When the count pass takes the covering poses, it may cover priority
+    cargo too.  Off: soft may be covered, priority never (a covered
+    priority box costs the placement score; the phase switch's gain came
+    with priority covered 10 -> 28 on C and 11 -> 40 on B)."""
+
     phase_switch_cover: bool = False
     """In the low phase above the count threshold proper, the count pass
     may also take the covering poses (a covered priority or soft box
