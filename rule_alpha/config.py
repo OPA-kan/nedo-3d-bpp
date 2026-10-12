@@ -1880,6 +1880,12 @@ class RuleAlphaConfig:
     of 0.61 m takes any of them.  Reads only the floor's geometry, so it
     is the same on every task."""
     width_reserve_classes: str = "0.55x0.40:13,0.65x0.45:11,0.75x0.56:4"
+    width_reserve_dp: bool = False
+    """Price the run by the width the stream's own tilings leave dead
+    (``layer1.expected_dead_width``: the classes that fit share the run by
+    frequency, each laid the way that leaves the least, three deep) rather
+    than by whether one box fits.  On the 1.38 m floor a 0.40 m box across
+    leaves 0.95: a 0.45 then a 0.45 fill it, a 0.56 leaves 0.37 dead."""
 
     deterministic_budgets: bool = False
     """For offline rollouts: the time budgets inside a policy call that

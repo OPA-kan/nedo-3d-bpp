@@ -1637,6 +1637,47 @@ def width_fit_probability(residual: float, classes, clearance: float) -> float:
     return sum(share for narrow, _wide, share in classes if narrow + 2.0 * clearance <= residual + 1e-9)
 
 
+_DEAD_WIDTH_CACHE: dict = {}
+
+
+def expected_dead_width(residual: float, classes, clearance: float, slack: float = 0.03, depth: int = 0) -> float:
+    """The width that stays dead, in expectation over the stream's hard
+    classes, when a run ``residual`` wide across the container is tiled by
+    the boxes still to come, each laid flat the way that leaves the least
+    dead width (config.width_reserve_dp).  A run under ``slack`` is used
+    up; a run no class fits (narrower than the narrowest class plus two
+    clearances) is dead in full; otherwise the classes that fit share the
+    run by their frequency and each takes its better orientation.  Three
+    boxes deep at most: 1.38 m across holds no more."""
+    key = (round(residual, 3), id(classes), round(clearance, 3), depth)
+    hit = _DEAD_WIDTH_CACHE.get(key)
+    if hit is not None:
+        return hit
+    if residual <= slack + 1e-9:
+        out = 0.0
+    else:
+        fits = []
+        for narrow, wide, share in classes:
+            best = None
+            for w in (narrow, wide):
+                if w + 2.0 * clearance <= residual + 1e-9:
+                    rest = residual - w - clearance
+                    v = rest if depth >= 2 else expected_dead_width(rest, classes, clearance, slack, depth + 1)
+                    if best is None or v < best:
+                        best = v
+            if best is not None:
+                fits.append((share, best))
+        if not fits:
+            out = residual
+        else:
+            total = sum(sh for sh, _v in fits)
+            out = sum(sh * v for sh, v in fits) / total
+    if len(_DEAD_WIDTH_CACHE) > 4096:
+        _DEAD_WIDTH_CACHE.clear()
+    _DEAD_WIDTH_CACHE[key] = out
+    return out
+
+
 def width_reserve_waste(grid, rect: Rect, extra_mask, config) -> float:
     """The floor this placement strands across the width, priced by the
     stream (config.width_reserve): on each side of the box across y, the
@@ -1673,8 +1714,12 @@ def width_reserve_waste(grid, rect: Rect, extra_mask, config) -> float:
         residual = min(runs) * grid.cell
         if residual <= 0.0:
             continue
-        dead_share = 1.0 - width_fit_probability(residual, classes, clearance)
-        waste += dead_share * residual * (xs.size * grid.cell)
+        if getattr(config, "width_reserve_dp", False):
+            # the width the stream's tilings leave dead, in expectation
+            dead = expected_dead_width(residual, classes, clearance)
+        else:
+            dead = (1.0 - width_fit_probability(residual, classes, clearance)) * residual
+        waste += dead * (xs.size * grid.cell)
     return waste
 
 
