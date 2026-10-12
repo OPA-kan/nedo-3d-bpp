@@ -818,6 +818,20 @@ class RuleAlphaConfig:
 
     grid_rescue_cap: float = 2.0
 
+    grid_rescue_pool_seconds: float = 0.0
+    """With a pool (Task B) and under the count threshold, the physics
+    resort stops this many seconds before its deadline and the grid
+    rescue runs in that window, to the resort's deadline (no own window,
+    no ``grid_rescue_cap``); the call's length is unchanged.  0 is off.
+
+    On B the resort runs to the budget plus 3 s, past the grid rescue's
+    cap (budget + 2 s, sized for the 8 s limit of A and C), so the grid
+    rescue never ran: 32 of 96 hard2-b and 14 of 48 core-b episodes end
+    on a call over 6.4 s.  At the declines of b-hard2-s0014 and s0021
+    (deterministic budgets) the count pass's shadow checks all failed or
+    it generated nothing, where a validator scan of the grid found 62
+    and 841 legal poses for the pool's items."""
+
     stack_deadline: bool = False
     """The stack option's candidate generation stops at the option's
     deadline (0.85 of the policy budget) with what it has.  Without it

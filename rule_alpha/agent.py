@@ -1047,13 +1047,20 @@ class RuleAlphaAgent:
             if under:
                 extra = max(extra, float(getattr(
                     self.config, "count_mode_extra_seconds_pool" if len(pool) > 1 else "count_mode_extra_seconds", 1.0)))
-            action = self._physics_resort(ordered, pool, started + budget + extra - 0.05, count=under)
+            resort_end = started + budget + extra - 0.05
+            grid_on = float(getattr(self.config, "grid_rescue", 0.0) or 0.0) > 0.0
+            # with a pool under the count threshold, part of the resort's
+            # window goes to the grid rescue (config.grid_rescue_pool_seconds)
+            pool_share = float(getattr(self.config, "grid_rescue_pool_seconds", 0.0) or 0.0)
+            pooled_grid = (grid_on and pool_share > 0.0 and len(pool) > 1
+                           and bool(getattr(self, "_really_under", False)))
+            action = self._physics_resort(ordered, pool, resort_end - (pool_share if pooled_grid else 0.0), count=under)
             if action is not None:
                 return action
-            if float(getattr(self.config, "grid_rescue", 0.0) or 0.0) > 0.0:
+            if grid_on:
                 # the grid rescue: every pose of a grid through the validator,
                 # resting on the highest top under it (config.grid_rescue)
-                action = self._grid_rescue(ordered, pool, started + budget + extra - 0.05, count=under)
+                action = self._grid_rescue(ordered, pool, resort_end, count=under, own_window=not pooled_grid)
                 if action is not None:
                     return action
 
@@ -2275,7 +2282,8 @@ class RuleAlphaAgent:
         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
         return None
 
-    def _grid_rescue(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
+    def _grid_rescue(self, ordered: list, pool: list, deadline: float, count: bool = False,
+                     own_window: bool = True) -> dict | None:
         """The declining call's last stage: every pose of a grid of
         ``config.grid_rescue`` metres, in every orientation and container,
         set down on the highest packed top under its footprint
@@ -2305,8 +2313,10 @@ class RuleAlphaAgent:
         need = max(self._shadow_longest, 0.2)
         # a window of its own past the resort's deadline, capped so the call
         # stays well under the platform's limit (8 s on A and C)
+        # (own_window False: the caller handed it part of the resort's
+        # window instead, config.grid_rescue_pool_seconds)
         own = float(getattr(strict, "grid_rescue_seconds", 0.0) or 0.0)
-        if own > 0.0:
+        if own > 0.0 and own_window:
             started = float(getattr(self, "_policy_started", time.perf_counter()))
             cap = started + float(strict.policy_budget_seconds) + float(getattr(strict, "grid_rescue_cap", 2.0))
             deadline = min(max(deadline, time.perf_counter() + own), cap)
