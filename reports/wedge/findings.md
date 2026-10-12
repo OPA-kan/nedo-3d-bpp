@@ -3463,6 +3463,58 @@ poses, not of items placed after them.  The learned side (the stack
 option's levelling features and cap, `stack_level_candidates`) is the
 other half of the generator line and is in training.
 
+**The gate's position** (`phase_switch_surface` 0.1 and 0.35 against the
+v43 form's 0.2; `gate01-*`, `gate035-*` against `phase2-*`): at 0.1
+sample C placed -0.50 with a crossing lost and sample B -0.58; at 0.35
+C -0.12 and B +0.21, 48 of 48 on both, the margin bands unchanged.  The
+gate matters by half an item between 0.1 and 0.2 and is flat from 0.2
+to 0.35: the threshold sits on a plateau, and a learned gate has at
+most a fifth of an item to find.  Not pursued.
+
+**The floor reservation by the stream** (`width_reserve`: the free run
+beside a floor pose across the container, on either side, priced by the
+share of the stream's hard classes that cannot stand flat in it;
+`width_reserve_dp`: priced by the width the stream's own tilings leave
+dead, `expected_dead_width`, three deep; `wres-*`, `wres2-*` against
+`phase2-*`; the v41 width term `row_waste_axes=xyn` on the same base,
+`xyn-*`).  The end states of the v43 C suite stop with the free floor's
+largest rectangle narrower than 0.45 m in 45 of 48 episodes (median
+0.25 m; 72 % of the free floor in strips): the first floor boxes go
+flush to the two walls and the 0.2-0.4 m between them takes nothing.
+On the bottom four episodes (21 of 41 each) the first form changed no
+placement: the first box at a wall leaves 0.95 m, which every class
+fits, and the strip is made by the second, a 0.75 x 0.56 whose rung
+held two candidates at the same place.  The 1.378 m floor is awkward
+for the mix: 0.40 + 0.56 leaves 0.39, 0.40 + 0.75 leaves 0.20; the
+tilings that use it are 0.75 + 0.56, 0.65 + 0.65 and 0.45 + 0.45 +
+0.40, which a stream of one item at a time cannot choose.  Measured:
+
+| form | C placed | C crossings | C margin 0 / +1 | B placed | B crossings | B margin 0 / +1 |
+|---|---:|---:|---:|---:|---:|---:|
+| phase2 (v43) | 36.85 | 48 | 4 / 1 | 39.29 | 48 | 1 / 0 |
+| width_reserve | -0.08 | 47 | 4 / 1 | -0.75 | 47 | 1 / 1 |
+| width_reserve_dp | +0.15 (10 up, 9 down) | 48 | 5 / 1 | (pending) | | |
+| row_waste_axes=xyn | +0.77 (16 up, 7 down) | 47 | 4 / 0 | -0.90 (13 up, 22 down) | 47 | 0 / 0 |
+
+The v41 term gains on C and loses on B with a crossing on each, as it
+did on the v39 base; the probabilistic pricing is inert to slightly
+positive on C.  Neither moves the margin bands.  The width is bound by
+the candidates the rungs hold and by the mix, not by the pricing.
+
+**The pairs on C** (`scripts/pref_pairs.py` on 44 scenes, 643 decisions,
+1705 alternatives; `scripts/pref_learn.py`): an alternative beats the
+ladder's pick at 40 % of the decisions, by 3.7 items when it does,
+ties at 50 %, every alternative worse at 11 %; alternatives that lose
+a crossing the ladder kept 143, that gain one 137.  The pieces proxy
+agrees with the outcome's sign at 0.55 (rank correlation +0.07).  A
+logistic model on the feature differences, trained on some scenes and
+tested on the others, reads AUC 0.64 and the majority's accuracy; a
+selector taking the alternative at p > 0.5 takes 66 of 1705 and loses
+0.33 items a pair with 10 crossings lost to 5 gained.  The outcome of
+a pose is decided by what the agent does after it, not by the pose's
+own features: a preference-learned selector over the ladder's
+survivors, DPO included, has nothing to learn from here.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
