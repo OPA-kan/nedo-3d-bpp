@@ -3691,6 +3691,42 @@ one or two crossings; `v43det-hard2`, `grid2det-hard2` and
 The stack option's 16-18 s calls on s0091 are v43's own
 (`stack_deadline`, measured as `sdl-*`).
 
+**The sealing design measured** (`seal-*`: the grid rescue plus
+`rescue_deep_first` and `rescue_seal_area=0.2`, against the v43
+records).  The rescue stages' lowest-first order fills the door side
+(74-87 % of the v43 rescue placements stand in the front 0.45 m, 58-69
+% on end, and 30-41 of 48 episodes a suite end within four steps of
+one), and the simulator's sweep enters at the low-y side along the
+target's x, so a tall pose there walls off every lower surface behind
+it; deep-first tries the poses by depth band (0.25 m) before height,
+and the sealing pass holds the poses that wall off 0.2 m^2 or more of
+usable surface back to a second pass run only when nothing else stood.
+
+| suite | crossings | placed | margin 0/+1 | priced | policy max |
+|---|---:|---:|---:|---:|---:|
+| core C | 48 -> 48 | +1.27 (24 up, 10 down) | 5 -> 6 | fill +0.11 soft +0.05 prio +0.05 cog -0.43 -> -0.22 | 6.1 s |
+| core B | 48 -> 48 | +0.21 (15 up, 15 down) | 1 -> 2 | -0.10 | 7.4 s |
+| hard C | 21 -> 25 | +0.79 (25 up, 10 down) | 1 -> 5 | | 6.3 s |
+| hard B | 21 -> 20 | +0.35 | 5 -> 3 | | 7.4 s |
+| hard2 C | 32 -> 39 (sample 28 -> 35, stretch 4 -> 4) | +1.73 / +3.34 (sample / stretch) | 4 -> 6 | | 16.0 s (s0091, the stack option) |
+| hard2 B | 37 -> 37 | +0.00 / -0.16 | 4 -> 5 | | 17.8 s (s0091) |
+
+The crossings gained on hard C are the near misses the probe
+diagnosed (s0048, s0042, s0037, s0038, s0033, s0013, plus s0018 60 ->
+78); the crossings lost are large swings on two- and three-container
+scenes (c-hard-s0025 62 -> 47, s0007 64 -> 47, c-hard2-s0041 77 ->
+41, s0022 133 -> 106) that diverge at a pocket-guard or resort
+decision at steps 6-26, and three of the six end on `transport` (the
+simulator refusing a resort pose the shadow had passed: 3 such ends
+under v43 on hard2 C, 4 here).  B is flat: the stages barely fire with
+a pool, and the settle endings rise 5 -> 10 on hard2 B.  The
+continuous pricing on core C reads -0.22 (more covers, a higher
+centre of mass); the count reads +1.27 a scene with every crossing
+kept, which on the platform has been worth about a point a placed
+item (v43).  The attribution runs under `deterministic_budgets`
+(`v43det-`, `grid2det-`, `sealdet-hard2`) separate the design from the
+time noise.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
