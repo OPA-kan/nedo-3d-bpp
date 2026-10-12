@@ -3446,6 +3446,23 @@ produce: the lever is a generator of levelling candidates (the support
 and orientation whose top meets the neighbouring top), as the stack
 option is a generator, not a selection among what the ladder proposes.
 
+*The levelling anchors in the ladder* (`level_anchors`, `layer2.level_anchors`:
+on a hard top, poses flush beside a higher neighbouring hard top whose
+height the new box's top meets within 3 cm, the neighbour within 30 cm;
+the terrace rung ranks them with its plateau key; `lanch-core`,
+`lanch-core-b` against the level_key records): C placed -0.35 (8 up,
+10 down), 48 of 48, priced +0.22 on a lower load (CoM -0.006); B placed
+-1.06 (9 up, 18 down), soft share 0.423 -> 0.377, 48 -> 47, priced
+-0.31.  Not adopted.  The generator does what was asked -- the poses
+exist and the terrace rung takes some -- and the count falls on B: the
+plateau key ranks a pose that merges into a higher neighbour's level
+above the one that continues the lower top, and the level it leaves
+below, the soft cargo's, is where B's items were going.  The lever
+measured offline (28 % / 42 % of the raised poses) was a count of
+poses, not of items placed after them.  The learned side (the stack
+option's levelling features and cap, `stack_level_candidates`) is the
+other half of the generator line and is in training.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
