@@ -1869,6 +1869,18 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    width_reserve: bool = False
+    """The floor reservation by the stream (``layer1.width_reserve_waste``):
+    the free run beside a floor pose across the container, on either
+    side, priced by the share of the hard classes
+    (``width_reserve_classes``, ``lxw:count``) that could not stand flat
+    in it, times the pose's length; added to the row-tiling term that the
+    floor rungs rank by after the footprint.  A run between 3 cm and 0.45
+    m wide takes no hard box of the sample's mix and is dead floor; a run
+    of 0.61 m takes any of them.  Reads only the floor's geometry, so it
+    is the same on every task."""
+    width_reserve_classes: str = "0.55x0.40:13,0.65x0.45:11,0.75x0.56:4"
+
     deterministic_budgets: bool = False
     """For offline rollouts: the time budgets inside a policy call that
     change decisions by the machine's speed -- the ladder loop's deadline

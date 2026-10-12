@@ -2503,3 +2503,28 @@ class LevelAnchorsTest(unittest.TestCase):
         with_off = levelling(layer1.generate_layer2_candidates(board, profile, 0, flat, off))
         self.assertGreater(len(with_on), 0, "the pose flush beside the column, top at 0.49, on the low box")
         self.assertGreaterEqual(len(with_on), len(with_off))
+
+
+class WidthReserveTest(unittest.TestCase):
+    """The width reservation: a floor pose that leaves a run across the
+    container no hard class fits flat is charged that run; one that
+    leaves a run any class fits is not."""
+
+    def test_the_dead_strip_is_charged_and_the_usable_one_is_not(self):
+        container = make_container_dict(index=0, **ULD)
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        config = dataclasses.replace(DEFAULT_CONFIG, width_reserve=True)
+        grid = board.grid(0)
+        rect = board.model(0).floor_rect
+        width = rect.y_max - rect.y_min
+        # a 0.55 x 0.40 box flush at one wall leaves width - 0.40 beside it (about 0.98: any class fits)
+        r1 = Rect(rect.x_max - 0.60, rect.x_max - 0.05, rect.y_max - 0.40, rect.y_max)
+        w1 = layer1.width_reserve_waste(grid, r1, grid.rect_mask(r1), config)
+        # the same box placed so that 0.30 is left on one side and the rest on the other: the 0.30 is dead
+        r2 = Rect(rect.x_max - 0.60, rect.x_max - 0.05, rect.y_max - 0.70, rect.y_max - 0.30)
+        w2 = layer1.width_reserve_waste(grid, r2, grid.rect_mask(r2), config)
+        self.assertLess(w1, 0.02, f"flush at the wall: {w1:.3f}")
+        self.assertGreater(w2, 0.10, f"a 0.30 m strip beside a 0.55 m long box: {w2:.3f}")
+        self.assertAlmostEqual(layer1.width_fit_probability(0.30, layer1._width_classes(config), 0.026), 0.0)
+        self.assertAlmostEqual(layer1.width_fit_probability(0.70, layer1._width_classes(config), 0.026), 1.0)
+        self.assertGreater(layer1.width_fit_probability(0.48, layer1._width_classes(config), 0.026), 0.4)

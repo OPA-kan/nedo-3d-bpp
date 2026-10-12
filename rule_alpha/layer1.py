@@ -1605,6 +1605,79 @@ def _has_backing(box: AABB, model: ContainerModel, container: dict, config) -> b
     return False
 
 
+_WIDTH_CLASSES_CACHE: dict = {}
+
+
+def _width_classes(config) -> list[tuple[float, float, float]]:
+    """``[(narrow width, wide width, share), ...]`` of the hard classes the
+    stream is drawn from (``width_reserve_classes``: ``lxw:count``)."""
+    spec = str(getattr(config, "width_reserve_classes", "0.55x0.40:13,0.65x0.45:11,0.75x0.56:4"))
+    out = _WIDTH_CLASSES_CACHE.get(spec)
+    if out is None:
+        rows = []
+        for part in spec.replace(";", ",").split(","):
+            part = part.strip()
+            if not part:
+                continue
+            dims, _sep, count = part.partition(":")
+            a, b = (float(v) for v in dims.lower().split("x")[:2])
+            rows.append((min(a, b), max(a, b), float(count) if count else 1.0))
+        total = sum(r[2] for r in rows) or 1.0
+        out = _WIDTH_CLASSES_CACHE[spec] = [(a, b, c / total) for a, b, c in rows]
+    return out
+
+
+def width_fit_probability(residual: float, classes, clearance: float) -> float:
+    """The share of the stream's hard classes that fit flat, either way
+    round, in a run ``residual`` wide across the container (each needs its
+    narrow side plus two clearances).  A run too narrow to be a run at all
+    (under one clearance) is not wasted."""
+    if residual <= clearance + 1e-9:
+        return 1.0
+    return sum(share for narrow, _wide, share in classes if narrow + 2.0 * clearance <= residual + 1e-9)
+
+
+def width_reserve_waste(grid, rect: Rect, extra_mask, config) -> float:
+    """The floor this placement strands across the width, priced by the
+    stream (config.width_reserve): on each side of the box across y, the
+    free run to the next box or the wall (the narrowest over the box's
+    x-span), weighted by the share of the hard classes that could not
+    stand flat in it, times the box's length -- an expected dead area in
+    m^2 that the row-tiling term adds to the row waste.  The end states of
+    the v43 C suite stop with the free floor's largest rectangle narrower
+    than 0.45 m in 45 of 48 episodes: the first floor boxes go flush to
+    the two walls and the 0.2-0.3 m between them takes nothing.  The
+    width-run term of v41 priced those runs by one fixed width; this
+    prices them by what is coming."""
+    free = grid.usable & ~grid.occupied & ~extra_mask
+    mask = grid.rect_mask(rect)
+    xs = np.nonzero(mask.any(axis=1))[0]
+    ys = np.nonzero(mask.any(axis=0))[0]
+    if xs.size == 0 or ys.size == 0:
+        return 0.0
+    classes = _width_classes(config)
+    clearance = float(getattr(config, "settled_clearance", 0.026))
+    ny = grid.ny
+    j0, j1 = int(ys.min()), int(ys.max())
+    waste = 0.0
+    for side in (-1, 1):
+        runs = []
+        for i in xs:
+            line = free[i]
+            j = j1 + 1 if side > 0 else j0 - 1
+            n = 0
+            while 0 <= j < ny and line[j]:
+                n += 1
+                j += side
+            runs.append(n)
+        residual = min(runs) * grid.cell
+        if residual <= 0.0:
+            continue
+        dead_share = 1.0 - width_fit_probability(residual, classes, clearance)
+        waste += dead_share * residual * (xs.size * grid.cell)
+    return waste
+
+
 def row_waste(grid, rect: Rect, extra_mask, min_width: float,
               axes: str = "x") -> float:
     """Free floor this placement would strand in its own row, in m^2.
@@ -2038,6 +2111,10 @@ def compute_features(candidate: Candidate, board: Board, config,
         row_waste(grid, rect, mask, board.min_useful_width, axes)
         if config.row_tiling and candidate.surface == "floor" else 0.0
     )
+    if config.row_tiling and candidate.surface == "floor" and getattr(config, "width_reserve", False):
+        # the width across the container, priced by the stream's classes
+        features["width_reserve_waste"] = width_reserve_waste(grid, rect, mask, config)
+        features["row_waste"] += features["width_reserve_waste"]
     if config.row_tiling and candidate.surface == "floor" and "n" in axes:
         # the near-neighbour slivers the grid cannot see
         features["row_waste"] += sliver_waste(
