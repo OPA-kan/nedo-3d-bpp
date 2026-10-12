@@ -1048,6 +1048,12 @@ class RuleAlphaAgent:
             action = self._physics_resort(ordered, pool, started + budget + extra - 0.05, count=under)
             if action is not None:
                 return action
+            if float(getattr(self.config, "grid_rescue", 0.0) or 0.0) > 0.0:
+                # the grid rescue: every pose of a grid through the validator,
+                # resting on the highest top under it (config.grid_rescue)
+                action = self._grid_rescue(ordered, pool, started + budget + extra - 0.05, count=under)
+                if action is not None:
+                    return action
 
         # a pose the shadow vetoed and nothing replaced: a failed placement
         # ends the episode the way a decline does, and the shadow can be wrong
@@ -2227,6 +2233,129 @@ class RuleAlphaAgent:
                         return action
         key = "count_mode_tried" if count else "resort_tried"
         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
+        return None
+
+    def _grid_rescue(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
+        """The declining call's last stage: every pose of a grid of
+        ``config.grid_rescue`` metres, in every orientation and container,
+        set down on the highest packed top under its footprint
+        (``fastgeom.lift_to_tops``) and put through the analytic validator;
+        the passing poses, lowest, best supported and deepest first, are
+        tried in the shadow world like the resort's.  The resort's dense
+        generator anchors on single tops and had nothing in declines where
+        this scan found 28-125 legal poses (the hard suite's near misses)."""
+        sim = self._shadow_sim()
+        if sim is None:
+            return None
+        from wedge_rl.stack import covers_other_attribute
+
+        from . import fastgeom
+        from .planner import _placement
+
+        strict = self.config
+        cell = float(getattr(strict, "grid_rescue", 0.05))
+        cfg = dataclasses.replace(
+            strict,
+            settled_clearance=min(strict.settled_clearance, strict.last_resort_settled_clearance),
+            routing_any_container=True, lift_to_tops=10.0,
+        )
+        allow_cover = bool(getattr(self, "_count_cover", True)) if count else bool(getattr(strict, "allow_cover_other_attribute", False))
+        min_support = float(getattr(strict, "count_mode_min_support", 0.5)) if count else 0.5
+        tries_limit = int(getattr(strict, "grid_rescue_tries", 12))
+        need = max(self._shadow_longest, 0.2)
+
+        def room() -> bool:
+            return time.perf_counter() + need <= deadline
+
+        class _Pose:
+            __slots__ = ("orientation", "on_floor", "box", "bottom", "support_ratio", "gain", "margin")
+
+        queue = sorted(ordered, key=lambda pp: (float(pool[pp[0]]["length"]) * float(pool[pp[0]]["width"])
+                                                * float(pool[pp[0]]["height"]), 0 if pp[1].is_soft else 1)) if count else list(ordered)
+        tried = 0
+        for pool_index, profile in queue:
+            if not room():
+                break
+            item = pool[pool_index]
+            for container_idx in layer1.routing_order(profile, self.board, cfg):
+                if not room():
+                    break
+                model = self.board.model(container_idx)
+                container = self.board.container(container_idx)
+                obs = fastgeom.obstacles(container)
+                n_sh = obs["n_shelves"]
+                omin, omax = obs["all_min"][n_sh:], obs["all_max"][n_sh:]
+                rect = model.floor_rect
+                poses = []
+                for orientation in profile.orientations:
+                    dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+                    if dx > rect.x_max - rect.x_min or dy > rect.y_max - rect.y_min:
+                        continue
+                    x = rect.x_min + dx / 2.0
+                    while x <= rect.x_max - dx / 2.0 + 1e-9:
+                        if not room():
+                            break
+                        y = rect.y_min + dy / 2.0
+                        while y <= rect.y_max - dy / 2.0 + 1e-9:
+                            box = layer1.AABB((x, y, model.z_floor + dz / 2.0), (dx, dy, dz), "candidate")
+                            box = fastgeom.lift_to_tops(box, container, cfg)
+                            ok, _why = layer1.validate(box, model, container, cfg)
+                            if ok:
+                                bottom = float(box.minimum[2])
+                                on_floor = abs(bottom - model.z_floor) <= 1e-6
+                                if on_floor or omin.shape[0] == 0:
+                                    support = 1.0
+                                else:
+                                    # the share of the footprint over tops at the bottom
+                                    under = np.abs(omax[:, 2] - bottom) <= fastgeom.CONTACT_TOLERANCE
+                                    ox = np.clip(np.minimum(omax[under, 0], x + dx / 2.0) - np.maximum(omin[under, 0], x - dx / 2.0), 0.0, None)
+                                    oy = np.clip(np.minimum(omax[under, 1], y + dy / 2.0) - np.maximum(omin[under, 1], y - dy / 2.0), 0.0, None)
+                                    support = min(1.0, float((ox * oy).sum()) / max(dx * dy, 1e-9))
+                                if on_floor or support >= min_support:
+                                    cover = bool(covers_other_attribute(box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
+                                    if cover and not allow_cover:
+                                        y += cell
+                                        continue
+                                    pose = _Pose()
+                                    pose.orientation, pose.on_floor, pose.box, pose.bottom = orientation.index, on_floor, box, bottom
+                                    pose.support_ratio, pose.gain, pose.margin = support, dx * dy * dz, 0.0
+                                    poses.append((cover, round(bottom, 2), -round(support, 2), -round(y, 3), round(x, 3), pose))
+                            y += cell
+                        x += cell
+                if not poses:
+                    continue
+                poses.sort(key=lambda t: t[:5])
+                failed: dict[tuple, int] = {}
+                for cover, _b, _s, _y, _x, pose in poses:
+                    if not room() or tried >= tries_limit:
+                        break
+                    group = (cover, round(pose.bottom, 1), round(pose.support_ratio, 1))
+                    if failed.get(group, 0) >= 3:
+                        continue
+                    label = "grid-rescue-cover" if cover else "grid-rescue"
+                    placement = _placement(pose, len(poses), profile, container_idx, model)
+                    placement.archetype = label
+                    placement.reason = f"{label}: {pose.bottom:.2f} m, support {pose.support_ratio:.2f}, among {len(poses)}"
+                    try:
+                        if not self._shadow_synced:
+                            sim.sync(self._shadow_observation.get("container_list", []))
+                            self._shadow_synced = True
+                        action = self._action(pool_index, placement)
+                        v = self._shadow_verdict(sim, action, item)
+                    except Exception as exc:
+                        print(f"[grid-rescue] check failed: {exc!r}", flush=True)
+                        return None
+                    tried += 1
+                    if self._shadow_hard(v):
+                        failed[group] = failed.get(group, 0) + 1
+                        continue
+                    self.last_decision = layer1.Decision(placement=placement, candidate_counts={label: len(poses)},
+                                                         veto_counts={}, considered=len(poses), ladder=[])
+                    self.last_shadow = {"chosen": {k: v[k] for k in ("transport_ok", "settle_ok", "shake_ok", "drift", "drift_xy", "angle_deg", "ok") if k in v},
+                                        "outcome": label, "tried": tried}
+                    self.shadow_stats["grid_rescue"] = self.shadow_stats.get("grid_rescue", 0) + 1
+                    return action
+        self.shadow_stats["grid_rescue_tried"] = self.shadow_stats.get("grid_rescue_tried", 0) + tried
         return None
 
     def _last_resort(self, containers: list, ordered: list, deadline: float = float("inf")) -> dict | None:

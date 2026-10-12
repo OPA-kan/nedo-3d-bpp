@@ -793,6 +793,24 @@ class RuleAlphaConfig:
     plane of its bottom, up to this many metres; the stability and the
     overhang checks run on the lifted pose."""
 
+    grid_rescue: float = 0.0
+    """The declining call's last stage (``agent._grid_rescue``): every pose
+    of a grid of this many metres, in every orientation and container, set
+    down on the highest packed top under its footprint and put through
+    the analytic validator; the passing poses (lowest, best supported,
+    deepest first; the covers last, and only where the count pass allows
+    them) are tried in the shadow world like the resort's.  0 is off.
+
+    The resort's dense generator anchors each pose on one top and refuses
+    the footprint that spans a taller neighbour; at the declines of the
+    hard suite's near misses it generated nothing (no shadow check in the
+    call) where a validator scan of the grid found 28-125 legal poses
+    (c-hard-s0033 in its third container on the floor, s0037 at 0.25 and
+    1.11 m, s0038 a soft box at 0.92 m)."""
+
+    grid_rescue_tries: int = 12
+    """Shadow checks the grid rescue may spend in one call."""
+
     hard_shelf_first: bool = False
     """Hard cargo asks the shelf *before* the floor rungs, not after them.
 
