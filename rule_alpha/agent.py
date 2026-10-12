@@ -102,6 +102,7 @@ class RuleAlphaAgent:
         self.pool_level_stats: dict = {}
         self._phase_low = False
         self._count_cover = True
+        self._really_under = True
         self.last_shadow: dict | None = None
 
     def _resize_zones_for_what_is_left(self) -> None:
@@ -1971,6 +1972,7 @@ class RuleAlphaAgent:
         threshold = self._count_threshold()
         placed = sum(len(c.get("packed_items", [])) for c in containers)
         really_under = threshold is not None and placed < threshold
+        self._really_under = really_under
         # the covers (the cover rule's refusals) are allowed under the
         # threshold proper; in the low phase above it only with
         # phase_switch_cover
@@ -2059,8 +2061,14 @@ class RuleAlphaAgent:
             stack_soft_standing=True,
         )
         if count:
+            # under the threshold proper the covers of priority stay allowed
+            # whatever count_cover_priority says: the v32 crossings rest on
+            # them (phase5/6 refused them there too and lost five crossings
+            # a suite); the switch narrows the low phase above it only
             cfg = dataclasses.replace(cfg, allow_cover_other_attribute=bool(getattr(self, "_count_cover", True)),
-                                      soft_is_structure=True, stack_soft_is_structure=True)
+                                      soft_is_structure=True, stack_soft_is_structure=True,
+                                      count_cover_priority=bool(getattr(self, "_really_under", True))
+                                      or bool(getattr(strict, "count_cover_priority", True)))
         elif getattr(strict, "resort_soft_structure", False):
             # over the threshold too, soft tops carry soft cargo in the
             # resort (config.resort_soft_structure): the cover rule stays,
