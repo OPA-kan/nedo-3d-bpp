@@ -2528,3 +2528,45 @@ class WidthReserveTest(unittest.TestCase):
         self.assertAlmostEqual(layer1.width_fit_probability(0.30, layer1._width_classes(config), 0.026), 0.0)
         self.assertAlmostEqual(layer1.width_fit_probability(0.70, layer1._width_classes(config), 0.026), 1.0)
         self.assertGreater(layer1.width_fit_probability(0.48, layer1._width_classes(config), 0.026), 0.4)
+
+
+class HardShelfFirstTest(unittest.TestCase):
+    """`hard_shelf_first`: the hard ladder asks the shelf before the floor
+    rungs (the preference pairs had the shelf pose end with more items
+    wherever both survived, on both sample suites); off, the shelf rung
+    stays the hard ladder's last."""
+
+    DIMS = (0.55, 0.40, 0.24)
+
+    def _profile(self):
+        return cls.classify_item(
+            1,
+            {"index": 1, "length": self.DIMS[0], "width": self.DIMS[1],
+             "height": self.DIMS[2], "mass": 10.0, "is_soft": False,
+             "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+    def _ladder(self, config):
+        board = layer1.Board([make_container_dict(index=0, **ULD)], config)
+        self.assertTrue(board.model(0).shelves, "the fixture needs a shelf to be a test")
+        return layer1.archetype_ladder(self._profile(), board, 0, config)
+
+    def test_off_keeps_the_shelf_rung_after_the_floor_rungs(self):
+        ladder = self._ladder(DEFAULT_CONFIG)
+        self.assertIn(layer1.A_SHELF_SAVING, ladder)
+        self.assertGreater(ladder.index(layer1.A_SHELF_SAVING),
+                           ladder.index(layer1.A_MAX_FOOTPRINT))
+
+    def test_on_asks_the_shelf_before_the_floor_rungs(self):
+        config = dataclasses.replace(DEFAULT_CONFIG, hard_shelf_first=True)
+        ladder = self._ladder(config)
+        self.assertEqual(ladder.count(layer1.A_SHELF_SAVING), 1)
+        for floor_rung in (layer1.A_MAX_FOOTPRINT, layer1.A_BACK_CORNER,
+                           layer1.A_MIN_HOLE, layer1.A_LARGEST_RESIDUAL):
+            self.assertLess(ladder.index(layer1.A_SHELF_SAVING), ladder.index(floor_rung),
+                            f"the shelf rung comes before {floor_rung}")
+        off = self._ladder(DEFAULT_CONFIG)
+        self.assertEqual([r for r in ladder if r != layer1.A_SHELF_SAVING],
+                         [r for r in off if r != layer1.A_SHELF_SAVING],
+                         "only the shelf rung moves")

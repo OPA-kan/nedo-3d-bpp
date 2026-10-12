@@ -775,6 +775,20 @@ class RuleAlphaConfig:
     still gets first refusal on it; this only stops hard from being unable to
     ask."""
 
+    hard_shelf_first: bool = False
+    """Hard cargo asks the shelf *before* the floor rungs, not after them.
+
+    With ``shelf_takes_hard`` the shelf rung is the hard ladder's last
+    ("the floor is still the better home"), so a hard item goes to the
+    shelf only when no floor rung survives.  The preference pairs
+    (``scripts/pref_pairs.py``, the ladder's pick against its other
+    survivors, each continued to the decline) say the opposite on both
+    sample suites: where max-footprint won and a shelf pose survived -- the
+    smallest hard classes, mostly the first decisions of the episode -- the
+    shelf pose ended with more items (C 62 pairs +0.94, B 50 pairs +1.20,
+    crossings C +14/-5, B +5/-0).  On, the shelf rung sits just before the
+    floor rungs for normal-hard cargo (after the wall front)."""
+
     shelf_own_anchors: bool = True
     """Offer a shelf placement anchors measured from the shelf itself.
 

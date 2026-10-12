@@ -2595,6 +2595,11 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
     if klass == cls.NORMAL_HARD:
         if wall_ratio < config.wall_front_target_ratio:
             ladder.append(A_WALL_FRONT)
+        if (config.shelf_takes_hard and model.shelves
+                and getattr(config, "hard_shelf_first", False)):
+            # the shelf before the floor: the preference pairs had the
+            # shelf pose end with more items wherever both survived
+            ladder.append(A_SHELF_SAVING)
         if profile.is_elongated:
             ladder.extend([A_ELONGATED_WALL, A_BACK_CORNER, A_MIN_HOLE])
         elif not config.frontier_prefers_lying:

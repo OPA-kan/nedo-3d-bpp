@@ -3493,13 +3493,14 @@ tilings that use it are 0.75 + 0.56, 0.65 + 0.65 and 0.45 + 0.45 +
 |---|---:|---:|---:|---:|---:|---:|
 | phase2 (v43) | 36.85 | 48 | 4 / 1 | 39.29 | 48 | 1 / 0 |
 | width_reserve | -0.08 | 47 | 4 / 1 | -0.75 | 47 | 1 / 1 |
-| width_reserve_dp | +0.15 (10 up, 9 down) | 48 | 5 / 1 | (pending) | | |
+| width_reserve_dp | +0.15 (10 up, 9 down) | 48 | 5 / 1 | -0.88 (10 up, 19 down) | 46 | 2 / 1 |
 | row_waste_axes=xyn | +0.77 (16 up, 7 down) | 47 | 4 / 0 | -0.90 (13 up, 22 down) | 47 | 0 / 0 |
 
 The v41 term gains on C and loses on B with a crossing on each, as it
 did on the v39 base; the probabilistic pricing is inert to slightly
-positive on C.  Neither moves the margin bands.  The width is bound by
-the candidates the rungs hold and by the mix, not by the pricing.
+positive on C and loses two crossings on B.  None moves the margin
+bands the right way.  The width is bound by the candidates the rungs
+hold and by the mix, not by the pricing.
 
 **The pairs on C** (`scripts/pref_pairs.py` on 44 scenes, 643 decisions,
 1705 alternatives; `scripts/pref_learn.py`): an alternative beats the
@@ -3514,6 +3515,33 @@ selector taking the alternative at p > 0.5 takes 66 of 1705 and loses
 a pose is decided by what the agent does after it, not by the pose's
 own features: a preference-learned selector over the ladder's
 survivors, DPO included, has nothing to learn from here.
+
+**The pairs on B** (the first 24 of 48 scenes, 370 decisions, 1002
+alternatives): the same shape.  An alternative beats the ladder at
+45 % of the decisions by 2.2 items, ties at 47 %; the pieces proxy
+agrees at 0.54 (rank correlation +0.13); the logistic model reads AUC
+0.68 at the majority's accuracy, and its heaviest weight is the phase
+variable itself (a state feature: the ladder's pick is beaten more
+often in the high phase, whatever the alternative), not a difference
+between the poses.  Its gated selector at p > 0.5 takes 103 pairs at
++0.50 a pair with 8 crossings gained to 4 lost -- the opposite sign to
+C's, which is what a selector with nothing to learn looks like.
+
+**What the pairs do say, by rung.**  Read as the ladder's rung against
+the alternative's rung, one transition is positive on both suites:
+max-footprint chosen while a shelf pose survived (the hard ladder puts
+the shelf rung last).  C: 62 pairs, +0.94 a pair, the alternative
+better at 52 % and worse at 29 %, crossings +14 / -5; B: 50 pairs,
++1.20, 62 % / 16 %, +5 / -0.  The items are the two smallest hard
+classes (0.40 x 0.55 x 0.24 in 74 of the 112, 0.45 x 0.65 x 0.25 in
+29) and the decisions are the first of the episode (step 0 in 49 of
+the 112, the rest before step 8), in the high phase throughout.  The
+second candidate of the max-footprint rung also beats its first on
+both suites (C 174 pairs +0.60, B 104 +0.29), but with no feature
+difference that separates the better from the worse (the alternative
+is the same orientation at another x in most of them); that one is not
+a rule.  The shelf one is: `hard_shelf_first` puts the shelf rung just
+before the floor rungs of the hard ladder, measured as `hshelf-*`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
