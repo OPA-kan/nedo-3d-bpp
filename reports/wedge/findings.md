@@ -3612,6 +3612,48 @@ any fill reached), 16 in the band where the demand is 30-40 % and the
 agent crosses a quarter, and 19 the agent crosses as it does the
 sample.  The band is the target: 12 episodes a suite, the gains to be
 had there by the count the agent reaches, not by its choices alone.
+The v43 form on the suites (`v43-hard`, `v43-hard-b`): C 21 of 48
+(+2.73 a scene on the v39 form), B 21 of 48 (-0.50); the band 6/16
+and 9/16.
+
+**The hard2 suites** (`bench.scenes.make_hard2_scene`; `hard2`,
+`hard2-b`, `hard2-a`, 96 scenes a task).  The hard suite draws the
+count by the container's volume whatever the mix, which is what made
+the 13; hard2 draws the containers, the mix, the shares and the order
+as before, then a long stream, and picks the count whose
+first-threshold volume comes closest to a demand drawn in the seed's
+stratum: seeds 1-48 the sample's band (26-34 %), 49-80 the stretch
+band (34-42 %), 81-88 the edge (42-50 %), 89-96 fill-only (55-80 %,
+kept for the fill component, which is scored under the threshold
+too).  The realised demand sits within 0.03 of the target everywhere;
+the stratum and the demand travel in the record's spec, and
+`scripts/hard_why.py` reads by stratum.
+
+**What stops the near misses** (`scripts/last_call_probe.py`: the
+episode rerun with every anchor's verdict in the declining call, and a
+validator scan of the room -- every pose of a 2 cm grid in every
+orientation, set down on the highest top under it -- for the pool's
+items; the v43 arms, local reruns, so the counts differ from the CI
+records by the time budgets).  c-hard-s0048 declined at 20 of 40
+(threshold 21) with 10 892 anchors validated and none passing: a
+0.6 x 0.8 m plateau at 0.85 m under 0.7 m of headroom took the next
+box, and every anchor on it was refused `overlaps-packed-item` for
+sitting 2.5 cm inside the taller of the plateau's two columns (tops
+0.81 and 0.85; the generators anchor on one top).  `lift_to_tops`
+(the anchor raised onto the tops crossing the plane of its bottom)
+turns those into `transport-hits-packed-item`: the four standing
+boxes the resort had put along the door side (1.46 m) wall the plateau
+off from the sweep, and the validator scan finds no legal pose at all
+-- the rescue stage sealed the room it needed.  Over the band (seven C
+and six B declines): no legal pose in eight (s0040, s0029, s0042,
+s0048; b-s0037, s0048, s0033, s0047), legal poses the generators never
+offered in five -- c-s0033 125 on the floor of its third container,
+c-s0037 68 at 0.25 and 1.11 m, c-s0038 28 for a soft box at 0.92 m,
+b-s0023 thousands on the soft carpet at 0.28 m, b-s0024 30 at 0.61 m
+-- and in every one of those five the resort's dense generator made
+no candidate at all (no shadow check in the call).  Hence
+`grid_rescue`: the declining call's last stage, the same scan at 5 cm
+with the passing poses tried in the shadow, measured as `grid-*`.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
