@@ -94,6 +94,8 @@ class RuleAlphaAgent:
         # the manifest's size (Task A), for the count mode's threshold
         self._manifest_total: int | None = None
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
+        self.phase_stats: dict = {}
+        self._phase_low = False
         self.last_shadow: dict | None = None
 
     def _resize_zones_for_what_is_left(self) -> None:
@@ -939,6 +941,23 @@ class RuleAlphaAgent:
         # pool item within its deadline and found nothing: the loops below
         # would find the same nothing at the same cost
         exhausted = bool(getattr(self, "_pool_exhausted", False))
+
+        # the phase change (config.phase_switch): in the low phase -- a
+        # container's usable surface under phase_switch_surface of its floor
+        # -- the count pass's rules apply (see _under_count) and the physics
+        # resort speaks before the ladder
+        self._phase_low = False
+        if getattr(self.config, "phase_switch", False) and not exhausted:
+            self._phase_low = self._low_phase(containers)
+            if (self._phase_low and getattr(self.config, "phase_switch_resort_first", True)
+                    and bool(getattr(self.config, "physics_resort", False))
+                    and self._shadow_observation is not None):
+                self.phase_stats["resort_first"] = self.phase_stats.get("resort_first", 0) + 1
+                action = self._physics_resort(
+                    ordered, pool, started + float(getattr(self.config, "phase_switch_seconds", 1.5)), count=True)
+                if action is not None:
+                    self.phase_stats["resort_first_placed"] = self.phase_stats.get("resort_first_placed", 0) + 1
+                    return action
 
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
@@ -1859,7 +1878,31 @@ class RuleAlphaAgent:
             base = int(math.ceil(float(total) * share - 1e-9))
         return base + int(getattr(self.config, "count_mode_margin", 0))
 
+    def _low_phase(self, containers: list) -> bool:
+        """Any container's usable surface under phase_switch_surface of its
+        floor area (``surface.usable_surface_ratio``, about 1 ms a container)."""
+        from .surface import usable_surface_ratio
+
+        if self.board is None:
+            return False
+        limit = float(getattr(self.config, "phase_switch_surface", 0.2))
+        window = str(getattr(self.config, "phase_switch_window", "0.40x0.55x0.24"))
+        low = False
+        for ci in range(len(self.board.models)):
+            try:
+                ratio = usable_surface_ratio(self.board, ci, window)
+            except Exception:
+                continue
+            self.phase_stats["ratio_min"] = min(self.phase_stats.get("ratio_min", 9.0), ratio)
+            if ratio < limit:
+                low = True
+        if low:
+            self.phase_stats["low_steps"] = self.phase_stats.get("low_steps", 0) + 1
+        return low
+
     def _under_count(self, containers: list) -> bool:
+        if getattr(self, "_phase_low", False):
+            return True
         threshold = self._count_threshold()
         if threshold is None:
             return False

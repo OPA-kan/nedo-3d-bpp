@@ -284,3 +284,20 @@ def arbitrate_surface(chosen, chosen_archetype: str, ordered: list, board, conta
         return None
     scorer.overrides += 1
     return pool[best], f"surface/{chosen_archetype}"
+
+
+def usable_surface_ratio(board, container_idx: int, window: str = "0.40x0.55x0.24",
+                         cell: float = 0.02, gap: float = 0.05) -> float:
+    """The usable surface of one container over its floor area: the phase
+    variable (findings, "The phase change").  Over about 0.25 the
+    ladder's rungs place; under 0.15-0.25 most placements come from the
+    search over poses the ladder's rules refuse."""
+    l, w, h = (float(v) for v in str(window).lower().split("x"))
+    model = board.model(container_idx)
+    load = _Load(model, cell)
+    for box, soft, _prio in packed_aabbs_local(board.container(container_idx)):
+        load.add(box, soft)
+    gap_cells = max(0, int(round(gap / cell / 2.0)))
+    usable = load.usable((l, w), h, None, gap_cells)
+    floor = float(load.floor.sum())
+    return float(usable.sum()) / floor if floor else 0.0

@@ -2386,3 +2386,32 @@ class StandingRowRuleTest(unittest.TestCase):
         off = dataclasses.replace(DEFAULT_CONFIG, standing_row_rule=False)
         kept, counts = layer1.apply_vetoes([mid], board, 0, off)
         self.assertEqual(counts.get("standing-off-row", 0), 0)
+
+
+class PhaseVariableTest(unittest.TestCase):
+    """The phase variable (``surface.usable_surface_ratio``): about 1 on
+    an empty floor, lower as boxes close the surface, and the agent's
+    count-mode gate reads the low phase."""
+
+    def test_the_usable_surface_ratio_falls_as_the_floor_fills(self):
+        from rule_alpha import surface
+
+        container = make_container_dict(index=0, **ULD)
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        empty = surface.usable_surface_ratio(board, 0)
+        self.assertGreater(empty, 0.9)
+        z = board.model(0).z_floor
+        profile = cls.classify_item(
+            0, {"index": 0, "length": 0.55, "width": 0.40, "height": 0.24,
+                "mass": 10.0, "is_soft": False, "is_prioritized": False}, DEFAULT_CONFIG)
+        # lone narrow boxes scattered on the floor: each closes its footprint
+        # and its top carries no window
+        for x, y in ((-0.2, 0.3), (0.5, -0.3), (0.2, 0.0), (-0.3, -0.4)):
+            box = AABB((x, y, z + 0.12), (0.55, 0.40, 0.24), "packed")
+            board.apply(layer1.Placement(
+                box=box, profile=profile, orientation=profile.orientations[0],
+                container_idx=0, surface="floor", surface_name="floor",
+                role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT, reason="fixture",
+                layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE, DEFAULT_CONFIG)))
+        filled = surface.usable_surface_ratio(board, 0)
+        self.assertLess(filled, empty - 0.3, f"empty {empty:.2f} filled {filled:.2f}")

@@ -610,6 +610,26 @@ class RuleAlphaConfig:
     standing_row_reach: float = 0.06
     standing_row_fallback: bool = True
 
+    phase_switch: bool = False
+    """The phase change read from the state (findings, "The phase change"):
+    when a container's usable surface over its floor area
+    (``surface.usable_surface_ratio``) falls under ``phase_switch_surface``
+    the agent is in the low phase, where the ladder's structure no longer
+    places and most placements come from the search over poses its rules
+    refuse.  In the low phase the count pass's rules apply whatever the
+    count threshold's fixed estimate says (``_under_count``: covers
+    allowed, soft tops as structure, the pool's smallest item first, the
+    resort's extra seconds), and with ``phase_switch_resort_first`` the
+    physics resort runs *before* the ladder, within
+    ``phase_switch_seconds``, the ladder taking the items it leaves.
+    The boundary is 0.15-0.25 on every task; the count threshold (41 a
+    container) is a fixed guess at the stream's length."""
+
+    phase_switch_surface: float = 0.2
+    phase_switch_window: str = "0.40x0.55x0.24"
+    phase_switch_resort_first: bool = True
+    phase_switch_seconds: float = 1.5
+
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
     growth pick (terrace, plateau merge, wedge bridge) that shadows
