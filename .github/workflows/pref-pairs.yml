@@ -1,0 +1,92 @@
+name: Preference pairs
+
+# `scripts/pref_pairs.py` for one arm on one suite, sharded over hosted
+# runners: every ladder decision of the first steps of every analytic
+# episode is branched into its alternatives and each is continued by the
+# agent to the decline.  The pairs (one JSON line an alternative) are
+# uploaded as artifacts.
+
+on:
+  push:
+    paths:
+      - .github/workflows/pref-pairs.yml
+  workflow_dispatch:
+    inputs:
+      arm:
+        description: Arm spec (with deterministic_budgets=true, shadow_check=false, physics_resort=false)
+        type: string
+        default: ladder-stable
+      suite:
+        description: Scene suite (core, core-b)
+        type: string
+        default: core
+      shards:
+        description: Runners; scene i goes to runner i mod shards
+        type: string
+        default: "12"
+      steps:
+        description: Branched steps an episode (the first ones)
+        type: string
+        default: "25"
+      k:
+        description: Alternatives a decision
+        type: string
+        default: "3"
+      out:
+        description: Output directory (the artifact holds <out>/pairs-shard<i>.jsonl)
+        type: string
+        default: reports/pairs/run
+
+env:
+  ARM: ${{ inputs.arm || 'ladder-stable' }}
+  SUITE: ${{ inputs.suite || 'core' }}
+  SHARDS: ${{ inputs.shards || '12' }}
+  STEPS: ${{ inputs.steps || '25' }}
+  K: ${{ inputs.k || '3' }}
+  OUT: ${{ inputs.out || 'reports/pairs/run' }}
+
+permissions:
+  contents: read
+
+jobs:
+  shards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      list: ${{ steps.mk.outputs.list }}
+    steps:
+      - id: mk
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          print("list=" + json.dumps(list(range(int(os.environ["SHARDS"])))))
+          EOF
+
+  run:
+    needs: shards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.shards.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pip install pybullet==3.2.7 gymnasium==1.2.3 pillow
+      - name: Branch the decisions
+        run: |
+          mkdir -p "$OUT"
+          timeout --signal=INT --kill-after=3m 330m python scripts/pref_pairs.py \
+            --arm "$ARM" --suite "$SUITE" --shard "${{ matrix.shard }}/$SHARDS" \
+            --steps "$STEPS" --k "$K" --out "$OUT/pairs-shard${{ matrix.shard }}.jsonl" || [ $? -eq 124 ]
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pairs-${{ github.run_id }}-shard${{ matrix.shard }}
+          path: ${{ env.OUT }}
