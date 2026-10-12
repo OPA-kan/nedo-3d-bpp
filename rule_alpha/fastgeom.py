@@ -364,3 +364,50 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
             return False, f"transport-hits-{obs['shelf_names'][k]}"
         return False, "transport-hits-packed-item"
     return True, "ok"
+
+
+def lift_to_tops(box: AABB, container: dict, config) -> AABB:
+    """The box raised to rest on the highest packed top under its footprint.
+
+    The generators anchor a box at one support's top; when its footprint
+    spans a neighbour a few centimetres taller the validator refuses the
+    pose as ``overlaps-packed-item`` and the place is lost, although a box
+    set down there would simply rest on the taller neighbour (c-hard-s0048
+    declined at 20 of 40 with a 0.6 x 0.8 m plateau at 0.85 m under 0.7 m
+    of headroom: every anchor on it sat 2.5 cm inside the taller column).
+    Packed items that overlap the footprint laterally (within the settled
+    clearance) and cross the plane of the box's bottom lift it to their
+    top, repeatedly; a lift beyond ``config.lift_to_tops`` metres (or none
+    needed) returns the box as it was.  Overhangs above the lifted pose are
+    the validator's to refuse."""
+    limit = float(getattr(config, "lift_to_tops", 0.0) or 0.0)
+    if limit <= 0.0:
+        return box
+    obs = obstacles(container)
+    n = obs["n_shelves"]
+    omin, omax = obs["all_min"][n:], obs["all_max"][n:]
+    if omin.shape[0] == 0:
+        return box
+    cx, cy, cz = (float(v) for v in box.center)
+    sx, sy, sz = (float(v) for v in box.size)
+    hx, hy, hz = sx / 2.0, sy / 2.0, sz / 2.0
+    clearance = float(config.settled_clearance)
+    x_gap = np.maximum(omin[:, 0] - (cx + hx), (cx - hx) - omax[:, 0])
+    y_gap = np.maximum(omin[:, 1] - (cy + hy), (cy - hy) - omax[:, 1])
+    lateral = (x_gap < clearance - EPS) & (y_gap < clearance - EPS)
+    if not lateral.any():
+        return box
+    tops = omax[lateral, 2]
+    bottoms = omin[lateral, 2]
+    bottom = cz - hz
+    start = bottom
+    for _ in range(8):
+        crossing = (tops > bottom + CONTACT_TOLERANCE) & (bottoms < bottom + CONTACT_TOLERANCE)
+        if not crossing.any():
+            break
+        bottom = float(tops[crossing].max())
+        if bottom - start > limit + EPS:
+            return box
+    if bottom - start <= EPS:
+        return box
+    return AABB((cx, cy, bottom + hz), (sx, sy, sz), box.name)

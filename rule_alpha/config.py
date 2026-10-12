@@ -775,6 +775,24 @@ class RuleAlphaConfig:
     still gets first refusal on it; this only stops hard from being unable to
     ask."""
 
+    lift_to_tops: float = 0.0
+    """Metres an anchor pose may be lifted to rest on the highest packed top
+    under its footprint (``fastgeom.lift_to_tops``); 0 is off.
+
+    Every generator anchors a box at one support's top.  When its footprint
+    spans a neighbour a few centimetres taller, the validator refuses the
+    pose as ``overlaps-packed-item`` and the place is never tried, although
+    the box would simply rest on the taller neighbour -- which is what the
+    end states of the hard suite's near misses look like: c-hard-s0048
+    declined at 20 of 40 (threshold 21) with a 0.6 x 0.8 m plateau at
+    0.85 m under 0.7 m of headroom, the 10 892 anchors of the declining
+    call all refused, those on the plateau for sitting 2.5 cm inside the
+    taller of its two columns; the reader (``scratchpad room_check``)
+    found a fully supported level pose for the stopping item in five of
+    six near misses.  On, the box is raised onto the tops that cross the
+    plane of its bottom, up to this many metres; the stability and the
+    overhang checks run on the lifted pose."""
+
     hard_shelf_first: bool = False
     """Hard cargo asks the shelf *before* the floor rungs, not after them.
 

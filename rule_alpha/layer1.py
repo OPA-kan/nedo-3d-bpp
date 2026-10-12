@@ -739,6 +739,16 @@ def action_center(box: AABB, model: ContainerModel, container: dict, config):
     return centre
 
 
+
+def _lifted(box: AABB, container: dict, config) -> AABB:
+    """``fastgeom.lift_to_tops`` when ``config.lift_to_tops`` is set: the
+    anchor pose raised onto the highest packed top under its footprint."""
+    if float(getattr(config, "lift_to_tops", 0.0) or 0.0) <= 0.0:
+        return box
+    from . import fastgeom
+
+    return fastgeom.lift_to_tops(box, container, config)
+
 def validate(box: AABB, model: ContainerModel, container: dict, config) -> tuple[bool, str]:
     """Analytic mirror of the official validator's accept path.
 
@@ -1206,6 +1216,7 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
                         continue
                     if not tri.strip_reserved_for(profile, state, model, config):
                         continue
+                box = _lifted(box, container, config)
                 ok, why = validate(box, model, container, config)
                 if not ok:
                     continue
@@ -2804,6 +2815,7 @@ def _build_layer2(board: "Board", profile: cls.ItemProfile, container_idx: int,
         box = AABB(
             (float(x), float(y), float(bottom) + dz / 2.0), (dx, dy, dz), "candidate"
         )
+        box = _lifted(box, container, config)
         ok, _why = validate(box, model, container, config)
         if not ok:
             continue
@@ -2963,6 +2975,7 @@ def generate_hole_candidates(board: "Board", profile: cls.ItemProfile,
                     (float(x), float(y), float(hole.bottom_z) + dz / 2.0),
                     (dx, dy, dz), "candidate",
                 )
+                box = _lifted(box, container, config)
                 ok, _why = validate(box, model, container, config)
                 if not ok:
                     continue
@@ -3058,6 +3071,7 @@ def generate_front_wedge_candidates(board: "Board", profile: cls.ItemProfile,
                     (float(x), float(y), float(level_z) + dz / 2.0),
                     (dx, dy, dz), "candidate",
                 )
+                box = _lifted(box, container, config)
                 ok, _why = validate(box, model, container, config)
                 if not ok:
                     continue
@@ -3174,6 +3188,7 @@ def generate_residual_candidates(board: "Board", profile: cls.ItemProfile,
                     continue
                 seen.add(key)
                 box = AABB((float(x), float(y), float(level_z) + dz / 2.0), (dx, dy, dz), "candidate")
+                box = _lifted(box, container, config)
                 ok, _why = validate(box, model, container, config)
                 if not ok:
                     continue
@@ -3247,6 +3262,7 @@ def _last_resort_pass(board: "Board", profile: cls.ItemProfile,
                     (float(x), float(y), float(level_z) + dz / 2.0),
                     (dx, dy, dz), "candidate",
                 )
+                box = _lifted(box, container, config)
                 ok, _why = validate(box, model, container, config)
                 if not ok:
                     continue

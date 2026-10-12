@@ -2570,3 +2570,66 @@ class HardShelfFirstTest(unittest.TestCase):
         self.assertEqual([r for r in ladder if r != layer1.A_SHELF_SAVING],
                          [r for r in off if r != layer1.A_SHELF_SAVING],
                          "only the shelf rung moves")
+
+
+class LiftToTopsTest(unittest.TestCase):
+    """`lift_to_tops`: an anchor pose whose footprint spans a neighbour a
+    few centimetres taller than the support it was anchored on is raised
+    onto that neighbour instead of being refused as an overlap."""
+
+    def _board(self):
+        return layer1.Board([make_container_dict(index=0, **ULD)], DEFAULT_CONFIG)
+
+    def _profile(self, index, dims):
+        return cls.classify_item(
+            index,
+            {"index": index, "length": dims[0], "width": dims[1], "height": dims[2],
+             "mass": 10.0, "is_soft": False, "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+    def _place(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = self._profile(0, dims)
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE,
+                                     DEFAULT_CONFIG),
+        ))
+
+    def _columns(self):
+        board = self._board()
+        floor = board.model(0).z_floor
+        # two columns side by side in y: tops at floor + 0.85 and floor + 0.81
+        self._place(board, 0.30, 0.30, floor, (0.75, 0.56, 0.85))
+        self._place(board, 0.30, -0.25, floor, (0.65, 0.45, 0.81))
+        return board, floor
+
+    def test_a_pose_spanning_the_taller_column_is_lifted_onto_it(self):
+        from rule_alpha import fastgeom
+
+        board, floor = self._columns()
+        config = dataclasses.replace(DEFAULT_CONFIG, lift_to_tops=0.15)
+        anchored = AABB((0.30, 0.05, floor + 0.81 + 0.20), (0.55, 0.24, 0.40), "candidate")
+        lifted = fastgeom.lift_to_tops(anchored, board.container(0), config)
+        self.assertAlmostEqual(float(lifted.minimum[2]), floor + 0.85, places=6)
+        self.assertEqual(tuple(lifted.size), tuple(anchored.size))
+        self.assertAlmostEqual(float(lifted.center[0]), 0.30)
+        # off, and with too small a limit, the pose is left where it was
+        self.assertIs(fastgeom.lift_to_tops(anchored, board.container(0), DEFAULT_CONFIG), anchored)
+        small = dataclasses.replace(DEFAULT_CONFIG, lift_to_tops=0.02)
+        self.assertIs(fastgeom.lift_to_tops(anchored, board.container(0), small), anchored)
+
+    def test_a_pose_already_resting_on_the_top_is_left_alone(self):
+        from rule_alpha import fastgeom
+
+        board, floor = self._columns()
+        config = dataclasses.replace(DEFAULT_CONFIG, lift_to_tops=0.15)
+        resting = AABB((0.30, 0.30, floor + 0.85 + 0.12), (0.55, 0.40, 0.24), "candidate")
+        self.assertIs(fastgeom.lift_to_tops(resting, board.container(0), config), resting)
+        # a pose beside the columns (no lateral overlap) is left alone too
+        beside = AABB((-0.60, 0.30, floor + 0.12), (0.55, 0.40, 0.24), "candidate")
+        self.assertIs(fastgeom.lift_to_tops(beside, board.container(0), config), beside)
