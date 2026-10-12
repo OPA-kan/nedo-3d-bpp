@@ -32,6 +32,7 @@
 | v39 (ea96b79: v38 plus the soft columns in the ladder -- soft as structure under a 0.7 m cap once soft covers 35 % of a floor -- and the resort's generation deadline) | 38.05 | 63.20 | 75.15 | 48.6 | 36.75 | 0.6153 | 113.1 | 7.33 |
 | v40 (1274210: v39 plus Task A's soft gallery two deep as a planner variant on single-container manifests, gated at the threshold plus two) | 37.85 | 63.53 | 75.19 | 47.6 | 36.7 | 0.6121 | 120.5 | 7.53 |
 | v41 (4feda5c: v39 plus the row-tiling term along both axes with the near-neighbour slivers on Tasks B and C) | 37.04 | 59.51 | 70.87 | 45.2 | 37.4 | 0.6034 | 114.3 | 7.21 |
+| v43 (52af1a1: v42's levelness tie-break plus the phase switch -- the count pass's covers in the low phase of the load, read from the usable surface, whatever the fixed count threshold says; Tasks B and C) | 39.18 | 65.08 | 79.28 | 49.55 | 42.2 | 0.6370 | 114.7 | 7.27 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -419,9 +420,16 @@ satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
 
-v43 (52af1a1: v42 plus the phase switch -- the count pass's covers in
-the low phase of the load, read from the usable surface, whatever the
-fixed count threshold says; Tasks B and C): official result pending.
-Suites against v42: C placed +2.27 and B +2.73 with every crossing
-kept; priority covered 10 -> 28 (C) and 11 -> 40 (B).  Official sample
-C 24.95 / 24 against v42's 26.44 / 25 on that one scene.
+v43's total is 55.24, the best so far (v39 52.71, +2.53; v41 50.32):
+fill +1.13, cog +1.88, stability +4.13, placement +0.95, soft +5.45
+against v39, the placed fraction 0.6153 -> 0.6370.  Every component
+rose, the cog included, though the suites read the load 0.013 higher
+and priced the form flat (C -0.12, B +0.16 on the continuous reading):
+the platform's components scale with the count fraction (H1), and a
+count gain with every crossing kept lifts all of them.  The suites had
+read C placed +2.27 and B +2.73 against v42 with 48 of 48 crossings on
+each, and the official sample's C scene one item lower.  v42 (the
+tie-break alone) was not scored on the platform, so the step from v39
+carries both.  Policy time 7.27 s against the 8 s limit (v39 7.33):
+the low phase gives the count pass its extra seconds; no new margin
+was spent.

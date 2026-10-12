@@ -605,6 +605,9 @@ the count.  A keeps its manifest threshold (the optimize override).
 Official sample: A 32.11 / 25 (as v42), B 29.59 / 26 (as v42), C
 24.95 / 24 (v42 26.44 / 25); policy max B 5.27 s, C 3.97 s, optimize
 35 s (`official-sample-abc-v43.json`).
+Official platform: 55.24 (v39 52.71, +2.53; fill 39.18, cog 65.08,
+stability 79.28, placement 49.55, soft 42.2, placed fraction 0.637,
+policy 7.27 s) -- the best so far (`reports/submission/official-results.md`).
 
 ## Known limits
 

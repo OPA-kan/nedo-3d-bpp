@@ -3421,6 +3421,14 @@ on C and +0.5 on B with a crossing at risk.  phase2 is the one form
 that keeps every crossing on both suites with a count gain: the v43
 candidate (`phase_switch=true, phase_switch_resort_first=false,
 phase_switch_cover=true`, B and C; A keeps its manifest threshold).
+Shipped as v43: the platform scored it 55.24 against v39's 52.71 (fill
++1.13, cog +1.88, stability +4.13, placement +0.95, soft +5.45, the
+placed fraction 0.615 -> 0.637).  The suites had priced the form flat
+because the covers and the higher load cost on the continuous reading;
+the platform's components scale with the count fraction, so the count
+gain lifted every one of them, the cog included.  The reading to keep:
+on the platform a count gain with every crossing kept is worth about a
+point a placed item a scene, whatever the continuous pricing says.
 
 *The levelling choice on B* (`pool_item_search_mode = level`: when the
 ladder's own item would go on a top without meeting the tops beside it,
