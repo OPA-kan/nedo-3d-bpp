@@ -102,6 +102,10 @@ TASK_A_SOFT_GALLERY = False
 # rescue at the decline, the deep-first order and the sealing pass, and
 # the stack option's candidate generation under the option's deadline
 # (every task).
+# v45: v44 without the deep-first order and the sealing pass (official 53.13
+# against v43's 55.24: the platform's edge episode fell back under the
+# threshold); the grid rescue, which acts only where v43 declines, and the
+# stack option's deadline stay.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -342,7 +346,11 @@ OVERRIDES = dict(
     # up, 10 down), 48 of 48; sample B +0.21, 48 of 48; hard C 21 -> 25
     # crossings, hard2 C 32 -> 39 (findings, "The sealing design
     # measured").  Tasks B and C (Agent.optimize resets them for A).
-    grid_rescue=0.05, grid_rescue_seconds=1.0, rescue_deep_first=True, rescue_seal_area=0.2,
+    # v45: the deep-first order and the sealing pass are off (official v44
+    # 53.13 against v43's 55.24, stability back at v42's 75.19: the
+    # platform's edge episode fell back under the threshold while the count
+    # held); the grid rescue acts only where v43 declines and stays.
+    grid_rescue=0.05, grid_rescue_seconds=1.0, rescue_deep_first=False, rescue_seal_area=0.0,
     # v44: the stack option's candidate generation stops at the option's
     # deadline: on a board of 55 small boxes it took 10 s of a 16 s call
     # against the platform's 8 s limit (hard2 s0070, s0091); with the

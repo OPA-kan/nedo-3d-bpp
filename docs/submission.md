@@ -637,6 +637,13 @@ generation took 10 s of a 16 s call against the platform's 8 s limit
 override) and takes the deadline.  Official sample: A 32.11 / 25, B
 29.59 / 26, C 24.95 / 24 (all as v43); policy max B 5.30 s, C 4.03 s,
 optimize 28 s (`official-sample-abc-v44.json`).
+Official platform: 53.13 (v43 55.24, -2.12; fill 39.01, cog 61.45,
+stability 75.19, placement 47.5, soft 41.4, placed fraction 0.6348,
+policy 7.39 s): the stability is v42's to the second decimal, so the
+one episode v43 lifted over the threshold fell back under it while
+the count elsewhere held; the reordering of the rescue's poses (the
+deep-first order, the sealing pass) is what moved it, the grid rescue
+acts only where v43 declines (`reports/submission/official-results.md`).
 
 ## Known limits
 

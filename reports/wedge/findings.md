@@ -3739,6 +3739,23 @@ count; the order and the sealing pass add two more and the count
 back in the stretch band.  Shipped as v44 on Tasks B and C with
 `stack_deadline` on every task.
 
+**v44 on the platform: 53.13** (v43 55.24; fill -0.17, cog -3.63,
+stability -4.09, placement -2.05, soft -0.80, the placed fraction
+0.6370 -> 0.6348).  The stability is v42's to the second decimal
+(75.19), so the one platform episode v43 lifted over the threshold
+fell back under it while the count elsewhere held (v42's fraction was
+0.614).  The suites could not see it: sample C +1.27 with 48 of 48,
+hard C +4 crossings, hard2 C +7.  What moved that episode is the
+reordering of the rescue's poses from the first rescue placement on
+(the deep-first order and the sealing pass change the course of every
+episode the rescue touches); the grid rescue acts only where v43
+declines, so an episode's v43 count is its floor under it, apart from
+the time budgets.  v45 keeps the grid rescue and the stack deadline
+and drops the other two.  The platform's edge episode is the one
+that decides; the hard suites, built for crossings, measure a
+different population, and the sample suite's 48 of 48 hides the
+edge.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;

@@ -33,6 +33,7 @@
 | v40 (1274210: v39 plus Task A's soft gallery two deep as a planner variant on single-container manifests, gated at the threshold plus two) | 37.85 | 63.53 | 75.19 | 47.6 | 36.7 | 0.6121 | 120.5 | 7.53 |
 | v41 (4feda5c: v39 plus the row-tiling term along both axes with the near-neighbour slivers on Tasks B and C) | 37.04 | 59.51 | 70.87 | 45.2 | 37.4 | 0.6034 | 114.3 | 7.21 |
 | v43 (52af1a1: v42's levelness tie-break plus the phase switch -- the count pass's covers in the low phase of the load, read from the usable surface, whatever the fixed count threshold says; Tasks B and C) | 39.18 | 65.08 | 79.28 | 49.55 | 42.2 | 0.6370 | 114.7 | 7.27 |
+| v44 (e47edda: v43 plus the rescue stages redesigned -- the grid rescue at the decline, the deep-first order and the sealing pass -- on Tasks B and C, and the stack option's deadline on every task) | 39.01 | 61.45 | 75.19 | 47.5 | 41.4 | 0.6348 | 117.8 | 7.39 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -419,6 +420,22 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v44's total is 53.13 (v43 55.24, -2.12): fill -0.17, cog -3.63,
+stability -4.09, placement -2.05, soft -0.80, the placed fraction
+0.6370 -> 0.6348.  The stability is v42's to the second decimal
+(75.19 against v42's 75.19, v43's 79.28): the one platform episode
+v43 lifted over the count threshold fell back under it, while the
+count elsewhere held (the fraction is v43's, not v42's 0.614).  The
+suites had read sample C +1.27 with 48 of 48 crossings, hard C 21 ->
+25 and hard2 C 32 -> 39 crossings; the platform's edge episode sits
+at the threshold, and the deep-first order and the sealing pass,
+which reorder the rescue's poses from the first rescue placement on,
+changed its course by the one item that counted.  The cog -3.63 is
+more than the lost share (the rescue's deeper, higher poses).  The
+grid rescue alone acts only where v43 declines (an episode's v43
+count is its floor, apart from the time budgets), and is the part to
+keep.  Policy time 7.39 s (v43 7.27).
 
 v43's total is 55.24, the best so far (v39 52.71, +2.53; v41 50.32):
 fill +1.13, cog +1.88, stability +4.13, placement +0.95, soft +5.45
