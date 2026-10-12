@@ -3557,6 +3557,23 @@ continuation is not the one that places more under the agent's, so a
 selector trained on them would be trained on the wrong outcome.  And
 the shelf rung stays last.
 
+**The stack option's policy with the levelling features**
+(`reports/wedge/ppo-stack-c1-s0-level`: the stack PPO started from the
+tower policy with a padded input, `WEDGE_RL_LEVEL_FEATURES=1`, 124
+iterations; measured on the v43 form with `stack_level_candidates`,
+`lstack-*` against `phase2-*`).  In the region's own eval the policy
+places 3.73 a region against the tower policy's 3.98 (the heuristics
+3.20-3.30 against 3.35-3.38 under the current code: a 0.43 margin over
+the best heuristic against the tower's 0.60), and its training eval
+stayed at 4.35-4.45 for all 124 iterations from the init's 4.40.  On
+the pipeline: C +0.33 a scene (13 up, 12 down) with two crossings
+lost (c-c1-s0006 23 -> 20, c-c1-s0010 21 -> 20, both at or just over
+a threshold of 21), B -0.02, 48 crossings kept, +0.07 priced.  Not
+shipped by the ship rule.  The levelling reading gives the stack
+policy nothing to learn either: what the option builds on a top is
+decided by the candidates the cap offers, and the cap's sort already
+keeps the levelling poses first.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
