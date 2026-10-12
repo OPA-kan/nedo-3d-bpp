@@ -3359,6 +3359,38 @@ and more), which `level_key` could not express: its ring is one 2 cm
 cell wide and the settled clearance is 2.6 cm, so a flush neighbour
 reads as no neighbour.
 
+*The pair key* (`pair_key`: a box whose flat top alone cannot hold the
+window ranks, after the footprint, by a top of its own height within
+6 cm, `level_match`): inert on C (c1 seeds 1, 2, 12 identical to the
+controls; on c1 seed 1 two decisions in the whole episode put such a
+box through a floor rung and no candidate had a matching neighbour),
+-4 on one B scene.  The lone 0.55 x 0.40 box is laid when nothing of
+its height is near it yet; the pair needs the *next* box, which the
+pose of this one cannot reach without a reservation.  Not pursued.
+
+**The phase switch measured** (`phase_switch`: a container's usable
+surface under 0.2 reads as the low phase; there the count pass's rules
+apply whatever the fixed threshold says -- covers allowed, soft tops as
+structure, support a quarter, the pool's smallest item first, the extra
+seconds -- and the physics resort runs before the ladder within 1.5 s;
+`phase-core`, `phase-core-b` against the level_key records):
+
+| suite | placed | fill | soft share | priority share | covered prio / soft | crossings | CoM | priced |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| sample C | +2.25 (33 up, 11 down) | +2.52 | 0.562 -> 0.596 | 0.615 -> 0.645 | 10 -> 36 / 5 -> 23 | 48 -> 47 | 0.384 -> 0.395 | -0.07 |
+| sample B | +2.31 (31 up, 8 down) | +1.47 | 0.423 -> 0.566 | 0.728 -> 0.665 | 11 -> 27 / 2 -> 10 | 48 -> 48 | 0.390 -> 0.399 | -0.05 |
+
+The largest count move of the project (33 of 48 C episodes up, 31 of
+48 on B), paid for in covers (priority covered 10 -> 36 on C), a higher
+load (CoM +0.011) and one C crossing (c-c1-s0006, 23 -> 20: six low-
+phase steps, the resort first placed five of them and the episode ended
+three items early).  Priced flat.  The local probe had read +5, +5, +3
+on three C scenes with the resort first placing 0-1 items; on the
+suite, where it placed many (c-c2-s0008: 28 low steps, 5 placed), the
+episodes lost.  Decomposed next: the resort first off with the covers
+(`phase2-*`), both off (`phase3-*`), the resort first on without the
+covers (`phase4-*`).
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
