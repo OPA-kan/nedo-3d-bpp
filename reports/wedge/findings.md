@@ -3574,6 +3574,43 @@ policy nothing to learn either: what the option builds on a top is
 decided by the candidates the cap offers, and the cap's sort already
 keeps the levelling poses first.
 
+**The policy budget as a slower machine** (`slow30-*`, `slow225-*`: the
+v43 form with `policy_budget_seconds` 3.0 and 2.25 against 4.5, the
+bench's budget set the same; against `phase2-*`).  The slow calls of
+the v43 records are the rescue stages at the end of the episode: on B
+the physics resort 5.05 s mean / 7.11 s max, the count pass 4.94 /
+7.22, the decline's pass 5.45 / 7.36 against the 10 s limit (with a
+pool the resort may run 1.5 s past the budget and the shadow check
+follows it); on C 2.71 / 4.87, 2.46 / 5.04 and 2.04 / 5.19 against
+8 s; the ladder's own calls 0.3-0.5 s.  The platform's slowest call
+(7.27 s on v43) is a B resort call, and the platform has run at the
+bench's speed since v26.  With less time: C 3.0 s -0.17 a scene and
+crossings 48 -> 46, 2.25 s -1.29 and 48 -> 43 (margin-0 episodes 4 ->
+7); B 3.0 s -0.60 and 2.25 s -0.62 with 48 crossings kept.  The time
+buys crossings on C, so no reduction; the one cheap insurance would be
+an absolute cap on B (the resort cut at 8.5 s from the call's start),
+which never fires at the bench's speed.
+
+**Why the hard suite is hard** (`scripts/hard_why.py` on the
+v39-form records `softcap07-hard` / `-hard-b`, which the v43 form
+changes little).  The threshold's demand is the volume of the first
+threshold items of the stream (a Task C episode ends at the first
+decline, so those must all go) over the containers' volume; the sample
+suites demand 28 % (25-31) and the agent reaches 33-34.  On hard the
+demand decides: episodes demanding under 30 % cross at 14/19 (C) and
+16/19 (B), 30-40 % at 4/16 on both, 40 % and above at 0/13 on both.
+The demand comes from the count (`base_count` 28: 6/7 and 7/7 cross;
+41: 11/21 and 10/21; 55: 1/12 and 3/12; 70: 0/8 on both), the mix
+(big 1/12 and 2/12, extra 1/9; sample 11/18, small 5/9 and 6/9) and
+the order (big-first 0/7 on both, demanding 73 %).  Three containers
+cross at 5/11, two shelves at 1/6 and 2/6.  The pool helps B only when
+it is deep (20: 8/11; 10: 5/13; 3: 5/18).  So the hard suite splits
+in three: 13 episodes a suite no agent crosses (the demand is above
+any fill reached), 16 in the band where the demand is 30-40 % and the
+agent crosses a quarter, and 19 the agent crosses as it does the
+sample.  The band is the target: 12 episodes a suite, the gains to be
+had there by the count the agent reaches, not by its choices alone.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
