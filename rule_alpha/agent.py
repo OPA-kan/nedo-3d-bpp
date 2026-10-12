@@ -95,6 +95,7 @@ class RuleAlphaAgent:
         self._manifest_total: int | None = None
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.phase_stats: dict = {}
+        self.pool_level_stats: dict = {}
         self._phase_low = False
         self._count_cover = True
         self.last_shadow: dict | None = None
@@ -1058,6 +1059,63 @@ class RuleAlphaAgent:
         self.declined.append(len(self.declined))
         return None
 
+    def _levels_a_neighbour(self, placement) -> bool:
+        """The placement's top meets a neighbouring top (within
+        pool_level_tolerance, within pool_level_reach of its footprint)
+        that rises above its support: the pose levels the load."""
+        from .geometry import box_rect
+
+        grid = self.board.grid(placement.container_idx)
+        box = placement.box
+        mask = grid.rect_mask(box_rect(box))
+        reach = max(1, int(round(float(getattr(self.config, "pool_level_reach", 0.06)) / grid.cell)))
+        wide = mask
+        for _ in range(reach):
+            wide = layer1._dilate(wide)
+        ring = wide & ~mask & grid.occupied
+        if not ring.any():
+            return False
+        tops = grid.height[ring]
+        bottom = float(box.minimum[2])
+        tops = tops[tops > bottom + 0.05]
+        if tops.size == 0:
+            return False
+        tol = float(getattr(self.config, "pool_level_tolerance", 0.03))
+        return bool((np.abs(tops - float(box.maximum[2])) <= tol).any())
+
+    def _pool_item_level(self, ordered: list, pool: list, deadline: float):
+        """Task B, the levelling choice (pool_item_search_mode = level): when
+        the ladder's own item would go on a top without meeting the
+        neighbouring tops, the first of the next ``pool_item_search_k``
+        pool items whose ladder pose does meet one goes instead.  On the
+        v42 B records the placed item levelled 22 % of the raised poses
+        beside a higher neighbour; a pool item laid flat would have in
+        42 %, the planner on A reaches 64 %.  Returns (pool_index,
+        decision) or None."""
+        k = int(getattr(self.config, "pool_item_search_k", 3))
+        candidates = list(ordered[: max(2, k + 1)])
+        if len(candidates) < 2:
+            return None
+        first_index, first_profile = candidates[0]
+        first = self._timed(layer1.choose_for_item, self.board, first_profile, self.config, selector=self.selector)
+        self.pool_level_stats["calls"] = self.pool_level_stats.get("calls", 0) + 1
+        if first is None or first.placement.surface != "item":
+            return None
+        if self._levels_a_neighbour(first.placement):
+            self.pool_level_stats["already"] = self.pool_level_stats.get("already", 0) + 1
+            return None
+        self.pool_level_stats["unlevel"] = self.pool_level_stats.get("unlevel", 0) + 1
+        for pool_index, profile in candidates[1:]:
+            if time.perf_counter() > deadline:
+                break
+            decision = self._timed(layer1.choose_for_item, self.board, profile, self.config, selector=self.selector)
+            if decision is None or decision.placement.surface != "item":
+                continue
+            if self._levels_a_neighbour(decision.placement):
+                self.pool_level_stats["switched"] = self.pool_level_stats.get("switched", 0) + 1
+                return pool_index, decision
+        return None
+
     def _pool_item_search(self, ordered: list, pool: list, deadline: float):
         """The item after which the most of the other pool items still fit
         (``room.fit_count``), among the first ``pool_item_search_k`` of the
@@ -1067,6 +1125,8 @@ class RuleAlphaAgent:
         from .room import RoomScorer, fit_count
 
         mode = str(getattr(self.config, "pool_item_search_mode", "fit"))
+        if mode == "level":
+            return self._pool_item_level(ordered, pool, deadline)
         if mode == "continue":
             return self._pool_item_continue(ordered, pool, deadline)
         if mode == "rolling":

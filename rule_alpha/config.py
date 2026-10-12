@@ -1869,6 +1869,16 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    pool_level_reach: float = 0.06
+    pool_level_tolerance: float = 0.03
+    """``pool_item_search_mode`` = level (``agent._pool_item_level``): when
+    the ladder's own item would go on a top without meeting the tops
+    beside it (within ``pool_level_tolerance``, within
+    ``pool_level_reach`` of the footprint, rising above its support), the
+    first of the next k pool items whose pose does meet one goes
+    instead.  The raised pose that meets its neighbours makes a level
+    patch; the one that does not is a column of pieces (findings, "Where
+    the empty volume is made")."""
     pool_item_search_soft: bool = False
     """The candidates are the ladder's own item and the pool's soft items
     (the ceiling's gain: soft cargo placed earlier where the continuation
