@@ -645,6 +645,19 @@ the count elsewhere held; the reordering of the rescue's poses (the
 deep-first order, the sealing pass) is what moved it, the grid rescue
 acts only where v43 declines (`reports/submission/official-results.md`).
 
+Forty-fifth build (v45): v44 without the deep-first order and the
+sealing pass; the grid rescue (`grid_rescue=0.05`,
+`grid_rescue_seconds=1.0`, Tasks B and C) and the stack option's
+deadline (`stack_deadline`, every task) stay.  The grid rescue runs
+only in the call that would otherwise decline, so an episode's v43
+course up to that call is unchanged and its v43 count is its floor
+(apart from the time budgets); under deterministic budgets on hard2 C
+it reads 35 -> 38 crossings at no count change, and on the sample
+suites +0.02 (C) and -0.27 (B) with 48 of 48 on each.  Official
+sample: A 32.11 / 25, B 29.59 / 26, C 26.44 / 25 (v43 and v44 24.95 /
+24); policy max B 5.01 s, C 3.99 s, optimize 25 s
+(`official-sample-abc-v45.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
