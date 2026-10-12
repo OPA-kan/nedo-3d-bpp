@@ -463,7 +463,13 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                     # over priority cargo when the pass keeps that cover
                     # (config.count_cover_priority off: a covered priority
                     # box costs the placement score what the count earns)
-                    if not getattr(cfg, "count_cover_priority", True) and covers_priority(box, container):
+                    if not getattr(cfg, "count_cover_priority", True) and covers_other_attribute(
+                            box, container, True, bool(getattr(profile, "is_prioritized", False))):
+                        # the contact reading of the cover rule for priority
+                        # alone (a soft box under the pose is allowed); the
+                        # column reading (covers_priority, anything above a
+                        # priority box) emptied the priority container's
+                        # upper poses and cost 4-5 crossings a suite
                         continue
                 elif getattr(cfg, "no_cover_other_attribute", False):
                     if covers_other_attribute(box, container, bool(getattr(profile, "is_soft", False)),
