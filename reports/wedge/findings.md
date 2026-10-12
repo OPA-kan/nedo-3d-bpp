@@ -3660,7 +3660,36 @@ b-s0023 thousands on the soft carpet at 0.28 m, b-s0024 30 at 0.61 m
 -- and in every one of those five the resort's dense generator made
 no candidate at all (no shadow check in the call).  Hence
 `grid_rescue`: the declining call's last stage, the same scan at 5 cm
-with the passing poses tried in the shadow, measured as `grid-*`.
+with the passing poses tried in the shadow, measured as `grid2-*` (the
+scan reads the resting height and the support off the skyline and
+asks the validator for the plausible poses only; its own window of
+1 s past the resort's deadline, the call capped at the budget plus
+2 s).
+
+**The grid rescue measured** (`grid2-*` against the v43 records; the
+v43 form plus `grid_rescue=0.05, grid_rescue_seconds=1.0`):
+
+| suite | crossings | placed | grid placements | policy max |
+|---|---:|---:|---:|---:|
+| hard2 C | 32 -> 36 (sample 28 -> 31, stretch 4 -> 5) | +1.83 (17 up, 6 down) | 208 in 37 episodes | 16.0 s (s0091, the stack option) |
+| hard2 B | 37 -> 38 (sample 30 -> 29, stretch 7 -> 9) | +0.44 | 3 in 2 | 18.0 s (s0091) |
+| hard C | 21 -> 19 | -0.52 (8 up, 13 down) | 128 in 19 | 6.5 s |
+| hard B | 21 -> 19 | +1.04 (10 up, 11 down) | 5 in 3 | 7.4 s |
+| core C | 48 -> 48 | +0.02 | | 6.3 s |
+| core B | 48 -> 48 | -0.27 | | 7.3 s |
+
+On B the stage barely fires (the resort spends the window and the
+cap stops the scan), so B's swings are the pool's known noise
+(b-hard-s0041 30 -> 71, b-hard-s0025 65 -> 49).  On C the losses are
+not the grid's either: of the four crossings that moved on the hard
+suites, three episodes diverged at a pocket-guard decision at steps
+2-10, long before any grid placement (the guard's time budget), and
+the fourth where the resort found nothing in the new run and the grid
+placed instead.  The time-faithful runs cannot attribute a change of
+one or two crossings; `v43det-hard2`, `grid2det-hard2` and
+`sealdet-hard2` (`deterministic_budgets`) are the attribution runs.
+The stack option's 16-18 s calls on s0091 are v43's own
+(`stack_deadline`, measured as `sdl-*`).
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
