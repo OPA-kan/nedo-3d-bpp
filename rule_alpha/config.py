@@ -646,6 +646,11 @@ class RuleAlphaConfig:
     phase_switch_window: str = "0.40x0.55x0.24"
     phase_switch_resort_first: bool = True
     phase_switch_seconds: float = 1.5
+    phase_switch_cover: bool = False
+    """In the low phase above the count threshold proper, the count pass
+    may also take the covering poses (a covered priority or soft box
+    costs a share of the placement or soft score).  Off: the cover rule
+    stays until the threshold is really under."""
 
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a

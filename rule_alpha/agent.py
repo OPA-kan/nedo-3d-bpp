@@ -96,6 +96,7 @@ class RuleAlphaAgent:
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.phase_stats: dict = {}
         self._phase_low = False
+        self._count_cover = True
         self.last_shadow: dict | None = None
 
     def _resize_zones_for_what_is_left(self) -> None:
@@ -947,8 +948,10 @@ class RuleAlphaAgent:
         # -- the count pass's rules apply (see _under_count) and the physics
         # resort speaks before the ladder
         self._phase_low = False
+        self._count_cover = True
         if getattr(self.config, "phase_switch", False) and not exhausted:
             self._phase_low = self._low_phase(containers)
+            self._under_count(containers)  # sets _count_cover for the phase
             if (self._phase_low and getattr(self.config, "phase_switch_resort_first", True)
                     and bool(getattr(self.config, "physics_resort", False))
                     and self._shadow_observation is not None):
@@ -1901,13 +1904,19 @@ class RuleAlphaAgent:
         return low
 
     def _under_count(self, containers: list) -> bool:
+        threshold = self._count_threshold()
+        placed = sum(len(c.get("packed_items", [])) for c in containers)
+        really_under = threshold is not None and placed < threshold
+        # the covers (the cover rule's refusals) are allowed under the
+        # threshold proper; in the low phase above it only with
+        # phase_switch_cover
+        self._count_cover = really_under or (
+            bool(getattr(self, "_phase_low", False)) and bool(getattr(self.config, "phase_switch_cover", False)))
         if getattr(self, "_phase_low", False):
             return True
-        threshold = self._count_threshold()
         if threshold is None:
             return False
-        placed = sum(len(c.get("packed_items", [])) for c in containers)
-        if placed < threshold:
+        if really_under:
             return True
         if not getattr(self.config, "count_mode_always", False):
             return False
@@ -1986,8 +1995,8 @@ class RuleAlphaAgent:
             stack_soft_standing=True,
         )
         if count:
-            cfg = dataclasses.replace(cfg, allow_cover_other_attribute=True, soft_is_structure=True,
-                                      stack_soft_is_structure=True)
+            cfg = dataclasses.replace(cfg, allow_cover_other_attribute=bool(getattr(self, "_count_cover", True)),
+                                      soft_is_structure=True, stack_soft_is_structure=True)
         elif getattr(strict, "resort_soft_structure", False):
             # over the threshold too, soft tops carry soft cargo in the
             # resort (config.resort_soft_structure): the cover rule stays,
