@@ -2415,3 +2415,51 @@ class PhaseVariableTest(unittest.TestCase):
                 layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE, DEFAULT_CONFIG)))
         filled = surface.usable_surface_ratio(board, 0)
         self.assertLess(filled, empty - 0.3, f"empty {empty:.2f} filled {filled:.2f}")
+
+
+class PairKeyTest(unittest.TestCase):
+    """The pair key: a narrow-top box ranks the pose beside a top of its
+    own height first, through a reach wider than the settled clearance."""
+
+    ON = dataclasses.replace(DEFAULT_CONFIG, pair_key=True)
+
+    def _profile(self, index, dims=(0.55, 0.40, 0.24)):
+        return cls.classify_item(
+            index, {"index": index, "length": dims[0], "width": dims[1], "height": dims[2],
+                    "mass": 10.0, "is_soft": False, "is_prioritized": False}, DEFAULT_CONFIG)
+
+    def _candidate(self, board, x, y, dims):
+        z = board.model(0).z_floor
+        profile = self._profile(9)
+        orientation = next(o for o in profile.orientations if abs(o.dx - dims[0]) < 1e-6 and abs(o.dz - dims[2]) < 1e-6)
+        box = AABB((x, y, z + dims[2] / 2.0), dims, "candidate")
+        return layer1.Candidate(box=box, profile=profile, orientation=orientation, container_idx=0,
+                                surface="floor", surface_name="floor", role=cls.ROLE_NONE)
+
+    def test_the_flush_neighbour_is_seen_and_ranked_first(self):
+        container = make_container_dict(index=0, **ULD)
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        z = board.model(0).z_floor
+        profile = self._profile(0)
+        placed = AABB((0.0, 0.30, z + 0.12), (0.55, 0.40, 0.24), "packed")
+        board.apply(layer1.Placement(
+            box=placed, profile=profile, orientation=profile.orientations[0], container_idx=0,
+            surface="floor", surface_name="floor", role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="fixture", layer=layer1.stack_level(placed, board.container(0), cls.ROLE_NONE, DEFAULT_CONFIG)))
+        # flush beside it across the settled clearance (2.6 cm), and far away
+        beside = self._candidate(board, 0.0, 0.30 - 0.40 - 0.026, (0.55, 0.40, 0.24))
+        far = self._candidate(board, 0.0, -0.45, (0.55, 0.40, 0.24))
+        for c in (beside, far):
+            layer1.compute_features(c, board, self.ON, with_grid=True)
+        self.assertEqual(beside.features["level_match"], 1.0)
+        self.assertEqual(far.features["level_match"], 0.0)
+        self.assertTrue(layer1._narrow_top(beside, self.ON))
+        ordered = layer1.rung_order(layer1.A_MAX_FOOTPRINT, [far, beside], self.ON)
+        self.assertIs(ordered[0], beside)
+        # a box whose top holds the window alone is not the key's business
+        big = cls.classify_item(5, {"index": 5, "length": 0.65, "width": 0.45, "height": 0.25,
+                                    "mass": 10.0, "is_soft": False, "is_prioritized": False}, DEFAULT_CONFIG)
+        o = next(o for o in big.orientations if abs(o.dz - 0.25) < 1e-6)
+        bc = layer1.Candidate(box=AABB((0.0, -0.45, z + 0.125), (o.dx, o.dy, o.dz), "c"), profile=big,
+                              orientation=o, container_idx=0, surface="floor", surface_name="floor", role=cls.ROLE_NONE)
+        self.assertFalse(layer1._narrow_top(bc, self.ON))

@@ -1988,6 +1988,7 @@ def compute_features(candidate: Candidate, board: Board, config,
         features.setdefault("largest_residual_rect", 0.0)
         features.setdefault("largest_residual_rect_dims", (0.0, 0.0))
         features.setdefault("neighbour_height_step", 0.0)
+        features.setdefault("level_match", 0.0)
         # a shelf or step placement takes nothing away from the floor approach
         features.setdefault("stranded_added", 0.0)
         features.setdefault("reach_free_after", 0.0)
@@ -2018,6 +2019,19 @@ def compute_features(candidate: Candidate, board: Board, config,
         )
     else:
         features["neighbour_height_step"] = 0.0
+    # the pair (config.pair_key): a top within pair_key_tolerance of this
+    # one within pair_key_reach of the footprint -- the settled clearance is
+    # 2.6 cm, so the one-cell ring above misses a flush neighbour
+    reach = max(1, int(round(float(getattr(config, "pair_key_reach", 0.06)) / grid.cell)))
+    wide = mask
+    for _ in range(reach):
+        wide = _dilate(wide)
+    wide = wide & ~mask & grid.usable & grid.occupied
+    if wide.any():
+        tol = float(getattr(config, "pair_key_tolerance", 0.02))
+        features["level_match"] = float(bool((np.abs(grid.height[wide] - float(box.maximum[2])) <= tol).any()))
+    else:
+        features["level_match"] = 0.0
 
     axes = getattr(config, "row_waste_axes", "x")
     features["row_waste"] = (
@@ -4435,6 +4449,24 @@ def _surface_arbiter_rungs(config) -> frozenset:
     return out
 
 
+def _narrow_top(candidate: Candidate, config) -> bool:
+    """The candidate's top alone cannot hold the window of the smallest
+    hard class (``pair_key_window`` l x w, plus the clearances)."""
+    spec = str(getattr(config, "pair_key_window", "0.40x0.55"))
+    a, b = sorted(float(v) for v in spec.lower().split("x")[:2])
+    clear = 0.03
+    dx, dy = sorted((candidate.orientation.dx, candidate.orientation.dy))
+    return dx + 1e-6 < a + clear or dy + 1e-6 < b + clear
+
+
+def _with_pair(key_fn, config):
+    def key(c):
+        base = tuple(key_fn(c))
+        pair = -float(c.features.get("level_match", 0.0)) if _narrow_top(c, config) else 0.0
+        return base[:1] + (pair,) + base[1:]
+    return key
+
+
 def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
     """The best candidate of one rung (``rung_order`` first)."""
     return rung_order(name, pool_for_archetype, config)[0]
@@ -4466,6 +4498,13 @@ def rung_order(name: str, pool_for_archetype: list, config) -> list:
     if name == A_TALL_PERIMETER:
         depth_first = config.perimeter_prefers_depth
         key_fn = lambda c: _key_tall_perimeter(c, depth_first)  # noqa: E731
+    if getattr(config, "pair_key", False) and name in (A_MAX_FOOTPRINT, A_BACK_CORNER):
+        # the pair: a box whose flat top alone cannot hold the window of
+        # the smallest hard class goes beside a top of its own height
+        # (level_match, within pair_key_reach) before anything but the
+        # footprint; a lone one of these is a column of pieces to the
+        # ceiling (findings, "Where the empty volume is made")
+        key_fn = _with_pair(key_fn, config)
     if getattr(config, "level_key", False) and name in _LEVEL_KEY_POSITION:
         # the levelness tie-break: among poses the rung's leading terms
         # rank equal, the one whose top sits nearest its neighbours' tops

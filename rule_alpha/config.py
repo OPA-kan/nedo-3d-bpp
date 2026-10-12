@@ -610,6 +610,23 @@ class RuleAlphaConfig:
     standing_row_reach: float = 0.06
     standing_row_fallback: bool = True
 
+    pair_key: bool = False
+    """The pair in the floor rungs (``layer1._with_pair``, max-footprint and
+    back-corner): a box whose flat top alone cannot hold the window of
+    the smallest hard class (``pair_key_window`` plus the clearances; the
+    0.55 x 0.40 box, 0.40 against 0.43) ranks, after the footprint, by
+    whether a top within ``pair_key_tolerance`` of its own lies within
+    ``pair_key_reach`` of its footprint (``level_match``).  The piece
+    instrument charged the lone 0.55 x 0.40 floor box 0.14 of the
+    container a placement, 59 % of it the column over its own top; two
+    side by side are 0.80 x 0.55, a window and more.  ``level_key`` read
+    the neighbours through a one-cell (2 cm) ring and the settled
+    clearance is 2.6 cm, so a flush neighbour read as none."""
+
+    pair_key_reach: float = 0.06
+    pair_key_tolerance: float = 0.02
+    pair_key_window: str = "0.40x0.55"
+
     phase_switch: bool = False
     """The phase change read from the state (findings, "The phase change"):
     when a container's usable surface over its floor area
