@@ -98,6 +98,10 @@ TASK_A_SOFT_GALLERY = False
 # v43: the phase switch (phase_switch) on Tasks B and C (OVERRIDES): the
 # count pass's covers in the low phase of the load whatever the fixed
 # count threshold says.
+# v44: the rescue stages redesigned on Tasks B and C (OVERRIDES): the grid
+# rescue at the decline, the deep-first order and the sealing pass, and
+# the stack option's candidate generation under the option's deadline
+# (every task).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -327,6 +331,23 @@ OVERRIDES = dict(
     # 10 -> 28 and 11 -> 40, the load 0.013 higher.  Tasks B and C
     # (Agent.optimize resets it for A, whose threshold is the manifest's).
     phase_switch=True, phase_switch_resort_first=False, phase_switch_cover=True,
+    # v44: the rescue stages.  The declining call's last stage scans a 5 cm
+    # grid of poses through the validator (resting on the highest top under
+    # the footprint) and tries the passing ones in the shadow (grid_rescue,
+    # a window of 1 s past the resort's); the rescue stages try the deeper
+    # poses first (the sweep enters at the door side, and the lowest-first
+    # order walled the back off: 74-87 % of v43's rescue placements stood
+    # in the front 0.45 m) and hold the poses that wall off 0.2 m^2 or more
+    # of usable surface back to a second pass.  Sample C placed +1.27 (24
+    # up, 10 down), 48 of 48; sample B +0.21, 48 of 48; hard C 21 -> 25
+    # crossings, hard2 C 32 -> 39 (findings, "The sealing design
+    # measured").  Tasks B and C (Agent.optimize resets them for A).
+    grid_rescue=0.05, grid_rescue_seconds=1.0, rescue_deep_first=True, rescue_seal_area=0.2,
+    # v44: the stack option's candidate generation stops at the option's
+    # deadline: on a board of 55 small boxes it took 10 s of a 16 s call
+    # against the platform's 8 s limit (hard2 s0070, s0091); with the
+    # deadline the slowest call on that suite is 5.4 s.  Every task.
+    stack_deadline=True,
 )
 STACK_POLICY = "weights/stack"
 
@@ -369,7 +390,11 @@ class Agent(RuleAlphaAgent):
                       level_key=False,
                       # v43: the phase switch is for B and C; A's count
                       # threshold is the manifest's, not a guess
-                      phase_switch=False)
+                      phase_switch=False,
+                      # v44: the rescue stages' redesign is for B and C; A's
+                      # plan is the planner's and its dry-run race is not
+                      # measured under them
+                      grid_rescue=0.0, rescue_deep_first=False, rescue_seal_area=0.0)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
