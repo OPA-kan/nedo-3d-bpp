@@ -4,7 +4,7 @@ sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parents[1]
 from bench.scenes import make_scene
 d = sys.argv[1]
 rows = []
-for f in sorted(glob.glob(d + '/[bc]-*.json')):
+for f in sorted(glob.glob(d + '/[abc]-*.json')):
     r = json.load(open(f)); m = r['metrics']; spec = r['scene_spec']
     sc = make_scene(spec['seed'], spec.get('layout') or 'hard', spec['task'])
     thr = m['total_items'] // 2 + 1; mg = m['placed_count'] - thr
