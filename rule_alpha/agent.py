@@ -1049,18 +1049,22 @@ class RuleAlphaAgent:
                     self.config, "count_mode_extra_seconds_pool" if len(pool) > 1 else "count_mode_extra_seconds", 1.0)))
             resort_end = started + budget + extra - 0.05
             grid_on = float(getattr(self.config, "grid_rescue", 0.0) or 0.0) > 0.0
-            # with a pool under the count threshold, part of the resort's
-            # window goes to the grid rescue (config.grid_rescue_pool_seconds)
+            # with a pool, part of the resort's window goes to the grid
+            # rescue (config.grid_rescue_pool_seconds)
             pool_share = float(getattr(self.config, "grid_rescue_pool_seconds", 0.0) or 0.0)
-            pooled_grid = (grid_on and pool_share > 0.0 and len(pool) > 1
-                           and bool(getattr(self, "_really_under", False)))
+            pooled_grid = grid_on and pool_share > 0.0 and len(pool) > 1
             action = self._physics_resort(ordered, pool, resort_end - (pool_share if pooled_grid else 0.0), count=under)
             if action is not None:
                 return action
             if grid_on:
                 # the grid rescue: every pose of a grid through the validator,
                 # resting on the highest top under it (config.grid_rescue)
-                action = self._grid_rescue(ordered, pool, resort_end, count=under, own_window=not pooled_grid)
+                grid_end = resort_end
+                if pooled_grid:
+                    # the resort overruns its deadline by up to a check:
+                    # at least a second, at most half a second past its end
+                    grid_end = min(max(resort_end, time.perf_counter() + 1.0), resort_end + 0.5)
+                action = self._grid_rescue(ordered, pool, grid_end, count=under, own_window=not pooled_grid)
                 if action is not None:
                     return action
 
