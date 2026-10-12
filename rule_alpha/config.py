@@ -1869,6 +1869,11 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    level_selector: bool = False
+    """``room.LevelSelector``: when the ladder's pick goes on a top without
+    meeting the tops beside it, a survivor on a top that does meet one
+    goes instead (the lowest such, then the widest).  Reads
+    ``pool_level_reach`` and ``pool_level_tolerance``."""
     pool_level_reach: float = 0.06
     pool_level_tolerance: float = 0.03
     """``pool_item_search_mode`` = level (``agent._pool_item_level``): when

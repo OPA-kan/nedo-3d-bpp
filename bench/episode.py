@@ -176,6 +176,9 @@ def run_episode(scene, arm, max_steps: int = 400, policy_budget: float = 8.0,
         metrics["phase"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.phase_stats.items()}
     if getattr(agent, "pool_level_stats", None):
         metrics["pool_level"] = dict(agent.pool_level_stats)
+    sel = getattr(agent, "selector", None)
+    if sel is not None and hasattr(sel, "overrides"):
+        metrics["selector"] = {"calls": getattr(sel, "calls", 0), "unlevel": getattr(sel, "unlevel", 0), "overrides": sel.overrides}
     # the gaps between neighbouring boxes (bench/gaps.py): the planned
     # clearance band and the strips
     with contextlib.suppress(Exception):

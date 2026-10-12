@@ -368,3 +368,56 @@ class RolloutSelector:
         pick = pool[best]
         label = sorted(pick.archetypes)[0] if pick.archetypes else "alternative"
         return pick, f"rollout/{label}"
+
+
+class LevelSelector:
+    """A ``layer1.choose_for_item`` selector (config.level_selector): when the
+    ladder's pick goes on a top without meeting the tops beside it, a
+    survivor on a top that does meet one (within ``pool_level_tolerance``,
+    within ``pool_level_reach`` of its footprint, rising above its
+    support) goes instead -- the lowest such, then the widest.  The pose
+    that meets its neighbours makes a level patch; the one that does not
+    is a column of pieces.  On the v42 records the raised poses beside a
+    higher neighbour met it 17 % of the time on C and 22 % on B, the
+    planner on A 64 %."""
+
+    def __init__(self, config):
+        self.config = config
+        self.calls = 0
+        self.unlevel = 0
+        self.overrides = 0
+
+    def levels(self, box, board, container_idx) -> bool:
+        from . import layer1 as l1
+        from .geometry import box_rect
+
+        grid = board.grid(container_idx)
+        mask = grid.rect_mask(box_rect(box))
+        reach = max(1, int(round(float(getattr(self.config, "pool_level_reach", 0.06)) / grid.cell)))
+        wide = mask
+        for _ in range(reach):
+            wide = l1._dilate(wide)
+        ring = wide & ~mask & grid.occupied
+        if not ring.any():
+            return False
+        tops = grid.height[ring]
+        tops = tops[tops > float(box.minimum[2]) + 0.05]
+        if tops.size == 0:
+            return False
+        tol = float(getattr(self.config, "pool_level_tolerance", 0.03))
+        return bool((np.abs(tops - float(box.maximum[2])) <= tol).any())
+
+    def __call__(self, survivors, chosen, chosen_archetype, board, container_idx, profile):
+        self.calls += 1
+        if chosen.surface != "item" or self.levels(chosen.box, board, container_idx):
+            return None
+        self.unlevel += 1
+        pool = [c for c in survivors if c is not chosen and c.surface == "item"
+                and self.levels(c.box, board, container_idx)]
+        if not pool:
+            return None
+        pool.sort(key=lambda c: (round(float(c.box.minimum[2]), 2), -c.features.get("footprint", 0.0)))
+        self.overrides += 1
+        pick = pool[0]
+        label = sorted(pick.archetypes)[0] if pick.archetypes else chosen_archetype
+        return pick, f"level/{label}"
