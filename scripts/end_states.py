@@ -78,12 +78,17 @@ def _narrow(free, need):
     return out
 
 
-def floor_and_volume(scene, steps, window=(0.43, 0.58)):
+def floor_and_volume(scene, steps, window=(0.43, 0.58), bridge: bool = False):
     """Per container: floor free share, strip share of the free floor,
     largest free rectangle, free volume share above the height map, the
     highest top.  ``window``: the level patch a box needs (the smallest
     hard footprint with the clearances; without them, (0.40, 0.55), a
-    box stacked exactly on a top of its own footprint counts as usable)."""
+    box stacked exactly on a top of its own footprint counts as usable).
+    ``bridge``: gaps of up to 4 cm between tops at one level are part of
+    the level (``rule_alpha.surface._close_gaps``), as a box spanning the
+    settled clearance between two neighbours would find them."""
+    if bridge:
+        from rule_alpha.surface import _close_gaps
     rows = []
     for ci, c in enumerate(scene.containers):
         L, W, H, t = c["length"], c["width"], c["height"], c["thickness"]
@@ -128,6 +133,8 @@ def floor_and_volume(scene, steps, window=(0.43, 0.58)):
         nxw, nyw = int(round(window[0] / CELL)), int(round(window[1] / CELL))
         for level in np.unique(levels[real & ~low]):
             on = real & ~low & (np.abs(levels - level) <= 1)
+            if bridge and level > 0:
+                on = _close_gaps(on, 1) & real & ~low
             s = np.zeros((on.shape[0] + 1, on.shape[1] + 1), dtype=np.int32)
             s[1:, 1:] = np.cumsum(np.cumsum(on.astype(np.int32), axis=0), axis=1)
             for a, b in ((nxw, nyw), (nyw, nxw)):

@@ -26,6 +26,7 @@ from levelness import _scene  # noqa: E402
 from soft_slots_b import CELL, Load  # noqa: E402
 
 BOUNDARIES = (0.4, 0.2)
+BRIDGE = "--bridge" in sys.argv
 
 
 def episode(record):
@@ -44,8 +45,8 @@ def episode(record):
     out = {"placed": len(steps)}
     for b in BOUNDARIES:
         k = next((i for i, r in enumerate(series) if r < b), len(steps))
-        rows = floor_and_volume(scene, steps[:k])
-        exact = floor_and_volume(scene, steps[:k], window=(0.40, 0.55))
+        rows = floor_and_volume(scene, steps[:k], bridge=BRIDGE)
+        exact = floor_and_volume(scene, steps[:k], window=(0.40, 0.55), bridge=BRIDGE)
         out[b] = {
             "pieces_exact": float(np.mean([r["vol_pieces_share"] for r in exact])),
             "usable_exact": float(np.mean([r["vol_usable_share"] for r in exact])),
@@ -56,8 +57,8 @@ def episode(record):
             "low": float(np.mean([r["vol_low_share"] for r in rows])),
             "floor_free": float(np.mean([r["floor_free"] for r in rows])),
         }
-    rows = floor_and_volume(scene, steps)
-    exact = floor_and_volume(scene, steps, window=(0.40, 0.55))
+    rows = floor_and_volume(scene, steps, bridge=BRIDGE)
+    exact = floor_and_volume(scene, steps, window=(0.40, 0.55), bridge=BRIDGE)
     out["end"] = {
         "pieces_exact": float(np.mean([r["vol_pieces_share"] for r in exact])),
         "usable_exact": float(np.mean([r["vol_usable_share"] for r in exact])),
@@ -71,12 +72,12 @@ def episode(record):
 
 
 def main():
-    for d in sys.argv[1:]:
+    for d in [a for a in sys.argv[1:] if not a.startswith("--")]:
         files = sorted(glob.glob(str(pathlib.Path(d) / "[abc]-*.json")))
         if not files:
             continue
         eps = [episode(json.load(open(f))) for f in files]
-        print(f"### {pathlib.Path(d).name}: {len(eps)} episodes, {np.mean([e['placed'] for e in eps]):.1f} placed")
+        print(f"### {pathlib.Path(d).name}{' (gaps bridged)' if BRIDGE else ''}: {len(eps)} episodes, {np.mean([e['placed'] for e in eps]):.1f} placed")
         print("| point | step (share of episode) | items after | free volume | of the container: in pieces | usable | (exact-stack window: pieces | usable) | under low headroom | floor free |")
         print("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
         for b in BOUNDARIES:
