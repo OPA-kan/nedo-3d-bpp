@@ -5,7 +5,7 @@ sys.path.insert(0, str(pathlib.Path('.').resolve()))
 from bench.scenes import make_hard_scene, make_scene
 r = json.load(open(sys.argv[1])); sp = r['scene_spec']
 if 'hard' in sp['name']: sc = make_hard_scene(sp['seed'], sp['task'])
-else: sc = make_scene(sp['seed'], sp['layout'], sp['task'], **{k: v for k, v in sp.items() if k in ('look_ahead','optimize','item_count')})
+else: sc = make_scene(sp['seed'], sp['layout'], sp['task'], **{k: v for k, v in sp.items() if k in ('item_count',) and False})
 steps = [s for s in r['steps'] if s.get('event') == 'step' and 'pos_local' in s]
 CELL = 0.05
 chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
