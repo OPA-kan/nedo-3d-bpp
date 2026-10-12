@@ -78,10 +78,12 @@ def _narrow(free, need):
     return out
 
 
-def floor_and_volume(scene, steps):
+def floor_and_volume(scene, steps, window=(0.43, 0.58)):
     """Per container: floor free share, strip share of the free floor,
     largest free rectangle, free volume share above the height map, the
-    highest top."""
+    highest top.  ``window``: the level patch a box needs (the smallest
+    hard footprint with the clearances; without them, (0.40, 0.55), a
+    box stacked exactly on a top of its own footprint counts as usable)."""
     rows = []
     for ci, c in enumerate(scene.containers):
         L, W, H, t = c["length"], c["width"], c["height"], c["thickness"]
@@ -123,7 +125,7 @@ def floor_and_volume(scene, steps):
         low = real & (head < 0.23 + 0.03)
         usable = np.zeros_like(real)
         levels = np.round(height / 0.02).astype(int)
-        nxw, nyw = int(round(0.43 / CELL)), int(round(0.58 / CELL))
+        nxw, nyw = int(round(window[0] / CELL)), int(round(window[1] / CELL))
         for level in np.unique(levels[real & ~low]):
             on = real & ~low & (np.abs(levels - level) <= 1)
             s = np.zeros((on.shape[0] + 1, on.shape[1] + 1), dtype=np.int32)
