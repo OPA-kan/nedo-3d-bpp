@@ -418,3 +418,10 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v43 (52af1a1: v42 plus the phase switch -- the count pass's covers in
+the low phase of the load, read from the usable surface, whatever the
+fixed count threshold says; Tasks B and C): official result pending.
+Suites against v42: C placed +2.27 and B +2.73 with every crossing
+kept; priority covered 10 -> 28 (C) and 11 -> 40 (B).  Official sample
+C 24.95 / 24 against v42's 26.44 / 25 on that one scene.

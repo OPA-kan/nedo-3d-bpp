@@ -584,6 +584,28 @@ sample: A 32.11 / 25 (as v39), B 29.59 / 26 (v39 27.28 / 25), C 26.44
 / 25 (as v39); policy max B 4.81 s, C 3.64 s, optimize 25 s
 (`official-sample-abc-v42.json`).
 
+Forty-third build (v43): v42 with the phase switch (`phase_switch`) on
+Tasks B and C.  The rules change inside the episode: where a
+container's usable surface (level patches a 0.40 x 0.55 footprint
+fits, over the floor area; `rule_alpha/surface.py`) falls under 0.2,
+the ladder's structure stops placing and most placements come from the
+search over poses its rules refuse (`scripts/phase_map.py`: the rescue
+makes 4-17 % of the placements over 0.25 of the surface and 56-59 %
+under 0.15).  In that low phase the count pass's covers are taken
+whatever the fixed count threshold (41 a container) says; the resort
+stays after the ladder (the resort first cost a crossing), and the
+support floor, the extra seconds and the smallest item first are
+neutral on their own.  The whole gain is the covers: suites against
+v42, sample C placed +2.27 (33 up, 6 down), fill +2.6, 48 of 48;
+sample B placed +2.73 (37 up, 2 down), fill +2.2, 48 of 48; priority
+covered 10 -> 28 and 11 -> 40, the load 0.013 higher; priced about
+flat on the continuous reading, +0.1 and +0.6 on the platform model.
+Refusing the covers of priority (phase5-7) cost crossings or halved
+the count.  A keeps its manifest threshold (the optimize override).
+Official sample: A 32.11 / 25 (as v42), B 29.59 / 26 (as v42), C
+24.95 / 24 (v42 26.44 / 25); policy max B 5.27 s, C 3.97 s, optimize
+35 s (`official-sample-abc-v43.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
