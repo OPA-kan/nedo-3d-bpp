@@ -6,7 +6,7 @@ d = sys.argv[1]
 rows = []
 for f in sorted(glob.glob(d + '/[bc]-*.json')):
     r = json.load(open(f)); m = r['metrics']; spec = r['scene_spec']
-    sc = make_scene(spec['seed'], 'hard', spec['task'])
+    sc = make_scene(spec['seed'], spec.get('layout') or 'hard', spec['task'])
     thr = m['total_items'] // 2 + 1; mg = m['placed_count'] - thr
     cvol = sum(c['length'] * c['width'] * c['height'] for c in sc.containers)
     ivol = lambda i: i['length'] * i['width'] * i['height']
@@ -16,11 +16,11 @@ for f in sorted(glob.glob(d + '/[bc]-*.json')):
     rows.append(dict(scene=r['scene'], mg=mg, total=m['total_items'], thr=thr, placed=m['placed_count'], fill=m.get('fill_volume', 0),
                      need_first=100 * first / cvol, need_small=100 * smallest / cvol, got=100 * placed_vol / cvol,
                      n=spec['containers_n'], base=spec['base_count'], soft=spec['soft_share'], prio=spec['priority_rate'],
-                     mix=spec['mix'], order=spec['order'], pool=spec['pool'], shelves=spec['shelves'], pc=spec['priority_container'],
+                     mix=spec['mix'], order=spec['order'], pool=spec['pool'], shelves=spec['shelves'], pc=spec['priority_container'], **({'stratum': spec['stratum']} if 'stratum' in spec else {}),
                      per=round(m['total_items'] / spec['containers_n'])))
 cross = lambda rs: f"{sum(1 for r in rs if r['mg'] >= 0)}/{len(rs)}"
 print(f"{d}: crossings {cross(rows)}; the need (fill the threshold demands, first-thr items / smallest-thr items) against the fill reached (container volume basis)")
-for key in ('base', 'n', 'mix', 'order', 'soft', 'prio', 'shelves', 'pc', 'pool'):
+for key in (('stratum',) if any('stratum' in r for r in rows) else ()) + ('base', 'n', 'mix', 'order', 'soft', 'prio', 'shelves', 'pc', 'pool'):
     groups = collections.defaultdict(list)
     for r in rows: groups[r[key]].append(r)
     print(f"  by {key:8s}", '  '.join(f"{k}: {cross(v)} (need {st.mean(x['need_first'] for x in v):.0f}/{st.mean(x['need_small'] for x in v):.0f}, got {st.mean(x['got'] for x in v):.0f}, mg {st.mean(x['mg'] for x in v):+.1f})" for k, v in sorted(groups.items(), key=lambda kv: str(kv[0]))))

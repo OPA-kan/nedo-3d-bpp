@@ -2633,3 +2633,33 @@ class LiftToTopsTest(unittest.TestCase):
         # a pose beside the columns (no lateral overlap) is left alone too
         beside = AABB((-0.60, 0.30, floor + 0.12), (0.55, 0.40, 0.24), "candidate")
         self.assertIs(fastgeom.lift_to_tops(beside, board.container(0), config), beside)
+
+
+class Hard2SuiteTest(unittest.TestCase):
+    """The hard2 suite: the count is chosen for the demand the threshold
+    makes, in the seed's stratum, and the scene is a function of the seed."""
+
+    def test_the_demand_lies_in_the_stratum_band(self):
+        from bench.scenes import hard2_stratum, make_hard2_scene, threshold_demand
+
+        for seed in (1, 17, 48, 49, 70, 80, 81, 88, 89, 96):
+            scene = make_hard2_scene(seed, "C")
+            stratum, (lo, hi) = hard2_stratum(seed)
+            self.assertEqual(scene.spec["stratum"], stratum)
+            demand = threshold_demand(scene.items, scene.containers)
+            self.assertAlmostEqual(demand, scene.spec["demand"], places=3)
+            self.assertGreaterEqual(demand, lo - 0.03, f"seed {seed}: demand {demand:.3f} under the {stratum} band")
+            self.assertLessEqual(demand, hi + 0.03, f"seed {seed}: demand {demand:.3f} over the {stratum} band")
+            self.assertEqual([int(i["index"]) for i in scene.items], list(range(len(scene.items))))
+            self.assertGreaterEqual(len(scene.items), 16)
+
+    def test_the_scene_is_a_function_of_the_seed_and_the_task_shares_it(self):
+        from bench.scenes import make_hard2_scene, make_scene
+
+        a, b = make_hard2_scene(7, "C"), make_hard2_scene(7, "C")
+        self.assertEqual(a.items, b.items)
+        self.assertEqual(a.containers, b.containers)
+        via = make_scene(7, "hard2", "B")
+        self.assertEqual(via.items, a.items)
+        self.assertEqual(via.name, "b-hard2-s0007")
+        self.assertIn(via.look_ahead, (3, 5, 10, 20))

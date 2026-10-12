@@ -260,10 +260,131 @@ def make_hard_scene(seed: int, task: str = "C") -> Scene:
                  items=items, containers=containers, spacing=spacing, spec=spec)
 
 
+# the hard2 suite's strata by seed: the demand the count threshold makes
+# (the volume of the first threshold items of the stream over the
+# containers' volume), drawn uniformly in the band
+HARD2_STRATA = [
+    (range(1, 49), "sample", (0.26, 0.34)),     # the sample's band (28 %), varied
+    (range(49, 81), "stretch", (0.34, 0.42)),   # where the v43 form crosses a quarter
+    (range(81, 89), "edge", (0.42, 0.50)),      # a near-perfect packer's band
+    (range(89, 97), "fill-only", (0.55, 0.80)), # no agent crosses: the fill alone counts
+]
+
+
+def hard2_stratum(seed: int) -> tuple[str, tuple[float, float]]:
+    for seeds, name, band in HARD2_STRATA:
+        if seed in seeds:
+            return name, band
+    return "stretch", (0.34, 0.42)
+
+
+def _order_items(items: list[dict], order: str) -> list[dict]:
+    items = list(items)
+    if order == "big-first":
+        items.sort(key=lambda i: -(i["length"] * i["width"] * i["height"]))
+    elif order == "small-first":
+        items.sort(key=lambda i: i["length"] * i["width"] * i["height"])
+    elif order == "soft-first":
+        items.sort(key=lambda i: 0 if i["is_soft"] else 1)
+    elif order == "soft-last":
+        items.sort(key=lambda i: 1 if i["is_soft"] else 0)
+    return items
+
+
+def threshold_demand(items: list[dict], containers: list[dict]) -> float:
+    """The volume of the first ``len(items) // 2 + 1`` items of the stream
+    over the containers' volume: what the count threshold asks of a Task C
+    agent, which must place them all."""
+    thr = len(items) // 2 + 1
+    vol = sum(i["length"] * i["width"] * i["height"] for i in items[:thr])
+    cap = sum(c["length"] * c["width"] * c["height"] for c in containers)
+    return vol / max(cap, 1e-9)
+
+
+def make_hard2_scene(seed: int, task: str = "C") -> Scene:
+    """The hard suite redrawn with the count chosen for the demand it makes.
+
+    The hard suite draws the count by the container's volume whatever the
+    SKU mix, so a quarter of its scenes ask the first half of the stream
+    to fill 50-130 % of the container and no agent crosses them, while the
+    sample's demand is 28 %.  Here the containers, the mix, the shares and
+    the order are drawn as there (its own seed), a long stream is drawn and
+    ordered, and the count is the one whose first-threshold volume comes
+    closest to a demand drawn in the seed's stratum (``HARD2_STRATA``):
+    seeds 1-48 the sample's band, 49-80 the stretch band, 81-88 the edge,
+    89-96 the fill-only scenes kept for the fill component's sake.  The
+    stratum and the realised demand travel in the spec."""
+    if task not in TASK_LOOKAHEAD:
+        raise KeyError(f"unknown task {task!r}; known: A, B, C")
+    rng = random.Random(20_000 + seed)
+    stratum, band = hard2_stratum(seed)
+    target = rng.uniform(*band)
+    n = rng.choice([1, 1, 2, 2, 3])
+    prio_idx = rng.randrange(n) if rng.random() < 0.4 else None
+    containers = []
+    for i in range(n):
+        shelf = rng.random() < 0.4
+        base = ULD_SHELF if shelf else ULD
+        length = round(base["length"] * rng.uniform(0.85, 1.25), 2)
+        width = round(base["width"] * rng.uniform(0.85, 1.15), 2)
+        height = round(base["height"] * rng.uniform(0.85, 1.2), 2)
+        containers.append({
+            "index": i, "length": length, "width": width, "height": height,
+            "thickness": base["thickness"],
+            "cut_x": round(base["cut_x"] * rng.uniform(0.7, 1.3), 2),
+            "cut_y": round(base["cut_y"] * rng.uniform(0.7, 1.3), 2),
+            "buffer": 0.0, "packed_items": [], "require_shelf": shelf, "is_prioritized": i == prio_idx,
+        })
+    soft_share = rng.choice([0.1, 0.2, 0.32, 0.45, 0.6])
+    prio_rate = rng.choice([0.0, 0.05, 0.1, 0.2, 0.3])
+    mix = rng.choice(["sample", "sample", "big", "small", "extra"])
+    skus = SKUS + EXTRA_SKUS
+    weights = [s[7] for s in SKUS] + [0, 0, 0]
+    if mix == "big":
+        weights = [2, 8, 12, 2, 1, 5, 3, 6, 0, 2]
+    elif mix == "small":
+        weights = [14, 4, 1, 2, 8, 3, 6, 0, 10, 1]
+    elif mix == "extra":
+        weights = [8, 6, 3, 2, 2, 4, 3, 5, 5, 4]
+    soft_pool = [(w, sk) for w, sk in zip(weights, skus) if sk[5]]
+    hard_pool = [(w, sk) for w, sk in zip(weights, skus) if not sk[5]]
+    order = rng.choice(["random", "random", "big-first", "small-first", "soft-first", "soft-last"])
+    stream = []
+    for index in range(320 * n):
+        pool = soft_pool if rng.random() < soft_share else hard_pool
+        sku = rng.choices([sk for _w, sk in pool], weights=[w for w, _sk in pool], k=1)[0]
+        _name, length, width, height, mass, soft, physics, _w = sku
+        stream.append({"index": index, "length": length, "width": width, "height": height, "mass": mass,
+                       "is_prioritized": rng.random() < prio_rate, "is_soft": soft, **physics})
+    best = None
+    for count in range(max(16, 8 * n), len(stream) + 1):
+        demand = threshold_demand(_order_items(stream[:count], order), containers)
+        gap = abs(demand - target)
+        if best is None or gap < best[0] - 1e-12:
+            best = (gap, count, demand)
+    _gap, total, demand = best
+    items = _order_items(stream[:total], order)
+    for index, item in enumerate(items):
+        item["index"] = index
+    pool_size = rng.choice([3, 5, 10, 20]) if task == "B" else TASK_LOOKAHEAD[task]
+    spacing = max(c["length"] for c in containers) + 0.5
+    name = f"{task.lower()}-hard2-s{seed:04d}"
+    spec = {"containers_n": n, "priority_container": prio_idx is not None,
+            "shelves": sum(1 for c in containers if c["require_shelf"]),
+            "dims": [(c["length"], c["width"], c["height"]) for c in containers],
+            "base_count": total, "soft_share": soft_share, "priority_rate": prio_rate,
+            "mix": mix, "order": order, "pool": pool_size,
+            "stratum": stratum, "target": round(target, 3), "demand": round(demand, 3)}
+    return Scene(name=name, seed=seed, layout="hard2", task=task, look_ahead=pool_size,
+                 items=items, containers=containers, spacing=spacing, spec=spec)
+
+
 def make_scene(seed: int, layout: str = "c1", task: str = "C",
                items_per_container: int = 41, look_ahead: int | None = None) -> Scene:
     if layout == "hard":
         return make_hard_scene(seed, task)
+    if layout == "hard2":
+        return make_hard2_scene(seed, task)
     if layout not in LAYOUTS:
         raise KeyError(f"unknown layout {layout!r}; known: {sorted(LAYOUTS)}")
     if task not in TASK_LOOKAHEAD:
@@ -296,6 +417,11 @@ SUITES = {
     "hard": [("C", "hard", seed) for seed in range(1, 49)],
     "hard-b": [("B", "hard", seed) for seed in range(1, 49)],
     "hard-a": [("A", "hard", seed) for seed in range(1, 49)],
+    # the hard2 suites: 96 situations a task, the count chosen for the
+    # demand the threshold makes (HARD2_STRATA)
+    "hard2": [("C", "hard2", seed) for seed in range(1, 97)],
+    "hard2-b": [("B", "hard2", seed) for seed in range(1, 97)],
+    "hard2-a": [("A", "hard2", seed) for seed in range(1, 97)],
     # training streams for a learned ranker: disjoint seeds from every
     # evaluation suite above
     "train-small": [("C", layout, seed) for seed in range(101, 107) for layout in ("c1", "c1s", "c2", "c2p")],

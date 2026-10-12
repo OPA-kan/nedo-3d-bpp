@@ -27,8 +27,8 @@ MIN_WIDTH = 0.30
 
 
 def _scene(spec):
-    if spec.get("layout") == "hard" or "hard" in spec["name"]:
-        return make_hard_scene(spec["seed"], spec["task"])
+    if spec.get("layout", "").startswith("hard") or "hard" in spec["name"]:
+        return make_scene(spec["seed"], spec.get("layout") or "hard", spec["task"])
     kwargs = {k: spec[k] for k in ("look_ahead", "items_per_container") if k in spec}
     try:
         return make_scene(spec["seed"], spec["layout"], spec["task"], **kwargs)
