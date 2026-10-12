@@ -78,7 +78,7 @@ def _narrow(free, need):
     return out
 
 
-def floor_and_volume(scene, steps, window=(0.43, 0.58), bridge: bool = False):
+def floor_and_volume(scene, steps, window=(0.43, 0.58), bridge: bool = False, tolerance: float = 0.02):
     """Per container: floor free share, strip share of the free floor,
     largest free rectangle, free volume share above the height map, the
     highest top.  ``window``: the level patch a box needs (the smallest
@@ -132,7 +132,7 @@ def floor_and_volume(scene, steps, window=(0.43, 0.58), bridge: bool = False):
         levels = np.round(height / 0.02).astype(int)
         nxw, nyw = int(round(window[0] / CELL)), int(round(window[1] / CELL))
         for level in np.unique(levels[real & ~low]):
-            on = real & ~low & (np.abs(levels - level) <= 1)
+            on = real & ~low & (np.abs(height - level * 0.02) <= tolerance + 1e-9)
             if bridge and level > 0:
                 on = _close_gaps(on, 1) & real & ~low
             s = np.zeros((on.shape[0] + 1, on.shape[1] + 1), dtype=np.int32)
