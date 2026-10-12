@@ -3627,7 +3627,14 @@ band (34-42 %), 81-88 the edge (42-50 %), 89-96 fill-only (55-80 %,
 kept for the fill component, which is scored under the threshold
 too).  The realised demand sits within 0.03 of the target everywhere;
 the stratum and the demand travel in the record's spec, and
-`scripts/hard_why.py` reads by stratum.
+`scripts/hard_why.py` reads by stratum.  The v43 form on them
+(`v43-hard2`, `v43-hard2-b`): C 32 of 96 (sample 28/48, stretch
+4/32, edge 0/8, fill-only 0/8), B 37 of 96 (30/48, 7/32, 0, 0).  The
+sample band is the surprise: at the sample suite's own demand the
+agent crosses 58-63 % of these scenes against all 48 of the sample's,
+so the scaled containers, the big and extra mixes and the orders cost
+crossings on their own, before the demand rises; 18-20 scenes a task
+in that band are the nearest target the suite holds.
 
 **What stops the near misses** (`scripts/last_call_probe.py`: the
 episode rerun with every anchor's verdict in the declining call, and a
