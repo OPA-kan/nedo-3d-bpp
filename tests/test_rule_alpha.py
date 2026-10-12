@@ -2463,3 +2463,43 @@ class PairKeyTest(unittest.TestCase):
         bc = layer1.Candidate(box=AABB((0.0, -0.45, z + 0.125), (o.dx, o.dy, o.dz), "c"), profile=big,
                               orientation=o, container_idx=0, surface="floor", surface_name="floor", role=cls.ROLE_NONE)
         self.assertFalse(layer1._narrow_top(bc, self.ON))
+
+
+class LevelAnchorsTest(unittest.TestCase):
+    """The levelling anchors: on a low top beside a higher neighbour, a pose
+    whose top meets the neighbour's is proposed (and validated) only when
+    ``level_anchors`` is on."""
+
+    def _profile(self, index, dims):
+        return cls.classify_item(
+            index, {"index": index, "length": dims[0], "width": dims[1], "height": dims[2],
+                    "mass": 10.0, "is_soft": False, "is_prioritized": False}, DEFAULT_CONFIG)
+
+    def _place(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = self._profile(0, dims)
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0], container_idx=0,
+            surface="floor", surface_name="floor", role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="fixture", layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE, DEFAULT_CONFIG)))
+
+    def test_a_pose_meeting_the_higher_neighbour_is_proposed(self):
+        container = make_container_dict(index=0, **ULD)
+        board = layer1.Board([container], DEFAULT_CONFIG)
+        z = board.model(0).z_floor
+        # a low top (0.24) and, beside it along x, a two-box column whose top is 0.49
+        self._place(board, 0.10, 0.30, z, (0.55, 0.40, 0.24))
+        self._place(board, 0.10 - 0.55 / 2 - 0.026 - 0.65 / 2, 0.30, z, (0.65, 0.45, 0.25))
+        self._place(board, 0.10 - 0.55 / 2 - 0.026 - 0.65 / 2, 0.30, z + 0.25, (0.65, 0.45, 0.24))
+        profile = self._profile(9, (0.55, 0.40, 0.24))
+        flat = next(o for o in profile.orientations if abs(o.dz - 0.24) < 1e-6)
+        on = dataclasses.replace(DEFAULT_CONFIG, level_anchors=True)
+        off = dataclasses.replace(DEFAULT_CONFIG, level_anchors=False)
+        def levelling(cands):
+            return [c for c in cands if abs(float(c.box.maximum[2]) - (z + 0.49)) <= 0.03
+                    and float(c.box.minimum[2]) < z + 0.30
+                    and abs(float(c.box.minimum[0]) - (0.10 - 0.55 / 2 - 0.026 - 0.65 / 2 + 0.65 / 2 + 0.026)) < 0.02]
+        with_on = levelling(layer1.generate_layer2_candidates(board, profile, 0, flat, on))
+        with_off = levelling(layer1.generate_layer2_candidates(board, profile, 0, flat, off))
+        self.assertGreater(len(with_on), 0, "the pose flush beside the column, top at 0.49, on the low box")
+        self.assertGreaterEqual(len(with_on), len(with_off))

@@ -137,6 +137,38 @@ def terrace_anchors(rect: Rect, dx: float, dy: float, gap: float) -> list[tuple[
     ]
 
 
+def level_anchors(support: Rect, bottom: float, tops, dx: float, dy: float, dz: float,
+                  gap: float, tolerance: float, reach: float) -> list[tuple[float, float]]:
+    """Centres on ``support`` (a hard top at ``bottom``) flush beside a
+    neighbouring hard top whose height the new box's top meets (within
+    ``tolerance``), the neighbour rising above the support by more than
+    5 cm and lying within ``reach`` of it: the pose that levels the load.
+
+    The terrace anchors continue the top the box stands on; these continue
+    the top *beside* it, one storey up.  On the v42 records a raised pose
+    beside a higher neighbour met its height 17 % of the time on C and
+    22 % on B while an orientation that would have existed in 28 % and
+    36 % -- poses the terrace anchors never proposed (findings, "The phase
+    switch measured", the levelling choice)."""
+    out: list[tuple[float, float]] = []
+    top_new = bottom + dz
+    for rect, top in tops:
+        if top <= bottom + 0.05 or abs(top - top_new) > tolerance:
+            continue
+        if (rect.x_min > support.x_max + reach or rect.x_max < support.x_min - reach
+                or rect.y_min > support.y_max + reach or rect.y_max < support.y_min - reach):
+            continue
+        ys = (rect.y_min + dy / 2.0, rect.y_max - dy / 2.0, 0.5 * (rect.y_min + rect.y_max))
+        xs = (rect.x_min + dx / 2.0, rect.x_max - dx / 2.0, 0.5 * (rect.x_min + rect.x_max))
+        for y in ys:
+            out.append((rect.x_max + gap + dx / 2.0, y))
+            out.append((rect.x_min - gap - dx / 2.0, y))
+        for x in xs:
+            out.append((x, rect.y_max + gap + dy / 2.0))
+            out.append((x, rect.y_min - gap - dy / 2.0))
+    return out
+
+
 def bridge_anchors(members: list[tuple[Rect, float]], dx: float,
                    dy: float) -> list[tuple[float, float]]:
     """Centres that span the gap between two hard tops.

@@ -2605,6 +2605,15 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
             continue
         for x, y in l2.terrace_anchors(rect, dx, dy, gap):
             proposals.append((l2.FAMILY_TERRACE, l2.ROLE_TERRACE, x, y, top))
+        if getattr(config, "level_anchors", False):
+            # the levelling anchors (config.level_anchors): on this top,
+            # flush beside a higher neighbouring top the new box's top meets
+            for x, y in l2.level_anchors(
+                rect, top, tops, dx, dy, dz, gap,
+                float(getattr(config, "level_anchor_tolerance", 0.03)),
+                float(getattr(config, "level_anchor_reach", 0.30)),
+            ):
+                proposals.append((l2.FAMILY_TERRACE, l2.ROLE_TERRACE, x, y, top))
 
     # A bridge spans two, so it needs the pairing -- and rests on the higher.
     for level, members in l2.level_groups(
