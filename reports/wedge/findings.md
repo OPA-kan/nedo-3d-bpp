@@ -3391,6 +3391,53 @@ episodes lost.  Decomposed next: the resort first off with the covers
 (`phase2-*`), both off (`phase3-*`), the resort first on without the
 covers (`phase4-*`).
 
+*Decomposed* (each against the level_key records):
+
+| form | low phase above the threshold | C placed | C crossings | C priced | B placed | B crossings | B priced |
+|---|---|---:|---:|---:|---:|---:|---:|
+| phase | covers, resort first | +2.25 | 48 -> 47 | -0.07 | +2.31 | 48 -> 48 | -0.05 |
+| phase2 | covers, no resort first | +2.27 (33 up, 6 down) | 48 -> 48 | -0.12 | +2.73 (37 up, 2 down) | 48 -> 48 | +0.16 |
+| phase3 | neither | -0.23 | 48 -> 48 | +0.02 | +0.15 | 48 -> 48 | +0.08 |
+| phase4 | resort first, no covers | -0.08 | 48 -> 47 | +0.16 | +0.98 | 48 -> 48 | 0.00 |
+| phase5/6 | covers of soft only, refused of priority everywhere | +0.56 | 48 -> 44 | +0.04 | -0.33 | 48 -> 43 | -0.17 |
+| phase7 | covers of soft only above the threshold, all under it | +1.02 (23 up, 6 down) | 48 -> 47 | +0.03 | +0.42 (17 up, 5 down) | 48 -> 48 | +0.17 |
+
+The whole of the gain is the covers taken in the low phase above the
+fixed threshold; the support floor, the extra seconds and the smallest
+item first (phase3) are neutral, and the resort before the ladder
+(phase4) costs a crossing.  phase5 and phase6 refused the covers of
+priority in the count pass under the threshold too, where the v32
+crossings rest on them (c-c1-s0003 reaches 21 by four count-mode
+covers), and lost five crossings a suite -- the fix was the gate, not
+the reading (the column reading of `covers_priority` and the contact
+reading of `covers_other_attribute` lost alike).  phase7, the covers of
+soft alone above the threshold, keeps half the count (+1.0 / +0.4) with
+the priority covers at the baseline's level and loses c-c2-s0011
+(48 -> 39, a two-container scene; phase2 placed 47 there) and reads
+b-c2-s0003 at exactly a half (41 of 82).  By H1 phase2 reads +0.1 on C
+and +0.6 on B (fill +2.6 / +2.2 and soft +1.9 / +9.7 against placement
+-4.3 / -8.2 from the covered priority and cog -1.3 / -1.1); phase7 +0.4
+on C and +0.5 on B with a crossing at risk.  phase2 is the one form
+that keeps every crossing on both suites with a count gain: the v43
+candidate (`phase_switch=true, phase_switch_resort_first=false,
+phase_switch_cover=true`, B and C; A keeps its manifest threshold).
+
+*The levelling choice on B* (`pool_item_search_mode = level`: when the
+ladder's own item would go on a top without meeting the tops beside it,
+the first of the next four pool items whose ladder pose does meet one
+goes instead): never fired on three B scenes (7-10 unlevel picks an
+episode, no alternative item's own pose levelled) and cost B c1 seed 1
+four items in ladder time.  *The level selector* (`level_selector`: the
+survivor of the same item on a top that meets a neighbour replaces an
+unlevel raised pick): no override on four scenes (8-15 unlevel picks an
+episode and no levelling survivor), and the per-survivor reading cost
+B c1 seed 1 four items again.  The offline count (28 % of the raised
+poses on C had a levelling orientation, 42 % on B had a levelling pool
+item laid flat) is of poses the ladder's candidate generation does not
+produce: the lever is a generator of levelling candidates (the support
+and orientation whose top meets the neighbouring top), as the stack
+option is a generator, not a selection among what the ladder proposes.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
