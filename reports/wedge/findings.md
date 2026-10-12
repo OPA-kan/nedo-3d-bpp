@@ -3298,6 +3298,67 @@ decided by the ladder's order of archetypes and the rungs' leading
 terms, and a tie-break, an arbiter within the rung and a veto on the
 pose each leave the curve where it was.
 
+**The phase change** (`scripts/phase_map.py`, `reports/bench/phase-v42.md`;
+the v42 records).  Every placement classed by the mechanism that made
+it -- the floor rungs, the raised rungs (terraces, merges, stacks,
+pocket soft), the rescue (physics resort, count pass, last resort,
+fallback) -- against the usable surface over the floor area read just
+before it.  Sample C, 1660 placements: with the surface over 0.25 the
+rescue makes 4-17 % of the placements; in the 0.15-0.25 band 32 %;
+under 0.15, 56-59 %.  Sample B: 3-4 % over 0.25, 26-34 % under.  Task A
+holds the floor rungs at 93 % down to 0.4 and 71 % to 0.25 (the plan),
+and breaks under 0.25 like the others.  So the rules do change inside
+the episode, the variable is the usable surface, and the boundary is
+0.15-0.25: above it the ladder's structure places, below it most
+placements come from the search over poses the ladder's rules refuse.
+The agent today switches on the count threshold (41 a container, fixed)
+and on the decline; the surface is a state reading, 1 ms a step, and
+independent of the stream's length.
+
+**Where the empty volume is made** (`scripts/phase_volume.py`,
+`scripts/piece_makers.py`; `reports/bench/phase-volume-v42*.md`,
+`reports/bench/pieces-v42-*.md`).  At the step where the usable surface
+first falls under 0.2 (C: step 25.5 of 34.6, B: 27.9 of 36.6) the free
+volume is 0.594 of the container on C and 0.550 on B, and of it 0.510
+(B 0.459) is already *pieces* -- volume over level patches too small
+for the smallest hard footprint -- against 0.069 (B 0.074) over a usable
+patch.  At the decline: free 0.436, pieces 0.404 (B 0.419 / 0.380).  The
+low phase places 9 items, uses up the usable 0.07 and takes 0.11 of the
+container out of the pieces; the pieces were made before the boundary.
+Letting a box count as placeable exactly on a top of its own footprint
+(the 0.40 x 0.55 window without the clearances) reads 0.465 at the
+boundary; bridging the 2.6 cm clearance gaps between neighbouring tops
+reads 0.502: neither is the artefact.  Charged placement by placement
+(the pieces volume after minus before, the part over the box's own
+footprint apart): 71-73 % of the pieces are made in the high phase
+(surface over 0.4), 7-8 % in the low phase, which consumes 17-20 %.  By
+archetype the maker is the flat max-footprint floor pose: C 172
+placements, +0.101 of the container each, 32 % of all pieces made; B
+267, +0.096, 48 %.  Terraces are net consumers (C -0.001, B -0.012 a
+placement), stacks about neutral, the shelf and the resort consumers.
+By class within those floor poses on C: the 0.55 x 0.40 x 0.24 box 69
+placements at +0.140 each, 59 % of it the column over its own top (0.40
+is 3 cm short of the window, so a lone one of these carries nothing
+until a second top meets it); the 0.65 x 0.45 x 0.25 box 69 at +0.077,
+20 % own top (its top holds the window alone; what it makes is the
+floor beside it); the 0.75 x 0.56 x 0.27 box 34 at +0.052, 11 %.  The
+standing floor poses make a sixth of what the flat ones make, because
+they are a sixth as many.
+
+So the 44 % is not the low phase's failure and not a problem a switch
+of rules at the boundary can reach (the switch is worth the 0.11 the
+rescue already takes, perhaps a little more).  It is made by the floor
+rung in the first twenty placements: the smallest class laid alone,
+its narrow top a column of pieces, and the strips the floor poses leave
+beside themselves.  The levelness line aimed at this and three forms
+left the curve where it was; the reading here is narrower than the
+curve -- the 0.55 x 0.40 box's own top is a tenth of the container an
+episode, and it has a specific remedy, a second top of its height within
+4 cm of it (a pair of the class side by side is 0.80 x 0.55, a window
+and more), which `level_key` could not express: its ring is one 2 cm
+cell wide and the settled clearance is 2.6 cm, so a flush neighbour
+reads as no neighbour.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
