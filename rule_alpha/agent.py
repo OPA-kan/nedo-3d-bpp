@@ -669,6 +669,7 @@ class RuleAlphaAgent:
         # the first item is always tried
         ladder_deadline = started + 0.6 * budget
         option_deadline = started + 0.85 * budget
+        self._option_deadline = option_deadline
         # strict accounting: no call is started that the slowest call of
         # this decision so far would carry past its deadline
         self._longest_call = 0.0
@@ -998,7 +999,8 @@ class RuleAlphaAgent:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(option_deadline):
                     break
-                decision = self._timed(self.stack_option.propose, self.board, profile)
+                decision = self._timed(self.stack_option.propose, self.board, profile,
+                                       deadline=option_deadline if getattr(self.config, "stack_deadline", False) else None)
                 if decision is not None:
                     self.last_decision = decision
                     action = self._emit(pool_index, decision.placement)
@@ -1221,7 +1223,8 @@ class RuleAlphaAgent:
         left out: a decline in a trial costs nothing)."""
         decision = self._timed(layer1.choose_for_item, board, profile, self.config, selector=self.selector)
         if decision is None and self.stack_option is not None:
-            decision = self._timed(self.stack_option.propose, board, profile)
+            decision = self._timed(self.stack_option.propose, board, profile,
+                                   deadline=getattr(self, "_option_deadline", None) if getattr(self.config, "stack_deadline", False) else None)
         return decision
 
     def _pool_item_continue(self, ordered: list, pool: list, deadline: float):

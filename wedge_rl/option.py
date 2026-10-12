@@ -231,7 +231,11 @@ class StackOption:
             return policy.logits(policy.embed(obs), feats).numpy()
 
     def propose(self, board: layer1.Board, profile: cls.ItemProfile, tower_min: float | None = None,
-                extra_clearance: float | None = None) -> layer1.Decision | None:
+                extra_clearance: float | None = None, deadline: float | None = None) -> layer1.Decision | None:
+        """``deadline``: a ``time.perf_counter`` value past which the candidate
+        generation stops with what it has (``stack_candidates``): on a board
+        of 55 small boxes the generation alone took 10 s of a 16 s call
+        (c-hard2-s0070, s0091) against the platform's 8 s limit."""
         from .stack import (stack_candidates, stack_grid_shape, stack_observation, stack_profile,
                             stack_reach)
 
@@ -251,7 +255,7 @@ class StackOption:
                 z_top = model.z_ceiling - self.headroom_reserve
             cands = stack_candidates(model, container, self.config, profile, self.max_candidates,
                                      mass=float(item.get("mass", 0.0)), tower_min=tower_min,
-                                     extra_clearance=extra_clearance, z_top=z_top)
+                                     extra_clearance=extra_clearance, z_top=z_top, deadline=deadline)
             if not cands:
                 continue
             shadow_limit = float(getattr(self.config, "overhang_shadow_area", 0.0))

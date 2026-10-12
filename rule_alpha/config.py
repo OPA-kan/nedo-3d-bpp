@@ -818,6 +818,14 @@ class RuleAlphaConfig:
 
     grid_rescue_cap: float = 2.0
 
+    stack_deadline: bool = False
+    """The stack option's candidate generation stops at the option's
+    deadline (0.85 of the policy budget) with what it has.  Without it
+    the generation on a board of 55 small boxes took 10 s of a 16 s
+    call (hard2 s0070 and s0091 under the v43 form) against the
+    platform's 8 s limit; the ladder and the resort keep their own
+    deadlines."""
+
     rescue_deep_first: bool = False
     """The rescue stages (the physics resort, the count pass, the grid
     rescue) try the deeper poses first, in bands of ``rescue_depth_band``
