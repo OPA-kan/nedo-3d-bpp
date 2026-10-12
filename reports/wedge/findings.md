@@ -3724,8 +3724,20 @@ continuous pricing on core C reads -0.22 (more covers, a higher
 centre of mass); the count reads +1.27 a scene with every crossing
 kept, which on the platform has been worth about a point a placed
 item (v43).  The attribution runs under `deterministic_budgets`
-(`v43det-`, `grid2det-`, `sealdet-hard2`) separate the design from the
-time noise.
+(`v43det-`, `grid2det-`, `sealdet-hard2`: the same scene gives the
+same episode) separate the design from the time noise, on hard2 C:
+
+| form | crossings (sample / stretch) | placed sample | placed stretch |
+|---|---:|---:|---:|
+| v43 | 35 (30 / 5) | 41.58 | 44.69 |
+| grid rescue alone | 38 (33 / 5) | -0.02 (12 up, 5 down) | +0.84 (9 up, 2 down) |
+| grid + deep-first + sealing pass | 39 (35 / 4) | +1.21 (23 up, 6 down) | +1.94 (17 up, 3 down) |
+
+The grid rescue alone buys three crossings in the sample band at no
+count; the order and the sealing pass add two more and the count
+(+1.23 a scene over the grid alone, 18 up and 10 down), and give one
+back in the stretch band.  Shipped as v44 on Tasks B and C with
+`stack_deadline` on every task.
 
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
