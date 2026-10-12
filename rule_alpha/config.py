@@ -1869,6 +1869,15 @@ class RuleAlphaConfig:
     a decision; this is its one-step form inside the time limit."""
 
     pool_item_search_k: int = 3
+    deterministic_budgets: bool = False
+    """For offline rollouts: the time budgets inside a policy call that
+    change decisions by the machine's speed -- the ladder loop's deadline
+    over a pool, the pocket guard's seconds, the pool item search's
+    seconds -- are lifted, so the same state and stream give the same
+    decisions on any machine (the physics resort keeps its own clock; the
+    analytic model has none).  Not for the platform: the budgets are what
+    keep the policy inside its limit there."""
+
     stack_level_candidates: bool = False
     """The stack option's candidate cap keeps the levelling poses first
     (``wedge_rl.stack.level_reading``: the pose's top meets a higher

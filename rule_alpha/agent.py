@@ -937,7 +937,8 @@ class RuleAlphaAgent:
         self._pool_exhausted = False
         if (getattr(self.config, "pool_item_search", False) and len(ordered) > 1
                 and not (self.plan_by_index and self.plan_source == "planner")):
-            hit = self._pool_item_search(ordered, pool, started + float(getattr(self.config, "pool_item_search_seconds", 3.5)))
+            hit = self._pool_item_search(ordered, pool, float("inf") if getattr(self.config, "deterministic_budgets", False)
+                                         else started + float(getattr(self.config, "pool_item_search_seconds", 3.5)))
             if hit is not None:
                 pool_index, decision = hit
                 self.last_decision = decision
@@ -1871,6 +1872,8 @@ class RuleAlphaAgent:
         return reserve + float(self.config.soft_headroom_slack)
 
     def _can_start(self, deadline: float) -> bool:
+        if getattr(self.config, "deterministic_budgets", False):
+            return True
         return time.perf_counter() + getattr(self, "_longest_call", 0.0) <= deadline
 
     def _timed(self, fn, *args, **kwargs):
@@ -1901,6 +1904,8 @@ class RuleAlphaAgent:
         started = float(getattr(self, "_policy_started", time.perf_counter()))
         deadline = min(started + 0.85 * float(self.config.policy_budget_seconds),
                        time.perf_counter() + float(getattr(self.config, "pocket_guard_seconds", 0.8)))
+        if getattr(self.config, "deterministic_budgets", False):
+            deadline = float("inf")
         if time.perf_counter() >= deadline:
             return placement
         try:
