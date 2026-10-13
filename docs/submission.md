@@ -663,6 +663,22 @@ the fill v43's to the fifth decimal, the other components within
 are the no-legal-pose kind; the stack deadline cost nothing (policy
 7.29 s) (`reports/submission/official-results.md`).
 
+Forty-sixth build (v46): v45 with Task A's plan replay sliding a
+planned pose by up to 2 cm (`plan_replay_nudge=0.02`, the shipped
+form had 0) and taking the settled height when the box comes to rest
+up to 3 cm under the planned one (`plan_replay_drop=0.03`).  On the
+hard A suite the plan replayed 0.33 of the placements and the ladder
+improvised from step 4 (median), crossed and missed scenes alike; the
+planner's plans reach the threshold where the episodes do not
+(a-hard-s0029: 19 planned of 31 against a threshold of 16, 10
+placed).  With the slide 0.61 and step 17: hard A crossings 24 -> 27,
+placed +3.3 a scene (a 4 cm slide loses 1.8); sample A placed +0.98
+(17 up, 8 down), soft +0.54, priority +0.06, 48 of 48, priced +0.18
+(cog -0.11), the shake topples 7 -> 12 over the 48 scenes.  B and C
+are v45's.  Official sample: A 32.11 / 25, B 29.59 / 26, C 26.44 /
+25 (as v45); policy max B 4.72 s, C 3.65 s, optimize 24 s
+(`official-sample-abc-v46.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

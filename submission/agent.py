@@ -41,7 +41,17 @@ PLAN_LAYOUTS = 1
 PLAN_VARIANTS = "first;after-hard"
 PLAN_STANDING = True
 REPLAY_CLEARANCE = 0.026
-REPLAY_NUDGE = 0.0
+# v46: the replay slides a planned pose by up to 2 cm to clear what
+# settled off the plan, and takes the settled height when the box comes
+# to rest up to 3 cm under the planned one.  With the slide at 0 the hard
+# A records replayed 0.33 of the plan and the ladder improvised from step
+# 4 (median); at 2 cm 0.61 and step 17.  Hard A crossings 24 -> 27,
+# placed +3.3 a scene; sample A placed +0.98 (17 up, 8 down), soft +0.54,
+# 48 of 48, priced +0.18; shake topples 7 -> 12 over the 48 scenes.  A
+# 4 cm slide loses (-1.8 a scene).  Only Task A replays a plan (findings,
+# "Task A on the hard suite").
+REPLAY_NUDGE = 0.02
+REPLAY_DROP = 0.03
 CONSERVATIVE_TRANSPORT = False
 COUNT_FIRST = True
 # v13 (not adopted): a standing box only where its bottom is at or below
@@ -106,6 +116,8 @@ TASK_A_SOFT_GALLERY = False
 # against v43's 55.24: the platform's edge episode fell back under the
 # threshold); the grid rescue, which acts only where v43 declines, and the
 # stack option's deadline stay.
+# v46: Task A's plan replay slides a planned pose by up to 2 cm and takes
+# the settled height (REPLAY_NUDGE, REPLAY_DROP).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -177,7 +189,7 @@ OVERRIDES = dict(
     # platform (cog -3.7, stability -4.2, placement -4.1) for nothing the
     # bench could see, so the replay is strict again and the production
     # transport rules are used: this reproduces the v5 build's decisions
-    plan_replay_clearance=REPLAY_CLEARANCE, plan_replay_nudge=REPLAY_NUDGE,
+    plan_replay_clearance=REPLAY_CLEARANCE, plan_replay_nudge=REPLAY_NUDGE, plan_replay_drop=REPLAY_DROP,
     conservative_transport=CONSERVATIVE_TRANSPORT,
     # the platform zeroes every component but the fill for an episode
     # that places too few items, and the five official runs order by the
