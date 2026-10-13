@@ -2592,6 +2592,16 @@ class RuleAlphaConfig:
     pose.  Measured in the official simulator (band_probe): every in-band
     and edge pose refused unlifted, placed lifted."""
 
+    band_lift_top: bool = True
+    """With ``band_lift``: also escape the mid-height ceiling rule (a top
+    within the ceiling margin plus the sweep clearance under the shelf
+    level's underside, in a container without a shelf) by commanding the
+    top ``band_lift`` over the level.  Off keeps the bottom band's escape
+    alone: the top rule's escapes are the ladder's (terrace-extension puts
+    a flat box on a stack whose top lands just under the level, 25 of the
+    29 on core B), so they change the course of the sample episodes from
+    the early steps; the bottom band's are mostly the rescue stages'."""
+
     plan_replay_clearance: float = 0.02
     """Clearance a planned pose is re-checked with online (the simulator's
     own margin is 0.015): the plan's gaps are the strict clearance plus

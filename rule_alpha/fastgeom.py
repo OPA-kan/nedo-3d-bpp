@@ -277,7 +277,8 @@ def band_lift_z(cz: float, hz: float, container: dict, config) -> float:
     # level is "under" it in float32.  Without a shelf there is nothing
     # above the level: the box is commanded with its top just over it, so
     # the rule does not fire and the usual lift applies.
-    if not bool(container.get("require_shelf", container.get("shelf", False))):
+    if bool(getattr(config, "band_lift_top", True)) and not bool(
+            container.get("require_shelf", container.get("shelf", False))):
         k = _constants()
         mid = height / 2.0 + buffer
         below = mid - (cz + hz)

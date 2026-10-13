@@ -2770,6 +2770,15 @@ class BandLiftTest(unittest.TestCase):
         self.assertEqual(layer1.validate(box, model, container, off), (True, "ok"))
         self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]), box.center[2], places=9)
 
+    def test_the_top_rule_can_be_switched_off_alone(self):
+        _off, on = self._configs()
+        no_top = dataclasses.replace(on, band_lift_top=False)
+        container, model, box = self._tall_board(self.MID - 0.02)
+        self.assertAlmostEqual(float(layer1.action_center(box, model, container, no_top)[2]), box.center[2], places=9)
+        self.assertEqual(layer1.validate(box, model, container, no_top), (False, "transport-hits-packed-item"))
+        container, model, box = self._board(self.LEVEL + 0.02)
+        self.assertEqual(layer1.validate(box, model, container, no_top), (True, "ok"))
+
     def test_under_a_real_shelf_there_is_no_escape(self):
         _off, on = self._configs()
         container, model, box = self._tall_board(self.MID - 0.02, shelf=True)
