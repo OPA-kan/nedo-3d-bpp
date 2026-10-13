@@ -683,6 +683,20 @@ cog +0.62 against v45, the other components within 0.04 and the
 placed fraction 0.6363; the A replay lowered the load and left the
 count where it was (`reports/submission/official-results.md`).
 
+Forty-seventh build (v47): v46 with the grid rescue's window on Task B
+(`grid_rescue_pool_seconds=1.5`): with a pool the physics resort ran
+to the budget plus 3 s and the grid rescue, capped for Task C's 8 s
+limit, never started (b-hard2-s0014 and s0021 ended with 62 and 841
+legal poses for the pool's items and no shadow check); now the resort
+stops 1.5 s before its deadline and the grid rescue runs to it.  On
+the hard2 B suite crossings 37-38 -> 40-41 over two runs each (the
+sample stratum +2, the stretch stratum +1); sample B 48 of 48 twice
+(placed -0.4 and -0.1 a scene); no call over 7.8 s against the 10 s
+limit.  Tasks A and C keep a pool of one and are untouched (the
+sub-agent's measurement, findings "Sub-agent B/C").  Official sample:
+A 32.11 / 25, B 29.59 / 26, C 26.44 / 25 (as v46); policy max B
+4.77 s, C 4.07 s, optimize 26 s (`official-sample-abc-v47.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
