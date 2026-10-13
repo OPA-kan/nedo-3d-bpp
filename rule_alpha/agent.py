@@ -664,6 +664,7 @@ class RuleAlphaAgent:
     def _policy_inner(self, observation: dict):
         started = time.perf_counter()
         self._policy_started = started
+        self._pool_size = len(observation.get("pool_list") or [])
         if getattr(self.config, "checkmate_guard", False):
             seen = getattr(self, "_seen_hard_classes", None)
             if seen is None:
@@ -2073,6 +2074,9 @@ class RuleAlphaAgent:
             elif part == "under":
                 gap = getattr(self, "_count_gap", None)
                 ok = gap is not None and gap >= int(getattr(self.config, "rescue_order_margin", 1))
+            elif part == "single":
+                # a pool of one: Tasks A and C (the design is mixed on B)
+                ok = int(getattr(self, "_pool_size", 1)) <= 1
             else:
                 ok = False
             if not ok:

@@ -120,6 +120,8 @@ TASK_A_SOFT_GALLERY = False
 # the settled height (REPLAY_NUDGE, REPLAY_DROP).
 # v47: on Task B the resort hands 1.5 s of its window to the grid rescue
 # (grid_rescue_pool_seconds, OVERRIDES).
+# v48: the deep-first order and the sealing pass of the rescue stages on
+# Task C in the low phase only (rescue_order_gate=low+single, OVERRIDES).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -379,6 +381,16 @@ OVERRIDES = dict(
     # (findings, "Sub-agent B/C").  Tasks A and C keep a pool of one and
     # are untouched.
     grid_rescue_pool_seconds=1.5,
+    # v48: the rescue stages' deep-first order and sealing pass (v44's
+    # design) on Task C only and only in the low phase of the load
+    # (rescue_order_gate=low+single): v44 applied them from the first rescue
+    # placement on and the platform's threshold-edge episode fell back
+    # under; gated to the low phase the early course is v47's.  hard2 C
+    # crossings 36 -> 42 (the sample stratum 31 -> 38), hard C 19 -> 26,
+    # sample C 48 of 48 with +1.12 placed; B is mixed (hard2 B flat, one
+    # sample B run lost a crossing at a ladder step before the gate) and
+    # keeps v47 (findings, "Sub-agent B/C round 2").
+    rescue_deep_first=True, rescue_seal_area=0.2, rescue_order_gate="low+single",
 )
 STACK_POLICY = "weights/stack"
 
