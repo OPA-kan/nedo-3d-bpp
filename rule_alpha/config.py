@@ -860,6 +860,34 @@ class RuleAlphaConfig:
     crossings C +14/-5, B +5/-0).  On, the shelf rung sits just before the
     floor rungs for normal-hard cargo (after the wall front)."""
 
+    soft_headroom_volume_cap: float = 0.0
+    """Task A: the soft headroom reserve is no more than this factor times
+    the soft volume still to come over the floor area (0 is off).  The
+    reserve is sized by the soft heights (the height under which
+    ``soft_headroom_volume_share`` of the soft volume fits), so a
+    manifest with five soft boxes reserves the same 0.45 m over the whole
+    floor as one with fifty: on a-hard-s0039 (54 items, 5 soft) the hard
+    rows stopped at 0.9-1.1 m under a 1.62 m ceiling (6 872 ``cap``
+    refusals) and the plan held 22 of the 28 the threshold asks.  At
+    1.2 the sample's manifests (a third soft) keep their reserve and
+    s0039's falls to about 0.13 m."""
+
+    plan_variants_semicolon: bool = False
+    """Split ``plan_variants`` on ";" as well.  The shipped arm specs carry
+    ``first;after-hard``, which the planner has read as one unknown
+    variant (the size-mixed default order) since v32; on, both orders
+    are planned and the plan score chooses."""
+
+    plan_priority_on_top: bool = False
+    """In a priority container the ``after-hard`` variant keeps its order
+    (the priority cargo over the normal hard rows) instead of the
+    priority-first order ``priority_cargo_first`` forces.  Nothing but
+    priority cargo may stand on priority cargo, so a priority floor
+    layer leaves the normal cargo nowhere: a-hard-s0040 (41 items, 8 of
+    them 0.80 x 0.60 x 0.50) planned 11 of the 21 the threshold asks,
+    3 851 ``covers-other-attribute`` refusals, half the floor at 0.2 to
+    0.5 m."""
+
     shelf_own_anchors: bool = True
     """Offer a shelf placement anchors measured from the shelf itself.
 

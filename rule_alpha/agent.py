@@ -1872,12 +1872,22 @@ class RuleAlphaAgent:
                 reserve = h
                 break
         factor = float(getattr(self.config, "soft_headroom_volume_factor", 0.0) or 0.0)
-        if factor > 0.0 and self.board is not None and self.board.models:
+        cap_k = float(getattr(self.config, "soft_headroom_volume_cap", 0.0) or 0.0)
+        if (factor > 0.0 or cap_k > 0.0) and self.board is not None and self.board.models:
             # the layer the soft volume needs over the whole floor, at the
             # packing density the factor allows for
             volume = sum(pr.orientations[0].dx * pr.orientations[0].dy * pr.orientations[0].dz for pr in soft)
-            area = sum(max(m.floor_rect.area, 1e-9) for m in self.board.models)
-            reserve = max(reserve, factor * volume / area)
+            models = ([self.board.model(container_idx)] if container_idx is not None
+                      and getattr(self.config, "soft_headroom_per_container", False) and len(self.board.models) > 1
+                      else list(self.board.models))
+            area = sum(max(m.floor_rect.area, 1e-9) for m in models)
+            if factor > 0.0:
+                reserve = max(reserve, factor * volume / area)
+            if cap_k > 0.0:
+                # and no more than the soft volume spread over the floor
+                # allows for (config.soft_headroom_volume_cap): a manifest
+                # with five soft boxes does not need the whole top layer
+                reserve = min(reserve, cap_k * volume / area)
         return reserve + float(self.config.soft_headroom_slack)
 
     def _can_start(self, deadline: float) -> bool:

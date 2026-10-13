@@ -76,7 +76,12 @@ def planning_order(profiles: list, config, has_priority_container: bool, priorit
     else:
         soft = sorted((p for p in profiles if p.is_soft),
                       key=lambda p: (min(o.dz for o in p.orientations), -volume(p), p.index))
-    if has_priority_container and getattr(config, "priority_cargo_first", False):
+    if (has_priority_container and getattr(config, "priority_cargo_first", False)
+            and not (priority == "after-hard" and getattr(config, "plan_priority_on_top", False))):
+        # (plan_priority_on_top: the after-hard variant keeps its order in
+        # a priority container too, the priority cargo over the normal
+        # hard rows, so the floor is not a priority layer nothing may
+        # stand on)
         hard = [p for p in hard if p.is_prioritized] + [p for p in hard if not p.is_prioritized]
         return [p.index for p in hard] + [p.index for p in soft]
     if priority == "first":
@@ -487,7 +492,8 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
 
     # "+" as well as "," between variants: an arm spec's overrides are
     # themselves comma-separated
-    orders = [v for v in re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard,mixed,last"))) if v]
+    split = r"[,+|;]" if getattr(config, "plan_variants_semicolon", False) else r"[,+|]"
+    orders = [v for v in re.split(split, str(getattr(config, "plan_variants", "after-hard,mixed,last"))) if v]
     layouts = max(1, int(getattr(config, "plan_layouts", 1)))
     # the size order of the hard cargo as a variant too ("small": the
     # smallest first, count_first; "big": the biggest first): on the
