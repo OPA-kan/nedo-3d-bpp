@@ -736,6 +736,10 @@ def action_center(box: AABB, model: ContainerModel, container: dict, config):
         return centre
     if abs(float(box.minimum[2]) - model.z_floor) <= config.contact_tolerance:
         centre[2] += config.floor_action_lift
+    elif float(getattr(config, "band_lift", 0.0) or 0.0) > 0.0:
+        from . import fastgeom
+
+        centre[2] = fastgeom.band_lift_z(float(box.center[2]), float(box.size[2]) / 2.0, container, config)
     return centre
 
 
@@ -777,12 +781,17 @@ def _validate_reference(box: AABB, model: ContainerModel, container: dict, confi
     if not model.inside(commanded, config.inclusion_clearance):
         return False, "outside-container"
 
+    # the sweep of a band-lifted pose starts from the lifted box (the
+    # production's sample rules read the box's own height)
+    from . import fastgeom
+
+    swept = fastgeom._swept_box(box, commanded, container, config)
     if getattr(config, "conservative_transport", True):
         from .transport import transport_samples as conservative_samples
 
-        samples = conservative_samples(box, container)
+        samples = conservative_samples(swept, container)
     else:
-        samples = transport_samples(box, container)
+        samples = transport_samples(swept, container)
     if samples:
         transport_z = float(samples[0].center[2])
         transported = AABB(

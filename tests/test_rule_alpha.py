@@ -2663,3 +2663,78 @@ class Hard2SuiteTest(unittest.TestCase):
         self.assertEqual(via.items, a.items)
         self.assertEqual(via.name, "b-hard2-s0007")
         self.assertIn(via.look_ahead, (3, 5, 10, 20))
+
+
+class BandLiftTest(unittest.TestCase):
+    """The simulator's zero-lift band above the shelf level (config.band_lift).
+
+    A box whose bottom is within 5 cm above ``height/2 + thickness`` is
+    carried in at its own height, so one resting on a packed item there
+    touches its support on the way in and is refused; on the platform the
+    band's edges are decided in float32, and a bottom exactly on an edge is
+    inside there and outside in float64 (the ``transport`` endings of the
+    hard suites).  With ``band_lift`` the pose is commanded above the band
+    and the sweep is modelled from there."""
+
+    LEVEL = 1.61 / 2.0 + 0.04  # the sample container's shelf level, no shelf
+
+    def _board(self, top):
+        container = make_container_dict(index=0, **ULD)
+        h = top - 0.04
+        container["packed_items"] = [{
+            "index": 0, "length": 0.6, "width": 0.45, "height": h, "mass": 10.0,
+            "is_soft": False, "is_prioritized": False, "orientation": 0,
+            "dims": (0.6, 0.45, h), "pos": (0.3, 0.2, 0.04 + h / 2.0), "layer": 1,
+        }]
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        box = AABB((0.3, 0.2, top + 0.15), (0.6, 0.45, 0.3), "candidate")
+        return container, model, box
+
+    def _configs(self):
+        off = dataclasses.replace(DEFAULT_CONFIG, conservative_transport=False, fast_validate=True)
+        on = dataclasses.replace(off, band_lift=0.003)
+        return off, on
+
+    def test_a_stack_in_the_band_is_refused_without_the_lift_and_placed_with_it(self):
+        off, on = self._configs()
+        container, model, box = self._board(self.LEVEL + 0.02)
+        self.assertEqual(layer1.validate(box, model, container, off), (False, "transport-hits-packed-item"))
+        self.assertEqual(layer1.validate(box, model, container, on), (True, "ok"))
+        z = float(layer1.action_center(box, model, container, on)[2])
+        self.assertAlmostEqual(z - 0.15, self.LEVEL + 0.053, places=9)
+        self.assertAlmostEqual(float(layer1.action_center(box, model, container, off)[2]), box.center[2], places=9)
+
+    def test_the_edges_are_lifted_too(self):
+        _off, on = self._configs()
+        for top in (self.LEVEL, self.LEVEL + 0.05, self.LEVEL - 0.002, self.LEVEL + 0.052):
+            container, model, box = self._board(top)
+            z = float(layer1.action_center(box, model, container, on)[2])
+            self.assertAlmostEqual(z - 0.15, self.LEVEL + 0.053, places=9, msg=f"top {top}")
+            self.assertEqual(layer1.validate(box, model, container, on), (True, "ok"), msg=f"top {top}")
+
+    def test_outside_the_band_nothing_changes(self):
+        off, on = self._configs()
+        for top in (self.LEVEL - 0.01, self.LEVEL + 0.06, 0.44):
+            container, model, box = self._board(top)
+            self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]), box.center[2],
+                                   places=9, msg=f"top {top}")
+            self.assertEqual(layer1.validate(box, model, container, on),
+                             layer1.validate(box, model, container, off), msg=f"top {top}")
+
+    def test_the_fast_path_and_its_oracles_agree_with_the_lift(self):
+        from rule_alpha import fastgeom
+
+        _off, on = self._configs()
+        slow = dataclasses.replace(on, fast_validate=False)
+        for top in (self.LEVEL + 0.02, self.LEVEL, self.LEVEL + 0.05, self.LEVEL - 0.01, self.LEVEL + 0.06):
+            container, model, box = self._board(top)
+            fast = layer1.validate(box, model, container, on)
+            v1 = fastgeom._validate_v1(box, model, container, on, layer1.action_center, stability.is_stable)
+            reference = layer1.validate(box, model, container, slow)
+            self.assertEqual(fast, v1, msg=f"top {top}")
+            self.assertEqual(fast, reference, msg=f"top {top}")
+            self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]),
+                                   float(layer1.action_center(box, model, container, slow)[2]), places=9)
+
+    def test_off_by_default(self):
+        self.assertEqual(DEFAULT_CONFIG.band_lift, 0.0)

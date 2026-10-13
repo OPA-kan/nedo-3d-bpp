@@ -79,6 +79,21 @@ def _within_clearance(smin, smax, omin, omax, clearance) -> np.ndarray:
     return np.linalg.norm(gaps, axis=2) < float(clearance) - EPS
 
 
+def _swept_box(box: AABB, commanded: AABB, container: dict, config) -> AABB:
+    """The box the production sample rules read: the box itself, or, when
+    the commanded pose is the band lift (``band_lift_z``), the box raised
+    to it -- the simulator's band and ceiling rules read the commanded
+    height.  The floor and shelf lifts are the production's own and its
+    rules already apply them."""
+    if float(getattr(config, "band_lift", 0.0) or 0.0) <= 0.0:
+        return box
+    cz = float(box.center[2])
+    band_z = band_lift_z(cz, float(box.size[2]) / 2.0, container, config)
+    if abs(band_z - cz) <= 1e-9 or abs(float(commanded.center[2]) - band_z) > 1e-9:
+        return box
+    return AABB(center=(float(box.center[0]), float(box.center[1]), band_z), size=box.size, name=box.name)
+
+
 def _validate_v1(box: AABB, model, container: dict, config, action_center_fn, stability_fn):
     """The first vectorised form: the reference's structure with cached
     obstacle arrays.  Kept as the oracle the faster form is tested against."""
@@ -93,12 +108,15 @@ def _validate_v1(box: AABB, model, container: dict, config, action_center_fn, st
     if not model.inside(commanded, config.inclusion_clearance):
         return False, "outside-container"
 
+    # the sweep of a band-lifted pose starts from the lifted box: the
+    # production's sample rules read the box's own height
+    swept = _swept_box(box, commanded, container, config)
     if getattr(config, "conservative_transport", True):
         from .transport import transport_samples as conservative_samples
 
-        samples = conservative_samples(box, container)
+        samples = conservative_samples(swept, container)
     else:
-        samples = transport_samples(box, container)
+        samples = transport_samples(swept, container)
     if samples:
         transport_z = float(samples[0].center[2])
         transported = AABB(
@@ -230,16 +248,43 @@ def _sim_action_z(cx, cy, cz, hx, hy, hz, obs):
     return cz
 
 
+BAND_EDGE = 0.003
+"""Slack at the edges of the simulator's zero-lift band (``band_lift_z``):
+the band test runs in float32 on the platform, and a bottom within this
+of an edge can fall on either side there."""
+
+
+def band_lift_z(cz: float, hz: float, container: dict, config) -> float:
+    """``config.band_lift``: the commanded centre z of a box whose bottom
+    lies in the simulator's zero-lift band above the shelf level (within
+    ``BAND_EDGE`` of its edges), raised so the bottom sits ``band_lift``
+    above the band's top; the box's own z otherwise.  The caller applies
+    it only when the simulator lifts nothing itself (floor and shelf
+    contacts have their own lifts)."""
+    lift = float(getattr(config, "band_lift", 0.0) or 0.0)
+    if lift <= 0.0:
+        return cz
+    level = (float(container["height"]) / 2.0 + float(container["thickness"])
+             + float(container.get("buffer", 0.0)))
+    above = (cz - hz) - level
+    if -BAND_EDGE <= above <= 0.05 + BAND_EDGE:
+        return level + 0.05 + lift + hz
+    return cz
+
+
 def action_center(box: AABB, model, container: dict, config):
     """``layer1.action_center`` without the AABB properties: the simulator's
     release height, plus rule-alpha's own floor lift when the simulator
-    applied none."""
+    applied none, plus the band lift (``band_lift_z``) when neither did."""
     obs = obstacles(container)
     cx, cy, cz = (float(v) for v in box.center)
     hx, hy, hz = (float(v) / 2.0 for v in box.size)
     z = _sim_action_z(cx, cy, cz, hx, hy, hz, obs)
-    if abs(z - cz) <= 1e-9 and abs((cz - hz) - model.z_floor) <= config.contact_tolerance:
-        z = z + config.floor_action_lift
+    if abs(z - cz) <= 1e-9:
+        if abs((cz - hz) - model.z_floor) <= config.contact_tolerance:
+            z = z + config.floor_action_lift
+        else:
+            z = band_lift_z(cz, hz, container, config)
     return np.array([cx, cy, z], dtype=np.float64)
 
 
@@ -305,8 +350,13 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
     # the commanded pose (rule-alpha's action centre) and the sweep's height
     sim_z = _sim_action_z(cx, cy, cz, hx, hy, hz, obs)
     cmd_z = sim_z
-    if abs(sim_z - cz) <= 1e-9 and abs((cz - hz) - model.z_floor) <= config.contact_tolerance:
-        cmd_z = sim_z + config.floor_action_lift
+    if abs(sim_z - cz) <= 1e-9:
+        if abs((cz - hz) - model.z_floor) <= config.contact_tolerance:
+            cmd_z = sim_z + config.floor_action_lift
+        else:
+            # the band lift is the commanded height, and the simulator's
+            # own rules (the band, the ceiling clip) read that height
+            sim_z = cmd_z = band_lift_z(cz, hz, container, config)
     wall = float(config.settled_wall_clearance)
     if not _inside(model, cx, cy, cz, hx, hy, hz, wall, 0.0):
         return False, "settled-pose-outside"

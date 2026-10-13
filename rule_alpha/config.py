@@ -2573,6 +2573,25 @@ class RuleAlphaConfig:
     rules within 3 mm of their edges (``rule_alpha/transport.py``).  Off
     reproduces the production model's exact rules (the v5 build)."""
 
+    band_lift: float = 0.0
+    """Escape the simulator's zero-lift band upward.  The simulator carries
+    a box in at its own height (no 8 cm lift) when its bottom is within
+    5 cm above the shelf level (``height/2 + thickness + buffer``, tested in
+    every container, shelf or not); a box resting on a packed item there
+    touches its support on the way in and is refused (``is_valid`` False,
+    the episode ends).  The rules are evaluated in float32 on the
+    platform, so a bottom exactly at the band's edges (0 and 5 cm above
+    the level) is inside there and outside in this model's float64: the
+    hard suites' ``transport`` endings sit on those edges to the
+    millimetre (b-hard-s0001 at step 17 of 61, b-hard2-s0031 one short of
+    its threshold).  Positive: a pose whose bottom lies within the band
+    (3 mm of slack at both edges) is commanded with its bottom this far
+    above the band's top -- the shelf's own 5.1 cm lift is the same escape
+    with 1 mm -- so the simulator lifts it the usual 8 cm, sweeps there,
+    and drops it; the sweep and the inclusion are modelled at the lifted
+    pose.  Measured in the official simulator (band_probe): every in-band
+    and edge pose refused unlifted, placed lifted."""
+
     plan_replay_clearance: float = 0.02
     """Clearance a planned pose is re-checked with online (the simulator's
     own margin is 0.015): the plan's gaps are the strict clearance plus
