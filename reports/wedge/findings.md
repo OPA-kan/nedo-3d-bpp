@@ -3904,6 +3904,23 @@ it, and the multi-move reading is what the session's learning
 experiments showed to be unpredictable from the state.  Off; not
 measured on CI.
 
+**A learned gate for the sealing design** (`scripts/gate_learn.py`: at
+every third step of the baseline C episodes on hard2 and the sample
+suite, the usable surface ratio, the free floor share, the placed
+count over 41 and the container count; the label is the episode
+ending under the count threshold; 1 971 states from 144 episodes, 60
+of them under; logistic, leave-scenes-out).  AUC 0.63.  The weights
+are the free floor 0.45, the placed count 0.43, the containers 0.50
+and the usable surface 0.03: the model reads the scene's size, not
+the position's risk.  At p > 0.5 it opens on 6 % of the sample
+suite's steps and on 38 % of the hard2 steps of episodes that cross
+against 49 % of those that end under, from a tenth of the episode on;
+the hand gate (usable surface under 0.2) opens on 30 % of the sample
+steps and 20 % of hard2's, late.  Within hard2 the fate is not
+separable from the state mid-episode (0.38 against 0.49), as every
+multi-step reading in this session has found; the low-phase gate
+stays the gate.
+
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
 0.1 (the settle's noise).  The grid rescue placed nothing there: the
