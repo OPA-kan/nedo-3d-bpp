@@ -877,6 +877,21 @@ class RuleAlphaConfig:
     second pass, run only when no other pose stood; 0 is off.  Read with
     a pool too (the shade ordering is not)."""
 
+    rescue_order_gate: str = ""
+    """When ``rescue_deep_first`` and ``rescue_seal_area`` act: "" in every
+    rescue call (their own semantics); otherwise a "+"-joined set of
+    conditions that must all hold at the call -- "low" the low phase (a
+    container's usable surface under ``phase_switch_surface``, needs
+    ``phase_switch``), "count" the count pass (and the grid rescue after
+    it), "under" the agent's count estimate at least
+    ``rescue_order_margin`` items under the threshold.  The ungated design
+    reorders the rescue's poses from the first rescue placement on and so
+    changes the course of every episode the rescue touches (v44: the
+    platform's one threshold-edge episode fell back under); gated to the
+    low phase the early course is the baseline's."""
+
+    rescue_order_margin: int = 1
+
     hard_shelf_first: bool = False
     """Hard cargo asks the shelf *before* the floor rungs, not after them.
 

@@ -964,9 +964,11 @@ class RuleAlphaAgent:
         # -- the count pass's rules apply (see _under_count) and the physics
         # resort speaks before the ladder
         self._phase_low = False
+        self._gate_low = None  # config.rescue_order_gate's low phase, read once a call
         self._count_cover = True
         if getattr(self.config, "phase_switch", False) and not exhausted:
             self._phase_low = self._low_phase(containers)
+            self._gate_low = self._phase_low
             self._under_count(containers)  # sets _count_cover for the phase
             if (self._phase_low and getattr(self.config, "phase_switch_resort_first", True)
                     and bool(getattr(self.config, "physics_resort", False))
@@ -2017,6 +2019,7 @@ class RuleAlphaAgent:
         threshold = self._count_threshold()
         placed = sum(len(c.get("packed_items", [])) for c in containers)
         really_under = threshold is not None and placed < threshold
+        self._count_gap = (threshold - placed) if threshold is not None else None
         self._really_under = really_under
         # the covers (the cover rule's refusals) are allowed under the
         # threshold proper; in the low phase above it only with
@@ -2048,6 +2051,34 @@ class RuleAlphaAgent:
                 continue
             value += 0.9 if item.get("is_soft") else (2.9 if item.get("is_prioritized") else 0.3)
         return value >= float(getattr(self.config, "count_mode_min_value", 2.0))
+
+    def _rescue_order(self, count: bool) -> tuple[float, bool]:
+        """(rescue_seal_area, rescue_deep_first) for this rescue call, after
+        config.rescue_order_gate: (0.0, False) where the gate is shut."""
+        seal = float(getattr(self.config, "rescue_seal_area", 0.0) or 0.0)
+        deep = bool(getattr(self.config, "rescue_deep_first", False))
+        gate = str(getattr(self.config, "rescue_order_gate", "") or "")
+        if not gate or not (seal > 0.0 or deep):
+            return seal, deep
+        for part in gate.split("+"):
+            part = part.strip()
+            if part == "low":
+                # read here too where the phase switch did not (an
+                # exhausted pool on Task B), without its effects
+                if getattr(self, "_gate_low", None) is None:
+                    self._gate_low = bool(self._low_phase([]))
+                ok = bool(self._gate_low)
+            elif part == "count":
+                ok = bool(count)
+            elif part == "under":
+                gap = getattr(self, "_count_gap", None)
+                ok = gap is not None and gap >= int(getattr(self.config, "rescue_order_margin", 1))
+            else:
+                ok = False
+            if not ok:
+                return 0.0, False
+        self.phase_stats["rescue_order"] = self.phase_stats.get("rescue_order", 0) + 1
+        return seal, deep
 
     def _physics_resort(self, ordered: list, pool: list, deadline: float, count: bool = False) -> dict | None:
         """The resort under its own cover tolerance (config.resort_cover_tolerance):
@@ -2147,8 +2178,7 @@ class RuleAlphaAgent:
             queue = sorted(ordered, key=lambda pp: 0 if pp[1].is_soft else 1)
         covering: dict[int, bool] = {}
         sealed: dict[int, float] = {}
-        seal_area = float(getattr(strict, "rescue_seal_area", 0.0) or 0.0)
-        deep_first = bool(getattr(strict, "rescue_deep_first", False))
+        seal_area, deep_first = self._rescue_order(count)
         # with a sealing area set, two passes: the poses that wall off less
         # than that much usable surface behind them first, over every item
         # and container, and the sealing ones only when none of those stood
@@ -2559,14 +2589,14 @@ class RuleAlphaAgent:
                         poses.append((cover, round(bottom, 2), -round(support, 2), -round(y, 3), round(x, 3), pose))
                 if not poses:
                     continue
-                seal_area = float(getattr(strict, "rescue_seal_area", 0.0) or 0.0)
+                seal_area, deep_first = self._rescue_order(count)
                 if seal_area > 0.0:
                     from wedge_rl.stack import shade_area, skyline
 
                     sky = skyline(container, model)
                     for t in poses:
                         t[5].margin = shade_area(t[5].box, sky, float(model.z_ceiling))
-                if getattr(strict, "rescue_deep_first", False):
+                if deep_first:
                     band = float(getattr(strict, "rescue_depth_band", 0.25))
                     poses.sort(key=lambda t: (t[0], -int((float(t[5].box.center[1]) - float(rect.y_min)) / band), t[1], t[2], t[3], t[4]))
                 else:
