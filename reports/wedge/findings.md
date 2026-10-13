@@ -3756,6 +3756,44 @@ that decides; the hard suites, built for crossings, measure a
 different population, and the sample suite's 48 of 48 hides the
 edge.
 
+**Task A on the hard suite: what stops the feasible scenes.**  The A
+agent orders the manifest, so the threshold's bound is the volume of
+the smallest threshold items over the containers' (need_small,
+`scripts/hard_why.py` on `a-*` records): under 30 % the v39 A form
+crosses 25 of 36, at 30-40 % 1 of 8, above 40 % 0 of 4 (26 of 48;
+re-measured as `abase-hard-a`: 24 of 48, the A episodes move too).
+The misses are not the plan's size: through the agent's own optimize
+the planner reaches the threshold on a-hard-s0029 (19 planned of 31,
+threshold 16; the episode placed 10), 92 of 144 on s0033 (threshold
+73, placed 71), 47 on s0047 (49, placed 46).  The soft headroom
+slack is inert (0.05 / 0.09 / 0.13: the same plans to the item).
+The loss is the replay: on the hard A records only 0.33 of the
+placements replay the plan and the ladder improvises from step 4
+(median) on, crossed and missed scenes alike; the shipped A form
+replays with `plan_replay_nudge=0.0` (the config default is 0.02),
+so a neighbour that settled a few millimetres off fails the next
+planned pose and the plan is gone.  Measured on hard A against
+`abase-hard-a` (48 scenes, the official 150 s budget):
+
+| form | crossings | placed | replayed share | first improvisation (median) |
+|---|---:|---:|---:|---:|
+| abase (v39 A form) | 24 | 44.75 | 0.33 | 4 |
+| `plan_replay_nudge=0.02` | 25 | +3.46 (21 up, 8 down) | 0.61 | 17.5 |
+| `soft_headroom_slack=0.09` | 25 | +0.38 | | |
+| both | 25 | +2.56 | | |
+
+The nudge doubles the replay and adds 3.5 items a scene; the
+crossings move by one because most misses sit 3-20 under the
+threshold (ten scenes within 6 after the nudge: s0031 47/48, s0038
+36/37, s0019 62/64, s0016 39/41, s0047 46/49, s0013 57/61, s0039,
+s0008, s0040, s0029).  Where a replayed plan loses to the ladder's
+improvisation (a-hard-s0046 63 -> 51, the plan replayed from step 9
+where the base improvised) the plan itself is the weaker play.
+Policy max 6.54 s.  The variants `plan_prefer_planner`,
+`plan_replay_drop=0.03` and a 4 cm nudge (`aprefer-`, `adrop-`,
+`anudge4-hard-a`) and the sample suite (`abase-`, `anudge-core-a`)
+are the next reads.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;
