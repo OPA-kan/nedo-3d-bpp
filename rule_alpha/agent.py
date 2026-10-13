@@ -2248,6 +2248,8 @@ class RuleAlphaAgent:
                                                   shade.get(id(c), 0),
                                                   round(c.bottom, 2), -round(c.support_ratio, 2),
                                                   -round(float(c.box.center[1]), 3), round(float(c.box.center[0]), 3)))
+                    if getattr(strict, "checkmate_guard", False):
+                        cands = self._checkmate_order(cands, pool, pool_index, profile, container_idx)
                     generated[key] = cands
                 if not cands:
                     continue
@@ -2295,6 +2297,72 @@ class RuleAlphaAgent:
         key = "count_mode_tried" if count else "resort_tried"
         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
         return None
+
+    def _checkmate_windows(self, pool: list, pool_index: int) -> list:
+        """The next items' (footprint, height) windows: the rest of the pool
+        on Task B, the two commonest hard classes seen so far on Task C."""
+        windows = []
+        if len(pool) > 1:
+            for j, item in enumerate(pool):
+                if j == pool_index:
+                    continue
+                dims = sorted((float(item["length"]), float(item["width"]), float(item["height"])))
+                windows.append(((dims[1], dims[2]), dims[0]))
+        else:
+            seen = getattr(self, "_seen_hard_classes", None) or {}
+            classes = sorted(seen.items(), key=lambda kv: -kv[1])[:2] or [((0.55, 0.40, 0.24), 1)]
+            for dims, _n in classes:
+                d = sorted(dims)
+                windows.append(((d[1], d[2]), d[0]))
+        return windows
+
+    def _checkmate_reader(self, container_idx: int, windows: list, soft_item: bool):
+        """A function box -> the number of windows with a usable patch left
+        after the box, on the container's load (rule_alpha.surface)."""
+        from .surface import _Load
+        from ._reuse import packed_aabbs_local
+
+        cell = float(getattr(self.config, "checkmate_guard_cell", 0.04))
+        load = _Load(self.board.model(container_idx), cell)
+        for box, soft, _p in packed_aabbs_local(self.board.container(container_idx)):
+            load.add(box, soft)
+        gap_cells = max(0, int(round(0.05 / cell / 2.0)))
+
+        def places(box) -> int:
+            extra = (load.mask(box), float(box.minimum[2]), float(box.maximum[2]), soft_item)
+            return sum(1 for footprint, height in windows if load.usable(footprint, height, extra, gap_cells).any())
+        return places
+
+    def _checkmate_order(self, cands: list, pool: list, pool_index: int, profile, container_idx: int, key=None) -> list:
+        """The rescue's candidates with the checkmate guard applied: when
+        the first candidate leaves no place for any next item and one of
+        the first checkmate_guard_k does, those that do go first (stable);
+        otherwise the order stands."""
+        if len(cands) < 2:
+            return cands
+        windows = self._checkmate_windows(pool, pool_index)
+        if not windows:
+            return cands
+        k = int(getattr(self.config, "checkmate_guard_k", 6))
+        budget = float(getattr(self.config, "checkmate_guard_seconds", 0.5))
+        t0 = time.perf_counter()
+        stats = self.shadow_stats
+        stats["checkmate_checks"] = stats.get("checkmate_checks", 0) + 1
+        places = self._checkmate_reader(container_idx, windows, bool(profile.is_soft))
+        box_of = key or (lambda c: c.box)
+        head = cands[:k]
+        scores = []
+        for c in head:
+            if time.perf_counter() - t0 > budget:
+                break
+            scores.append(places(box_of(c)))
+        if not scores or scores[0] > 0 or max(scores) == 0:
+            return cands
+        stats["checkmate_triggers"] = stats.get("checkmate_triggers", 0) + 1
+        keep = [c for c, n in zip(head, scores) if n > 0]
+        rest = [c for c, n in zip(head, scores) if n == 0] + head[len(scores):] + cands[k:]
+        stats["checkmate_overrides"] = stats.get("checkmate_overrides", 0) + 1
+        return keep + rest
 
     def _checkmate_guard(self, decision, pool: list, pool_index: int, profile):
         """The last choice before a checkmate: when the ladder's pick would
@@ -2505,6 +2573,8 @@ class RuleAlphaAgent:
                     poses.sort(key=lambda t: t[:5])
                 failed: dict[tuple, int] = {}
                 ordered_poses = ([t for t in poses if t[5].margin < seal_area] + [t for t in poses if t[5].margin >= seal_area]) if seal_area > 0.0 else poses
+                if getattr(strict, "checkmate_guard", False):
+                    ordered_poses = self._checkmate_order(list(ordered_poses), pool, pool_index, profile, container_idx, key=lambda t: t[5].box)
                 for cover, _b, _s, _y, _x, pose in ordered_poses:
                     if not room() or tried >= tries_limit:
                         break
