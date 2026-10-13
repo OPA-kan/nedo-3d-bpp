@@ -664,6 +664,14 @@ class RuleAlphaAgent:
     def _policy_inner(self, observation: dict):
         started = time.perf_counter()
         self._policy_started = started
+        if getattr(self.config, "checkmate_guard", False):
+            seen = getattr(self, "_seen_hard_classes", None)
+            if seen is None:
+                seen = self._seen_hard_classes = {}
+            for item in observation.get("pool_list", []) or []:
+                if not item.get("is_soft"):
+                    key = (round(float(item["length"]), 3), round(float(item["width"]), 3), round(float(item["height"]), 3))
+                    seen[key] = seen.get(key, 0) + 1
         budget = float(self.config.policy_budget_seconds)
         # the ladder may use most of the budget, the options what is left;
         # the first item is always tried
@@ -988,6 +996,8 @@ class RuleAlphaAgent:
                                    selector=self.selector)
             if decision is None:
                 continue
+            if getattr(self.config, "checkmate_guard", False):
+                decision = self._checkmate_guard(decision, pool, pool_index, profile)
             self.last_decision = decision
             action = self._emit(pool_index, self._pocket_guarded(pool, pool_index, profile, decision))
             if action is not None:
@@ -2285,6 +2295,88 @@ class RuleAlphaAgent:
         key = "count_mode_tried" if count else "resort_tried"
         self.shadow_stats[key] = self.shadow_stats.get(key, 0) + tried
         return None
+
+    def _checkmate_guard(self, decision, pool: list, pool_index: int, profile):
+        """The last choice before a checkmate: when the ladder's pick would
+        leave no usable surface for any of the next items -- the rest of
+        the pool on Task B, the hard classes seen so far on Task C -- and
+        one of the rung's other survivors would leave some, that survivor
+        takes its place (config.checkmate_guard).  The reading is the
+        usable-surface instrument (rule_alpha.surface): a level patch the
+        item's flattest footprint fits with the clearances and its height
+        free above.  Nothing changes while the pick keeps a place for a
+        next item, so the course of an episode is the ladder's until the
+        board is one move from the decline."""
+        from .surface import _Load
+        from ._reuse import packed_aabbs_local
+
+        chosen = decision.chosen
+        survivors = [c for c in (decision.survivors or []) if c is not chosen]
+        if chosen is None or not survivors:
+            return decision
+        k = int(getattr(self.config, "checkmate_guard_k", 6))
+        budget = float(getattr(self.config, "checkmate_guard_seconds", 0.5))
+        cell = float(getattr(self.config, "checkmate_guard_cell", 0.04))
+        t0 = time.perf_counter()
+        stats = self.shadow_stats
+        stats["checkmate_checks"] = stats.get("checkmate_checks", 0) + 1
+        windows = []
+        if len(pool) > 1:
+            for j, item in enumerate(pool):
+                if j == pool_index:
+                    continue
+                dims = sorted((float(item["length"]), float(item["width"]), float(item["height"])))
+                windows.append(((dims[1], dims[2]), dims[0]))
+        else:
+            seen = getattr(self, "_seen_hard_classes", None) or {}
+            classes = sorted(seen.items(), key=lambda kv: -kv[1])[:2] or [((0.55, 0.40, 0.24), 1)]
+            for dims, _n in classes:
+                d = sorted(dims)
+                windows.append(((d[1], d[2]), d[0]))
+        if not windows:
+            return decision
+        ci = int(decision.placement.container_idx)
+        model = self.board.model(ci)
+        load = _Load(model, cell)
+        for box, soft, _p in packed_aabbs_local(self.board.container(ci)):
+            load.add(box, soft)
+        gap_cells = max(0, int(round(0.05 / cell / 2.0)))
+        soft_item = bool(profile.is_soft)
+
+        def places(c) -> int:
+            extra = (load.mask(c.box), float(c.box.minimum[2]), float(c.box.maximum[2]), soft_item)
+            n = 0
+            for footprint, height in windows:
+                if load.usable(footprint, height, extra, gap_cells).any():
+                    n += 1
+            return n
+
+        if places(chosen) > 0:
+            return decision
+        stats["checkmate_triggers"] = stats.get("checkmate_triggers", 0) + 1
+        best, best_n = None, 0
+        for c in survivors[:k]:
+            if time.perf_counter() - t0 > budget:
+                break
+            n = places(c)
+            if n > best_n:
+                best, best_n = c, n
+        if best is None:
+            return decision
+        name = next(iter(best.archetypes), None) if best.archetypes else None
+        if name is None or name not in layer1.ARCHETYPE_KEYS:
+            name = str(decision.placement.archetype).split("/")[-1]
+        try:
+            placement = layer1.build_placement(best, name, self.board, ci, profile, self.config)
+        except Exception as exc:
+            print(f"[checkmate-guard] build failed: {exc!r}", flush=True)
+            return decision
+        placement.archetype = f"checkmate/{name}"
+        placement.reason = f"checkmate guard: the pick left no place for a next item, this keeps {best_n} of {len(windows)}"
+        stats["checkmate_overrides"] = stats.get("checkmate_overrides", 0) + 1
+        return layer1.Decision(placement=placement, candidate_counts=decision.candidate_counts,
+                               veto_counts=decision.veto_counts, considered=decision.considered,
+                               ladder=decision.ladder, survivors=decision.survivors, chosen=best)
 
     def _grid_rescue(self, ordered: list, pool: list, deadline: float, count: bool = False,
                      own_window: bool = True) -> dict | None:

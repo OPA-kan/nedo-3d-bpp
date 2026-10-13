@@ -808,6 +808,20 @@ class RuleAlphaConfig:
     (c-hard-s0033 in its third container on the floor, s0037 at 0.25 and
     1.11 m, s0038 a soft box at 0.92 m)."""
 
+    checkmate_guard: bool = False
+    """The last choice before a checkmate (``agent._checkmate_guard``):
+    when the ladder's pick would leave no usable surface for any of the
+    next items (the rest of the pool on Task B; the two commonest hard
+    classes seen so far on Task C) and one of the rung's other survivors
+    would leave some, that survivor takes its place.  The reading is the
+    usable-surface instrument (``rule_alpha.surface``).  Nothing changes
+    while the pick keeps a place for a next item, so an episode's course
+    is the ladder's until the board is one move from the decline."""
+
+    checkmate_guard_k: int = 6
+    checkmate_guard_seconds: float = 0.5
+    checkmate_guard_cell: float = 0.04
+
     grid_rescue_tries: int = 12
     """Shadow checks the grid rescue may spend in one call."""
 

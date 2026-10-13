@@ -3848,6 +3848,14 @@ SKU and one mass, and the slot choice under count_first takes the
 smallest footprint that fits whatever the planning order; the load's
 height is decided by the row depths the layout search picks and the
 layers they take, not by the order the items are offered in.
+With the alternatives gated to the base plan's shortfall
+(`plan_alt_gate=base-under`, all four options on; `agate-*`): hard A
+27 -> 25, sample A placed -1.23 with soft -1.27 -- the gate keeps the
+first *variant* planned, which with the ";" split is the priority-first
+order, not the shipped mixed order, so the base itself moved.  The A
+planner thread closes here: every count lever on hard A costs the
+sample suite's soft or priority share, and on A the quality is the
+score.
 
 **v46 on the platform: 55.34**, the best so far (v43 55.24, v45
 55.21): cog +0.62 against v45, fill -0.04, stability +0.03,
