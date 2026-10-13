@@ -4447,3 +4447,18 @@ The question: the checkmate guard found every alternative dead when it fired, an
 * The one lever this points at was tried: the surface arbiter (findings, "The instrument as an arbiter") replaced the rung's pick by the candidate after which the most usable surface is kept, 64 overrides in 48 sample C episodes, placed -0.42, 48 -> 47 crossings; the shade veto (`shade_veto_area`, in the shipped form) refuses the poses that wall off the floor from the sweep. The drops above happen with the shade veto on.
 
 So the miss is decided by the volume the first threshold items demand, not by a placement the board shows coming: the killing placement is identifiable in hindsight (a floor placement that fragments the plateau a dozen items before the end), but the same placements occur in the crossing episodes, and choosing against them by the surface they keep (the arbiter) cost placements. Nothing further on this line.
+
+Time-faithful (judge2; C and B against the v48 arms `sub2-low-*`, A against the v46 A form `adrop-*`; records `reports/bench/band-*`):
+
+| suite | crossings | placed | margin 0/+1 | policy max (new) |
+|---|---:|---:|---:|---:|
+| core C | 48 -> 48 | 38.00 -> 38.25 (+0.25; 15 up, 12 down) | 5 -> 4 | 6.3 s (base 5.8) |
+| core B | 47 -> 47 (b-c2-s0003 36 -> 53 in, b-c1-s0010 23 -> 20 out; both diverge at step 2 / 22) | 38.71 -> 39.17 (+0.46) | 4 -> 4 | 7.0 s (base 7.4) |
+| hard2 C | 42 -> 47 (sample 38 -> 33, stretch 4 -> 13, edge 0 -> 1) | sample -0.71, stretch +3.47, fill-only +8.00 | 9 -> 10 | 6.7 s (base 16.4, s0091) |
+| hard2 B | 40 -> 47 (sample 31 -> 34, stretch 9 -> 12, edge 0 -> 1) | sample +1.65, stretch -0.28 | 9 -> 4 | 22.1 s b-hard2-s0070 (four stack-rl calls of 13-22 s at steps 53-56 on a 59-item board: the stack option's candidate generation, which the shipped form caps with `stack_deadline`; the measured arm lacks it), s0091 13.0 s |
+| core A | 48 -> 48 | 39.29 -> 41.33 (+2.04; 28 up, 6 down) | 7 -> 2 | 3.7 s |
+| hard A | 27 -> 26 | 48.04 -> 49.65 (+1.60; 24 up, 8 down) | 3 -> 3 | 5.1 s |
+
+* The transport endings are gone where the band was the cause: b-hard2-s0031 61 -> 75 (threshold 62) and b-hard2-s0047 58 -> 67 (59) cross, b-hard2-s0070 58 -> 59 continues, c-hard2-s0091 92 -> 136. The two left (a-hard-s0008 at 25, c-hard2-s0049 at 25) are `fallback-after-veto` placements: the analytic sweep refused the pose, the agent played it as the last resort, and the simulator refused it too (s0049 touches a door-side item at 1 mm, not its support).
+* hard2 C: the stretch stratum gains nine crossings (s0054, s0056, s0057, s0059, s0064, s0067, s0073, s0075, s0076; most of them end 0-4 over their threshold) and the sample stratum loses five (s0014 40 -> 34, s0034 57 -> 41, s0036 95 -> 54, s0042 63 -> 48, s0044 36 -> 32), swings of 6-41 items on three-container boards. Deterministic pair and a second time-faithful run dispatched (`banddet-hard2`, `band-hard2-r2`, `band-hard2-b-r2`).
+* A: placed +2.0 (core) / +1.6 (hard) and fill +2.5 / +2.0, but the priced reading is -0.47 (core) / -0.67 (hard), all of it cog (-0.53 / -0.92; the lifted stacks put the extra items high): the lift stays off on A (`optimize()` task_a override).
