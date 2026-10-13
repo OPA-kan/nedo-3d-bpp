@@ -4364,3 +4364,37 @@ core-b, time-faithful (`sub-gpool-core-b` vs `grid2-core-b`): 48 -> 48 crossings
 core-b replicate (`sub-gpool-core-b-r2`): 48 -> 48; placed 39.02 -> 38.94 (7 up, 10 down); margin 0/+1: 2 -> 2; policy time max 7.35 s. Core C / hard2 C not rerun: with one item in the pool the option does not act and the code path is the baseline's.
 
 Recommendation: ship on B (arm `arm_grid2_b` + `,grid_rescue_pool_seconds=1.5`): +3 hard2-b crossings on the mean of two time-faithful pairs, no core-b crossing lost in two runs, no new policy-time violation. Not attributed by a noise-free pair (see above); the two gains are the episodes whose base ends were failed fallback placements, where the grid rescue now gets a turn first.
+
+## **Sub-agent B/C round 2: the sealing design gated to the low phase (`rescue_order_gate`)**
+
+Change: `rescue_order_gate` (default "" = the old semantics: `rescue_deep_first` / `rescue_seal_area` act in every rescue call). A "+"-joined set of conditions that must all hold at the call: `low` (a container's usable surface under `phase_switch_surface`, the phase switch's own reading; read by the gate also where the phase switch skipped it, an exhausted Task B pool), `count` (the count pass and the grid rescue after it), `under` (the agent's count estimate at least `rescue_order_margin` items under the threshold). Gate chosen: `low`. Why: `count` is open from step 1 on C (under the agent's 41-a-container estimate every call is a count pass until the threshold), and `under` alone likewise; only the low phase is late by construction (it persists once reached). On core C the low phase begins at 55-75 % of the episode (`phase.low_steps` against the steps). Arm: v47 form + `,rescue_deep_first=true,rescue_seal_area=0.2,rescue_order_gate=low` (B: on top of `grid_rescue_pool_seconds=1.5`).
+
+Deterministic pair, hard2 C (`grid2det-hard2` vs `sub2-lowdet-hard2`):
+
+| stratum | crossings | placed | margin 0/+1 |
+|---|---:|---:|---:|
+| sample | 33 -> 36 | 41.56 -> 43.58 (+2.02; 17 up, 9 down) | 5 -> 6 |
+| stretch | 5 -> 5 | 45.53 -> 46.81 (+1.28) | 2 -> 3 |
+| edge / fill-only | 0 -> 0 | -2.38 / +0.12 | |
+
+Divergence (first step where the episodes differ, against the first low-phase step): 76 of 96 episodes change, 69 at or after the low phase (gate), 7 before it (the residual time noise `deterministic_budgets` leaves, e.g. s0036 stack-rl vs pocket-soft at a 4.3 s ladder call). Gate-attributed: gained s0004 (-4 -> 0), s0007 (-1 -> +2), s0026 (-1 -> 0), s0048 (-3 -> +1); lost s0010 (+3 -> -1, diverges at 30/48 in a count-mode call). The ungated design on the same pair (`sealdet-hard2`): gained s0004, s0007, s0026, s0027; lost s0041 (diverges at step 13/73), s0044 (15/37), s0054 (37/67) -- two of its three losses were early divergences the gate removes.
+
+Time-faithful (judge2; B judged against the v47 B form):
+
+| suite | base | crossings | placed | margin 0/+1 | policy max (new) |
+|---|---|---:|---:|---:|---:|
+| hard2 C | `grid2-hard2` | 36 -> 42 (sample 31 -> 38, stretch 5 -> 4) | +1.96 / +0.69 (sample / stretch) | 8 -> 9 | 16.4 s s0091 (base 16.0), next 6.2 s |
+| hard2 B | `sub-gpool-hard2-b` / `-r2` | 40 -> 40 / 41 -> 40 (sample 31, stretch 9) | +0.00 / -0.40 sample | 6 -> 9 / 8 -> 9 | 15.1 s s0091 (base 14.2 / 17.2), next 8.2 s (s0061) |
+| hard C | `grid2-hard` | 19 -> 26 | 42.42 -> 44.73 (+2.31; 26 up, 6 down) | 2 -> 5 | 6.7 s |
+| hard B | `sub2-base-hard-b` (v47 B, this round) | 19 -> 22 | 41.81 -> 43.52 (+1.71; 18 up, 11 down) | 3 -> 3 | 7.4 s |
+| core C | `grid2-core` | 48 -> 48 | 36.88 -> 38.00 (+1.12; 23 up, 8 down) | 6 -> 5 | 5.8 s (base 6.3) |
+| core B | `sub-gpool-core-b` | 48 -> 47 | 38.58 -> 38.71 (+0.12) | 3 -> 4 | 7.4 s |
+| core B r2 | `sub-gpool-core-b` / `-r2` | 48 -> 48 / 48 -> 48 | +0.65 / +0.29 | 3 -> 2 / 2 -> 2 | 7.4 s |
+
+(`sub2-base-hard-b` against `grid2-hard-b`: 19 -> 19, so hard B's +3 is the gate's arm, not the pool window.)  Ungated on the same C baselines: hard2 C 36 -> 39 (`seal-hard2`), core C +1.25.
+
+* core B's one loss (run 1): b-c2-s0003 +7 -> -6, diverging at step 19 of 50 (pocket-soft vs sp-cluster at a 1.0-1.4 s ladder call; the two baseline runs themselves differ at step 20), before any rescue (first gated call at step 32): time noise, not the gate. The replicate keeps 48 of 48. Core C's near-threshold episodes (base margin 0: c1-s0003, c1-s0010, c1s-s0003, c1s-s0004) end at 0, +1, 0, 0.
+* Policy time: no new violation (s0091 over in every arm; b-hard2-s0061 8.2 s is under B's 10 s).
+* B: the hard2 B pair is flat (0 / -1 crossings, inside the base runs' own 37-41 spread); hard B +3.
+
+Recommendation: ship on C (`arm_grid2_c` + `,rescue_deep_first=true,rescue_seal_area=0.2,rescue_order_gate=low`): +6 hard2 C, +7 hard C, core C 48/48 with +1.12 placed, deterministic pair +3 (gate-attributed +4 / -1). On B it is optional: hard B +3, hard2 B flat, core B 48/48 in the replicate, one time-noise loss in run 1; ship on B only if the platform's B is judged like C (the gate acts on B too, 2-50 calls an episode). Residual risk: the gate still changes the course of 69 of 96 hard2 C episodes and 37 of 48 core C episodes from the low phase on, so a platform edge episode whose last items come in the low phase can still move either way; what the gate removes is the reordering of the early rescue placements (the v44 failure mode, s0041/s0044 here).
