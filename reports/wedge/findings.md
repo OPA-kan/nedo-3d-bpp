@@ -3887,6 +3887,23 @@ s0048, s0044, s0042 (-1), s0038 (-2); hard B s0033 (-1), s0031, s0025
 0.35-0.40 band (1/21 and 4/21 on hard2) asks a fill the agent reaches
 only on its best scenes.
 
+**The checkmate guard** (`checkmate_guard`: the last choice before a
+checkmate -- when a stage's pick would leave no usable patch for any
+next item (the pool on B, the two commonest hard classes seen on C)
+and another candidate in the first six would, that one goes first;
+read with the usable-surface instrument at 4 cm; on the ladder's
+survivors, the physics resort's and the grid rescue's candidates).
+Local runs on the near misses: c-hard-s0048 22 checks, 1 trigger, 1
+override, 20 placed as before; c-hard-s0042 55 checks, 2 triggers, no
+override (no alternative left a place either), 52 as before;
+c-hard2-s0039 and s0028 no trigger; b-hard2-s0059 1 trigger, s0014 6
+triggers, no override, counts as before.  The guard fires only when
+every alternative is dead too: the move that seals the board is made
+while usable surface still remains, so a one-move reading cannot see
+it, and the multi-move reading is what the session's learning
+experiments showed to be unpredictable from the state.  Off; not
+measured on CI.
+
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
 0.1 (the settle's noise).  The grid rescue placed nothing there: the
