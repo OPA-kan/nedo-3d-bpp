@@ -3800,8 +3800,10 @@ episodes 8 -> 7), priced +0.14 (fill +0.09, soft +0.14, priority
 +0.06, cog -0.14), policy max 4.37 s; the shake topples rise 7 -> 12
 over the 48 scenes (two more scenes topple: a-c2p-s0008 three items,
 a-c2p-s0009 two), the one cost to watch on the platform's stability
-component.  The sample suite with the drop too (`adrop-core-a`) is
-the last read before an A form.
+component.  With the drop too (`adrop-core-a`): placed +0.98 (17 up, 8 down),
+soft +0.54, 48 of 48, priced +0.18 (cog -0.11), topples 7 -> 12 as
+with the nudge alone, policy max 4.39 s.  The A form for v46:
+`plan_replay_nudge=0.02, plan_replay_drop=0.03`.
 
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
