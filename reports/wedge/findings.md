@@ -3794,6 +3794,13 @@ Policy max 6.54 s.  The variants `plan_prefer_planner`,
 `anudge4-hard-a`) and the sample suite (`abase-`, `anudge-core-a`)
 are the next reads.
 
+**v45 on the platform: 55.21** (v43 55.24): the placed fraction and
+the fill are v43's to the fifth decimal, the other components within
+0.1 (the settle's noise).  The grid rescue placed nothing there: the
+platform's declines have no legal pose left (sealed or full), unlike
+the hard suites' near misses, where the generators had missed legal
+poses.  The stack deadline cost nothing.
+
 **Task B's pool against Task C's stream.**  On the hard suites, the
 same seeds under B and C: with a pool of 10 or 20 B places 3.5 and 4.4
 items a scene more than C, with a pool of 3 or 5 1.5 and 0.5 fewer;

@@ -657,6 +657,11 @@ suites +0.02 (C) and -0.27 (B) with 48 of 48 on each.  Official
 sample: A 32.11 / 25, B 29.59 / 26, C 26.44 / 25 (v43 and v44 24.95 /
 24); policy max B 5.01 s, C 3.99 s, optimize 25 s
 (`official-sample-abc-v45.json`).
+Official platform: 55.21 (v43 55.24, -0.02; the placed fraction and
+the fill v43's to the fifth decimal, the other components within
+0.1): the grid rescue placed nothing on the platform, whose declines
+are the no-legal-pose kind; the stack deadline cost nothing (policy
+7.29 s) (`reports/submission/official-results.md`).
 
 ## Known limits
 
