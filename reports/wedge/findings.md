@@ -4236,3 +4236,32 @@ python -m wedge_rl replay --policies ppo,staircase --policy reports/wedge/ppo-c1
 
 Long runs go through `.github/workflows/wedge-ppo.yml` (workflow_dispatch; a
 run can start from a previous run's checkpoint via `init_run_id`).
+
+## **Sub-agent B/C: the grid rescue's window on Task B (`grid_rescue_pool_seconds`)**
+
+Diagnosis (hard2 sample stratum, margin -6..-1; `last_call_probe.py`, arms with `deterministic_budgets=true`):
+
+* C (11 declines probed: s4, s6, s7, s13, s14, s26, s27, s28, s39, s40, s48): 9 have no validator-legal pose for the stopping item anywhere (grid scan at 2 cm: 0 poses; verdicts mostly `settled-pose-outside`, i.e. no footprint fits under the ceiling on the tops; fill at the end 25-37 %). 2 have legal poses that were not played: s6 (108 grid poses, 1 shadow check before the cap), s27 (28 poses at 1.24 m, no check). Cause 1 = layout fragmentation (not a late-episode fix); cause 2 = small.
+* B (5 declines probed: s6, s7, s14, s21, s39): s14 and s21 had legal grid poses (62 in c1; 480 + 361 in c0) and the grid rescue ran 0 checks. Mechanism: on B the resort runs to budget + 3.0 s (count pass, `count_mode_extra_seconds_pool`) or + 2.5 s, past the grid rescue's cap (budget + `grid_rescue_cap` = 6.5 s, sized for the 8 s limit of A/C), so the grid rescue's deadline is already behind it. s21 traced: resort ended at 6.59 s, grid deadline capped at 6.5 s, 0 tries. 32/96 hard2-b and 14/48 core-b episodes end on a call over 6.4 s (`grid2-*` records). The agent's count threshold (41 items/container) is under the hard2 streams' counts (s21: reads 42, actual 51), so `_really_under` is false there.
+
+Change: `grid_rescue_pool_seconds` (off by default). With a pool (len > 1), the physics resort's deadline is moved this many seconds earlier and the grid rescue runs to the resort's old deadline without its own window or cap; when the resort overruns, the grid gets at least 1 s from its start, at most 0.5 s past the resort's old deadline. Task A/C (one item) untouched (the code path is identical when pool == 1). Arm: B baseline + `,grid_rescue_pool_seconds=1.5`. Branch `claude/rl-packing-policy-ftogt3-bc`.
+
+Local trace b-hard2-s0021 (det): 48 -> 50 (grid rescue placed at two calls that the resort left empty), still -1.
+
+hard2-b, time-faithful (judge2, crossings by stratum; records `reports/bench/sub-*`):
+
+| run | sample | stretch | edge | fill-only | total | placed sample / stretch |
+|---|---|---|---|---|---|---|
+| base r1 (`grid2-hard2-b`) | 29 | 9 | 0 | 0 | 38 | 40.90 / 46.31 |
+| base r2 (`sub-bcbase-hard2-b-r2`) | 30 | 7 | 0 | 0 | 37 | 40.54 / 45.34 |
+| new r1 (`sub-gpool-hard2-b`) | 31 | 9 | 0 | 0 | 40 | 41.21 / 47.16 |
+| new r2 (`sub-gpool-hard2-b-r2`) | 32 | 9 | 0 | 0 | 41 | 41.60 / 47.81 |
+
+* Mean +3.0 crossings (sample +2.0, stretch +1.0). Crossed in both new runs and neither base run: s0031, s0042 (both base ends were `fallback-after-veto` placements that failed transport/settle). Crossed in both base runs and neither new: s0036 (base 84 and 83 against threshold 83, so margin +1/0; new 72, 75; first divergence at step 3/8 on pocket-guard timing). Flaky between base runs: s1, s23, s47, s53, s54; between new runs: s40.
+* Policy time: s0091 (fill-only) is over 10 s in every arm (base 18.05 / 17.50, new 14.16 / 17.18); every other episode max is 7.8 s new vs 8.1 s base. No new violation.
+* Deterministic pair (`sub-bcbase-det-hard2-b` vs `sub-gpool-det-hard2-b`): sample 27 -> 25, stretch 4 -> 5, placed sample 39.85 -> 40.15, stretch 43.69 -> 44.72. Not an attribution: `deterministic_budgets` leaves the resort's clock, the very thing this option changes (s0007: base resort hit at 4.23 s, new resort missed and the grid rescue placed at 6.92 s; s0031 diverged at a stack-rl call at 6.3 s), and the det B runs differ from the time-faithful ones by up to 85 items on one scene (s0091).
+
+core-b, time-faithful (`sub-gpool-core-b` vs `grid2-core-b`): 48 -> 48 crossings; placed 39.02 -> 38.58 (6 up, 11 down); margin 0/+1: 2 -> 3 (b-c2-s0007 at 42/42); policy time max 7.40 s (base 7.34).
+core-b replicate (`sub-gpool-core-b-r2`): 48 -> 48; placed 39.02 -> 38.94 (7 up, 10 down); margin 0/+1: 2 -> 2; policy time max 7.35 s. Core C / hard2 C not rerun: with one item in the pool the option does not act and the code path is the baseline's.
+
+Recommendation: ship on B (arm `arm_grid2_b` + `,grid_rescue_pool_seconds=1.5`): +3 hard2-b crossings on the mean of two time-faithful pairs, no core-b crossing lost in two runs, no new policy-time violation. Not attributed by a noise-free pair (see above); the two gains are the episodes whose base ends were failed fallback placements, where the grid rescue now gets a turn first.
