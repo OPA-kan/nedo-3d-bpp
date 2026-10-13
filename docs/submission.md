@@ -697,6 +697,26 @@ sub-agent's measurement, findings "Sub-agent B/C").  Official sample:
 A 32.11 / 25, B 29.59 / 26, C 26.44 / 25 (as v46); policy max B
 4.77 s, C 4.07 s, optimize 26 s (`official-sample-abc-v47.json`).
 
+Forty-eighth build (v48): v47 with the rescue stages' deep-first
+order and sealing pass (v44's design) on Task C only and only in the
+low phase of the load (`rescue_deep_first`, `rescue_seal_area=0.2`,
+`rescue_order_gate=low+single`).  v44 applied them from the first
+rescue placement on and the platform's threshold-edge episode fell
+back under the count threshold; gated to the low phase (a container's
+usable surface under 0.2, reached at 55-75 % of a sample episode) the
+early course is v47's and the reordering acts where the rescue stages
+do their work.  hard2 C crossings 36 -> 42 (the sample stratum 31 ->
+38, stretch 5 -> 4), hard C 19 -> 26, sample C 48 of 48 with +1.12
+placed and its four margin-0 episodes ending at 0, +1, 0, 0; under
+deterministic budgets the sample stratum 33 -> 36 with the ungated
+design's early divergences gone.  B is mixed (hard B 19 -> 22, hard2
+B flat, one sample B run 48 -> 47 at a ladder step before the gate's
+first call, the replicate 48 of 48) and keeps v47 (findings,
+"Sub-agent B/C round 2").  The risk that remains: from the low phase
+on, 37 of the 48 sample C episodes change course.  Official sample: A
+32.11 / 25, B 29.59 / 26, C 26.44 / 25 (as v47); policy max B 4.70 s,
+C 3.75 s (`official-sample-abc-v48.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
