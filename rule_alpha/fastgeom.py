@@ -264,11 +264,26 @@ def band_lift_z(cz: float, hz: float, container: dict, config) -> float:
     lift = float(getattr(config, "band_lift", 0.0) or 0.0)
     if lift <= 0.0:
         return cz
-    level = (float(container["height"]) / 2.0 + float(container["thickness"])
-             + float(container.get("buffer", 0.0)))
+    height = float(container["height"])
+    buffer = float(container.get("buffer", 0.0))
+    level = height / 2.0 + float(container["thickness"]) + buffer
     above = (cz - hz) - level
     if -BAND_EDGE <= above <= 0.05 + BAND_EDGE:
         return level + 0.05 + lift + hz
+    # the mid-height ceiling rule: under the shelf level (a ceiling surface
+    # in every container) the lift is clipped to the clearance less the
+    # ceiling margin, so a top within the margin plus the sweep clearance
+    # of the level rides in touching its support; and a top exactly at the
+    # level is "under" it in float32.  Without a shelf there is nothing
+    # above the level: the box is commanded with its top just over it, so
+    # the rule does not fire and the usual lift applies.
+    if not bool(container.get("require_shelf", container.get("shelf", False))):
+        k = _constants()
+        mid = height / 2.0 + buffer
+        below = mid - (cz + hz)
+        dead = k["CEIL_MARGIN"] + k["CEIL_CLIP"] + max(0.016, float(getattr(config, "transport_clearance", 0.0) or 0.0))
+        if -BAND_EDGE <= below <= dead + BAND_EDGE:
+            return mid + lift - hz
     return cz
 
 

@@ -2738,3 +2738,40 @@ class BandLiftTest(unittest.TestCase):
 
     def test_off_by_default(self):
         self.assertEqual(DEFAULT_CONFIG.band_lift, 0.0)
+
+    # -- the mid-height ceiling rule ------------------------------------
+    MID = 1.61 / 2.0  # the shelf level's underside, a ceiling surface in every container
+
+    def _tall_board(self, top_of_box, shelf=False):
+        """A 0.3 m box on a column, its top at ``top_of_box``."""
+        container = make_container_dict(index=0, require_shelf=shelf, **ULD)
+        h = top_of_box - 0.3 - 0.04
+        container["packed_items"] = [{
+            "index": 0, "length": 0.6, "width": 0.45, "height": h, "mass": 10.0,
+            "is_soft": False, "is_prioritized": False, "orientation": 0,
+            "dims": (0.6, 0.45, h), "pos": (0.3, 0.2, 0.04 + h / 2.0), "layer": 1,
+        }]
+        model = layer1.ContainerModel(container, DEFAULT_CONFIG)
+        box = AABB((0.3, 0.2, top_of_box - 0.15), (0.6, 0.45, 0.3), "candidate")
+        return container, model, box
+
+    def test_a_top_under_the_mid_plane_rides_in_touching_and_is_lifted_over_it(self):
+        off, on = self._configs()
+        # the clip leaves the lift under the sweep clearance: refused unlifted
+        for top in (self.MID, self.MID - 0.02, self.MID - 0.03):
+            container, model, box = self._tall_board(top)
+            self.assertEqual(layer1.validate(box, model, container, off), (False, "transport-hits-packed-item"),
+                             msg=f"top {top}")
+            self.assertEqual(layer1.validate(box, model, container, on), (True, "ok"), msg=f"top {top}")
+            z = float(layer1.action_center(box, model, container, on)[2])
+            self.assertAlmostEqual(z + 0.15, self.MID + 0.003, places=9, msg=f"top {top}")
+        # well under the plane the clipped lift clears the support: untouched
+        container, model, box = self._tall_board(self.MID - 0.06)
+        self.assertEqual(layer1.validate(box, model, container, off), (True, "ok"))
+        self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]), box.center[2], places=9)
+
+    def test_under_a_real_shelf_there_is_no_escape(self):
+        _off, on = self._configs()
+        container, model, box = self._tall_board(self.MID - 0.02, shelf=True)
+        self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]), box.center[2], places=9)
+        self.assertEqual(layer1.validate(box, model, container, on)[0], False)
