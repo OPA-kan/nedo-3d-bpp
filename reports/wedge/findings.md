@@ -3856,6 +3856,29 @@ The A replay lowered the load (the planned poses the ladder's
 improvisation had replaced) and left the count and the shares where
 they were; on A the quality is what moves the score.
 
+**The feasible set on the hard suites** (the target: every scene whose
+demand is under 0.40 of the containers' volume crosses; the demand is
+the first-threshold volume on B and C, the smallest-threshold volume
+on A, the agent's fill reaches 0.33 of the containers on average and
+0.43-0.50 at most).  Crossings by demand band under the v46/v47 forms:
+
+| suite | under 0.30 | 0.30-0.35 | 0.35-0.40 | 0.40 and over | feasible misses |
+|---|---:|---:|---:|---:|---:|
+| hard A (v46) | 26/36 | 0/3 | 1/5 | 0/4 | 17 |
+| hard C (v47) | 13/19 | 5/7 | 1/9 | 0/13 | 16 |
+| hard B (v47) | 12/19 | 4/7 | 3/9 | 0/13 | 16 |
+| hard2 C (v47) | 19/24 | 14/27 | 1/21 | 2/24 | 38 |
+| hard2 B (v47) | 20/24 | 14/27 | 4/21 | 2/24 | 34 |
+
+The misses within one to four of the threshold: hard2 C s0039,
+s0028, s0026, s0010, s0007 (-1), s0057 (-2), s0065, s0048, s0027
+(-3), s0064, s0013, s0006, s0004 (-4); hard2 B s0059, s0047, s0014,
+s0007 (-1), s0077, s0051, s0039, s0026, s0018, s0009 (-2); hard C
+s0048, s0044, s0042 (-1), s0038 (-2); hard B s0033 (-1), s0031, s0025
+(-2); hard A s0019, s0016 (-2), s0047, s0039, s0013 (-4).  The
+0.35-0.40 band (1/21 and 4/21 on hard2) asks a fill the agent reaches
+only on its best scenes.
+
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
 0.1 (the settle's noise).  The grid rescue placed nothing there: the
