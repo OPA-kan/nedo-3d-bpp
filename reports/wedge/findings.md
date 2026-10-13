@@ -3789,10 +3789,19 @@ threshold (ten scenes within 6 after the nudge: s0031 47/48, s0038
 s0008, s0040, s0029).  Where a replayed plan loses to the ladder's
 improvisation (a-hard-s0046 63 -> 51, the plan replayed from step 9
 where the base improvised) the plan itself is the weaker play.
-Policy max 6.54 s.  The variants `plan_prefer_planner`,
-`plan_replay_drop=0.03` and a 4 cm nudge (`aprefer-`, `adrop-`,
-`anudge4-hard-a`) and the sample suite (`abase-`, `anudge-core-a`)
-are the next reads.
+Policy max 6.54 s.  The variants on the nudge (hard A, against
+`anudge-hard-a`): `plan_prefer_planner` 26 crossings, -0.31 a scene;
+`plan_replay_drop=0.03` (the settled-height replay) 27 crossings,
+-0.17, policy max 5.08 s; a 4 cm nudge 24 crossings, -1.79 (6 up, 14
+down) -- 2 cm is the size.  On the sample A suite (`anudge-core-a`
+against `abase-core-a`): placed +0.96 (16 up, 8 down), soft +0.54
+(13 up, 1 down), priority +0.06, 48 of 48 crossings (the margin-0/+1
+episodes 8 -> 7), priced +0.14 (fill +0.09, soft +0.14, priority
++0.06, cog -0.14), policy max 4.37 s; the shake topples rise 7 -> 12
+over the 48 scenes (two more scenes topple: a-c2p-s0008 three items,
+a-c2p-s0009 two), the one cost to watch on the platform's stability
+component.  The sample suite with the drop too (`adrop-core-a`) is
+the last read before an A form.
 
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
