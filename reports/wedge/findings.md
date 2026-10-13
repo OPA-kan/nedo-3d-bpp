@@ -3832,7 +3832,22 @@ The variants buy count with the priority cargo (its share 0.81 ->
 the platform's components scale with the quality, not the count, and
 the continuous pricing is the judge there; neither ships.  The cap is
 mild either way (48 of 48, the margin-0/+1 episodes 7 -> 3).
-`plan_reserve_variants=on;off` (`ares-*`) is the remaining read.
+`plan_reserve_variants=on;off` (`ares-*`, against `adrop-*`): hard A
+crossings 27 -> 26 (a-hard-s0038 44 -> 36), placed +0.90 (13 up, 3
+down); sample A placed +0.75 (13 up, 1 down) with soft -0.79 (the
+share 0.52 -> 0.46), cog -0.55, priced -0.63, topples 12 -> 17.  The
+plan without the reserve wins the count with the soft cargo, which is
+what the reserve was for (v19 on the platform: -2.61).  None of the
+three ships; v46's replay is the A step, and the next A lever is the
+quality (the load's height, the soft share), not the count: on A the
+sample suite crosses 48 of 48 under every form here.
+
+The mass order asked for (heavy cargo low) has no handle in the row
+planner: a row is a stack of one depth class, so its layers are one
+SKU and one mass, and the slot choice under count_first takes the
+smallest footprint that fits whatever the planning order; the load's
+height is decided by the row depths the layout search picks and the
+layers they take, not by the order the items are offered in.
 
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
