@@ -155,6 +155,11 @@ def run_analytic_episode(scene, arm, max_steps: int = 400, policy_budget: float 
         "end_reason": end_reason,
         "attempted": sum(1 for s in steps if s.get("event") == "step"),
     })
+    sel = getattr(agent, "selector", None)
+    if sel is not None and hasattr(sel, "overrides"):
+        metrics["selector"] = {"calls": getattr(sel, "calls", 0), "overrides": sel.overrides,
+                               "seconds": round(getattr(sel, "seconds", 0.0), 2),
+                               "decisions": getattr(sel, "decisions", 0)}
     return {
         "scene": scene.name,
         "scene_spec": {k: v for k, v in scene.to_dict().items() if k not in ("items", "containers")},

@@ -43,7 +43,11 @@ class RuleAlphaAgent:
         _stability.SOFT_STRUCTURE_FLOOR_SHARE = float(getattr(self.config, "soft_structure_floor_share", 0.0))
         # optional external pick among the ladder's survivors; see
         # layer1.choose_for_item
-        if selector is None and getattr(self.config, "rollout_selector", False):
+        if selector is None and getattr(self.config, "future_selector", False):
+            from .foresight import FutureSelector
+
+            selector = FutureSelector(self.config)
+        elif selector is None and getattr(self.config, "rollout_selector", False):
             from .room import RolloutSelector
 
             selector = RolloutSelector(self.config)

@@ -2189,6 +2189,28 @@ class RuleAlphaConfig:
     rollout_selector_seconds: float = 1.2
     rollout_selector_seed: int = 7
 
+    future_selector: bool = False
+    """Among the ladder's first ``future_selector_k`` survivors, the one
+    after which the ladder itself places the most of a few sampled
+    continuations of the stream (``rule_alpha.foresight.FutureSelector``):
+    the rollout selector with the ladder as the judge instead of the
+    heightmap packer that lost to it.  The rollouts apply and withdraw
+    their placements on the live board."""
+
+    future_selector_k: int = 3
+    future_selector_futures: int = 2
+    future_selector_length: int = 24
+    """Items a rollout places at most; the rollout ends earlier where the
+    ladder declines, which is what it measures."""
+    future_selector_margin: float = 0.5
+    future_selector_seconds: float = 0.0
+    """Time for one selection; 0 = unlimited (offline).  Within it the
+    rollouts stop early and the candidates not reached score nothing."""
+    future_selector_seed: int = 7
+    future_selector_mix: str = "seen"
+    """``seen``: the classes placed and in view so far, by their counts,
+    with the sample's mix as the prior; ``sample``: the sample's mix."""
+
     online_tower_rule: bool = False
     """The online planner's poses (``online_planner``) pass the stack
     option's tower rule and transport clearance (``wedge_rl.stack.Tower``,
