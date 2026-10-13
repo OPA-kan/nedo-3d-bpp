@@ -366,7 +366,7 @@ OVERRIDES = dict(
     # 53.13 against v43's 55.24, stability back at v42's 75.19: the
     # platform's edge episode fell back under the threshold while the count
     # held); the grid rescue acts only where v43 declines and stays.
-    grid_rescue=0.05, grid_rescue_seconds=1.0, rescue_deep_first=False, rescue_seal_area=0.0,
+    grid_rescue=0.05, grid_rescue_seconds=1.0,
     # v44: the stack option's candidate generation stops at the option's
     # deadline: on a board of 55 small boxes it took 10 s of a 16 s call
     # against the platform's 8 s limit (hard2 s0070, s0091); with the
