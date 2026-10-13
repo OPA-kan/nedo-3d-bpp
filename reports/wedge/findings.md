@@ -3849,6 +3849,13 @@ smallest footprint that fits whatever the planning order; the load's
 height is decided by the row depths the layout search picks and the
 layers they take, not by the order the items are offered in.
 
+**v46 on the platform: 55.34**, the best so far (v43 55.24, v45
+55.21): cog +0.62 against v45, fill -0.04, stability +0.03,
+placement and soft unchanged, the placed fraction 0.6370 -> 0.6363.
+The A replay lowered the load (the planned poses the ladder's
+improvisation had replaced) and left the count and the shares where
+they were; on A the quality is what moves the score.
+
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
 0.1 (the settle's noise).  The grid rescue placed nothing there: the

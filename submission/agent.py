@@ -118,6 +118,8 @@ TASK_A_SOFT_GALLERY = False
 # stack option's deadline stay.
 # v46: Task A's plan replay slides a planned pose by up to 2 cm and takes
 # the settled height (REPLAY_NUDGE, REPLAY_DROP).
+# v47: on Task B the resort hands 1.5 s of its window to the grid rescue
+# (grid_rescue_pool_seconds, OVERRIDES).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -368,6 +370,15 @@ OVERRIDES = dict(
     # against the platform's 8 s limit (hard2 s0070, s0091); with the
     # deadline the slowest call on that suite is 5.4 s.  Every task.
     stack_deadline=True,
+    # v47: on Task B (a pool) the physics resort stops 1.5 s before its
+    # deadline and the grid rescue runs to it: the resort ran to the budget
+    # plus 3 s and the grid rescue, capped for C's 8 s limit, never
+    # started with a pool (b-hard2-s0014, s0021: 62 and 841 legal poses,
+    # no check).  hard2 B crossings 37-38 -> 40-41 over two runs each,
+    # sample B 48 of 48 twice (placed -0.4 and -0.1), no call over 7.8 s
+    # (findings, "Sub-agent B/C").  Tasks A and C keep a pool of one and
+    # are untouched.
+    grid_rescue_pool_seconds=1.5,
 )
 STACK_POLICY = "weights/stack"
 

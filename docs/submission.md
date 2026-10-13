@@ -678,6 +678,10 @@ placed +3.3 a scene (a 4 cm slide loses 1.8); sample A placed +0.98
 are v45's.  Official sample: A 32.11 / 25, B 29.59 / 26, C 26.44 /
 25 (as v45); policy max B 4.72 s, C 3.65 s, optimize 24 s
 (`official-sample-abc-v46.json`).
+Official platform: 55.34, the best so far (v43 55.24, v45 55.21):
+cog +0.62 against v45, the other components within 0.04 and the
+placed fraction 0.6363; the A replay lowered the load and left the
+count where it was (`reports/submission/official-results.md`).
 
 ## Known limits
 

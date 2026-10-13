@@ -35,6 +35,7 @@
 | v43 (52af1a1: v42's levelness tie-break plus the phase switch -- the count pass's covers in the low phase of the load, read from the usable surface, whatever the fixed count threshold says; Tasks B and C) | 39.18 | 65.08 | 79.28 | 49.55 | 42.2 | 0.6370 | 114.7 | 7.27 |
 | v44 (e47edda: v43 plus the rescue stages redesigned -- the grid rescue at the decline, the deep-first order and the sealing pass -- on Tasks B and C, and the stack option's deadline on every task) | 39.01 | 61.45 | 75.19 | 47.5 | 41.4 | 0.6348 | 117.8 | 7.39 |
 | v45 (e650d42: v43 plus the grid rescue at the decline on Tasks B and C and the stack option's deadline on every task) | 39.18 | 65.04 | 79.23 | 49.45 | 42.3 | 0.6370 | 115.9 | 7.29 |
+| v46 (475b770: v45 plus Task A's plan replay sliding a planned pose by up to 2 cm and taking the settled height) | 39.14 | 65.66 | 79.26 | 49.45 | 42.3 | 0.6363 | 117.4 | 7.35 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -421,6 +422,21 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v46's total is 55.34, the best so far (v43 55.24, v45 55.21): cog
++0.62 against v45, fill -0.04, stability +0.03, placement and soft
+unchanged, the placed fraction 0.6370 -> 0.6363.  The change was Task
+A's alone (the plan replay sliding a planned pose by up to 2 cm and
+taking the settled height), and the platform read it as the suites
+did: the count flat, the centre of mass lower by the planned poses
+the ladder's improvisation had replaced (on the sample A suite the
+plan replayed 0.61 of the placements against 0.33).  The soft and
+placement components did not move with the suites' soft +0.54, so
+the A episodes' soft and priority shares are not where the suites put
+them, or the components saturate; the cog did.  On Task A every
+episode crosses the count threshold, and the components move with the
+quality: the A levers are the load's height and the shares, not the
+count.  Policy time 7.35 s.
 
 v45's total is 55.21 (v43 55.24, -0.02): the placed fraction and the
 fill are v43's to the fifth decimal (0.6369738, 39.177), cog -0.05,
