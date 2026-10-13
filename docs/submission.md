@@ -717,6 +717,31 @@ on, 37 of the 48 sample C episodes change course.  Official sample: A
 32.11 / 25, B 29.59 / 26, C 26.44 / 25 (as v47); policy max B 4.70 s,
 C 3.75 s (`official-sample-abc-v48.json`).
 
+Forty-ninth build (v49): v48 with the simulator's zero-lift band above
+the shelf level escaped upward on Tasks B and C (`band_lift=0.003`,
+`band_lift_top=false`).  The simulator carries a box in at its own
+height, no 8 cm lift, when its bottom is within 5 cm above
+`height/2 + thickness` (a resting surface tested in every container,
+shelf or not); a box resting on a packed item there touches its
+support on the way in and is refused, and on the platform the band's
+edges are read in float32, so a bottom exactly on one -- outside the
+band in this model's float64 -- ended episodes (b-hard-s0001 at step
+17 of 61 in every record set, b-hard2-s0031 and s0047 one short of
+their thresholds; the hard suites' `transport` endings sit on those
+edges to the millimetre).  A pose in the band is commanded with its
+bottom 3 mm over the band's top, the shelf's own 5.1 cm escape, and
+the usual lift applies; measured in the official simulator, every
+in-band and edge stack is refused unlifted and placed lifted.  hard2
+C crossings 42 -> 47 (deterministic pair +6: stretch 5 -> 11, edge
+0 -> 1, sample -1), hard2 B 40 -> 47 in two runs, sample C 48 of 48,
+sample B 47 -> 48, no new policy-time violation.  The mid-height
+ceiling rule's escape stays off (no crossing needs it; its poses are
+the ladder's early choices and cost one sample B episode), and Task A
+keeps the lift off (placed +2.0 / +1.6 but priced -0.47 / -0.67, all
+of it the centre of mass).  Official sample: A 32.11 / 25, B 29.59 /
+26, C 26.44 / 25 (as v48); policy max B 4.62 s, C 4.32 s
+(`official-sample-abc-v49.json`; findings, "Phenomenon 13").
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

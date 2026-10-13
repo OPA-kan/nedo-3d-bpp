@@ -4462,3 +4462,23 @@ Time-faithful (judge2; C and B against the v48 arms `sub2-low-*`, A against the 
 * The transport endings are gone where the band was the cause: b-hard2-s0031 61 -> 75 (threshold 62) and b-hard2-s0047 58 -> 67 (59) cross, b-hard2-s0070 58 -> 59 continues, c-hard2-s0091 92 -> 136. The two left (a-hard-s0008 at 25, c-hard2-s0049 at 25) are `fallback-after-veto` placements: the analytic sweep refused the pose, the agent played it as the last resort, and the simulator refused it too (s0049 touches a door-side item at 1 mm, not its support).
 * hard2 C: the stretch stratum gains nine crossings (s0054, s0056, s0057, s0059, s0064, s0067, s0073, s0075, s0076; most of them end 0-4 over their threshold) and the sample stratum loses five (s0014 40 -> 34, s0034 57 -> 41, s0036 95 -> 54, s0042 63 -> 48, s0044 36 -> 32), swings of 6-41 items on three-container boards. Deterministic pair and a second time-faithful run dispatched (`banddet-hard2`, `band-hard2-r2`, `band-hard2-b-r2`).
 * A: placed +2.0 (core) / +1.6 (hard) and fill +2.5 / +2.0, but the priced reading is -0.47 (core) / -0.67 (hard), all of it cog (-0.53 / -0.92; the lifted stacks put the extra items high): the lift stays off on A (`optimize()` task_a override).
+
+Attribution and the top rule apart (records `banddet-hard2`, `band-hard2-r2`, `band-hard2-b-r2`, `band-core-b-r2`, `bandnt-*` = `band_lift_top=false`):
+
+| pair | crossings | placed |
+|---|---:|---:|
+| hard2 C deterministic (`sub2-lowdet-hard2` vs `banddet-hard2`) | sample 36 -> 35 (s0036 86 -> 76), stretch 5 -> 11, edge 0 -> 1 | sample -0.04, stretch +1.00, edge +2.88, fill-only +7.38 |
+| hard2 C run 2 | 42 -> 45 (sample 38 -> 32, stretch 4 -> 12, edge 0 -> 1) | sample -0.58, stretch +3.28 |
+| hard2 B run 2 | 40 -> 45 (sample 31 -> 33, stretch 9 -> 11, edge 0 -> 1) | sample +1.02 |
+| core B run 2 | 47 -> 47 (b-c1-s0010 23 -> 20 again, b-c2-s0003 36 -> 49) | +0.73 |
+| core B, top off | 47 -> 48 (b-c2-s0003 in, b-c1-s0010 23 kept) | +0.77 |
+| hard2 B, top off | 40 -> 47 (sample 31 -> 35, stretch 9 -> 11, edge 0 -> 1) | sample +1.98 (21 up, 2 down) |
+| core C, top off | 48 -> 48 | +0.04 |
+| hard2 C, top off | 42 -> 47 (sample 38 -> 35, stretch 4 -> 11, edge 0 -> 1) | sample -0.38, stretch +2.88 |
+
+* The gains are the bottom band's: with the top rule off hard2 C and B keep +5 and +7, and the deterministic pair attributes +6 on C (nine stretch/edge scenes cross in both time-faithful runs and in the deterministic pair: s0056, s0057, s0059, s0064, s0067, s0076, s0083, plus s0054, s0073). The time-faithful sample losses on C (s0014, s0034, s0042, s0044 in both runs) cross in the deterministic pair: a changed course under the clock, not the lift's geometry; s0036 is the pair's one loss (86 -> 76 against 83).
+* The top rule's escapes are the ladder's: terrace-extension puts a flat box on a stack whose top lands just under the level (25 of 29 top lifts on core B, 27 of 39 on core C), from step 2 on b-c1-s0010 (a different pose, not the same one lifted), and that episode ends 20 against 21 in both runs; with the top rule off it keeps its 23 and the suite is 48 of 48. No crossing anywhere needs the top rule.
+* Landing: the dropped boxes land where they were sent (|dy| of all placements, mean 7.2 vs 6.8 mm on core B, 10.1 vs 11.3 on hard2 C; no shift in the 95th percentile).
+* Policy time: b-hard2-s0070's 19-22 s calls are the stack option's candidate generation in the measured arm, which lacks the shipped `stack_deadline`; the same scene under the shipped form locally: max 6.7 s (a grid-rescue call), the stack-rl calls 3.9 s.
+
+Recommendation, shipped as v49: `band_lift=0.003, band_lift_top=false` on B and C; off on A.

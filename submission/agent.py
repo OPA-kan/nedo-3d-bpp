@@ -122,6 +122,8 @@ TASK_A_SOFT_GALLERY = False
 # (grid_rescue_pool_seconds, OVERRIDES).
 # v48: the deep-first order and the sealing pass of the rescue stages on
 # Task C in the low phase only (rescue_order_gate=low+single, OVERRIDES).
+# v49: the simulator's zero-lift band above the shelf level escaped
+# upward on Tasks B and C (band_lift, OVERRIDES).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -391,6 +393,22 @@ OVERRIDES = dict(
     # sample B run lost a crossing at a ladder step before the gate) and
     # keeps v47 (findings, "Sub-agent B/C round 2").
     rescue_deep_first=True, rescue_seal_area=0.2, rescue_order_gate="low+single",
+    # v49: the simulator carries a box in at its own height when its bottom
+    # is within 5 cm above the shelf level (height/2 + thickness, tested
+    # in every container, shelf or not), so a box resting on a packed item
+    # there touches its support on the way in and is refused; the band's
+    # edges are read in float32 on the platform, and a bottom exactly on
+    # one ended the hard episodes (b-hard-s0001 at step 17 of 61 in every
+    # record set, b-hard2-s0031 one short).  A pose in the band is commanded
+    # with its bottom 3 mm over the band's top, the shelf's own 5.1 cm
+    # escape, and the usual 8 cm lift applies.  hard2 C crossings 42 -> 47
+    # (deterministic pair +6: stretch 5 -> 11, edge 0 -> 1, sample -1),
+    # hard2 B 40 -> 47 twice, sample C 48 of 48, sample B 47 -> 48.  The
+    # mid-height ceiling rule's escape (band_lift_top) stays off: it adds
+    # no crossing and its poses are the ladder's early choices (one sample
+    # B episode 23 -> 20 in both runs).  Task A keeps the lift off (placed
+    # +2.0 / +1.6 but priced -0.47 / -0.67, all of it the centre of mass).
+    band_lift=0.003, band_lift_top=False,
 )
 STACK_POLICY = "weights/stack"
 
@@ -437,7 +455,10 @@ class Agent(RuleAlphaAgent):
                       # v44: the rescue stages' redesign is for B and C; A's
                       # plan is the planner's and its dry-run race is not
                       # measured under them
-                      grid_rescue=0.0, rescue_deep_first=False, rescue_seal_area=0.0)
+                      grid_rescue=0.0, rescue_deep_first=False, rescue_seal_area=0.0,
+                      # v49: the band lift is for B and C; on A it places
+                      # more and prices lower (the centre of mass)
+                      band_lift=0.0)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
