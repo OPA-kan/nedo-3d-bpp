@@ -3805,6 +3805,35 @@ soft +0.54, 48 of 48, priced +0.18 (cog -0.11), topples 7 -> 12 as
 with the nudge alone, policy max 4.39 s.  The A form for v46:
 `plan_replay_nudge=0.02, plan_replay_drop=0.03`.
 
+**What the plans lack on the hard A near misses** (`plan_view`, the
+v46 arm through the agent's optimize, 60 s): the plans replay in full
+there (s0013 52 of 52, s0039 22 of 22, s0016 37 of 37, s0008 22 of
+22) and are themselves 4-10 under the threshold.  Two structures.
+The soft headroom reserve is sized by the soft heights whatever the
+soft count, so the hard rows stop 0.45 m under the ceiling on a
+manifest of 5 soft boxes (s0039: 6 872 `cap` refusals, 22 of 28) and,
+where the soft cargo is many, the soft pass then fails to use the
+reserved layer (uneven tops, the sweep, the 0.60 m soft boxes: s0013
+15 781 cap refusals, 33 soft unplanned, 52 of 61; s0047 41 soft
+unplanned, 45 of 49; s0003 10 388 cap refusals, 13 of 26).  And in a
+priority container the priority cargo takes the floor first and
+nothing may stand on it (s0040: 3 851 `covers-other-attribute`, 11 of
+21, half the floor at 0.2-0.5 m).  Three options, measured against
+the v46 arm (`adrop-*`):
+
+| form | hard A crossings | hard A placed | sample A placed | sample A soft / priority | priced (A's third) | topples |
+|---|---:|---:|---:|---:|---:|---:|
+| `soft_headroom_volume_cap=1.2` | 27 -> 28 | +0.33 | +0.31 (5 up, 1 down) | +0.02 / +0.06 | -0.14 (cog -0.20) | 12 -> 9 |
+| `plan_variants_semicolon` + `plan_priority_on_top` | 28 | +1.15 (11 up, 6 down) | +0.75 (19 up, 8 down) | -0.29 / -0.60 | -0.85 (priority -0.32, cog -0.59) | 13 |
+| both | 27 | +0.50 | +1.00 (21 up, 9 down) | -0.42 / -0.58 | -1.02 | 13 |
+
+The variants buy count with the priority cargo (its share 0.81 ->
+0.74) and a higher load: on Task A every sample episode crosses, so
+the platform's components scale with the quality, not the count, and
+the continuous pricing is the judge there; neither ships.  The cap is
+mild either way (48 of 48, the margin-0/+1 episodes 7 -> 3).
+`plan_reserve_variants=on;off` (`ares-*`) is the remaining read.
+
 **v45 on the platform: 55.21** (v43 55.24): the placed fraction and
 the fill are v43's to the fifth decimal, the other components within
 0.1 (the settle's noise).  The grid rescue placed nothing there: the
