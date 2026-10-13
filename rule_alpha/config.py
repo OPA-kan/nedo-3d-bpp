@@ -872,6 +872,17 @@ class RuleAlphaConfig:
     1.2 the sample's manifests (a third soft) keep their reserve and
     s0039's falls to about 0.13 m."""
 
+    plan_reserve_variants: str = ""
+    """Task A: the soft headroom reserve as a plan variant ("on;off"): the
+    plan without the reserve is planned too and replaces the plan with it
+    only when it holds the count threshold plus ``plan_value_margin``.
+    On the hard A manifests the reserve keeps the top layer for the soft
+    cargo and the soft pass then fails to use it (uneven tops, the sweep,
+    the 0.60 m soft boxes) while the hard rows stop under the cap
+    (a-hard-s0013: 15 781 cap refusals, 33 soft boxes unplanned, 52
+    planned of the 61 the threshold asks; s0003 10 388 cap refusals, 13
+    of 26)."""
+
     plan_variants_semicolon: bool = False
     """Split ``plan_variants`` on ";" as well.  The shipped arm specs carry
     ``first;after-hard``, which the planner has read as one unknown

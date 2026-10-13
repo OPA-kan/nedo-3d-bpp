@@ -524,10 +524,18 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     n_containers = len(agent.board.models) if getattr(agent, "board", None) is not None and agent.board.models else 1
     if max_containers and n_containers > max_containers:
         softs = [s for s in softs if s != "on"] or [None]
-    variants = [(o, li, s, m, ss) for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
+    # the soft headroom reserve as a variant too ("on;off"): the reserve
+    # keeps the top layer for the soft cargo, and on the hard A manifests
+    # the soft pass then fails to use it (uneven tops, the sweep, tall
+    # soft boxes) while the hard rows stop under the cap (a-hard-s0013:
+    # 15 781 cap refusals, 33 soft boxes unplanned, 52 planned of the 61
+    # the threshold asks); the plan without the reserve plays only when
+    # it holds the count threshold plus plan_value_margin
+    reserves = [r for r in re.split(r"[,+|;]", str(getattr(config, "plan_reserve_variants", "") or "")) if r] or [None]
+    variants = [(o, li, s, m, ss, rv) for rv in reserves for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     threshold = None
-    if softs != [None]:
+    if softs != [None] or reserves != [None]:
         try:
             threshold = agent._count_threshold()
         except Exception:
@@ -546,7 +554,7 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     longest = 0.0
     from . import stability as _stability
 
-    for variant, layout_index, size_order, mode, soft_structure in variants:
+    for variant, layout_index, size_order, mode, soft_structure, reserve in variants:
         now = time.perf_counter()
         if best is not None and now + longest * 1.2 >= deadline:
             break
@@ -556,6 +564,8 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
             changes["count_first"] = size_order == "small"
         if mode is not None:
             changes["plan_layout_layers"] = mode == "layers"
+        if reserve is not None:
+            changes["reserve_headroom_for_soft"] = reserve == "on"
         saved_cap = _stability.SOFT_STRUCTURE_MAX_TOP
         saved_share = _stability.SOFT_STRUCTURE_FLOOR_SHARE
         if soft_structure is not None:
@@ -590,11 +600,15 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
             # a two-deep plan under the gate forfeits the four components
             # on the platform: it does not play
             score = -float("inf")
+        if reserve == "off" and (not gate or len(plan) < gate):
+            # the plan without the soft reserve plays only over the gate:
+            # under it the reserve's soft placements are worth more
+            score = -float("inf")
         if log:
             by_index = {int(i["index"]): i for i in item_list}
             n_soft = sum(1 for e in plan if by_index[int(e["index"])].get("is_soft"))
             n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
-            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}/mode {mode}/soft {soft_structure}: {len(plan)} planned "
+            log(f"  [plan] variant {variant}/layout {layout_index}/size {size_order}/mode {mode}/soft {soft_structure}/reserve {reserve}: {len(plan)} planned "
                 f"(soft {n_soft}, priority {n_prio}), {volume:.3f} m^3, "
                 f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
         entry = ((score, len(plan)), order, plan)
