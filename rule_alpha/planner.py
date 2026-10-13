@@ -535,7 +535,7 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     variants = [(o, li, s, m, ss, rv) for rv in reserves for ss in softs for li in range(layouts) for m in modes for s in sizes for o in orders]
     scorer = getattr(agent, "plan_score", None)
     threshold = None
-    if softs != [None] or reserves != [None]:
+    if softs != [None] or reserves != [None] or getattr(config, "plan_alt_gate", ""):
         try:
             threshold = agent._count_threshold()
         except Exception:
@@ -550,6 +550,7 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     # while the bench, with time to spare, had shown them rising.
     best = None
     best_partial = None
+    base_entry = None   # the first variant planned in full: the shipped form's plan
     started = time.perf_counter()
     longest = 0.0
     from . import stability as _stability
@@ -613,6 +614,8 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
                 f"score {score:.3f}, {'complete' if complete else 'CUT'}, {time.perf_counter() - started:.1f}s")
         entry = ((score, len(plan)), order, plan)
         if complete:
+            if base_entry is None:
+                base_entry = entry
             if best is None or entry[0] > best[0]:
                 best = entry
         elif best_partial is None or entry[0] > best_partial[0]:
@@ -620,6 +623,13 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         if time.perf_counter() >= deadline:
             break
     chosen = best if best is not None else best_partial
+    if (getattr(config, "plan_alt_gate", "") == "base-under" and base_entry is not None
+            and threshold is not None and len(base_entry[2]) >= threshold):
+        # the alternatives (the reserve off, the priority on top, the
+        # other orders) play only where the first variant's plan is under
+        # the count threshold: where it crosses, the shipped plan stands
+        # and the sample suite's soft and priority shares with it
+        chosen = base_entry
     order, plan = chosen[1], chosen[2]
     if getattr(config, "plan_soft_after_hard_rows", False) and plan:
         # every container's hard rows before any soft gallery: a decline

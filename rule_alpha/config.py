@@ -889,6 +889,16 @@ class RuleAlphaConfig:
     1.2 the sample's manifests (a third soft) keep their reserve and
     s0039's falls to about 0.13 m."""
 
+    plan_alt_gate: str = ""
+    """Task A: "base-under" keeps the first variant's plan (the shipped
+    form's) whenever it holds the count threshold, and lets the other
+    variants (the reserve off, the priority on top, the other orders)
+    replace it only where it does not.  The variants bought count with
+    the soft and priority shares on the sample A suite, where every plan
+    crosses (soft -0.79, priority -0.60 a scene); with the gate the
+    sample suite keeps its plans and the hard A misses get the
+    alternatives."""
+
     plan_reserve_variants: str = ""
     """Task A: the soft headroom reserve as a plan variant ("on;off"): the
     plan without the reserve is planned too and replaces the plan with it
