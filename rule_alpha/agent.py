@@ -693,6 +693,19 @@ class RuleAlphaAgent:
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
         self._pool = pool
+        # the count threshold's volume reading (config.count_mode_stream_volume):
+        # the volume of every item the stream has shown, the pool and the
+        # packed items, by index
+        if float(getattr(self.config, "count_mode_stream_volume", 0.0) or 0.0) > 0.0:
+            seen_volumes = getattr(self, "_seen_volumes", None)
+            if seen_volumes is None:
+                seen_volumes = self._seen_volumes = {}
+            for item in list(pool) + [p for c in containers for p in (c.get("packed_items") or [])]:
+                try:
+                    seen_volumes[int(item["index"])] = (
+                        float(item["length"]) * float(item["width"]) * float(item["height"]))
+                except (KeyError, TypeError, ValueError):
+                    continue
         # the pocket guard's class frequencies: every item seen so far
         if self.pocket is not None:
             try:
@@ -1993,6 +2006,17 @@ class RuleAlphaAgent:
         total = self._manifest_total
         if not total:
             total = float(getattr(self.config, "count_mode_items_per_container", 41.0)) * containers
+            # Tasks B and C: the count the stream's volume implies, when it
+            # is the larger (config.count_mode_stream_volume)
+            stream_share = float(getattr(self.config, "count_mode_stream_volume", 0.0) or 0.0)
+            seen_volumes = getattr(self, "_seen_volumes", None)
+            if stream_share > 0.0 and seen_volumes and self.board is not None:
+                capacity = sum(float(c.get("length", 0.0)) * float(c.get("width", 0.0)) * float(c.get("height", 0.0))
+                               for c in self.board.containers)
+                mean = sum(seen_volumes.values()) / len(seen_volumes)
+                if capacity > 0.0 and mean > 0.0:
+                    total = max(total, stream_share * capacity / mean)
+            self.phase_stats["count_total_est"] = round(float(total), 1)
         share = float(getattr(self.config, "count_mode_fraction", 0.5))
         if getattr(self.config, "count_mode_strict", False):
             # strictly more than the share: 42 of 82 where the ceiling
