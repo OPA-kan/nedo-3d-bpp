@@ -741,6 +741,10 @@ keeps the lift off (placed +2.0 / +1.6 but priced -0.47 / -0.67, all
 of it the centre of mass).  Official sample: A 32.11 / 25, B 29.59 /
 26, C 26.44 / 25 (as v48); policy max B 4.62 s, C 4.32 s
 (`official-sample-abc-v49.json`; findings, "Phenomenon 13").
+Official platform: 55.62, the best so far (v46 55.34, +0.28; v47 and
+v48 were not scored): soft +4.2, fill +0.51, cog -1.41, stability
+-0.78, the placed fraction 0.6363 -> 0.6475; policy time 6.91 s
+(`reports/submission/official-results.md`).
 
 ## Known limits
 

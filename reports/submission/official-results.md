@@ -36,6 +36,7 @@
 | v44 (e47edda: v43 plus the rescue stages redesigned -- the grid rescue at the decline, the deep-first order and the sealing pass -- on Tasks B and C, and the stack option's deadline on every task) | 39.01 | 61.45 | 75.19 | 47.5 | 41.4 | 0.6348 | 117.8 | 7.39 |
 | v45 (e650d42: v43 plus the grid rescue at the decline on Tasks B and C and the stack option's deadline on every task) | 39.18 | 65.04 | 79.23 | 49.45 | 42.3 | 0.6370 | 115.9 | 7.29 |
 | v46 (475b770: v45 plus Task A's plan replay sliding a planned pose by up to 2 cm and taking the settled height) | 39.14 | 65.66 | 79.26 | 49.45 | 42.3 | 0.6363 | 117.4 | 7.35 |
+| v49 (f17ed2f: v48 -- v46 plus the grid rescue's pool window on B and the rescue stages' deep-first order and sealing pass gated to C's low phase -- plus the simulator's zero-lift band above the shelf level escaped upward on Tasks B and C) | 39.65 | 64.25 | 78.48 | 49.45 | 46.5 | 0.6475 | 116.0 | 6.91 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -422,6 +423,24 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v49's total is 55.62, the best so far (v46 55.34, +0.28): soft +4.2,
+fill +0.51, cog -1.41, stability -0.78, placement unchanged, the
+placed fraction 0.6363 -> 0.6475 (+0.011, about one item in ninety);
+v47 and v48 were not scored on the platform, so the step from v46
+carries three changes, of which the band lift is the one the suites
+read as a count gain (hard2 C 42 -> 47, hard2 B 40 -> 47, the sample
+suites 48 of 48 on C and 47 -> 48 on B).  The platform read it the
+way the A suite had priced it: the extra items stand on the tops the
+band had closed (0.85-0.95 m up), the centre of mass and the
+stability pay for the height, and on Tasks B and C the count and the
+soft share pay back more.  The soft +4.2 is the largest move of any
+component since v43: the band's placements are stacks on packed tops,
+where the soft boxes go (the cover rule keeps hard cargo off soft and
+soft on soft is allowed), so the band opened the soft cargo's
+surfaces first.  Weighted, the four moves sum to +0.27 against the
++0.28 scored.  Policy time 6.91 s (v46 7.35): the stack option's
+deadline (v45) and the pool window (v47) are in this build.
 
 v46's total is 55.34, the best so far (v43 55.24, v45 55.21): cog
 +0.62 against v45, fill -0.04, stability +0.03, placement and soft
