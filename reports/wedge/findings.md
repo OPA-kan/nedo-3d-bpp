@@ -4541,3 +4541,15 @@ Hard veto at 5 cm / 8 deg (`strict-*`; the replicates `-r2`):
 Not adopted. The settle endings halve on hard2 B and the shake topples fall by a third, but the crossings do not follow (the +4 of the first B run is a one-run swing: the v49 arm's own replicates move a stratum by one, and the second run is flat), and the refused wobbles cost half an item a scene on the sample suites with the priced reading at -0.1 to -0.3; the platform's stability component did not move with the bench's topples before (v46: 7 -> 12 topples, 79.23 -> 79.26). The settle endings that remain are the gambles (a) and the skipped checks (c).
 
 **The own-kind stacking selector** (`attribute_stack_selector`, `room.AttributeStackSelector`; `own-*`): a priority or soft item goes on its own kind when a survivor stands there. It never fired (0 overrides in 192 episodes): the ladder offers a soft item no pose on a soft top until soft covers 35 % of the floor (`soft_structure_floor_share`), and the priority survivors on tops stood on hard cargo in every call probed (`scratchpad` spy on C:c1:1 and C:c2:3: 0 of 55 soft survivors on an item, 0 of 13 priority survivors on priority). A selector cannot choose what the generators do not offer; the records are replicates of the v49 arm (hard2 C sample 35 -> 34, B 35 -> 34: the arm's own noise is a crossing a stratum). The zone has to be opened at the generator: soft as structure from the first soft box and the cap raised to 1.2 m (the column probe above), with the selector to prefer it (`zone-*`, measured next).
+
+**The zone form** (`zone-*`: soft as structure from the first soft box, `soft_structure_floor_share=0`, the cap raised to 1.2 m, `soft_structure_max_top=1.2`, with the own-kind selector; against the v49 form; `bandntdet-hard2` / `zonedet-hard2` the deterministic hard2 C pair):
+
+| suite | crossings | placed | soft covered | settle endings | priced |
+|---|---:|---:|---:|---:|---:|
+| core C | 48 -> 48 | +0.96 (22 up, 10 down) | 45 -> 25 | 1 -> 1 | +0.08 |
+| core B (two runs) | 48 -> 47 / 48 (b-c2-s0003, the flaky one: 37 / 50) | +0.38 / +0.88 | | | +0.27 / +0.11 |
+| hard2 C | sample 35 -> 34, stretch 11 -> 10 | +1.31 / +0.50 | 73 -> 65 | 3 -> 5 | -0.22 |
+| hard2 B | sample 35 -> 36, stretch 11 -> 12 | +1.48 / +3.41 (17 up, 3 down) | | 10 -> 13 | -0.43 (cog -0.75) |
+| hard2 C deterministic | sample 36 -> 36 (4 in, 4 out), stretch 11 -> 8 | -1.60 / +1.06 | 59 -> 47 | 1 -> 6 | -0.30 |
+
+The selector never fires here either (the rungs put soft on soft once it is structure; the pick needs no override). The floor is freed and the sample suites gain a placement a scene with every crossing kept, but the 1.2 m columns pay at the height: the deterministic pair loses three stretch crossings and five episodes end at the settle (soft columns that the shadow passes and the simulator drops, the class (b) of the settle study), and the cog reads -0.3 to -0.75 on hard2. The gate alone (soft as structure from the first box, the cap kept at 0.7 m; `gate0-*`) is measured next to separate the floor's gain from the height's cost.
