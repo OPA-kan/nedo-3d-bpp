@@ -124,6 +124,9 @@ TASK_A_SOFT_GALLERY = False
 # Task C in the low phase only (rescue_order_gate=low+single, OVERRIDES).
 # v49: the simulator's zero-lift band above the shelf level escaped
 # upward on Tasks B and C (band_lift, OVERRIDES).
+# v50: the soft columns from the first soft box on Tasks B and C
+# (soft_structure_floor_share 0.35 -> 0, OVERRIDES) and the count
+# threshold's expected length 42 a container.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -322,7 +325,25 @@ OVERRIDES = dict(
     # three-container floor of twenty soft boxes one generation had
     # 113,000 poses to validate, 11-12 s in one call against the
     # platform's 8 s; inert on the sample's streams.
-    soft_structure_max_top=0.7, soft_structure_floor_share=0.35,
+    # v50: the soft columns from the first soft box (the 0.35 floor-share
+    # gate off; the 0.7 m cap stays).  The floor under special cargo is a
+    # zone only its attribute can build on, and the ladder put the soft
+    # cargo down in the stream's own share (24 % of the first layer's
+    # boxes on sample C, 37 % on hard2); with soft as structure from the
+    # start the soft boxes stack on soft and the floor stays hard's.
+    # Sample C 48 of 48 with placed +0.8 and the covered soft boxes 45 ->
+    # 20, sample B 48 of 48, hard2 B sample crossings +2 in two runs with
+    # placed +1.6 / +3.5, hard2 C flat (deterministic pair 36/11 -> 37/9,
+    # placed +0.4).  A 1.2 m cap was measured too and lost (the mixed
+    # soft columns' third storey falls at the settle; findings, "The zone
+    # form").
+    soft_structure_max_top=0.7, soft_structure_floor_share=0.0,
+    # v50: the count threshold's expected stream length 42 a container
+    # (the official sample tasks 001 and 002 carry 42 items, threshold
+    # 22; 41 gave 21).  No crossing moves on any suite: the low phase's
+    # rules carry the count pass whatever the estimate says (findings,
+    # "The count threshold's estimate on B and C").
+    count_mode_items_per_container=42.0,
     # v41 (not kept): the row-tiling term along both axes with the exact
     # near-neighbour slivers (row_waste_axes=xyn) on Tasks B and C.  The
     # suites: sample C placed +0.21 a scene, sample B +0.06, but 48 -> 47
@@ -458,7 +479,10 @@ class Agent(RuleAlphaAgent):
                       grid_rescue=0.0, rescue_deep_first=False, rescue_seal_area=0.0,
                       # v49: the band lift is for B and C; on A it places
                       # more and prices lower (the centre of mass)
-                      band_lift=0.0)
+                      band_lift=0.0,
+                      # v50: the soft columns' floor-share gate is kept on
+                      # A, whose rows were not measured without it
+                      soft_structure_floor_share=0.35)
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
