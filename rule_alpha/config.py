@@ -2219,6 +2219,11 @@ class RuleAlphaConfig:
     ladder's changed the early course of c-hard-s0025 (64 -> 37 in the
     deterministic pair, two soft boxes up at 1.1 m at step 13)."""
 
+    future_selector_diverse: bool = False
+    """The candidates are the first survivor of each rung (archetype) in
+    the ladder's order, up to ``future_selector_k``, instead of the first
+    k survivors: the rollouts then compare structures rather than
+    near-twins of the chosen rung."""
     future_selector_floor_only: bool = False
     """Judge only the decisions whose pick is a floor placement (the
     floor's formation is what the stream cannot see); the rest keep the

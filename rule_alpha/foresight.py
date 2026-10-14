@@ -56,6 +56,7 @@ class FutureSelector:
         self.budget = float(getattr(config, "future_selector_seconds", 0.0))
         self.mix_mode = str(getattr(config, "future_selector_mix", "seen"))
         self.floor_only = bool(getattr(config, "future_selector_floor_only", False))
+        self.diverse = bool(getattr(config, "future_selector_diverse", False))
         self.rng = np.random.default_rng(int(getattr(config, "future_selector_seed", 7)))
         # the judge is the ladder alone: no selector of any kind inside
         self.inner = dataclasses.replace(
@@ -156,7 +157,22 @@ class FutureSelector:
             return None
         t0 = time.perf_counter()
         deadline = (t0 + self.budget) if self.budget > 0.0 else None
-        pool = list(survivors[: self.k])
+        if self.diverse:
+            # one candidate per rung: the first survivor of each archetype
+            # in the ladder's order, so the rollouts compare structures
+            # (a terrace against a floor pose) and not near-twins of one rung
+            pool = []
+            seen_labels = set()
+            for c in survivors:
+                label = sorted(c.archetypes)[0] if c.archetypes else "alternative"
+                if label in seen_labels:
+                    continue
+                seen_labels.add(label)
+                pool.append(c)
+                if len(pool) >= self.k:
+                    break
+        else:
+            pool = list(survivors[: self.k])
         if chosen not in pool:
             pool.append(chosen)
         futures = self.sample_futures(board, profile)
