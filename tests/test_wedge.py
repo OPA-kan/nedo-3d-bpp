@@ -7,6 +7,12 @@ import unittest
 
 import numpy as np
 
+try:
+    import torch  # noqa: F401
+    HAVE_TORCH = True
+except ImportError:  # the CPU verification workflow installs numpy alone
+    HAVE_TORCH = False
+
 from rule_alpha import layer1
 from wedge_rl.baselines import run_episode, staircase
 from wedge_rl.env import PASS, WedgeEnv
@@ -61,6 +67,7 @@ class WedgeEnvTests(unittest.TestCase):
         res = [run_episode(env, staircase, s, random.Random(s)) for s in range(6)]
         self.assertGreater(max(r["strip_volume"] for r in res), 0.0)
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_option_places_hard_items_and_leaves_soft_to_the_ladder(self):
         """Inside rule-alpha: the option proposes a strip placement for a hard
         item on an empty board (a floor base is always legal and the trained
@@ -127,6 +134,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(obs["heightmap"].shape, (env.nx, env.ny))
         self.assertEqual(obs["profile"].shape, (env.nx,))
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_parallel_collection_matches_single_process(self):
         """Forked workers play the same seeds to the same trajectories."""
         import torch
@@ -166,6 +174,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertAlmostEqual(total, result["gain"])
         self.assertEqual(len(env.placed), result["placed"])
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_teacher_trajectory_and_behaviour_cloning(self):
         """The searched actions replay to the searched gain, and cloning a
         handful of them makes the policy reproduce them."""
@@ -221,6 +230,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertIsNotNone(result["best"])
         self.assertEqual(len(result["history"]), 2)
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_soft_value_targets(self):
         """Child values at the policy's own states become a distribution that
         shares mass among near-ties, and cloning them moves the policy."""
@@ -335,6 +345,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertIsNone(agent.policy({"container_list": observation["container_list"],
                                         "pool_list": [{"index": 99}]}))
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_numpy_policy_matches_torch(self):
         import pathlib
 
@@ -359,6 +370,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(got.shape, expected.shape)
         self.assertLess(float(np.max(np.abs(got - expected))), 1e-4)
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_stack_option_places_after_the_ladder(self):
         """Inside rule-alpha, the stack option turns the ladder's declined
         board into a placement the validator accepts, and it never asks to
@@ -386,6 +398,7 @@ class WedgeEnvTests(unittest.TestCase):
         self.assertEqual(decision.placement.archetype, "stack-rl")
         self.assertEqual(option.placed, 1)
 
+    @unittest.skipUnless(HAVE_TORCH, "torch not installed")
     def test_stack_option_lookahead_and_priority_cover(self):
         """The option's look-ahead over imagined futures returns a legal
         candidate index, and no stack candidate ever sits above priority
