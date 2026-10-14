@@ -59,6 +59,10 @@ class RuleAlphaAgent:
             from .room import LevelSelector
 
             selector = LevelSelector(self.config)
+        elif selector is None and getattr(self.config, "attribute_stack_selector", False):
+            from .room import AttributeStackSelector
+
+            selector = AttributeStackSelector(self.config)
         self.selector = selector
         # the pocket guard (config.pocket_guard): soft cargo keeps the room
         # the hard cargo still to come will need (rule_alpha/pocket.py)

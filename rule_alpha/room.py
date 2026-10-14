@@ -421,3 +421,68 @@ class LevelSelector:
         pick = pool[0]
         label = sorted(pick.archetypes)[0] if pick.archetypes else chosen_archetype
         return pick, f"level/{label}"
+
+
+class AttributeStackSelector:
+    """A ``layer1.choose_for_item`` selector (config.attribute_stack_selector):
+    a priority or soft item goes on its own kind when a survivor stands
+    there.  The cover rule makes the floor under special cargo a zone
+    only that attribute can build on, so each special box set down on
+    the floor, or on hard cargo, locks a footprint's worth of surface
+    for the rest of the stream; stacked on its own kind it locks none.
+    On the v49 sample C records 57 of 206 priority boxes stood on the
+    floor and 46 on hard cargo against 23 on priority; soft 128 on the
+    floor, 124 on hard, 39 on soft; 13 % of the floor lay under special
+    floor boxes (21.5 % on hard2).  The survivors are the ladder's own,
+    so the support rules (soft as structure under its cap, priority as
+    structure) and the cover rule are already applied; this only moves
+    the pick among them: the lowest survivor on its own kind, then the
+    widest."""
+
+    def __init__(self, config):
+        self.config = config
+        self.calls = 0
+        self.overrides = 0
+        self.tolerance = float(getattr(config, "contact_tolerance", 0.006)) + float(
+            getattr(config, "settle_sink_allowance", 0.02))
+
+    def supports(self, box, container) -> list[dict]:
+        bottom = float(box.minimum[2])
+        lo = box.minimum
+        hi = box.maximum
+        out = []
+        for packed in packed_aabbs_local(container):
+            pbox, soft, prio = packed
+            top = float(pbox.maximum[2])
+            if abs(top - bottom) > self.tolerance:
+                continue
+            if (float(pbox.minimum[0]) >= float(hi[0]) or float(pbox.maximum[0]) <= float(lo[0])
+                    or float(pbox.minimum[1]) >= float(hi[1]) or float(pbox.maximum[1]) <= float(lo[1])):
+                continue
+            out.append({"is_soft": soft, "is_prioritized": prio})
+        return out
+
+    def own_kind(self, box, container, profile) -> bool:
+        sup = self.supports(box, container)
+        if not sup:
+            return False
+        if profile.is_prioritized:
+            return all(s["is_prioritized"] for s in sup)
+        return all(s["is_soft"] and not s["is_prioritized"] for s in sup)
+
+    def __call__(self, survivors, chosen, chosen_archetype, board, container_idx, profile):
+        self.calls += 1
+        if not (profile.is_prioritized or profile.is_soft):
+            return None
+        container = board.container(container_idx)
+        if chosen.surface == "item" and self.own_kind(chosen.box, container, profile):
+            return None
+        pool = [c for c in survivors if c is not chosen and c.surface == "item"
+                and self.own_kind(c.box, container, profile)]
+        if not pool:
+            return None
+        pool.sort(key=lambda c: (round(float(c.box.minimum[2]), 2), -c.features.get("footprint", 0.0)))
+        self.overrides += 1
+        pick = pool[0]
+        label = sorted(pick.archetypes)[0] if pick.archetypes else "alternative"
+        return pick, f"own-kind/{label}"

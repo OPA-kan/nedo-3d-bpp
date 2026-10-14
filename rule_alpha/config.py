@@ -2210,6 +2210,13 @@ class RuleAlphaConfig:
     future_selector_mix: str = "seen"
     """``seen``: the classes placed and in view so far, by their counts,
     with the sample's mix as the prior; ``sample``: the sample's mix."""
+    attribute_stack_selector: bool = False
+    """A priority or soft item goes on its own kind when a survivor of the
+    ladder stands there (``room.AttributeStackSelector``): the floor under
+    special cargo is a zone only its attribute can build on, so a special
+    box on the floor or on hard cargo locks a footprint of surface for the
+    stream; on its own kind it locks none."""
+
     count_cover_margin: int = -1
     """Once the placed count reaches the threshold estimate plus this
     margin, the covers of other-attribute cargo (the count pass's and the
