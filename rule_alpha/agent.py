@@ -2143,6 +2143,7 @@ class RuleAlphaAgent:
             settled_clearance=min(strict.settled_clearance, strict.last_resort_settled_clearance),
             routing_any_container=True, stack_max_bottom=10.0, stack_soft_min_support=0.0,
             stack_soft_standing=True,
+            band_lift=max(float(strict.band_lift), float(getattr(strict, "band_lift_rescue", 0.0))),
         )
         if count:
             # under the threshold proper the covers of priority stay allowed
@@ -2508,6 +2509,7 @@ class RuleAlphaAgent:
             strict,
             settled_clearance=min(strict.settled_clearance, strict.last_resort_settled_clearance),
             routing_any_container=True, lift_to_tops=10.0,
+            band_lift=max(float(strict.band_lift), float(getattr(strict, "band_lift_rescue", 0.0))),
         )
         allow_cover = bool(getattr(self, "_count_cover", True)) if count else bool(getattr(strict, "allow_cover_other_attribute", False))
         min_support = float(getattr(strict, "count_mode_min_support", 0.5)) if count else 0.5

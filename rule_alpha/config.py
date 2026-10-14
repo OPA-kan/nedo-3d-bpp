@@ -2210,6 +2210,15 @@ class RuleAlphaConfig:
     future_selector_mix: str = "seen"
     """``seen``: the classes placed and in view so far, by their counts,
     with the sample's mix as the prior; ``sample``: the sample's mix."""
+    band_lift_rescue: float = 0.0
+    """``band_lift`` for the rescue stages alone (the physics resort, the
+    count pass and the grid rescue), with the ladder's own ``band_lift``
+    at 0: the ladder keeps v48's course and the band is opened only where
+    the ladder has declined.  Of the band's placements on hard2 C, the
+    ladder's terrace-extension took 33 and the rescue stages 26; the
+    ladder's changed the early course of c-hard-s0025 (64 -> 37 in the
+    deterministic pair, two soft boxes up at 1.1 m at step 13)."""
+
     future_selector_floor_only: bool = False
     """Judge only the decisions whose pick is a floor placement (the
     floor's formation is what the stream cannot see); the rest keep the
