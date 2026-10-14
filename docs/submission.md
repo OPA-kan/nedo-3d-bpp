@@ -746,6 +746,27 @@ v48 were not scored): soft +4.2, fill +0.51, cog -1.41, stability
 -0.78, the placed fraction 0.6363 -> 0.6475; policy time 6.91 s
 (`reports/submission/official-results.md`).
 
+Fiftieth build (v50): v49 with the soft columns allowed from the first
+soft box on Tasks B and C (`soft_structure_floor_share` 0.35 -> 0; the
+0.7 m cap stays; Task A keeps the gate).  The floor under soft cargo is
+a zone only soft can build on, and the ladder was setting the soft
+boxes down in the stream's own share (24 % of the first layer's boxes
+on sample C, 37 % on hard2); with soft as structure from the start the
+soft boxes stack on soft and the floor stays the hard cargo's.  Sample
+C 48 of 48 with placed +0.8 and the covered soft boxes 45 -> 20, sample
+B 48 of 48, hard2 B sample crossings +2 in two runs with placed +1.6 /
++3.5 and the settle endings halved, hard2 C flat (deterministic pair
+36/11 -> 37/9, placed +0.4).  A 1.2 m cap was measured and lost (the
+mixed soft columns' third storey falls at the settle), and the count
+threshold's prior 42 (the official samples' count) moved no bench
+crossing and was not kept (findings, "The zone form", "The gate
+alone", "The count threshold's estimate on B and C").  Official sample:
+A 32.11 / 25, B 29.59 / 26, C 23.64 / 24 in this run -- the C scene is
+timing-sensitive under this form: four repeats gave 26.44 / 25 twice
+and 23.64 / 24 twice, where v49 gives 26.44 / 25 four times; both cross
+its threshold of 22.  Policy max B 4.95 s, C 4.51 s
+(`official-sample-abc-v50.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
