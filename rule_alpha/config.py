@@ -2210,6 +2210,18 @@ class RuleAlphaConfig:
     future_selector_mix: str = "seen"
     """``seen``: the classes placed and in view so far, by their counts,
     with the sample's mix as the prior; ``sample``: the sample's mix."""
+    count_cover_margin: int = -1
+    """Once the placed count reaches the threshold estimate plus this
+    margin, the covers of other-attribute cargo (the count pass's and the
+    low phase's) stop; -1 = never.  On the sample suites 35 of 58 covers
+    of priority cargo on C and 56 of 62 on B happen over the threshold,
+    where the covered box's share (about 2 points of the episode under
+    the H1 pricing) buys an item worth its fill (0.2-0.4); the platform's
+    placement score, 49.45, matches the credited share of the priority
+    cargo (placed 66 % less covered 22 % on sample C).  The risk is the
+    estimate: on the platform the threshold is 41 a container by
+    assumption, and v43's low-phase covers gained there."""
+
     band_lift_rescue: float = 0.0
     """``band_lift`` for the rescue stages alone (the physics resort, the
     count pass and the grid rescue), with the ladder's own ``band_lift``

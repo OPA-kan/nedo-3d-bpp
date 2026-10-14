@@ -2031,6 +2031,12 @@ class RuleAlphaAgent:
         # phase_switch_cover
         self._count_cover = really_under or (
             bool(getattr(self, "_phase_low", False)) and bool(getattr(self.config, "phase_switch_cover", False)))
+        # over the threshold by the margin, the low phase's covers stop: a
+        # covered priority or soft box costs its share, the item placed on
+        # it is worth its fill (config.count_cover_margin)
+        margin = int(getattr(self.config, "count_cover_margin", -1))
+        if margin >= 0 and threshold is not None and placed >= threshold + margin:
+            self._count_cover = False
         if getattr(self, "_phase_low", False):
             return True
         if threshold is None:
