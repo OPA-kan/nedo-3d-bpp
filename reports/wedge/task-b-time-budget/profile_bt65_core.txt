@@ -1,0 +1,53 @@
+
+## bt65-core-b: 48 episodes, budget 6.5
+
+calls 1930; over budget 191; over 6.7 s 147; over 8.0 s 20; over 10 s 0
+
+| archetype | n | median | p90 | p99 | max | >0.8 budget | >budget |
+|---|---|---|---|---|---|---|---|
+| terrace-extension | 513 | 0.25 | 0.59 | 5.80 | 8.77 | 6 | 2 |
+| max-footprint | 354 | 0.22 | 0.50 | 2.26 | 5.77 | 1 | 0 |
+| shelf-space-saving | 227 | 0.23 | 0.54 | 4.59 | 5.10 | 0 | 0 |
+| stack-rl | 226 | 2.76 | 4.26 | 5.93 | 9.15 | 8 | 1 |
+| wedge-step | 129 | 0.22 | 0.47 | 2.42 | 2.80 | 0 | 0 |
+| count-mode | 121 | 6.64 | 7.38 | 7.76 | 7.95 | 97 | 76 |
+| physics-resort | 83 | 6.75 | 7.31 | 7.88 | 7.91 | 71 | 63 |
+| soft-edge | 59 | 1.22 | 3.18 | 5.98 | 6.35 | 4 | 0 |
+| priority-edge | 49 | 0.30 | 0.68 | 0.79 | 0.79 | 0 | 0 |
+| DECLINE | 47 | 6.80 | 7.88 | 8.84 | 8.84 | 36 | 28 |
+| pocket-soft | 36 | 0.93 | 1.57 | 5.60 | 5.60 | 1 | 0 |
+| fallback | 30 | 0.17 | 0.45 | 1.43 | 1.43 | 0 | 0 |
+| front-wedge | 13 | 0.35 | 2.35 | 4.80 | 4.80 | 0 | 0 |
+| grid-rescue-cover | 12 | 8.12 | 8.33 | 8.35 | 8.35 | 12 | 12 |
+| sp-cluster | 11 | 1.77 | 2.39 | 2.56 | 2.56 | 0 | 0 |
+| grid-rescue | 9 | 7.99 | 8.33 | 8.75 | 8.75 | 9 | 9 |
+| hole-fill | 8 | 0.37 | 0.85 | 2.31 | 2.31 | 0 | 0 |
+| plateau-merge | 2 | 0.29 | 0.37 | 0.37 | 0.37 | 0 | 0 |
+| wedge-soft-cap | 1 | 0.43 | 0.43 | 0.43 | 0.43 | 0 | 0 |
+
+| items placed | n | median | p90 | p99 | max | >0.8 budget | >budget |
+|---|---|---|---|---|---|---|---|
+| 0-9 | 480 | 0.16 | 0.36 | 0.44 | 0.48 | 0 | 0 |
+| 10-19 | 480 | 0.25 | 0.63 | 3.58 | 5.09 | 0 | 0 |
+| 20-29 | 428 | 0.72 | 5.50 | 7.80 | 9.15 | 50 | 34 |
+| 30-39 | 251 | 0.82 | 4.26 | 7.68 | 8.33 | 16 | 10 |
+| 40-49 | 213 | 5.09 | 7.37 | 8.75 | 8.84 | 104 | 83 |
+| 50-79 | 78 | 6.92 | 7.63 | 8.27 | 8.35 | 75 | 64 |
+| 80+ | 0 | | | | | | |
+
+near budget (5.2-7.0 s) by stage: {'count-mode': 72, 'physics-resort': 48, 'DECLINE': 18, 'stack-rl': 7, 'soft-edge': 4, 'terrace-extension': 4, 'grid-rescue': 4, 'grid-rescue-cover': 2, 'pocket-soft': 1, 'max-footprint': 1}
+over budget by stage: {'count-mode': 76, 'physics-resort': 63, 'DECLINE': 28, 'grid-rescue-cover': 12, 'grid-rescue': 9, 'terrace-extension': 2, 'stack-rl': 1}
+placing calls over budget, not stack-rl: 162; by stage {'physics-resort': 63, 'count-mode': 76, 'grid-rescue-cover': 12, 'grid-rescue': 9, 'terrace-extension': 2}
+slowest 8 calls: b-c1s-s0002 st25 stack-rl 9.2, b-c2-s0003 st42 DECLINE 8.8, b-c2-s0006 st49 terrace-extension 8.8, b-c2-s0003 st40 grid-rescue 8.8, b-c2-s0004 st47 DECLINE 8.7, b-c2-s0006 st48 terrace-extension 8.6, b-c2p-s0004 st53 grid-rescue-cover 8.4, b-c2-s0005 st47 grid-rescue-cover 8.3
+slowest 8 non-stack-rl calls: b-c2-s0003 st42 DECLINE 8.8, b-c2-s0006 st49 terrace-extension 8.8, b-c2-s0003 st40 grid-rescue 8.8, b-c2-s0004 st47 DECLINE 8.7, b-c2-s0006 st48 terrace-extension 8.6, b-c2p-s0004 st53 grid-rescue-cover 8.4, b-c2-s0005 st47 grid-rescue-cover 8.3, b-c2p-s0002 st38 grid-rescue 8.3
+
+declines 47: last call median 6.80, p10 4.12, p90 7.88, max 8.84
+  a <6.2 (stages ran out of poses): 15
+  b 6.2-8.65: 30
+  c 8.65-9.15 (resort deadline, over count): 2
+  stratum all: 47 declines, fast 15, at a rescue deadline 2; near misses (margin -3..-1) 0 of which at a deadline 0
+  near misses: 
+  ending settle: b-c2-s0006 st49 terrace-extension 8.77s shadow yes placed 49/82 margin +7
+  shadow totals: checks 2072, continued 28, count_mode 121, count_mode_tried 97, fallback 3, grid_rescue 21, grid_rescue_tried 16, kept 1625, kept_soft 26, replaced 0, resort 83, resort_tried 0, seconds 324.1, skipped 4, vetoes 54
+  rescue placements 225: median 6.74 s, over budget 160, over 8.45 s 1; by stage over budget {'physics-resort': 63, 'count-mode': 76, 'grid-rescue-cover': 12, 'grid-rescue': 9}
+  placements without a shadow digest: 4 {'terrace-extension': 3, 'max-footprint': 1}

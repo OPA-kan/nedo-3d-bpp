@@ -1,0 +1,65 @@
+
+## bt65-hard2-b: 96 episodes, budget 6.5
+
+calls 4662; over budget 299; over 6.7 s 268; over 8.0 s 112; over 10 s 18
+
+| archetype | n | median | p90 | p99 | max | >0.8 budget | >budget |
+|---|---|---|---|---|---|---|---|
+| terrace-extension | 1223 | 0.42 | 1.03 | 5.73 | 9.18 | 20 | 3 |
+| max-footprint | 612 | 0.36 | 0.83 | 2.74 | 5.83 | 1 | 0 |
+| shelf-space-saving | 578 | 0.36 | 0.91 | 5.78 | 6.03 | 9 | 0 |
+| stack-rl | 508 | 3.73 | 8.28 | 11.77 | 15.74 | 116 | 86 |
+| pocket-soft | 300 | 1.13 | 1.90 | 4.10 | 4.65 | 0 | 0 |
+| soft-edge | 265 | 1.49 | 3.79 | 6.22 | 10.03 | 10 | 3 |
+| wedge-step | 260 | 0.38 | 0.74 | 2.08 | 4.41 | 0 | 0 |
+| physics-resort | 159 | 6.42 | 7.49 | 7.82 | 7.98 | 105 | 74 |
+| count-mode | 156 | 5.20 | 7.25 | 7.67 | 7.76 | 78 | 41 |
+| wall-front | 115 | 0.30 | 0.76 | 1.18 | 3.76 | 0 | 0 |
+| DECLINE | 89 | 5.89 | 8.35 | 9.32 | 9.36 | 54 | 27 |
+| grid-rescue | 72 | 6.99 | 8.61 | 8.95 | 9.14 | 48 | 40 |
+| priority-edge | 72 | 0.39 | 0.76 | 2.13 | 4.38 | 0 | 0 |
+| grid-rescue-cover | 58 | 6.17 | 8.51 | 9.27 | 9.43 | 44 | 25 |
+| fallback | 54 | 0.31 | 1.22 | 1.87 | 1.88 | 0 | 0 |
+| front-wedge | 38 | 0.36 | 1.70 | 5.51 | 5.51 | 1 | 0 |
+| sp-cluster | 37 | 1.47 | 4.04 | 5.08 | 5.08 | 0 | 0 |
+| plateau-merge | 30 | 0.53 | 0.78 | 4.56 | 4.56 | 0 | 0 |
+| hole-fill | 25 | 0.43 | 3.21 | 5.38 | 5.38 | 1 | 0 |
+| wedge-bridge | 6 | 0.49 | 0.63 | 0.70 | 0.70 | 0 | 0 |
+| wedge-soft-cap | 5 | 0.30 | 2.67 | 2.67 | 2.67 | 0 | 0 |
+
+| items placed | n | median | p90 | p99 | max | >0.8 budget | >budget |
+|---|---|---|---|---|---|---|---|
+| 0-9 | 960 | 0.17 | 0.60 | 1.25 | 2.71 | 0 | 0 |
+| 10-19 | 931 | 0.42 | 1.56 | 5.11 | 8.68 | 8 | 1 |
+| 20-29 | 793 | 0.53 | 3.30 | 7.16 | 9.32 | 37 | 16 |
+| 30-39 | 641 | 0.75 | 4.70 | 8.08 | 9.36 | 56 | 26 |
+| 40-49 | 493 | 1.59 | 6.89 | 9.16 | 10.64 | 108 | 66 |
+| 50-79 | 672 | 3.05 | 7.45 | 11.25 | 15.74 | 201 | 132 |
+| 80+ | 172 | 4.95 | 8.71 | 9.62 | 10.10 | 77 | 58 |
+
+near budget (5.2-7.0 s) by stage: {'physics-resort': 68, 'count-mode': 53, 'stack-rl': 42, 'DECLINE': 32, 'grid-rescue-cover': 20, 'terrace-extension': 17, 'grid-rescue': 12, 'shelf-space-saving': 9, 'soft-edge': 8, 'front-wedge': 1, 'hole-fill': 1, 'max-footprint': 1}
+over budget by stage: {'stack-rl': 86, 'physics-resort': 74, 'count-mode': 41, 'grid-rescue': 40, 'DECLINE': 27, 'grid-rescue-cover': 25, 'soft-edge': 3, 'terrace-extension': 3}
+placing calls over budget, not stack-rl: 186; by stage {'count-mode': 41, 'grid-rescue-cover': 25, 'physics-resort': 74, 'soft-edge': 3, 'grid-rescue': 40, 'terrace-extension': 3}
+slowest 8 calls: b-hard2-s0091 st65 stack-rl 15.7, b-hard2-s0091 st64 stack-rl 15.7, b-hard2-s0091 st63 stack-rl 15.1, b-hard2-s0091 st61 stack-rl 13.8, b-hard2-s0091 st60 stack-rl 12.4, b-hard2-s0091 st58 stack-rl 11.8, b-hard2-s0091 st59 stack-rl 11.7, b-hard2-s0091 st55 stack-rl 11.2
+slowest 8 non-stack-rl calls: b-hard2-s0005 st72 soft-edge 10.0, b-hard2-s0043 st61 grid-rescue-cover 9.4, b-hard2-s0093 st36 DECLINE 9.4, b-hard2-s0049 st21 DECLINE 9.3, b-hard2-s0080 st73 grid-rescue-cover 9.3, b-hard2-s0063 st50 grid-rescue-cover 9.3, b-hard2-s0033 st47 terrace-extension 9.2, b-hard2-s0043 st64 DECLINE 9.2
+
+declines 89: last call median 5.89, p10 1.76, p90 8.35, max 9.36
+  a <6.2 (stages ran out of poses): 58
+  b 6.2-8.65: 23
+  c 8.65-9.15 (resort deadline, over count): 5
+  d >=9.15 (count deadline): 3
+  stratum sample: 44 declines, fast 30, at a rescue deadline 5; near misses (margin -3..-1) 4 of which at a deadline 0
+  stratum stretch: 29 declines, fast 18, at a rescue deadline 2; near misses (margin -3..-1) 4 of which at a deadline 0
+  stratum edge: 8 declines, fast 5, at a rescue deadline 0; near misses (margin -3..-1) 1 of which at a deadline 0
+  stratum fill-only: 8 declines, fast 5, at a rescue deadline 1; near misses (margin -3..-1) 0 of which at a deadline 0
+  near misses: b-hard2-s0040(sample,-1,5.6s), b-hard2-s0067(stretch,-1,4.7s), b-hard2-s0077(stretch,-1,4.9s), b-hard2-s0078(stretch,-1,6.0s), b-hard2-s0021(sample,-2,5.8s), b-hard2-s0026(sample,-2,2.6s), b-hard2-s0039(sample,-2,2.1s), b-hard2-s0083(edge,-2,5.6s), b-hard2-s0060(stretch,-3,7.3s)
+  ending settle: b-hard2-s0020 st46 soft-edge 8.63s shadow yes placed 46/86 margin +2
+  ending settle: b-hard2-s0033 st47 terrace-extension 9.18s shadow yes placed 47/84 margin +4
+  ending settle: b-hard2-s0036 st47 stack-rl 8.84s shadow yes placed 47/164 margin -36
+  ending settle: b-hard2-s0037 st9 terrace-extension 1.03s shadow yes placed 9/64 margin -24
+  ending settle: b-hard2-s0061 st74 stack-rl 7.56s shadow NO placed 74/236 margin -45
+  ending settle: b-hard2-s0063 st51 stack-rl 8.80s shadow yes placed 51/110 margin -5
+  ending settle: b-hard2-s0065 st65 stack-rl 8.53s shadow yes placed 65/170 margin -21
+  shadow totals: checks 5318, continued 271, count_mode 156, count_mode_tried 68, fallback 7, grid_rescue 130, grid_rescue_tried 64, kept 3906, kept_soft 74, replaced 32, resort 159, resort_tried 0, seconds 1292.6, skipped 109, vetoes 377
+  rescue placements 445: median 6.06 s, over budget 180, over 8.45 s 16; by stage over budget {'count-mode': 41, 'grid-rescue-cover': 25, 'physics-resort': 74, 'grid-rescue': 40}
+  placements without a shadow digest: 109 {'stack-rl': 98, 'soft-edge': 7, 'terrace-extension': 1, 'front-wedge': 1, 'hole-fill': 1, 'shelf-space-saving': 1}
