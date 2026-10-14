@@ -125,8 +125,7 @@ TASK_A_SOFT_GALLERY = False
 # v49: the simulator's zero-lift band above the shelf level escaped
 # upward on Tasks B and C (band_lift, OVERRIDES).
 # v50: the soft columns from the first soft box on Tasks B and C
-# (soft_structure_floor_share 0.35 -> 0, OVERRIDES) and the count
-# threshold's expected length 42 a container.
+# (soft_structure_floor_share 0.35 -> 0, OVERRIDES).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -338,12 +337,11 @@ OVERRIDES = dict(
     # soft columns' third storey falls at the settle; findings, "The zone
     # form").
     soft_structure_max_top=0.7, soft_structure_floor_share=0.0,
-    # v50: the count threshold's expected stream length 42 a container
-    # (the official sample tasks 001 and 002 carry 42 items, threshold
-    # 22; 41 gave 21).  No crossing moves on any suite: the low phase's
-    # rules carry the count pass whatever the estimate says (findings,
-    # "The count threshold's estimate on B and C").
-    count_mode_items_per_container=42.0,
+    # (v50, not kept: the count threshold's expected length 42 a container
+    # matches the official samples' 42 items, and no bench crossing moves
+    # with it, but on the official sample C scene it holds the count pass
+    # one item longer and the episode ends at 24 instead of 25; the 41
+    # stays -- findings, "The count threshold's estimate on B and C".)
     # v41 (not kept): the row-tiling term along both axes with the exact
     # near-neighbour slivers (row_waste_axes=xyn) on Tasks B and C.  The
     # suites: sample C placed +0.21 a scene, sample B +0.06, but 48 -> 47
