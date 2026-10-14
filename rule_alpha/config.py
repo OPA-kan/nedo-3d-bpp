@@ -2210,6 +2210,10 @@ class RuleAlphaConfig:
     future_selector_mix: str = "seen"
     """``seen``: the classes placed and in view so far, by their counts,
     with the sample's mix as the prior; ``sample``: the sample's mix."""
+    future_selector_floor_only: bool = False
+    """Judge only the decisions whose pick is a floor placement (the
+    floor's formation is what the stream cannot see); the rest keep the
+    ladder's pick."""
 
     online_tower_rule: bool = False
     """The online planner's poses (``online_planner``) pass the stack

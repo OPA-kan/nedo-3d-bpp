@@ -55,6 +55,7 @@ class FutureSelector:
         self.margin = float(getattr(config, "future_selector_margin", 0.5))
         self.budget = float(getattr(config, "future_selector_seconds", 0.0))
         self.mix_mode = str(getattr(config, "future_selector_mix", "seen"))
+        self.floor_only = bool(getattr(config, "future_selector_floor_only", False))
         self.rng = np.random.default_rng(int(getattr(config, "future_selector_seed", 7)))
         # the judge is the ladder alone: no selector of any kind inside
         self.inner = dataclasses.replace(
@@ -150,6 +151,8 @@ class FutureSelector:
     def __call__(self, survivors, chosen, chosen_archetype, board, container_idx, profile):
         self.calls += 1
         if len(survivors) < 2:
+            return None
+        if self.floor_only and str(getattr(chosen, "surface", "")) != "floor":
             return None
         t0 = time.perf_counter()
         deadline = (t0 + self.budget) if self.budget > 0.0 else None
