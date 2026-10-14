@@ -37,6 +37,7 @@
 | v45 (e650d42: v43 plus the grid rescue at the decline on Tasks B and C and the stack option's deadline on every task) | 39.18 | 65.04 | 79.23 | 49.45 | 42.3 | 0.6370 | 115.9 | 7.29 |
 | v46 (475b770: v45 plus Task A's plan replay sliding a planned pose by up to 2 cm and taking the settled height) | 39.14 | 65.66 | 79.26 | 49.45 | 42.3 | 0.6363 | 117.4 | 7.35 |
 | v49 (f17ed2f: v48 -- v46 plus the grid rescue's pool window on B and the rescue stages' deep-first order and sealing pass gated to C's low phase -- plus the simulator's zero-lift band above the shelf level escaped upward on Tasks B and C) | 39.65 | 64.25 | 78.48 | 49.45 | 46.5 | 0.6475 | 116.0 | 6.91 |
+| v50 (e310ebde: v49 plus the soft columns allowed from the first soft box on Tasks B and C -- `soft_structure_floor_share` 0.35 -> 0 under the 0.7 m cap; Task A keeps the gate) | 38.62 | 64.82 | 78.19 | 50.4 | 50.1 | 0.6446 | 118.9 | 6.75 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -423,6 +424,32 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v50's total is 56.04, the best so far (v49 55.62, +0.41): soft +3.6,
+placement +0.95, cog +0.57, fill -1.03, stability -0.29, the placed
+fraction 0.6475 -> 0.6446 (-0.003, about one item in three hundred);
+policy time 6.75 s (v49 6.91), optimization 118.9 s.  The refit
+(`reports/wedge/platform-refit.md`) had predicted about +0.2 with a
+range of -0.1 to +0.7 and named soft as the swing; soft moved by its
+upper case (+3.6, which at k = 19 is +0.19 per counted episode, about
+0.8 of a credited soft box per B and C episode, the structural rate
+the bench's halved soft covers on sample C -- 45 -> 20 over 48
+episodes -- had put at about half a box).  Soft at 50.1 is the
+highest of any build.  The composition under the total is not the
+predicted one: fill fell 1.03 with the fraction nearly unchanged, so
+the boxes placed are smaller on average -- the columns credit soft
+boxes where hard volume stood before, and the soft term (+0.51
+weighted) outpays the fill term (-0.30 weighted); stability fell
+0.29 (78.19 is 19 x 4.175 - 1.14, the continuous part 0.3 worse than
+v49's, where the refit had assumed the band's Task B topples would
+leave with the gate and priced +0.28 the other way); placement moved
+for the first time since v45 (+0.95) with no Task A change and no
+crossing, which the refit had ruled out, so the placement term has a
+B/C component after all (the priority cargo's placement under the
+soft columns).  The crossing count is unchanged at 19 of 19: the
+stability lattice holds, and the gate lost no platform episode
+(the official sample C scene's 25 / 24 flip is above its threshold
+either way).  v50 is the shipped form.
 
 v49's total is 55.62, the best so far (v46 55.34, +0.28): soft +4.2,
 fill +0.51, cog -1.41, stability -0.78, placement unchanged, the

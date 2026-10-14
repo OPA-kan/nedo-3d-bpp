@@ -766,6 +766,10 @@ timing-sensitive under this form: four repeats gave 26.44 / 25 twice
 and 23.64 / 24 twice, where v49 gives 26.44 / 25 four times; both cross
 its threshold of 22.  Policy max B 4.95 s, C 4.51 s
 (`official-sample-abc-v50.json`).
+Official platform: 56.04, the best so far (v49 55.62, +0.41): soft
++3.6 (50.1, the highest of any build), placement +0.95, cog +0.57,
+fill -1.03, stability -0.29, the placed fraction 0.6475 -> 0.6446;
+policy time 6.75 s (`reports/submission/official-results.md`).
 
 ## Known limits
 
