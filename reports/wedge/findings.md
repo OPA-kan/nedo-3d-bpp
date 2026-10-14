@@ -4482,3 +4482,8 @@ Attribution and the top rule apart (records `banddet-hard2`, `band-hard2-r2`, `b
 * Policy time: b-hard2-s0070's 19-22 s calls are the stack option's candidate generation in the measured arm, which lacks the shipped `stack_deadline`; the same scene under the shipped form locally: max 6.7 s (a grid-rescue call), the stack-rl calls 3.9 s.
 
 Recommendation, shipped as v49: `band_lift=0.003, band_lift_top=false` on B and C; off on A.
+
+**Phenomenon 2 after the band lift** (`bandnt-hard`, `bandnt-hard-b` = the v49 form on the 48-scene hard suites; `lift2-*` = v49 + `lift_to_tops=0.05`):
+
+* c-hard-s0048, the 0.6 x 0.8 m plateau at 0.85 m whose 10 892 anchors all failed (the 2.5 cm step between its two columns), crosses under v49: 20 -> 25 against 21. The plateau's top lay in the zero-lift band (level 0.835 for its 1.59 m container), so every box on it was refused by the simulator whatever the anchor did; with the band escaped the rescue stages place there. hard B 22 -> 24; hard C 26 -> 23 (s0007 and s0048 in, s0017, s0018, s0025, s0031, s0038 out, swings of 2-12 items on multi-container boards; a replicate is running).
+* `lift_to_tops` (the anchor raised onto the tops crossing the plane of its bottom), measured for the first time on whole suites, on top of v49: core C -0.08 (48 of 48), core B -0.81 and 48 -> 46, hard2 C sample 35 -> 35 / stretch 11 -> 9, hard2 B sample 35 -> 34. Not adopted: the step it was built for no longer decides s0048, and the raised anchors cost placements elsewhere.
