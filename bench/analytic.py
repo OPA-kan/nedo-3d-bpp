@@ -157,8 +157,11 @@ def run_analytic_episode(scene, arm, max_steps: int = 400, policy_budget: float 
     })
     sel = getattr(agent, "selector", None)
     if sel is not None and hasattr(sel, "overrides"):
+        seconds = getattr(sel, "seconds", 0.0)
+        if isinstance(seconds, (list, tuple)):  # the bench search selector keeps one entry a call
+            seconds = sum(seconds)
         metrics["selector"] = {"calls": getattr(sel, "calls", 0), "overrides": sel.overrides,
-                               "seconds": round(getattr(sel, "seconds", 0.0), 2),
+                               "seconds": round(float(seconds), 2),
                                "decisions": getattr(sel, "decisions", 0)}
     return {
         "scene": scene.name,
