@@ -4618,3 +4618,14 @@ Verdict: no form of the estimate earns its place on the bench, because in the sh
 The gate carries the floor's gain without the cap's cost: the sample suites keep every crossing with C +0.8 placed and the soft covers halved, hard2 B gains two sample crossings in both runs with placed +1.6 to +3.5 and the settle endings halved, hard2 C is flat (the deterministic pair nets -1 crossing on 96 scenes with +0.4 placed, the lost ones at the threshold's edge). Shipped as v50 on B and C with the count threshold's prior at 42.
 
 **v50 and the official sample C scene.** The sample check of the gate-only form read C at 23.64 / 24 against v49's 26.44 / 25. Four repeats of task 002 alone per form: v49 (gate 0.35, prior 41) 25 / 25 / 25 / 25; the gate alone 25 / 25 / 24 / 24; the gate with the prior 42 25 / 25 / 24 / 24; v49 with the prior 42 25 / 25 / 24 / 25. So the flip is the gate form's timing sensitivity on that scene (a budget-cut decision going either way), not the prior; both outcomes cross the scene's threshold of 22. The prior 42 is not kept (no bench crossing moves with it, and the one scene it can change is this one).
+
+**Standing soft cargo on the floor** (`stand-*`: `soft_standing_floor`, `max_freestanding_ratio_soft=3.0`, the own-kind selector's least-footprint pick, on top of the gate-only form; against `gate0-*`). The official simulator stands every sample soft class on its smallest face alone and in a row under the shake proxy (shift under 1.3 cm; `scratchpad` probe), and the ladder had never offered those poses for soft (its floor rungs add the standing orientations for hard cargo only, and the free-standing rule refuses height over base above 2.0, where the standing soft classes are 2.2-2.8).
+
+| suite | crossings | placed | soft covered | shake topples | priced |
+|---|---:|---:|---:|---:|---:|
+| core C | 48 -> 48 | +0.12 | 20 -> 27 | 12 -> 21 | -0.04 |
+| core B | 48 -> 47 (b-c2p-s0002 47 -> 40 against 42) | -0.40 | | 13 -> 24 | -0.04 |
+| hard2 C | sample 33 -> 36, stretch 9 -> 11 | +0.19 / 0.00 | 80 -> 52 | 82 -> 56 | -0.22 |
+| hard2 B | sample 35 -> 36, stretch 12 -> 11 | -0.54 / -1.44 (against the replicate -0.83 / -2.75) | | 113 -> 97 | -0.06 / -0.08 |
+
+Not adopted: the sample suites are flat with a crossing lost on B and the shake topples doubled (the standing boxes that stood alone in the probe fall on the real boards' uneven soft neighbours), hard2 B is flat to negative; the one signal is hard2 C's +5 in a single loaded run, which a deterministic pair could attribute if the line is reopened (the overrides are 0.15 a scene, so most of the effect is the generators' new standing poses taken by the rungs themselves).
