@@ -3633,7 +3633,10 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     kept = []
     for candidate in survivors:
         ratio = candidate.orientation.tipping_ratio
-        if ratio >= config.max_freestanding_ratio and not candidate.features["has_backing"]:
+        limit = config.max_freestanding_ratio
+        if candidate.profile.is_soft and float(getattr(config, "max_freestanding_ratio_soft", -1.0)) > 0.0:
+            limit = float(config.max_freestanding_ratio_soft)
+        if ratio >= limit and not candidate.features["has_backing"]:
             drop(candidate, "free-standing-tipping-risk")
         else:
             kept.append(candidate)
@@ -4319,7 +4322,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             orientations = list(
                 cls.orientation_order(profile, surface_policy, role_hint, config)
             )[:max_orientations]
-            if surface_policy == "floor" and not profile.is_soft:
+            if surface_policy == "floor" and (not profile.is_soft or getattr(config, "soft_standing_floor", False)):
                 # A standing pose can earn a place against a wall even when the
                 # item is not slender enough to be called elongated.  If it is
                 # never generated, max-footprint is the only option left and the

@@ -445,6 +445,7 @@ class AttributeStackSelector:
         self.overrides = 0
         self.tolerance = float(getattr(config, "contact_tolerance", 0.006)) + float(
             getattr(config, "settle_sink_allowance", 0.02))
+        self.min_footprint = bool(getattr(config, "attribute_stack_min_footprint", False))
 
     def supports(self, box, container) -> list[dict]:
         bottom = float(box.minimum[2])
@@ -479,6 +480,20 @@ class AttributeStackSelector:
             return None
         pool = [c for c in survivors if c is not chosen and c.surface == "item"
                 and self.own_kind(c.box, container, profile)]
+        if not pool and self.min_footprint and chosen.surface == "floor" and profile.is_soft:
+            # on the floor a soft box takes the pose with the least footprint
+            # (standing where the generators offer it): the floor under
+            # soft cargo is lost to the hard cargo above
+            floor = [c for c in survivors if c.surface == "floor"]
+            if floor:
+                smallest = min(floor, key=lambda c: (round(float(c.box.size[0]) * float(c.box.size[1]), 4),
+                                                     round(float(c.box.minimum[2]), 2)))
+                if smallest is not chosen and float(smallest.box.size[0]) * float(smallest.box.size[1]) < (
+                        float(chosen.box.size[0]) * float(chosen.box.size[1]) - 1e-6):
+                    self.overrides += 1
+                    label = sorted(smallest.archetypes)[0] if smallest.archetypes else "alternative"
+                    return smallest, f"min-footprint/{label}"
+            return None
         if not pool:
             return None
         pool.sort(key=lambda c: (round(float(c.box.minimum[2]), 2), -c.features.get("footprint", 0.0)))

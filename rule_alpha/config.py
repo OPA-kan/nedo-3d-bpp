@@ -2228,6 +2228,21 @@ class RuleAlphaConfig:
     future_selector_mix: str = "seen"
     """``seen``: the classes placed and in view so far, by their counts,
     with the sample's mix as the prior; ``sample``: the sample's mix."""
+    soft_standing_floor: bool = False
+    """The ladder's floor rungs also try the standing orientations for soft
+    cargo (they do for hard cargo: ``choose_for_item``).  Standing, a
+    0.65 x 0.35 x 0.23 soft box takes 0.08 m2 of floor against 0.23 flat,
+    and the floor under soft cargo is lost to the hard cargo above; in the
+    official simulator with the bench's shake proxy a standing soft box of
+    every sample class stands alone and in a row (shift under 1.3 cm, no
+    topple; `scratchpad` probe)."""
+    max_freestanding_ratio_soft: float = -1.0
+    """``max_freestanding_ratio`` for soft cargo when positive (the standing
+    soft classes have height over base 2.2-2.8, over the 2.0 the rule
+    allows free-standing); -1 keeps the one rule."""
+    attribute_stack_min_footprint: bool = False
+    """With ``attribute_stack_selector``: a soft item on the floor takes
+    the surviving floor pose with the least footprint."""
     attribute_stack_selector: bool = False
     """A priority or soft item goes on its own kind when a survivor of the
     ladder stands there (``room.AttributeStackSelector``): the floor under
