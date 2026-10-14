@@ -1956,6 +1956,24 @@ class RuleAlphaConfig:
     priority or soft box costs a share of the placement or soft score
     (weights 0.14 each), the crossing earns the whole of all four."""
     count_mode_items_per_container: float = 41.0
+    """Tasks B and C: the stream's expected length a container, the count
+    threshold's prior (the environment hands the agent neither the length
+    nor the items to come; the item indices count the stream from 0 and so
+    give only the items seen so far).  The official samples carry 41
+    items (A) and 42 (B, C) in one ULD, so 41 puts B's and C's threshold
+    at 21 against the real 22; the bench's core suites carry exactly 41
+    (findings, "The count threshold's estimate on B and C")."""
+    count_mode_stream_volume: float = 0.0
+    """Tasks B and C: when positive, the expected length is also read from
+    the volume the stream has shown -- this share of the containers'
+    volume (length x width x height) over the mean volume of every item
+    seen so far (the pool and the packed items) -- and the larger of that
+    and the prior is used, so the reading can only lengthen the count
+    pass.  0.54 is the official B and C samples' (42 items of 0.0629 m^3
+    mean in a 4.925 m^3 ULD: the stream's volume is 0.536 of it).  A
+    stream of smaller boxes than the sample's is longer by as much; a
+    stream of the sample's boxes, only more of them, is not seen by
+    either reading.  0 = the prior alone."""
     count_mode_margin: int = 0
     count_mode_min_support: float = 0.5
     """The resort's smallest support share for a pose under the
