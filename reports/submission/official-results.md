@@ -38,6 +38,7 @@
 | v46 (475b770: v45 plus Task A's plan replay sliding a planned pose by up to 2 cm and taking the settled height) | 39.14 | 65.66 | 79.26 | 49.45 | 42.3 | 0.6363 | 117.4 | 7.35 |
 | v49 (f17ed2f: v48 -- v46 plus the grid rescue's pool window on B and the rescue stages' deep-first order and sealing pass gated to C's low phase -- plus the simulator's zero-lift band above the shelf level escaped upward on Tasks B and C) | 39.65 | 64.25 | 78.48 | 49.45 | 46.5 | 0.6475 | 116.0 | 6.91 |
 | v50 (e310ebde: v49 plus the soft columns allowed from the first soft box on Tasks B and C -- `soft_structure_floor_share` 0.35 -> 0 under the 0.7 m cap; Task A keeps the gate) | 38.62 | 64.82 | 78.19 | 50.4 | 50.1 | 0.6446 | 118.9 | 6.75 |
+| diag-B (47590073: v50 surrendering every Task B item from the first call; a diagnostic, not a scored version) | 20.24 | 28.19 | 32.31 | 27.2 | 25.75 | 0.3470 | 136.1 | 5.07 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -424,6 +425,28 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+The Task B diagnostic (v50 with every B item surrendered at the first
+call) scored 26.31: fill 20.24, cog 28.19, stability 32.31, placement
+27.2, soft 25.75, placed fraction 0.3470, policy 5.07 s.  Read against
+v50 (`reports/wedge/stability-lattice.md`, section 6): the stability
+drop 45.87 is 10.98 lattice steps, so **11 Task B episodes were counted
+in v50** and 8 A or C episodes remain counted (32.31 = 8 x 4.1775 -
+1.11; v50's residual -1.19 stays, so the instability is in A or C, not
+B).  The placed fraction fell 0.6446 -> 0.3470: a mean over the counted
+A/C episodes could not be 0.35 (each places over half), so the fraction
+and the fill are plain means over every episode, the surrendered ones
+at zero.  With 11 B episodes placing a sample-like 0.60-0.65 each, the
+fraction's drop (0.2976 = 11 / N x f_B) puts N at 22-24; N = 19 would
+need B at 0.51 and the 8 A/C episodes at 0.82 with a fill of 48, never
+seen on any suite.  So N is about 23, A and C hold about 12 episodes
+of which 8 count, and **four (three to five) platform episodes in A or
+C are not counted**; B is fully counted or at most one short.  Per
+counted B episode at N = 23: cog 77, placement 48, soft 51.  The
+policy time is a plain mean too (B's 0.7 ms calls pulled it 6.75 ->
+5.07 s), so it says nothing about the slowest call.  The weighted sum
+of the five components reproduces the total (26.29), confirming the
+weights.
 
 v50's total is 56.04, the best so far (v49 55.62, +0.41): soft +3.6,
 placement +0.95, cog +0.57, fill -1.03, stability -0.29, the placed

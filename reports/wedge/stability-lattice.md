@@ -123,3 +123,51 @@ value is unknown, not zero.
   80, soft 100) is within reach of the structure we have.
 - The refit's prices per counted episode (soft +4.4 a box) are unchanged in
   form; their N-scaling moves them by 23 / 19.
+
+## 6. The Task B diagnostic read (platform result 26.31)
+
+v50 56.04 against the build surrendering every Task B item at the first call:
+
+| component | v50 | diag-B | drop |
+|---|---:|---:|---:|
+| fill | 38.62 | 20.24 | 18.38 |
+| cog | 64.82 | 28.19 | 36.63 |
+| stability | 78.19 | 32.31 | 45.87 = **10.98 steps** |
+| placement | 50.4 | 27.2 | 23.2 |
+| soft | 50.1 | 25.75 | 24.35 |
+| placed fraction | 0.6446 | 0.3470 | 0.2976 |
+| policy s | 6.75 | 5.07 | 1.68 |
+
+- **11 Task B episodes were counted in v50**; 8 A or C episodes remain
+  counted (32.31 = 8 x 4.1775 - 1.11). v50's residual (-1.19) stays, so
+  the continuous (topple) part sits in A or C.
+- **The fraction and the fill are plain means over every episode**: a mean
+  over the 8 counted A/C episodes cannot read 0.347 (each places over
+  half). This was the refit's assumption (a); it holds.
+- **N**: 0.2976 = (N_B / N) x f_B. With N_B = 11 and f_B sample-like:
+
+| N | f_B | fill_B | A+C episodes (8 counted) | A+C fraction | A+C fill |
+|---:|---:|---:|---:|---:|---:|
+| 19 | 0.514 | 31.7 | 8 | 0.824 | 48.1 |
+| 21 | 0.568 | 35.1 | 10 | 0.729 | 42.5 |
+| 22 | 0.595 | 36.8 | 11 | 0.694 | 40.5 |
+| 23 | 0.622 | 38.4 | 12 | 0.665 | 38.8 |
+| 24 | 0.649 | 40.1 | 13 | 0.641 | 37.4 |
+
+  N = 19 needs B at 0.51 and the A/C episodes at 0.82 with a fill of 48,
+  which no suite has shown; N = 22-24 puts B at the official sample's
+  0.60-0.65 and A/C at 0.64-0.69 with a fill of 37-40, the bench's
+  numbers. If one B episode was uncounted (N_B = 12) the same arithmetic
+  gives N = 23-24 with A/C at 0.69-0.73. **So N is about 23, A and C hold
+  about 12 episodes of which 8 count: three to five platform episodes in
+  A or C are not counted**, and B is fully counted or at most one short.
+- Per counted B episode (N = 23): cog 77, placement 48, soft 51; the
+  per-episode values of section 2's N = 23 row.
+- The policy time is a plain mean as well (B's 0.7 ms calls pull it from
+  6.75 to 5.07 s), so the platform's number cannot show the slowest call.
+- The five components' weighted sum reproduces the total (26.29 against
+  26.31).
+
+The Task C diagnostic splits the remaining 12: its stability drop counts
+C's counted episodes, its fraction drop gives N_C, and A follows by
+subtraction, which says where the uncounted episodes are.

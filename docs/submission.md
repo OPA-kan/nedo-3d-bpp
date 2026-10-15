@@ -785,6 +785,12 @@ Official sample of the B build: A 32.11 / 25 and C 26.44 / 25 as v49, B
 0 / 0 with the policy at 0.7 ms (`official-sample-abc-diag-b.json`).
 The repository's `submission/agent.py` keeps the empty tuple; the task is
 read from the observation (the offline flag, then the visible pool size).
+Official platform, the B build: 26.31 (fill 20.24, cog 28.19, stability
+32.31, placement 27.2, soft 25.75, fraction 0.3470, policy 5.07 s): 11
+Task B episodes were counted in v50, 8 A or C episodes remain counted,
+the fraction and the fill are plain means over every episode, and N is
+about 23, so about four A or C episodes are not counted
+(`reports/wedge/stability-lattice.md`, section 6).
 
 ## Known limits
 
