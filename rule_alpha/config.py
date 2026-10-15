@@ -1369,6 +1369,54 @@ class RuleAlphaConfig:
     """Minimum growth in the largest connected hard plateau for a bridge to be
     worth the item.  Below this it is an ordinary placement wearing a costume."""
 
+    bridge_slide: float = 0.0
+    """Slide the plateau-merge (bridge) anchors along the gap, at this step in
+    metres; 0 is off and leaves the one-point ``bridge_anchors`` alone.
+
+    ``bridge_anchors`` offers one centre per pair of tops and axis (the gap's
+    middle, the shared interval's middle).  Over six core C scenes that was
+    1191 anchors and 7 legal ones (805 overlap a neighbour, 185 settle
+    outside), and the rung placed 1 item in 1851, while a scan of the v50
+    declining boards found two-point-support spots the full-support check
+    misses on 7 of 48 core C and 21 of 91 hard2 B boards: a box across the
+    slot between two columns 0.5-1.3 m tall, set off along the slot, with
+    0.2-0.6 of its footprint in contact (``reports/wedge/bridge-spots.md``).
+    With this on, every pair of tops in contact at a level (any two members
+    of the level group, so a box over a run of tops that reaches two of them
+    is offered too) proposes the box every ``bridge_slide`` metres along the
+    slot, flush with each member's edges, and at the middle and both ends of
+    the crossing range; the validator's overlap rule is applied to all of
+    them at once and the rest are validated up to ``bridge_slide_max``
+    (``layer1._bridge_slide_candidates``, ``layer2.bridge_slide_anchors``).
+    The old anchors are still offered, first."""
+
+    bridge_slide_max: int = 24
+    """How many sliding-bridge candidates one Layer 2 call (one pose) may add,
+    once legal; at most four times this many are validated.  The family keeps
+    ``max(4, layer2_family_quota // poses)`` per pose for the vetoes, so more
+    than a couple of dozen would only cost validator time."""
+
+    bridge_slide_orientations: int = 6
+    """With ``bridge_slide`` on, the slide runs over this many poses in Layer 2
+    order, past the ``max_orientations_layer2`` the rest of Layer 2 tries (the
+    extra poses get the slide only).  The one two-support spot on the core C
+    declining boards -- c-c1-s0003, a column and the small shelf's edge at
+    0.85 m -- takes the box standing on its side, fourth in that order."""
+
+    bridge_plateau_exempt: bool = False
+    """Exempt a bridge resting on two separated hard tops from the plateau
+    condition (``no-plateau-to-build-on``); the layer cap still applies.
+
+    The plateau condition reads the *largest single* plateau under a box past
+    ``layer2_free_depth`` and wants 0.70 of the footprint on it.  A bridge's
+    support is two plateaus by definition, and the spots the scan found sit
+    on columns two or more boxes tall with 0.2-0.6 of the footprint in
+    contact, so the condition refuses nearly every one of them (6 of the 7
+    legal old anchors on core C died on it).  Kept separate from
+    ``bridge_slide`` so a measurement can tell the generator's effect from the
+    veto's.  (``plateau_merge_min_gain`` and ``layer2_max_level_step`` above
+    are read by nothing: they veto no bridge.)"""
+
     corridor_release_fill: float = 0.62
     """Floor coverage below which the corridor is a hard veto.  Kept alongside
     the reachability price rather than replaced by it: the price is evaluated

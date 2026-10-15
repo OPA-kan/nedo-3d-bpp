@@ -2775,9 +2775,144 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
                 (l2.FAMILY_WEDGE_BRIDGE, l2.ROLE_WEDGE_BRIDGE, x, y, level)
             )
 
-    return _build_layer2(
+    built = _build_layer2(
         board, profile, container_idx, orientation, proposals, config
     )
+    if float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0:
+        built.extend(_bridge_slide_candidates(
+            board, profile, container_idx, orientation, tops, built, config
+        ))
+    return built
+
+
+def _bridge_slide_candidates(board: "Board", profile: cls.ItemProfile,
+                             container_idx: int, orientation: cls.Orientation,
+                             tops, already: list, config) -> list[Candidate]:
+    """The sliding bridge proposals (``config.bridge_slide``), validated.
+
+    Per level (hard tops and shelf tops grouped at the contact tolerance),
+    ``l2.bridge_slide_anchors`` proposes the poses that rest on two members
+    across lower ground; the validator's overlap
+    rule runs over all of them at once (``l2.clear_of_obstacles``), then the
+    rest go through ``validate`` one by one, round-robin over the level
+    groups, until ``bridge_slide_max`` are legal or four times that many have
+    been tried.  The two vetoes that read only the pose and the board --
+    ``bridge-would-seal-floor`` and the plateau condition -- are asked here
+    rather than after the shortlist, as the hole fill asks its depth rule
+    (``_hole_depth_ok``): a family quota of four per pose spent on bridges a
+    later veto deletes is a quota that never reaches one that would stand."""
+    cap = int(getattr(config, "bridge_slide_max", 0) or 0)
+    if cap <= 0:
+        return []
+    step = float(config.bridge_slide)
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+    rows = [
+        (*map(float, b.minimum), *map(float, b.maximum))
+        for b, _soft, _prio in packed_aabbs_local(container)
+    ]
+    rows.extend(
+        (*map(float, s.minimum), *map(float, s.maximum))
+        for s in shelf_aabbs(container)
+    )
+    obstacles = np.asarray(rows, dtype=np.float64).reshape(-1, 6)
+    # a shelf top is structure too: the spots the scan found on core C rest
+    # on a column and the small shelf's edge as often as on two columns
+    structure = list(tops) + [
+        (box_rect(s), float(s.maximum[2])) for s in shelf_aabbs(container)
+        if float(s.maximum[2]) < model.z_ceiling - config.contact_tolerance
+    ]
+    # grouped at the contact tolerance, not the 6 cm bridge tolerance: a box
+    # rests only on the tops within it, and a pair at 1.00 m under a top at
+    # 1.04 m (c-hard2-s0082) is otherwise a member of the 1.04 m group only
+    queues = []
+    for level, members in l2.level_groups(structure, config.contact_tolerance):
+        if level + dz > model.z_ceiling:
+            continue
+        anchors = l2.bridge_slide_anchors(
+            members, level, dx, dy, step, config.contact_tolerance,
+            min_overlap=config.com_margin,
+        )
+        if not anchors:
+            continue
+        clear = l2.clear_of_obstacles(
+            anchors, level, dx, dy, dz, obstacles, config.settled_clearance,
+            config.contact_tolerance,
+        )
+        queue = [(x, y, level) for (x, y), ok in zip(anchors, clear) if ok]
+        if queue:
+            queues.append(queue)
+    if not queues:
+        return []
+
+    seen = {
+        (round(float(c.box.center[0]), 4), round(float(c.box.center[1]), 4),
+         round(float(c.box.minimum[2]), 4))
+        for c in already if c.family == l2.FAMILY_BRIDGE
+    }
+    grid = board.grid(container_idx) if config.bridge_keeps_floor else None
+    out: list[Candidate] = []
+    tried = 0
+    budget = 4 * cap
+    depth = max(len(q) for q in queues)
+    for k in range(depth):
+        for queue in queues:
+            if k >= len(queue):
+                continue
+            x, y, level = queue[k]
+            box = AABB(
+                (float(x), float(y), float(level) + dz / 2.0), (dx, dy, dz),
+                "candidate",
+            )
+            box = _lifted(box, container, config)
+            key = (round(float(box.center[0]), 4), round(float(box.center[1]), 4),
+                   round(float(box.minimum[2]), 4))
+            if key in seen:
+                continue
+            seen.add(key)
+            if not model.inside(box, config.settled_wall_clearance,
+                                floor_clearance=0.0):
+                continue
+            if (grid is not None and bridge_sealed_floor(grid, box, container, config)
+                    > config.bridge_max_sealed_floor):
+                continue
+            tried += 1
+            ok, _why = validate(box, model, container, config)
+            if ok:
+                candidate = Candidate(
+                    box=box, profile=profile, orientation=orientation,
+                    container_idx=container_idx, surface="item",
+                    surface_name="hard-top", role=l2.ROLE_BRIDGE,
+                    family=l2.FAMILY_BRIDGE,
+                )
+                allowed = True
+                if config.layer2_max_layers > 0:
+                    allowed, _level = may_build_here(
+                        board, container_idx, candidate, config
+                    )
+                if allowed:
+                    out.append(candidate)
+            if len(out) >= cap or tried >= budget:
+                return out
+    return out
+
+
+def bridge_sealed_floor(grid, box: AABB, container: dict, config) -> float:
+    """Bare floor, in m^2, under a bridge's footprint (``bridge_keeps_floor``).
+
+    With ``bridge_slide`` on, floor under a shelf is not counted: a bridge
+    resting on the shelf's edge covers it no more than the shelf already does,
+    and what is under the shelf is reached from below it either way.  Off,
+    this is the original count."""
+    rect = box_rect(box)
+    free = grid.rect_mask(rect) & grid.usable & ~grid.occupied
+    if float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0 and free.any():
+        bottom = float(box.minimum[2])
+        for shelf in shelf_aabbs(container):
+            if float(shelf.maximum[2]) <= bottom + config.contact_tolerance:
+                free &= ~grid.rect_mask(box_rect(shelf))
+    return float(free.sum()) * grid.cell_area
 
 
 def _build_layer2(board: "Board", profile: cls.ItemProfile, container_idx: int,
@@ -2931,10 +3066,53 @@ def may_build_here(board: "Board", container_idx: int, candidate: "Candidate",
         return True, level
     if level > config.layer2_max_layers:
         return False, level  # backstop, so nothing can run away
+    if (
+        getattr(config, "bridge_plateau_exempt", False)
+        and candidate.role == l2.ROLE_BRIDGE
+        and spans_two_supports(candidate.box, container, config)
+    ):
+        # a bridge on two hard tops is not a tower on one lid: its support is
+        # two plateaus, and the plateau condition reads only the largest one
+        # (config.bridge_plateau_exempt).  The layer cap above still holds.
+        return True, level
     area, coverage = plateau_support(
         board, container_idx, candidate.box, config
     )
     return plateau_is_enough(area, coverage, candidate.box, config), level
+
+
+def spans_two_supports(box: AABB, container: dict, config) -> bool:
+    """Does ``box`` rest on two or more hard items (or a hard item and a
+    shelf) whose footprints do not touch -- a bridge across lower ground, not
+    a box on two abutting lids?"""
+    supports = stability.supporting_items(box, container, config.contact_tolerance)
+    bottom, footprint = float(box.minimum[2]), box_rect(box)
+    rects = []
+    for shelf in shelf_aabbs(container):
+        if abs(float(shelf.maximum[2]) - bottom) > config.contact_tolerance:
+            continue
+        r = box_rect(shelf)
+        if (min(r.x_max, footprint.x_max) > max(r.x_min, footprint.x_min)
+                and min(r.y_max, footprint.y_max) > max(r.y_min, footprint.y_min)):
+            rects.append(r)
+    if len(supports) + len(rects) < 2:
+        return False
+    for item in supports:
+        try:
+            dims = packed_dimensions(item)
+            pos = stability.world_to_local_position(item, container)
+        except (KeyError, TypeError, ValueError):
+            continue
+        rects.append(Rect(pos[0] - dims[0] / 2.0, pos[0] + dims[0] / 2.0,
+                          pos[1] - dims[1] / 2.0, pos[1] + dims[1] / 2.0))
+    for i in range(len(rects)):
+        for j in range(i + 1, len(rects)):
+            a, b = rects[i], rects[j]
+            gap = max(a.x_min - b.x_max, b.x_min - a.x_max,
+                      a.y_min - b.y_max, b.y_min - a.y_max)
+            if gap > config.contact_tolerance:
+                return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -3771,10 +3949,9 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
             if candidate.role != l2.ROLE_BRIDGE:
                 kept.append(candidate)
                 continue
-            mask = grid.rect_mask(box_rect(candidate.box))
-            free_under = float(
-                (mask & grid.usable & ~grid.occupied).sum()
-            ) * grid.cell_area
+            free_under = bridge_sealed_floor(
+                grid, candidate.box, board.container(container_idx), config
+            )
             if free_under > config.bridge_max_sealed_floor:
                 drop(candidate, "bridge-would-seal-floor")
             else:
@@ -4350,14 +4527,31 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         if config.layer2_enabled and (
             profile.cargo_class == cls.NORMAL_HARD or config.typed_cap_enabled
         ):
-            for orientation in cls.layer2_orientation_order(profile, config)[
-                : config.max_orientations_layer2
-            ]:
+            layer2_order = cls.layer2_orientation_order(profile, config)
+            for orientation in layer2_order[: config.max_orientations_layer2]:
                 pool.extend(
                     generate_layer2_candidates(
                         board, profile, container_idx, orientation, config
                     )
                 )
+            if (float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0
+                    and profile.cargo_class == cls.NORMAL_HARD):
+                # the sliding bridges over the poses past the Layer 2 set
+                # (config.bridge_slide_orientations): the bridge on the
+                # small shelf's edge at c-c1-s0003 stands the box on its side
+                extra = layer2_order[
+                    config.max_orientations_layer2
+                    : int(getattr(config, "bridge_slide_orientations", 0) or 0)
+                ]
+                if extra:
+                    tops = l2.hard_tops(
+                        board.container(container_idx), model, config
+                    )
+                    for orientation in extra:
+                        pool.extend(_bridge_slide_candidates(
+                            board, profile, container_idx, orientation, tops,
+                            [], config,
+                        ))
 
         # Hole filling is generated once for the whole item rather than per
         # pose, because the pose is what it decides: which orientation to use
