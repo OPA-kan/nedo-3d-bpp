@@ -832,6 +832,26 @@ soft -3.50, fill -0.30, the optimize time 118.9 -> 138.8 s at the 140 s
 budget's edge.  Not kept; the shipped form is v50's
 (`reports/submission/official-results.md`).
 
+Fifty-second build (v52): v51's Task A count-secured re-plan with
+the fixes after v51's platform loss (`plan_count_secure_race_chosen`,
+`plan_count_secure_early`, `plan_count_secure_blocks="plain"`, in place
+of v51's `race_replanned` and `"plain;top"`; Tasks B and C untouched).
+The race's count rule now acts only after a re-plan finished and was
+chosen, never hands a plan that holds the threshold to the dry-run, and
+switches to the dry-run's plan only when the planner's plan is under
+the threshold and the dry-run's holds threshold + 2; the re-plan runs
+right after the first base plan; the `top` variant is dropped (it
+doubled the re-plan's time and twice placed no priority box on dense-a).
+Bench at offline budgets of 40, 60 and 140 s (the bench's 38-49 s mean
+against the platform's 119 s): dense-a 20 of 48 at every budget (the
+shipped form 10), core-a 48 of 48 with the soft and priority counts of
+the shipped form at the same budget, no race switch in any run; the
+short-budget bench did not reproduce v51's lost episode (no re-plan
+was cut), so the loss is read as the `top` pick or the re-plan's time
+on the slower machine, not confirmed (`reports/wedge/a-count-secure.md`,
+section 6).  Official sample: A 32.11 / 25, B 29.59 / 26, C 26.44 / 25;
+policy max B 4.88 s, C 3.67 s (`official-sample-abc-v52.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

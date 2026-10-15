@@ -150,6 +150,16 @@ DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
 # counts unchanged (one episode re-planned, 21 -> 26 placed), no
 # topple added, the slowest call under 5.4 s
 # (reports/wedge/a-count-secure.md).  Tasks B and C are untouched.
+# v51 scored 53.50 on the platform (v50 56.04): one counted episode
+# lost, none gained, the optimize time at the 140 s budget's edge.
+# v52: the same re-plan with its race rule acting only after a re-plan
+# finished and was chosen, never handing a plan that holds the
+# threshold to the dry-run (plan_count_secure_race_chosen), the re-plan
+# run right after the first base plan (plan_count_secure_early), and
+# the plain variant alone (the "top" variant doubled the re-plan's time
+# and twice placed no priority box).  Bench: dense-a 20 of 48, core-a
+# 48 of 48 at offline budgets of 40, 60 and 140 s, no race switch in
+# any run (reports/wedge/a-count-secure.md, section 6).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -508,8 +518,13 @@ class Agent(RuleAlphaAgent):
                       # v51: the count-secured re-plan under the count
                       # threshold (see the v51 note above)
                       plan_count_secure=True, plan_count_secure_choice=True,
-                      plan_count_secure_race_replanned=True, plan_count_secure_margin=0,
-                      plan_count_secure_blocks="plain;top")
+                      plan_count_secure_margin=0,
+                      # v52: the re-plan's race rule only after a chosen
+                      # re-plan and never off a plan holding the threshold,
+                      # the re-plan right after the first base plan, the
+                      # plain variant alone (see the v52 note above)
+                      plan_count_secure_race_chosen=True, plan_count_secure_early=True,
+                      plan_count_secure_blocks="plain")
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
