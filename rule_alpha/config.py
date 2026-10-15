@@ -2642,12 +2642,15 @@ class RuleAlphaConfig:
     a hard box bridging soft boxes 2-3 cm apart in height settled at 2-4
     degrees, 5 cm apart at 5-17."""
 
-    plan_soft_floor_hard_max_top: float = 1.0
+    plan_soft_floor_hard_max_top: float = 0.0
     """The top (m, container frame) of the hard cargo standing over the soft
-    floor.  Probe: a soft floor two to four rows deep under three
-    hard layers (tops 0.94-0.99 m) settled within 3 degrees with no topple
-    under the shake; isolated soft rows or columns under three and four
-    hard layers toppled."""
+    floor (0: no cap).  Probe: a level soft floor two to four rows deep
+    under three to five hard layers (tops 0.94-1.45 m) settled within 3.4
+    degrees with no topple under the shake; isolated soft rows or columns
+    under three and four hard layers toppled.  The planner's soft floor is
+    a block of whole rows, so no cap is set by default; a cap of 1.0 m cost
+    the variant every hard layer over the transport band at the shelf
+    level."""
 
     plan_soft_floor_depth_share: float = 1.0
     """The share of the floor's depth, from the back wall, the soft floor

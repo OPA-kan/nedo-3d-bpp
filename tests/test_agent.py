@@ -781,6 +781,31 @@ class SoftFloorPlanTests(unittest.TestCase):
                                                      [{"index": i} for i in range(5)])
         self.assertEqual(order, [9])
 
+    def test_online_view_and_the_dry_run_rule(self):
+        from rule_alpha.planner import soft_floor_board_view, soft_floor_yields
+
+        soft = self._box(1, 0.0, 0.3, 0.6, 0.3, 0.25, soft=True)
+        other = self._box(5, 0.5, -0.3, 0.6, 0.3, 0.25, soft=True)
+        containers = self._containers([soft, other])
+        agent = type("A", (), {})()
+        agent.config = self._config()
+        agent.plan_source = "planner"
+        agent.plan_by_index = {1: {"index": 1, "soft_floor": True}, 2: {"index": 2}}
+        view = soft_floor_board_view(agent, containers)
+        packed = {p["index"]: p for p in view[0]["packed_items"]}
+        self.assertFalse(packed[1]["is_soft"])
+        self.assertTrue(packed[5]["is_soft"])
+        self.assertTrue(containers[0]["packed_items"][-2]["is_soft"])   # the observation untouched
+        agent.config = self._config(plan_soft_floor_online=False)
+        self.assertIs(soft_floor_board_view(agent, containers), containers)
+        agent.config = self._config()
+        agent.plan_source = "dry-run"
+        self.assertIs(soft_floor_board_view(agent, containers), containers)
+        plan = [{"index": 1, "soft_floor": True}, {"index": 2}]
+        self.assertTrue(soft_floor_yields(agent, plan, [{}, {}, {}]))
+        self.assertFalse(soft_floor_yields(agent, plan, [{}, {}]))
+        self.assertFalse(soft_floor_yields(agent, [{"index": 2}], [{}, {}, {}]))
+
     def test_replay_accepts_a_hard_pose_over_the_soft_floor_only_when_marked(self):
         from rule_alpha import classify as cls
         from rule_alpha import layer1, stability
