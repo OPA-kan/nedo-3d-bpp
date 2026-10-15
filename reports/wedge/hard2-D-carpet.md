@@ -46,7 +46,7 @@ git (`/home/user/inv-D-scratch`).
   the multi-container soft-first boards (c-s0036 28 of 31, s0072 14 of 23,
   s0075 13 of 18, b-s0005 15 of 30). But the deterministic record still misses
   s0072 and s0075, and c-s0036 misses deterministically on this machine (−3).
-- **Single moves that cross**, confirmed on the shipped arm:
+- **Single moves that cross**, confirmed on the shipped arm (but see the control, §3.2: near the line one move is close to a coin toss):
   - c-hard2-s0004: the first floor-bound soft box (k = 3, or k = 5) put on the
     shelf's soft layer at 1.15 m (the cap lifted for that one box): −2 → 0 on
     both arms, against a baseline that reads −2 from all 12 branched steps.
@@ -407,7 +407,44 @@ The two settle endings on the replayed board show that it drifts out of the
 record's state after step 25 (the replay breaks at 35). Branches: soft:0 at k = 15
 reads −5 (baseline −5); soft:0 at k = 25 reads −53 (baseline −54). No rescue.
 
-<!-- CONTROL -->
+
+### 3.2 Control: the same moves on carpet boards that cross
+
+The H investigation found one move on a near-threshold crossing board breaks it
+27 % of the time. The same check here: the rescuing move types (`softnocap:0`,
+`soft:0`) were forced at the first three soft floor placements of three v50 C
+carpets that cross (c-s0014 +1, s0010 +3, s0009 +10; plan `control.json`).
+- Many steps have no such pose (`override-none`): 0 soft tops there, or none even
+  without the cap. That itself shows how thin the soft-top supply is early.
+- The baselines of these boards miss at some k (c-s0014 at k = 10: −3; c-s0010
+  at k = 9: −2; c-s0009 at k = 6 and 11: −20, both settle endings on the
+  replayed board).
+
+| board, k | baseline | softnocap:0 | soft:0 |
+|---|---:|---:|---:|
+| c-s0014, 5 / 8 | +3 / +2 | none | none |
+| c-s0014, 10 | −3 | −4 | none |
+| c-s0010, 8 | +3 | +3 | none |
+| c-s0010, 9 | −2 | **+3** | none |
+| c-s0010, 10 | +3 | **−1** | **−1** |
+| c-s0009, 6 / 11 | −20 / −20 (settle) | +3 / +9 | none |
+| c-s0009, 12 | +2 | none | none |
+
+- On crossing baselines the move was possible 3 times. It **broke the crossing
+  twice** (c-s0010 k = 10, both moves) and kept it once.
+- On missing baselines it crossed 3 times (c-s0010 k = 9; c-s0009 k = 6, 11) and
+  missed once.
+
+Together with §3.1, the cap-lifted move at an early soft floor box:
+- rescued 2 of 2 on c-s0004 (both arms);
+- went 1 of 5 on c-s0006, and lost 3-4 items in the other 4;
+- rescued 3 of 4 on missing control baselines;
+- broke 1 of 2 control crossings.
+
+**Near the line one move is close to a coin toss here too.** Only the c-s0004
+result (stable −2 baselines, two k, two arms) stands out of that noise. These
+counts are far too small to give a rate.
+
 
 ### 3.3 Against the shipped-form records (`ship-hard2`, `ship-hard2-b`, CI)
 
