@@ -9,7 +9,65 @@ branched and rolled out to the end. Scripts, compact data and the per-branch
 results are in `reports/wedge/hard2-D-carpet/`. Heavy probe output is kept out of
 git (`/home/user/inv-D-scratch`).
 
-<!-- SUMMARY -->
+## Summary
+
+- **Two kinds of carpet.**
+  - 7 of the 18 are one-ULD *priority-container* boards. Plain soft cargo is
+    barred there from the strict ladder and the stack option
+    (`layer1.routing_order`, `wedge_rl/option.py:245`), so every soft box is
+    placed by the last resort's relaxed ladder or by the rescues.
+  - The other 11 use normal containers. There the strict ladder floors the soft
+    boxes and only the pocket guard (181 of 271 probed soft-on-soft decisions),
+    the stack option (62) and the rescues (27) put them on soft tops.
+  - With the shipped settings **no ladder rung ever offers a soft box a soft top**
+    (`layer1._supports`).
+- **Most carpets are the soft cargo's own problem.** 11 of the 18 misses decline
+  on a soft item. In 9 the stream's first big hard item comes only after the
+  threshold, and 6 place no hard item at all. "The floor that the later hard
+  items needed" describes 7 of the 18.
+- **Why 228 floor-bound soft boxes went to the floor** (record boards, first rule
+  that fires):
+
+  | reason | boxes |
+  |---|---:|
+  | the clock (on the same board the deterministic agent tops them; mainly the pocket guard's 0.8 s window) | 91 |
+  | the guard: cross-container comparison | 21 |
+  | the guard: tie to the lower pose | 25 |
+  | the guard: stood down (its 41-items-a-container prior) | 13 |
+  | the guard: margin | 1 |
+  | no soft top under the cap (24 of them only on the *shelf's* soft layer) | 29 |
+  | no soft top at all | 12 |
+  | soft tops legal but outside the guard's generator | 21 |
+  | the shadow world vetoed the soft top, the resort floored it | 9 |
+  | floor rated better / guard not asked | 6 |
+
+  69 of the 228 are on priority-container boards.
+- **The time cut is real but does not explain the carpet.** It is concentrated on
+  the multi-container soft-first boards (c-s0036 28 of 31, s0072 14 of 23,
+  s0075 13 of 18, b-s0005 15 of 30). But the deterministic record still misses
+  s0072 and s0075, and c-s0036 misses deterministically on this machine (−3).
+- **Single moves that cross**, confirmed on the shipped arm:
+  - c-hard2-s0004: the first floor-bound soft box (k = 3, or k = 5) put on the
+    shelf's soft layer at 1.15 m (the cap lifted for that one box): −2 → 0 on
+    both arms, against a baseline that reads −2 from all 12 branched steps.
+  - c-hard2-s0006: the late floor-bound soft boxes kept on the soft column (k = 20
+    and 21, where the shadow world or the tie rule had floored the guard's soft
+    top): −1 → 0 and +2 on the record arm; 0 / −1 and +2 / 0 on the shipped arm.
+  - c-s0006 is a coin-flip board: the agent's own continuations from neighbouring
+    steps read −5 to +1.
+- **c-s0004 is decided early, c-s0006 late.** Lifting the cap the same way on
+  c-s0006 loses 3-4 items in 4 of 5 branches.
+- **Area or shape?**
+  - On one ULD it is area: compacting the soft cells into one block still leaves
+    0 slots for a 0.65 × 0.45 on 6 of 7 boards.
+  - On two or three ULDs the shape halves the slots: 2.4 real against 4.6 compacted.
+  - A **realisable** compaction (back-first, flush, through the shadow check) does
+    not deliver the bound: crossings 3 → 1 on 15 boards, −1.4 placed a board, no
+    slot gain, soft covers −3 to +4. It moves floor-bound boxes but floors no fewer.
+- **The v50 gate** starts soft-on-soft earlier on every carpet, but it opens no
+  generator. The floor-or-top choice still belongs to the guard, so the floor
+  count moves by ±4 and the carpet survives.
+
 
 ## 0. Method, and how far it can be trusted
 
@@ -260,34 +318,6 @@ reads −3 (80 of 83; branch `k = 0`).
 
 
 
-## 5. The gate (v49 to v50): why the carpet survives it
-
-The gate makes soft cargo structure from the first soft box, where v49 waited
-until soft covered 35 % of the floor (`soft_structure_floor_share` 0.35 → 0). By
-§2.1 it does not open a new generator. What it changes is which soft-top poses
-the pocket guard, the stack option and the rescues may use from the start. In the
-deterministic pair (`bandntdet-hard2` → `gate0det-hard2`, `course.py`):
-
-| scene | margin v49 → v50 | first soft-on-soft step | soft boxes on the floor / on soft | soft floor share at the end |
-|---|---|---|---|---|
-| s0010 | −1 → +6 | 23 → 14 | 14 / 2 → 10 / 6 | 0.46 → 0.35 |
-| s0014 | −5 → +1 | 10 → 9 | 14 / 8 → 13 / 15 | 0.70 → 0.65 |
-| s0036 | −1 → +5 | 17 → 2 | 35 / 34 → 36 / 38 | 0.70 → 0.64 |
-| s0004 | 0 → −2 | 7 → 4 | 4 / 2 → 5 / 3 | 0.44 → 0.44 |
-| s0006 | −4 → −1 | 13 → 9 | 8 / 6 → 10 / 4 | 0.75 → 0.70 |
-| s0072 | −9 → −21 | 13 → 3 | 22 / 21 → 16 / 17 | 0.71 → 0.65 |
-| s0075 | −23 → −23 | 13 → 6 | 17 / 17 → 16 / 19 | 0.46 → 0.45 |
-
-Soft-on-soft starts earlier on every board, but the floor count hardly moves (±4)
-and the end share drops by 0.00-0.11. The gate adds soft tops. It does not change
-the floor-or-top choice, which belongs to the guard (§2.4) and is still made under
-its 0.8 s window, its cross-container ranking, its 41-item prior and the shelf
-ceiling. The three carpets that became crossings gained 4-12 soft-on-soft
-placements. s0004 lost 2 items with the same floor count, which is inside the
-noise of §0 (c-s0004's baselines are stable at −2 on this machine, but c-s0006's
-spread over 6 items).
-
-
 ## 3. Counterfactuals: "if this move had been different"
 
 All branches are on the record's board at step k, with the record's arm and
@@ -447,14 +477,14 @@ item, on the branch's own intended poses (`compact_slots.py`).
   - large gains: c-s0072 +15, b-s0069 +8, c-s0068 +2;
   - large losses: c-s0075 −16, b-s0006 −6, b-s0036 −5, c-s0010 −5.
 - **Slots at the first big hard item do not rise.** The real count equals or
-  falls below the baseline's on 12 of the 14 boards that reach the hard run or
-  the end. The soft floor share at that moment *rises* on 9. The compaction moves
+  falls below the baseline's on 13 of the 15 boards (up on b-s0069 and c-s0010).
+  The soft floor share at that moment *rises* on 10. The compaction moves
   floor-bound boxes; it does not send fewer boxes to the floor. A box flush in
   the back row is also one the guard would otherwise have moved onto a soft top
   later: the soft-on-soft placements drop.
-- **Soft quality.** Covered soft boxes change by 0 to +4 a board (e.g. c-s0006 0
-  → 4 against the near1 run, which had no metrics; c-s0053 0 → 4; c-s0009 0 → 2;
-  b-s0069 0 → 0). So the compaction does not buy soft score either. The count
+- **Soft quality.** Covered soft boxes change by −3 to +4 a board (c-s0053 0 → 4,
+  c-s0009 0 → 2, b-s0006 0 → 3, c-s0069 4 → 1; the c-s0004 / s0006 baselines
+  predate the metric). So the compaction does not buy soft score either. The count
   of uncovered soft boxes falls with the placed count where the episode ends
   earlier (b-s0006, b-s0036, c-s0010, c-s0014, c-s0049, c-s0075).
 - **How this differs from the zone form** ("The zone form", findings, lost
@@ -477,7 +507,36 @@ one box at a time, and every floor box also creates the next soft top.
 
 
 
-## 7. Against the taxonomy's labels, and other surprises
+## 5. The gate (v49 to v50): why the carpet survives it
+
+The gate makes soft cargo structure from the first soft box, where v49 waited
+until soft covered 35 % of the floor (`soft_structure_floor_share` 0.35 → 0). By
+§2.1 it does not open a new generator. What it changes is which soft-top poses
+the pocket guard, the stack option and the rescues may use from the start. In the
+deterministic pair (`bandntdet-hard2` → `gate0det-hard2`, `course.py`):
+
+| scene | margin v49 → v50 | first soft-on-soft step | soft boxes on the floor / on soft | soft floor share at the end |
+|---|---|---|---|---|
+| s0010 | −1 → +6 | 23 → 14 | 14 / 2 → 10 / 6 | 0.46 → 0.35 |
+| s0014 | −5 → +1 | 10 → 9 | 14 / 8 → 13 / 15 | 0.70 → 0.65 |
+| s0036 | −1 → +5 | 17 → 2 | 35 / 34 → 36 / 38 | 0.70 → 0.64 |
+| s0004 | 0 → −2 | 7 → 4 | 4 / 2 → 5 / 3 | 0.44 → 0.44 |
+| s0006 | −4 → −1 | 13 → 9 | 8 / 6 → 10 / 4 | 0.75 → 0.70 |
+| s0072 | −9 → −21 | 13 → 3 | 22 / 21 → 16 / 17 | 0.71 → 0.65 |
+| s0075 | −23 → −23 | 13 → 6 | 17 / 17 → 16 / 19 | 0.46 → 0.45 |
+
+Soft-on-soft starts earlier on every board, but the floor count hardly moves (±4)
+and the end share drops by 0.00-0.11. The gate adds soft tops. It does not change
+the floor-or-top choice, which belongs to the guard (§2.4) and is still made under
+its 0.8 s window, its cross-container ranking, its 41-item prior and the shelf
+ceiling. The three carpets that became crossings gained 4-12 soft-on-soft
+placements. s0004 lost 2 items with the same floor count, which is inside the
+noise of §0 (c-s0004's baselines are stable at −2 on this machine, but c-s0006's
+spread over 6 items).
+
+
+
+## 6. Against the taxonomy's labels, and other surprises
 
 - **"The soft-edge rung makes the largest drop"** is true of the label, not of the
   ladder. On the 7 priority-container boards the label is the last resort's
@@ -512,4 +571,55 @@ one box at a time, and every floor box also creates the next soft top.
   (c-s0006: −5 to +1 from neighbouring steps of one record). Any "a single move
   crosses it" claim on a −1 board needs a noise reference like §0's.
 
-<!-- BODY -->
+
+## 7. Open questions
+
+- **The shadow world and soft-on-soft.** Why does it veto soft-top poses that the
+  official simulator keeps (c-s0006 steps 16, 19, 20; all 9 "rescue floor"
+  boxes)? This is a measurement of its soft contact model, not done here.
+- **c-hard2-s0068's decline** with 9,848 legal capped soft-top poses: what do
+  the physics resort and the grid rescue try? `decline_probe.py` is written and
+  was not run.
+- **The guard as a ranking.** It ranks by absolute slots per container and breaks
+  ties to the floor. Its 41-item prior stands it down on long streams, and its
+  0.8 s window cuts it on multi-container boards. Each is a measured mechanism.
+  Whether fixing any of them crosses boards was not branched as a rule (only as
+  single moves). The cross-container case is the cleanest test: rank by slots
+  lost.
+- **The shelf ceiling.** A two-high column under the back shelf leaves a soft box
+  on edge (0.30 m) without a third layer, where three flat layers (0.75 m) would
+  fit. Whether the flat orientation would change the floor count was not measured.
+- **B coverage.** The probes stopped on b-s0068 and b-s0043 (census too slow).
+  B replays break early (b-s0036 at step 35 of 79), so the B reason counts cover
+  the first half of the B episodes.
+- **Shipped-form baseline records** (`ship-hard2`, `ship-hard2-b`) were not on
+  the branch yet. The shipped confirmations here are branch-against-baseline on
+  this machine only.
+- Everything here is one deterministic run per branch on one local PyBullet
+  build. With the noise of §0, a single +1 is not evidence. Only the c-s0004 pair
+  (two k, two arms, against 12 identical baselines) and the c-s0006 k = 20/21 pair
+  (two arms) repeat.
+
+## Scripts and data (`reports/wedge/hard2-D-carpet/`)
+
+- `common.py`: board reconstruction, floor tracker, the taxonomy's v50 D lists.
+- `course.py`: per-step course of every hard2 episode in the 7 records
+  (`data/course_summary.json`; steps in the scratch directory).
+- `d_table.py`: the episode table of §1.
+- `physbranch.py`: replay the record's actions in the official simulator, then
+  let the agent play; `state_at`, `replay_check`.
+- `instrument.py`: the decision probe (opt-in wrappers, no edits to `rule_alpha`).
+- `archaeology.py`: walks a record and probes every step (`--resume` substitutes
+  the agent's pose where a recorded pose fails); `arch_summary.py` gives the rows
+  in `data/arch_*.json`.
+- `reasons.py`: the floor-reason counts (`data/reasons.json`); `guard_xctr.py`:
+  the guard's cross-container comparison.
+- `alts.py`: the alternative moves and the compaction wrapper; `cf.py` runs a plan
+  (`data/cf_results.jsonl`); `cf_table.py` gives the tables (`data/rescues.json`).
+- `shape.py` (`data/shape.json`) and `compact_slots.py`
+  (`data/compact_slots.json`): slots against the compact bound.
+- `make_plan.py`: branch plans from the archaeology rows; `decline_probe.py`: the
+  rescue stages at a declining call (not run).
+- `arms/arm_ship_{c,b}.txt`: the shipped-form arms (from
+  `origin/claude/rl-packing-policy-ftogt3` at 9e4ada85).
+
