@@ -274,12 +274,23 @@ def main():
         "--tf", action="store_true", help="continue with the time-faithful arm instead"
     )
     ap.add_argument("--out", default=f"{SCRATCH}/cf")
+    ap.add_argument("--arm-file", default=None,
+                    help="continue with this arm spec (one line, bench.arms.make_arm) + deterministic budgets")
+    ap.add_argument("--from-cf", default=None,
+                    help="re-run only the labels of --labels (JSON {k: [labels]}) taking the poses from this cf file")
+    ap.add_argument("--labels", default=None)
     args = ap.parse_args()
     scene, rec, arm = H.load(args.scene, args.record or ("gate0det-hard2" if args.scene[0] == "c" else None))
     if not args.tf:
         arm = H.det_arm(arm)
+    if args.arm_file:
+        from bench.arms import make_arm
+        spec = open(args.arm_file).read().strip()
+        arm = make_arm(spec + ",deterministic_budgets=true")
+    src = json.load(open(args.from_cf)) if args.from_cf else None
+    wanted = json.loads(args.labels) if args.labels else None
     os.makedirs(args.out, exist_ok=True)
-    path = f"{args.out}/cf-{args.scene}.json"
+    path = f"{args.out}/cf-{args.scene}.json" if not args.arm_file else f"{args.out}/cf-ship-{args.scene}.json"
     data = (
         json.load(open(path))
         if os.path.exists(path)
@@ -301,6 +312,10 @@ def main():
             continue
         key = str(k)
         B = data["branches"].setdefault(key, {})
+        if src is not None:
+            # poses from the record-arm run; only the wanted labels (and null)
+            B["_alts"] = [a for a in src["branches"][key].get("_alts", []) if a[0] in wanted.get(key, [])]
+            B["_pi"] = src["branches"][key].get("_pi")
         t_k = time.perf_counter()
         # null, which also lists the ladder's alternatives
         listing = {}
@@ -340,7 +355,8 @@ def main():
         if "null" not in B:
             res = H.run(scene, arm, rec, sim="physics", k=k, probe=probe_list, forced_actions=acts)
             B["null"] = summarise(res, k)
-            B["_alts"] = listing.get("alts", [])
+            if src is None:
+                B["_alts"] = listing.get("alts", [])
             B["_pi"] = listing.get("pi")
             B["_surface"] = listing.get("surface")
             save()
@@ -350,6 +366,8 @@ def main():
             )
         for j in range(1, args.veto + 1):
             lab = f"veto{j}"
+            if wanted is not None and lab not in wanted.get(key, []):
+                continue
             if lab in B:
                 continue
             state = {}

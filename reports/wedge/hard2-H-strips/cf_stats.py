@@ -18,6 +18,8 @@ REF = "/home/user/inv-H-scratch/ref"
 
 
 def kind(label):
+    if label.startswith("vetoed:"):
+        return "a pose the ladder vetoed"
     if label.startswith("veto"):
         return "veto (agent's next answer)"
     if label.startswith("rung1"):

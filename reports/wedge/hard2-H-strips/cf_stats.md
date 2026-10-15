@@ -7,17 +7,18 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | scene | ref margin | n | nearest rescuing k (lead) | rescuing kinds | null margins by k |
 |---|---:|---:|---|---|---|
 | b-hard2-s0039 | -2 | 20 | 13 (7) | most usable surface left, next in the rung, veto (agent's next answer) | 19:-2, 17:-2, 13:-2, 12:-2, 11:-2, 9:-2 |
-| b-hard2-s0040 | -2 | 40 | - (-) | - | 39:-2, 37:-2, 16:-2, 15:-2, 14:-2 |
-| c-hard2-s0007 | -1 | 20 | 12 (8) | ladder pick (vetoed downstream), most usable surface left, next in the rung, veto (agent's next answer) | 19:-1, 18:-1, 17:-1, 15:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
-| c-hard2-s0028 | -1 | 13 | 12 (1) | another rung's best, most usable surface left, next in the rung, veto (agent's next answer) | 12:-1, 10:-1, 8:-1, 5:-1 |
-| c-hard2-s0039 | -1 | 21 | 10 (11) | most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 10:-1, 9:-1, 8:-1, 6:-1 |
+| b-hard2-s0040 | -2 | 40 | - (-) | - | 39:-2, 37:-2, 16:-2, 15:-2, 14:-2, 12:-2 |
+| c-hard2-s0007 | -1 | 20 | 12 (8) | a pose the ladder vetoed, ladder pick (vetoed downstream), most usable surface left, next in the rung, veto (agent's next answer) | 19:-1, 18:-1, 17:-1, 15:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
+| c-hard2-s0028 | -1 | 13 | 12 (1) | a pose the ladder vetoed, another rung's best, most usable surface left, next in the rung, veto (agent's next answer) | 12:-1, 10:-1, 8:-1, 5:-1 |
+| c-hard2-s0039 | -1 | 21 | 10 (11) | a pose the ladder vetoed, most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 10:-1, 9:-1, 8:-1, 6:-1 |
 | c-hard2-s0076 | -1 | 21 | 13 (8) | most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
 
 | alternative kind | branches | crossing | better than null |
 |---|---:|---:|---:|
-| veto (agent's next answer) | 101 | 18 | 22 |
+| veto (agent's next answer) | 78 | 9 | 12 |
 | most usable surface left | 34 | 12 | 12 |
 | next in the rung | 28 | 5 | 6 |
+| a pose the ladder vetoed | 23 | 9 | 10 |
 | ladder pick (vetoed downstream) | 18 | 1 | 1 |
 | another rung's best | 6 | 2 | 2 |
 
@@ -41,6 +42,7 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | 16 (24) | max-footprint | -2 | veto1 -8; veto2 -12; rung1 -2; vetoed:wall-front-strip -2 | -2 | 0 of 4 |
 | 15 (25) | terrace-extension | -2 | veto1 -22; veto2 -2; rung1 -27 (fails); rung2 -27 (fails); rung3 -27 (fails); other:max-footprint -27 (fails) | -2 | 0 of 6 |
 | 14 (26) | terrace-extension | -2 | veto1 -23; veto2 -22; rung2 -28 (fails); rung3 -23; rung4 -22 | -2 | 0 of 5 |
+| 12 (28) | fallback | -2 |  | -2 | 0 of 0 |
 
 ## c-hard2-s0007: reference placed 20 (thr 21, margin -1); record placed 20
 
