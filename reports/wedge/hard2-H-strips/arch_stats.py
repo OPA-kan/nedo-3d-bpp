@@ -116,6 +116,7 @@ def main():
     chains = []
     refusals = collections.Counter()
     hset = {h["scene"] for h in json.load(open(f"{HERE}/hlist.json"))}
+    gone_rows = collections.defaultdict(list)
     for f in files:
         d = json.load(open(f))
         grp = "H" if d["scene"] in hset else "X"
@@ -144,6 +145,8 @@ def main():
             totals[(grp, cs)][pz] += 1
             if pz.startswith("floor"):
                 refusals[(grp, ref, cs)] += 1
+            if gone is not None and i == gone:
+                gone_rows[grp].append((d["scene"], d["margin"], d["end"], i, len(dumps) - 1, cls_of(it), st, pz, ref, round(lost, 2), round(killed, 2)))
             if grp == "X":
                 continue
             if killed >= 0.1:
@@ -203,6 +206,14 @@ def main():
     ]
     for (grp, r, cs), n in sorted(refusals.items(), key=lambda kv: (kv[0][0], -kv[1])):
         L.append(f"| {grp} | {r} | {cs} | {n} |")
+    L += ["", "## 2b. The step that takes the last usable floor (\"floor gone\"), H against the crossings run for contrast", "",
+          "| group | scene | ref margin | end | step / of | item | stage | pose | ladder pick | lost | killed |",
+          "|---|---|---:|---|---|---|---|---|---|---:|---:|"]
+    for grp in ("H", "X"):
+        for r in gone_rows[grp]:
+            L.append(f"| {grp} | {r[0]} | {r[1]:+d} | {r[2]} | {r[3]} / {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]} | {r[9]} | {r[10]} |")
+        c = collections.Counter(coarse(r[6]) for r in gone_rows[grp])
+        L.append(f"| {grp} | **by stage** | | | | | " + ", ".join(f"{k} {v}" for k, v in c.most_common()) + " | | | | |")
     L += [
         "",
         "## 3. Every step that killed >= 0.10 m^2 of usable floor",
