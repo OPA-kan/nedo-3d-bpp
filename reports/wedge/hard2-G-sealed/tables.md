@@ -144,7 +144,7 @@ The agent re-run on the recorded board before each sealing placement (`why.py`).
 | c-hard2-s0027 | 6 | 2 | wall-front | True | wall-front | 10 | 12/36 | 2:wall-front | 0.029 | 0.029 | overhangs-the-shelf 8, no-plateau-to-build-on 6, wall-front-strip 5 | - |
 | c-hard2-s0027 | 18 | 0 | physics-resort | True | hole-fill | 1 | 0/4 | - | 0.531 | - | seals-usable-ground-behind 1 | _last_resort > _physics_resort |
 | c-hard2-s0027 | 18 | 3 | physics-resort | True | hole-fill | 1 | 0/4 | - | 0.531 | - | seals-usable-ground-behind 1 | _last_resort > _physics_resort |
-| c-hard2-s0027 | 19 | 1 | terrace-extension | False | terrace-extension | 6 | 24/24 | 1:terrace-extension | 0.0 | - |  | _last_resort > _physics_resort > _grid_rescue |
+| c-hard2-s0027 | 19 | 1 | grid-rescue | False | terrace-extension | 6 | 24/24 | 1:terrace-extension | 0.0 | - |  | _last_resort > _physics_resort > _grid_rescue |
 | c-hard2-s0013 | 1 | 1 | fallback | True | fallback | 12 | 0/0 | - | 0.0 | 0.0 |  | - |
 | c-hard2-s0013 | 5 | 0 | max-footprint | True | max-footprint | 1 | 0/4 | - | 0.432 | 0.12 | overhangs-the-shelf 2, seals-usable-ground-behind 1, wall-front-strip 1 | - |
 | c-hard2-s0060 | 65 | 0 | stack-rl | False | terrace-extension | 1 | 0/4 | - | 0.0 | - | overhangs-the-shelf 4, free-standing-tipping-risk 1, would-wall-off-the-back 1 | _last_resort |
@@ -162,7 +162,7 @@ The agent re-run on the recorded board before each sealing placement (`why.py`).
 | b-hard2-s0009 | 29 | 0 | max-footprint | True | max-footprint | 8 | 16/32 | 2:max-footprint | 0.154 | 0.0 | low-footprint-pose 24, corridor 12, wall-front-strip 4 | - |
 | b-hard2-s0077 | 3 | 0 | max-footprint | True | max-footprint | 2 | 0/8 | - | 0.192 | 0.0 | corridor 29, seals-usable-ground-behind 17, reserved-zone 10 | - |
 | b-hard2-s0026 | 4 | 0 | priority-edge | True | priority-edge | 2 | 0/8 | - | 0.179 | 0.0 | corridor 16, seals-usable-ground-behind 14, blocks-wedge-approach 2 | - |
-| b-hard2-s0064 | 24 | 0 | stack-rl | False | - | - | - | - | - | - |  | - |
+| b-hard2-s0064 | 24 | 0 | stack-rl | False | - | - | - | - | - | 0.0 |  | - |
 | b-hard2-s0004 | 11 | 0 | pocket-soft | False | sp-cluster | 2 | 0/8 | - | 0.014 | 0.0 | overhangs-the-shelf 12, wall-front-strip 4, not-back-first 2 | - |
 | b-hard2-s0081 | 36 | 2 | terrace-extension | True | terrace-extension | 11 | 0/40 | - | 0.0 | - | would-wall-off-the-back 9, no-plateau-to-build-on 2, overhangs-the-shelf 1 | _last_resort |
 | b-hard2-s0081 | 36 | 3 | terrace-extension | True | terrace-extension | 11 | 0/40 | - | 0.0 | - | would-wall-off-the-back 9, no-plateau-to-build-on 2, overhangs-the-shelf 1 | _last_resort |
@@ -199,6 +199,64 @@ The agent re-run on the recorded board before each sealing placement (`why.py`).
 | b-hard2-s0086 | 45 | 2 | wedge-step | True | wedge-step | 12 | 24/48 | 5:wedge-step | 0.0 | 0.0 | would-wall-off-the-back 12, overhangs-the-shelf 4 | - |
 | b-hard2-s0086 | 52 | 3 | max-footprint | True | max-footprint | 1 | 0/4 | - | 0.619 | 0.0 | low-footprint-pose 23, seals-usable-ground-behind 3, wall-front-strip 2 | - |
 
+## Counterfactual summary (near misses first, then the other G episodes)
+
+Placed counts at the end of each branch (several values = several branches or repeats).  `controls` = the ladder ranks 2-4 and the 2nd-4th distinct poses (`kth`, `alt`); `noseal2` / `fill2` = every stage barred from sealing / held to filling the patch, for one decision (`persistent`: until the patch is filled); `defer` = the sealing item taken out of the pool (B).
+
+| scene | t | lead | step | threshold | agent (repeats) | controls | noseal2 | noseal2 persistent | fill2 (patches) | defer | some branch crosses |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| c-hard2-s0059 | 46 | 1 |  | 48 |  | 47 |  |  |  |  |  |
+| c-hard2-s0059 | 45 | 2 |  | 48 |  | 47 |  |  |  |  |  |
+| c-hard2-s0059 | 44 | 3 |  | 48 | 47/47 | 47 |  |  |  |  |  |
+| c-hard2-s0059 | 42 | 5 |  | 48 |  | 47 |  |  |  |  |  |
+| c-hard2-s0059 | 16 | 31 | seal 0 | 48 | 46/47 | 46 | 46 |  | 46 |  |  |
+| c-hard2-s0059 | 8 | 39 |  | 48 | 51 | 49/51/54/54 |  | 47 | 53 |  | yes |
+| c-hard2-s0027 | 25 | 1 |  | 29 |  | 26 |  |  |  |  |  |
+| c-hard2-s0027 | 24 | 2 |  | 29 |  | 26 |  |  |  |  |  |
+| c-hard2-s0027 | 23 | 3 |  | 29 | 25/25 | 26 |  |  |  |  |  |
+| c-hard2-s0027 | 21 | 5 |  | 29 |  | 26 |  |  |  |  |  |
+| c-hard2-s0027 | 19 | 7 | seal 1 | 29 | 27/25 | 27/26/26/27 | 27 |  | 27 |  |  |
+| c-hard2-s0027 | 18 | 8 | seal 0,3 | 29 | 26/26 | 27/27/27/26/26 | 27/28 |  | 34/34 |  | yes |
+| c-hard2-s0027 | 16 | 10 |  | 29 | 26 | 26/27/27/26 |  |  | 27 |  |  |
+| c-hard2-s0027 | 12 | 14 |  | 29 | 38 | 27/38/27/38 |  |  | 36/36 |  | yes |
+| c-hard2-s0027 | 6 | 20 | seal 2 | 29 | 27/27 | 37/21/27/27 | 21 |  | 38 |  | yes |
+| c-hard2-s0027 | 3 | 23 |  | 29 | 27 | 39/35/38/27 |  |  | 39 |  | yes |
+| c-hard2-s0013 | 6 | 1 |  | 11 |  | 7 |  |  |  |  |  |
+| c-hard2-s0013 | 5 | 2 | seal 0 | 11 | 7/7 | 7/7/7/7 | 7 | 7 | 7 |  |  |
+| c-hard2-s0013 | 4 | 3 |  | 11 | 7/7 | 6 |  |  |  |  |  |
+| c-hard2-s0013 | 2 | 5 |  | 11 | 7 | 10/7/7/7 |  | 10 | 7 |  |  |
+| c-hard2-s0013 | 1 | 6 | seal 1 | 11 | 7/7 | 7/10/10/7 | 7 | 7 | 7 |  |  |
+| c-hard2-s0013 | 0 | 7 |  | 11 | 7 | 10/7/5/10 |  |  | 5 |  |  |
+| b-hard2-s0007 | 19 | 1 |  | 21 |  | 20 |  |  |  |  |  |
+| b-hard2-s0007 | 18 | 2 |  | 21 |  | 19 |  |  |  |  |  |
+| b-hard2-s0007 | 17 | 3 |  | 21 | 18/18 | 18 |  |  |  |  |  |
+| b-hard2-s0007 | 15 | 5 | seal 1 | 21 | 17/17 | 17/20/22/18 | 20 | 20 | 21 | 21 | yes |
+| b-hard2-s0007 | 14 | 6 |  | 21 | 18 | 20/18/21/18 |  |  | 21 |  | yes |
+| b-hard2-s0007 | 12 | 8 | seal 0 | 21 | 17/17 | 18/21/21/18 | 21 |  | 20 | 21 | yes |
+| b-hard2-s0007 | 10 | 10 |  | 21 | 18 | 20/18/19/18 |  |  | 19 |  |  |
+| b-hard2-s0009 | 51 | 1 |  | 53 |  | 52 |  |  |  |  |  |
+| b-hard2-s0009 | 50 | 2 |  | 53 |  | 52 |  |  |  |  |  |
+| b-hard2-s0009 | 49 | 3 |  | 53 | 52/52 | 52 |  |  |  |  |  |
+| b-hard2-s0009 | 29 | 23 | seal 0 | 53 | 52/52 |  | 53 |  | 53 |  | yes |
+| b-hard2-s0009 | 20 | 32 | seal 1 | 53 | 53/53 |  | 54 |  | 54 |  | yes |
+| b-hard2-s0009 | 14 | 38 |  | 53 |  |  |  |  | 49 |  |  |
+| b-hard2-s0077 | 19 | 1 |  | 21 |  | 20 |  |  |  |  |  |
+| b-hard2-s0077 | 18 | 2 |  | 21 |  | 20 |  |  |  |  |  |
+| b-hard2-s0077 | 17 | 3 |  | 21 | 20/20 | 20 |  |  |  |  |  |
+| b-hard2-s0077 | 15 | 5 |  | 21 |  | 20 |  |  |  |  |  |
+| b-hard2-s0077 | 3 | 17 | seal 0 | 21 | 20/20 | 20/20/20/20 | 20 |  | 23 |  | yes |
+| b-hard2-s0077 | 1 | 19 |  | 21 | 20 | 20/20/20/20 |  |  | 23 |  | yes |
+| b-hard2-s0026 | 13 | 1 |  | 16 |  | 14 |  |  |  |  |  |
+| b-hard2-s0026 | 12 | 2 |  | 16 |  | 14 |  |  |  |  |  |
+| b-hard2-s0026 | 11 | 3 |  | 16 | 14/14 | 14 |  |  |  |  |  |
+| b-hard2-s0026 | 9 | 5 |  | 16 |  | 14 |  |  |  |  |  |
+| b-hard2-s0026 | 4 | 10 | seal 0 | 16 | 14/14 | 14/15/15/14 | 15 |  | 15 |  |  |
+| b-hard2-s0026 | 2 | 12 |  | 16 | 14 | 14/14/17/14 |  |  | 20 |  | yes |
+| b-hard2-s0064 | 25 | 1 |  | 30 |  | 25 |  |  |  |  |  |
+| b-hard2-s0064 | 24 | 2 | seal 0 | 30 | 26/26 | 26/26/26/26 | 26 | 26 | 26 | 26 |  |
+| b-hard2-s0064 | 23 | 3 |  | 30 | 26/26 | 26 |  |  |  |  |  |
+| b-hard2-s0064 | 21 | 5 |  | 30 | 26 | 26/26/26/26 |  | 26 | 26 |  |  |
+
 ## Counterfactual rollouts (near misses)
 
 Board after t recorded placements, one changed decision, then the shipped agent (analytic board, shadow in pybullet, deterministic budgets) to its decline.  `agent` rows are the unchanged continuation (two repeats: the clock noise).
@@ -207,87 +265,281 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 46 | alt | 2 |  |  | physics-resort [0.755, -0.33, 1.215] | None | None | 47 | -1 |  |
+| 45 | alt | 2 |  |  | physics-resort [0.316, -0.242, 1.215] | None | None | 47 | -1 |  |
 | 44 | agent |  |  |  | count-mode [0.75, 0.161, 1.06] | None | None | 47 | -1 |  |
 | 44 | agent |  |  |  | count-mode [0.75, 0.161, 1.06] | None | None | 47 | -1 |  |
+| 44 | alt | 2 |  |  | count-mode [0.75, 0.161, 1.06] | None | None | 47 | -1 |  |
+| 42 | alt | 2 |  |  | grid-rescue [0.333, 0.016, 1.215] | None | None | 47 | -1 |  |
 | 16 | agent |  |  |  | front-wedge [-0.085, -0.421, 0.365] | None | None | 46 | -2 |  |
 | 16 | agent |  |  |  | front-wedge [-0.085, -0.421, 0.365] | None | None | 47 | -1 |  |
+| 16 | fill2 |  | 0 |  | physics-resort [0.003, -0.127, 0.365] | 0 | True | 46 | -2 |  |
 | 16 | kth | 2 |  |  | front-wedge [-0.085, -0.421, 0.365] | None | None | 46 | -2 |  |
+| 16 | noseal2 |  | 0 |  | stack-rl [0.007, 0.348, 1.015] | 0 | False | 46 | -2 |  |
+| 8 | agent |  |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 51 | 3 |  |
+| 8 | alt | 2 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 54 | 6 |  |
+| 8 | alt | 3 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 54 | 6 |  |
+| 8 | fill |  | 0 |  | physics-resort [0.013, -0.182, 0.415] | 0 | True | 53 | 5 |  |
+| 8 | fill2 |  | 0 |  | physics-resort [0.013, -0.182, 0.415] | 0 | True | 53 | 5 |  |
+| 8 | kth | 2 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 49 | 1 |  sel-unused |
+| 8 | kth | 3 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 51 | 3 |  sel-unused |
+| 8 | noseal |  | 0 | yes | stack-rl [-0.024, 0.298, 0.925] | 0 | False | 49 | 1 |  |
+| 8 | noseal2 |  | 0 | yes | stack-rl [-0.024, 0.298, 0.925] | 0 | False | 47 | -1 |  |
 
 **c-hard2-s0027** (threshold 29, record placed 26)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 25 | alt | 2 |  |  | physics-resort [0.413, -0.497, 0.965] | None | None | 26 | -3 |  |
+| 24 | alt | 2 |  |  | physics-resort [0.674, -0.413, 1.465] | None | None | 26 | -3 |  |
 | 23 | agent |  |  |  | grid-rescue [0.538, -0.569, 0.965] | None | None | 25 | -4 |  |
 | 23 | agent |  |  |  | grid-rescue [0.538, -0.569, 0.965] | None | None | 25 | -4 |  |
+| 23 | alt | 2 |  |  | physics-resort [0.67, -0.537, 0.965] | None | None | 26 | -3 |  |
+| 21 | alt | 2 |  |  | physics-resort [-0.454, -0.373, 1.095] | None | None | 26 | -3 |  |
 | 19 | agent |  |  |  | terrace-extension [0.485, -0.567, 0.89] | None | None | 27 | -2 |  |
 | 19 | agent |  |  |  | terrace-extension [0.485, -0.567, 0.89] | None | None | 25 | -4 |  |
+| 19 | alt | 2 |  |  | physics-resort [-0.074, -0.448, 0.805] | None | None | 26 | -3 |  |
+| 19 | alt | 3 |  |  | physics-resort [-0.074, -0.448, 0.805] | None | None | 26 | -3 |  |
+| 19 | fill |  | 1 |  | physics-resort [-0.074, -0.448, 0.805] | 42 | False | 27 | -2 |  |
+| 19 | fill2 |  | 1 |  | count-mode [-0.454, 0.231, 1.045] | 0 | True | 27 | -2 |  |
+| 19 | kth | 2 |  |  | terrace-extension [0.535, -0.567, 0.89] | None | None | 27 | -2 |  |
+| 19 | kth | 3 |  |  | grid-rescue [-0.042, -0.439, 0.805] | None | None | 27 | -2 |  |
+| 19 | noseal |  | 1 |  | physics-resort [-0.074, -0.448, 0.805] | 42 | False | 26 | -3 |  |
+| 19 | noseal2 |  | 1 |  | count-mode [-0.172, 0.579, 1.355] | 0 | False | 27 | -2 |  |
 | 18 | agent |  |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 26 | -3 |  |
 | 18 | agent |  |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 26 | -3 |  |
+| 18 | alt | 2 |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 27 | -2 |  |
+| 18 | alt | 3 |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 26 | -3 |  |
+| 18 | fill |  | 0 |  | physics-resort [0.535, -0.571, 0.365] | 322 | False | 27 | -2 |  |
+| 18 | fill |  | 3 |  | physics-resort [0.535, -0.571, 0.365] | 72 | False | 27 | -2 |  |
+| 18 | fill2 |  | 0 |  | count-mode [0.694, -0.004, 0.605] | 6 | True | 34 | 5 |  |
+| 18 | fill2 |  | 3 |  | count-mode [0.694, -0.004, 0.605] | 0 | True | 34 | 5 |  |
+| 18 | kth | 2 |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 27 | -2 |  sel-unused |
+| 18 | kth | 2 |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 27 | -2 |  sel-unused |
+| 18 | kth | 3 |  |  | physics-resort [0.535, -0.571, 0.365] | None | None | 26 | -3 |  sel-unused |
+| 18 | noseal |  | 0 |  | physics-resort [0.535, -0.571, 0.365] | 322 | False | 27 | -2 |  |
+| 18 | noseal |  | 3 |  | physics-resort [0.535, -0.571, 0.365] | 72 | False | 27 | -2 |  |
+| 18 | noseal2 |  | 0 |  | physics-resort [-0.069, -0.473, 0.855] | 0 | False | 27 | -2 |  |
+| 18 | noseal2 |  | 3 |  | physics-resort [-0.069, -0.473, 0.855] | 0 | False | 28 | -1 |  |
+| 16 | agent |  |  |  | terrace-extension [-0.287, -0.472, 0.405] | None | None | 26 | -3 |  |
+| 16 | alt | 2 |  |  | stack-rl [-0.363, -0.394, 0.405] | None | None | 26 | -3 |  |
+| 16 | alt | 3 |  |  | stack-rl [-0.375, -0.382, 0.405] | None | None | 27 | -2 |  |
+| 16 | fill |  | 1 |  | physics-resort [-0.072, -0.37, 0.365] | 0 | False | 27 | -2 |  |
+| 16 | fill2 |  | 1 |  | count-mode [-0.454, 0.191, 1.095] | 0 | True | 27 | -2 |  |
+| 16 | kth | 2 |  |  | terrace-extension [-0.414, -0.472, 0.405] | None | None | 27 | -2 |  |
+| 16 | kth | 3 |  |  | terrace-extension [-0.287, -0.472, 0.405] | None | None | 26 | -3 |  |
+| 12 | agent |  |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | alt | 2 |  |  | stack-rl [-0.768, 0.423, 1.485] | None | None | 27 | -2 |  |
+| 12 | alt | 3 |  |  | physics-resort [0.171, 0.498, 0.315] | None | None | 27 | -2 |  |
+| 12 | fill2 |  | 0 |  | physics-resort [0.768, 0.101, 0.555] | 5 | True | 36 | 7 |  |
+| 12 | fill2 |  | 3 |  | physics-resort [0.768, 0.101, 0.555] | 0 | True | 36 | 7 |  |
+| 12 | kth | 2 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | kth | 3 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
 | 6 | agent |  |  |  | wall-front [-0.289, 0.21, 0.165] | None | None | 27 | -2 |  |
 | 6 | agent |  |  |  | wall-front [-0.289, 0.21, 0.165] | None | None | 27 | -2 |  |
+| 6 | alt | 2 |  |  | stack-rl [0.592, 0.473, 0.655] | None | None | 37 | 8 |  |
+| 6 | alt | 3 |  |  | wall-front [-0.289, 0.22, 0.165] | None | None | 27 | -2 |  |
+| 6 | fill2 |  | 2 |  | max-footprint [0.089, 0.473, 0.365] | 0 | True | 38 | 9 |  |
+| 6 | kth | 2 |  |  | wall-front [-0.389, 0.11, 0.165] | None | None | 21 | -8 |  |
+| 6 | kth | 3 |  |  | wall-front [-0.287, 0.21, 0.165] | None | None | 27 | -2 |  |
+| 6 | noseal2 |  | 2 |  | wall-front [-0.389, 0.11, 0.165] | 0 | False | 21 | -8 |  |
+| 3 | agent |  |  |  | max-footprint [0.643, 0.474, 0.165] | None | None | 27 | -2 |  |
+| 3 | alt | 2 |  |  | stack-rl [0.302, 0.473, 0.165] | None | None | 39 | 10 |  |
+| 3 | alt | 3 |  |  | stack-rl [0.29, 0.473, 0.165] | None | None | 38 | 9 |  |
+| 3 | fill2 |  | 2 |  | stack-rl [0.302, 0.473, 0.165] | 0 | True | 39 | 10 |  |
+| 3 | kth | 2 |  |  | max-footprint [0.743, 0.373, 0.165] | None | None | 35 | 6 |  |
+| 3 | kth | 3 |  |  | max-footprint [0.643, 0.473, 0.165] | None | None | 27 | -2 |  |
 
 **c-hard2-s0013** (threshold 11, record placed 7)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 6 | alt | 2 |  |  | physics-resort [0.171, -0.32, 1.15] | None | None | 7 | -4 |  |
 | 5 | agent |  |  |  | max-footprint [0.072, -0.319, 0.45] | None | None | 7 | -4 |  |
 | 5 | agent |  |  |  | max-footprint [0.072, -0.319, 0.45] | None | None | 7 | -4 |  |
+| 5 | alt | 2 |  |  | stack-rl [0.25, -0.232, 0.35] | None | None | 7 | -4 |  |
+| 5 | alt | 3 |  |  | max-footprint [0.061, -0.308, 0.45] | None | None | 7 | -4 |  |
 | 5 | fill |  | 0 |  | stack-rl [0.25, -0.232, 0.35] | 0 | True | 7 | -4 |  |
+| 5 | fill2 |  | 0 |  | stack-rl [0.25, -0.232, 0.35] | 0 | True | 7 | -4 |  |
 | 5 | kth | 2 |  |  | max-footprint [0.072, -0.319, 0.45] | None | None | 7 | -4 |  sel-unused |
+| 5 | kth | 3 |  |  | max-footprint [0.072, -0.319, 0.45] | None | None | 7 | -4 |  sel-unused |
 | 5 | noseal |  | 0 |  | stack-rl [0.25, -0.232, 0.35] | 0 | True | 7 | -4 |  |
+| 5 | noseal2 |  | 0 |  | stack-rl [0.25, -0.232, 0.35] | 0 | True | 7 | -4 |  |
+| 5 | noseal2 |  | 0 | yes | stack-rl [0.25, -0.232, 0.35] | 0 | True | 7 | -4 |  |
 | 4 | agent |  |  |  | max-footprint [0.669, -0.018, 0.325] | None | None | 7 | -4 |  |
 | 4 | agent |  |  |  | max-footprint [0.669, -0.018, 0.325] | None | None | 7 | -4 |  |
+| 4 | alt | 2 |  |  | stack-rl [0.275, -0.032, 0.17] | None | None | 6 | -5 |  |
+| 2 | agent |  |  |  | pocket-soft [0.36, 0.494, 0.465] | None | None | 7 | -4 |  |
+| 2 | alt | 2 |  |  | stack-rl [0.463, 0.434, 0.405] | None | None | 10 | -1 |  |
+| 2 | alt | 3 |  |  | physics-resort [-0.095, 0.493, 0.375] | None | None | 7 | -4 |  |
+| 2 | fill |  | 0 |  | physics-resort [-0.095, 0.493, 0.375] | 0 | False | 7 | -4 |  |
+| 2 | fill2 |  | 0 |  | grid-rescue [-0.096, 0.006, 0.375] | 1 | True | 7 | -4 |  |
+| 2 | kth | 2 |  |  | pocket-soft [0.36, 0.494, 0.465] | None | None | 7 | -4 |  sel-unused |
+| 2 | kth | 3 |  |  | pocket-soft [0.36, 0.494, 0.465] | None | None | 7 | -4 |  sel-unused |
+| 2 | noseal2 |  | 0 | yes | pocket-soft [0.36, 0.494, 0.465] | 0 | False | 10 | -1 |  |
 | 1 | agent |  |  |  | fallback [0.114, 0.358, 1.185] | None | None | 7 | -4 |  |
 | 1 | agent |  |  |  | fallback [0.114, 0.358, 1.185] | None | None | 7 | -4 |  |
+| 1 | alt | 2 |  |  | physics-resort [-0.02, -0.208, 0.35] | None | None | 10 | -1 |  |
+| 1 | alt | 3 |  |  | physics-resort [-0.02, -0.208, 0.35] | None | None | 10 | -1 |  |
+| 1 | fill |  | 1 |  | fallback [0.388, 0.358, 1.185] | 0 | True | 7 | -4 |  |
+| 1 | fill2 |  | 1 |  | fallback [0.388, 0.358, 1.185] | 0 | True | 7 | -4 |  |
+| 1 | kth | 2 |  |  | fallback [0.13, 0.358, 1.185] | None | None | 7 | -4 |  |
+| 1 | kth | 3 |  |  | fallback [0.388, 0.358, 1.185] | None | None | 7 | -4 |  |
+| 1 | noseal |  | 1 |  | fallback [0.13, 0.358, 1.185] | 0 | False | 7 | -4 |  |
+| 1 | noseal2 |  | 1 |  | fallback [0.13, 0.358, 1.185] | 0 | False | 7 | -4 |  |
+| 1 | noseal2 |  | 1 | yes | fallback [0.13, 0.358, 1.185] | 0 | False | 7 | -4 |  |
+| 0 | agent |  |  |  | max-footprint [0.513, 0.408, 0.17] | None | None | 7 | -4 |  |
+| 0 | alt | 2 |  |  | stack-rl [0.005, 0.408, 0.17] | None | None | 10 | -1 |  |
+| 0 | alt | 3 |  |  | physics-resort [-0.07, 0.488, 0.325] | None | None | 5 | -6 |  |
+| 0 | fill |  | 1 |  | shelf-space-saving [0.513, 0.488, 1.085] | 0 | True | 5 | -6 |  |
+| 0 | fill2 |  | 1 |  | shelf-space-saving [0.513, 0.488, 1.085] | 0 | True | 5 | -6 |  |
+| 0 | kth | 2 |  |  | max-footprint [0.513, 0.408, 0.17] | None | None | 7 | -4 |  |
+| 0 | kth | 3 |  |  | max-footprint [0.589, 0.333, 0.17] | None | None | 10 | -1 |  |
 
 **b-hard2-s0007** (threshold 21, record placed 20)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 19 | alt | 2 |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 20 | -1 |  |
+| 18 | alt | 2 |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 19 | -2 |  |
 | 17 | agent |  |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 18 | -3 |  |
 | 17 | agent |  |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 18 | -3 |  |
+| 17 | alt | 2 |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 18 | -3 |  |
 | 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 17 | -4 |  |
 | 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 17 | -4 |  |
+| 15 | alt | 2 |  |  | stack-rl [-0.394, -0.439, 1.33] | None | None | 20 | -1 |  |
+| 15 | alt | 3 |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 22 | 1 |  |
+| 15 | defer |  |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 21 | 0 |  |
+| 15 | fill |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
+| 15 | fill2 |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
+| 15 | kth | 2 |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 17 | -4 |  sel-unused |
+| 15 | kth | 3 |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 18 | -3 |  sel-unused |
+| 15 | noseal |  | 1 |  | stack-rl [-0.394, -0.439, 1.33] | 0 | False | 19 | -2 |  |
+| 15 | noseal2 |  | 1 |  | stack-rl [-0.394, -0.439, 1.33] | 0 | False | 20 | -1 |  |
+| 15 | noseal2 |  | 1 | yes | stack-rl [-0.394, -0.439, 1.33] | 0 | False | 20 | -1 |  |
+| 14 | agent |  |  |  | stack-rl [-0.069, -0.334, 0.77] | None | None | 18 | -3 |  |
+| 14 | alt | 2 |  |  | stack-rl [-0.003, -0.403, 0.69] | None | None | 20 | -1 |  |
+| 14 | alt | 3 |  |  | stack-rl [0.112, 0.389, 1.465] | None | None | 21 | 0 |  |
+| 14 | fill |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
+| 14 | fill2 |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
+| 14 | kth | 2 |  |  | stack-rl [-0.069, -0.334, 0.77] | None | None | 18 | -3 |  sel-unused |
+| 14 | kth | 3 |  |  | stack-rl [-0.069, -0.334, 0.77] | None | None | 18 | -3 |  sel-unused |
 | 12 | agent |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 17 | -4 |  |
 | 12 | agent |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 17 | -4 |  |
+| 12 | alt | 2 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | alt | 3 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | defer |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | fill |  | 0 |  | max-footprint [-0.247, -0.341, 0.265] | 319 | False | 18 | -3 | fell back |
+| 12 | fill2 |  | 0 |  | stack-rl [0.129, 0.238, 0.865] | 0 | False | 20 | -1 | fell back |
+| 12 | kth | 2 |  |  | max-footprint [-0.246, -0.34, 0.265] | None | None | 18 | -3 |  |
+| 12 | kth | 3 |  |  | max-footprint [-0.245, -0.341, 0.265] | None | None | 18 | -3 |  |
+| 12 | noseal |  | 0 |  | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
+| 12 | noseal2 |  | 0 |  | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
+| 10 | agent |  |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  |
+| 10 | alt | 2 |  |  | soft-edge [0.89, -0.275, 0.24] | None | None | 20 | -1 |  |
+| 10 | alt | 3 |  |  | pocket-soft [0.133, 0.238, 0.865] | None | None | 19 | -2 |  |
+| 10 | fill |  | 0 |  | max-footprint [0.719, -0.161, 0.32] | 0 | False | 18 | -3 | fell back |
+| 10 | fill2 |  | 0 |  | pocket-soft [0.133, 0.238, 0.865] | 0 | False | 19 | -2 | fell back |
+| 10 | kth | 2 |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  sel-unused |
+| 10 | kth | 3 |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  sel-unused |
 
 **b-hard2-s0077** (threshold 21, record placed 20)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 19 | alt | 2 |  |  | count-mode [0.793, -0.212, 1.111] | None | None | 20 | -1 |  |
+| 18 | alt | 2 |  |  | count-mode [0.77, -0.342, 0.858] | None | None | 20 | -1 |  |
 | 17 | agent |  |  |  | count-mode [0.453, -0.154, 1.129] | None | None | 20 | -1 |  |
 | 17 | agent |  |  |  | count-mode [0.453, -0.154, 1.129] | None | None | 20 | -1 |  |
+| 17 | alt | 2 |  |  | count-mode [0.453, -0.154, 1.129] | None | None | 20 | -1 |  |
+| 15 | alt | 2 |  |  | stack-rl [0.402, -0.629, 0.175] | None | None | 20 | -1 |  |
 | 3 | agent |  |  |  | max-footprint [-0.212, -0.408, 0.35] | None | None | 20 | -1 |  |
 | 3 | agent |  |  |  | max-footprint [-0.212, -0.408, 0.35] | None | None | 20 | -1 |  |
+| 3 | alt | 2 |  |  | priority-edge [0.844, -0.034, 0.225] | None | None | 20 | -1 |  |
+| 3 | alt | 3 |  |  | shelf-space-saving [-0.312, 0.543, 0.92] | None | None | 20 | -1 |  |
+| 3 | fill2 |  | 0 |  | sp-cluster [0.19, 0.368, 0.175] | 0 | True | 23 | 2 |  |
+| 3 | kth | 2 |  |  | max-footprint [-0.211, -0.408, 0.35] | None | None | 20 | -1 |  |
+| 3 | kth | 3 |  |  | max-footprint [-0.212, -0.408, 0.35] | None | None | 20 | -1 |  sel-unused |
+| 3 | noseal2 |  | 0 |  | priority-edge [0.844, -0.034, 0.225] | 0 | False | 20 | -1 |  |
+| 1 | agent |  |  |  | terrace-extension [0.718, 0.394, 0.41] | None | None | 20 | -1 |  |
+| 1 | alt | 2 |  |  | max-footprint [-0.309, 0.268, 0.3] | None | None | 20 | -1 |  |
+| 1 | alt | 3 |  |  | max-footprint [-0.309, 0.268, 0.3] | None | None | 20 | -1 |  |
+| 1 | fill2 |  | 0 |  | stack-rl [-0.211, 0.368, 0.3] | 0 | True | 23 | 2 |  |
+| 1 | kth | 2 |  |  | terrace-extension [0.718, 0.394, 0.41] | None | None | 20 | -1 |  |
+| 1 | kth | 3 |  |  | terrace-extension [0.719, 0.394, 0.41] | None | None | 20 | -1 |  |
 
 **b-hard2-s0026** (threshold 16, record placed 14)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 13 | alt | 2 |  |  | count-mode [-0.166, -0.419, 1.05] | None | None | 14 | -2 |  |
+| 12 | alt | 2 |  |  | count-mode [-0.141, -0.168, 1.075] | None | None | 14 | -2 |  |
 | 11 | agent |  |  |  | count-mode [0.165, -0.174, 0.875] | None | None | 14 | -2 |  |
 | 11 | agent |  |  |  | count-mode [0.165, -0.174, 0.875] | None | None | 14 | -2 |  |
+| 11 | alt | 2 |  |  | count-mode [0.165, -0.174, 0.875] | None | None | 14 | -2 |  |
+| 9 | alt | 2 |  |  | stack-rl [0.552, -0.503, 0.35] | None | None | 14 | -2 |  |
 | 4 | agent |  |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
 | 4 | agent |  |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
+| 4 | alt | 2 |  |  | shelf-space-saving [0.461, 0.553, 0.96] | None | None | 15 | -1 |  |
+| 4 | alt | 3 |  |  | shelf-space-saving [0.7, 0.328, 0.985] | None | None | 15 | -1 |  |
+| 4 | fill |  | 0 |  | stack-rl [-0.216, 0.503, 0.15] | 0 | True | 15 | -1 |  |
+| 4 | fill2 |  | 0 |  | stack-rl [-0.216, 0.503, 0.15] | 0 | True | 15 | -1 |  |
+| 4 | kth | 2 |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
+| 4 | kth | 3 |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  sel-unused |
+| 4 | noseal |  | 0 |  | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 15 | -1 |  |
+| 4 | noseal2 |  | 0 |  | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 15 | -1 |  |
+| 2 | agent |  |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
+| 2 | alt | 2 |  |  | priority-edge [0.704, -0.137, 0.325] | None | None | 14 | -2 |  |
+| 2 | alt | 3 |  |  | priority-edge [0.423, -0.233, 0.3] | None | None | 17 | 1 |  |
+| 2 | fill2 |  | 0 |  | stack-rl [-0.216, 0.328, 0.175] | 0 | True | 20 | 4 |  |
+| 2 | kth | 2 |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
+| 2 | kth | 3 |  |  | shelf-space-saving [-0.076, 0.528, 1.035] | None | None | 14 | -2 |  |
 
 **b-hard2-s0064** (threshold 30, record placed 26)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 25 | alt | 2 |  |  | declined |  |  | 25 | -5 |  |
 | 24 | agent |  |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
 | 24 | agent |  |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
+| 24 | alt | 2 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
+| 24 | alt | 3 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
+| 24 | defer |  |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
+| 24 | fill |  | 0 |  | stack-rl [0.698, -0.455, 0.931] | 160 | False | 26 | -4 | fell back |
+| 24 | fill2 |  | 0 |  | stack-rl [0.723, -0.445, 0.956] | 160 | False | 26 | -4 | fell back |
 | 24 | kth | 2 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  sel-unused |
+| 24 | kth | 3 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  sel-unused |
 | 24 | noseal |  | 0 |  | stack-rl [0.698, -0.455, 0.931] | 160 | False | 26 | -4 | fell back |
+| 24 | noseal2 |  | 0 |  | stack-rl [0.748, -0.53, 0.881] | 160 | False | 26 | -4 | fell back |
+| 24 | noseal2 |  | 0 | yes | stack-rl [0.723, -0.445, 0.956] | 160 | False | 26 | -4 | fell back |
 | 23 | agent |  |  |  | stack-rl [0.317, -0.248, 0.792] | None | None | 26 | -4 |  |
 | 23 | agent |  |  |  | stack-rl [0.317, -0.248, 0.792] | None | None | 26 | -4 |  |
+| 23 | alt | 2 |  |  | stack-rl [0.317, -0.248, 0.792] | None | None | 26 | -4 |  |
+| 21 | agent |  |  |  | soft-edge [0.854, -0.466, 0.34] | None | None | 26 | -4 |  |
+| 21 | alt | 2 |  |  | soft-edge [0.854, -0.466, 0.34] | None | None | 26 | -4 |  |
+| 21 | alt | 3 |  |  | soft-edge [0.854, -0.466, 0.34] | None | None | 26 | -4 |  |
+| 21 | fill |  | 0 |  | soft-edge [0.854, -0.466, 0.34] | 0 | False | 26 | -4 | fell back |
+| 21 | fill2 |  | 0 |  | soft-edge [0.864, -0.491, 0.365] | 0 | False | 26 | -4 | fell back |
+| 21 | kth | 2 |  |  | soft-edge [0.854, -0.465, 0.34] | None | None | 26 | -4 |  |
+| 21 | kth | 3 |  |  | soft-edge [0.854, -0.466, 0.34] | None | None | 26 | -4 |  sel-unused |
+| 21 | noseal2 |  | 0 | yes | soft-edge [0.854, -0.466, 0.34] | 0 | False | 26 | -4 |  |
 
 **b-hard2-s0009** (threshold 53, record placed 52)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 51 | alt | 2 |  |  | stack-rl [0.077, -0.672, 1.001] | None | None | 52 | -1 |  |
+| 50 | alt | 2 |  |  | stack-rl [0.077, -0.672, 1.001] | None | None | 52 | -1 |  |
 | 49 | agent |  |  |  | stack-rl [0.207, -0.674, 0.375] | None | None | 52 | -1 |  |
 | 49 | agent |  |  |  | stack-rl [0.207, -0.674, 0.375] | None | None | 52 | -1 |  |
+| 49 | alt | 2 |  |  | stack-rl [0.207, -0.674, 0.375] | None | None | 52 | -1 |  |
 | 29 | agent |  |  |  | max-footprint [0.673, -0.143, 0.175] | None | None | 52 | -1 |  |
 | 29 | agent |  |  |  | max-footprint [0.673, -0.143, 0.175] | None | None | 52 | -1 |  |
+| 29 | fill2 |  | 0 |  | soft-edge [-0.404, -0.326, 1.095] | 0 | False | 53 | 0 | fell back |
+| 29 | noseal2 |  | 0 |  | soft-edge [-0.404, -0.326, 1.095] | 0 | False | 53 | 0 |  |
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 53 | 0 |  |
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 53 | 0 |  |
+| 20 | fill2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 | fell back |
+| 20 | noseal2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 |  |
+| 14 | fill2 |  | 0 |  | pocket-soft [0.248, 0.504, 0.899] | 0 | False | 49 | -4 | fell back |
 

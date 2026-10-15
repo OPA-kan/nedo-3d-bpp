@@ -348,7 +348,7 @@ def main():
     sec_end_states(md, data)
     sec_g_patches(md, data)
     sec_crossings(md, data)
-    for extra in ("sec_census", "sec_why", "sec_cf", "sec_vsim"):
+    for extra in ("sec_census", "sec_why", "sec_cf_summary", "sec_cf", "sec_vsim"):
         f = globals().get(extra)
         if f is not None:
             f(md, data)
@@ -506,6 +506,55 @@ def sec_cf(md, data):
         md.append(f"**{sc}** (threshold {thr}, record placed {rs[0].get('record_placed')})\n")
         md.append(md_table(rows, ['t', 'mode', 'k', 'patch', 'persistent', 'first placement', 'seals', 'fills', 'placed', 'margin', 'note']))
         md.append('')
+
+
+
+def sec_cf_summary(md, data):
+    path = os.path.join(SCRATCH, 'cf_near.jsonl')
+    if not os.path.exists(path):
+        return
+    res = [json.loads(l) for l in open(path) if l.strip()]
+    res = [r for r in res if 'placed' in r]
+    by = collections.defaultdict(lambda: collections.defaultdict(list))
+    for r in res:
+        by[r['scene']][r['t']].append(r)
+    rows = []
+    for sc in NEAR + sorted(s for s in by if s not in NEAR):
+        if sc not in by:
+            continue
+        rec = 'gate0-hard2' if sc.startswith('c-') else 'gate0-hard2-b'
+        tr = load_trace(rec).get(sc)
+        seals = {}
+        for n, p in enumerate(tr['patches']):
+            t = seal_t(p)
+            if t is not None:
+                seals.setdefault(t, []).append(n)
+        for t in sorted(by[sc], reverse=True):
+            rs = by[sc][t]
+            thr = rs[0]['thr']
+
+            def val(sel):
+                v = [r['placed'] for r in rs if sel(r)]
+                return '/'.join(str(x) for x in v) if v else ''
+            base = val(lambda r: r['mode'] == 'agent')
+            ctrl = val(lambda r: r['mode'] in ('kth', 'alt') and r.get('k') in (2, 3, 4))
+            nos = val(lambda r: r['mode'] == 'noseal2' and not r.get('persistent'))
+            nosp = val(lambda r: r['mode'] == 'noseal2' and r.get('persistent'))
+            fil = val(lambda r: r['mode'] == 'fill2')
+            dfr = val(lambda r: r['mode'] == 'defer')
+            lead = tr['T'] - t
+            what = 'seal ' + ','.join(str(n) for n in seals[t]) if t in seals else ''
+            best = max(r['placed'] for r in rs)
+            rows.append([sc, t, lead, what, thr, base, ctrl, nos, nosp, fil, dfr, 'yes' if best >= thr else ''])
+    md.append('## Counterfactual summary (near misses first, then the other G episodes)\n')
+    md.append('Placed counts at the end of each branch (several values = several branches or repeats).  '
+              '`controls` = the ladder ranks 2-4 and the 2nd-4th distinct poses (`kth`, `alt`); `noseal2` / `fill2` '
+              '= every stage barred from sealing / held to filling the patch, for one decision (`persistent`: until the '
+              'patch is filled); `defer` = the sealing item taken out of the pool (B).\n')
+    md.append(md_table(rows, ['scene', 't', 'lead', 'step', 'threshold', 'agent (repeats)', 'controls', 'noseal2',
+                              'noseal2 persistent', 'fill2 (patches)', 'defer', 'some branch crosses']))
+    md.append('')
+    data['cf_summary'] = rows
 
 if __name__ == "__main__":
     main()

@@ -267,7 +267,58 @@ noise:
 A branch counts as a rescue only if it reaches the threshold, and the
 comparison is against its own baseline.
 
-PLACEHOLDER-CF
+`tables.md` ("Counterfactual summary") has every branch, and the rows
+are in `data/tables.json`.  Condensed (placed at the end; threshold in
+brackets; controls are the ladder ranks 2-3 and the 2nd-3rd distinct poses):
+
+| scene (thr) | last 5 steps: 2nd pose | sealing step: agent / controls / `noseal2` / `fill2` / `defer` | earlier step: agent / controls / `fill2` | patch-specific rescue |
+|---|---|---|---|---|
+| c-s0059 (48) | 47 at t42-46 | t16: 46,47 / 46 / 46 / 46 / - | t8: 51 / 49, 51, 54, 54 / 53 | no.  From t16 nothing crosses.  From t8 the unchanged continuation crosses itself (51), so the miss is decided between t8 and t16 by something other than this 2-origin slot |
+| c-s0027 (29) | 26 at t21-25 | t18: 26, 26 / 26-27 (5) / 27, 28 / **34, 34** / - | t12: 38 / 27, 38, 27, 38 / 36; t6: 27 / 37, 21, 27, 27 / 38; t3: 27 / 39, 35, 38, 27 / 39 | **yes at t18 (lead 8)**: filling the 966-origin patch at 0.29 m crosses by +5 where every control stays at 26-27.  Before t16 the board is chaotic: the unchanged continuation from t12 reaches 38 |
+| c-s0013 (11) | 6-7 | t5: 7 / 7 (4) / 7 / 7; t1: 7 / 7, 10, 10, 7 / 7 / 7 | t0: 7 / 10, 7, 5, 10 / 5 | no.  Nothing crosses; the best of any branch is 10 |
+| b-s0007 (21) | 18-20 | t15: 17, 17 / 17, 20, **22**, 18 / 20 / **21** / **21**; t12: 17, 17 / 18, **21**, **21**, 18 / **21** / 20 / **21** | t14: 18 / 20, 18, **21**, 18 / 21 | no: crossings at t12-t15, but controls cross too.  The analytic baseline is 3 under the record (17 against 20) |
+| b-s0009 (53) | 52 | t29: 52, 52 / - / 53 / 53; t20: **53, 53** / - / 54 / 54 | t14: - / - / 49 | no: the unchanged continuation from t20 already crosses (53) |
+| b-s0077 (21) | 20 | t3: 20, 20 / 20 (4) / 20 / **23** | t1: 20 / 20 (4) / **23** | **yes at t1-t3 (lead 17-19)**: filling the back floor patch (a soft-priority 0.3 x 0.6 x 0.25 at y 0.37 at t3, a 0.8 x 0.6 x 0.5 at t1) gives 23 against 20 in all 11 other branches |
+| b-s0026 (16) | 14 | t4: 14, 14 / 14, 15, 15, 14 / 15 / 15 | t2: 14 / 14, 14, 17, 14 / **20** | **mostly, at t2 (lead 12)**: filling gives 20; one control of four reaches 17 |
+| b-s0064 (30) | 25-26 | t24: 26, 26 / 26 (4) / 26 / 26 / 26 | t21: 26 / 26 (4) / 26 | no.  Nothing moves the count |
+
+**Persistent protection.** `noseal2` held from the sealing step until the
+patch is filled gives c-s0059 47 (t8), c-s0013 7 and 10 (t5, t2; a control
+at t2 also gives 10), b-s0007 20 (t15) and b-s0064 26 (t24, t21).  The
+remaining persistent branches are in `tables.md`.  None of them crosses.
+Keeping the path clear does not rescue a board if nothing is carried
+through it.
+
+What the branches say:
+
+- **How far back.** No single change in the last five placements crosses on
+  any near miss.  The 2nd pose at t-1 ... t-5 lands within one item of the
+  baseline everywhere.  The earliest step at which a patch-specific change
+  crosses is 8 placements before the end (c-s0027), 12 (b-s0026) and 17-19
+  (b-s0077).
+- **What rescues: filling, not sparing.** In the three patch-specific
+  rescues the winning branch puts the current item on the patch while it is
+  still reachable:
+  - c-s0027 t18: the count pass stands a 0.25 x 0.45 x 0.65 box on the
+    0.29 m patch (shade 0.0) instead of the resort's door pose.
+  - b-s0077 t1 / t3: a box on the back floor instead of a 0.8 x 0.5 x 0.6
+    max-footprint at the door.
+  - b-s0026 t2: a 0.45 x 0.65 x 0.25 on the back floor.
+
+  Barring the seal for one decision (`noseal2`) gives +0 to +2 and crosses
+  nowhere on its own.  The agent's next pose seals the patch, or the patch
+  stays empty and unreachable later.
+- **Would filling the sealed patch first have crossed?** Yes on c-s0027
+  (+5), b-s0077 (+2) and b-s0026 (+4 at t2, +0 at t4).  No on c-s0013,
+  b-s0064 and c-s0059 (the slot).  b-s0007 and b-s0009 cannot be read: their
+  controls or baselines cross too.
+- **Noise.** On several boards the outcome swings by up to 12 items after one
+  early change: c-s0027 from t3-t12 gives 21 to 39 over branches whose first
+  move has nothing to do with the patch.  Single-branch gains early in an
+  episode are not evidence about the patch unless the controls stay flat, as
+  they do on b-s0077 and c-s0027 t18.
+
+PLACEHOLDER-OTHERS
 
 ## 5. Sealing in general
 
@@ -375,11 +426,94 @@ things:
 
 ## 6. Surprises and evidence against the labels
 
-PLACEHOLDER-SURPRISES
+- **G is an end state, not a separate failure.**
+  - Sealing placements are as frequent in the crossings and in the other
+    misses as in G (section 5).
+  - The crossings that end sealed sealed their patches before the threshold
+    placement too.
+  - What makes a board G is that the next item (C), or every deferred item
+    (B), happens to need the one class of surface that lies behind the
+    front.
+  - A per-episode "sealed" flag therefore cannot separate misses from
+    crossings, and the counterfactuals must be read against their own
+    baselines.
+- **The B/C contrast is mostly the end condition.**
+  - B declines only when no pool item has a pose, so its end boards have no
+    reachable spot by construction.
+  - C is scored on one item.
+  - With the same 10-item window, about half of the boards without a
+    reachable spot hold a sealed level spot, on both tasks (section 5).
+- **Some G patches are slots.** c-s0059 (margin -1) has a single sealed
+  "patch" of 2 window origins, c-s0013 6 and 5.  The level check's 3 cm
+  clearance makes these real but marginal targets.
+- **The rung of the largest usable-surface drop is not the sealing rung.**
+  - The taxonomy's "largest drop" rung is mostly max-footprint.
+  - The sealers are spread across rungs on C (rescue stages 5 of 15).
+  - On B they are mostly terrace-extension (14 of 36).
+- **The high priority floor share** (0.18 in C's G group) does not come from
+  priority sealers: only 2 C patches (c-s0013 t1, c-s0070 t43) and 2 B
+  patches were sealed by a priority box.
+- **The shade veto can hand the seal to the rescue.** c-s0027 t18:
+  - The veto refused the ladder's door-side hole-fill (shade 0.46) and the
+    stack option's pose (0.37).  The stack option's pose would have kept the
+    966-origin patch reachable.
+  - The physics resort then sealed the patch with a 0.30-shade door pose.
+  - The veto prices the floor area behind a pose in its own columns.  It
+    does not see which surfaces a known item could use, so a pose that keeps
+    a large patch reachable and one that seals it read about the same.
+- **The bench's B arm is not the shipped B form.** The record's B arm differs
+  from `submission/agent.py` at this branch's HEAD in:
+  - `rescue_order_gate` `low` against `low+single`: the records run the
+    rescue's deep-first order and sealing pass in B's low phase, and the
+    submission does not;
+  - `stack_deadline` false against true;
+  - `soft_headroom_volume_share` 0.75 against 0.9;
+  - `shade_veto_area` and `resort_shade_step` 0 against 0.15 / 0.1, inert on
+    B because the code turns them off with a pool;
+  - Task A plan fields.
+
+  The C arm differs in the same fields except the shade pair and the gate
+  (`low+single` equals `low` with a pool of one).  The counterfactuals here
+  use the record's arm, to stay comparable with the records.
+- **The taxonomy's reach model** carries a shelf box at bottom +0.02 m
+  instead of +0.131 m (the 5.1 cm shelf escape plus the 8 cm lift).  It also
+  checks the small chamfer shelf, which the validator does not.  Neither
+  changes a label: the exact model and the official validator agree with
+  its G labels.
+- **The analytic continuation is not the physics episode.** From the same
+  recorded board:
+  - b-s0007 continues to 17 analytically (twice), against the record's 20.
+  - b-s0009 continues to 53, against the record's 52.
+  - The gap sits in the rescue stages: the physics resort's clock, and the
+    analytic board, which has no settle drift.
+  - Counterfactual gains are measured against the analytic baseline.  A
+    branch at the threshold on a board whose baseline sits 3 under the
+    record (b-s0007) is weaker evidence than its margin suggests.
 
 ## 7. Open questions
 
-PLACEHOLDER-OPEN
+- **Do the fill and protection gains hold beyond the near misses, and what
+  do they cost on the crossings?** Barring every pose that seals a known
+  level patch is the kind of change that cost B four crossings as the shade
+  veto (core B 48 -> 44, findings "The door-side walls").  Only the near
+  misses were branched here.
+- **The rescue stages' clock.** The physics resort and the grid rescue keep
+  their own deadlines, so near the end the re-run and the record differ (two
+  declines at b-s0007 t17-18).  A tail measured under a loaded machine
+  understates the record.
+- **A pool choice by board effect on B.** At every B sealing step the agent
+  tried one item.  Would a choice among the pool items (`pool_item_search`
+  with a reading of sealed surface) avoid the B seals without the shade
+  veto's losses?  The `defer` branches give the first evidence (section 4).
+  This is not measured as a policy.
+- **Soft deferral on B.** G's B boards end with soft-heavy pools (median 0.8).
+  How much of B's G comes from holding soft boxes until the front is closed,
+  rather than from the front itself?
+- **A measure that knows the classes.** Both agent readings are per-cell
+  columns over fixed heights.  The exact reading ("level spots of the
+  stream's classes that a pose makes unreachable") is cheap on the 2 cm grid:
+  `census.py` runs it for every placement in about 5 s an episode.  Its value
+  as a gate is untested.  No weight was fitted here and none is proposed.
 
 ## Scripts (`reports/wedge/hard2-G-sealed/`)
 
