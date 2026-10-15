@@ -51,17 +51,45 @@ from `final_items` as in the taxonomy (settled poses, container offset from
   - Only 6 % (C) and 15 % (B) would trip either veto.
   - Both are per-cell column readings at fixed heights.  Neither asks
     whether a level spot for a known class lies behind.
-- **Counterfactuals on the 8 near misses.**
+- **Counterfactuals on the 8 near misses** (record arm, analytic board,
+  controls at every step).
   - No single change in the last 5 placements crosses.
   - Patch-specific rescues, with every control flat:
     - c-s0027: fill the patch at the sealing step, lead 8 (26 -> 34, thr 29);
     - b-s0077: fill it 17-19 placements before the end (20 -> 23, thr 21);
     - b-s0026: 12 before (14 -> 20, thr 16; one control reaches 17).
-  - The rescue is always to fill the patch while it is reachable.  Sparing it
-    for one decision, or for the rest of the episode, crosses nowhere.
-  - c-s0013 and b-s0064 do not move.  c-s0059's patch is a 2-origin slot,
-    and its outcome is decided earlier by something else.  b-s0007 and
-    b-s0009 cross under controls or unchanged too.
+  - Filling the patch while it is reachable is the strong move.  Sparing it
+    for the rest of the episode reaches the threshold only twice (b-s0026 16,
+    c-s0027 30), and for one decision never.
+  - c-s0013 and b-s0064 do not move under any branch.  c-s0059's patch is a
+    2-origin slot, and its outcome is decided between t8 and t16 by
+    something else.  b-s0007 and b-s0009 cross under controls or unchanged
+    too.
+- **Choosing among the pool on B (cause 6).** Every pool item was tried
+  first at each sealing step.
+  - b-s0007 t12: 6 of 10 items cross.
+  - b-s0077 t3: 4 of 10 (best 22, every control 20).
+  - b-s0026 t2: 3 of 10 (best 17).
+  - None at b-s0007 t15, b-s0026 t4 or b-s0064.
+  - The crossing items are almost all soft boxes the fixed order defers.
+  - The oldest deferred soft box on the B G boards had a reachable level spot
+    from the moment it entered the pool on 9 of 13 boards (12 of 13 had one
+    at some point).  It lost that spot 6-8 placements before the end of the
+    short boards.
+- **Pricing the seal on every surface (cause 3).**
+  `seal_check_all_surfaces` from the B terrace sealing steps raises 6 of 9
+  boards (+1 to +5), costs b-s0009 4, and crosses none.
+  `seal_ranks_terraces` alone barely moves anything.
+- **Shade veto -> rescue stage (C).** 3 of 15 C sealing placements came
+  through it, and 5 of 15 had the ladder's pose shade-vetoed.  At c-s0027
+  t18 a shade-0.0 pose on the patch existed and would have crossed.
+- **On the shipped arm** (`arm_ship_*`):
+  - Filling holds: c-s0027 t18 (27 -> 29 / 31), b-s0077 t1 (17 -> 21),
+    b-s0026 t2 (14 -> 22).
+  - b-s0077 t3 and the persistent protections do not hold.
+  - Of the pool-choice rescues only b-s0007 t12 holds (18 -> 21).
+  - The shipped records (`ship-hard2*`) miss 22 of the 23 G scenes, with the
+    same sealing placements.
 - **Sealing is not specific to G.**
   - One placement in four seals level surface, in G, in the other misses and
     in the crossings alike (C 0.25-0.27, B 0.27-0.29 events a placement).
