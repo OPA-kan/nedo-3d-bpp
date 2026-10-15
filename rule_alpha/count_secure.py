@@ -410,11 +410,17 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
         threshold = len(item_list) // 2 + 1
     margin = int(getattr(config, "plan_value_margin", 2))
     gate = threshold + margin
+    # the plan that triggers the re-plan: under the threshold plus
+    # plan_count_secure_margin (negative: plus plan_value_margin)
+    trigger_margin = int(getattr(config, "plan_count_secure_margin", -1))
+    trigger = threshold + (margin if trigger_margin < 0 else trigger_margin)
     base_n = len(chosen[2]) if chosen is not None else 0
-    record = {"threshold": threshold, "gate": gate, "base": base_n, "variants": [], "chosen": "base"}
+    record = {"threshold": threshold, "gate": gate, "trigger": trigger, "base": base_n, "variants": [],
+              "chosen": "base", "replanned": False}
     agent.count_secure_log = record
-    if chosen is not None and base_n >= gate:
+    if chosen is not None and base_n >= trigger:
         return chosen
+    record["replanned"] = True
     frame = count_frame(item_list, gate + int(getattr(config, "plan_count_secure_extra", 0)))
     record["frame"] = len(frame)
     scorer = getattr(agent, "plan_score", None)

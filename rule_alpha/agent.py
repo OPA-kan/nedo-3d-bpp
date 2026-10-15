@@ -301,6 +301,11 @@ class RuleAlphaAgent:
             return None
         if planner_plan is None or dry_plan is None:
             return None
+        log = getattr(self, "count_secure_log", None)
+        if getattr(self.config, "plan_count_secure_race_replanned", False) and not (log and log.get("replanned")):
+            # only where the planner's plan was under the re-plan's trigger:
+            # elsewhere the race is the shipped one
+            return None
         threshold = self._count_threshold()
         if threshold is None:
             return None
