@@ -2811,6 +2811,19 @@ class RuleAlphaConfig:
     """Config fields the count-secured plans run with, "field=value;
     field=value" (applied after ``plan_count_secure_standing_rows``)."""
 
+    plan_count_secure_margin: int = -1
+    """The re-plan runs when the planner's best plan holds fewer than the
+    count threshold plus this many items (negative: plus
+    ``plan_value_margin``).  0: only plans under the threshold itself; a
+    plan between the threshold and the margin, which replays to a crossing
+    on core-a, keeps the shipped plan and its centre of mass (the
+    standing-rows plan raises it)."""
+
+    plan_count_secure_race_replanned: bool = False
+    """With ``plan_count_secure_choice``: the race is decided by the count
+    gate only where the re-plan ran (the planner's plan under the
+    trigger); elsewhere the shipped race (the plan score) stands."""
+
     plan_count_secure_extra: int = 0
     """Items added to the count frame beyond the threshold plus
     ``plan_value_margin``."""
