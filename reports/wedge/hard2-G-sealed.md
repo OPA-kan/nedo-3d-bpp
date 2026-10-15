@@ -73,8 +73,7 @@ from `final_items` as in the taxonomy (settled poses, container offset from
   - None at b-s0007 t15, b-s0026 t4 or b-s0064.
   - The crossing items are almost all soft boxes the fixed order defers.
   - The oldest deferred soft box on the B G boards had a reachable level spot
-    from the moment it entered the pool on 9 of 13 boards (12 of 13 had one
-    at some point).  It lost that spot 6-8 placements before the end of the
+    from the moment it entered the pool on 12 of 13 boards.  It lost that spot 6-8 placements before the end of the
     short boards.
 - **Pricing the seal on every surface (cause 3).**
   `seal_check_all_surfaces` from the B terrace sealing steps raises 6 of 9
@@ -584,6 +583,40 @@ branch after the arms):
   t14, c-s0055 t6, c-s0081 t42, c-s0087 t13 (`trace.py` on the shipped
   records).
 - So the archaeology describes the shipped form too.
+
+### Control: the same fill on crossing boards
+
+One changed move near the threshold is close to a coin toss.  The H
+investigation's control (crossing boards at margin 0 to +2, one move
+changed) dropped 27 % of its branches below the threshold, against a 14 %
+rescue rate, with a mean change of about 0.  So the fill was applied the
+same way to crossing boards.  The boards are the 8 hard2 B crossings at
+margin 0 to +2 that end with a patch sealed after open, 5-20 placements
+before the end.  The branch is `fill2` at the sealing step of the largest
+patch, against the unchanged continuation at that step.
+
+| scene (thr) | t (lead) | record | agent | fill2 | fill applied |
+|---|---|---:|---:|---:|---|
+| b-s0013 (11) | 6 (7) | 13 | 13 | 15 | yes |
+| b-s0015 (15) | 10 (7) | 17 | 17 | 16 | yes |
+| b-s0032 (13) | 10 (5) | 15 | 14 | 15 | yes |
+| b-s0051 (24) | 7 (19) | 26 | 24 | 25 | yes |
+| b-s0058 (37) | 22 (17) | 39 | 37 | 38 | yes |
+| b-s0059 (48) | 35 (13) | 48 | 43 | 45 | no pose filled it (fell back) |
+| b-s0076 (22) | 14 (10) | 24 | 21 | 21 | no pose filled it |
+| b-s0087 (45) | 42 (5) | 47 | 48 | 48 | no pose filled it |
+
+- **Where the fill was applied it broke no crossing,** 0 of 5.  The changes
+  were +2, -1, +1, +1 and +1 (mean +0.8).
+- **The sample is small.** Two of the analytic baselines (b-s0059, b-s0076)
+  already fall below the threshold on the analytic board.
+- So the fill does not behave like a random move here.
+- The near-miss rescues still rest on their own controls (flat at c-s0027
+  t18 and b-s0077), not on a large sample.  With 3 rescues from 8 boards, a
+  coin-toss reading cannot be excluded for b-s0026, where one control
+  reached 17.
+- C has no crossing at margin 0 to +2 that ends sealed within that lead, so
+  the control is B-only.
 
 PLACEHOLDER-OTHERS
 

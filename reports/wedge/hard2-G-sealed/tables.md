@@ -257,13 +257,21 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0064 | 24 | 2 | seal 0 | 30 | 26/26 | 26/26/26/26 | 26 | 26 | 26 | 26 |  |
 | b-hard2-s0064 | 23 | 3 |  | 30 | 26/26 | 26 |  |  |  |  |  |
 | b-hard2-s0064 | 21 | 5 |  | 30 | 26 | 26/26/26/26 |  | 26 | 26 |  |  |
+| b-hard2-s0013 | 6 | 7 | seal 1 | 11 | 13 |  |  |  | 15 |  | yes |
+| b-hard2-s0015 | 10 | 7 | seal 0 | 15 | 17 |  |  |  | 16 |  | yes |
 | b-hard2-s0030 | 53 | 17 | seal 1 | 79 | 62 |  |  |  |  |  |  |
+| b-hard2-s0032 | 10 | 5 | seal 0 | 13 | 14 |  |  |  | 15 |  | yes |
+| b-hard2-s0051 | 7 | 19 | seal 0 | 24 | 24 |  |  |  | 25 |  | yes |
 | b-hard2-s0055 | 10 | 10 | seal 0 | 30 | 18 |  |  |  |  |  |  |
 | b-hard2-s0056 | 47 | 21 | seal 6 | 76 | 66 |  |  |  |  |  |  |
+| b-hard2-s0058 | 22 | 17 | seal 0 | 37 | 37 |  |  |  | 38 |  | yes |
+| b-hard2-s0059 | 35 | 13 | seal 0 | 48 | 43 |  |  |  | 45 |  |  |
 | b-hard2-s0073 | 78 | 13 | seal 1,2 | 105 | 86 |  |  |  |  |  |  |
 | b-hard2-s0075 | 58 | 33 | seal 1,2 | 109 | 78 |  |  |  |  |  |  |
+| b-hard2-s0076 | 14 | 10 | seal 1 | 22 | 21 |  |  |  | 21 |  |  |
 | b-hard2-s0081 | 45 | 12 | seal 4 | 62 | 46 |  |  |  |  |  |  |
 | b-hard2-s0081 | 36 | 21 | seal 2,3 | 62 | 44 |  |  |  |  |  |  |
+| b-hard2-s0087 | 42 | 5 | seal 3,4 | 45 | 48 |  |  |  | 48 |  | yes |
 | c-hard2-s0060 | 65 | 25 | seal 0 | 96 | 86 |  |  |  |  |  |  |
 
 ## Choosing among the pool (B): every pool item tried first
@@ -402,7 +410,7 @@ Every branch that reached the threshold on the record arm, and the unchanged con
 
 | scene | threshold | record | agent (analytic) | soft_first_when_free | soft_equal |
 |---|---|---|---|---|---|
-| b-hard2-s0007 | 21 | 20 | 17 | 18 |  |
+| b-hard2-s0007 | 21 | 20 | 17 | 18 | 21 |
 
 ## Counterfactual rollouts (near misses)
 
@@ -677,6 +685,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 10 | noseal2 |  | 0 | yes | max-footprint [0.719, -0.161, 0.32] | 0 | False | 21 | 0 |  |
 | 0 | agent |  |  |  | shelf-space-saving [-0.868, 0.463, 1.145] | None | None | 17 | -4 |  |
 | 0 | agent |  |  |  | soft-first-shelf [-0.943, 0.264, 1.12] | None | None | 18 | -3 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.968, 0.263, 1.145] | None | None | 21 | 0 |  |
 
 **b-hard2-s0077** (threshold 21, record placed 20)
 
@@ -933,4 +942,60 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
 | 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
 | 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
+
+**b-hard2-s0013** (threshold 11, record placed 13)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 6 | agent |  |  |  | max-footprint [0.414, -0.348, 0.185] | None | None | 13 | 2 |  |
+| 6 | fill2 |  | 1 |  | stack-rl [-0.02, -0.232, 0.35] | 24 | True | 15 | 4 |  |
+
+**b-hard2-s0015** (threshold 15, record placed 17)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10 | agent |  |  |  | terrace-extension [0.399, -0.327, 1.17] | None | None | 17 | 2 |  |
+| 10 | fill2 |  | 0 |  | fallback [0.678, 0.423, 1.1] | 0 | True | 16 | 1 |  |
+
+**b-hard2-s0032** (threshold 13, record placed 15)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10 | agent |  |  |  | max-footprint [-0.22, -0.331, 0.605] | None | None | 14 | 1 |  |
+| 10 | fill2 |  | 0 |  | count-mode [-0.239, 0.469, 0.84] | 0 | True | 15 | 2 |  |
+
+**b-hard2-s0051** (threshold 24, record placed 26)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 7 | agent |  |  |  | shelf-space-saving [0.261, 0.468, 0.96] | None | None | 24 | 0 |  |
+| 7 | fill2 |  | 0 |  | shelf-space-saving [0.773, 0.388, 0.88] | 0 | True | 25 | 1 |  |
+
+**b-hard2-s0058** (threshold 37, record placed 39)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 22 | agent |  |  |  | max-footprint [0.657, -0.303, 0.375] | None | None | 37 | 0 |  |
+| 22 | fill2 |  | 0 |  | stack-rl [0.463, 0.373, 0.425] | 0 | True | 38 | 1 |  |
+
+**b-hard2-s0059** (threshold 48, record placed 48)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 35 | agent |  |  |  | terrace-extension [0.08, -0.241, 0.915] | None | None | 43 | -5 |  |
+| 35 | fill2 |  | 0 |  | shelf-space-saving [-0.883, -0.313, 1.16] | 0 | False | 45 | -3 | fell back |
+
+**b-hard2-s0076** (threshold 22, record placed 24)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 14 | agent |  |  |  | soft-edge [0.803, -0.099, 0.95] | None | None | 21 | -1 |  |
+| 14 | fill2 |  | 1 |  | soft-edge [0.803, -0.099, 0.95] | 134 | False | 21 | -1 | fell back |
+
+**b-hard2-s0087** (threshold 45, record placed 47)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 42 | agent |  |  |  | max-footprint [-0.356, -0.251, 0.795] | None | None | 48 | 3 |  |
+| 42 | fill2 |  | 3 |  | priority-edge [-0.356, -0.359, 0.795] | 24 | False | 48 | 3 | fell back |
 
