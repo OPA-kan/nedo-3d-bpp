@@ -62,6 +62,7 @@ A_TYPED_CAP = "typed-cap"
 A_LAST_RESORT = "last-resort"
 A_FRONT_WEDGE = "front-wedge"
 A_RESIDUAL = "residual"
+A_BRIDGE_SLIDE = "bridge-slide"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -86,6 +87,7 @@ ALL_ARCHETYPES = (
     A_LAST_RESORT,
     A_FRONT_WEDGE,
     A_RESIDUAL,
+    A_BRIDGE_SLIDE,
 )
 
 
@@ -2518,6 +2520,7 @@ ARCHETYPE_KEYS = {
     A_LAST_RESORT: _key_last_resort,
     A_FRONT_WEDGE: _key_front_wedge,
     A_RESIDUAL: _key_residual,
+    A_BRIDGE_SLIDE: _key_bridge,
 }
 
 
@@ -2532,6 +2535,11 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
     if candidate.role == l2.ROLE_RESIDUAL:
         # its own rung after the floor rungs (config.residual_anchors)
         tags.add(A_RESIDUAL)
+        return tags
+    if candidate.features.get("bridge_slide") and getattr(config, "bridge_slide_late", False):
+        # a sliding bridge as the ladder's last real rung
+        # (config.bridge_slide_late): it places only where nothing else does
+        tags.add(A_BRIDGE_SLIDE)
         return tags
     if (
         candidate.role == l2.ROLE_HOLE_FILL
@@ -2687,6 +2695,8 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
         ladder.append(A_RESIDUAL)
     ladder.extend(growth)
     ladder.append(A_MAX_FOOTPRINT)
+    if getattr(config, "bridge_slide_late", False) and klass == cls.NORMAL_HARD:
+        ladder.append(A_BRIDGE_SLIDE)
     ladder.append(A_LAST_RESORT)
     seen, out = set(), []
     for name in ladder:
@@ -2892,6 +2902,7 @@ def _bridge_slide_candidates(board: "Board", profile: cls.ItemProfile,
                         board, container_idx, candidate, config
                     )
                 if allowed:
+                    candidate.features["bridge_slide"] = True
                     out.append(candidate)
             if len(out) >= cap or tried >= budget:
                 return out
@@ -4488,6 +4499,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
     if max_orientations is None:
         max_orientations = int(getattr(config, "ladder_orientations", 3) or 3)
     best: Decision | None = None
+    late: Decision | None = None
     for container_idx in routing_order(profile, board, config):
         model = board.model(container_idx)
         if (profile.is_soft and not profile.is_prioritized and model.is_prioritized
@@ -4772,10 +4784,16 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             survivors=list(survivors),
             chosen=chosen,
         )
+        if chosen_archetype == A_BRIDGE_SLIDE:
+            # the late sliding bridge is last across containers too: a later
+            # container's ordinary rung goes first (config.bridge_slide_late)
+            if late is None:
+                late = decision
+            continue
         # first container in routing order that can take the item wins
         best = decision
         break
-    return best
+    return best if best is not None else late
 
 
 GROWTH_ARCHETYPES = frozenset({A_TERRACE, A_BRIDGE, A_WEDGE_BRIDGE})
