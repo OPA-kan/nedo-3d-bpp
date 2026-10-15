@@ -20,8 +20,8 @@ arm, `reports/bench/arms/arm_ship_a.txt`).
 
 1. **What was built** (all off by default; with `plan_count_secure` unset
    the planner and the race are the shipped code path, and the tests pass
-   unchanged: 211 in `tests.test_rule_alpha tests.test_agent
-   tests.test_bench`, plus 8 new ones in `tests/test_count_secure.py`).
+   unchanged: 203 in `tests.test_rule_alpha tests.test_agent
+   tests.test_bench`, plus 14 new ones in `tests/test_count_secure.py`).
    The code is in its own module, `rule_alpha/count_secure.py`, with a
    five-line hook at the end of `planner.plan_packing` and one helper
    (`_count_secure_race`) plus a three-line change in the race in
@@ -275,3 +275,119 @@ fits in what is left.
 - Not done: the per-episode A quality on the platform (the bench reads
   cog, placement and soft only through the continuous proxy), and a
   submission build; `submission/agent.py` is unchanged.
+
+## 6. After v51: the race fix, the re-plan's timing, and the short-budget bench
+
+v51 shipped the threshold-only form and scored 53.50 against v50's 56.04:
+stability 18 lattice steps against 19 (one counted Task A episode lost,
+none gained), cog -3.61, placement -1.95, soft -3.50, the optimize time
+118.9 -> 138.8 s against the 140 s budget. The platform's A manifests are
+the dense kind, so the re-plan ran on most of them.
+
+**What changed** (commit bd2c6ee9; the v51 flags keep their meaning):
+
+- `plan_count_secure_race_chosen`: the count rule decides the planner /
+  dry-run race only where a re-plan completed and was chosen
+  (`count_secure_log["chosen"] != "base"`); it prefers the planner's plan
+  when that holds the threshold plus `plan_value_margin` and the dry-run's
+  does not, and it hands the episode to the dry-run's plan only when the
+  planner's plan is under the threshold itself. v51's rule
+  (`plan_count_secure_race_replanned`) applied wherever the base plan was
+  under the trigger, whether or not a re-plan finished, and a dry-run plan
+  over the gate then replaced a planner plan that replays to the count
+  (a-c1s-s0006 24 -> 19 and a-hard-s0028 62 -> 51 on the bench).
+- `plan_count_secure_early`: the re-plan runs right after the planner's
+  first complete plan, before its other variants and layouts. The shipped
+  arm plans one base variant, so on it this is the same as v51's order
+  (tested); it matters for arms with several variants.
+- `plan_count_secure_start_factor` (1.2): a re-plan starts only when this
+  many times the longest plan so far fits in what is left of the budget.
+  The record says when one was skipped.
+- The fixed form plans `plain` only. v51 also planned `top`, which doubled
+  the re-plan's time (7.7 + 8.1 s a dense episode on the bench, about
+  20-25 s each on the platform's machine), and `top` was chosen on
+  a-c1x70-s0012 and a-c1x80-s0012 with **no priority box** (6 -> 0
+  placed): under the threshold the re-plan ranks by count alone, and the
+  count frame's plan holds the count without the priority cargo.
+- `metrics.count_secure` in every episode record (`bench/episode.py`): the
+  re-plan's variants (planned, soft, priority, seconds, skipped / cut), its
+  pick, and the race (the count rule's decision, the plan the score alone
+  would take, the planner's and the dry-run's plan sizes).
+  `race_stats.py` and `scene_diff.py` read it.
+
+Fixed form: `reports/bench/arms/arm_acountfix_a.txt` (`plan_count_secure,
+plan_count_secure_choice, plan_count_secure_race_chosen,
+plan_count_secure_margin=0, plan_count_secure_early,
+plan_count_secure_blocks=plain`).
+
+**The short-budget bench.** The bench's mean optimize time is 38 s on
+dense-a and 49 s on core-a at the full budget against the platform's 119
+s, so the platform plans about 2.5-3 times slower; 140 s there is about
+40-60 s here. The three forms at 40 and 60 s, and the fixed form at the
+full budget (records `reports/bench/acb40*`, `acb60*`, `acountfix-*`;
+`budget_stats.txt`):
+
+| suite | arm | budget | crossings | placed | soft placed / covered | priority placed / covered | topples | CoM | optimize mean |
+|---|---|---:|---:|---:|---|---|---:|---:|---:|
+| dense-a | shipped | 40 | 10 | 28.10 | 296 / 37 | 188 / 23 | 8 | 0.348 | 28.2 |
+| dense-a | v51 | 40 | 20 | 30.65 | 292 / 10 | 214 / 19 | 5 | 0.363 | 38.4 |
+| dense-a | fixed | 40 | 20 | 30.69 | 290 / 9 | 226 / 24 | 5 | 0.363 | 33.5 |
+| dense-a | shipped | 60 | 10 | 28.10 | 296 / 37 | 188 / 23 | 8 | 0.348 | 27.5 |
+| dense-a | v51 | 60 | 20 | 30.65 | 292 / 10 | 214 / 19 | 5 | 0.363 | 45.7 |
+| dense-a | fixed | 60 | 20 | 30.69 | 290 / 9 | 226 / 24 | 5 | 0.363 | 44.4 |
+| dense-a | shipped | 140 | 10 | 28.10 | 296 / 37 | 188 / 23 | 8 | 0.348 | 38.0 |
+| dense-a | v51 | 140 | 20 | 30.65 | 292 / 10 | 214 / 19 | 5 | 0.363 | 45.3 |
+| dense-a | fixed | 140 | 20 | 30.69 | 290 / 9 | 226 / 24 | 5 | 0.363 | 33.0 |
+| core-a | shipped | 40 | 48 | 37.44 | 392 / 0 | 262 / 1 | 3 | 0.323 | 31.3 |
+| core-a | v51 | 40 | 48 | 37.46 | 392 / 0 | 262 / 1 | 3 | 0.324 | 30.2 |
+| core-a | fixed | 40 | 48 | 37.46 | 392 / 0 | 262 / 1 | 3 | 0.324 | 31.2 |
+| core-a | shipped | 60 | 48 | 37.52 | 392 / 0 | 262 / 1 | 4 | 0.324 | 38.5 |
+| core-a | v51 | 60 | 48 | 37.46 | 392 / 0 | 262 / 1 | 3 | 0.324 | 41.7 |
+| core-a | fixed | 60 | 48 | 37.58 | 381 / 0 | 255 / 1 | 3 | 0.327 | 35.8 |
+| core-a | shipped | 140 | 48 | 37.54 | 381 / 0 | 255 / 1 | 4 | 0.326 | 49.4 |
+| core-a | v51 | 140 | 48 | 37.65 | 381 / 0 | 255 / 1 | 4 | 0.328 | 52.9 |
+| core-a | fixed | 140 | 48 | 37.46 | 370 / 0 | 255 / 1 | 8 | 0.329 | 50.7 |
+
+What the records say (`metrics.count_secure`):
+
+- **The re-plan was never skipped or cut** at any budget: dense-a 44 of 48
+  episodes re-planned, 43 picked the re-plan; core-a 2 re-planned and
+  picked (a-c1-s0012 21 -> 26 placed, a-c1s-s0010 unchanged at 22). The
+  plain re-plan takes 5.7-6.2 s (at most 10.1 s) here.
+- **The race's count rule never overrode the score**, in either form at
+  any budget: on dense-a it decided 7 episodes, every one for the
+  planner's plan, which the score also picked; on core-a it decided none.
+  So the bench does not reproduce the mechanism suspected for v51's lost
+  episode; the fix removes it where it could act.
+- **The core-a differences that are not a-c1-s0012 are the shipped race's
+  own variance.** a-c2p-s0002, a-c2p-s0008, a-c2p-s0011 and a-c2-s0011
+  change between runs of arms that make the same decisions there (base
+  plan kept, no count rule): the ladder's dry-run plan differs from run to
+  run, and when it wins on the score it can carry no soft and no priority
+  cargo (a-c2-s0011: the dry-run's 58-item plan against the planner's 47
+  won in the shipped form at 140 s and the fixed form at 60 s, 51 placed
+  with 0 soft and 0 priority, and lost in the other runs, 50 placed with
+  11 and 7; a-c2p-s0008 at the full budget,
+  soft 11 -> 3). The fixed form's core-a soft count at 140 s (370 against
+  381) is that variance (a-c2p-s0008 -8, a-c2p-s0011 -3), not the re-plan.
+- dense-a is identical between v51 and the fixed form except the two
+  `top` picks (c1x70-s0012 32 -> 33 and c1x80-s0012 33 -> 34 placed, 0 ->
+  6 priority each); the fixed form also spends less optimize time.
+
+**Reading.** At the platform-like budgets the bench shows neither the
+lost episode nor the soft loss: v51 and the fixed form hold core-a at the
+shipped form's numbers and double dense-a's crossings. The platform loss
+then comes from what the bench does not model. The candidates are:
+
+1. the `top` pick dropping the priority cargo (seen here, 2 of 48 dense
+   episodes; placement -1.95 on the platform);
+2. the re-plan's time taking the dry-run's budget on the slower machine
+   and changing which plan wins on the episodes the dry-run used to win;
+3. the shipped race's own variance: a counted episode's dry-run plan
+   winning on the score with little soft cargo, as a-c2-s0011 and
+   a-c2p-s0008 do here between identical arms.
+
+The fixed form removes (1), halves the time behind (2), and restricts
+the count rule. Nothing here guards against (3). A guard would keep the
+planner's plan when the dry-run's carries markedly fewer soft and
+priority boxes; `plan_prefer_planner`, already in the code, is one.

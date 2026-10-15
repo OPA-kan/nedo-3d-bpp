@@ -32,7 +32,8 @@ def fmt(s):
             f"com {s['com']:.3f} pmax {s['pmax']:.2f} opt {s['opt']:.0f} ends {s['ends']}")
 
 
-for d in sys.argv[1:]:
+def main(dirs):
+  for d in dirs:
     runs = load(d)
     print(d)
     print("  all     ", fmt(stats(list(runs.values()))))
@@ -43,3 +44,7 @@ for d in sys.argv[1:]:
     if len(groups) > 1:
         for g in sorted(groups):
             print(f"  {g:8s}", fmt(stats(groups[g])))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
