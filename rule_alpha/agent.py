@@ -292,6 +292,24 @@ class RuleAlphaAgent:
                 + gate * (weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
                           + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total))
 
+    def _count_secure_race(self, planner_plan, dry_plan) -> str | None:
+        """config.plan_count_secure_choice: "planner" or "dry-run" when
+        exactly one of the two plans holds the count threshold plus
+        ``plan_value_margin`` items, else None (the plan score decides)."""
+        if not (getattr(self.config, "plan_count_secure", False)
+                and getattr(self.config, "plan_count_secure_choice", False)):
+            return None
+        if planner_plan is None or dry_plan is None:
+            return None
+        threshold = self._count_threshold()
+        if threshold is None:
+            return None
+        gate = threshold + int(getattr(self.config, "plan_value_margin", 2))
+        a, b = len(planner_plan) >= gate, len(dry_plan) >= gate
+        if a == b:
+            return None
+        return "planner" if a else "dry-run"
+
     def _valuable_before_tail(self, order: list, item_list: list) -> list:
         """config.plan_valuable_before_tail: the soft and priority items
         that the constructive order would play after the last share of
@@ -430,7 +448,13 @@ class RuleAlphaAgent:
                 threshold = self._count_threshold()
                 if threshold is not None and len(planned[1]) < threshold < len(dry_plan) + 1:
                     prefer = False
-            if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9):
+            race = self._count_secure_race(planned[1] if planned is not None else None, dry_plan)
+            if race is not None:
+                # config.plan_count_secure_choice: the plan that holds the
+                # count threshold plus the margin wins the race outright
+                prefer = race == "planner"
+            if not prefer and (planned is None or race == "dry-run"
+                               or (race is None and score_of(dry_plan) > score_of(planned[1]) + 1e-9)):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
         if planned is not None:

@@ -630,6 +630,12 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         # the count threshold: where it crosses, the shipped plan stands
         # and the sample suite's soft and priority shares with it
         chosen = base_entry
+    if getattr(config, "plan_count_secure", False) and time.perf_counter() < deadline:
+        # under the count threshold plus plan_value_margin: the manifest
+        # planned again around a count frame (rule_alpha/count_secure.py)
+        from .count_secure import secure_count
+
+        chosen = secure_count(agent, item_list, deadline, chosen, longest, log)
     order, plan = chosen[1], chosen[2]
     if getattr(config, "plan_soft_after_hard_rows", False) and plan:
         # every container's hard rows before any soft gallery: a decline
