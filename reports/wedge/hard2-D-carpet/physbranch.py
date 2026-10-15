@@ -27,6 +27,8 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import REPO, load_record, scene_of  # noqa: E402
 
+os.chdir(REPO)  # the arms name their policy directories relative to the repository
+
 from bench.arms import make_arm  # noqa: E402
 from bench.episode import _decision_digest, _end_reason, load_env_class  # noqa: E402
 

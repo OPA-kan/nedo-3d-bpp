@@ -20,7 +20,6 @@ REPO = os.path.abspath(
 )
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
-os.chdir(REPO)  # the arms name their policy directories relative to the repository
 
 from bench.scenes import make_scene  # noqa: E402
 from rule_alpha.config import DEFAULT_CONFIG  # noqa: E402
