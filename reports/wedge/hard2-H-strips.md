@@ -290,6 +290,17 @@ Generated tables: `cf_stats.md` (per scene and step), `cf_flip.md`,
 | b-hard2-s0067 (-3) |  68 | -3 / -4         | none (best -2)                                                                                                                                                                                                                                     | none                                                                                 |
 | b-hard2-s0083 (-2) |  58 | -2              | none (k = 57, 55, 53, 50; every branch -2)                                                                                                                                                                                                         | none                                                                                 |
 
+**Farther misses** (branched around "floor gone"; partial, the batch was
+still running):
+- c-hard2-s0051 (-4): no rescue at k = 14, 13 or 12.
+- c-hard2-s0040 (reference -8): rescued one and two placements before
+  "floor gone". At k = 17, `rung2` reaches 0 against the null's -12; at
+  k = 16, `rung3` reaches 0 against the null's -7. The null baselines at
+  these steps scatter (-12, -12, -7 against the reference's -8): the resort
+  clock again.
+
+So a single change can bring even a -8 board to the threshold.
+
 **By kind of alternative** (distinct poses, `cf_flip.md`), on H:
 
 - the hand-picked most-usable-surface poses rescue 10 of 41;
