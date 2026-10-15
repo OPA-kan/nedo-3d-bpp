@@ -39,8 +39,14 @@ from rule_alpha.agent import RuleAlphaAgent  # noqa: E402
 _ARMS = {}
 
 
+ARM_SPEC = None  # a spec string that replaces the record's arm (cf.py "arm" field)
+ARM_EXTRA = ""   # appended overrides (cf.py "arm_extra" field)
+
+
 def arm_for(rec):
-    spec = rec["arm"]["arm"]
+    spec = ARM_SPEC if ARM_SPEC else rec["arm"]["arm"]
+    if ARM_EXTRA:
+        spec += "," + ARM_EXTRA.strip(",")
     if "deterministic_budgets" not in spec:
         spec += ",deterministic_budgets=true"
     if spec not in _ARMS:
@@ -446,6 +452,26 @@ def decide_cf(st, mode='agent', k=1, protect=None, defer_item=None):
         note['tries'] = tries
         if a is None:
             note['declined_at'] = len(tries) + 1
+        return a, d, note
+    if mode == 'first_item':
+        # the item ``defer_item`` (an item index) is tried first by every stage
+        # that walks the pool order; the others follow in the agent's order
+        orig_po = layer1.pool_order
+
+        def po(pairs, config):
+            out = orig_po(pairs, config)
+            idx = [n for n, it in enumerate(st.pool) if int(it['index']) == int(defer_item)]
+            if not idx:
+                return out
+            first = [pr for pr in out if pr[0] == idx[0]]
+            return first + [pr for pr in out if pr[0] != idx[0]]
+        layer1.pool_order = po
+        try:
+            a, d = st.decide()
+        finally:
+            layer1.pool_order = orig_po
+        if a is not None:
+            note['item_placed'] = int(st.pool[int(a['item_idx'])]['index'])
         return a, d, note
     if mode in ('noseal2', 'fill2'):
         base = 'noseal' if mode == 'noseal2' else 'fill'

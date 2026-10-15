@@ -18,7 +18,74 @@ robustness checks `gate0det-hard2` and `gate0-hard2-b-r2`. Boards are rebuilt
 from `final_items` as in the taxonomy (settled poses, container offset from
 `pos_local`).
 
-PLACEHOLDER-SUMMARY
+## Summary
+
+- **The G label stands, and the sealing step is real.**
+  - An exact box model of the official sweep (`validator.py:85-175`) agrees
+    with all 23 G labels.
+  - In the official validator, the spots a sealer closed pass the sweep
+    before it in 462 of 476 checks and fail after it in 476 of 476.
+  - 17 of 23 G scenes share a sealing placement (same step, same rung) with
+    the replicate record.
+- **Sealing is early and was avoidable for a while.**
+  - 50 of 51 patches were open first, for a median of 13 placements.
+  - The median lead from the seal to the end is 13 placements (C) and 23.5
+    (B).
+  - Two geometries: a floor patch behind a floor box (the depth order; C 7
+    of 15, B 12 of 36), and a raised patch behind a stack on the front rows
+    (C 5, B 22; on B mostly terrace-extension).
+- **Why the sealing move won (the typical chain).**
+  - The item has 1-3 survivors, every one of which seals: at 32 of 48
+    ladder-decided sealing steps no listed candidate left the patch open.
+  - The seal veto fires but falls back (`layer1.py:3688`).
+  - The keys do not price the seal of a raised patch: `sealed_added` is a
+    floor-only reading, so terrace candidates score 0 on it.
+  - Several rungs put boxes at the door on purpose: front-wedge, soft-edge,
+    priority-edge, and max-footprint (footprint before depth).
+  - The rescue stages place low first, after the shade veto has refused the
+    alternatives.
+  - On B the ladder runs for one item only, the first in a fixed pool order.
+- **The agent's own transport readings mostly do not see the seal.**
+  - On 44-46 % of sealing placements both `shade_area` and `sealed_added`
+    read 0.
+  - Only 6 % (C) and 15 % (B) would trip either veto.
+  - Both are per-cell column readings at fixed heights.  Neither asks
+    whether a level spot for a known class lies behind.
+- **Counterfactuals on the 8 near misses.**
+  - No single change in the last 5 placements crosses.
+  - Patch-specific rescues, with every control flat:
+    - c-s0027: fill the patch at the sealing step, lead 8 (26 -> 34, thr 29);
+    - b-s0077: fill it 17-19 placements before the end (20 -> 23, thr 21);
+    - b-s0026: 12 before (14 -> 20, thr 16; one control reaches 17).
+  - The rescue is always to fill the patch while it is reachable.  Sparing it
+    for one decision, or for the rest of the episode, crosses nowhere.
+  - c-s0013 and b-s0064 do not move.  c-s0059's patch is a 2-origin slot,
+    and its outcome is decided earlier by something else.  b-s0007 and
+    b-s0009 cross under controls or unchanged too.
+- **Sealing is not specific to G.**
+  - One placement in four seals level surface, in G, in the other misses and
+    in the crossings alike (C 0.25-0.27, B 0.27-0.29 events a placement).
+  - The crossings that end sealed sealed their patches before the threshold
+    too.
+  - The floor rungs seal two to five times as often per placement as the stacking
+    rungs and the rescue stages.
+- **B is not more prone per placement.**
+  - The 26-of-48 against 6-of-40 contrast is mostly the end condition (B
+    declines only when no pool item has a pose) and the window (10 items
+    against 1).
+  - Like for like, about half the boards without a reachable spot hold a
+    sealed level spot on both tasks.
+  - What does differ on B is the policy:
+    - no shade veto or shade order (`agent.py:624`, `2289`);
+    - a fixed pool order, hard before soft;
+    - so its G boards end with soft-heavy pools (median 0.8 soft, against
+      0.4 in the crossings), whose spots lie behind the front stacks.
+- **Two surprises about the inputs:**
+  - The bench's B records run `rescue_order_gate=low`, where the shipped B
+    form runs `low+single` (the rescue sealing pass is off on B in the
+    submission).
+  - The taxonomy's reach model carries shelf boxes 11 cm too low.  It
+    changes no label.
 
 ## 1. The reach model, checked against the official validator
 
@@ -373,7 +440,7 @@ sealed area too):
   - count-mode: 0.02 and 0.01.
   - grid-rescue-cover: 0.
 
-The floor rungs seal at 3-5 times the rate of the stacking rungs. A floor box
+The floor rungs seal at two to five times the rate of the stacking rungs (max-footprint 0.52-0.57 against terrace-extension 0.15). A floor box
 seals the floor behind it whenever that floor is still empty.
 terrace-extension seals rarely per placement but is placed often (B: 1205 of
 4573 placements), so it is B's largest sealer of G patches.

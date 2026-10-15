@@ -20,20 +20,11 @@ SCRATCH = os.environ.get("SCRATCH", "/home/user/inv-G-scratch")
 
 
 def tag_of(job):
-    return job.get("tag") or "|".join(
-        str(job.get(k))
-        for k in (
-            "record",
-            "scene",
-            "t",
-            "mode",
-            "k",
-            "patch",
-            "persistent",
-            "defer_item",
-            "rep",
-        )
-    )
+    base = "|".join(str(job.get(k)) for k in ("record", "scene", "t", "mode", "k", "patch", "persistent", "defer_item", "rep"))
+    for k in ("arm", "arm_extra", "soft_equal"):
+        if job.get(k):
+            base += f"|{k}={os.path.basename(str(job[k]))}"
+    return job.get("tag") or base
 
 
 def main():
@@ -65,6 +56,16 @@ def main():
                 )
             )
             protect = B.Protected(ep, tr["patches"][int(job["patch"])])
+        B.ARM_SPEC = open(job['arm']).read().strip() if job.get('arm') else None
+        B.ARM_EXTRA = job.get('arm_extra', '')
+        B._ARMS.clear()
+        orig_po = B.layer1.pool_order
+        if job.get('soft_equal'):
+            def po(pairs, config, _o=orig_po):
+                import rule_alpha.classify as _cls
+                return sorted(pairs, key=lambda pr: (0 if pr[1].cargo_class in (_cls.NORMAL_HARD, _cls.SOFT) else 1,
+                                                     round(pr[1].max_footprint, 6), pr[0]))
+            B.layer1.pool_order = po
         try:
             res = B.branch_rollout(
                 ep,
@@ -78,7 +79,10 @@ def main():
             )
         except Exception as exc:  # keep the queue going
             res = dict(error=repr(exc))
+        finally:
+            B.layer1.pool_order = orig_po
         res.update(
+            arm=job.get("arm"), arm_extra=job.get("arm_extra"), soft_equal=job.get("soft_equal"),
             tag=tag,
             record=job["record"],
             scene=job["scene"],
