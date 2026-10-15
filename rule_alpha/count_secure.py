@@ -394,6 +394,38 @@ def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], 
     return done + unplanned, plan, info
 
 
+def _rank(entry, threshold: int, gate: int) -> tuple:
+    """The re-plan's order of plans: over the threshold the plan score
+    decides (the soft and priority shares count there), the threshold plus
+    the margin first; under it only the count can still pay, so the plan
+    with more items comes first."""
+    n = len(entry[2])
+    if n >= threshold:
+        return (n >= gate, True, entry[0][0], n)
+    return (False, False, n, entry[0][0])
+
+
+def prefer_secured(agent, item_list: list[dict], chosen: tuple, secured: tuple) -> tuple:
+    """``plan_count_secure_early``: the re-plan ran after the first plan;
+    the plan the variants chose afterwards (``chosen``) stands unless the
+    re-plan's pick ranks higher -- and when the re-plan kept the base, the
+    variants' choice stands as the planner made it."""
+    record = getattr(agent, "count_secure_log", None) or {}
+    if chosen is None:
+        return secured
+    if record.get("chosen", "base") == "base" or secured is None:
+        return chosen
+    threshold, gate = record.get("threshold"), record.get("gate")
+    if len(chosen[2]) >= int(record.get("trigger", gate)):
+        # a later variant holds the trigger itself: the shipped choice
+        record["chosen"] = "base"
+        return chosen
+    if _rank(secured, threshold, gate) > _rank(chosen, threshold, gate):
+        return secured
+    record["chosen"] = "base"
+    return chosen
+
+
 def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, longest: float,
                  log=None) -> tuple:
     """``chosen`` (the planner's entry: ``((score, n), order, plan)``) or a
@@ -434,18 +466,16 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     changes.update(parse_overrides(config, str(getattr(config, "plan_count_secure_overrides", "") or "")))
 
     def rank(entry):
-        # over the threshold the plan score decides (the soft and priority
-        # shares count there); under it only the count can still pay, so
-        # the plan with more items comes first
-        n = len(entry[2])
-        if n >= threshold:
-            return (n >= gate, True, entry[0][0], n)
-        return (False, False, n, entry[0][0])
+        return _rank(entry, threshold, gate)
 
+    factor = float(getattr(config, "plan_count_secure_start_factor", 1.2))
     best = chosen
     for token in sides:
         now = time.perf_counter()
-        if now + 1.2 * longest >= deadline:
+        if now + factor * longest >= deadline:
+            # not started: it would not finish in what is left of the budget
+            record["variants"].append({"side": token, "skipped": True, "left": round(deadline - now, 1),
+                                       "longest": round(longest, 1)})
             break
         t0 = now
         # "side@field=value&field=value": a variant with fields of its own

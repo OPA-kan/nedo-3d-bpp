@@ -128,6 +128,54 @@ class DenseManifestTest(unittest.TestCase):
             self.assertLessEqual(e["center"][0] + e["size"][0] / 2.0, x1 + 0.011)
 
 
+class EarlyReplanTest(unittest.TestCase):
+    def test_early_replan_with_one_base_variant_is_the_late_one(self):
+        scene = make_scene(2, "c1x60", "A")
+        late, _c, late_order = _plan(scene, PLANNER + ",plan_count_secure=true")
+        early, _c2, early_order = _plan(scene, PLANNER + ",plan_count_secure=true,plan_count_secure_early=true")
+        self.assertEqual(early.count_secure_log["chosen"], late.count_secure_log["chosen"])
+        self.assertEqual(len(early.plan), len(late.plan))
+        self.assertEqual(early_order, late_order)
+
+
+class RaceTest(unittest.TestCase):
+    """plan_count_secure_race_chosen: the count rule decides the planner /
+    dry-run race only after a chosen re-plan, and never hands a plan that
+    holds the threshold to the dry-run."""
+
+    def setUp(self):
+        scene = make_scene(2, "c1x60", "A")
+        self.agent = make_arm(PLANNER)(scene)
+        self.agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+        self.agent._manifest_total = len(scene.items)   # threshold 31, gate 33
+        self.agent.config = dataclasses.replace(self.agent.config, plan_count_secure=True,
+                                                plan_count_secure_choice=True,
+                                                plan_count_secure_race_chosen=True)
+
+    def race(self, chosen, planner, dry):
+        self.agent.count_secure_log = {"chosen": chosen, "replanned": True}
+        return self.agent._count_secure_race([{}] * planner, [{}] * dry)
+
+    def test_no_count_rule_without_a_chosen_replan(self):
+        self.assertIsNone(self.race("base", 28, 34))
+        self.assertIsNone(self.race("base", 34, 28))
+
+    def test_a_plan_holding_the_threshold_is_not_handed_to_the_dry_run(self):
+        self.assertIsNone(self.race("plain", 31, 34))
+        self.assertIsNone(self.race("plain", 32, 40))
+
+    def test_under_the_threshold_the_dry_run_over_the_gate_wins(self):
+        self.assertEqual(self.race("plain", 30, 33), "dry-run")
+
+    def test_the_replan_over_the_gate_wins_over_a_dry_run_under_it(self):
+        self.assertEqual(self.race("plain", 33, 32), "planner")
+
+    def test_v51_rule_kept_without_the_flag(self):
+        self.agent.config = dataclasses.replace(self.agent.config, plan_count_secure_race_chosen=False,
+                                                plan_count_secure_race_replanned=True)
+        self.assertEqual(self.race("base", 31, 34), "dry-run")
+
+
 class GateHeldTest(unittest.TestCase):
     def test_a_plan_over_the_gate_is_kept(self):
         # a sample-sized manifest whose ordinary plan holds the threshold

@@ -918,6 +918,7 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
     best = None
     best_partial = None
     base_entry = None   # the first variant planned in full: the shipped form's plan
+    early_secured = None  # config.plan_count_secure_early: the re-plan's pick after the first plan
     started = time.perf_counter()
     longest = 0.0
     from . import stability as _stability
@@ -983,6 +984,13 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         if complete:
             if base_entry is None:
                 base_entry = entry
+                if (getattr(config, "plan_count_secure", False) and getattr(config, "plan_count_secure_early", False)
+                        and early_secured is None):
+                    # the re-plan right after the first plan, before the
+                    # other variants take the budget (rule_alpha/count_secure.py)
+                    from .count_secure import secure_count
+
+                    early_secured = secure_count(agent, item_list, deadline, entry, longest, log)
             if best is None or entry[0] > best[0]:
                 best = entry
         elif best_partial is None or entry[0] > best_partial[0]:
@@ -997,7 +1005,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         # the count threshold: where it crosses, the shipped plan stands
         # and the sample suite's soft and priority shares with it
         chosen = base_entry
-    if getattr(config, "plan_count_secure", False) and time.perf_counter() < deadline:
+    if early_secured is not None:
+        from .count_secure import prefer_secured
+
+        chosen = prefer_secured(agent, item_list, chosen, early_secured)
+    elif getattr(config, "plan_count_secure", False) and time.perf_counter() < deadline:
         # under the count threshold plus plan_value_margin: the manifest
         # planned again around a count frame (rule_alpha/count_secure.py)
         from .count_secure import secure_count

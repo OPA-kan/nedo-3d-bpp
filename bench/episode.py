@@ -174,6 +174,14 @@ def run_episode(scene, arm, max_steps: int = 400, policy_budget: float = 8.0,
         metrics["shadow"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.shadow_stats.items()}
     if getattr(agent, "phase_stats", None):
         metrics["phase"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.phase_stats.items()}
+    if getattr(agent, "count_secure_log", None) or getattr(agent, "count_secure_race", None):
+        # Task A's count-secured re-plan (config.plan_count_secure): what it
+        # planned, what it chose, and what the planner / dry-run race did
+        log = dict(getattr(agent, "count_secure_log", None) or {})
+        metrics["count_secure"] = {
+            "replanned": log.get("replanned"), "chosen": log.get("chosen"), "base": log.get("base"),
+            "trigger": log.get("trigger"), "variants": log.get("variants"),
+            "race": getattr(agent, "count_secure_race", None), "plan_source": getattr(agent, "plan_source", None)}
     if getattr(agent, "pool_level_stats", None):
         metrics["pool_level"] = dict(agent.pool_level_stats)
     sel = getattr(agent, "selector", None)

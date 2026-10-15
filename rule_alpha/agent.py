@@ -310,6 +310,21 @@ class RuleAlphaAgent:
         if threshold is None:
             return None
         gate = threshold + int(getattr(self.config, "plan_value_margin", 2))
+        if getattr(self.config, "plan_count_secure_race_chosen", False):
+            # the count rule only where a re-plan completed and was chosen
+            # (v51 decided the race by the count wherever the base plan was
+            # under the trigger, re-planned or not, and a dry-run plan over
+            # the gate replaced planner plans that replay to the count:
+            # a-c1s-s0006 24 -> 19, a-hard-s0028 62 -> 51; the platform lost
+            # a counted A episode), and it switches to the dry-run's plan
+            # only when the planner's plan is under the threshold itself
+            if not (log and log.get("chosen", "base") != "base"):
+                return None
+            if len(planner_plan) >= gate and len(dry_plan) < gate:
+                return "planner"
+            if len(planner_plan) < threshold and len(dry_plan) >= gate:
+                return "dry-run"
+            return None
         a, b = len(planner_plan) >= gate, len(dry_plan) >= gate
         if a == b:
             return None
@@ -367,6 +382,8 @@ class RuleAlphaAgent:
         self.plan = []
         self.plan_by_index = {}
         self.plan_source = ""
+        self.count_secure_log = None
+        self.count_secure_race = None
         deadline = started + float(self.config.offline_budget_seconds)
         by_index = {int(item["index"]): item for item in item_list}
         capacity = sum(float(c.get("length", 0)) * float(c.get("width", 0)) * float(c.get("height", 0))
@@ -454,6 +471,15 @@ class RuleAlphaAgent:
                 if threshold is not None and len(planned[1]) < threshold < len(dry_plan) + 1:
                     prefer = False
             race = self._count_secure_race(planned[1] if planned is not None else None, dry_plan)
+            if getattr(self.config, "plan_count_secure", False):
+                # what the race did, for the records: the count rule's
+                # decision and the plan the score alone would have taken
+                self.count_secure_race = {
+                    "decision": race,
+                    "planner": len(planned[1]) if planned is not None else None, "dry_run": len(dry_plan),
+                    "score_pick": ("dry-run" if planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9
+                                   else "planner"),
+                    "prefer": bool(prefer)}
             if race is not None:
                 # config.plan_count_secure_choice: the plan that holds the
                 # count threshold plus the margin wins the race outright
