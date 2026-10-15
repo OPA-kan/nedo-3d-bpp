@@ -826,6 +826,11 @@ B 5.01 s, C 3.92 s (`official-sample-abc-v51.json`).  Expected on the
 platform: up to +2.3 per Task A episode brought over the count; none if
 the platform's uncounted A manifests are the 80-110-item kind, where no
 plan here passes 36 items against a threshold of 41.
+Official platform: 53.50 (v50 56.04, -2.54): one counted episode lost
+(stability 18 x 4.1775 - 1.2), none gained; cog -3.61, placement -1.95,
+soft -3.50, fill -0.30, the optimize time 118.9 -> 138.8 s at the 140 s
+budget's edge.  Not kept; the shipped form is v50's
+(`reports/submission/official-results.md`).
 
 ## Known limits
 

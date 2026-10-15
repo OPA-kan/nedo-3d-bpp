@@ -40,6 +40,7 @@
 | v50 (e310ebde: v49 plus the soft columns allowed from the first soft box on Tasks B and C -- `soft_structure_floor_share` 0.35 -> 0 under the 0.7 m cap; Task A keeps the gate) | 38.62 | 64.82 | 78.19 | 50.4 | 50.1 | 0.6446 | 118.9 | 6.75 |
 | diag-B (47590073: v50 surrendering every Task B item from the first call; a diagnostic, not a scored version) | 20.24 | 28.19 | 32.31 | 27.2 | 25.75 | 0.3470 | 136.1 | 5.07 |
 | diag-C (47590073: v50 surrendering every Task C item from the first call; a diagnostic) | 33.10 | 55.48 | 66.57 | 40.25 | 41.75 | 0.5529 | 130.8 | 6.81 |
+| v51 (6a459ba2: v50 plus Task A's count-secured re-plan under the count threshold; not kept) | 38.32 | 61.21 | 73.99 | 48.45 | 46.6 | 0.6391 | 138.8 | 6.71 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -426,6 +427,24 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v51's total is 53.50 (v50 56.04, -2.54): stability 78.19 -> 73.99,
+which is 18 x 4.1775 - 1.2 against v50's 19 x 4.1775 - 1.2, so **one
+counted episode was lost and none gained**; cog -3.61, placement -1.95,
+soft -3.50, fill -0.30, the placed fraction 0.6446 -> 0.6391, the
+optimize time 118.9 -> 138.8 s against the 140 s budget, the policy
+time unchanged.  One lost Task A episode prices at about 2.7 (cog 3.8,
+placement 3.4, soft 3.5, stability 4.2 at the per-episode values the
+diagnostics read), so the four components' drops are that episode;
+the remaining -0.5 in soft and the fraction's -0.0055 (about an item in
+eight A episodes) are the other re-planned A episodes placing less
+soft.  The re-plan fired on most of the platform's A episodes (the
+optimize time rose 20 s to the budget's edge), where on the bench
+core-a it fired once in 48; the platform's A manifests are the dense
+kind, and there the re-plan ran into the budget.  v51 is not kept; the
+shipped form stays v50's, and the re-plan's trigger and its deadline
+behaviour are to be read before a second try
+(`reports/wedge/a-count-secure.md`, findings "v51 on the platform").
 
 The Task C diagnostic (every C item surrendered at the first call)
 scored 47.33: fill 33.10, cog 55.48, stability 66.57, placement 40.25,
