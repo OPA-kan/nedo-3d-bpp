@@ -118,7 +118,7 @@ def summarise(path):
     rows = []
     for line in open(path):
         log = json.loads(line)
-        if log.get("replay_failed"):
+        if log.get("replay_failed") or log.get("substituted"):
             continue
         pool = log.get("pool") or []
         rec = log.get("record") or {}

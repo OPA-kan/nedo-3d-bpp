@@ -36,6 +36,8 @@ def walk(
     extra="deterministic_budgets=true",
     census=True,
     verbose=False,
+    subs=None,
+    probe_from=0,
 ):
     r = load_record(rec, scene)
     sc = scene_of(r["scene_spec"])
@@ -59,7 +61,7 @@ def walk(
             n_decl = 1 if r["steps"][-1].get("event") == "declined" else 0
             for t in range(min(last + 1, len(acts) + n_decl)):
                 pool = obs.get("pool_list") or []
-                if probe_steps is None or t in probe_steps:
+                if (probe_steps is None or t in probe_steps) and t >= probe_from:
                     t0 = time.perf_counter()
                     log = probe_decision(agent, obs, census=census)
                     log["step"] = t
@@ -94,7 +96,20 @@ def walk(
                     agent.pocket.observe(pool, len(obs.get("container_list") or []))
                 if t >= len(acts):
                     break
-                obs, _rw, term, trunc, info = env.step(acts[t])
+                action = acts[t]
+                if subs and t in subs:
+                    # the record's pose fails on this machine's board: the agent's own
+                    # (deterministic) pose for the record's item instead, so the walk
+                    # can go on along a record-like trajectory
+                    pi = int(acts[t]["item_idx"])
+                    one = dict(obs, pool_list=[obs["pool_list"][pi]])
+                    a = agent.policy(one)
+                    if a is None:
+                        out.append({"step": t, "replay_failed": True, "substitute": None})
+                        break
+                    action = dict(a, item_idx=pi)
+                    out.append({"step": t, "substituted": True, "rung": getattr(agent.last_decision.placement, "archetype", None)})
+                obs, _rw, term, trunc, info = env.step(action)
                 st = (info or {}).get("status", {})
                 if not (
                     st.get("is_included")
@@ -122,6 +137,8 @@ def walk(
 
 
 def digest(log):
+    if log.get("substituted"):
+        return f"step {log['step']}: record pose failed here; the agent's own pose ({log.get('rung')}) was played"
     if log.get("replay_failed"):
         return f"step {log['step']}: replay failed {log.get('status')}"
     rec = log.get("record") or {}
@@ -174,7 +191,20 @@ def main():
         for line in open(path):
             print(digest(json.loads(line)))
         return
-    logs = walk(rec, scene, steps)
+    if "--resume" in sys.argv:
+        prev = [json.loads(line) for line in open(path)]
+        subs = {l["step"] for l in prev if l.get("substituted")}
+        fail = next((l["step"] for l in prev if l.get("replay_failed")), None)
+        if fail is None or any(l.get("replay_failed") and l.get("substitute", 1) is None for l in prev):
+            print("nothing to resume")
+            return
+        subs.add(fail)
+        keep = [l for l in prev if not l.get("replay_failed") and not l.get("substituted")]
+        new = walk(rec, scene, steps, subs=subs, probe_from=fail)
+        logs = keep + new
+        logs.sort(key=lambda l: (l["step"], 0 if l.get("substituted") else 1))
+    else:
+        logs = walk(rec, scene, steps)
     with open(os.path.join(OUT, f"{scene}.{rec}.jsonl"), "w") as fh:
         for log in logs:
             fh.write(json.dumps(log, default=float) + "\n")
