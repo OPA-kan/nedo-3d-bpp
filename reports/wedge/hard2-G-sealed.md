@@ -79,6 +79,11 @@ from `final_items` as in the taxonomy (settled poses, container offset from
   `seal_check_all_surfaces` from the B terrace sealing steps raises 6 of 9
   boards (+1 to +5), costs b-s0009 4, and crosses none.
   `seal_ranks_terraces` alone barely moves anything.
+- **Soft deferral.** A pool order with soft in the hard bucket, from the
+  start, gives +1 to +9 on 7 of 9 B G scenes and crosses b-s0007 and
+  b-s0026.  `soft_first_when_free` does not (-4 to +2).
+- **Crossing-side control.** The same fill on 8 B crossings at margin 0 to
+  +2 broke none of the 5 it applied to (mean +0.8).
 - **Shade veto -> rescue stage (C).** 3 of 15 C sealing placements came
   through it, and 5 of 15 had the ladder's pose shade-vetoed.  At c-s0027
   t18 a shade-0.0 pose on the patch existed and would have crossed.
@@ -477,7 +482,29 @@ sweep; soft support up to 0.7 m allowed).
 - **Exception:** b-s0056's last soft box never had one.
 - **Interleaving from the start.** The whole episode was re-run with soft
   boxes interleaved: `soft_first_when_free`, and a pool order with soft in
-  the hard bucket (`soft_equal`).  PLACEHOLDER-SOFT
+  the hard bucket (`soft_equal`).  The results, on 9 B G scenes (whole episodes on the analytic board, record
+arm):
+
+  | scene (thr) | record | agent | soft_first_when_free | soft_equal |
+  |---|---:|---:|---:|---:|
+  | b-s0007 (21) | 20 | 17 | 18 | **21** |
+  | b-s0026 (16) | 14 | 13 | 15 | **18** |
+  | b-s0009 (53) | 52 | 54 | 54 | 57 |
+  | b-s0064 (30) | 26 | 25 | 25 | 29 |
+  | b-s0077 (21) | 20 | 17 | 17 | 20 |
+  | b-s0071 (61) | 46 | 38 | 34 | 47 |
+  | b-s0055 (30) | 20 | 22 | 22 | 23 |
+  | b-s0004 (22) | 17 | 17 | 17 | 17 |
+  | b-s0081 (62) | 57 | 50 | 50 | 50 |
+
+  - **`soft_equal`** (soft in the hard bucket) is never worse than the
+    analytic baseline.  It gains +1 to +9 on 7 of 9 scenes and crosses two
+    near misses (b-s0007, b-s0026) whose baselines miss.
+  - **`soft_first_when_free`** moves -4 to +2.
+  - These are whole-episode changes, measured only on G boards.  What they
+    cost on the B crossings is not measured.  The end boards of these runs
+    were not traced, so "would not end soft-only and sealed" is read only
+    through the count.
 
 ### Pricing the seal on every surface (cause 3)
 
@@ -618,7 +645,14 @@ patch, against the unchanged continuation at that step.
 - C has no crossing at margin 0 to +2 that ends sealed within that lead, so
   the control is B-only.
 
-PLACEHOLDER-OTHERS
+### The other 15 G episodes
+
+Branches at the largest patch's sealing step of the 15 G episodes that are
+not near misses (agent, `fill2`, `noseal2`, 2nd pose, ladder rank 2) were
+queued (`plan_others.json`) but only partly run.  Their baselines are in
+`tables.md`.  The seal-pricing branches cover 6 of them (b-s0030, s0055,
+s0056, s0073, s0075, s0081).  Whether filling generalises beyond the near
+misses is open.
 
 ## 5. Sealing in general
 

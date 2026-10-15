@@ -241,38 +241,52 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0009 | 29 | 23 | seal 0 | 53 | 52/52 |  | 53 |  | 53 |  | yes |
 | b-hard2-s0009 | 20 | 32 | seal 1 | 53 | 53/53 |  | 54 |  | 54 |  | yes |
 | b-hard2-s0009 | 14 | 38 |  | 53 |  |  |  |  | 49 |  |  |
+| b-hard2-s0009 | 0 | 52 |  | 53 | 54 |  |  |  |  |  | yes |
 | b-hard2-s0077 | 19 | 1 |  | 21 |  | 20 |  |  |  |  |  |
 | b-hard2-s0077 | 18 | 2 |  | 21 |  | 20 |  |  |  |  |  |
 | b-hard2-s0077 | 17 | 3 |  | 21 | 20/20 | 20 |  |  |  |  |  |
 | b-hard2-s0077 | 15 | 5 |  | 21 |  | 20 |  |  |  |  |  |
 | b-hard2-s0077 | 3 | 17 | seal 0 | 21 | 20/20 | 20/20/20/20 | 20 | 20 | 23 |  | yes |
 | b-hard2-s0077 | 1 | 19 |  | 21 | 20 | 20/20/20/20 |  | 19 | 23 |  | yes |
+| b-hard2-s0077 | 0 | 20 |  | 21 | 17 |  |  |  |  |  |  |
 | b-hard2-s0026 | 13 | 1 |  | 16 |  | 14 |  |  |  |  |  |
 | b-hard2-s0026 | 12 | 2 |  | 16 |  | 14 |  |  |  |  |  |
 | b-hard2-s0026 | 11 | 3 |  | 16 | 14/14 | 14 |  |  |  |  |  |
 | b-hard2-s0026 | 9 | 5 |  | 16 |  | 14 |  |  |  |  |  |
 | b-hard2-s0026 | 4 | 10 | seal 0 | 16 | 14/14 | 14/15/15/14 | 15 | 16 | 15 |  | yes |
 | b-hard2-s0026 | 2 | 12 |  | 16 | 14 | 14/14/17/14 |  | 15 | 20 |  | yes |
+| b-hard2-s0026 | 0 | 14 |  | 16 | 13 |  |  |  |  |  |  |
 | b-hard2-s0064 | 25 | 1 |  | 30 |  | 25 |  |  |  |  |  |
 | b-hard2-s0064 | 24 | 2 | seal 0 | 30 | 26/26 | 26/26/26/26 | 26 | 26 | 26 | 26 |  |
 | b-hard2-s0064 | 23 | 3 |  | 30 | 26/26 | 26 |  |  |  |  |  |
 | b-hard2-s0064 | 21 | 5 |  | 30 | 26 | 26/26/26/26 |  | 26 | 26 |  |  |
+| b-hard2-s0064 | 0 | 26 |  | 30 | 25 |  |  |  |  |  |  |
+| b-hard2-s0004 | 11 | 6 | seal 0 | 22 | 18 | 17/18 | 17 |  | 18 |  |  |
+| b-hard2-s0004 | 0 | 17 |  | 22 | 17 |  |  |  |  |  |  |
 | b-hard2-s0013 | 6 | 7 | seal 1 | 11 | 13 |  |  |  | 15 |  | yes |
 | b-hard2-s0015 | 10 | 7 | seal 0 | 15 | 17 |  |  |  | 16 |  | yes |
 | b-hard2-s0030 | 53 | 17 | seal 1 | 79 | 62 |  |  |  |  |  |  |
 | b-hard2-s0032 | 10 | 5 | seal 0 | 13 | 14 |  |  |  | 15 |  | yes |
 | b-hard2-s0051 | 7 | 19 | seal 0 | 24 | 24 |  |  |  | 25 |  | yes |
 | b-hard2-s0055 | 10 | 10 | seal 0 | 30 | 18 |  |  |  |  |  |  |
+| b-hard2-s0055 | 0 | 20 |  | 30 | 22 |  |  |  |  |  |  |
 | b-hard2-s0056 | 47 | 21 | seal 6 | 76 | 66 |  |  |  |  |  |  |
 | b-hard2-s0058 | 22 | 17 | seal 0 | 37 | 37 |  |  |  | 38 |  | yes |
 | b-hard2-s0059 | 35 | 13 | seal 0 | 48 | 43 |  |  |  | 45 |  |  |
+| b-hard2-s0071 | 0 | 46 |  | 61 | 38 |  |  |  |  |  |  |
 | b-hard2-s0073 | 78 | 13 | seal 1,2 | 105 | 86 |  |  |  |  |  |  |
 | b-hard2-s0075 | 58 | 33 | seal 1,2 | 109 | 78 |  |  |  |  |  |  |
 | b-hard2-s0076 | 14 | 10 | seal 1 | 22 | 21 |  |  |  | 21 |  |  |
-| b-hard2-s0081 | 45 | 12 | seal 4 | 62 | 46 |  |  |  |  |  |  |
+| b-hard2-s0081 | 45 | 12 | seal 4 | 62 | 46 |  | 50 |  | 50 |  |  |
 | b-hard2-s0081 | 36 | 21 | seal 2,3 | 62 | 44 |  |  |  |  |  |  |
+| b-hard2-s0081 | 0 | 57 |  | 62 | 50 |  |  |  |  |  |  |
 | b-hard2-s0087 | 42 | 5 | seal 3,4 | 45 | 48 |  |  |  | 48 |  | yes |
-| c-hard2-s0060 | 65 | 25 | seal 0 | 96 | 86 |  |  |  |  |  |  |
+| c-hard2-s0055 | 6 | 13 | seal 0 | 30 | 19 | 17/19 | 17 |  | 26 |  |  |
+| c-hard2-s0060 | 65 | 25 | seal 0 | 96 | 86 | 74/76 | 71 |  | 71 |  |  |
+| c-hard2-s0063 | 14 | 36 | seal 0 | 56 | 53 | 48/52 | 48 |  | 48 |  |  |
+| c-hard2-s0070 | 43 | 25 | seal 0 | 93 | 59 | 58/59 | 58 |  | 58 |  |  |
+| c-hard2-s0081 | 42 | 9 | seal 0 | 62 | 53 | 53/53 | 51 |  | 51 |  |  |
+| c-hard2-s0087 | 9 | 24 | seal 1 | 45 | 33 | 40/33 | 40 |  | 33 |  |  |
 
 ## Choosing among the pool (B): every pool item tried first
 
@@ -410,7 +424,15 @@ Every branch that reached the threshold on the record arm, and the unchanged con
 
 | scene | threshold | record | agent (analytic) | soft_first_when_free | soft_equal |
 |---|---|---|---|---|---|
+| b-hard2-s0004 | 22 | 17 | 17 | 17 | 17 |
 | b-hard2-s0007 | 21 | 20 | 17 | 18 | 21 |
+| b-hard2-s0009 | 53 | 52 | 54 | 54 | 57 |
+| b-hard2-s0026 | 16 | 14 | 13 | 15 | 18 |
+| b-hard2-s0055 | 30 | 20 | 22 | 22 | 23 |
+| b-hard2-s0064 | 30 | 26 | 25 | 25 | 29 |
+| b-hard2-s0071 | 61 | 46 | 38 | 34 | 47 |
+| b-hard2-s0077 | 21 | 20 | 17 | 17 | 20 |
+| b-hard2-s0081 | 62 | 57 | 50 | 50 | 50 |
 
 ## Counterfactual rollouts (near misses)
 
@@ -742,6 +764,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 1 | kth | 2 |  |  | terrace-extension [0.718, 0.394, 0.41] | None | None | 20 | -1 |  |
 | 1 | kth | 3 |  |  | terrace-extension [0.719, 0.394, 0.41] | None | None | 20 | -1 |  |
 | 1 | noseal2 |  | 0 | yes | terrace-extension [0.718, 0.394, 0.41] | 0 | False | 19 | -2 |  |
+| 0 | agent |  |  |  | max-footprint [0.643, 0.468, 0.17] | None | None | 17 | -4 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.668, 0.469, 0.97] | None | None | 17 | -4 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.718, 0.468, 1.02] | None | None | 20 | -1 |  |
 
 **b-hard2-s0026** (threshold 16, record placed 14)
 
@@ -799,6 +824,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 2 | kth | 2 |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | kth | 3 |  |  | shelf-space-saving [-0.076, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | noseal2 |  | 0 | yes | shelf-space-saving [-0.116, 0.528, 1.035] | 0 | False | 15 | -1 |  |
+| 0 | agent |  |  |  | max-footprint [0.548, 0.453, 0.17] | None | None | 13 | -3 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.673, 0.353, 0.935] | None | None | 15 | -1 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.524, 0.528, 0.96] | None | None | 18 | 2 |  |
 
 **b-hard2-s0064** (threshold 30, record placed 26)
 
@@ -838,6 +866,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 21 | kth | 2 |  |  | soft-edge [0.854, -0.465, 0.34] | None | None | 26 | -4 |  |
 | 21 | kth | 3 |  |  | soft-edge [0.854, -0.466, 0.34] | None | None | 26 | -4 |  sel-unused |
 | 21 | noseal2 |  | 0 | yes | soft-edge [0.854, -0.466, 0.34] | 0 | False | 26 | -4 |  |
+| 0 | agent |  |  |  | max-footprint [0.703, 0.498, 0.16] | None | None | 25 | -5 |  |
+| 0 | agent |  |  |  | max-footprint [0.703, 0.498, 0.16] | None | None | 25 | -5 |  |
+| 0 | agent |  |  |  | max-footprint [0.703, 0.498, 0.16] | None | None | 29 | -1 |  |
 
 **b-hard2-s0009** (threshold 53, record placed 52)
 
@@ -878,12 +909,19 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 20 | noseal2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 |  |
 | 20 | noseal2 |  | 1 |  | pocket-soft [0.222, 0.504, 0.899] | 0 | False | 52 | -1 |  |
 | 14 | fill2 |  | 0 |  | pocket-soft [0.248, 0.504, 0.899] | 0 | False | 49 | -4 | fell back |
+| 0 | agent |  |  |  | shelf-space-saving [-0.332, 0.639, 1.025] | None | None | 54 | 1 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.858, 0.514, 0.975] | None | None | 54 | 1 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.332, 0.639, 1.025] | None | None | 57 | 4 |  |
 
 **c-hard2-s0060** (threshold 96, record placed 90)
 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 65 | agent |  |  |  | terrace-extension [-0.164, -0.599, 1.16] | None | None | 86 | -10 |  |
+| 65 | alt | 2 |  |  | stack-rl [-0.217, -0.168, 1.415] | None | None | 74 | -22 |  |
+| 65 | fill2 |  | 0 |  | grid-rescue-cover [0.381, 0.501, 1.54] | 0 | True | 71 | -25 |  |
+| 65 | kth | 2 |  |  | stack-rl [-0.205, -0.18, 1.415] | None | None | 76 | -20 |  sel-unused |
+| 65 | noseal2 |  | 0 |  | count-mode [1.023, -0.335, 0.97] | 0 | False | 71 | -25 |  |
 
 **b-hard2-s0055** (threshold 30, record placed 20)
 
@@ -893,6 +931,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 10 | agent |  |  |  | terrace-extension [0.236, -0.356, 0.425] | None | None | 18 | -12 |  |
 | 10 | agent |  |  |  | stack-rl [0.015, -0.365, 0.425] | None | None | 22 | -8 |  |
 | 10 | agent |  |  |  | terrace-extension [0.236, -0.356, 0.425] | None | None | 18 | -12 |  |
+| 0 | agent |  |  |  | priority-edge [0.558, 0.273, 0.185] | None | None | 22 | -8 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.639, 0.398, 1.22] | None | None | 22 | -8 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.589, 0.448, 1.22] | None | None | 23 | -7 |  |
 
 **b-hard2-s0056** (threshold 76, record placed 68)
 
@@ -911,10 +952,15 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
 | 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
 | 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
+| 45 | fill2 |  | 4 |  | terrace-extension [0.854, 0.151, 0.895] | 0 | True | 50 | -12 |  |
+| 45 | noseal2 |  | 4 |  | terrace-extension [0.854, 0.151, 0.895] | 0 | True | 50 | -12 |  |
 | 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 49 | -13 |  |
 | 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 44 | -18 |  |
 | 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 49 | -13 |  |
 | 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 44 | -18 |  |
+| 0 | agent |  |  |  | max-footprint [0.52, 0.433, 0.16] | None | None | 50 | -12 |  |
+| 0 | agent |  |  |  | max-footprint [0.52, 0.433, 0.16] | None | None | 50 | -12 |  |
+| 0 | agent |  |  |  | max-footprint [0.52, 0.433, 0.16] | None | None | 50 | -12 |  |
 
 **b-hard2-s0030** (threshold 79, record placed 70)
 
@@ -998,4 +1044,75 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 |---|---|---|---|---|---|---|---|---|---|---|
 | 42 | agent |  |  |  | max-footprint [-0.356, -0.251, 0.795] | None | None | 48 | 3 |  |
 | 42 | fill2 |  | 3 |  | priority-edge [-0.356, -0.359, 0.795] | 24 | False | 48 | 3 | fell back |
+
+**b-hard2-s0004** (threshold 22, record placed 17)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 11 | agent |  |  |  | pocket-soft [-0.087, -0.431, 0.215] | None | None | 18 | -4 |  |
+| 11 | alt | 2 |  |  | stack-rl [-0.036, 0.474, 0.698] | None | None | 17 | -5 |  |
+| 11 | fill2 |  | 0 |  | pocket-soft [-0.087, -0.431, 0.215] | 212 | True | 18 | -4 |  |
+| 11 | kth | 2 |  |  | pocket-soft [-0.087, -0.431, 0.215] | None | None | 18 | -4 |  |
+| 11 | noseal2 |  | 0 |  | stack-rl [-0.036, 0.474, 0.698] | 0 | False | 17 | -5 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.704, 0.288, 1.05] | None | None | 17 | -5 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.678, 0.289, 1.025] | None | None | 17 | -5 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.704, 0.288, 1.05] | None | None | 17 | -5 |  |
+
+**b-hard2-s0071** (threshold 61, record placed 46)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | agent |  |  |  | max-footprint [0.528, 0.368, 0.165] | None | None | 38 | -23 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.629, 0.444, 1.095] | None | None | 34 | -27 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.629, 0.493, 1.145] | None | None | 47 | -14 |  |
+
+**c-hard2-s0063** (threshold 56, record placed 50)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 14 | agent |  |  |  | stack-rl [0.218, -0.121, 0.25] | None | None | 53 | -3 |  |
+| 14 | alt | 2 |  |  | pocket-soft [0.64, -0.231, 0.24] | None | None | 48 | -8 |  |
+| 14 | fill2 |  | 0 |  | pocket-soft [0.64, -0.231, 0.24] | 0 | False | 48 | -8 | fell back |
+| 14 | kth | 2 |  |  | stack-rl [0.218, -0.121, 0.25] | None | None | 52 | -4 |  |
+| 14 | noseal2 |  | 0 |  | pocket-soft [0.64, -0.231, 0.24] | 0 | False | 48 | -8 |  |
+
+**c-hard2-s0055** (threshold 30, record placed 19)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 6 | agent |  |  |  | soft-edge [0.638, -0.382, 0.25] | None | None | 19 | -11 |  |
+| 6 | alt | 2 |  |  | stack-rl [-0.15, -0.095, 0.25] | None | None | 17 | -13 |  |
+| 6 | fill2 |  | 0 |  | count-mode [0.478, 0.448, 0.57] | 0 | True | 26 | -4 |  |
+| 6 | kth | 2 |  |  | soft-edge [0.638, -0.378, 0.25] | None | None | 19 | -11 |  |
+| 6 | noseal2 |  | 0 |  | stack-rl [-0.15, -0.095, 0.25] | 0 | False | 17 | -13 |  |
+
+**c-hard2-s0081** (threshold 62, record placed 51)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 42 | agent |  |  |  | terrace-extension [0.228, -0.523, 0.24] | None | None | 53 | -9 |  |
+| 42 | alt | 2 |  |  | terrace-extension [0.228, -0.523, 0.24] | None | None | 53 | -9 |  |
+| 42 | fill2 |  | 0 |  | terrace-extension [0.804, 0.094, 0.9] | 0 | False | 51 | -11 | fell back |
+| 42 | kth | 2 |  |  | terrace-extension [0.228, -0.523, 0.24] | None | None | 53 | -9 |  |
+| 42 | noseal2 |  | 0 |  | terrace-extension [0.804, 0.094, 0.9] | 0 | False | 51 | -11 |  |
+
+**c-hard2-s0087** (threshold 45, record placed 33)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 9 | agent |  |  |  | wedge-step [-0.056, -0.325, 0.455] | None | None | 33 | -12 |  |
+| 9 | alt | 2 |  |  | stack-rl [-0.243, -0.337, 0.455] | None | None | 40 | -5 |  |
+| 9 | fill2 |  | 1 |  | wedge-step [-0.056, -0.325, 0.455] | 40 | False | 33 | -12 | fell back |
+| 9 | kth | 2 |  |  | wedge-step [-0.056, -0.325, 0.455] | None | None | 33 | -12 |  |
+| 9 | noseal2 |  | 1 |  | stack-rl [-0.243, -0.337, 0.455] | 0 | False | 40 | -5 |  |
+
+**c-hard2-s0070** (threshold 93, record placed 68)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 43 | agent |  |  |  | max-footprint [-0.092, -0.087, 0.115] | None | None | 59 | -34 |  |
+| 43 | alt | 2 |  |  | stack-rl [0.221, 0.669, 0.914] | None | None | 58 | -35 |  |
+| 43 | fill2 |  | 0 |  | stack-rl [0.221, 0.669, 0.914] | 0 | False | 58 | -35 | fell back |
+| 43 | kth | 2 |  |  | max-footprint [-0.092, -0.085, 0.115] | None | None | 59 | -34 |  |
+| 43 | noseal2 |  | 0 |  | stack-rl [0.221, 0.669, 0.914] | 0 | False | 58 | -35 |  |
 
