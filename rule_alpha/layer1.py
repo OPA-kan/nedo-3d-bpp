@@ -2788,7 +2788,8 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
     built = _build_layer2(
         board, profile, container_idx, orientation, proposals, config
     )
-    if float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0:
+    if (float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0
+            and not getattr(config, "bridge_slide_rescue", False)):
         built.extend(_bridge_slide_candidates(
             board, profile, container_idx, orientation, tops, built, config
         ))
@@ -4547,6 +4548,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     )
                 )
             if (float(getattr(config, "bridge_slide", 0.0) or 0.0) > 0.0
+                    and not getattr(config, "bridge_slide_rescue", False)
                     and profile.cargo_class == cls.NORMAL_HARD):
                 # the sliding bridges over the poses past the Layer 2 set
                 # (config.bridge_slide_orientations): the bridge on the
@@ -4794,6 +4796,65 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
         best = decision
         break
     return best if best is not None else late
+
+
+def choose_sliding_bridge(board: Board, profile: cls.ItemProfile,
+                          config) -> Decision | None:
+    """A sliding bridge alone (``config.bridge_slide_rescue``): the agent's
+    last stage before a decline, after the ladder, the stack option and the
+    rescues found nothing.
+
+    The candidates are ``_bridge_slide_candidates`` over the first
+    ``bridge_slide_orientations`` poses in Layer 2 order, container by
+    container in routing order, through the cover rule and the vetoes; only a
+    candidate no veto touched is taken (with nothing but bridges in the pool a
+    veto's fallback would otherwise wave every one through), the best by the
+    plateau-merge key."""
+    if (profile.cargo_class != cls.NORMAL_HARD or not config.layer2_enabled
+            or float(getattr(config, "bridge_slide", 0.0) or 0.0) <= 0.0):
+        return None
+    count = max(config.max_orientations_layer2,
+                int(getattr(config, "bridge_slide_orientations", 0) or 0))
+    orientations = cls.layer2_orientation_order(profile, config)[:count]
+    for container_idx in routing_order(profile, board, config):
+        model = board.model(container_idx)
+        container = board.container(container_idx)
+        tops = l2.hard_tops(container, model, config)
+        if not tops:
+            continue
+        pool: list[Candidate] = []
+        for orientation in orientations:
+            pool.extend(_bridge_slide_candidates(
+                board, profile, container_idx, orientation, tops, [], config
+            ))
+        if pool and getattr(config, "no_cover_other_attribute", False):
+            shelves = model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None
+            pool = [c for c in pool
+                    if not _covers_other_attribute(c.box, container, profile.is_soft,
+                                                   profile.is_prioritized, shelves=shelves)]
+        if not pool:
+            continue
+        for candidate in pool:
+            compute_features(candidate, board, config, with_grid=True)
+            candidate.archetypes = {A_BRIDGE_SLIDE}
+        survivors, veto_counts = apply_vetoes(pool, board, container_idx, config)
+        survivors = [c for c in survivors if not c.vetoes]
+        if not survivors:
+            continue
+        chosen = rung_order(A_BRIDGE_SLIDE, survivors, config)[0]
+        placement = build_placement(
+            chosen, A_BRIDGE_SLIDE, board, container_idx, profile, config
+        )
+        return Decision(
+            placement=placement,
+            candidate_counts={A_BRIDGE_SLIDE: len(survivors)},
+            veto_counts=veto_counts,
+            considered=len(pool),
+            ladder=[A_BRIDGE_SLIDE],
+            survivors=list(survivors),
+            chosen=chosen,
+        )
+    return None
 
 
 GROWTH_ARCHETYPES = frozenset({A_TERRACE, A_BRIDGE, A_WEDGE_BRIDGE})
