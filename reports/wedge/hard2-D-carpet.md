@@ -409,6 +409,33 @@ reads −5 (baseline −5); soft:0 at k = 25 reads −53 (baseline −54). No re
 
 <!-- CONTROL -->
 
+### 3.3 Against the shipped-form records (`ship-hard2`, `ship-hard2-b`, CI)
+
+The shipped-form baseline records landed on `origin/claude/rl-packing-policy-ftogt3`
+during this work. Margins on the carpet scenes, shipped form against v50
+(`gate0-*`):
+
+| C scene | ship | v50 | | B scene | ship | v50 |
+|---|---:|---:|---|---|---:|---:|
+| s0004 | −2 | −2 | | s0036 | −3 | −4 |
+| s0006 | −1 | −1 | | s0006 | −10 | −9 |
+| s0036 | **0** | −1 | | s0069 | −14 | −10 |
+| s0053 | −3 | −7 | | s0005 | −20 | −15 |
+| s0069 | **+1** | −12 | | s0072 | −17 | −15 |
+| s0072 | −17 | −17 | | s0049 | −27 | −21 |
+| s0049 | −8 | −21 | | s0068 | −24 | −25 |
+| s0075 | −10 | −23 | | s0043 | −11 | −26 |
+| s0061 | −31 | −27 | | s0014 | **−1** | +4 |
+| s0068 | −38 | −38 | | | | |
+| s0009 / s0010 / s0014 / s0048 (v50 crossings) | +17 / +4 / +1 / +3 | +10 / +3 / +1 / +8 | | | | |
+
+- The shipped form crosses two v50 C carpets: s0036, a board on the line, and
+  s0069, −12 → +1, a one-run swing of 13 items.
+- It loses b-s0014.
+- c-s0004 and c-s0006, the two boards with confirmed single-move rescues, read
+  exactly as on v50. Their rescues are not absorbed by the shipped form.
+
+
 
 
 ## 4. Area or shape?
@@ -622,9 +649,7 @@ spread over 6 items).
 - **B coverage.** The probes stopped on b-s0068 and b-s0043 (census too slow).
   B replays break early (b-s0036 at step 35 of 79), so the B reason counts cover
   the first half of the B episodes.
-- **Shipped-form baseline records** (`ship-hard2`, `ship-hard2-b`) were not on
-  the branch yet. The shipped confirmations here are branch-against-baseline on
-  this machine only.
+- **Shipped-form baseline records** arrived late (§3.3). The shipped confirmations of §3.1 are branch-against-baseline on this machine.
 - Everything here is one deterministic run per branch on one local PyBullet
   build. With the noise of §0, a single +1 is not evidence. Only the c-s0004 pair
   (two k, two arms, against 12 identical baselines) and the c-s0006 k = 20/21 pair
