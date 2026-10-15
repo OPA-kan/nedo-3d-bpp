@@ -55,11 +55,12 @@ git (`/home/user/inv-D-scratch`).
     top): −1 → 0 and +2 on the record arm; 0 / −1 and +2 / 0 on the shipped arm.
   - c-s0006 is a coin-flip board: the agent's own continuations from neighbouring
     steps read −5 to +1.
+- **How far back.** None of the moves in the last 1-10 placements crosses c-s0004 (guard / ladder alternatives at k = 10-19 all read −1 or −2). It takes the first floor-bound soft box (17 placements before the end). On c-s0006 the crossing moves are 12-13 placements before the end. No branch at the end of either board (the hard run: hard boxes on soft tops by count mode) crosses where its baseline misses.
 - **c-s0004 is decided early, c-s0006 late.** Lifting the cap the same way on
   c-s0006 loses 3-4 items in 4 of 5 branches.
 - **Area or shape?**
   - On one ULD it is area: compacting the soft cells into one block still leaves
-    0 slots for a 0.65 × 0.45 on 6 of 7 boards.
+    0 slots for a 0.65 × 0.45 on 5 of 7 boards (and 2 on the other two).
   - On two or three ULDs the shape halves the slots: 2.4 real against 4.6 compacted.
   - A **realisable** compaction (back-first, flush, through the shadow check) does
     not deliver the bound: crossings 3 → 1 on 15 boards, −1.4 placed a board, no
@@ -404,7 +405,7 @@ packer fits in three cases:
 
 - **On the 1-ULD boards the carpet's cost is its area.** A 0.66-0.74 soft share
   of a 1.38 × 1.38 m floor leaves a 0.38 m strip even when compacted, narrower
-  than the 0.50 m the class needs. The bound is 0 slots on 6 of the 7. Only fewer
+  than the 0.50 m the class needs. The bound is 0 slots on 5 of the 7. Only fewer
   soft boxes on the floor helps there, not a better arrangement.
 - **On the multi-ULD boards the shape costs about half the slots**: 2.4 real
   against 4.6 compacted.
